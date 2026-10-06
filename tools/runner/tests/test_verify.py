@@ -349,7 +349,7 @@ class HistoryDetailTest(unittest.TestCase):
         reader.feed(f'{verify.MARK}{{"step": "enet", "rc": 0, "seconds": 1, "detail": [1]}}\n')
         self.assertEqual([s.detail for s in steps], [{"shards": []}, {}])
 
-    def test_only_the_test_step_has_a_detail(self) -> None:
+    def test_only_the_test_and_check_steps_have_a_detail(self) -> None:
         with (
             stub_steps(),
             mock.patch.object(verify.gdunit, "take_last_run", return_value={"shards": []}) as taken,
@@ -358,7 +358,9 @@ class HistoryDetailTest(unittest.TestCase):
             verify.lane_main("godot")
         marks = [json.loads(line[len(verify.MARK) :]) for line in out.getvalue().splitlines()
                  if line.startswith(verify.MARK)]  # fmt: skip
-        self.assertEqual([m["step"] for m in marks if "detail" in m], ["test"])
+        # `check` carries its `exit_crash` flag (#449), `test` its shards; no other step has a detail
+        self.assertEqual([m["step"] for m in marks if "detail" in m], ["check", "test"])
+        self.assertEqual(next(m for m in marks if m["step"] == "check")["detail"], {"exit_crash": False})
         taken.assert_called_once()
 
     def test_a_red_steps_first_failure_line(self) -> None:
@@ -445,7 +447,23 @@ class HistoryDetailTest(unittest.TestCase):
         with stub_steps():
             _rc, text, record = Verify(self).run(inline_lane)
         self.assertNotIn("crashed at exit", text)
-        self.assertFalse(any("exit_crash" in s for s in record["steps"]))  # type: ignore[union-attr]
+        # a check step always says whether it crashed (false here), so metrics counts only the records that could
+        self.assertEqual([s["name"] for s in record["steps"] if "exit_crash" in s], ["check"])  # type: ignore[union-attr]
+        self.assertIs(next(s for s in record["steps"] if s["name"] == "check")["exit_crash"], False)  # type: ignore[union-attr]
+
+    def test_a_check_that_crashed_at_exit_and_failed_for_another_reason_says_so_in_its_row(self) -> None:
+        # #449 review: the check can be red after its project check passed the crash (warnings policy, UID lint ...);
+        # the row must not suggest that the crash caused the failure.
+        def crashed_then_failed(*_args: object, **_kwargs: object) -> int:
+            verify.check._exit_crashes += 1
+            return 1
+
+        with stub_steps(), mock.patch.object(verify.check, "main", side_effect=crashed_then_failed):
+            _rc, text, record = Verify(self).run(inline_lane)
+        row = next(line for line in text[text.rindex("verify summary") :].splitlines() if " check " in line)
+        self.assertRegex(row, r"^  FAILED  check +[\d.]+s  \(Godot crashed at exit, #442; red for another reason\)$")
+        self.assertEqual(metrics.parse_verify(text)["steps"]["check"][0], "FAILED")  # type: ignore[index]
+        self.assertIs(next(s for s in record["steps"] if s["name"] == "check")["exit_crash"], True)  # type: ignore[union-attr]
 
     def test_a_red_step_without_any_output_has_no_failure_field(self) -> None:
         record = verify.step_record(verify.StepRun("game", "godot", "FAILED", 1.0, ""))

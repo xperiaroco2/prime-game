@@ -387,26 +387,27 @@ class MetricsTest(unittest.TestCase):
 
     def test_checks_that_passed_after_godot_crashed_at_exit_are_counted(self) -> None:
         # #449: the history record's `exit_crash` on the check step (#442's loud pass) gives the crash rate over the
-        # window's check steps; a run without a check step does not count, a record older than #449 counts as none.
+        # window's check steps; a run without a check step does not count, and neither does a record older than #449
+        # (its check step has no `exit_crash`: it could not show a crash, so it must not lower the rate).
         path = self.root / "verify-history.jsonl"
 
-        def run(minute: int, *, crash: bool = False, check: bool = True) -> dict:
+        def run(minute: int, *, crash: bool | None = False, check: bool = True) -> dict:
             steps = [{"name": "lint", "status": "passed", "seconds": 20}]
             if check:
-                steps.append({"name": "check", "status": "passed", "seconds": 28.3, **({"exit_crash": True} if crash
-                                                                                       else {})})  # fmt: skip
+                steps.append({"name": "check", "status": "passed", "seconds": 28.3,
+                              **({} if crash is None else {"exit_crash": crash})})  # fmt: skip
             return {"start": f"2026-10-02T09:{minute:02d}:00Z", "worktree": "a", "seconds": 250, "steps": steps}
 
-        write_lines(path, [run(1, crash=True), run(2), run(3), run(4), run(5, check=False)])
+        write_lines(path, [run(1, crash=True), run(2), run(3), run(4), run(5, check=False), run(6, crash=None)])
         found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
-        self.assertEqual([v["exit_crashes"] for v in found], [["check"], [], [], [], []])
+        self.assertEqual([v["exit_crashes"] for v in found], [["check"], [], [], [], [], []])
         md, record, _compact = self.build(history=found)
-        self.assertIn("Godot crashed at exit after a clean project check (#442; history file): 1 of 4 check steps "
-                      "(25.0%).", md)  # fmt: skip
+        self.assertIn("Godot crashed at exit after a clean project check (#442; history file, check steps recorded "
+                      "since #449): 1 of 4 (25.0%).", md)  # fmt: skip
         self.assertEqual(record["verifies"]["history file"][0]["exit_crashes"], ["check"])
-        write_lines(path, [run(1, check=False)])
+        write_lines(path, [run(1, check=False), run(2, crash=None)])
         md, _record, _compact = self.build(history=metrics.read_history([path], None, metrics.parse_time(UNTIL)))
-        self.assertFalse(any("crashed at exit" in line for line in md), "no check step: no rate to give")
+        self.assertFalse(any("crashed at exit" in line for line in md), "no check step with the field: no rate to give")
 
     def test_a_summary_row_with_a_note_is_still_read(self) -> None:
         # verify's summary names a check that passed after Godot crashed at exit after its seconds (#449).

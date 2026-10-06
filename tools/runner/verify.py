@@ -255,14 +255,16 @@ def lane_main(lane: str) -> int:
 def step_detail(name: str) -> dict[str, object] | None:
     """A step's own fields of the history record, taken in the lane process right after it ran: `test`'s GdUnit4
     processes and failing tests (gdunit.take_last_run, #273), any step's `not_started`, the process starts that
-    Windows refused while it ran (common.take_starts, #441), and `exit_crash` when its project check passed although
-    Godot crashed at exit (check.take_exit_crashes, #442, #449)."""
+    Windows refused while it ran (common.take_starts, #441), and the `check` step's `exit_crash`, whether its project
+    check passed although Godot crashed at exit (check.take_exit_crashes, #442, #449): written true or false on every
+    check step since #449, so a record without it is known to predate the field."""
     detail = dict(gdunit.take_last_run() or {}) if name == "test" else {}
     starts = take_starts()
     if starts:
         detail["not_started"] = starts
-    if check.take_exit_crashes():
-        detail["exit_crash"] = True
+    crashes = check.take_exit_crashes()  # taken after every step, so one step's crash is never the next one's
+    if name == "check":
+        detail["exit_crash"] = crashes > 0
     return detail or None
 
 
@@ -771,8 +773,13 @@ EXIT_CRASH_NOTE = "(Godot crashed at exit, #442)"
 
 
 def step_note(step: StepRun) -> str:
-    """What the summary prints after a step's seconds: '' for most steps."""
-    return f"  {EXIT_CRASH_NOTE}" if step.detail.get("exit_crash") else ""
+    """What the summary prints after a step's seconds: '' for most steps. A red check step whose project check passed
+    the crash failed for another reason (the warnings policy, the import, UID lint, credits), and its row says so."""
+    if not step.detail.get("exit_crash"):
+        return ""
+    if step.status != "passed":
+        return f"  {EXIT_CRASH_NOTE[:-1]}; red for another reason)"
+    return f"  {EXIT_CRASH_NOTE}"
 
 
 def not_started_line(steps: list[StepRun]) -> str:

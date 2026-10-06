@@ -34,9 +34,9 @@ summary carries the same wait in its last line. Since #273 a red step carries `f
 the `test` step `shards` (each GdUnit4 process's `rc` and `seconds`) and, when red, `failed_tests` ({`test`,
 `message` or `orphans`}): the verify section counts the red runs' failing tests, first failure lines and shard exits;
 an older record without them still counts as before. Since #449 a `check` step that passed although Godot crashed at
-exit (#442) carries `exit_crash: true` (a printed summary row notes it after its seconds): the verify section gives
-their share of the window's check steps. `--ci N` adds CI from `gh` (read-only): every run in the
-window and the job and `verify` step times of the last N green runs.
+exit (#442) carries `exit_crash: true` (a printed summary row notes it after its seconds), any other `check` step
+`exit_crash: false`: the verify section gives the share among the window's check steps that have the field.
+`--ci N` adds CI from `gh` (read-only): every run in the window and the job and `verify` step times of the last N green runs.
 
 Manager cache re-writes (#305): a session's own API call after an idle gap over 1 hour (REWRITE_GAP, the 1-hour prompt
 cache's lifetime) that wrote most of its context to the cache again. Each is put in one bucket by what held when the
@@ -1044,13 +1044,15 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                 items = [(s.get("name"), s) for s in raw or [] if isinstance(s, dict)]
             steps = {}
             red: dict[str, list] = {"failed_tests": [], "step_failures": [], "shard_exits": []}
-            exit_crashes = []
+            exit_crashes, exit_tracked = [], []
             for name, step in items:
                 if name and isinstance(step, dict):
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
-                    if step.get("exit_crash") is True:
-                        exit_crashes.append(str(name))
+                    if isinstance(step.get("exit_crash"), bool):  # a check step of a runner since #449 has it
+                        exit_tracked.append(str(name))
+                        if step["exit_crash"]:
+                            exit_crashes.append(str(name))
                     if not passed:
                         add_red_detail(red, str(name), step)
             if not steps:
@@ -1066,7 +1068,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             if key not in seen:
                 seen.add(key)
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
-                              "wait": wait, "over": over, "exit_crashes": exit_crashes, **red})  # fmt: skip
+                              "wait": wait, "over": over, "exit_crashes": exit_crashes,
+                              "exit_tracked": exit_tracked, **red})  # fmt: skip
     return found
 
 
@@ -1487,13 +1490,15 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
 
 def exit_crash_line(history: list[dict]) -> list[str]:
     """How many of the window's project checks passed although Godot crashed at exit (#442, #449: the history record's
-    `exit_crash`), so its rate (about 0.6% per check when #442 was found) is measured; nothing without check steps."""
-    checks = sum("check" in v["steps"] for v in history)
+    `exit_crash`), so its rate (about 0.6% per check when #442 was found) is measured. Only the check steps whose
+    record has the field count: an older record, or one of a worktree still on a runner from before #449, cannot show
+    a crash, and counting it would lower the rate. Nothing without such steps."""
+    checks = sum("check" in v.get("exit_tracked", []) for v in history)
     if not checks:
         return []
     crashes = sum("check" in v.get("exit_crashes", []) for v in history)
-    return [f"Godot crashed at exit after a clean project check (#442; history file): {crashes} of {checks} check "
-            f"steps ({100 * crashes / checks:.1f}%).", ""]  # fmt: skip
+    return [f"Godot crashed at exit after a clean project check (#442; history file, check steps recorded since #449): "
+            f"{crashes} of {checks} ({100 * crashes / checks:.1f}%).", ""]  # fmt: skip
 
 
 def review_section(counted: list[dict]) -> list[str]:
