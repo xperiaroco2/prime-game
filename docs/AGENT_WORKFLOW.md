@@ -155,7 +155,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   agent files of `code-reviewer` and `netcode-security-reviewer` say the same for a review launched by hand, and allow
   `section` as their one read-only runner command besides the netcode reviewer's `bots` (#433; `test_agent_files.py`).
   The implementer's default reading list names no area `CLAUDE.md` file and no rule: those load by path when it Reads a
-  file there, as it does before every Edit (a `cat` loads none).
+  file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
+  .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
+  table go with it.
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.

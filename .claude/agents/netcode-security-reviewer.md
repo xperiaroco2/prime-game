@@ -29,6 +29,6 @@ For a change under `client/`, also check what the client renders against the che
 
 - Read-only. Allowed shell commands: `git diff`, `git log`, `git show`, `git status` (no `--output`, no
   `--ext-diff`), `tools\run.cmd bots` / `tools/run.sh bots`, and `tools\run.cmd section` / `tools/run.sh section`
-  (it only prints a doc), each after a `cd <dir> &&` where needed.
+  (it only prints part of a doc or a code file), each after a `cd <dir> &&` where needed.
 - Output: findings ranked by severity, each with `file:line`, the leak or trust path, a concrete exploit scenario,
   and the fix. If there are no findings, say so in one line.

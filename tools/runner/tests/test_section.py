@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -181,6 +182,61 @@ class CommandTest(unittest.TestCase):
     def test_a_missing_section_or_doc_exits_1(self) -> None:
         self.assertEqual(self.run_cli("AGENT_WORKFLOW", "99")[0], 1)
         self.assertEqual(self.run_cli("NO_SUCH_DOC")[0], 1)
+
+
+class CodeCommandTest(unittest.TestCase):
+    """A .py, .gd or .js file goes to symbols.py (#468): its outline is its symbols, never its comments as headings."""
+
+    run_cli = CommandTest.run_cli
+
+    def test_a_python_comment_is_not_a_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "x.py"
+            path.write_text("# A comment\n\n\ndef f() -> None:\n    pass\n", encoding="utf-8")
+            rc, out = self.run_cli(str(path))
+        self.assertEqual(rc, 0)
+        self.assertIn("def f  [lines 4-5, ~", out)
+        self.assertNotIn("A comment  [lines", out)
+
+    def test_the_outline_and_a_symbol_of_a_real_file(self) -> None:
+        rc, out = self.run_cli("tools/runner/section.py")
+        self.assertEqual(rc, 0)
+        self.assertIn("\ndef outline  [lines ", out)
+        self.assertIn("\n  def label  [lines ", out)
+        rc, out = self.run_cli("tools/runner/section.py", "find")
+        self.assertEqual(rc, 0)
+        self.assertIn("\ndef find(", out)
+        self.assertNotIn("def extract(", out)
+        rc, out = self.run_cli("tools/runner/section.py", "Heading.label")
+        self.assertTrue(out.startswith("--- tools/runner/section.py:"), out)
+        self.assertIn(" def Heading.label\n", out)
+
+    def test_a_missing_symbol_or_a_section_number_on_code_exits_1(self) -> None:
+        self.assertEqual(self.run_cli("tools/runner/section.py", "no_such_symbol")[0], 1)
+        self.assertEqual(self.run_cli("tools/runner/section.py", "4.5")[0], 1)
+
+    def test_a_relative_path_is_the_one_under_the_current_folder(self) -> None:
+        # `cd <worktree> && tools/run.sh section <file>` must outline the worktree's copy, not the runner's.
+        here = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "tools" / "runner").mkdir(parents=True)
+            (Path(tmp) / "tools" / "runner" / "section.py").write_text("def only_here():\n    pass\n", encoding="utf-8")
+            os.chdir(tmp)
+            try:
+                rc, out = self.run_cli("tools/runner/section.py")
+            finally:
+                os.chdir(here)
+        self.assertEqual(rc, 0)
+        self.assertIn("def only_here  [lines 1-2", out)
+        self.assertNotIn("def outline", out)
+
+    def test_the_help_names_code_files_and_symbols(self) -> None:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as caught:
+            cli.main(["section", "--help"])
+        self.assertEqual(caught.exception.code, 0)
+        self.assertIn(".py, .gd or .js", out.getvalue())
+        self.assertIn("<symbol>", out.getvalue())
 
 
 if __name__ == "__main__":
