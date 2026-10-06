@@ -1714,6 +1714,7 @@ class DigestTest(unittest.TestCase):
                 "a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then)",
                 "A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.",
                 "the other owner's paths (.github/CODEOWNERS) also get `--reviewer <their handle>`",
+                "already finds a PR for the branch, update its body with `gh pr edit <pr> --body-file <file>` instead of creating a second one",
                 'or with "cannot confirm that the parent … was merged", push nothing by hand',
             ):
                 self.assertIn(text, steps)
