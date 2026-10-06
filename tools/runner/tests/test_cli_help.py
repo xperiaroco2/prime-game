@@ -162,6 +162,7 @@ OLD_ROWS = {
         "the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args",
         "--base B",
         "posts nothing",
+        "its last line is the handover verdict",
         "launch args as JSON",
     ],
     "worktree-done": ["remove a task's worktree", "merged", "pushed spike", "--pushed"],

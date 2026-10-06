@@ -163,6 +163,9 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   the four-track load (row 12). #307 proposed a one-stage trial after #332's A/B so the two effects stay apart; the
   A/B is done, and rotation acts on the managers while lean acts on workflow agents, so `metrics`' manager rows
   measure it alone. The risk is a handover that loses a detail; the wave comment's handover data carries the runs.
+  **Amended 2026-10-06** (#467; approved by the engineer:
+  [#467 comment 6014950287](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287)): the
+  handover may come mid-wave; the successor relaunches the runs in flight fresh from their commits.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

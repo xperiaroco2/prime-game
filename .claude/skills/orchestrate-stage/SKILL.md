@@ -82,12 +82,12 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
    build on, and the ARCHITECTURE sections and ADRs they name.
-2. **Find live runs of other sessions.** An earlier manager's workflows may still run: a handover starts while they
-   finish. Treat as owned by a live run, until the human says otherwise: an issue In progress with no PR, a worktree
-   with a commit in the last hour (`git -C <wt> log -1 --format=%cr`), a rebase in progress (`git -C <wt> status`),
-   and every run listed as running in the plan issue's latest wave comment. List them in your batched question and
-   never `start`, launch or rebase them before the answer: `start` on such an issue succeeds silently (it resumes the
-   branch and worktree as they are), and a second implementer then works beside the first.
+2. **Find live runs of other sessions.** An earlier manager's workflows may still run (a crash, or a handover that did
+   not stop them). Treat as owned by a live run, until the human says otherwise: an issue In progress with no PR, a
+   worktree with a commit in the last hour (`git -C <wt> log -1 --format=%cr`), a rebase in progress (`git -C <wt>
+   status`), and every run listed as running in the plan issue's latest wave comment. List them in your batched question
+   and never `start`, launch or rebase them before the answer: `start` on such an issue succeeds silently (it resumes
+   the branch and worktree as they are), and a second implementer then works beside the first.
 3. **The design gate.** Code tasks wait until the stage's design PR has the engineer's review. If the design task
    has no PR yet: when another session runs it, your first wave is empty (post a plan-issue comment saying you wait
    for it, and stop); otherwise the first wave is that design task alone (`design: true`). Offer fillers that do not
@@ -348,38 +348,39 @@ taken in a `main` that has them.
   is closed, and launch `issue-task` afresh with those args; the implementer finds earlier commits and uncommitted
   files through `git status`, the publisher an existing PR through `gh pr list`.
 - A plan limit: with `autoContinueAtUsageLimit` on, a workflow's agents wait for the reset and continue on their
-  own; otherwise they fail and you resume after the reset. While you wait (a limit, a long run, a merge), the
-  keep-alive below is your only timer: a longer wait re-arms it on each wake. A finished workflow wakes you anyway.
+  own; otherwise they fail and you resume after the reset. While you wait, the keep-alive below is your only timer.
 - **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
-  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000: the default background timeout
-  of 30 minutes would end it early). Arm it when you end a turn with a run of your own in flight, or when you stop
-  for the human (§6, §8) with your context over about 150k (any manager past its first wave) and no handover due.
-  At most one at a time: while one is armed (its task id and arm time in the state file), arm no other; it fires
-  before the cache your latest call refreshed expires. None after a handover or once the human ends the session.
-- **A wake is a cheap turn.** Re-read nothing but the state file's keep-alive lines (the session's start, the
-  timer, the wake count): not this skill, not the plan issue. Read at most one status line, and only for what can
-  change without waking you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json
-  number,mergedAt`); a finished run and a message from the human wake you anyway. Then re-arm and end the turn with
-  no message to the human and no PushNotification, unless that line needs them. Count the wakes in a row in the
-  state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
-  hand over if one is due, else stop.
-- **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
-  context makes each call about 3 times dearer (§9). A handover is due only at a wave boundary (its runs ended, its
-  PRs merged or waiting for the human, its comment posted; never mid-wave, the engineer on #329), with work left, and
-  the session over 12 hours old or its context over 300k tokens (N6, budget.md; both in `wave`'s footer). Post one
-  plan-issue comment, `wave --since <session start> --title "Handover to a fresh manager session" --notes <file>`
-  (#278; before it, your notes above its body): the order from here, the open questions, every `human_steps` command
-  still due, the stage's start and `wave`'s handover data (since the session start: every failed run not relaunched,
-  not only this wave's). Your "For you:" is the human's single step: paste the §10 kickoff with its "Continue from"
-  and `Track:` lines into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch
-  nothing more. The successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is
-  no live run) and the stage's yes as given: it restates the order and goes on at once (§1's wait does not apply).
-- **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
-  (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
-  wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
-  big warm context). (3) No run in flight, no handover due, the context over about 150k: arm the timer. (4)
-  Otherwise arm nothing. A session that passes 12 hours while it waits hands over on its next wake.
+  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order says, one at a time (its task id and arm time in the
+  state file); it fires before the cache your latest call refreshed expires.
+- **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
+  this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking
+  you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json number,mergedAt`). Then follow the turn-end
+  order, silent unless you hand over or that line needs the human. After 14 wakes in a row
+  (about 12 hours; a human message resets the count) arm no more.
+- **The turn-end check**, at each turn end, wake and launch: `tools\run.cmd wave --since <session start>
+  --no-merge-check --out <scratchpad>\manager\turn-end.md` (about 10 s; never the default `--out`). Its last line:
+  `handover due: <why>` or `handover not due` with clauses. Due: the context over 300k or the session over 12 hours old,
+  even mid-wave; or, once your runs end, a merge into `main` since your start that changed root
+  `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (agents get your cached copy); until then it says "launch
+  nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
+  over once it is pulled.
+- **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
+  waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
+  the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
+  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k) and
+  work is left, else arm nothing. (4) Otherwise arm nothing.
+- **A handover** (#467): (a) TaskStop each run the verdict names (a publish, rebase or fix agent at
+  work: after it, the timer armed), until the check shows none in flight. (b) One plan-issue comment, `wave --since
+  <session start> --title "Handover to a fresh manager session" --notes <file>`: the order from here, open questions,
+  `human_steps` still due, the stage's start, the runs you stopped (relaunch fresh) and the handover data. (c) "For
+  you:": close this session, paste the §10 kickoff with "Continue from" and `Track:` into a new session in
+  `D:\prime-game`. Then a PushNotification; stop, no timer, launch nothing more. The successor takes that comment as
+  §2.2's answer, relaunches the stopped runs fresh and takes the stage's yes as given: it restates the order and goes
+  on (§1's wait does not apply).
+- **Keep your context small**: planning reads, ADR, doc and issue-body drafts, metrics tables and audits go to a
+  subagent (Agent tool, Sonnet) that returns at most about 2k characters with links and numbers, or a scratchpad file
+  you pass to `gh --body-file` unread. Write no large file yourself.
 - "продовжуй" after any break: re-read the live state first (`gh pr list`, the plan issue's latest comments, each
   running run), then the state file, then continue.
 
@@ -490,8 +491,9 @@ Start from: <my review of the design PR #<pr> and its handoff on #<design issue>
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
 order.>
 
-<After a handover (§7): Continue from the handover comment <link>; the previous manager session launches nothing
-more, and my yes to the stage's restatement stands: restate the order from there and go on.>
+<After a handover (§7): Continue from the handover comment <link>; the previous session stopped its runs (relaunch
+them fresh) and launches nothing more, and my yes to the stage's restatement stands: restate the order from there
+and go on.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
@@ -504,7 +506,7 @@ Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; 
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
-each workflow.
+each workflow. Hand over at §7's turn-end verdict, even mid-wave.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness

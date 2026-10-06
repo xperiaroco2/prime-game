@@ -467,8 +467,8 @@ def build_parser() -> argparse.ArgumentParser:
         "posts nothing)",
         description="A manager's finished and running runs and handover args, from its transcript and the journals: "
         "--since T writes the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; "
-        "--base B: whose merges, open PRs and merge-check; it posts nothing); --args N prints issue N's latest "
-        "launch args as JSON.",
+        "--base B: whose merges, open PRs and merge-check; it posts nothing; its last line is the handover verdict, "
+        "'handover due: <why>' or 'handover not due'); --args N prints issue N's latest launch args as JSON.",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
