@@ -1392,8 +1392,11 @@ def _win32_filter(text: str) -> str | None:
 
 def _scratchpad_holder(parts: list[str]) -> bool:
     """A path in the temp folder, as its parts, is or may match (as a glob) a Claude scratchpad root
-    (`claude/<project>/<session>/scratchpad`) or a folder that holds one (issue #464)."""
-    if len(parts) > len(SCRATCHPAD_PARTS):
+    (`claude/<project>/<session>/scratchpad`) or a folder that holds one (issue #464). A deeper pattern counts
+    when a wildcard in its project or session part reaches into other sessions' scratchpads
+    (`claude/*/*/scratchpad/*`); one inside a named session's scratchpad does not."""
+    deep = len(parts) > len(SCRATCHPAD_PARTS)
+    if deep and not any(GLOB_RE.search(part) for part in parts[1:3]):
         return False
     return all(
         fnmatch.fnmatchcase(name, part.lower()) or fnmatch.fnmatchcase(part.lower(), name)

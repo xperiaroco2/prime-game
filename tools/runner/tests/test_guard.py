@@ -1340,7 +1340,7 @@ TEMP_FILTERED_PASS = [
     (B, 'rm -rf "$TEMP"/rmtree-? /tmp/rmtree-b'),
     (B, 'rm -rf "${TMPDIR}"/rmtree-*a'),
     (B, 'rm -rf "$TEMP"/nothing-*'),
-    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratchpad/a464*'),
+    (B, 'rm -rf "$TEMP"/claude/d--prime-game/s1/scratchpad/a464*'),
     (B, 'rm -rf "$TEMP"/claude/d--prime-game/s1/tasks*'),
 ]
 
@@ -1353,6 +1353,9 @@ TEMP_FILTERED_ASK = [
     (B, "rm -rf /tmp/*/d--prime-game"),
     (B, 'rm -rf "$TEMP"/claude/*/*'),
     (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratch*'),
+    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratchpad/a464*'),
+    (B, 'rm -rf "$TEMP"/claude/*/*/scratchpad/*'),
+    (B, 'rm -rf "$TEMP"/claude/*/s1/scratchpad/x/y*'),
     (B, 'rm -rf "$TEMP"/rmtree-*'),
     (B, 'rm -rf "$TEMP"/rmtree-w?'),
     (B, 'rm -rf "$TEMP"/l*'),
