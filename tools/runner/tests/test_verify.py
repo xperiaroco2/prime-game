@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, common, slots, verify
+from runner import cli, common, metrics, slots, verify
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
@@ -38,6 +38,7 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
 
     stack = contextlib.ExitStack()
     stack.enter_context(mock.patch.object(verify.gdunit, "LAST_RUN", None))  # no earlier test run's record
+    stack.enter_context(mock.patch.object(verify.check, "_exit_crashes", 0))  # nor an earlier check's crash count
     for target, attribute, name in (
         (verify.doctor, "main", "doctor"),
         (verify.lint, "main", "lint"),
@@ -420,6 +421,31 @@ class HistoryDetailTest(unittest.TestCase):
             _rc, text, record = Verify(self).run(inline_lane)
         self.assertNotIn("NOT STARTED", text)
         self.assertFalse(any("not_started" in s for s in record["steps"]))  # type: ignore[union-attr]
+
+    def test_a_check_that_passed_after_godot_crashed_at_exit_is_named_in_its_record_and_summary_row(self) -> None:
+        # #449: the project check passes Godot's access violation at exit after a clean run (#442). The lane takes the
+        # count into the check step's record, and the summary row (what publish's verify tail carries) names it.
+        def crashed(*_args: object, **_kwargs: object) -> int:
+            verify.check._exit_crashes += 1  # what project_check counts when it passes such a run
+            return 0
+
+        with stub_steps(), mock.patch.object(verify.check, "main", side_effect=crashed):
+            rc, text, record = Verify(self).run(inline_lane)
+        self.assertEqual(rc, 0)
+        steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
+        self.assertIs(steps["check"]["exit_crash"], True)
+        self.assertEqual([name for name, step in steps.items() if "exit_crash" in step], ["check"])
+        row = next(line for line in text[text.rindex("verify summary") :].splitlines() if " check " in line)
+        self.assertRegex(row, r"^  passed  check +[\d.]+s  \(Godot crashed at exit, #442\)$")
+        self.assertEqual(len(summary_rows(text)), len(verify.STEP_ORDER))
+        parsed = metrics.parse_verify(text)  # metrics still reads every row of the summary, the noted one included
+        self.assertEqual(set(parsed["steps"]), set(verify.STEP_ORDER))  # type: ignore[index]
+        self.assertEqual(parsed["steps"]["check"][0], "passed")  # type: ignore[index]
+        self.assertEqual(parsed["exit_crashes"], ["check"])  # type: ignore[index]
+        with stub_steps():
+            _rc, text, record = Verify(self).run(inline_lane)
+        self.assertNotIn("crashed at exit", text)
+        self.assertFalse(any("exit_crash" in s for s in record["steps"]))  # type: ignore[union-attr]
 
     def test_a_red_step_without_any_output_has_no_failure_field(self) -> None:
         record = verify.step_record(verify.StepRun("game", "godot", "FAILED", 1.0, ""))

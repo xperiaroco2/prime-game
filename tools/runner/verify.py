@@ -254,12 +254,15 @@ def lane_main(lane: str) -> int:
 
 def step_detail(name: str) -> dict[str, object] | None:
     """A step's own fields of the history record, taken in the lane process right after it ran: `test`'s GdUnit4
-    processes and failing tests (gdunit.take_last_run, #273), and any step's `not_started`, the process starts that
-    Windows refused while it ran (common.take_starts, #441)."""
+    processes and failing tests (gdunit.take_last_run, #273), any step's `not_started`, the process starts that
+    Windows refused while it ran (common.take_starts, #441), and `exit_crash` when its project check passed although
+    Godot crashed at exit (check.take_exit_crashes, #442, #449)."""
     detail = dict(gdunit.take_last_run() or {}) if name == "test" else {}
     starts = take_starts()
     if starts:
         detail["not_started"] = starts
+    if check.take_exit_crashes():
+        detail["exit_crash"] = True
     return detail or None
 
 
@@ -761,6 +764,17 @@ def step_record(step: StepRun) -> dict[str, object]:
     return record
 
 
+# The summary row's note on a step whose project check passed although Godot crashed at exit (#442): the summary is
+# what publish's verify tail and the PR bodies carry, so the crash is seen there (#449). The row keeps its
+# `<status> <name> <seconds>s` start, which metrics.STEP_LINE reads.
+EXIT_CRASH_NOTE = "(Godot crashed at exit, #442)"
+
+
+def step_note(step: StepRun) -> str:
+    """What the summary prints after a step's seconds: '' for most steps."""
+    return f"  {EXIT_CRASH_NOTE}" if step.detail.get("exit_crash") else ""
+
+
 def not_started_line(steps: list[StepRun]) -> str:
     """The summary's line on the process starts Windows refused (#441), '' when there were none: how many, in which
     steps, how many restarts ran, and what a red step that names them means."""
@@ -845,7 +859,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     ordered = [runs[name] for name in STEP_ORDER if name in runs] + extra
     say("verify summary")
     for step in ordered:
-        say(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s")
+        say(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s{step_note(step)}")
     if walls:
         say("  lanes: " + ", ".join(f"{lane} {seconds:.1f}s" for lane, seconds in walls.items())
             + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip

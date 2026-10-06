@@ -34,6 +34,9 @@ NORMAL_EXIT = (0, 1)
 ACCESS_VIOLATION = (0xC0000005, -11)
 EXIT_CRASH_LOG = "check-exit-crash"
 SUMMARY_ERRORS = re.compile(r"\berrors=(\d+)\b")
+# How many such crashes project_check passed in this process since take_exit_crashes last read them (#449): verify's
+# lane takes them into the step's history record (`exit_crash`), and its summary names them.
+_exit_crashes = 0
 
 
 def section_values(text: str, section: str) -> dict[str, str]:
@@ -320,6 +323,14 @@ def crashed_after_clean_run(res: Result) -> str | None:
     return checks[-1]
 
 
+def take_exit_crashes() -> int:
+    """How many access violations at exit after a clean run project_check passed in this process since the last
+    call (#449); the count starts again from zero."""
+    global _exit_crashes
+    count, _exit_crashes = _exit_crashes, 0
+    return count
+
+
 def exit_text(rc: int) -> str:
     """`exit 3221225477, 0xC0000005` for a Windows status, `signal 11` for a POSIX signal."""
     return f"signal {-rc}" if rc < 0 else f"exit {rc}, 0x{rc:08X}"
@@ -351,6 +362,8 @@ def project_check(files: list[str] | None = None) -> bool:
         elif line.startswith("CHECK error "):
             bad(line.removeprefix("CHECK error "))
     if exit_crash is not None:
+        global _exit_crashes
+        _exit_crashes += 1
         ensure_out()
         (common.LOGS / f"{EXIT_CRASH_LOG}.log").write_text(res.out, encoding="utf-8")
         warn(
