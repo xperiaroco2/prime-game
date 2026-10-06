@@ -32,3 +32,4 @@
 - This entry.
 - `tools/runner/guard.py` (`git_rebase`, `git_sequence_editor`, the module docstring) and its selftests.
 - `docs/AGENT_WORKFLOW.md` §8.2.
+- Superseded by `2026-10-06-engineer-git-free-in-own-worktree.md` (#457): every editor setting passes there now.
