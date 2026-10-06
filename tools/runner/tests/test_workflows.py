@@ -347,6 +347,8 @@ class WorkflowTest(unittest.TestCase):
             f"To reword one: `{' '.join(REWORD_COMMIT)} <file>` with the file's first line `amend! <that commit's subject>`",
             "then the same rebase",
             "or leave the message as it is",
+            "The last commit alone: `git commit --amend --no-edit` or `--amend -F <file>`, never a bare `--amend`",
+            "which opens the editor",
             "another sequence editor (a script, `sed`, `-c sequence.editor=...`)",
             "an interactive rebase without `GIT_SEQUENCE_EDITOR=:`",
             "`--fixup=reword:` or `--fixup=amend:` (both open the message editor)",
@@ -1586,6 +1588,16 @@ class RebaseRuleTest(unittest.TestCase):
         self.assertEqual(self.git("show", "HEAD:f.txt").splitlines(), ["a", "b", "c", "d"])
         self.assertEqual(self.git("status", "--porcelain"), "")
         self.assertNotEqual(self.git("rev-parse", "HEAD~1"), typo)
+
+    def test_amending_the_last_commit_needs_an_editor_only_when_bare(self) -> None:
+        # The rule's clause for the last commit: --no-edit and -F need no editor, a bare --amend opens it.
+        message = self.tmp / "msg.txt"
+        message.write_bytes(b"feat: three, reworded\n")
+        self.assertNotEqual(self.run_git("commit", "--amend").returncode, 0)
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "feat: three")
+        self.git("commit", "-q", "--amend", "--allow-empty", "--no-edit")
+        self.git("commit", "-q", "--amend", "--allow-empty", "-F", str(message))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "feat: three, reworded")
 
     def test_the_reword_commands_the_rule_rules_out_open_the_editor(self) -> None:
         typo = self.git("rev-parse", "HEAD~1")
