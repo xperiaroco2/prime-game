@@ -33,7 +33,9 @@ for a machine-wide verify slot, `over` when none was free within the longest wai
 summary carries the same wait in its last line. Since #273 a red step carries `failure` (its first failure line), and
 the `test` step `shards` (each GdUnit4 process's `rc` and `seconds`) and, when red, `failed_tests` ({`test`,
 `message` or `orphans`}): the verify section counts the red runs' failing tests, first failure lines and shard exits;
-an older record without them still counts as before. `--ci N` adds CI from `gh` (read-only): every run in the
+an older record without them still counts as before. Since #449 a `check` step that passed although Godot crashed at
+exit (#442) carries `exit_crash: true` (a printed summary row notes it after its seconds): the verify section gives
+their share of the window's check steps. `--ci N` adds CI from `gh` (read-only): every run in the
 window and the job and `verify` step times of the last N green runs.
 
 Manager cache re-writes (#305): a session's own API call after an idle gap over 1 hour (REWRITE_GAP, the 1-hour prompt
@@ -185,7 +187,9 @@ CMD_KINDS = [
     ("gh", re.compile(r"\bgh\s")),
     ("git", re.compile(r"\bgit\s")),
 ]
-STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s\s*$")
+# A summary row, with verify's note after the seconds when it has one: "(Godot crashed at exit, #442)" (#449).
+STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s(?:\s+\((.*)\))?\s*$")
+EXIT_CRASH_NOTE = "crashed at exit"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
@@ -442,17 +446,21 @@ def union_seconds(intervals: list[tuple[float, float]]) -> float:
 
 
 def parse_verify(text: str) -> dict | None:
-    """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over}; wait is
-    the seconds it waited for a verify slot (None: a run without slots), over whether it ran without one."""
+    """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over,
+    exit_crashes}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether it ran
+    without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449)."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
+    exit_crashes: list[str] = []
     total_s, status, wait, over = None, None, None, False
     for line in text[i:].splitlines()[1:]:
         m = STEP_LINE.match(line)
         if m:
             steps[m.group(2)] = (m.group(1), float(m.group(3)))
+            if EXIT_CRASH_NOTE in (m.group(4) or ""):
+                exit_crashes.append(m.group(2))
             continue
         m = VERIFY_END.search(line)
         if m:
@@ -463,7 +471,7 @@ def parse_verify(text: str) -> dict | None:
             break
     if not steps:
         return None
-    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over}
+    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes}
 
 
 def timer_seconds(block: object) -> float | None:
@@ -1036,10 +1044,13 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                 items = [(s.get("name"), s) for s in raw or [] if isinstance(s, dict)]
             steps = {}
             red: dict[str, list] = {"failed_tests": [], "step_failures": [], "shard_exits": []}
+            exit_crashes = []
             for name, step in items:
                 if name and isinstance(step, dict):
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
+                    if step.get("exit_crash") is True:
+                        exit_crashes.append(str(name))
                     if not passed:
                         add_red_detail(red, str(name), step)
             if not steps:
@@ -1055,7 +1066,7 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             if key not in seen:
                 seen.add(key)
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
-                              "wait": wait, "over": over, **red})  # fmt: skip
+                              "wait": wait, "over": over, "exit_crashes": exit_crashes, **red})  # fmt: skip
     return found
 
 
@@ -1470,7 +1481,19 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
     if fails:
         md += ["Red steps: " + ", ".join(f"{k} {v}" for k, v in fails.most_common()) + ".", ""]
     md += red_detail_section(by_row.get("history file", []))
+    md += exit_crash_line(by_row.get("history file", []))
     return md
+
+
+def exit_crash_line(history: list[dict]) -> list[str]:
+    """How many of the window's project checks passed although Godot crashed at exit (#442, #449: the history record's
+    `exit_crash`), so its rate (about 0.6% per check when #442 was found) is measured; nothing without check steps."""
+    checks = sum("check" in v["steps"] for v in history)
+    if not checks:
+        return []
+    crashes = sum("check" in v.get("exit_crashes", []) for v in history)
+    return [f"Godot crashed at exit after a clean project check (#442; history file): {crashes} of {checks} check "
+            f"steps ({100 * crashes / checks:.1f}%).", ""]  # fmt: skip
 
 
 def review_section(counted: list[dict]) -> list[str]:
