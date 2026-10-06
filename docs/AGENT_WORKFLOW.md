@@ -1086,34 +1086,41 @@ E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]
 on 127.0.0.1 once it hosts. `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a
 placeholder ("not a decision"). Each process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order),
 so each window keeps its own settings file (`user://settings.cfg`, `settings_2.cfg`, ...; the M5 ADR §1.7).
-- **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
-  command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
-  below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
-  screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
-  host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
-  into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
-- **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
-  mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
-  the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
-  budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
-  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
-  answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
-  host, or a host that cannot start or ends for an error.
-- **An agent's shell** (`CLAUDECODE` is set) gets `--headless` by default, so an unattended run never opens a window
-  on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
-  windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
-- The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
-  player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
-  Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
-  polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
-  killed (the report names its last line and when it came; one that stopped says how long it took). Each process
-  also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
-  leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
-  checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
-  `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
-  is fine. Its selftest runs a headless host and two local clients to the full lobby
-  roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
-  scene headless through its command line (§11.16 CI).
+
+The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
+player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
+Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
+polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
+killed (the report names its last line and when it came; one that stopped says how long it took). Each process
+also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
+leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
+checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
+`tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
+is fine. Its selftest runs a headless host and two local clients to the full lobby
+roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
+scene headless through its command line (§11.16 CI).
+
+#### 11.8.1 Windows (the default for a human)
+Each process is the game, `client/app/game.tscn`, started with the
+command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
+above), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
+screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
+host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
+into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
+
+#### 11.8.2 `--headless`
+M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
+mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
+the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
+budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
+once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
+answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
+host, or a host that cannot start or ends for an error.
+
+#### 11.8.3 An agent's shell (`CLAUDECODE` is set)
+Gets `--headless` by default, so an unattended run never opens a window
+on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
+windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
 
 ### 11.9 `bots [scenario ...]` [applied] (#102; `docs/ARCHITECTURE.md` §4.6, §9.7)
 Plays every bot scenario in
