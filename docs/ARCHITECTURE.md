@@ -259,7 +259,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   host (peer 1). The host's own client is peer 1 too. `connect_failed`'s reason is one of `NetTransport`'s `JOIN_`
   ids, as precise as the backend can tell (M6-4, #370): ENet and the loopback cannot tell a refusal from no answer
   and give `connect_failed`; WebRTC adds `no_room`, `joins_closed`, `full` (the service's answers),
-  `service_unreachable`, `service_refused` and `host_unreachable` (no direct path, or no answer in 15 s).
+  `service_unreachable` (its socket closed, or not open after the Signaller's 5 s connect timeout, §4.8),
+  `service_refused` and `host_unreachable` (no direct path, or no answer in 15 s).
   `ClientSession` ends with it, and `EndReasons` (`client/app/`) says each in words.
 - **`disconnect_peer(p)`** carries out `core/`'s `DisconnectPeer` (§3): p leaves `peers()` and `send` at once,
   `peer_left(p)` follows on the next poll like any leave, and p sees `host_lost` (a client cannot tell a kick from
@@ -378,7 +379,12 @@ dissidents, no crew present only once every crew member left, End widens nothing
     `CHANNEL_CLOSED` (a client's own close resets its channels just before its connection ends, and under load the
     host read the first a poll before the second: 1 run in 10). `DISCONNECTED` is transient. A join not admitted
     `JOIN_TIMEOUT_MS` (15 s) after `join()` gives up with `host_unreachable` (no offer came, or the channels never
-    opened); the host closes a half-made connection after as long.
+    opened); the host closes a half-made connection after as long. A join whose socket to the service has not opened
+    by `Signaller.CONNECT_TIMEOUT_MS` (5 s, §4.8) gives up before that with `service_unreachable` (#431, #461): on
+    Windows the engine reports a refused connect only at its TCP connect timeout
+    (`network/limits/tcp/connect_timeout_seconds`, 30 s; `WebSocketPeer` and `StreamPeerTCP` alike), though the OS
+    refuses a closed 127.0.0.1 port in about 2 s, and a service that takes the connection but never answers the
+    handshake reports nothing. On Linux the refused socket closes at once (`service_unreachable` too).
   - **Never a send on a closed channel:** each write checks the channel's `get_ready_state()` first (a closed one
     prints an engine `ERROR:` line, M6-1). A leaving peer's channels are drained and discarded until it is gone.
   - **`disconnect_peer`** never blocks: the reason the caller sent goes out first; the next `poll()` closes that
@@ -453,9 +459,10 @@ dissidents, no crew present only once every crew member left, End widens nothing
   (at most 16 times), so the LATEST merge sees the whole backlog.
 - Checked by `tests/unit/net/transport/`, `tests/integration/net/webrtc_transport_test.gd` (WebRTC against forged
   peers in one process: a half-made connection against the maximum, a second answer, an `ADMIT` of the host's id,
-  keepalives and other kind-0 packets, the join's reasons, a peer's last message before its leave, a kick's
-  reason read with the closed channel, ids not reused, a channel closed under a live connection; the round trip's
-  pings only while measuring, one answer per poll, probes the wrong way rejected),
+  keepalives and other kind-0 packets, the join's reasons (a closed service port and a service that never answers
+  the handshake: `service_unreachable` on every OS, with the shipped timeouts too, #461), a peer's last message
+  before its leave, a kick's reason read with the closed channel, ids not reused, a channel closed under a live
+  connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected),
   `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
   127.0.0.1, which `verify`, and so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet
   runs below (the host and two clients also check each side's own connection), and their WebRTC
@@ -2351,9 +2358,9 @@ versioned apart from the game's wire (`"v"`, 1 today) and changes no row of §4.
 rooms and routing, with no sockets: a socket number in, the messages to send out), `LanSignalling` (the router over
 `ws://` from `TCPServer` and `WebSocketPeer`, served by the host itself on a LAN and in every headless test) and
 `Signaller` (the client side for a host and a joiner over `WebSocketPeer`; its signals fire from `poll()`; a socket
-still connecting after `CONNECT_TIMEOUT_MS`, 5 s, a placeholder, is closed and `closed` fires: on Windows a refused
-connect stays connecting for 20 s and more, #431). The Worker (M6-5b, `tools/signal/`) implements the same router in
-JavaScript.
+still connecting after `CONNECT_TIMEOUT_MS`, 5 s, the engineer's choice on #474, is closed and `closed` fires: on
+Windows a refused connect stays connecting until the engine's 30 s TCP connect timeout, #431, #461). The Worker
+(M6-5b, `tools/signal/`) implements the same router in JavaScript.
 
 **Messages:** JSON text, printable ASCII (tab, CR and LF allowed: no `get_string_from_utf8` engine error a peer could
 repeat), at most 16 KB (16384 bytes, counted before parsing), each with `"t"` (the type) and `"v"`. Integers are JSON
