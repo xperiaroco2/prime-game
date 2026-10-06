@@ -114,8 +114,8 @@ Updated <UTC time> by the secretary session <first 8 of its id>; the next digest
 - Then drop the item from the inbox body at the next digest, and say in the chat line where each answer went.
 
 ## The timer (while he is at the PC)
-- After each digest, one background `sleep 3000` (about 50 minutes; root `CLAUDE.md`, Shell): its end wakes you
-  for the next digest. "що нового?" digests at once.
+- After each digest, one background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000, one at a time;
+  about 50 minutes; root `CLAUDE.md`, Shell): its end wakes you for the next digest. "що нового?" digests at once.
 - Re-arm it only while the engineer wrote in this chat in the last 3 hours (not a decision; AGENT_WORKFLOW §7.2's
   question); after that, the inbox header says "paused: no word from the engineer since <time>", the chat line says
   the same, and you wait for his next message. "пауза" stops it; "продовжуй" re-arms it.
