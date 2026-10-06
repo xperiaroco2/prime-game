@@ -590,7 +590,8 @@ Rules for every workflow run:
   no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own repos
   (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`, and need the same there: their task created
   from a session in their checkout, holding their kickoff (the UI repo's `CLAUDE.md` keeps one under "Starting a new
-  manager session") with these two lines, and the steps above in their `CLAUDE.md`.
+  manager session") with these two lines and a `Track:` line, their own thresholds in place of `wave`'s verdict and
+  a hand-written handover comment, all in their `CLAUDE.md` (the list in `handover.md` §4).
 
 ## 8. Permissions, guards and hooks
 

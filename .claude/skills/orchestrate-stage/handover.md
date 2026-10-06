@@ -105,5 +105,14 @@ tools you lack: AskUserQuestion, PushNotification, the session tools, the schedu
 ```
 
 The UI and art managers work in their own repos (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or
-`wave`: they need their task created from a session in their checkout, holding their kickoff with these two lines,
-and the steps above in their `CLAUDE.md` (AGENT_WORKFLOW §7.1).
+`wave`. Each needs, in its own `CLAUDE.md` (AGENT_WORKFLOW §7.1):
+- **A standing kickoff** with a `Track: ui` or `Track: art` line and no placeholder (the UI repo's "Starting a new
+  manager session" kickoff has neither yet: it ends "Продовжуй з <задача>"), its start replaced by the two lines above,
+  with its plan issue for `#<plan issue>` (UI: prime-game #150; art: its stage plan issue in prime-game-art, stage 1:
+  #16).
+- **Its own thresholds in place of `wave`'s verdict**: the 300k context, the 12 hours and changed instructions,
+  checked by hand at each turn end (the context from the app's usage, the age from the session's start).
+- **A hand-written handover comment** on its plan issue, titled exactly "Handover to a fresh manager session": the
+  order from here, the open questions, the runs stopped (relaunch fresh), the human's standing instructions, the time
+  of his last chat message, the predecessor's session id and the successor's mode.
+- **Its task** `ui-manager` or `art-manager`, created from a session in its checkout, and §2's steps (c) from 3 on.
