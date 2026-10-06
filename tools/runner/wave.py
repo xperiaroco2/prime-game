@@ -1359,12 +1359,12 @@ def handover_verdict(w: Wave) -> str:
     if changes and (reasons or not running):
         reasons.append(f"merges into main since the session start changed the agents' instructions: "
                        f"{changes_text(changes)}")  # fmt: skip
+    due = bool(reasons)
     if reasons:
         line = "handover due: " + "; ".join(reasons)
         line += "; " + (in_flight_text(running, w.now) if running else "post the handover")
         if changes:
             line += "; pull the main checkout before the successor starts"
-        line += ("; then " if running or changes else ", then ") + successor_text(s.track)
     else:
         line = "handover not due"
         if changes:
@@ -1372,9 +1372,9 @@ def handover_verdict(w: Wave) -> str:
             line += (f"; instruction change pending: launch nothing new; due once the {n} "
                      f"{plural(n, 'run in flight ends', 'runs in flight end')}: {changes_text(changes)}")  # fmt: skip
         if not running and ctx > STOP_CONTEXT:
+            due = True
             line += (f"; at a stop for the human: due (the context {metrics.fmt_tok(ctx)} is over "
-                     f"{STOP_CONTEXT // 1000}k and no run is in flight): post the handover, then "
-                     f"{successor_text(s.track)}")  # fmt: skip
+                     f"{STOP_CONTEXT // 1000}k and no run is in flight): post the handover")  # fmt: skip
     if stale:
         n = len(stale)
         line += (f"; {n} stale {plural(n, 'run', 'runs')}, no line for over {STALE_MINUTES} min, not counted in flight "
@@ -1390,6 +1390,8 @@ def handover_verdict(w: Wave) -> str:
     elif w.behind:
         line += (f"; the main checkout's instruction files are behind origin/main ({', '.join(w.behind)}): the human "
                  "pulls it before the successor starts")  # fmt: skip
+    if due:  # last, after every clause that must hold before the successor starts (stale runs, a pull)
+        line += "; then " + successor_text(s.track)
     return line.rstrip(".") + "."
 
 
