@@ -111,7 +111,6 @@ class ReviewerAgentFilesTest(unittest.TestCase):
                     self.assertEqual(got[0], permissions.PASS, got)
 
 
-
 class LeanAgentFilesTest(unittest.TestCase):
     """#466: the lean types of the workflows outside issue-task and pr-rebase
     (docs/decisions/2026-10-06-lean-reader-and-writer-types.md)."""
