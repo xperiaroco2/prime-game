@@ -46,6 +46,30 @@ func test_only_move_claim_and_the_snapshot_travel_latest() -> void:
 	assert_array(latest).contains_exactly([&"MoveClaim", &"Snapshot"])
 
 
+## #429: MoveClaimReliable is MoveClaim's RELIABLE twin, field for field, with no seq: a claim
+## the client must not lose (an epoch's first, and the last one again right before a player
+## action) goes on it, and the host hands it to core/ as the plain MoveClaim command.
+func test_the_claims_reliable_twin_is_kind_14_with_move_claims_fields() -> void:
+	var schema := WireSchema.game(false)
+	var claim := schema.row_named(&"MoveClaim")
+	var twin := schema.row_named(&"MoveClaimReliable")
+	assert_object(twin).is_not_null()
+	if twin == null:
+		return
+	assert_int(twin.kind).is_equal(14)
+	assert_int(twin.direction).is_equal(CLIENT_TO_HOST)
+	assert_int(twin.lane).is_equal(NetKindTable.Lane.RELIABLE)
+	assert_int(twin.cap).is_equal(claim.cap)
+	assert_int(twin.max_size()).is_equal(claim.max_size())
+	assert_array(Array(_every_name(twin.fields))).is_equal(Array(_every_name(claim.fields)))
+	for i in claim.fields.size():
+		assert_int(twin.fields[i].type).is_equal(claim.fields[i].type)
+		assert_int(twin.fields[i].slot).is_equal(claim.fields[i].slot)
+	assert_array(Array(_every_name(twin.fields))).not_contains(["seq"])
+	assert_str(twin.command).is_equal(Intents.MOVE_CLAIM)
+	assert_str(claim.command).is_equal(Intents.MOVE_CLAIM)
+
+
 func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 	for each: WireRow in WireSchema.game(true).rows():
 		var message := (

@@ -114,13 +114,43 @@ func close() -> void:
 	host.close()
 
 
-## How many MoveClaims `from_peer` sent.
+## The claims the clients sent, in order: every MoveClaim and every MoveClaimReliable but a
+## resend (#429), each once.
+func claims() -> Array[WireMessage]:
+	return _claims(false, -1)
+
+
+## The MoveClaimReliable resends, in order: the twins that repeat the claim right before them (its
+## epoch and client tick), which ClientSession sends right before a player action (#429).
+func resends() -> Array[WireMessage]:
+	return _claims(true, -1)
+
+
+## How many claims `from_peer` sent (claims(), its own only).
 func claims_from(from_peer: int) -> int:
-	var count := 0
+	return _claims(false, from_peer).size()
+
+
+## Each claim (MoveClaim or its twin) in order, the resends only or every other one; of every
+## sender, or of `from_peer` only.
+func _claims(resent: bool, from_peer: int) -> Array[WireMessage]:
+	var found: Array[WireMessage] = []
+	var last: Dictionary[int, WireMessage] = {}
 	for i in sent.size():
-		if sent[i].name == Intents.MOVE_CLAIM and senders[i] == from_peer:
-			count += 1
-	return count
+		var message := sent[i]
+		if message.name != Intents.MOVE_CLAIM and message.name != WireSchema.RELIABLE_CLAIM:
+			continue
+		var before: WireMessage = last.get(senders[i])
+		var again: bool = (
+			message.name == WireSchema.RELIABLE_CLAIM
+			and before != null
+			and before.fields["epoch"] == message.fields["epoch"]
+			and before.fields["client_tick"] == message.fields["client_tick"]
+		)
+		last[senders[i]] = message
+		if again == resent and (from_peer < 0 or senders[i] == from_peer):
+			found.append(message)
+	return found
 
 
 ## The first to join is this harness's client; a test may link the host's own client later.

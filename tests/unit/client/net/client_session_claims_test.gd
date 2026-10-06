@@ -26,16 +26,16 @@ func after_test() -> void:
 func test_no_claim_before_welcome() -> void:
 	for i in 10:
 		_harness.pump()
-	assert_array(_harness.sent_named(Intents.MOVE_CLAIM)).is_empty()
+	assert_array(_harness.claims()).is_empty()
 
 
 func test_one_claim_per_client_tick_with_a_rising_client_tick() -> void:
 	_harness.welcome(&"lobby", 4)
-	var first := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var first := _harness.claims().size()
 	# 60 frames of 1/60 s: one second, 20 client ticks.
 	for i in 60:
 		_harness.pump()
-	var claims := _harness.sent_named(Intents.MOVE_CLAIM)
+	var claims := _harness.claims()
 	assert_int(claims.size() - first).is_between(19, 21)
 	for i in range(1, claims.size()):
 		var step: int = claims[i].fields["client_tick"] - claims[i - 1].fields["client_tick"]
@@ -47,11 +47,11 @@ func test_one_claim_per_client_tick_with_a_rising_client_tick() -> void:
 func test_after_a_freeze_one_claim_carries_the_newest_client_tick() -> void:
 	_harness.welcome()
 	_harness.pump()
-	var before := _harness.sent_named(Intents.MOVE_CLAIM)
+	var before := _harness.claims()
 	var last_tick: int = before[-1].fields["client_tick"]
 	# A 5 s freeze of this client's main thread: one step covers it.
 	_harness.pump(5000000)
-	var claims := _harness.sent_named(Intents.MOVE_CLAIM)
+	var claims := _harness.claims()
 	assert_int(claims.size()).is_equal(before.size() + 1)
 	assert_int(claims[-1].fields["client_tick"] as int).is_equal(last_tick + 100)
 
@@ -61,7 +61,7 @@ func test_the_claim_carries_the_movers_motion() -> void:
 	var at := Vector3(1.5, 0.25, -3)
 	_harness.session.set_motion(at, Vector3(4, 0, 0), Vector3.RIGHT, true, true, false)
 	_harness.pump(TICK_USEC)
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	assert_vector(claim["position"] as Vector3).is_equal(at)
 	assert_vector(claim["velocity"] as Vector3).is_equal(Vector3(4, 0, 0))
 	assert_vector(claim["facing"] as Vector3).is_equal(Vector3.RIGHT)
@@ -77,7 +77,7 @@ func test_set_facing_changes_only_the_next_claims_facing() -> void:
 	_harness.session.set_motion(at, Vector3(4, 0, 0), Vector3.UP, true, true, false)
 	_harness.session.set_facing(Vector3.LEFT)
 	_harness.pump(TICK_USEC)
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	assert_vector(claim["facing"] as Vector3).is_equal(Vector3.LEFT)
 	assert_vector(claim["position"] as Vector3).is_equal(at)
 	assert_vector(claim["velocity"] as Vector3).is_equal(Vector3(4, 0, 0))
@@ -88,7 +88,7 @@ func test_set_facing_changes_only_the_next_claims_facing() -> void:
 
 func test_the_first_claims_start_at_the_welcome_spot() -> void:
 	var welcome := _harness.welcome()
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	assert_vector(claim["position"] as Vector3).is_equal(welcome.spot)
 	assert_int(claim["jumps"] as int).is_equal(0)
 
@@ -100,7 +100,7 @@ func test_jumps_count_up_within_an_epoch_and_reset_at_a_correction() -> void:
 	_harness.session.count_jump()
 	_harness.session.count_jump()
 	_harness.pump(TICK_USEC)
-	var claims := _harness.sent_named(Intents.MOVE_CLAIM)
+	var claims := _harness.claims()
 	assert_int(claims[-2].fields["jumps"] as int).is_equal(1)
 	assert_int(claims[-1].fields["jumps"] as int).is_equal(3)
 	var placed := Vector3(7, 1, 7)
@@ -110,7 +110,7 @@ func test_jumps_count_up_within_an_epoch_and_reset_at_a_correction() -> void:
 	)
 	_harness.send(CorrectionEvent.new(_harness.peer, 2, placed, Vector3(0, -1, 0)))
 	_harness.pump(TICK_USEC)
-	var after := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var after := _harness.claims()[-1].fields
 	assert_int(after["epoch"] as int).is_equal(2)
 	assert_int(after["jumps"] as int).is_equal(0)
 	assert_vector(after["position"] as Vector3).is_equal(placed)
@@ -122,19 +122,19 @@ func test_jumps_count_up_within_an_epoch_and_reset_at_a_correction() -> void:
 func test_it_stops_claiming_where_the_phase_accepts_no_claim_and_resumes_after() -> void:
 	_harness.welcome(&"countdown")
 	_harness.pump(TICK_USEC)
-	var in_countdown := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var in_countdown := _harness.claims().size()
 	assert_int(in_countdown).is_greater(0)
 	_harness.send(PhaseChangedEvent.new(&"loading", -1))
 	for i in 20:
 		_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(in_countdown)
+	assert_int(_harness.claims().size()).is_equal(in_countdown)
 	_harness.send(PhaseChangedEvent.new(&"round", 12000))
 	_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(in_countdown + 1)
+	assert_int(_harness.claims().size()).is_equal(in_countdown + 1)
 	_harness.send(PhaseChangedEvent.new(&"end", -1))
 	for i in 20:
 		_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(in_countdown + 1)
+	assert_int(_harness.claims().size()).is_equal(in_countdown + 1)
 
 
 func test_a_downed_player_claims_where_its_phase_accepts_the_downed_only() -> void:
@@ -145,9 +145,9 @@ func test_a_downed_player_claims_where_its_phase_accepts_the_downed_only() -> vo
 	_harness.welcome(&"round")
 	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	_harness.pump(TICK_USEC)
-	var as_downed := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var as_downed := _harness.claims().size()
 	_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(as_downed + 1)
+	assert_int(_harness.claims().size()).is_equal(as_downed + 1)
 	assert_int(_harness.session.model.life_of(_harness.peer)).is_equal(ClientModel.Life.DOWNED)
 
 
@@ -160,10 +160,10 @@ func test_a_downed_player_in_a_phase_for_the_living_does_not_claim() -> void:
 	# own rules.
 	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	_harness.pump(TICK_USEC)
-	var claims := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var claims := _harness.claims().size()
 	for i in 5:
 		_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(claims)
+	assert_int(_harness.claims().size()).is_equal(claims)
 
 
 func test_a_dead_player_never_claims_even_where_every_player_may() -> void:
@@ -174,16 +174,16 @@ func test_a_dead_player_never_claims_even_where_every_player_may() -> void:
 	]
 	_harness.welcome(&"round")
 	_harness.pump(TICK_USEC)
-	var living := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var living := _harness.claims().size()
 	assert_int(living).is_greater(0)
 	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	_harness.pump(TICK_USEC)
-	var downed := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var downed := _harness.claims().size()
 	assert_int(downed).is_greater(living)
 	_harness.send(DiedEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	for i in 5:
 		_harness.pump(TICK_USEC)
-	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(downed)
+	assert_int(_harness.claims().size()).is_equal(downed)
 	assert_int(_harness.session.model.life_of(_harness.peer)).is_equal(ClientModel.Life.DEAD)
 
 
@@ -206,7 +206,7 @@ func test_the_host_flag_counts_for_the_hosts_own_client_only() -> void:
 		own.step(_harness.now)
 		_harness.pump(TICK_USEC)
 	var from_host := 0
-	for claim: WireMessage in _harness.sent_named(Intents.MOVE_CLAIM):
+	for claim: WireMessage in _harness.claims():
 		assert_int(claim.fields["epoch"] as int).is_equal(1)
 		from_host += 1
 	assert_bool(own.is_welcomed()).is_true()
@@ -219,7 +219,7 @@ func test_the_host_flag_counts_for_the_hosts_own_client_only() -> void:
 
 func test_a_claim_holds_exactly_the_fields_core_declares() -> void:
 	_harness.welcome()
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	var declared: Dictionary = Intents.FIELDS[Intents.MOVE_CLAIM]
 	assert_array(claim.keys()).contains_exactly_in_any_order(declared.keys())
 	for field: String in declared:
@@ -241,7 +241,7 @@ func test_a_claim_says_sprint_and_moving_if_any_step_since_the_last_claim_did() 
 		at + Vector3(0.2, 0, 0), Vector3.ZERO, Vector3.RIGHT, false, false, true
 	)
 	_harness.pump(TICK_USEC)
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	assert_bool(claim["sprint"] as bool).is_true()
 	assert_bool(claim["moving"] as bool).is_true()
 	assert_vector(claim["position"] as Vector3).is_equal(at + Vector3(0.2, 0, 0))
@@ -250,7 +250,7 @@ func test_a_claim_says_sprint_and_moving_if_any_step_since_the_last_claim_did() 
 		at + Vector3(0.2, 0, 0), Vector3.ZERO, Vector3.RIGHT, false, false, true
 	)
 	_harness.pump(TICK_USEC)
-	var next := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var next := _harness.claims()[-1].fields
 	assert_bool(next["sprint"] as bool).is_false()
 	assert_bool(next["moving"] as bool).is_false()
 
@@ -299,7 +299,7 @@ func test_a_correction_drops_the_steps_before_it_and_a_placement_restarts_the_co
 	_harness.session.set_motion(Vector3(9, 0, 9), Vector3.ZERO, Vector3.RIGHT, true, true, true)
 	_harness.send(CorrectionEvent.new(_harness.peer, 2, placed, Vector3.ZERO))
 	_harness.pump(TICK_USEC * 2)
-	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var claim := _harness.claims()[-1].fields
 	assert_bool(claim["sprint"] as bool).is_false()
 	assert_bool(claim["moving"] as bool).is_false()
 	assert_array(told[-1]).is_equal([2, 2, false, false])
@@ -354,4 +354,4 @@ func test_the_move_epsilon_and_the_mask_ticks_are_the_hosts() -> void:
 func _claim_step(to: Vector3, sprint: bool, moving: bool, ticks: int) -> Dictionary:
 	_harness.session.set_motion(to, Vector3.ZERO, Vector3.RIGHT, sprint, moving, true)
 	_harness.pump(TICK_USEC * ticks)
-	return _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	return _harness.claims()[-1].fields

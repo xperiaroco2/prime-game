@@ -527,9 +527,10 @@ func _on_packet(peer: int, kind: int, payload: PackedByteArray) -> void:
 	if row.lane == NetKindTable.Lane.VOICE:
 		_relay.hold(peer, message.fields["seq"] as int, message.fields["opus"] as PackedByteArray)
 		return
-	# A debug kind names its player in `peer` (E17); every other command is its sender's.
+	# A debug kind names its player in `peer` (E17); every other command is its sender's. A row
+	# becomes its command: MoveClaimReliable is MoveClaim on another lane (#429).
 	var sender := message.peer if debug_kind else peer
-	_queue.append(MatchCommand.new(message.name, sender, 0, message.fields, message.seq))
+	_queue.append(MatchCommand.new(row.command, sender, 0, message.fields, message.seq))
 
 
 func _on_rejected(peer: int, reason: NetRejects.Reason) -> void:

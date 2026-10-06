@@ -214,13 +214,22 @@ func check_bot(
 	return _labelled(label, peer, found)
 
 
+## Why a watcher never connected: its connect_failed reason, or that it was still joining.
+static func _join_lost(watcher: BotWatcher) -> String:
+	if watcher.failed_reason.is_empty():
+		return "no connect_failed: still joining when the run ended"
+	if watcher.failed_reason == NetTransport.JOIN_FAILED:
+		return "connect_failed, the backend gave no precise reason"
+	return "connect_failed, reason %s" % watcher.failed_reason
+
+
 ## The problems of a connected peer that is not a player (the lurker, the refused bot), taken while
 ## the run is still connected.
 func check_watcher(watcher: BotWatcher) -> PackedStringArray:
 	var found := PackedStringArray()
 	var decoded := watcher.view
 	if watcher.peer == 0:
-		found.append("it never connected")
+		found.append("it never connected (%s)" % _join_lost(watcher))
 		return _labelled(watcher.label, 0, found)
 	if watcher.sends_hello():
 		if not watcher.said_hello:

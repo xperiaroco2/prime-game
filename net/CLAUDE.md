@@ -36,8 +36,9 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   `VOICE`, unordered), its direction and a payload cap. Never pick a channel or transfer mode anywhere else.
 - The LATEST lane delivers only the newest message per sender and kind per poll between two of that sender's
   reliable messages (the backlog after a freeze, #70): a LATEST message must stand alone. Anything that must not be
-  lost when a newer one replaces it goes RELIABLE. The merge ignores the subject: a host-to-client LATEST kind holds
-  what it describes for every player the recipient may see in one message, never one message per player.
+  lost when a newer one replaces it goes RELIABLE (a claim that must arrive goes on `MoveClaimReliable`, #429). The
+  merge ignores the subject: a host-to-client LATEST kind holds what it describes for every player the recipient may
+  see in one message, never one message per player.
 - Received bytes go through `NetTransport.receive_bytes` and its helper `_decoded` only, whatever the backend, so
   the host's own client decodes exactly what a remote one does (a superseded LATEST packet is checked the same way
   but not delivered). Signals fire from `poll()` only.

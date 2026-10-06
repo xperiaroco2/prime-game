@@ -11,8 +11,14 @@ extends RefCounted
 ## its to_dict(), with the same Variant types.
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
-## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 8
+## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
+## 9 since #429 added MoveClaimReliable (kind 14).
+const VERSION := 9
+
+## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
+## its last claim again right before a player action) go on it; the host hands it to core/ as the
+## plain MoveClaim command (WireRow.command).
+const RELIABLE_CLAIM := &"MoveClaimReliable"
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -181,7 +187,6 @@ func _add(added: WireRow) -> void:
 
 
 static func _intents() -> Array[WireRow]:
-	var claim_flags := PackedStringArray(["sprint", "moving", "on_floor"])
 	var settings := WireField.map(
 		"settings", _id(""), WireField.setting("", MAX_TASK_TYPES), MAX_ENTRIES, false
 	)
@@ -189,6 +194,9 @@ static func _intents() -> Array[WireRow]:
 	var hello := _up(HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64)])
 	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map])
 	change.content_sized = true
+	# No seq: it is a claim, so a failed check gets a Correction, never a Rejected (§4.3).
+	var twin := _up(14, RELIABLE_CLAIM, 55, _claim_fields())
+	twin.command = &"MoveClaim"
 	return [
 		hello,
 		_up(2, &"SetReady", 5, [_seq(), _bool("ready")]),
@@ -200,17 +208,7 @@ static func _intents() -> Array[WireRow]:
 			NetKindTable.Direction.CLIENT_TO_HOST,
 			NetKindTable.Lane.LATEST,
 			55,
-			[
-				_u32("epoch"),
-				_u32("client_tick"),
-				_vec3("position"),
-				_vec3("velocity"),
-				_vec3("facing"),
-				WireField.bits(claim_flags),
-				_u16("jumps"),
-				_u32("sprint_ticks"),
-				_u32("moved_ticks"),
-			]
+			_claim_fields()
 		),
 		_up(6, &"PickUp", 6, [_seq(), _of("item", WireField.Type.ITEM)]),
 		_up(7, &"PutDown", 16, [_seq(), _vec3("facing")]),
@@ -220,6 +218,22 @@ static func _intents() -> Array[WireRow]:
 		_up(11, &"StopRaise", 4, [_seq()]),
 		_up(12, &"GiveUp", 4, [_seq()]),
 		_up(13, &"Swap", 4, [_seq()]),
+		twin,
+	]
+
+
+## MoveClaim's fields in wire order, shared with its RELIABLE twin so the two never drift.
+static func _claim_fields() -> Array[WireField]:
+	return [
+		_u32("epoch"),
+		_u32("client_tick"),
+		_vec3("position"),
+		_vec3("velocity"),
+		_vec3("facing"),
+		WireField.bits(PackedStringArray(["sprint", "moving", "on_floor"])),
+		_u16("jumps"),
+		_u32("sprint_ticks"),
+		_u32("moved_ticks"),
 	]
 
 

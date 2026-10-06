@@ -93,6 +93,7 @@ static func intents() -> Array[WireMessage]:
 		),
 		WireMessage.new(&"LoadAck", {"match_id": 2}, 10),
 		WireMessage.new(&"MoveClaim", _claim()),
+		WireMessage.new(&"MoveClaimReliable", _claim()),
 		WireMessage.new(&"PickUp", {"item": 0}, 11),
 		WireMessage.new(&"PutDown", {"facing": Vector3(0, 0, -1)}, 12),
 		WireMessage.new(&"Use", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
