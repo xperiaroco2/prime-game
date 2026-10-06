@@ -6,9 +6,10 @@ reads the sessions' half itself. Per repo (default REPOS: the game's, the UI's a
   link>" (merge.open_needs, the gate's own reading), and, in GATED only (the repo whose gate is merge.py's), the gate's
   exceptions of a ready PR into main by the engineer's account (merge.exception_reasons over gh's file list: a merge
   only the engineer makes). gh lists at most 100 files a PR; a rename counts as a change of its new path.
-- `gh api repos/<repo>/issues/comments?since=T` (the newest COMMENT_LIMIT, issues and PRs alike): the last "For you:"
-  (or "Для вас:") block of each thread's latest comment by the engineer's account that has one, its items as written,
-  and how many comments came after it in the window (a later one may have answered it).
+- `gh api repos/<repo>/issues/comments?since=T` (newest first, COMMENT_LIMIT a page, a further page only while the
+  last was full, at most COMMENT_PAGES; past that a "Truncated:" line names the oldest comment read; issues and PRs
+  alike): the last "For you:" (or "Для вас:") block of each thread's latest comment by the engineer's account that
+  has one, its items as written, and how many comments came after it in the window (a later one may have answered it).
 A "For you:" block (orchestrate-stage §8): the heading on a line of its own (bold or a Markdown heading allowed), then
 numbered items "1. ..." at the line's start (a "- " item is read too), each item's indented lines and fenced blocks with
 it; "For you: nothing." when empty. Text after the label's colon is read as the first item. A block ends at the next
@@ -34,6 +35,7 @@ REPOS = ("xperiaroco2/prime-game", "xperiaroco2/prime-game-ui", "xperiaroco2/pri
 GATED = "xperiaroco2/prime-game"
 DEFAULT_HOURS = 72
 COMMENT_LIMIT = 100
+COMMENT_PAGES = 5
 PR_LIMIT = 100
 PR_JSON = "number,title,url,body,isDraft,baseRefName,headRefName,author,files,latestReviews"
 # "For you" (or "Для вас") at a line's start, maybe as a heading or bold; label_rest decides whether it is a label.
@@ -62,6 +64,7 @@ class RepoInbox:
     needs: list[str] | str = field(default_factory=list)  # a str: the source failed
     exceptions: list[str] | str = field(default_factory=list)
     for_you: list[ForYou] | str = field(default_factory=list)
+    truncated: str = ""  # the oldest comment read when the window held more than COMMENT_PAGES full pages
 
 
 def iso(seconds: float) -> str:
@@ -169,6 +172,19 @@ def for_you_of(comments: list[dict[str, Any]]) -> list[ForYou]:
     return sorted(latest.values(), key=lambda f: f.created, reverse=True)
 
 
+def comments_since(repo: str, since: str) -> list[dict[str, Any]]:
+    """The window's comments, newest first: page after page while a page comes back full, at most COMMENT_PAGES."""
+    found: list[dict[str, Any]] = []
+    for page in range(1, COMMENT_PAGES + 1):
+        query = f"since={since}&sort=created&direction=desc&per_page={COMMENT_LIMIT}"
+        query += f"&page={page}" if page > 1 else ""
+        batch = GH("api", f"repos/{repo}/issues/comments?{query}")
+        found += batch
+        if len(batch) < COMMENT_LIMIT:
+            break
+    return found
+
+
 def gather(repo: str, since: str) -> RepoInbox:
     box = RepoInbox(repo)
     try:
@@ -178,10 +194,10 @@ def gather(repo: str, since: str) -> RepoInbox:
     except (Failure, OSError, ValueError, TypeError, AttributeError) as exc:
         box.needs = box.exceptions = f"gh pr list: {exc}"
     try:
-        comments = GH(
-            "api", f"repos/{repo}/issues/comments?since={since}&sort=created&direction=desc&per_page={COMMENT_LIMIT}"
-        )
+        comments = comments_since(repo, since)
         box.for_you = for_you_of(comments)
+        if len(comments) >= COMMENT_LIMIT * COMMENT_PAGES:
+            box.truncated = min(str(c.get("created_at")) for c in comments)
     except (Failure, OSError, ValueError, TypeError, AttributeError) as exc:
         box.for_you = f"gh api issues/comments: {exc}"
     return box
@@ -205,6 +221,9 @@ def render(boxes: list[RepoInbox], since: str, now: str) -> str:
         if isinstance(box.for_you, str):
             md += [f"Unavailable: {box.for_you}", ""]
             continue
+        if box.truncated:
+            md += [f"Truncated: the newest {COMMENT_LIMIT * COMMENT_PAGES} comments only, back to {box.truncated}; "
+                   "an older thread's block may be missing.", ""]  # fmt: skip
         if not box.for_you:
             md.append("Nothing.")
         for k, f in enumerate(box.for_you, 1):

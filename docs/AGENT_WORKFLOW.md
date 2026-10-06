@@ -633,7 +633,8 @@ what waited for him. One more session, the **secretary**, does that and is no ma
 
 `inbox [--since T] [--repo OWNER/NAME ...]` (`tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
 (`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
-repos/<repo>/issues/comments?since=T` (the newest 100). It prints open PRs' "Needs the engineer" items without
+repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
+500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items without
 "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's exceptions of
 each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list: the merges only he
 makes); and the "For you:" blocks of each thread's latest comment by his account that has one (all its blocks

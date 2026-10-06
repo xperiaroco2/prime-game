@@ -212,6 +212,41 @@ class MainTest(unittest.TestCase):
         self.assertEqual(seen, [f"repos/o/r/issues/comments?since={inbox.iso(1791331200.0 - 72 * 3600)}&sort=created"
                                 f"&direction=desc&per_page={inbox.COMMENT_LIMIT}"])  # fmt: skip
 
+    def test_full_pages_are_followed_and_past_the_last_a_truncated_line(self) -> None:
+        pages: list[str] = []
+
+        def gh(*args: str) -> Any:
+            if args[0] == "pr":
+                return []
+            pages.append(args[1])
+            n = len(pages)
+            stamp = f"2026-10-06T{23 - n:02d}:00:00Z"
+            return [comment(1000 + n, stamp, "For you:\n1. x", cid=k) for k in range(inbox.COMMENT_LIMIT)]
+
+        rc, out, _ = self.run_main(gh, repos=["o/r"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(pages), inbox.COMMENT_PAGES)
+        self.assertNotIn("&page=", pages[0])
+        self.assertTrue(pages[1].endswith("&page=2"), pages[1])
+        last = f"2026-10-06T{23 - inbox.COMMENT_PAGES:02d}:00:00Z"
+        total = inbox.COMMENT_LIMIT * inbox.COMMENT_PAGES
+        self.assertIn(f"Truncated: the newest {total} comments only, back to {last}", out)
+        self.assertIn(f"#{1000 + inbox.COMMENT_PAGES}, {last}", out)
+
+    def test_a_short_page_ends_the_paging_without_a_truncated_line(self) -> None:
+        pages: list[str] = []
+
+        def gh(*args: str) -> Any:
+            if args[0] == "pr":
+                return []
+            pages.append(args[1])
+            size = inbox.COMMENT_LIMIT if len(pages) == 1 else 3
+            return [comment(7, "2026-10-06T10:00:00Z", "hi", login=DESIGNER, cid=k) for k in range(size)]
+
+        rc, out, _ = self.run_main(gh, repos=["o/r"])
+        self.assertEqual((rc, len(pages)), (0, 2))
+        self.assertNotIn("Truncated:", out)
+
 
 if __name__ == "__main__":
     unittest.main()
