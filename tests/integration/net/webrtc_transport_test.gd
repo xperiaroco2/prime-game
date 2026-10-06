@@ -10,6 +10,7 @@ const MAX_WAIT_MS := 5000
 ## The joins these tests expect to give up do so after this long, not JOIN_TIMEOUT_MS.
 const SHORT_JOIN_MS := 1500
 const TALK := 1
+const STATE := 2
 
 var _kinds := NetKindTable.new()
 var _server: LanSignalling
@@ -119,6 +120,7 @@ class FakePeer:
 
 func before() -> void:
 	_kinds.add(TALK, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.BOTH, 64)
+	_kinds.add(STATE, NetKindTable.Lane.LATEST, NetKindTable.Direction.BOTH, 64)
 
 
 func before_test() -> void:
@@ -354,6 +356,32 @@ func test_probes_the_wrong_way_are_rejected_and_an_impossible_answer_ignored() -
 	assert_int(client.rejects.of_reason(NetRejects.Reason.UNKNOWN_KIND)).is_equal(1)
 	assert_int(client.rejects.total()).is_equal(1)
 	assert_int(client.own_round_trip_ms()).is_equal(-1)
+
+
+## The peer never reads an empty message, so the transport refuses one rather than count it for
+## LaneOrder: counted, every later LATEST packet would name one reliable packet more than the host
+## ever reads, wait for the next one and arrive behind it (#429: a chaos peer's 0-byte frame put
+## its LATEST claims behind the RELIABLE claims sent after them).
+func test_an_empty_packet_is_refused_and_not_counted_for_lane_order() -> void:
+	var fake_host := await _fake_host()
+	var client := BotWebRtc.new(_kinds, _server.port(), 0)
+	_transports.append(client)
+	client.connected.connect(func(id: int) -> void: _events.append("client connected %d" % id))
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	var empty := ChaosFrames.Packet.new()
+	assert_bool(client.send_raw(empty)).is_false()
+	assert_int(client.send(NetTransport.HOST_ID, STATE, "now".to_utf8_buffer())).is_equal(OK)
+	var latest: Array[PackedByteArray] = []
+	var latest_came := func() -> bool:
+		latest.append_array(fake_host.take(NetKindTable.Lane.LATEST))
+		return not latest.is_empty()
+	assert_bool(await _until(latest_came)).is_true()
+	assert_array(fake_host.take(NetKindTable.Lane.RELIABLE)).is_empty()
+	# LaneOrder's header: the reliable packets sent before it, none of which was empty.
+	assert_int(latest[0].decode_u16(0)).is_equal(0)
 
 
 ## A client's own close resets its channels before the connection ends, and under load the host

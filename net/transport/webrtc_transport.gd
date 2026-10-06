@@ -738,6 +738,11 @@ func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var channel := conn.channels[lane]
 	if channel.get_ready_state() != WebRTCDataChannel.STATE_OPEN:
 		return ERR_CONNECTION_ERROR
+	# The peer never reads an empty message: one put on RELIABLE would be counted for LaneOrder all
+	# the same, and every later LATEST packet would wait for one reliable packet more, arriving
+	# behind one sent after it (#429). NetFrame never makes one; a modified client's raw send can.
+	if bytes.is_empty():
+		return ERR_INVALID_DATA
 	var packet := bytes
 	if lane == NetKindTable.Lane.LATEST:
 		packet = _order.stamp_latest(conn.peer_id, bytes)
