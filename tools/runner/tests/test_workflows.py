@@ -16,14 +16,14 @@ bounded-waits paragraph) and `lean` on by default since #458 (the implementing a
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
 resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
 run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
-wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
-and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
-root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list), #471's publish steps (no
-standalone verify before `publish`), #468's reading line (every agent's, reviewers too), and #470's digests (the
-reviewers' and the test reviewer's digest of the implementer's report, the implementer's summary cap, the publisher's
-plan summary and inline finish-task steps); they landed between waves, when no run could resume. Each snapshot ends with the
-run's return value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and
-changed only that part of every snapshot.
+wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote
+unbounded/ too: #413's and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan
+critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading
+list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
+too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
+summary cap, the publisher's plan summary and inline finish-task steps); they landed between waves, when no run could
+resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
+the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib

@@ -405,8 +405,8 @@ Rules for every workflow run:
   byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads, #468's reading line, #471's publish
-  steps, #470's digests).
+  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
+  #468's reading line, #471's publish steps, #470's digests).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
   agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a

@@ -33,8 +33,8 @@ export const meta = {
 // args, bounded_waits false and lean false is unchanged, but for
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
-// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task steps). The agents each one adds count toward the agent number the kickoff approves
-// (3 to 5 without them):
+// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
+// steps). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
