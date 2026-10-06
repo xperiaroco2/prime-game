@@ -1367,6 +1367,16 @@ TEMP_FILTERED_ASK = [
     (P, "Get-ChildItem $env:TEMP -Recurse -Filter 'rmtree-*' | Remove-Item -Recurse -Force"),
     (P, "Get-ChildItem $env:TEMP -Filter * | Remove-Item -Recurse"),
     (P, "Get-ChildItem $env:TEMP | Remove-Item -Recurse"),
+    # A filter without a glob names what it matches too; one the guard cannot read keeps the temp folder's ask.
+    (P, "Get-ChildItem $env:TEMP -Filter claude | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter rmtree-wt | Remove-Item -Recurse"),
+    (P, "Get-ChildItem $env:TEMP -Filter $f | Remove-Item -Recurse"),
+    # Win32 filter matching: `*.*` and `x.*` match names without a dot, a trailing `?` matches nothing, `~` short names.
+    (P, "Get-ChildItem $env:TEMP -Filter *.* -Directory | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter 'claude.*' | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter 'claude?' | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter 'rmtree-wt.' | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter 'RMTREE~1' | Remove-Item -Recurse -Force"),
 ]
 
 

@@ -1375,6 +1375,21 @@ def _recursive_listing(words: list[str] | None, shell: str) -> bool:
     return _recursive("remove-item", args, POWERSHELL)
 
 
+def _win32_filter(text: str) -> str | None:
+    """A glob that matches at least what a PowerShell `-Filter` matches (issue #464), or None when the guard cannot
+    tell. A filter matches the way Win32 FindFirstFile does, not fnmatch: `x.*` and `x.` also match `x` (so `*.*`
+    matches every name), a `?` before a dot or at the end also matches nothing, and `[` is a literal. The 8.3 short
+    names a filter also matches (`CLAUDE~1`) are not listed, so a filter with `~` is unknown."""
+    if not text or "~" in text:
+        return None
+    text = text.replace("[", "[[]").replace("?", "*")
+    if text.endswith(".*"):
+        text = text[:-2] + "*"
+    elif text.endswith("."):
+        text = text[:-1] + "*"
+    return text
+
+
 def _scratchpad_holder(parts: list[str]) -> bool:
     """A path in the temp folder, as its parts, is or may match (as a glob) a Claude scratchpad root
     (`claude/<project>/<session>/scratchpad`) or a folder that holds one (issue #464)."""
@@ -1539,18 +1554,22 @@ class Analysis:
             for a in _positionals(args, PATH_OPTIONS | VALUE_OPTIONS) + _option_values(args, PATH_OPTIONS)
             if not (cmd and CMD_SWITCH_RE.match(a))
         ]
+        filtered: set[str] = set()
         if fed is not None and all(PIPE_ITEM_RE.match(t) for t in targets):
-            targets = self.filtered_listing(fed, self.paths.output_paths(fed)) if fed else ["."]
+            listed = self.paths.output_paths(fed) if fed else []
+            targets = self.filtered_listing(fed, listed) if fed else ["."]
+            filtered = set(targets) - set(listed)
         for target in targets:
             if self.paths.project_target(target, own_ok=True):
                 self.findings.append(Finding(target, DELETE, verb))
-            elif self.temp_glob_reaches(target):
+            elif self.temp_glob_reaches(target, target in filtered):
                 self.findings.append(Finding(target, TEMP_DELETE, verb))
 
     def filtered_listing(self, words: list[str], paths: list[str]) -> list[str]:
         """The paths a listing piped to a delete hands on: a PowerShell `Get-ChildItem <temp folder> -Filter x` that
-        does not recurse hands on what `<temp folder>/x` matches, not the folder (issue #464). Other listings and
-        folders are judged by their paths, as before."""
+        does not recurse hands on what `<temp folder>/x` matches, not the folder (issue #464), as the glob
+        _win32_filter makes of x. Other listings and folders, and a filter the guard cannot read, are judged by their
+        paths, as before (the temp folder itself asks)."""
         verb, args = _verb(words[0]), words[1:]
         if self.paths.shell != POWERSHELL or verb not in ("get-childitem", "gci", "ls", "dir"):
             return paths
@@ -1559,15 +1578,20 @@ class Analysis:
             return paths
         if any(a.lower().partition(":")[0] == "-depth" for a in args):
             return paths
-        joined = [f"{p}/{filters[0]}" for p in paths]
+        text = self.paths.expand(filters[0])
+        pattern = _win32_filter(text) if text is not None and OUTSIDE not in text else None
+        if pattern is None:
+            return paths
+        joined = [f"{p}/{pattern}" for p in paths]
         return [j if TEMP_TARGET_RE.match(j) else p for p, j in zip(paths, joined, strict=True)]
 
-    def temp_glob_reaches(self, token: str) -> bool:
+    def temp_glob_reaches(self, token: str, filtered: bool = False) -> bool:
         """A delete target that is a glob in the temp folder (`$TEMP/rmtree-*`, `$env:TEMP/x*`) may reach what no
         one meant (issue #464): a match outside the temp folder (`..`), a Claude scratchpad root or a folder that
         holds one (`claude/<project>/<session>/scratchpad`, by the pattern and by its matches), a worktree (by its
         matches, when the repository reader lists the folder), or what the guard cannot tell (an unknown variable).
-        A literal path in the temp folder is judged as before (it passes)."""
+        A literal path in the temp folder is judged as before (it passes), but not one a `-Filter` made (filtered):
+        `Get-ChildItem $env:TEMP -Filter claude` names what it matches too."""
         for item in self.paths.items(token):
             match = TEMP_TARGET_RE.match(item)
             name = match and (match.group(1) or match.group(2) or match.group(3) or "").lower()
@@ -1578,7 +1602,7 @@ class Analysis:
                 if GLOB_RE.search(match.group(4)):
                     return True
                 continue
-            if not GLOB_RE.search(text):
+            if not filtered and not GLOB_RE.search(text):
                 continue
             # Bash negates a class with `[^...]` as well as `[!...]`; fnmatch and glob take only `[!...]`.
             parts = [p.replace("[^", "[!") for p in text.replace("\\", "/").split("/") if p not in ("", ".")]
