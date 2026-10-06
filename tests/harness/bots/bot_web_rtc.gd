@@ -9,8 +9,8 @@ extends WebRtcTransport
 ##   CountingEnet);
 ## - sends raw bytes on any lane as a modified client can (send_raw, the chaos peers, as ChaosEnet),
 ##   keeping what it sent in `outbox` when keep_outbox is on.
-## The fault shim (the M6 design §5) is on by default, seeded per transport: RELIABLE
-## SHIM_RELIABLE_DELAY_MS late and LATEST duplicated; on a joining side LATEST also dropped and
+## The fault shim (the M6 design §5) is on by default, seeded per transport, on every side, the
+## host's included (#429): RELIABLE SHIM_RELIABLE_DELAY_MS late, and LATEST dropped, duplicated and
 ## late.
 
 ## The room every harness host opens: LanSignalling hands out only this code (`signalling`).
@@ -20,12 +20,12 @@ const ADDRESS := "127.0.0.1"
 ## SHIM_LATEST_LATE late by SHIM_LATEST_DELAY_MS (those behind it held back, in order): more than
 ## RELIABLE's delay plus a 20 Hz interval, so a LATEST message sent just before a reliable one
 ## arrives after it, the case LaneOrder's "behind" rule exists for. LATEST never overtakes LATEST:
-## a lost or overtaken first claim of an epoch is taken as one tick and corrects an honest bot
-## (ARCHITECTURE §7.1), which plain drops already risk. Only clients get late LATEST (snapshots): a
-## host that drops a late claim behind a reliable PickUp checks the PickUp against the claim before
-## and refuses an honest bot (out_of_reach, 1 of 3 chaos runs), the rule working as designed; and
-## a host that loses an epoch's first claim takes the next as one tick and corrects an honest bot
-## (ARCHITECTURE §7.1; 1 of 10 chaos runs under load), so only clients lose LATEST either.
+## WebRTC's unordered channel could, but LaneOrder drops a LATEST packet older than one delivered,
+## so an overtaken claim is a lost one. The host loses and delays claims too since #429: before it,
+## a lost claim right before a PickUp got an honest bot refused (out_of_reach), and an epoch's lost
+## first claim corrected it one tick later. Now the client resends its last claim on
+## MoveClaimReliable right before a player action and sends each epoch's first claim on it
+## (ARCHITECTURE §7.1 "Lost claims"), so neither case is left to the shim's rates.
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
@@ -39,8 +39,6 @@ var ledger := RejectLedger.new()
 var keep_outbox := false
 var outbox: Array[ChaosFrames.Packet] = []
 
-var _shim: FaultShim = null
-
 
 ## A transport for the signalling on `port` of 127.0.0.1, with the fault shim seeded with
 ## `shim_seed` (0: no shim).
@@ -52,10 +50,12 @@ func _init(kinds: NetKindTable, port: int, shim_seed: int) -> void:
 	if shim_seed != 0:
 		var shim := FaultShim.new(shim_seed)
 		shim.reliable_delay_ms = SHIM_RELIABLE_DELAY_MS
+		shim.latest_drop = SHIM_LATEST_DROP
 		shim.latest_duplicate = SHIM_LATEST_DUPLICATE
+		shim.latest_late = SHIM_LATEST_LATE
 		shim.latest_delay_ms = SHIM_LATEST_DELAY_MS
-		if use_faults(shim) == OK:
-			_shim = shim
+		if use_faults(shim) != OK:
+			push_warning("BotWebRtc: no fault shim in a release build")
 
 
 ## The service a harness host runs on 127.0.0.1: every room it opens is CODE.
@@ -72,14 +72,6 @@ static func wait_for_room(service: LanSignalling, host_transport: WebRtcTranspor
 		host_transport.poll()
 		OS.delay_msec(2)
 	return not host_transport.room_code().is_empty()
-
-
-## A joining side's shim also drops LATEST and makes it late (the host's never: SHIM_LATEST_LATE).
-func join(address: String, port: int) -> Error:
-	if _shim != null:
-		_shim.latest_drop = SHIM_LATEST_DROP
-		_shim.latest_late = SHIM_LATEST_LATE
-	return super(address, port)
 
 
 func send(to_peer: int, kind: int, payload: PackedByteArray) -> Error:
