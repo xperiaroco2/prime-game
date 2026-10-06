@@ -261,6 +261,32 @@ func test_a_measuring_client_pings_and_the_answer_gives_its_round_trip() -> void
 	assert_int(client.own_round_trip_ms()).is_equal(-1)
 
 
+## Turning measuring off forgets the round trip: reopened later, the line reads "not measured yet"
+## until the first new answer, never the figure of minutes ago.
+func test_turning_measuring_off_forgets_the_round_trip() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	client.measure_round_trip = true
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	var pings: Array[PackedByteArray] = []
+	var pinged := func() -> bool:
+		pings.append_array(_probes(fake_host, WebRtcTransport.PING))
+		return not pings.is_empty()
+	assert_bool(await _until(pinged)).is_true()
+	var answer := pings[0].duplicate()
+	answer[NetFrame.HEADER_BYTES] = WebRtcTransport.PONG
+	fake_host.put(NetKindTable.Lane.VOICE, answer)
+	assert_bool(await _until(func() -> bool: return client.own_round_trip_ms() >= 0)).is_true()
+	client.measure_round_trip = false
+	assert_bool(await _until(func() -> bool: return client.own_round_trip_ms() == -1)).is_true()
+	client.measure_round_trip = true
+	await _poll_for(300, func() -> void: pass)
+	assert_int(client.own_round_trip_ms()).is_equal(-1)
+
+
 ## A client not measuring sends no ping, so its upload stays the keepalives of §2.6.
 func test_a_client_not_measuring_sends_no_ping() -> void:
 	var fake_host := await _fake_host()

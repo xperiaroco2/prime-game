@@ -552,6 +552,8 @@ func _took_probe(conn: Conn, bytes: PackedByteArray, now: int) -> bool:
 			conn.ping_stamp = stamp
 		return true
 	if not is_host() and type == PONG:
+		if not measure_round_trip:
+			return true
 		var sample := (now - stamp) & 0xFFFFFFFF
 		if sample <= SILENCE_MS:
 			if _round_trip_ms < 0.0:
@@ -564,7 +566,13 @@ func _took_probe(conn: Conn, bytes: PackedByteArray, now: int) -> bool:
 
 ## Client: pings the host when measure_round_trip is set, once admitted and every PING_INTERVAL_MS.
 func _ping(now: int) -> void:
-	if role() != Role.CLIENT or not measure_round_trip:
+	if role() != Role.CLIENT:
+		return
+	if not measure_round_trip:
+		# Not measuring (the overlay is hidden): forget the old figure, or reopening it would show
+		# a round trip of minutes ago as the current one.
+		_last_ping_ms = -1
+		_round_trip_ms = -1.0
 		return
 	var conn: Conn = _conns.get(HOST_ID)
 	if conn == null or not _is_live(conn):
