@@ -1373,11 +1373,11 @@ Compares what each bot b decoded with `view_of(b)`:
   `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
   refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
   `core/` disconnected that is still connected fails (`server/` did not carry it out). A watcher that never
-  connected fails with why: its `connect_failed` reason (`service_unreachable`, `host_unreachable`, ...) or "still
-  joining when the run ended" (#483). Prevents: a `server/`
-  refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
-  recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
-  which every bot is a player within one tick;
+  connected fails with why: its `connect_failed` reason ("connect_failed, reason service_unreachable", `host_unreachable`,
+  ...; "the backend gave no precise reason" for ENet and the loopback) or "still joining when the run ended" (#483).
+  Prevents: a `server/` refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of
+  `core/`'s recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a
+  test in which every bot is a player within one tick;
 - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
   peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
   read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
