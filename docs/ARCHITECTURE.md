@@ -396,8 +396,10 @@ dissidents, no crew present only once every crew member left, End widens nothing
     clock in ms (u32), 8 in all (`PING_BYTES`). The host answers the pings of one poll once, after the reads, with
     `PONG` and the last stamp read; the client takes `now - stamp` (dropped when later than now or older than
     `SILENCE_MS`) into a smoothed round trip (gain 1/8). Both are consumed before the inbox; one the wrong way, or
-    malformed, reaches it and is rejected. Off by default, so the silence twin's upload is keepalives alone. A sample
-    includes up to a frame on each side, as ENet's acknowledgements do. ENet: `DIRECT` and its smoothed
+    malformed, reaches it and is rejected. Off by default, so the silence twin's upload is keepalives alone. A client
+    that stops measuring forgets its figure (the line reads "not measured yet" after F3 is reopened). A sample
+    includes up to a frame on each side, as ENet's acknowledgements do. The host's answers are bounded only by its
+    poll rate, and `PeerBudget` never counts a ping (hobby project: no limit added). ENet: `DIRECT` and its smoothed
     `PEER_ROUND_TRIP_TIME`; the loopback: `LOCAL`, no round trip.
   - **`take_upload()`** counts each packet a channel took (the header included) plus `PACKET_OVERHEAD_BYTES`, E56's
     108 B, one datagram each; SCTP's acknowledgements are left out (the transport never sees them).
@@ -2430,7 +2432,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
   away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
-  no address or ICE-state API and that `client/ui/` names no transport.
+  no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
+  `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
 - **F3's connection line** (§3 item 4 of the design, #431; debug builds only): the own connection's kind ("direct",
   "direct or relayed (WebRTC does not say which)", or "in this process" for the host's own player) and its round
   trip, from the own `ClientSession` (`route()`, `round_trip_ms()`), which has its transport measure only while F3
