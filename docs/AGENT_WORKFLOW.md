@@ -48,7 +48,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   so `git status` stays clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought
   the file back on a switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse
   patterns held through all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a
-  `run` still loads the extension until the next `check` (ARCHITECTURE §6.5, "The addon in the repo"); `verify` runs
+  `run` still loads the extension until the next `check` (ARCHITECTURE §6.5.2 The addon in the repo); `verify` runs
   `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
   is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
 - **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the

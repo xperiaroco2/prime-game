@@ -1699,7 +1699,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   "not a decision"), for the living, the downed and the dead alike: a pure sound chooser (unit-tested) drops an event
   from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
   so an uncut sound would tell every client through the walls where a package was just put down. Behind the level
-  a sound plays muffled, not cut (one ray from the ears as it starts, M5-7; §6.5's occlusion).
+  a sound plays muffled, not cut (one ray from the ears as it starts, M5-7; §6.5.7 Occlusion).
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
   the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands
@@ -1939,7 +1939,7 @@ follows the M5 ADR's checklist (its §3; §6 below).
 #### 4.7.15 Built in M5-5 (#219), hearing voice
 - `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
   `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
-  `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6.5's "Playback and the ears".
+  `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6.5.4 Playback and the ears.
   `WorldSounds` plays on the Effects bus and measures its range from the viewport's current `AudioListener3D`.
 - `client/life/`: `Ears` (an `AudioListener3D`; `Ears.point()` and `lying_head()` are pure), placed by `LifeView`
   after the cameras in each physics step, turned with the current camera, current while a session runs. `LiftMusic`
@@ -1999,7 +1999,7 @@ a follow-up on #144 and #145):
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
-#### 4.7.17 Built in M5-6 (#220), speaking (§6.5's "Capture and the gate")
+#### 4.7.17 Built in M5-6 (#220), speaking (§6.5.3 Capture and the gate)
 - `voice/`: `VoiceCapture` (the device list, the chosen device opened, every whole 20 ms chunk at the device's rate
   with its age, errors in words, the "opening" mark through `mark_changed`) over a `VoiceMicrophone` (the machine's,
   through 4.7's `AudioServer` input API; `VoiceToneMicrophone`, the debug test tone; the tests' `FakeMicrophone`).
@@ -2216,10 +2216,10 @@ ADR's §6 check the rest.
   radius (`VoiceRule.radius_of`, the client's cutoff, E41) at the frame's tick, between the last accepted positions,
   in 3D, compared as `VoiceRule.within` does, and none under a radius of 0 (`ScenarioInvariants` per tick on
   `speakers_for`, `LeakCheck` per decoded frame; seen failing on a `RoundVoice` that ignores its radius, which
-  `view_of` agrees with, §4.6.4);
+  `view_of` agrees with, §4.6.4.1);
   nothing reaches only the dead: every event a dead peer gets is for it alone or also reaches every living peer
   present then (`ScenarioInvariants` and `LeakCheck`, M4-2, each seen failing on a plant in `tests/scenarios/` and
-  the first on `bots`, §4.6.4); nobody gets another player's health, stamina or damage; every player receives the same
+  the first on `bots`, §4.6.4.1); nobody gets another player's health, stamina or damage; every player receives the same
   task events; no message holds a seed.
 
 Rejected ways of expressing it (per field, per content part, filtering in `server/`): the ADR.
@@ -2342,7 +2342,7 @@ played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on 
 naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
 names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
 (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
-`verify` step). CI runs without the addon (the next bullet).
+`verify` step). CI runs without the addon (§6.5.2).
 
 #### 6.5.2 The addon in the repo (E35 (a), the ADR §2; **built in M5-3**, #217)
 TwoVoIP v6.5 in `addons/twovoip/`,
@@ -2456,7 +2456,7 @@ measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, 
 
 #### 6.5.8 The wire (E44; **measured in M5-4**, #218, and again after #245)
 Unchanged in M5 so far. The leak test gained a
-distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
+distance invariant written apart from `VoiceRule.hears` (E45, M5-1, §6.5.9). M5-4 measured the host's relay time and
 upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
 in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
 engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
@@ -3772,7 +3772,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
   M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
-  only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6.4),
+  only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6.4.1),
   `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second in the hand, then the package: the hand knife
   rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
   package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
@@ -3783,11 +3783,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `none`. None of M4-5's runs in `bots-enet`.
   M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m from the middle towards -z and bot 2
   about 5 m towards +z, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to
-  about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6.4), which
+  about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6.4.1), which
   expects `none`; not a `bots-enet` step (`--instances 2` passed once, 2026-10-03).
   M5-4 (#218): `voice_load`, a `measurement` (8 bots walk to a circle of 3 m in the lobby, all within its 8 m, talk
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
-  with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5 "The wire" has its
+  with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
 
 ### 9.8 The extensibility test
@@ -3832,7 +3832,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5.8 The wire): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added with the CC0 sounds of #144 and #145 (a follow-up: M5-7, #221, built the muffle before the files arrived) |
