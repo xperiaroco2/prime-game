@@ -47,7 +47,17 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
   PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
   main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
   "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
-  ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since.
+  ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since;
+- for the handover verdict (#467): the PRs merged into main since the session's first record (not --since) whose
+  files include root CLAUDE.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list --base main --json
+  files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call when nothing merged
+  into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main checkout (no fetch).
+The handover verdict ends the footer and is stdout's last line (orchestrate-stage §7 runs it at each turn end):
+"handover due: <why>" when the last call's context is over 300k or the session over 12 h old, even with runs in
+flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent),
+or, once no run is in flight, when such a merge changed the instructions (until then "launch nothing new"); else
+"handover not due", with "at a stop for the human: due" when no run is in flight and the context is over 150k. A run
+with no line for over STALE_MINUTES is named as stale, not counted in flight. A failed read says so in the line.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -65,7 +75,7 @@ import re
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import redirect_stdout
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath, PureWindowsPath
@@ -108,6 +118,20 @@ COST_EXTRAS: list[Callable[[dict], list[str]]] = []
 RELEASE_WORKTREE = re.compile(r"^release-m(\d+)$")
 CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
+# The handover verdict (#467; orchestrate-stage §7): due when strictly over a threshold.
+HANDOVER_CONTEXT = 300_000
+HANDOVER_HOURS = 12.0
+STOP_CONTEXT = 150_000
+# The agents' instructions a manager hands its workflow agents from its own cache: root CLAUDE.md only (core/CLAUDE.md
+# and the like load from disk in the agent's own folder), the rules and the agent types.
+INSTRUCTION_FILES = ("CLAUDE.md",)
+INSTRUCTION_DIRS = (".claude/rules/", ".claude/agents/")
+FILES_FIELDS = "number,baseRefName,mergedAt,files"
+FILES_LIMIT = 200
+# Agents that push or rebase a branch: a run is stopped for a handover only between them.
+PUSHING_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
+# A running run with no line for longer is stale for the verdict (its agents block no call over 240 s, #303).
+STALE_MINUTES = 60
 
 
 @dataclass
@@ -200,6 +224,15 @@ class OpenPR:
 
 
 @dataclass
+class InstructionChange:
+    """A PR merged into main since the session start that changed the agents' instructions."""
+
+    number: int
+    merged_at: float
+    paths: list[str]
+
+
+@dataclass
 class MergeCheck:
     """merge-check's exit code, its verdict line and, when it flagged something or failed, its output as printed."""
 
@@ -275,6 +308,8 @@ class Wave:
     merge_check: MergeCheck | None = None
     cost: Cost | str | None = None
     housekeeping: Housekeeping | str | None = None
+    instructions: list[InstructionChange] | str | None = None  # merges into main since the session start
+    behind: list[str] | str | None = None  # the main checkout's instruction files behind origin/main
 
 
 class Sources:
@@ -302,6 +337,15 @@ class Sources:
 
     def main_checkout(self) -> Path:
         return metrics.main_checkout()
+
+    def instructions_behind(self, main: Path) -> list[str]:
+        """The instruction files origin/main changed since the main checkout's HEAD (no fetch: as fresh as the shared
+        git dir's last fetch)."""
+        res = common.run(["git", "diff", "--name-only", "HEAD...origin/main", "--", *INSTRUCTION_FILES,
+                          *(d.rstrip("/") for d in INSTRUCTION_DIRS)], timeout=60, cwd=main)  # fmt: skip
+        if res.rc != 0 or res.timed_out:
+            raise Failure(f"git diff failed: {res.out.strip()[-300:]}")
+        return instruction_paths(res.out.split())
 
 
 # --- reading the transcript ---------------------------------------------------------------------------------------
@@ -716,6 +760,44 @@ def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
                 lands.add(p.head)
                 grew = True
     return sorted((p for p in prs if p.base in lands), key=lambda p: p.number)
+
+
+def instruction_paths(paths: Iterable[str]) -> list[str]:
+    """The paths among these that are the agents' instructions (INSTRUCTION_FILES at the root, files under
+    INSTRUCTION_DIRS), in their order."""
+    return [p for p in paths
+            if p in INSTRUCTION_FILES or (p.startswith(INSTRUCTION_DIRS) and p not in INSTRUCTION_DIRS)]  # fmt: skip
+
+
+def files_of(d: object) -> list[str]:
+    files = d.get("files") if isinstance(d, dict) else None
+    return [str(f["path"]) for f in files or [] if isinstance(f, dict) and f.get("path")]
+
+
+def read_instruction_changes(gh: Callable[..., Any], merged: list[MergedPR] | str | None,
+                             start: float | None) -> list[InstructionChange]:  # fmt: skip
+    """The PRs merged into main at or after start whose files include an instruction file, oldest first. The
+    candidates are read_merged's PRs into main since start (none: no gh call); one `gh pr list --json files` reads
+    their files (merged:>= is date-only, so a day early, and filtered here), and `gh pr view <n> --json files` each one
+    the search has not caught up with yet. gh lists at most 100 files of a PR."""
+    if merged is None or start is None:
+        return []
+    if isinstance(merged, str):
+        raise Failure(f"merged PRs: {merged}")
+    candidates = [p for p in merged if p.base == MAIN and p.merged_at >= start]
+    if not candidates:
+        return []
+    day = time.strftime("%Y-%m-%d", time.gmtime(start - 86400))
+    data = gh("pr", "list", "--state", "merged", "--base", MAIN, "--search", f"merged:>={day} {MERGED_SEARCH}",
+              "--limit", str(FILES_LIMIT), "--json", FILES_FIELDS)  # fmt: skip
+    files = {d["number"]: files_of(d) for d in rows_of(data, "--json files")}
+    found = []
+    for p in candidates:
+        paths = files[p.number] if p.number in files else files_of(gh("pr", "view", str(p.number), "--json", "files"))
+        chosen = instruction_paths(paths)
+        if chosen:
+            found.append(InstructionChange(p.number, p.merged_at, chosen))
+    return found
 
 
 # --- merge-check --------------------------------------------------------------------------------------------------
@@ -1200,6 +1282,95 @@ def mean_usd(calls: list[dict]) -> float:
     return sum(sum(metrics.usd_of(c).values()) for c in calls) / len(calls) if calls else 0.0
 
 
+def plural(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
+def changes_text(changes: list[InstructionChange]) -> str:
+    return ", ".join(f"#{c.number} ({', '.join(c.paths)})" for c in changes)
+
+
+def run_name(r: Run) -> str:
+    return issue_cell(r) if r.issue is not None else r.run_id
+
+
+def runs_text(runs: list[Run], now: float) -> str:
+    """'#466 implement:#466, 3 min since its last line; ...'."""
+    shown = []
+    for r in runs:
+        agent = ", ".join(label for label, _ in r.working) or "between agents"
+        line = f"{minutes(now - r.last_write)} min since its last line" if r.last_write else "no line yet"
+        shown.append(f"{run_name(r)} {agent}, {line}")
+    return "; ".join(shown)
+
+
+def is_stale(r: Run, now: float) -> bool:
+    """A running run with no line for over STALE_MINUTES: its session may have died (no notification ever comes)."""
+    return r.last_write is not None and now - r.last_write > STALE_MINUTES * 60
+
+
+def in_flight_text(runs: list[Run], now: float) -> str:
+    """'2 runs in flight (#466 implement:#466, 3 min since its last line; ...): stop each (...), then post the
+    handover; the new session relaunches them fresh'."""
+    pushing = [r for r in runs if any(metrics.role_of(label) in PUSHING_ROLES for label, _ in r.working)]
+    wait = ""
+    if pushing:
+        wait = f" ({', '.join(run_name(r) for r in pushing)} only once its publish, rebase or fix agent ends)"
+    n = len(runs)
+    return (f"{n} {plural(n, 'run', 'runs')} in flight ({runs_text(runs, now)}): stop {plural(n, 'it', 'each')}{wait}, "
+            f"then post the handover; the new session relaunches {plural(n, 'it', 'them')} fresh")  # fmt: skip
+
+
+def handover_verdict(w: Wave) -> str:
+    """One line: 'handover due: <why>' or 'handover not due' with its clauses (orchestrate-stage §7, #467).
+    Due, even with runs in flight: the last call's context over HANDOVER_CONTEXT or the session over HANDOVER_HOURS
+    old. Due once no run of this session is in flight: a merge into main since the session start changed the agents'
+    instructions (until then: launch nothing new). Not due, no run in flight and the context over STOP_CONTEXT: a
+    stop for the human hands over instead of arming a keep-alive. A stale run (is_stale) is named but not in flight."""
+    s = w.session
+    ctx = s.last_ctx
+    age = (w.now - s.first) / 3600 if s.first is not None else 0.0
+    running = [r for r in w.runs if not r.finished and not is_stale(r, w.now)]
+    stale = [r for r in w.runs if not r.finished and is_stale(r, w.now)]
+    changes = w.instructions if isinstance(w.instructions, list) else []
+    reasons = []
+    if ctx > HANDOVER_CONTEXT:
+        reasons.append(f"the context {metrics.fmt_tok(ctx)} is over {HANDOVER_CONTEXT // 1000}k")
+    if age > HANDOVER_HOURS:
+        reasons.append(f"the session is {age:.1f} h old, over {HANDOVER_HOURS:g} h")
+    if changes and (reasons or not running):
+        reasons.append(f"merges into main since the session start changed the agents' instructions: "
+                       f"{changes_text(changes)}")  # fmt: skip
+    if reasons:
+        line = "handover due: " + "; ".join(reasons)
+        if running:
+            line += "; " + in_flight_text(running, w.now)
+        if changes:
+            line += "; pull the main checkout before the new session starts"
+    else:
+        line = "handover not due"
+        if changes:
+            n = len(running)
+            line += (f"; instruction change pending: launch nothing new; due once the {n} "
+                     f"{plural(n, 'run in flight ends', 'runs in flight end')}: {changes_text(changes)}")  # fmt: skip
+        if not running and ctx > STOP_CONTEXT:
+            line += (f"; at a stop for the human: due (the context {metrics.fmt_tok(ctx)} is over "
+                     f"{STOP_CONTEXT // 1000}k and no run is in flight)")  # fmt: skip
+    if stale:
+        n = len(stale)
+        line += (f"; {n} stale {plural(n, 'run', 'runs')}, no line for over {STALE_MINUTES} min, not counted in flight "
+                 f"({runs_text(stale, w.now)}): check {plural(n, 'it', 'each')}, stop {plural(n, 'it', 'them')} "
+                 "before a handover")  # fmt: skip
+    if isinstance(w.instructions, str):
+        line += f"; instruction changes unavailable: {cell(w.instructions)}"
+    if isinstance(w.behind, str):
+        line += f"; the main checkout's instruction files unavailable: {cell(w.behind)}"
+    elif w.behind:
+        line += (f"; the main checkout's instruction files are behind origin/main ({', '.join(w.behind)}): the human "
+                 "pulls it before a new session starts")  # fmt: skip
+    return line.rstrip(".") + "."
+
+
 def footer_section(w: Wave) -> list[str]:
     s = w.session
     age = (w.now - s.first) / 3600 if s.first is not None else 0.0
@@ -1211,7 +1382,7 @@ def footer_section(w: Wave) -> list[str]:
           f"{metrics.fmt_usd(mean_usd(last))} ({len(s.calls)} calls)."]  # fmt: skip
     if s.skipped:
         md += ["", "Skipped: " + ", ".join(f"{k} {v}" for k, v in s.skipped.items()) + "."]
-    return [*md, ""]
+    return [*md, "", handover_verdict(w), ""]
 
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
@@ -1323,6 +1494,13 @@ def gather(w: Wave, src: Sources, merge_check: bool, dirs: list[Path], stage_sin
         return housekeeping_of(worktrees, w.merged, w.runs, src.alive_in, main, issues, w.since, w.now)
 
     w.housekeeping = attempt("housekeeping", housekeeping)
+    # From the session's start, not --since: a merge after the session began but before this wave still counts.
+    start = w.session.first if w.session.first is not None else w.since
+    w.instructions = attempt("instruction changes", lambda: read_instruction_changes(src.gh_json, w.merged, start))
+    if isinstance(main, Path):
+        w.behind = attempt("the main checkout's instruction files", lambda: src.instructions_behind(main))
+    else:
+        w.behind = f"the main checkout: {main}"
 
 
 def read_notes(path: Path) -> str:
@@ -1415,4 +1593,5 @@ def main(
     while part_path(target, k).exists():
         warn(f"{part_path(target, k)} is from an earlier run of wave, not part of this body")
         k += 1
+    say(handover_verdict(w))  # the last line: the turn-end check reads it (orchestrate-stage §7)
     return 0
