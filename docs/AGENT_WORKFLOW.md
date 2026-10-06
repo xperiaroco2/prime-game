@@ -349,7 +349,12 @@ Rules for every workflow run:
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
   rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
-  too, identical in the two scripts.
+  too, identical in the two scripts. A fourth (#456) is the one way to change an earlier commit, after a fix agent's
+  own sequence editor (a script that reworded a commit) made the guard ask and a night run waited 9 hours: a
+  `git commit --fixup=<sha>`, or for a new message a `git commit --allow-empty -F <file>` whose first line is
+  `amend! <that commit's subject>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (§8.2);
+  `--fixup=reword:` and `--fixup=amend:` open the message editor (git refuses `-m` and `-F` with them). The test pins
+  the line and runs the recipe through git with every editor failing.
   Both return a compact result (#386), because the harness prints a run's return value into the manager's context
   and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
   `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
@@ -364,13 +369,13 @@ Rules for every workflow run:
   earlier args and `bounded_waits: false` gets the earlier agents byte for byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's rules line, #339's section reads). `plan_review:
-  true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2 agents).
-  `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
-  `tools\run.cmd mutants` (#184), each in a
-  scratch worktree; a survived mutant is a finding, and the publisher stops and reports when `mutants` exits 2; the
-  result's `stopped` then says to relaunch, not resume (+1; none for a design task or a diff without `core/ server/
-  net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
+  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
+  `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR
+  (+2 agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code
+  with `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background
+  with a new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding,
+  and the publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not
+  resume (+1; none for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
   wherever the netcode review is routed (+1). `skeptic: true` or a number: a read-only agent tries to refute each
   blocker or major finding before the publisher (a number caps the agents); refuted ones are listed in the PR with the
   reason (+1 each). `visual: true` (the scenarios the notes name), a scenario or a list: the implementer runs
@@ -726,8 +731,10 @@ Claude Code's Bash and PowerShell tools set `GIT_EDITOR=true`, and this machine 
 editor opens; agents still write `git commit --fixup=<sha>` then
 `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (root `CLAUDE.md`, Shell), because a machine
 whose git config names a `sequence.editor` (`code --wait`) would open it and the call would run to its timeout:
-`git rebase --abort` in the own worktree then ends it. Always asks: `rebase --update-refs` (moves other
-branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
+`git rebase --abort` in the own worktree then ends it. A reword stays editor-free too, through an `amend!` commit
+made with `git commit --allow-empty -F <file>` (its first line `amend! <subject>`), which autosquash applies as
+`fixup -C`; `--fixup=reword:` and `--fixup=amend:` open the message editor (#456, the workflows' rules).
+Always asks: `rebase --update-refs` (moves other branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
 editor is such a command too, and passes since #457: the pre-push hook and GitHub's branch protection still stop a
 push to `main` and a force push; a deliberate exception to #457's "every form", kept because the task forbade
 weakening a push rule and left to the engineer on its PR), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
