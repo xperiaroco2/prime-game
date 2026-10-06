@@ -1084,7 +1084,9 @@ uid that resolves to a different file than its `path=`. Godot 4.7.2 sometimes di
 3221225477, 0xC0000005) while it shuts down after `check_project.gd` printed a clean summary (#442: 2 of 326 check
 steps, the summary their last line, none of the shutdown lines every run prints after it): `check` passes such a run
 with a `GODOT CRASHED AT EXIT` warning and keeps its output in `tools/out/logs/check-exit-crash.log`. A crash before
-the summary, after an error or with another exit code stays red, and nothing is retried.
+the summary, after an error or with another exit code stays red, and nothing is retried. In `verify` such a pass also
+reaches the summary row (`passed  check  28.3s  (Godot crashed at exit, #442)`, so publish's verify tail and the PR
+body carry it), the step's history record (`exit_crash: true`) and `metrics`' crash rate over the window (#449).
 
 ### 11.4 `shot <scene>` [applied]
 A real window at `--position -30000,-30000` (off-screen), never headless or minimized
@@ -1326,7 +1328,8 @@ issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` an
 local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
 the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
 writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
-as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and
+as N, and the `test` shards that did not end with exit 0, #273, and how many of the window's `check` steps passed
+although Godot crashed at exit, #449), review findings by reviewer (a task's blockers and
 majors count only its diff reviewers', as in the baseline), the prompt cache after waits, manager sessions with their
 % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
@@ -1475,7 +1478,8 @@ false` when it wrote no `results.xml`, such as a crash's 3221225477, `timed_out`
 starting; shard 1 is the one process of a run without shards) and, when red, `failed_tests` (`test` as
 `<suite>::<test>`, with the failure's `message` on one line, or `orphans` for a leak) and `failed_tests_more` past 20.
 A message is cut at 240 characters, so a red record stays about 1 KB; `metrics` lists the red runs' failing tests,
-first failure lines and shard exits.
+first failure lines and shard exits. A `check` step that passed although Godot crashed at exit (§11.3) adds
+`exit_crash: true`, and its summary row ends with `(Godot crashed at exit, #442)` after the seconds (#449).
 **Processes Windows could not start (#441):** on the engineer's PC, Godot, git, Python and PowerShell sometimes exit
 with 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED) a fraction of a second after their start, before they print a
 line: Windows failed them while it loaded their DLLs, so none of their code ran. In 11 of about 420 agents' verify
