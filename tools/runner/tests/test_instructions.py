@@ -32,6 +32,31 @@ WRITER_FILES = {
     ".claude/agents/task-implementer.md": WRITER.format(name="task-implementer", extra=""),
     ".claude/agents/task-publisher.md": WRITER.format(name="task-publisher", extra=", SendUserFile"),
 }
+# The lean types of the other workflows (docs/decisions/2026-10-06-lean-reader-and-writer-types.md).
+LEAN_READER = """---
+name: lean-reader
+description: A lean workflow agent. Reads and reports.
+model: sonnet
+tools: Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch{extra}
+disallowedTools: Edit, Write, NotebookEdit, Agent, Skill
+---
+
+Body.
+"""
+LEAN_WRITER = """---
+name: lean-writer
+description: A lean workflow agent. Writes where its prompt says.
+model: opus
+tools: Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch, Edit, Write{extra}
+disallowedTools: NotebookEdit, Agent, Skill
+---
+
+Body.
+"""
+LEAN_FILES = {
+    ".claude/agents/lean-reader.md": LEAN_READER.format(extra=""),
+    ".claude/agents/lean-writer.md": LEAN_WRITER.format(extra=""),
+}
 
 
 def write(root: Path, rel: str, text: str) -> None:
@@ -171,9 +196,42 @@ class BudgetTest(unittest.TestCase):
         # The publisher's own allowlist has SendUserFile (the screenshots of a visual PR).
         self.assertEqual(self.check({"CLAUDE.md": "x\n", ".claude/agents/task-publisher.md": publisher}).errors, [])
 
+    def test_the_lean_reader_and_writer_pass(self) -> None:
+        # docs/decisions/2026-10-06-lean-reader-and-writer-types.md: a read-only reader and a third writer.
+        report = self.check({"CLAUDE.md": "x\n", **LEAN_FILES})
+        self.assertEqual(report.errors, [])
+        self.assertIn("2 subagents: frontmatter, model guard, read-only or a lean writer", report.notes)
+
+    def test_the_lean_reader_and_writer_stay_within_their_allowlists(self) -> None:
+        reader = LEAN_FILES[".claude/agents/lean-reader.md"]
+        writer = LEAN_FILES[".claude/agents/lean-writer.md"]
+        cases = (
+            ("lean-reader", LEAN_READER.format(extra=", Monitor"), "tools: Monitor is outside the lean allowlist"),
+            ("lean-reader", LEAN_READER.format(extra=", mcp__x__y"), "tools: mcp__x__y is outside the lean allowlist"),
+            ("lean-reader", reader.replace(", Skill\n", "\n"), "disallowedTools: must include Skill"),
+            ("lean-reader", reader.replace("Edit, Write, ", ""), "disallowedTools: must include Edit, Write"),
+            ("lean-reader", reader.replace("model: sonnet\n", "model: sonnet\neffort: high\n"), "effort: is set by"),
+            ("lean-writer", LEAN_WRITER.format(extra=", Monitor"), "tools: Monitor is outside the lean allowlist"),
+            ("lean-writer", LEAN_WRITER.format(extra=", SendUserFile"), "tools: SendUserFile is outside the lean"),
+            ("lean-writer", writer.replace(", Skill\n", "\n"), "disallowedTools: must include Skill"),
+            ("lean-writer", writer.replace(", Agent, ", ", "), "disallowedTools: must include Agent (lean agent"),
+            ("lean-writer", writer.replace("model: opus\n", "model: opus\neffort: high\n"), "effort: is set by"),
+        )
+        for name, text, want in cases:
+            with self.subTest(name=name, want=want):
+                report = self.check({"CLAUDE.md": "x\n", f".claude/agents/{name}.md": text})
+                self.assertEqual(len(report.errors), 1, report.errors)
+                self.assertIn(want, report.errors[0])
+
+    def test_the_reader_frontmatter_under_another_name_is_a_plain_read_only_agent(self) -> None:
+        # The lean allowlist and the Skill rule go by name: under another name only the read-only rule applies.
+        helper = LEAN_READER.format(extra=", Monitor").replace("name: lean-reader", "name: helper")
+        report = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper.replace(", Skill\n", "\n")})
+        self.assertEqual(report.errors, [])
+
     def test_no_agent_sets_permission_mode(self) -> None:
         # Project subagents inherit the session's permission mode; a field that could change it is an error.
-        for rel, text in ((".claude/agents/helper.md", AGENT), *WRITER_FILES.items()):
+        for rel, text in ((".claude/agents/helper.md", AGENT), *WRITER_FILES.items(), *LEAN_FILES.items()):
             with self.subTest(agent=rel):
                 changed = text.replace("\n---\n\n", "\npermissionMode: acceptEdits\n---\n\n", 1)
                 report = self.check({"CLAUDE.md": "x\n", rel: changed})

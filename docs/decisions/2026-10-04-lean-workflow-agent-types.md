@@ -48,7 +48,9 @@ WebSearch); Monitor, TaskStop, WebFetch, Grep; and a handful of single calls (Sk
 `docs/AGENT_WORKFLOW.md` §5 kept every project subagent read-only. These two names are the exception, and only
 they: `tools/runner/instructions.py` (`WRITERS`) holds each to its own allowlist, requires NotebookEdit, Agent and
 Skill in `disallowedTools` and rejects an `effort:` (the workflow sets it per role); every other agent keeps the
-read-only check word for word. A third writable type needs a new ADR.
+read-only check word for word. A third writable type needs a new ADR: `lean-writer`, with the read-only
+`lean-reader`, for the workflows outside these two ([ADR](2026-10-06-lean-reader-and-writer-types.md), #466;
+Approved by the engineer: [#466 comment 6014948170](https://github.com/xperiaroco2/prime-game/issues/466#issuecomment-6014948170)).
 
 ### Permissions: no widening
 The types are a strict subset of what a general workflow agent can do today. No agent file may set

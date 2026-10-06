@@ -26,7 +26,10 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   0.61% a task, art 1.13% an issue, UI 1.18% a run. A day's share (game 3.7%, UI 2.9%, art 2.9%, meta 1.7%) is a
   guide; the weekly budget is the limit.
 - From the next reset on, the meta track posts with its weekly report the past week's spend per track against its
-  budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones.
+  budget and a proposal for the next week's budgets; the engineer's silence keeps the last ones. A workflow that
+  gathers it passes the lean types (AGENT_WORKFLOW §5, #466): its gatherers `{agentType: 'lean-reader'}` on Sonnet,
+  its verifier (a skeptic) `{agentType: 'lean-reader', model: 'opus'}`, the agent that writes the report or comment
+  `{agentType: 'lean-writer'}`.
 
 ## Reading the spend
 - `tools\run.cmd metrics --since <the reset, 2026-10-06T10:00:00Z> --track <track> --budget <its %> --compact` (#409)

@@ -221,12 +221,14 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ## 5. Subagents and models
 
-Files in `.claude/agents/` **[applied]**. Five are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
-includes `Agent`, no `memory:` field. The two lean writers `task-implementer` and `task-publisher` are the one
-exception ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): only `issue-task` and `pr-rebase`
-launched with `lean: true` use them (§7.1); each keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and
-Agent, and sets no `effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
-`tools/runner/instructions.py` (`lint`) enforces both kinds. Their shell use is limited by the shared permission
+Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
+includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
+`task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
+`pr-rebase` launched with `lean: true` use (§7.1), and `lean-writer`
+([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
+writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, and sets no
+`effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
+`tools/runner/instructions.py` (`lint`) enforces all of it. Their shell use is limited by the shared permission
 rules.
 
 | Agent | Job | Model |
@@ -238,6 +240,22 @@ rules.
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
 | `task-implementer` | `lean: true` only: the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
 | `task-publisher` | `lean: true` only: the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
+| `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
+| `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
+
+- **Agent types in other workflows [applied]** (the night audit run as a workflow, the meta track's weekly report,
+  ad hoc research, audits and scouting; [ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466). Every
+  `agent()` call of such a script passes `agentType`, so it starts at about 21k tokens instead of about 57k:
+  - finders, gatherers, scouts and lenses that read and report: `{agentType: 'lean-reader'}`, on Sonnet by the
+    file;
+  - skeptics and verifiers keep their model: `{agentType: 'lean-reader', model: 'opus'}`; the night audit's skeptic
+    stays `night-skeptic`;
+  - the agents that write the final issue, comment, report or synthesis keep their model: `{agentType:
+    'lean-writer'}` (Opus), or with the model they had (`model: 'sonnet'` for the night audit's filing step);
+  - an agent that needs a tool outside both lists (Monitor for a long job, the Skill tool) stays
+    `workflow-subagent`, and its prompt says why. Lean agents have no Skill tool: a prompt that names a skill tells
+    the agent to read its `SKILL.md`;
+  - `agents-check` judges these agents by the call's `model`, else the type's `model:`.
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
@@ -257,9 +275,10 @@ rules.
   merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
   when another family served it; a request in neither list must be served by another family (the model guard).
   Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
-  printed with their label and run: a default launch's meta file has no `model` (a reviewer, or a `lean` implementer
-  or publisher, is judged by its agent file; an implementer or publisher of `agentType` `workflow-subagent` inherits
-  the session's model and is only listed, unless a model in neither list served it: a failure); a `models` launch is
+  printed with their label and run: a default launch's meta file has no `model` (a reviewer, a `lean` implementer
+  or publisher, or a `lean-reader` or `lean-writer`, is judged by its agent file; an implementer or publisher of
+  `agentType` `workflow-subagent` inherits the session's model and is only listed, unless a model in neither list
+  served it: a failure); a `models` launch is
   read from `model`, as the Agent tool records it, and any other meta key that names a model, at any depth
   (`request.model`), fails until the reader learns it. After a launch that passes `models`, `agents-check` in the
   manager's session checks it. `finish-task` runs it after the reviews.
