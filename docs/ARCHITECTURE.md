@@ -414,9 +414,12 @@ dissidents, no crew present only once every crew member left, End widens nothing
     arrives after it, the one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule
     removed passed `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the
     first claim of an epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected
-    (1 of 5 runs under load). Only clients: a host that drops a late `MoveClaim` behind a reliable `PickUp` (the rule
-    at work) checks the `PickUp` against the claim before and refuses an honest bot (`out_of_reach`, 1 of 3 chaos
-    runs), the M6 ADR's §2.2 case, which on a real path needs datagrams reordered by more than a claim interval.
+    (1 of 5 runs under load). Until #429 only clients lost LATEST and got it late: a host that lost a `MoveClaim`
+    right before a reliable `PickUp` (or dropped a late one behind it, the rule at work) checked the `PickUp` against
+    the claim before and refused an honest bot (`out_of_reach`, 1 of 3 chaos runs), and a host that lost an epoch's
+    first claim took the next as one tick and corrected an honest bot (1 of 10 chaos runs under load). Since #429 the
+    client sends those claims on `MoveClaimReliable` (§4.3, §7.1.15 Lost claims), and every side's shim, the host's
+    included, drops 10 % of LATEST and makes 20 % of it 120 ms late.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -489,8 +492,9 @@ dissidents, no crew present only once every crew member left, End widens nothing
 *Designed for M3 (#89; accepted 2026-10-01):* the schemas of every intent, event, the snapshot and the voice frame, and their
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
-survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
-engineer took the recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
+survives a merge (§4.3); since #429 the claims that must not be lost travel on its RELIABLE twin, `MoveClaimReliable`.
+The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The engineer took the
+recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options. The designer took D1 to D3 (a) (#96).
 Every schema change updates §4.3 in the same PR.
 
@@ -646,7 +650,8 @@ content edit before a playtest instead of the encoder refusing a reliable event 
 
 #### 4.3.2 Intents (C→H)
 Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
-`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
+`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`; nor has its
+RELIABLE twin `MoveClaimReliable`, which is a claim too. A client stops
 claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
 - **Before its `Welcome`** a client treats any `Rejected` as the end of its join, with a message naming the reason.
   Before 3e a `Hello` that the phase refuses (Loading, Round, End) got `not_accepted` with seq 0 and nothing
@@ -674,6 +679,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 11 | `StopRaise` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
+| 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -754,8 +760,9 @@ The rules of the table:
   `invulnerable` and the debug row `ForceClock` (25), 5 when M4-4 (#140) added `Raise`, `StopRaise` and
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
-  `belt_item`, and is 7 since #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`; M4's protocol PRs each set
+  `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), and is 9 since #429 added `MoveClaimReliable` (14);
+  M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -800,6 +807,7 @@ The rules of the table:
   merged claims are lost, so a player who climbed and jumped during a host freeze may be corrected once. The covered
   ticks are settled with the flags `sprint_ticks` and `moved_ticks` give each of them (#155), which hold the last
   32 client ticks (1.6 s); a covered tick older than that, after a longer freeze, takes the oldest bit.
+  `MoveClaimReliable` (14) carries the same fields, so its count and masks are read the same way.
 - **Sizes.** The host sends each remote player a snapshot per tick: about 430 bytes on the wire with 10 players, so
   9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 2 KB/s with headers. A payload over its cap is never
   truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
@@ -963,11 +971,14 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 - Per peer, three token buckets, refilled for the host time elapsed in step 2, before the poll:
   - **voice frames** (`VoiceUp`): 500, refilled at 50 per second (one 20 ms frame each); the relay's newest 5 per
     speaker per poll bounds a backlog further;
-  - **reliable intents**: 100, refilled at 20 per second;
+  - **reliable intents**: 100, refilled at 20 per second; `MoveClaimReliable` is one of them (#429): reliable
+    twins are never merged, so this bucket, not the bytes, bounds what they put in the command log;
   - **bytes** of every other message (the reliable intents and `MoveClaim`): 64 KiB, refilled at 16 KiB/s.
 
   An honest client sends about 50 frames, a few intents and about 1 KB of claims per second, so each bucket holds
-  more than 10 s of it: a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
+  more than 10 s of it (a twin before each player action doubles what an action costs, and each `Correction` costs
+  one twin, so 10 actions a second, or a correction every frame, is where an honest client would meet the bucket):
+  a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
   its own bucket so that a player talking at a high Opus bitrate never drains the budget that a `SetReady` or a
   `LoadAck` needs: a reliable intent dropped on a budget is acknowledged by ENet and never answered, and the client's
   state would diverge silently, which only a looping client may cause. `MoveClaim` is bounded by the LATEST merge as
@@ -1130,7 +1141,9 @@ it, it keeps what a player may know: its peer id and epoch, the phase, the roste
 bodies and each player's life folded from the events (cleared on `LoadMatch` and on entering the lobby); the
 avatars of the newest
 snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
-client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
+client tick (20 Hz) with its epoch, client tick and jump count (the first of each epoch, and the last one again
+right before a player action, on its RELIABLE twin `MoveClaimReliable`, #429), and `LoadAck` after loading. It
+never reads `core/`
 state (invariant 2).
 Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
 `ClientModel` (the fold). What the build pinned:
@@ -3108,7 +3121,8 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
       names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
       test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
     - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
-      the host takes the next claim as one tick, while the client counts it from its last claim.
+      the host takes the next claim as one tick, while the client counts it from its last claim. A lost first
+      claim no longer does this: it travels on `MoveClaimReliable` (§7.1.15 Lost claims, #429).
   Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
   does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
   (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks
@@ -3289,6 +3303,24 @@ still counts: float noise between a physics floor and a hand-placed marker). The
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
 `server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
+
+#### 7.1.15 Lost claims (#429, M6; the engineer's A1 + B3 on PR #434)
+Over Wi-Fi a LATEST `MoveClaim` is lost now and then. Two cases hurt an honest player: Alice's claim for the step
+that brought her within reach is lost, and her reliable `PickUp` is checked against the claim before
+(`out_of_reach`); Bob's first claim after a placement is lost, and the next one, two ticks of walking, is taken as one
+and corrected. The host never widens reach or span for a lost claim (a silent client would gain range). Instead the
+client makes those two claims reliable, on `MoveClaimReliable` (§4.3): every epoch's first claim, and its last sent
+claim again, exactly as sent (the same tick, position and masks; a fresh position under an old tick would correct a
+sprinter), right before an intent of `Intents.PLAYER_ACTIONS`, once per claim, never a claim of an older epoch, and
+only while it claims. The host hands the twin to `core/` as the plain `MoveClaim` command, so it passes every check
+of §7.1.5: a twin of a claim already applied, or behind a newer one, does not rise and is dropped in silence; a
+hostile one is corrected. A resend is not a new claim: `claim_sent` does not fire for it, and the stamina prediction
+does not count it. Order holds: ENet carries both lanes on channel 0, and over WebRTC `LaneOrder` drops a LATEST
+original that arrives behind its twin. Still accepted: a lost landing claim before a second jump (the host may still
+have the player in the air), and §7.1.5's notes on the stamina prediction. Tests:
+`tests/unit/client/net/client_session_claim_twin_test.gd`, `tests/integration/server/host_session_claim_twin_test.gd`
+(a lossy link end to end), `tests/unit/movement/movement_rule_claim_loss_test.gd`,
+`tests/unit/net/messages/wire_schema_test.gd`.
 
 ## 8. Debug tooling
 
