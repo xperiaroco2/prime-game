@@ -174,12 +174,38 @@ class ProtectionsTest(unittest.TestCase):
             ("Bash", "gh pr create -R xperiaroco2/prime-game-art --title x"),
             ("Bash", "mv addons/twovoip /tmp/x"),
             ("PowerShell", "Copy-Item x .claude/settings.json"),
-            # #104: only GIT_SEQUENCE_EDITOR=: makes an interactive rebase editor-free; -c core.editor still asks.
-            ("Bash", "git -c core.editor=true rebase -i --autosquash origin/main"),
+            # #457 lets an interactive rebase pass in the own worktree on its task branch, not in the main checkout.
+            ("Bash", f"git -C {MAIN_POSIX} rebase -i --autosquash origin/main"),
         ):  # fmt: skip
             for bypass in (True, False):
                 with self.subTest(tool=tool, command=command, bypass=bypass):
                     self.assertEqual(verdict(tool, command, bypass)[0], permissions.PROMPT)
+
+    def test_the_engineers_interactive_rebase_passes_in_the_own_worktree(self) -> None:
+        # #457: #445's fix agent waited from 21:56 to 07:19 UTC on this prompt in its own worktree, on its task branch.
+        worktree = f"{MAIN_POSIX}/.claude/worktrees/51"
+
+        class TaskRepo(OwnRepo):
+            def __init__(self, branch: str) -> None:
+                self.checked_out = branch
+
+            def branch(self, checkout: str) -> str | None:
+                return self.checked_out if checkout == guard.normalize(worktree) else "main"
+
+        command = (
+            f"cd {worktree} && SP=/c/x/r445 && GIT_SEQUENCE_EDITOR=\"sed -i '/^pick 2c3e0d21/a exec git commit -q "
+            "--amend --cleanup=verbatim -F $SP/m.txt'\" git rebase -q -i origin/main"
+        )
+        for cwd in (MAIN, worktree):
+            with self.subTest(cwd=cwd):
+                judged = permissions.verdict(RULES, guard, "Bash", command, cwd, MAIN, TaskRepo("tooling/51-x"))
+                self.assertEqual(judged[0], permissions.PASS)
+        # Another branch checked out in the worktree, or the main checkout, still asks.
+        other = permissions.verdict(RULES, guard, "Bash", command, MAIN, MAIN, TaskRepo("core/42-vote"))
+        self.assertEqual(other[0], permissions.PROMPT)
+        main = command.replace(f"cd {worktree}", f"cd {MAIN_POSIX}")
+        self.assertEqual(permissions.verdict(RULES, guard, "Bash", main, MAIN, MAIN, TaskRepo("tooling/51-x"))[0],
+                         permissions.PROMPT)
 
 
 class SettingsTest(unittest.TestCase):
