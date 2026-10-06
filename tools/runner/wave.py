@@ -9,6 +9,7 @@ fresh relaunch. Sources (metrics' module docstring says where the transcripts ar
   - task notifications (<task-notification> in a queue-operation enqueue record or a user record), paired by their
     <tool-use-id> (else <task-id>): the run's end (the earliest of them) and its status (completed, failed, killed);
   - the API calls (deduplicated by message id as metrics.read_agent does) and the session's title for the footer;
+  - its first user message's `Track:` line (metrics.kickoff_track, a second short read), for the handover's successor;
 - each run's <sid>/subagents/workflows/<runId>/journal.jsonl through metrics.read_run: the agents, their labels,
   phases and structured results.
 A notification's <result> is cut at about 8 kB, so a finished run's PR, CI, published, not_fixed, needs_engineer and
@@ -56,8 +57,10 @@ The handover verdict ends the footer and is stdout's last line (orchestrate-stag
 "handover due: <why>" when the last call's context is over 300k or the session over 12 h old, even with runs in
 flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent),
 or, once no run is in flight, when such a merge changed the instructions (until then "launch nothing new"); else
-"handover not due", with "at a stop for the human: due" when no run is in flight and the context is over 150k. A run
-with no line for over STALE_MINUTES is named as stale, not counted in flight. A failed read says so in the line.
+"handover not due", with "at a stop for the human: due" when no run is in flight and the context is over 150k. A due
+line ends with the successor's start (#484, route C): update_scheduled_task on the track's task, named after the
+kickoff's `Track:` line (metrics.kickoff_track), with a fireAt a few minutes ahead. A run with no line for over
+STALE_MINUTES is named as stale, not counted in flight. A failed read says so in the line.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -173,6 +176,7 @@ class Session:
     last_ctx: int = 0
     launches: list[Launch] = field(default_factory=list)
     skipped: Counter = field(default_factory=Counter)
+    track: str | None = None
 
 
 @dataclass
@@ -474,6 +478,7 @@ def read_session(path: Path, sid: str) -> Session:
         if launch.notice is None or note.time < launch.notice.time:
             launch.notice = note  # the enqueue comes first; the user record repeats it later
     resolve_args(s.launches)
+    s.track = metrics.kickoff_track(path)
     return s
 
 
@@ -1311,14 +1316,26 @@ def is_stale(r: Run, now: float) -> bool:
 
 def in_flight_text(runs: list[Run], now: float) -> str:
     """'2 runs in flight (#466 implement:#466, 3 min since its last line; ...): stop each (...), then post the
-    handover; the new session relaunches them fresh'."""
+    handover; the successor relaunches them fresh'."""
     pushing = [r for r in runs if any(metrics.role_of(label) in PUSHING_ROLES for label, _ in r.working)]
     wait = ""
     if pushing:
         wait = f" ({', '.join(run_name(r) for r in pushing)} only once its publish, rebase or fix agent ends)"
     n = len(runs)
     return (f"{n} {plural(n, 'run', 'runs')} in flight ({runs_text(runs, now)}): stop {plural(n, 'it', 'each')}{wait}, "
-            f"then post the handover; the new session relaunches {plural(n, 'it', 'them')} fresh")  # fmt: skip
+            f"then post the handover; the successor relaunches {plural(n, 'it', 'them')} fresh")  # fmt: skip
+
+
+def successor_text(track: str | None) -> str:
+    """The handover's last step (#484, route C; orchestrate-stage's handover.md): the manager points the track's
+    one-time scheduled task at a moment a few minutes ahead (run_scheduled_task is refused in a session a scheduled
+    task started, and the probe's fireAt task fired by itself), checks that the successor's run started and stops."""
+    task = f"{track or '<track>'}-manager"
+    unknown = " (no Track: line in this session's kickoff)" if not track else ""
+    return (f"start the successor (orchestrate-stage handover.md): update_scheduled_task {task}{unknown} with fireAt "
+            "3 min ahead and notifyOnCompletion false (create_scheduled_task if there is none); once list_task_runs "
+            "shows its new run, stop and launch nothing more; no run or a refused call: the human pastes the "
+            "kickoff")  # fmt: skip
 
 
 def handover_verdict(w: Wave) -> str:
@@ -1326,7 +1343,8 @@ def handover_verdict(w: Wave) -> str:
     Due, even with runs in flight: the last call's context over HANDOVER_CONTEXT or the session over HANDOVER_HOURS
     old. Due once no run of this session is in flight: a merge into main since the session start changed the agents'
     instructions (until then: launch nothing new). Not due, no run in flight and the context over STOP_CONTEXT: a
-    stop for the human hands over instead of arming a keep-alive. A stale run (is_stale) is named but not in flight."""
+    stop for the human hands over instead of arming a keep-alive. Each due line ends with successor_text. A stale run
+    (is_stale) is named but not in flight."""
     s = w.session
     ctx = s.last_ctx
     age = (w.now - s.first) / 3600 if s.first is not None else 0.0
@@ -1341,12 +1359,12 @@ def handover_verdict(w: Wave) -> str:
     if changes and (reasons or not running):
         reasons.append(f"merges into main since the session start changed the agents' instructions: "
                        f"{changes_text(changes)}")  # fmt: skip
+    due = bool(reasons)
     if reasons:
         line = "handover due: " + "; ".join(reasons)
-        if running:
-            line += "; " + in_flight_text(running, w.now)
+        line += "; " + (in_flight_text(running, w.now) if running else "post the handover")
         if changes:
-            line += "; pull the main checkout before the new session starts"
+            line += "; pull the main checkout before the successor starts"
     else:
         line = "handover not due"
         if changes:
@@ -1354,8 +1372,9 @@ def handover_verdict(w: Wave) -> str:
             line += (f"; instruction change pending: launch nothing new; due once the {n} "
                      f"{plural(n, 'run in flight ends', 'runs in flight end')}: {changes_text(changes)}")  # fmt: skip
         if not running and ctx > STOP_CONTEXT:
+            due = True
             line += (f"; at a stop for the human: due (the context {metrics.fmt_tok(ctx)} is over "
-                     f"{STOP_CONTEXT // 1000}k and no run is in flight)")  # fmt: skip
+                     f"{STOP_CONTEXT // 1000}k and no run is in flight): post the handover")  # fmt: skip
     if stale:
         n = len(stale)
         line += (f"; {n} stale {plural(n, 'run', 'runs')}, no line for over {STALE_MINUTES} min, not counted in flight "
@@ -1370,7 +1389,9 @@ def handover_verdict(w: Wave) -> str:
         line += f"; the main checkout's instruction files unavailable: {cell(w.behind)}"
     elif w.behind:
         line += (f"; the main checkout's instruction files are behind origin/main ({', '.join(w.behind)}): the human "
-                 "pulls it before a new session starts")  # fmt: skip
+                 "pulls it before the successor starts")  # fmt: skip
+    if due:  # last, after every clause that must hold before the successor starts (stale runs, a pull)
+        line += "; then " + successor_text(s.track)
     return line.rstrip(".") + "."
 
 

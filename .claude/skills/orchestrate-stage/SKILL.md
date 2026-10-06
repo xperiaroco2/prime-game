@@ -87,7 +87,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
    worktree with a commit in the last hour (`git -C <wt> log -1 --format=%cr`), a rebase in progress (`git -C <wt>
    status`), and every run listed as running in the plan issue's latest wave comment. List them in your batched question
    and never `start`, launch or rebase them before the answer: `start` on such an issue succeeds silently (it resumes
-   the branch and worktree as they are), and a second implementer then works beside the first.
+   the branch and worktree as they are), and a second implementer then works beside the first. A second live
+   manager of your track (#484; [handover.md](handover.md) §3): stop before any launch or merge and ask.
 3. **The design gate.** Code tasks wait until the stage's design PR has the engineer's review. If the design task
    has no PR yet: when another session runs it, your first wave is empty (post a plan-issue comment saying you wait
    for it, and stop); otherwise the first wave is that design task alone (`design: true`). Offer fillers that do not
@@ -216,8 +217,9 @@ When something failed (never resume a run whose result has `stopped`: a resume r
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
 that changes shared design. An answer with two readings that build different things is read back in one sentence
-(AskUserQuestion) before it is recorded; if the human dismisses the question and explains, read back again. An
-answer that changes a published PR: a trivial one inline in its worktree, in a subshell (§9), then
+(AskUserQuestion; a session a scheduled task started has none: plain chat, §7) before it is recorded; if the human
+dismisses the question and explains, read back again. An answer that changes a published PR: a trivial one inline in
+its worktree, in a subshell (§9), then
 `publish --base release/m<k>` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
@@ -368,16 +370,12 @@ taken in a `main` that has them.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
-  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k) and
-  work is left, else arm nothing. (4) Otherwise arm nothing.
-- **A handover** (#467): (a) TaskStop each run the verdict names (a publish, rebase or fix agent at
-  work: after it, the timer armed), until the check shows none in flight. (b) One plan-issue comment, `wave --since
-  <session start> --title "Handover to a fresh manager session" --notes <file>`: the order from here, open questions,
-  `human_steps` still due, the stage's start, the runs you stopped (relaunch fresh) and the handover data. (c) "For
-  you:": close this session, paste the §10 kickoff with "Continue from" and `Track:` into a new session in
-  `D:\prime-game`. Then a PushNotification; stop, no timer, launch nothing more. The successor takes that comment as
-  §2.2's answer, relaunches the stopped runs fresh and takes the stage's yes as given: it restates the order and goes
-  on (§1's wait does not apply).
+  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k),
+  work is left and the human is present, else arm nothing. (4) Otherwise arm nothing. Earlier by judgment, and never
+  so while the human is away: [handover.md](handover.md) §1.
+- **A handover** (#467, #484): follow [handover.md](handover.md) §2: (a) stop the runs, (b) post the handover
+  comment, (c) start your successor yourself through the track's scheduled task (route C); nothing is pasted. A
+  session a scheduled task started reads its §3 first (no AskUserQuestion, `acceptEdits` at medium effort).
 - **Keep your context small**: planning reads, ADR, doc and issue-body drafts, metrics tables and audits go to a
   subagent (Agent tool, Sonnet) that returns at most about 2k characters with links and numbers, or a scratchpad file
   you pass to `gh --body-file` unread. Write no large file yourself.
@@ -491,9 +489,9 @@ Start from: <my review of the design PR #<pr> and its handoff on #<design issue>
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
 order.>
 
-<After a handover (§7): Continue from the handover comment <link>; the previous session stopped its runs (relaunch
-them fresh) and launches nothing more, and my yes to the stage's restatement stands: restate the order from there
-and go on.>
+<After a handover by the paste (handover.md): Continue from the handover comment <link>; the previous session stopped
+its runs (relaunch them fresh) and launches nothing more, and my yes to the stage's restatement stands: restate the
+order from there and go on.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
@@ -506,7 +504,7 @@ Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; 
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
-each workflow. Hand over at §7's turn-end verdict, even mid-wave.
+each workflow. Hand over at §7's turn-end verdict, even mid-wave, and start your successor yourself (handover.md).
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
