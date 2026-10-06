@@ -18,8 +18,8 @@ resume of a run launched without `lean` passes `lean: false`). A deliberate chan
 run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
 wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
 and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
-root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list), and #471's publish steps (no
-standalone verify before `publish`); they landed between waves, when no run could resume. Each snapshot ends with the
+root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list), #471's publish steps (no
+standalone verify before `publish`), and #468's reading line (every agent's, reviewers too); they landed between waves, when no run could resume. Each snapshot ends with the
 run's return value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and
 changed only that part of every snapshot.
 """
@@ -105,6 +105,8 @@ STASH_RULE = "Never use `git stash`"
 HOOKS_RULE = "- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`"
 SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
 # #413's one-line rule: the writes outside the worktree and the scratchpad that a throwaway first command made.
+# #468: how every agent reads code (outline or grep -n first, no re-read of unchanged content, batched reads).
+READ_RULE = "- Reading (the docs-by-section rule of #339, extended to code by #468):"
 WRITE_RULE = "- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway"
 # #456's one-line rule: the one way to change or reword an earlier commit, with no editor.
 REBASE_RULE = "- Change an earlier commit only with `git commit --fixup=<sha>`"
@@ -800,6 +802,40 @@ class PipelineV2Test(unittest.TestCase):
                 logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
                 self.assertTrue(any("unknown args ignored" in m and "second_reveiw" in m for m in logs), logs)
                 self.assertFalse(calls(result, "review:netcode-second"))
+
+    def test_every_agent_gets_the_reading_line(self) -> None:
+        # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
+        # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
+        # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too.
+        jobs = [
+            ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
+            ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
+        ]
+        lines: set[str] = set()
+        labels: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                labels.add(event["label"].rsplit(":#", 1)[0])
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(READ_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    lines.add(found[0])
+        self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
+        # The reviewers, the plan critique and the skeptics are covered too, not only the agents of the shared rules.
+        self.assertLessEqual({"plan", "review:plan", "implement", "review:code", "review:netcode", "review:godot-api",
+                              "review:netcode-second", "test-review", "skeptic", "publish", "rebase", "fix"}, labels)
+        rule = next(iter(lines))
+        for part in ("over 400 lines", "`grep -n`", "`cd <your worktree> && tools/run.sh section <file>`",
+                     "`tools/run.sh section <file> <symbol>`", "main's copy", "a base before #468",
+                     "an edit, a rebase, a checkout, a failed Edit or a compaction", "parallel calls", "`sed -n`",
+                     "only when you restructure it"):
+            self.assertIn(part, rule)
 
     def test_every_v2_agent_gets_the_rules_or_is_a_read_only_reviewer(self) -> None:
         jobs = [

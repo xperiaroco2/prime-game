@@ -24,8 +24,8 @@ export const meta = {
 // and bounded_waits and lean false every agent's prompt, label, phase, schema and options are byte-identical to the
 // script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
-// default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections). The agents
-// each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
+// line). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -123,6 +123,10 @@ const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o :
 const REB_EFFORT = EFFORTS.rebase || 'high'
 const FIX_EFFORT = EFFORTS.fix || 'high'
 
+// #468: the reading rule for code, every agent's (the token audit of 2026-10-06: big code files read whole, the
+// same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
+// compares the two. It names no value of this run, so it is the same in every prompt.
+const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main\'s copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If that outline of a .py, .gd or .js file shows no def, func or function rows (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.'
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,
@@ -137,6 +141,7 @@ const RULES = [
   `- Change an earlier commit only with \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`), free in your own worktree on your task branch. To reword one: \`git commit --allow-empty -F <file>\` with the file's first line \`amend! <that commit's subject>\`, then a blank line and the whole new message, then the same rebase; or leave the message as it is. The last commit alone: \`git commit --amend --no-edit\` or \`--amend -F <file>\`, never a bare \`--amend\`, which opens the editor. Nothing else: another sequence editor (a script, \`sed\`, \`-c sequence.editor=...\`), an interactive rebase without \`GIT_SEQUENCE_EDITOR=:\`, \`--fixup=reword:\` or \`--fixup=amend:\` (both open the message editor) and a \`squash!\` commit each can open an editor or run a program on the todo list (a script can add \`exec\` lines): an editor that opens hangs the call until its timeout, and under Claude Code's \`GIT_EDITOR=true\` a \`--fixup=reword:\` keeps the old message without a word. Since #457 the guard lets each of these through in your own worktree on your task branch (before it, its ask held a night run 9 hours, #456); it still asks for \`git rebase --exec\` and for any rebase in the main checkout or another worktree.`,
   '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.',
   '- Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.',
+  READ_RULE,
   '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
 ].join('\n')
 
@@ -228,6 +233,7 @@ phase('Review')
 const paths = reb.changed_paths || []
 const base = [
   `Fresh read-only review of PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; D:/prime-game is main). Budget: at most about 60 tool calls; do not edit anything; you may run \`tools\\run.cmd test <path>\` in the worktree.`,
+  READ_RULE,
   `The rebase agent reported: ${JSON.stringify(reb)}`,
   `Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: \`git -C ${WTB} range-diff <old_tip>...<new_tip>\` where the tips are known, and \`git -C ${WTB} diff origin/${BASE}...HEAD\`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.${A.focus ? '\n' + A.focus : ''}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.',
@@ -270,6 +276,7 @@ if (SKEPTICS) {
   if (checked.length) {
     const verdicts = await parallel(checked.map(s => () => agent([
       `PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; D:/prime-game is main).`,
+      READ_RULE,
       'A skeptic\'s read-only check of ONE review finding (skeptic), before a fix agent fixes it. Budget: at most about 30 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
       `The finding, from the ${s.from}: ${JSON.stringify(s.finding)}`,
       `Try to refute it: read the code, the tests and the docs it names, the rebase report (${JSON.stringify(reb)}) and PR #${PR}'s body, and decide whether it is wrong: the code already handles it, it misreads the code or one of the two sides, it contradicts an accepted ADR or the engineer's answers, or the fault cannot happen. refuted true only with evidence (file:line, or a command and its output); uncertain, or right in part: refuted false. A finding about an invariant or a leak is refuted only when the code is shown to meet it.`,
