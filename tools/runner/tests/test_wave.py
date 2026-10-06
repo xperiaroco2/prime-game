@@ -21,6 +21,15 @@ T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
 NOW = T0.timestamp() + 4 * 3600  # 12:00
 SID = "5ef6e325-aaaa-bbbb-cccc-000000000001"
 SINCE = "2026-10-03T08:00:00Z"
+# The verdict's last step at a handover (#484, route C), for a session whose kickoff has no Track: line and for meta.
+START = ("start the successor (orchestrate-stage handover.md): update_scheduled_task <track>-manager (no Track: line "
+         "in this session's kickoff) with fireAt 3 min ahead and notifyOnCompletion false (create_scheduled_task if "
+         "there is none); once list_task_runs shows its new run, stop and launch nothing more; no run or a refused "
+         "call: the human pastes the kickoff")  # fmt: skip
+START_META = ("start the successor (orchestrate-stage handover.md): update_scheduled_task meta-manager with fireAt "
+              "3 min ahead and notifyOnCompletion false (create_scheduled_task if there is none); once list_task_runs "
+              "shows its new run, stop and launch nothing more; no run or a refused call: the human pastes the "
+              "kickoff")  # fmt: skip
 
 
 def at(minutes: float) -> str:
@@ -1111,14 +1120,15 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(self.verdict(), "handover due: the context 0.31M is over 300k; 2 runs in flight (#466 "
                          "implement:#466, 3 min since its last line; #470 publish:#470, 1 min since its last line): "
                          "stop each (#470 only once its publish, rebase or fix agent ends), then post the handover; "
-                         "the new session relaunches them fresh.")  # fmt: skip
+                         f"the successor relaunches them fresh; then {START}.")  # fmt: skip
         self.context(3, 300_000)
         self.assertTrue(self.verdict().startswith("handover not due"), "exactly 300k is not over it")
 
     def test_verdict_due_on_age(self) -> None:
         self.context(0, 1000)
         twelve = T0.timestamp() + 12 * 3600
-        self.assertEqual(self.verdict(twelve + 1800), "handover due: the session is 12.5 h old, over 12 h.")
+        self.assertEqual(self.verdict(twelve + 1800), "handover due: the session is 12.5 h old, over 12 h; post the "
+                         f"handover, then {START}.")  # fmt: skip
         self.assertEqual(self.verdict(twelve), "handover not due.", "exactly 12 h is not over it")
         self.in_flight(1, 466)
         self.assertTrue(self.verdict(twelve + 1800).startswith("handover due: the session is 12.5 h old, over 12 h; "
@@ -1126,7 +1136,8 @@ class WaveTest(unittest.TestCase):
 
     def test_verdict_stop_clause(self) -> None:
         self.context(0, 180_000)
-        stop = "; at a stop for the human: due (the context 0.18M is over 150k and no run is in flight)"
+        stop = (f"; at a stop for the human: due (the context 0.18M is over 150k and no run is in flight): post the "
+                f"handover, then {START}")  # fmt: skip
         self.assertEqual(self.verdict(), f"handover not due{stop}.")
         self.in_flight(1, 466)
         self.context(2, 180_000)
@@ -1141,12 +1152,27 @@ class WaveTest(unittest.TestCase):
         stale = ("1 stale run, no line for over 60 min, not counted in flight (#466 publish:#466, 120 min since its "
                  "last line): check it, stop it before a handover")  # fmt: skip
         self.assertEqual(self.verdict(), "handover not due; at a stop for the human: due (the context 0.18M is over "
-                         f"150k and no run is in flight); {stale}.")  # fmt: skip
+                         f"150k and no run is in flight): post the handover, then {START}; {stale}.")  # fmt: skip
         self.in_flight(2, 470, written=NOW - 3600)  # exactly 60 min: still in flight
         self.context(3, 310_000)
         self.assertEqual(self.verdict(), "handover due: the context 0.31M is over 300k; 1 run in flight (#470 "
-                         "implement:#470, 60 min since its last line): stop it, then post the handover; the new "
-                         f"session relaunches it fresh; {stale}.")  # fmt: skip
+                         "implement:#470, 60 min since its last line): stop it, then post the handover; the "
+                         f"successor relaunches it fresh; then {START}; {stale}.")  # fmt: skip
+
+    def test_verdict_names_the_tracks_scheduled_task(self) -> None:
+        """#484: the kickoff's Track: line names the task, also inside the frame a scheduled task's run wraps it in;
+        a later message's Track: line does not count."""
+        frame = ('<scheduled-task name="meta-manager" file="C:\\Users\\x\\.claude\\scheduled-tasks\\meta-manager\\'
+                 'SKILL.md">\nThis is an automated run of a scheduled task. The user is not present to answer '
+                 "questions.\n\nultracode: continue the meta track with the skill orchestrate-stage. Continue from the "
+                 'latest comment titled "Handover to a fresh manager session" on #302.\nTrack: meta\nBounds: ...\n'
+                 "</scheduled-task>")  # fmt: skip
+        self.p.add(user_note(0, frame), user_note(1, "Track: game"))
+        self.context(2, 1000)
+        twelve = T0.timestamp() + 12 * 3600
+        self.assertEqual(self.p.session().track, "meta")
+        self.assertEqual(self.verdict(twelve + 1800), "handover due: the session is 12.5 h old, over 12 h; post the "
+                         f"handover, then {START_META}.")  # fmt: skip
 
     def instruction_merges(self) -> list[dict]:
         return [merged_pr(463, "tooling/1-a", at(30)), merged_pr(464, "tooling/2-b", at(40)),
@@ -1179,7 +1205,8 @@ class WaveTest(unittest.TestCase):
         _, out, _ = self.main(since=late, out=str(target), merge_check=False,
                               sources=FakeSources(merged=merged, files=self.files_rows(merged)))  # fmt: skip
         verdict = ("handover due: merges into main since the session start changed the agents' instructions: "
-                   f"{names}; pull the main checkout before the new session starts.")  # fmt: skip
+                   f"{names}; post the handover; pull the main checkout before the successor starts; then "
+                   f"{START}.")  # fmt: skip
         self.assertEqual(out.strip().splitlines()[-1], verdict)
         self.assertEqual(target.read_text(encoding="utf-8").strip().splitlines()[-1], verdict)
         for decoy in ("#480", "#481", "#482", "#483", "#484"):
@@ -1217,8 +1244,9 @@ class WaveTest(unittest.TestCase):
         self.context(1, 400_000)
         src = FakeSources(fail={"merged": Failure("gh: HTTP 503")})
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.40M is over 300k; instruction "
-                         "changes unavailable: merged PRs: gh: HTTP 503.", "the context still decides")  # fmt: skip
+        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.40M is over 300k; post the "
+                         f"handover, then {START}; instruction changes unavailable: merged PRs: gh: HTTP 503.",
+                         "the context still decides")  # fmt: skip
 
     def test_instruction_changes_incomplete_when_gh_cut_the_list(self) -> None:
         """gh's merged list cut after the session start: a merge between the start and the cut may be missing."""
@@ -1241,8 +1269,8 @@ class WaveTest(unittest.TestCase):
         src = FakeSources(behind=["CLAUDE.md", ".claude/rules/tests.md"])
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
         self.assertEqual(out.strip().splitlines()[-1], "handover not due; the main checkout's instruction files are "
-                         "behind origin/main (CLAUDE.md, .claude/rules/tests.md): the human pulls it before a new "
-                         "session starts.")  # fmt: skip
+                         "behind origin/main (CLAUDE.md, .claude/rules/tests.md): the human pulls it before the "
+                         "successor starts.")  # fmt: skip
         src = FakeSources(fail={"behind": Failure("git diff failed")})
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
         self.assertEqual(out.strip().splitlines()[-1], "handover not due; the main checkout's instruction files "

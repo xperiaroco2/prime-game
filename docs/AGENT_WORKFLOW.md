@@ -1280,7 +1280,9 @@ that no later launch of its issue and workflow has replaced (the args exactly as
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
 context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
 also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
-orchestrate-stage skill's §7 turn-end check). It reads two more sources: one `gh pr list --base main --json files` for
+orchestrate-stage skill's §7 turn-end check). A due verdict ends with the successor's start (#484): `run_scheduled_task
+<track>-manager` (or `-b`), `set_session_effort` and `archive_session self`, the track read from the `Track:` line of
+the session's kickoff (as `metrics --track` reads it, inside a scheduled task's frame too). It reads two more sources: one `gh pr list --base main --json files` for
 the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
 `.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
 HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
