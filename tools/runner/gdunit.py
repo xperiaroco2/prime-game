@@ -28,9 +28,11 @@ from .common import (
     git,
     godot,
     kill_tree,
+    not_started,
     ok,
     require_godot,
     say,
+    start_problem,
     warn,
 )
 from .perf import FIXED_FPS
@@ -245,7 +247,7 @@ def main(
         _remember([process_record(1, res, reports)], _failed(res, reports))
         if res.timed_out:
             raise Failure(f"tests timed out after {TIMEOUT}s (log: tools/out/logs/test.log)")
-        failed = _judge(res.rc, res.out, reports, "tools/out/logs/test.log")
+        failed = _judge(res.rc, res.out, reports, "tools/out/logs/test.log", restarted=res.restarted)
         record_times(reports[-1:], FIXED_KEY if fixed else SUITES_KEY)
     say("test: FAILED" if failed else "test: passed")
     return 1 if failed else 0
@@ -288,12 +290,14 @@ def _reports() -> list[Path]:
     return sorted(REPORT_DIR.glob("report_*/results.xml"))
 
 
-def _judge(rc: int, out: str, reports: list[Path], log: str, label: str = "") -> bool:
+def _judge(rc: int, out: str, reports: list[Path], log: str, label: str = "", restarted: bool = False) -> bool:
     """Print what went wrong in one GdUnit4 run (a shard's lines start with its label); True when it failed."""
     bad, ok = _labelled(label)
     junit = parse_junit(reports[-1]) if reports else None
     failed = rc != 0
-    if rc not in EXIT_MEANING:
+    if not_started(rc, out):
+        bad(f"GdUnit4 {start_problem(rc, restarted)}; log: {log}")
+    elif rc not in EXIT_MEANING:
         bad(f"GdUnit4 crashed or exited unexpectedly (exit {rc}); log: {log}")
     elif rc != 0:
         bad(f"exit {rc}: {EXIT_MEANING[rc]}")
@@ -839,7 +843,7 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
             bad(f"{label}: timed out after {TIMEOUT}s (log: {log})")
             failed = True
         else:
-            failed = _judge(res.rc, res.out, found, log, label) or failed
+            failed = _judge(res.rc, res.out, found, log, label, res.restarted) or failed
         if shard.own_user and not (shard.user_root.is_dir() and any(shard.user_root.iterdir())):
             bad(f"{label}: Godot put nothing under {shard.user_root.relative_to(ROOT).as_posix()}, so its user:// "
                 "may be the shared one. Run `test --shards 1` and report it")  # fmt: skip
@@ -1006,7 +1010,7 @@ def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, f
             bad(f"run {index} timed out after {TIMEOUT}s (log: tools/out/logs/{log}.log)")
             outcome = RunOutcome(index, "FAILED", f"timed out after {TIMEOUT}s")
         else:
-            failed = _judge(res.rc, res.out, reports, f"tools/out/logs/{log}.log")
+            failed = _judge(res.rc, res.out, reports, f"tools/out/logs/{log}.log", restarted=res.restarted)
             note = EXIT_MEANING.get(res.rc, f"exit {res.rc}: crashed or exited unexpectedly")
             outcome = RunOutcome(index, "FAILED" if failed else "passed", note)
         if reports:

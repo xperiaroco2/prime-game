@@ -49,6 +49,7 @@ from .common import (
     kill_tree,
     ok,
     say,
+    take_starts,
     temp_app_data,
     warn,
 )
@@ -253,8 +254,13 @@ def lane_main(lane: str) -> int:
 
 def step_detail(name: str) -> dict[str, object] | None:
     """A step's own fields of the history record, taken in the lane process right after it ran: `test`'s GdUnit4
-    processes and failing tests (gdunit.take_last_run, #273)."""
-    return gdunit.take_last_run() if name == "test" else None
+    processes and failing tests (gdunit.take_last_run, #273), and any step's `not_started`, the process starts that
+    Windows refused while it ran (common.take_starts, #441)."""
+    detail = dict(gdunit.take_last_run() or {}) if name == "test" else {}
+    starts = take_starts()
+    if starts:
+        detail["not_started"] = starts
+    return detail or None
 
 
 class LaneReader:
@@ -755,6 +761,25 @@ def step_record(step: StepRun) -> dict[str, object]:
     return record
 
 
+def not_started_line(steps: list[StepRun]) -> str:
+    """The summary's line on the process starts Windows refused (#441), '' when there were none: how many, in which
+    steps, how many restarts ran, and what a red step that names them means."""
+    totals: Counter[str] = Counter()
+    where = []
+    for step in steps:
+        counts = step.detail.get("not_started")
+        if isinstance(counts, dict):
+            totals.update({key: int(value) for key, value in counts.items() if isinstance(value, int)})
+            where.append(step.name)
+    if not totals["refused"]:
+        return ""
+    return (
+        f"NOT STARTED: Windows refused {totals['refused']} process start(s) (exit 3221225794, 0xC0000142) in"
+        f" {', '.join(where)}; {totals['restarted']} restarted once, {totals['recovered']} of them ran. A step red only"
+        " with `could not start` is this PC's load, not the change: run verify again (`slots --status`, #441)"
+    )
+
+
 def append_history(record: dict[str, object]) -> None:
     try:
         ensure_out()
@@ -828,6 +853,8 @@ def main(run_lane: RunLane = run_lane_process) -> int:
         say(f"  {count_line}")
     if slot_line:
         say(f"  {slot_line}")
+    if starts_line := not_started_line(ordered):
+        say(f"  {starts_line}")
     failed = any(step.status != "passed" for step in ordered) or len(runs) < len(STEP_ORDER)
     waited = taken.waited if taken is not None else 0.0
     seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
