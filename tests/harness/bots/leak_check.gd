@@ -218,7 +218,9 @@ func check_bot(
 static func _join_lost(watcher: BotWatcher) -> String:
 	if watcher.failed_reason.is_empty():
 		return "no connect_failed: still joining when the run ended"
-	return "connect_failed: %s" % watcher.failed_reason
+	if watcher.failed_reason == NetTransport.JOIN_FAILED:
+		return "connect_failed, the backend gave no precise reason"
+	return "connect_failed, reason %s" % watcher.failed_reason
 
 
 ## The problems of a connected peer that is not a player (the lurker, the refused bot), taken while
