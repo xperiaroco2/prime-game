@@ -5,6 +5,9 @@ AGENT_WORKFLOW by section. A section runs from its heading up to the next headin
 `section docs/ARCHITECTURE.md 4.5` returns all of §4.5 (its subsections included) and nothing of §4.6. Headings in
 fenced code blocks are text, not headings. A heading's § is its leading number (`### 4.5 The host session`,
 `## 6. Skills`); an ADR's headings have none and are picked by title.
+
+A .py, .gd or .js file goes to symbols.py instead (#468): its outline lists its top-level symbols (a class's methods
+one level down) with line ranges, and a key is a symbol's name or `Class.method`.
 """
 
 from __future__ import annotations
@@ -153,7 +156,13 @@ def extract(path: Path, keys: list[str], root: Path | None = None) -> list[str]:
 
 
 def main(doc: str, keys: list[str]) -> int:
+    from . import symbols  # it imports this module
+
     path = doc_path(doc)
-    for line in extract(path, keys) if keys else outline(path):
+    if symbols.is_code(path):
+        lines = symbols.extract(path, keys) if keys else symbols.outline(path)
+    else:
+        lines = extract(path, keys) if keys else outline(path)
+    for line in lines:
         say(line)
     return 0
