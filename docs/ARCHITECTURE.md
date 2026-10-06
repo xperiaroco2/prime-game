@@ -356,7 +356,9 @@ dissidents, no crew present only once every crew member left, End widens nothing
     (`CHANNEL_IDS`): RELIABLE id 1 (reliable, ordered), LATEST id 2 and VOICE id 3 (`ordered: false`,
     `maxRetransmits: 0`). Each packet reaches the inbox with its channel's lane, so `NetFrame.decode`'s lane check
     stays. LATEST packets carry `LaneOrder`'s header (`stamp_latest`; every packet RELIABLE took, `ADMIT` included, is
-    counted with `count_reliable_sent`); each poll reads every connection's LATEST channel, then RELIABLE (each packet
+    counted with `count_reliable_sent`; an empty packet is refused, `ERR_INVALID_DATA`, since the peer never reads an
+    empty message and counting one would hold every later LATEST packet one reliable packet too long, #429); each
+    poll reads every connection's LATEST channel, then RELIABLE (each packet
     counted with `read_reliable` before anything else, the frames it releases pushed right after it), then VOICE. A
     LATEST packet `LaneOrder` rejects, and the frames its full hold drops, go to the inbox as `REJECTED` and
     `SUPERSEDED` items, so they are counted in the inbox's order (the latter through `_decoded`, into
@@ -1590,8 +1592,9 @@ process the same way, paced to the real clock (a frame waits until the real cloc
 connections and the shim's delays are real time), with the ENet variant's invariants plus the order check, both ways
 for the honest bots and the watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
 packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
-`LaneOrder`'s header, as any sender's would. `verify`, and so CI, runs `bots-webrtc` (`dissident_kills_the_crew
---instances 3`, about 50 s) and `chaos-webrtc` (seed 188001, about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
+`LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
+so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
+about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
 `tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC), `tests/unit/net/transport/fault_shim_test.gd`,
 `tools/runner/tests/test_bots.py` and `test_verify.py`.
 
