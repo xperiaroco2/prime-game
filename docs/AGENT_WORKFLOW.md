@@ -245,7 +245,7 @@ rules.
 
 - **Agent types in other workflows [applied]** (the night audit run as a workflow, the meta track's weekly report,
   ad hoc research, audits and scouting; [ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466). Every
-  `agent()` call of such a script passes `agentType`, so it starts at about 20k tokens instead of about 57k:
+  `agent()` call of such a script passes `agentType`, so it starts at about 21k tokens instead of about 57k:
   - finders, gatherers, scouts and lenses that read and report: `{agentType: 'lean-reader'}`, on Sonnet by the
     file;
   - skeptics and verifiers keep their model: `{agentType: 'lean-reader', model: 'opus'}`; the night audit's skeptic
@@ -254,8 +254,8 @@ rules.
     'lean-writer'}` (Opus), or with the model they had (`model: 'sonnet'` for the night audit's filing step);
   - an agent that needs a tool outside both lists (Monitor for a long job, the Skill tool) stays
     `workflow-subagent`, and its prompt says why. Lean agents have no Skill tool: a prompt that names a skill tells
-    the agent to read its `SKILL.md`.
-  `agents-check` judges these agents by the call's `model`, else the type's `model:`.
+    the agent to read its `SKILL.md`;
+  - `agents-check` judges these agents by the call's `model`, else the type's `model:`.
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
