@@ -712,15 +712,20 @@ holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/
 - **A filtered recursive delete in the temp folder is judged by what it matches** (#464): a glob after `$TEMP`,
   `$TMP`, `$TMPDIR`, `$env:TEMP`, `%TEMP%` or `/tmp` (`rm -rf "$TEMP"/rmtree-*`, `Remove-Item -Recurse
   $env:TEMP\x*`), and a PowerShell `Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse
-  -Force` that does not recurse (its targets are `$env:TEMP\rmtree-*`, not the folder). It passes unless the
-  pattern reaches outside the folder (`..`) or has a part the guard cannot read (`"$TEMP"/$X*`), may match a Claude
-  scratchpad root or a folder that holds one (`claude/<project>/<session>/scratchpad`: `"$TEMP"/cl*`,
-  `"$TEMP"/claude/*/*`; any session's, the guard does not know which is the caller's), or a match is or holds a
-  worktree (a `.git` file in it, or a worktree of this repository at or below it; `hooks.GitFiles.temp_matches`
-  lists the folder when the hook runs). A delete inside a scratchpad (`"$TEMP"/claude/<project>/*/scratchpad/a1*`)
-  passes. A recursive listing (`Get-ChildItem $env:TEMP -Recurse -Filter x`), `-Filter *` and an unfiltered one
-  still delete the temp folder itself and ask; a literal path there (`$TEMP/x`) is judged as before. One such
-  delete of `rmtree-*` leftovers waited 8.8 hours on 2026-10-05.
+  -Force` that does not recurse (its targets are `$env:TEMP\rmtree-*`, not the folder). A filter matches the Win32
+  way, so the guard reads it as a glob that matches at least as much (`x.*` and `x.` also match `x`, so `*.*` matches
+  every name; a `?` also matches nothing; `[` is a literal), and a filter without a glob (`-Filter claude`) is judged
+  the same way. It passes unless the pattern reaches outside the folder (`..`) or has a part the guard cannot read
+  (`"$TEMP"/$X*`, `-Filter $f`, a `~` that may match an 8.3 short name), may match a Claude scratchpad root or a
+  folder that holds one (`claude/<project>/<session>/scratchpad`: `"$TEMP"/cl*`, `"$TEMP"/claude/*/*`; any
+  session's, the guard does not know which is the caller's) or reach into scratchpads through a wildcard project or
+  session (`"$TEMP"/claude/*/*/scratchpad/*`), or a match is or holds a worktree (a `.git` file in it, a worktree of
+  this repository at or below it, or a symbolic link or junction at or above it; `hooks.GitFiles.temp_matches` lists
+  the folder when the hook runs). A delete inside one named session's scratchpad
+  (`"$TEMP"/claude/<project>/<session>/scratchpad/a1*`) passes. A recursive listing (`Get-ChildItem $env:TEMP
+  -Recurse -Filter x`), `-Filter *` and an unfiltered one still delete the temp folder itself and ask; a literal
+  path there (`$TEMP/x`) is judged as before. One such delete of `rmtree-*` leftovers waited 8.8 hours on
+  2026-10-05.
 
 #### 8.2.4 `tests/scratch/`
 Is for temporary files that must be under `res://` (a probe test). It is gitignored but not
@@ -814,9 +819,11 @@ engineer's repositories still ask there. What keeps the guard's ask in those rep
 `repo delete|archive|unarchive|rename|edit|deploy-key`, `issue delete`, `label delete`, `project delete`, release
 changes, `workflow run|enable|disable`, `auth`, `secret`, `variable`, `--delete-last`; `guard.GH_OWNER_KEPT`, a test
 checks it against `.claude/settings.json`), `gh issue transfer`, and a `gh api` write that is not a POST or reaches a
-`merges`, `merge`, `secrets`, `variables`, `keys`, `dispatches`, `releases` or `transfer` endpoint. The deny and ask
-rules themselves are unchanged: `gh pr merge 5 -R xperiaroco2/prime-game-art` is still denied, `gh secret set` still
-asks. Any other owner (`godotengine/godot`, an organization the account belongs to) asks as before.
+`merges`, `merge`, `secrets`, `variables`, `keys`, `dispatches`, `releases` or `transfer` endpoint. Such a kept
+command that names this project's repository asks too (`R=xperiaroco2/prime-game; gh pr -R $R merge 5`); a `gh api`
+write here stays with the rules. The deny and ask rules themselves are unchanged: `gh pr merge 5 -R
+xperiaroco2/prime-game-art` is still denied, `gh secret set` still asks. Any other owner (`godotengine/godot`, an
+organization the account belongs to) asks as before.
 
 #### 8.2.8 Targets and the prompt
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
@@ -899,7 +906,7 @@ asks. Any other owner (`godotengine/godot`, an organization the account belongs 
   the 6 that pass are the six above, and no call that was silent before asks now. The replay reads today's branches:
   a deleted worktree's call reads as a detached HEAD, which is free, so it may undercount the asks of the past.
 - The account's own repositories and filtered temp deletes (#464), replayed on 2026-10-06 with `tools\run.cmd
-  permissions --since 2026-09-28` (bypass mode, `origin/main` against the branch; 35,035 calls in 1,252
+  permissions --since 2026-09-28` (bypass mode, `origin/main` against the branch; 35,388 calls in 1,261
   transcripts): 66 prompts before (64 guard), 31 after (29 guard), 38 denied in both, no crash, and no call that was
   silent before asks now. The 35 that pass: 34 calls with `gh` writes to `xperiaroco2/prime-game-art` and
   `xperiaroco2/prime-game-ui` (issues, comments, PRs, both `gh repo create`s, `-R "$R"` after `R=...`; one a probe

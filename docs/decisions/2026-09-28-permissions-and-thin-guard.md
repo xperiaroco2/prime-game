@@ -116,8 +116,11 @@ ADRs).
   A filtered recursive delete in the temp folder (`rm -rf "$TEMP"/x*`, a non-recursive `Get-ChildItem $env:TEMP
   -Filter x*` piped to `Remove-Item -Recurse`) is judged by what it matches: it asks only when the pattern reaches
   outside the folder or cannot be read, may match a Claude scratchpad root or a folder holding one, or a match is or
-  holds a worktree. Reason: the engineer wanted both (PR #463's answers) and approved the issue on 2026-10-06;
+  holds a worktree (or a link or junction there); a kept `gh` command that names this repository asks too. Reason:
+  the engineer wanted both (PR #463's answers) and approved the issue on 2026-10-06;
   over the week to 2026-10-06 the 30 asks for `gh` writes to `prime-game-art` and `prime-game-ui` waited about 12.6
   hours and the one `rmtree-*` cleanup 8.8 hours, protecting nothing (`docs/AGENT_WORKFLOW.md` §8.2: the replay
   shows 35 prompts gone and none new). The deny and ask rules, other owners and the other kept asks are unchanged.
-  Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6014999058.
+  Wanted by the engineer: https://github.com/xperiaroco2/prime-game/pull/463#issuecomment-6014583090 (answer 5);
+  approved for building, relayed by the manager:
+  https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6014999058.
