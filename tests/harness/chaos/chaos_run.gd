@@ -333,8 +333,13 @@ func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
 
 func play_frame(at_tick: int) -> void:
 	if over_network:
+		# A join lost for good fails its bot at once, before any bot acts (#483): over WebRTC the
+		# run is paced to the real clock, and its time limit comes after the runner's kill.
 		for bot: ScenarioBot in bots:
 			_join_again(bot)
+			_fail_lost_join(bot)
+		if not failures.is_empty():
+			return
 		if not _may_play():
 			malformed.poll()
 			return
@@ -349,13 +354,13 @@ func play_frame(at_tick: int) -> void:
 
 ## Over ENet the joins take frames: the bots play once bot 1's lobby is full (NetPlay._lobby_full,
 ## as BotsEnet's bot 1 waits, #318), or once a bot that joins at the start lost its join for good
-## (refused, not joined again), so that _lost reports it. Over the loopback they play at once.
+## (NetPlay._lost_join: not joined again), so that _lost reports it; a join that waits for its
+## retry (no room yet) does not start them. Over the loopback they play at once.
 func _may_play() -> bool:
 	if not over_network or _lobby_full(bots[0]):
 		return true
 	for bot: ScenarioBot in bots:
-		var client: BotClient = clients.get(bot.number)
-		if not bot.joined and not bot.joins_late() and client != null and client.is_ended():
+		if not _lost_join(bot).is_empty():
 			return true
 	return false
 

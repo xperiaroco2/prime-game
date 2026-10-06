@@ -26,7 +26,9 @@ extends ScenarioPlay
 ##
 ## The start over ENet (#284, #318), shared by BotsEnet, ChaosRun's ENet variant and the playcheck
 ## bots: a bot acts only once its lobby is full (_lobby_full), and a bot that joins at the start and
-## whose join went unanswered joins again (_join_again).
+## whose join went unanswered joins again (_join_again). A join it does not join again is lost for
+## good: its bot's step fails at once, naming the reason it ended and those of its earlier joins
+## (_lost_join, #483), never a silent bot that sits the run out until the time limit.
 
 ## A join that failed this long or more after it started went unanswered: half of
 ## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
@@ -88,6 +90,8 @@ var _lobby_was_full: Dictionary[int, bool] = {}
 ## first saw it fail.
 var _join_started: Dictionary[int, int] = {}
 var _join_failed: Dictionary[int, int] = {}
+## Bot number -> the reasons its earlier joins ended, in order (_join_again, before each rejoin).
+var _join_ends: Dictionary[int, PackedStringArray] = {}
 
 
 ## Makes `bot`'s client on `transport` (not joined yet, or the host's own client).
@@ -166,8 +170,15 @@ func _on_claim_sent(
 
 
 ## Its session ended (the host disconnected it, closed, or refused its join): it acts no more, but a
-## Join step first reads the Rejected that refused it.
+## Join step first reads the Rejected that refused it. A bot that joins at the start and never
+## joined fails at once, whatever ended its join (_lost_join), unless _join_again joins it again.
 func _lost(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
+	if not bot.joined and not bot.joins_late():
+		if _joins_again(bot):
+			return
+		tick_now = at_tick
+		_fail_lost_join(bot)
+		return
 	if not bot.joined:
 		if client.end_reason == ClientSession.CONNECT_FAILED:
 			tick_now = at_tick
@@ -321,26 +332,73 @@ func _lobby_wait(bot: ScenarioBot) -> String:
 ## both stay failures (_lost), as do WebRTC's `joins_closed`, `full` and `host_unreachable`. Over
 ## WebRTC a join that found no room (ROOM_NOT_UP: the host's process or room is not up yet) joins
 ## again ROOM_RETRY_USEC after it ended. Judged when the failure is first seen, on
-## _join_clock_usec().
+## _join_clock_usec(). It keeps the reason each join ended, for the line of a join lost for good.
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if client == null or bot.joined or bot.gone or bot.joins_late():
 		return
 	var reason := client.end_reason
-	# Over WebRTC connect_failed is a connection that closed or a bad ADMIT, never a missing answer.
-	var unanswered := reason in UNANSWERED and not client.transport() is WebRtcTransport
-	if not unanswered and not reason in ROOM_NOT_UP:
+	if not _unanswered(client) and not reason in ROOM_NOT_UP:
 		return
 	var failed: int = _join_failed.get_or_add(bot.number, _join_clock_usec())
-	if reason in ROOM_NOT_UP:
-		if _join_clock_usec() - failed < ROOM_RETRY_USEC:
-			return
-	elif failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
+	if not _joins_again(bot):
 		return
+	if reason in ROOM_NOT_UP and _join_clock_usec() - failed < ROOM_RETRY_USEC:
+		return
+	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
+	ended.append(String(reason))
+	_join_ends[bot.number] = ended
 	print(
 		"%s: bot %d joins again (%s: the host did not answer)" % [_log_label(), bot.number, reason]
 	)
 	_join_host(bot)
+
+
+## Whether `client`'s join ended for no answer (UNANSWERED). Over WebRTC connect_failed is a
+## connection that closed or a bad ADMIT, never a missing answer.
+func _unanswered(client: BotClient) -> bool:
+	return client.end_reason in UNANSWERED and not client.transport() is WebRtcTransport
+
+
+## Whether _join_again joins `bot` again, now or after ROOM_RETRY_USEC: it saw the join fail
+## (only _join_again records _join_failed, so a runner that never calls it joins nobody again) for
+## a reason it retries. Writes nothing.
+func _joins_again(bot: ScenarioBot) -> bool:
+	var client: BotClient = clients.get(bot.number)
+	if client == null or not _join_failed.has(bot.number):
+		return false
+	if client.end_reason in ROOM_NOT_UP:
+		return true
+	if not _unanswered(client):
+		return false
+	var failed := _join_failed[bot.number]
+	return failed - _join_started.get(bot.number, failed) >= UNANSWERED_USEC
+
+
+## Why `bot`'s join is lost for good, or "": it joins at the start, never joined, its client ended
+## and _join_again does not join it again. Names the reason it ended (a NetTransport JOIN_* reason
+## or ClientSession's), and the reasons its earlier joins ended.
+func _lost_join(bot: ScenarioBot) -> String:
+	var client: BotClient = clients.get(bot.number)
+	if client == null or not client.is_ended() or bot.joined or bot.gone or bot.joins_late():
+		return ""
+	if _joins_again(bot):
+		return ""
+	var why := "its join was lost for good (%s)" % client.end_reason
+	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
+	if not ended.is_empty():
+		why += "; earlier joins ended %s" % ", ".join(ended)
+	return why
+
+
+## Fails `bot`'s step when its join is lost for good (_lost_join): it acts no more. True if it did.
+func _fail_lost_join(bot: ScenarioBot) -> bool:
+	var why := _lost_join(bot)
+	if why.is_empty():
+		return false
+	_fail_step(bot, why)
+	bot.gone = true
+	return true
 
 
 ## The clock _join_again judges a join on, in microseconds: the runner's (now_usec), which is the
