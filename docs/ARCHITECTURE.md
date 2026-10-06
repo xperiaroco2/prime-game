@@ -415,7 +415,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
     (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates, and at the
     rate `latest_late` a copy arrives `latest_delay_ms` late, holding back the LATEST packets behind it (M6-6). The
     freeze twin runs with it on (50 ms, 10 % dropped, 10 % duplicated), the stall twin delays one beat by 3 s while
-    LATEST flows, and the bots and chaos bots over WebRTC (§4.6) make one LATEST packet in five that a client receives
+    LATEST flows, and the bots and chaos bots over WebRTC (§4.6.7) make one LATEST packet in five that a client receives
     120 ms late: more than RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST packet sent just before a reliable one
     arrives after it, the one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule
     removed passed `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the
@@ -4168,7 +4168,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
   `not_accepted`, and it crawls; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
-  step, and over WebRTC `bots-webrtc`, §4.6), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
+  step, and over WebRTC `bots-webrtc`, §4.6.7), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
   `Damaged`, then swings again after them, which does; the match ends by time up on a 55 s clock),
   `crew_revives_the_downed` (M4-4: a dissident knocks a crew bot down and another crew bot raises it for 3 s; it

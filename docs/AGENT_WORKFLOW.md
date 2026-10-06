@@ -1555,7 +1555,7 @@ fails instead of starting `verify` inside `verify`; a runner test that starts Go
 dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
 that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
 188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `bots-webrtc` and `chaos-webrtc`
-(M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6): `bots
+(M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6.7): `bots
 dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
 webrtc` (one chaos run paced to the real clock, about 16 s); `bots-webrtc` passed 5 runs and `chaos-webrtc` 10 in a
 row (seeds 188001 and 188002) beside a `load` of 8 busy
