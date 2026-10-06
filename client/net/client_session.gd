@@ -8,7 +8,7 @@ extends RefCounted
 ## and its own copy of the game mode.
 ##
 ## The claims a lossy link must not lose go on MoveClaimReliable, MoveClaim's RELIABLE twin (#429;
-## ARCHITECTURE §7.1 "Lost claims"): the first claim of every epoch it adopts (the Welcome, a
+## ARCHITECTURE §7.1.15 "Lost claims"): the first claim of every epoch it adopts (the Welcome, a
 ## placement, a Correction), which the host takes as one tick, so a lost one would make the next
 ## claim's span look too long; and, right before a player action, its last claim again, exactly as
 ## sent (the same tick, position and masks), so the host checks the action against where the

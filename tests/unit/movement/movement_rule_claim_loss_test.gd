@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## A movement claim lost on the LATEST lane (#429, from PR #428's "Needs the engineer" item 2):
-## the two behaviours of ARCHITECTURE §7.1 "Lost claims" an honest player meets over a lossy link,
-## and what the core rules see once the client makes the claims that matter RELIABLE (the
+## the two behaviours of ARCHITECTURE §7.1.15 "Lost claims" an honest player meets over a lossy
+## link, and what the core rules see once the client makes the claims that matter RELIABLE (the
 ## engineer's A1 + B3 on PR #434): the last claim again, on MoveClaimReliable, right before a
 ## player action; an epoch's first claim on the twin, which a lossy link delays but never loses.
 ## The host hands the twin to core/ as a plain MoveClaim, so these tests send MoveClaims; the

@@ -25,7 +25,7 @@ const ADDRESS := "127.0.0.1"
 ## a lost claim right before a PickUp got an honest bot refused (out_of_reach), and an epoch's lost
 ## first claim corrected it one tick later. Now the client resends its last claim on
 ## MoveClaimReliable right before a player action and sends each epoch's first claim on it
-## (ARCHITECTURE §7.1 "Lost claims"), so neither case is left to the shim's rates.
+## (ARCHITECTURE §7.1.15 "Lost claims"), so neither case is left to the shim's rates.
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
