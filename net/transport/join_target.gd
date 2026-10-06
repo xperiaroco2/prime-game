@@ -1,6 +1,6 @@
 class_name JoinTarget
 extends RefCounted
-## What a player typed to join (the M6 design §2.3, E51): a room's code for WebRTC through the
+## What a player typed to join (the M6 ADR §2.3, E51): a room's code for WebRTC through the
 ## signalling service, or a host's `address[:port]` for ENet (Direct, LAN or VPN). Host names are
 ## allowed, so a playit.gg address works. Parsing lives here so game code has one join path: the
 ## game hands the target to transport() and calls join() on what comes back.

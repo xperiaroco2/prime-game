@@ -12,8 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import cli, common, guard, merge, permissions
-from runner.common import ROOT, Failure, Result
-from runner.tests.test_githooks import _rmtree
+from runner.common import ROOT, Failure, Result, force_rmtree
 
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT)).replace("\\", "/")
 RULES = permissions.Rules.load(ROOT / ".claude" / "settings.json")
@@ -154,7 +153,7 @@ class Repo:
     def __init__(self, test: unittest.TestCase, files: dict[str, str | None]) -> None:
         template, self.base = self._template(type(test), files)
         self.tmp = Path(tempfile.mkdtemp(prefix="merge-"))
-        test.addCleanup(_rmtree, str(self.tmp))
+        test.addCleanup(force_rmtree, str(self.tmp))
         shutil.copytree(template, self.tmp, dirs_exist_ok=True)
         self.work = self.tmp / "work"
         config = self.work / ".git" / "config"
@@ -165,7 +164,7 @@ class Repo:
     def _template(cls, owner: type, files: dict[str, str | None]) -> tuple[Path, str]:
         if owner not in cls.templates:
             tmp = Path(tempfile.mkdtemp(prefix="merge-template-"))
-            owner.addClassCleanup(_rmtree, str(tmp))  # type: ignore[attr-defined]
+            owner.addClassCleanup(force_rmtree, str(tmp))  # type: ignore[attr-defined]
             owner.addClassCleanup(cls.templates.pop, owner)  # type: ignore[attr-defined]
             _git(tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
             _git(tmp, "clone", "-q", (tmp / "remote.git").as_posix(), "work")
@@ -1283,6 +1282,34 @@ class GateTextTest(unittest.TestCase):
             with self.subTest(body):
                 self.assertIn("cannot read", merge.open_needs(body)[0])
         self.assertEqual(merge.open_needs("**Needs the engineer:** none\n**Merge order**\nx\n"), [])
+
+    def test_an_indented_bold_line_stays_in_its_item(self) -> None:
+        # #417: PR #403's items ended with an indented "**Recommended (b).**" line, then their "Answered:" line.
+        item = "3. **N3, the PC:**\n   - (a) the slots only;\n   - (b) a cap.\n\n   **Recommended (b).**\n"
+        answer = f"   Answered: {LINK}\n"
+        refused = ["item 1 (\"N3, the PC:\") has no \"Answered: <GitHub link>\""]
+        for label in ("## Needs the engineer", "**Needs the engineer**", "Needs the engineer:"):
+            with self.subTest(label):
+                body = f"## Summary\nText.\n\n{label}\n{{}}\n## Verification\nx\n"
+                self.assertEqual(merge.open_needs(body.format(item + answer)), [])
+                self.assertEqual(merge.open_needs(body.format(item)), refused)
+                # An unindented bold line is still a sub-label (or ends a bold section): its answer is not the item's.
+                unindented = item.replace("   **Recommended", "**Recommended") + answer.lstrip()
+                self.assertEqual(merge.open_needs(body.format(unindented)), refused)
+                # The items after an indented bold line are read too: an unanswered one refuses.
+                second = "4. **N4, lean agent types:**\n   - (a) opt-in.\n"
+                answered_first = item.replace("**N3, the PC:**", f"**N3, the PC:** Answered: {LINK}")
+                problems = merge.open_needs(body.format(answered_first + second))
+                self.assertEqual(problems, ["item 2 (\"N4, lean agent types:\") has no \"Answered: <GitHub link>\""])
+        # The first item may sit on the label's own line: its indented bold line stays in it too.
+        for label in ("**Needs the engineer:**", "Needs the engineer:"):
+            with self.subTest(label + " 1."):
+                body = f"{label} 1. N3\n   **Recommended (b).**\n   Answered: {LINK}\n\n## Verification\nx\n"
+                self.assertEqual(merge.open_needs(body), [])
+                self.assertEqual(
+                    merge.open_needs(body.replace(f"   Answered: {LINK}\n", "")),
+                    ["item 1 (\"N3\") has no \"Answered: <GitHub link>\""],
+                )
 
     def test_exceptions(self) -> None:
         def reasons(path: str, body: str = "", status: str = "M", **kw: bool) -> list[str]:

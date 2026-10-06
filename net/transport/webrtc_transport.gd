@@ -1,6 +1,6 @@
 class_name WebRtcTransport
 extends NetTransport
-## NetTransport over WebRTC data channels (the M6 design §2.1 to §2.3 and §2.6; E48, E50, E54):
+## NetTransport over WebRTC data channels (the M6 ADR §2.1 to §2.3 and §2.6; E48, E50, E54):
 ## a star, never a mesh. The host holds one WebRTCPeerConnection per client and reads it directly
 ## (no WebRTCMultiplayerPeer, E48); clients reach only the host. The host's own client is a
 ## LoopbackTransport, as on every backend.
@@ -14,9 +14,9 @@ extends NetTransport
 ##
 ## Each connection has three negotiated data channels, one per lane (CHANNEL_IDS): RELIABLE
 ## (reliable, ordered), LATEST and VOICE (unordered, no resend). LATEST packets carry LaneOrder's
-## header, so they keep ENet's order against RELIABLE (§2.2). Once the channels are open the host
-## sends ADMIT on RELIABLE, a kind-0 frame whose payload is the client's peer id (u32); the client
-## learns its id there and refuses one of HOST_ID or less.
+## header, so they keep ENet's order against RELIABLE (the M6 ADR §2.2). Once the channels are
+## open the host sends ADMIT on RELIABLE, a kind-0 frame whose payload is the client's peer id
+## (u32); the client learns its id there and refuses one of HOST_ID or less.
 ##
 ## WebRTC's own keepalives never reach the main thread, so a hung game would stay "connected":
 ## poll() sends each peer KEEPALIVE on VOICE when nothing went to it for KEEPALIVE_MS, and a peer
@@ -42,13 +42,13 @@ const CHANNEL_IDS: Dictionary[NetKindTable.Lane, int] = {
 	NetKindTable.Lane.LATEST: 2,
 	NetKindTable.Lane.VOICE: 3,
 }
-## Nothing went to a peer for this long: poll() sends it KEEPALIVE (a placeholder, §2.6).
+## Nothing went to a peer for this long: poll() sends it KEEPALIVE (a placeholder, the M6 ADR §2.6).
 const KEEPALIVE_MS := 1000
 ## The empty kind-0 frame, sent on VOICE and consumed before the inbox; any other kind-0 packet
 ## reaches the inbox and is rejected there (no kind table allows kind 0).
 const KEEPALIVE: Array[int] = [0, 0, 0]
-## Nothing heard from a peer for this long, keepalives included, is a leave (§2.6): past a 5.2 s
-## freeze and WebRTC's own 12.8 s on loopback, and LaneOrder's stall rule uses it too.
+## Nothing heard from a peer for this long, keepalives included, is a leave (the M6 ADR §2.6):
+## past a 5.2 s freeze and WebRTC's own 12.8 s on loopback, and LaneOrder's stall rule uses it too.
 const SILENCE_MS := 20000
 ## A join not admitted this long after join() gives up (E54, a placeholder): no offer came (a
 ## full or refusing host answers none), or the channels never opened. The host closes a half-made
@@ -78,19 +78,19 @@ const ROUND_TRIP_GAIN := 0.125
 
 ## The signalling service: ws://host:port for a LanSignalling, wss:// for the Worker.
 var signal_url := ""
-## Host: what `open` tells the service (advisory to joiners, the M6 design §2.5).
+## Host: what `open` tells the service (advisory to joiners, the M6 ADR §2.5).
 var room_protocol := 0
 var room_content := 0
 ## Tests: only IPv4 host candidates are signalled, rewritten to 127.0.0.1, so every packet stays
 ## on the loopback (the container's own address works too, but tests keep off the network).
 var local_candidates := false
 ## Joiner: the protocol and content hash this game runs, for the version check against `found`
-## (§2.5, M6-7): set, a `found` naming another ends the join before any offer is applied, as
-## JOIN_WRONG_VERSION or JOIN_WRONG_CONTENT. -1: no check (Hello still decides).
+## (the M6 ADR §2.5, M6-7): set, a `found` naming another ends the join before any offer is
+## applied, as JOIN_WRONG_VERSION or JOIN_WRONG_CONTENT. -1: no check (Hello still decides).
 var expect_protocol := -1
 var expect_content := 0
-## Joiner: the host's protocol and content hash from the service's `found` (advisory, §2.5), -1
-## before it.
+## Joiner: the host's protocol and content hash from the service's `found` (advisory, the M6 ADR
+## §2.5), -1 before it.
 var found_protocol := -1
 var found_content := 0
 ## JOIN_TIMEOUT_MS; tests shorten it.
@@ -284,7 +284,7 @@ func set_refuse_new_connections(refuse: bool) -> void:
 	var changed := refuse != is_refusing_new_connections()
 	super(refuse)
 	if changed and is_host() and refuse:
-		# Joiners still connecting get no more answers either (the M6 design §2.3).
+		# Joiners still connecting get no more answers either (the M6 ADR §2.3).
 		for conn: Conn in _conns.values():
 			if not conn.open:
 				_drop(conn)
@@ -499,7 +499,7 @@ func _step_closing(conn: Conn, now: int) -> void:
 
 
 ## Reads every channel of a connection: LATEST before RELIABLE, so a LATEST packet sent before a
-## reliable one comes first, as ENet delivers it (§2.2).
+## reliable one comes first, as ENet delivers it (the M6 ADR §2.2).
 ## `since`: the previous poll, when what is read now had arrived at the latest (the fault shim
 ## delays from there, so a backlog read after a freeze is not held back again).
 func _read(conn: Conn, now: int, since: int) -> void:
@@ -732,8 +732,8 @@ func _fail_join(reason: StringName) -> void:
 	_push(failed)
 
 
-## Writes to a connection's channel, only while it is open (§2.6); LATEST gets LaneOrder's header
-## and RELIABLE is counted for it. Counts the upload (E56).
+## Writes to a connection's channel, only while it is open (the M6 ADR §2.6); LATEST gets
+## LaneOrder's header and RELIABLE is counted for it. Counts the upload (E56).
 func _put(conn: Conn, lane: NetKindTable.Lane, bytes: PackedByteArray) -> Error:
 	var channel := conn.channels[lane]
 	if channel.get_ready_state() != WebRTCDataChannel.STATE_OPEN:

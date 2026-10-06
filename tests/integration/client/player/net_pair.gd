@@ -205,6 +205,16 @@ func knock_down(game: Game) -> void:
 	LifeRules.knock_down(ctx, peer)
 
 
+## The crew wins at the host's next tick: FixtureBaseMode's win condition, peer 0's counter
+## `crew_win` at 1, as FixtureBaseMode.in_end has it (#240). The round goes to End; the host's
+## Back to lobby (End -> Lobby's ResetMatch) clears the counter. It reaches into the host's Match
+## as knock_down() does.
+func win() -> void:
+	var node := host.get_node("HostNode") as HostNode
+	var session := node.get("_session") as HostSession
+	session.game.state.add_to_counter(0, &"crew_win", 1)
+
+
 func _physics_process(_delta: float) -> void:
 	if not uneven:
 		now += FRAME_USEC

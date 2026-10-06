@@ -1,7 +1,7 @@
 class_name LaneOrder
 extends RefCounted
 ## Restores ENet's channel-0 order of LATEST against RELIABLE for a backend whose channels do not
-## keep it: WebRTC's separate data channels now, Steam's unreliable messages later (the M6 design
+## keep it: WebRTC's separate data channels now, Steam's unreliable messages later (the M6 ADR
 ## §2.2, E49). Without it a MoveClaim (LATEST) sent just before a PickUp (RELIABLE) can arrive
 ## after it, and the host checks the PickUp against the older claim and refuses it.
 ##
@@ -35,14 +35,15 @@ enum Verdict { DELIVERED, HELD, DROPPED, REJECTED }
 const HEADER_BYTES := 4
 ## The longest LATEST packet: the header and the longest frame (NetFrame decodes the rest).
 const MAX_PACKET_BYTES := HEADER_BYTES + NetFrame.MAX_PACKET_BYTES
-## Held LATEST packets per peer before one is dropped. A placeholder, not a decision (§2.2): a
-## freeze's backlog is 50 to 100 packets, of which only the newest of each kind matters after each
-## reliable packet they wait for.
+## Held LATEST packets per peer before one is dropped. A placeholder, not a decision (the M6 ADR
+## §2.2): a freeze's backlog is 50 to 100 packets, of which only the newest of each kind matters
+## after each reliable packet they wait for.
 const HOLD_CAP := 8
 ## A hold that no release has emptied for this long is a transport fault: the silence rule's 20 s
-## (§2.6; WebRtcTransport.SILENCE_MS, which lane_order_test pins to it, so this class stays free of
-## any backend). A reliable channel loses nothing, so the counts disagree for good only through a
-## bug or a binding that drops packets; an honest reliable packet late by seconds never reaches it.
+## (the M6 ADR §2.6; WebRtcTransport.SILENCE_MS, which lane_order_test pins to it, so this class
+## stays free of any backend). A reliable channel loses nothing, so the counts disagree for good
+## only through a bug or a binding that drops packets; an honest reliable packet late by seconds
+## never reaches it.
 const STALL_MS := 20000
 
 const _SERIAL := 0x10000
@@ -256,8 +257,9 @@ func _hold(peer: PeerOrder, arriving: Held, now_ms: int) -> Read:
 ## one's kind that a newer one of its kind waiting for the same reliable packet follows: both are
 ## released into one poll, where the inbox's merge would drop it anyway, so nothing is lost. Only
 ## when there is none (as many reliable packets in flight as the hold is long), the oldest of that
-## kind (§2.2's rule), which loses the state sent between two reliable packets; and with none of
-## that kind held, the arriving packet itself, so a peer cannot push out another kind's packets.
+## kind (the M6 ADR's §2.2 rule), which loses the state sent between two reliable packets; and
+## with none of that kind held, the arriving packet itself, so a peer cannot push out another
+## kind's packets.
 func _to_drop(held: Array[Held], arriving: Held) -> Held:
 	var candidates: Array[Held] = []
 	for other in held:

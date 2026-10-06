@@ -46,17 +46,23 @@ pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) rec
 discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
 `checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
 repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree, after
-the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are judged by
-name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or overwriting
-(`branch -M|-C`) a branch, or rebasing one by name, passes only for the task branch and its helpers (`<task branch>-x`,
-`<task branch>/x`); `stash drop|clear` only for entries made on them (the stash is shared by every checkout). An
-interactive rebase that opens a todo editor, `rebase --update-refs` and `git -c core.hooksPath=...` always ask; an
-interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i
---autosquash`, issue #104) is judged like any other rebase. Rebase options are read as git reads them (issue #105): a
-cluster letter by letter (`-qi`), an attached value (`-x'cmd'`), a unique prefix of a long option (`--interac`,
-`--exe=cmd`), and `rebase.updateRefs` set by `git -c` or `--config-env` counts as `--update-refs`. A nested shell
-inherits the `VAR=value` prefixes of the command that starts it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and
-stash names come from a repository reader (hooks.GitFiles); without one no branch is the session's own.
+the command switched to another branch, and when their pathspec reaches another checkout. A pathspec the guard cannot
+resolve (`core/$f.gd` in a loop, `$(git diff --name-only)`) is judged by the folder before its unknown part (issue #457:
+git refuses a pathspec outside its repository), but not after a `..` in the unknown part, not when the folder or the
+unknown part is in or names `.claude`, `.git` or `addons`, and not in a cloud session's main checkout.
+`worktree remove|move` of an absolute path inside the own worktree passes; a relative name asks (git matches a worktree
+by its last path parts).
+Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`,
+`switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name (not `HEAD` or `@`: git then rebases a
+detached HEAD), passes only for the task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash
+drop|clear` only for entries made on them (the stash is shared by every checkout). An interactive rebase is judged like
+any other rebase, whatever editor it names (issue #457 reversed #104's editor ask: the engineer, 2026-10-06, "git is
+protected on GitHub"). `rebase --update-refs`, `rebase --exec` and `git -c core.hooksPath=...` always ask. Rebase
+options are read as git reads them (issue #105): a cluster letter by letter (`-qx`), an attached value (`-x'cmd'`), a
+unique prefix of a long option (`--exe=cmd`, `--up`), and `rebase.updateRefs` set by `git -c` or `--config-env` counts
+as `--update-refs`. A nested shell inherits the `VAR=value` prefixes of the command that starts it (`GIT_DIR=x bash -c
+'...'`). Branch, ref and stash names come from a repository reader (hooks.GitFiles); without one no branch is the
+session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
@@ -282,9 +288,9 @@ REBASE_SHORT_VALUED = {"s", "X", "x", "C"}
 GIT_FALSE = {"false", "no", "off", "0", ""}
 # git rebase forms that continue or end a rebase in progress: they name no branch.
 REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
-# Todo editors that open nothing: `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash` runs without one.
-NO_OP_EDITORS = {":", "true"}
 STASH_REF_RE = re.compile(r"^(?:stash@\{(\d+)\}|(\d+))$", re.IGNORECASE)
+# The unknown part of a git pathspec names a folder that may hold a protected path (`$(ls .claude)`, issue #457).
+LITERAL_SHARED_RE = re.compile(r"(?:^|[^\w.-])(?:\.claude|\.git|addons)(?![\w-])", re.IGNORECASE)
 
 # gh aimed at another repository (issue #68). The finding area of a gh command that may write there.
 GH = "gh"
@@ -472,9 +478,6 @@ class Paths:
         self.stack: list[tuple[str | None, str, str]] = []
         self.oldpwd: tuple[str | None, str, str] | None = None
         self.vars: dict[str, str | None] = {"claude_project_dir": self.root}
-        # Variables the command puts in the environment of what it runs: bash `export X=v`, PowerShell `$env:X = v`
-        # (a plain `X=v;` or `$X = v` stays in the shell, and git never sees it).
-        self.env: dict[str, str | None] = {}
         self.tainted: dict[str, str] = {}
         # Variables whose value is unknown but whose words name the project (`for d in core/*`).
         self.project_vars: set[str] = set()
@@ -501,16 +504,15 @@ class Paths:
 
     def child(self, shell: str | None = None, prefixes: dict[str, str] | None = None) -> Paths:
         """The view of a nested shell (`bash -c`) or a `$(...)`: same directory and variables; its `cd` stays
-        inside it. prefixes are the `VAR=value` words before the nested shell (`GIT_SEQUENCE_EDITOR=: bash -c ...`):
-        its environment, like exported variables (issue #105)."""
+        inside it. prefixes are the `VAR=value` words before the nested shell (`GIT_DIR=x bash -c ...`): its
+        environment, like exported variables (issue #105)."""
         inner = Paths(self.root, "", self.home, shell or self.shell)
-        inner.cwd, inner.vars, inner.tainted, inner.env = self.cwd, dict(self.vars), dict(self.tainted), dict(self.env)
+        inner.cwd, inner.vars, inner.tainted = self.cwd, dict(self.vars), dict(self.tainted)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
         for name, value in (prefixes or {}).items():
             # Recorded like an assignment: a value the guard cannot compute still counts as the project when it names
             # it (`D=$(realpath core) bash -c 'rm -rf "$D"'`).
             inner.remember(name, value, [f"{name}={value}"])
-            inner.env[name] = inner.vars.get(name)
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
         inner.task = self.task
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
@@ -560,19 +562,46 @@ class Paths:
         if self.claim and (worktree := self.worktree_of(path)):
             self.own, self.claim = (None if self.busy(worktree) else worktree), False
 
-    def where(self, token: str, cwd: str | None = "") -> str:
+    def where(self, token: str, cwd: str | None = "", literal: bool = False) -> str:
         """Where a git repository or pathspec acts: OWN (the own worktree, its folder included), OUTSIDE_PROJECT, or
-        ELSEWHERE. A PowerShell array or a bash brace expansion is judged item by item; the worst item wins."""
-        places = {self._where(item, cwd) for item in self.items(token)}
+        ELSEWHERE. A PowerShell array or a bash brace expansion is judged item by item; the worst item wins. With
+        literal, an item the guard cannot resolve but that names the project is judged by its literal part
+        (`literal_place`) instead of counting as ELSEWHERE."""
+        places = {self._where(item, cwd, literal) for item in self.items(token)}
         return next(p for p in (ELSEWHERE, OWN, OUTSIDE_PROJECT) if p in places or p == OUTSIDE_PROJECT)
 
-    def _where(self, token: str, cwd: str | None) -> str:
+    def _where(self, token: str, cwd: str | None, literal: bool = False) -> str:
         path = self.resolve(token, cwd)
         named = path is None and (self.names_project(token) or self.computed(token))
         if path is None and not named and self.shell == BASH:
             path = self.resolve(token, cwd, empty=True)  # no call keeps variables: an unassigned one is empty
         if path is None:
+            if named and literal:
+                return OWN if self.literal_place(token, cwd) == OWN else ELSEWHERE
             return ELSEWHERE if named else OUTSIDE_PROJECT
+        return self.place(path)
+
+    def literal_place(self, token: str, cwd: str | None = "") -> str | None:
+        """Where the literal part of an unresolvable path is (issue #457): the folder before its first variable or
+        command output (`core/events/$f.gd` is in `core/events`, `$(git diff --name-only)` in the working
+        directory), as place() says. None when that folder cannot be resolved either, when a `..` after the
+        unknown part may climb out of it, or when the folder is in a hidden folder (`.claude`, `.git`), `addons/` or a
+        glob of the checkout's top, or the unknown part names `.claude`, `.git` or `addons` (`$(ls .claude)`): it
+        may name a protected path there."""
+        cut = re.search(r"[$(`%]", token)
+        if cut is None:
+            return None
+        head, tail = token[: cut.start()], token[cut.start() :]
+        if re.search(r"(^|[/\\])\.\.([/\\]|$)", tail) or LITERAL_SHARED_RE.search(tail):
+            return None
+        folder = re.sub(r"[^/\\]*$", "", head) or "."
+        path = self.resolve(folder, cwd)
+        if path is None:
+            return None
+        top = self.worktree_of(path) or self.root
+        first = path[len(top) + 1 :].split("/", 1)[0] if path.startswith(top + "/") else ""
+        if first.startswith(".") or first == "addons" or any(c in first for c in "*?[{"):
+            return None
         return self.place(path)
 
     def place(self, path: str) -> str:
@@ -584,11 +613,11 @@ class Paths:
     def save(self) -> tuple:
         """The state a bash subshell (`( ... )`, `$(...)`) cannot change for the rest of the command."""
         where = (self.cwd, self.cwd_text, self.cwd_base)
-        variables = dict(self.vars), dict(self.env), dict(self.tainted), set(self.project_vars)
+        variables = dict(self.vars), dict(self.tainted), set(self.project_vars)
         return where, list(self.stack), self.oldpwd, variables
 
     def restore(self, state: tuple) -> None:
-        where, stack, self.oldpwd, (self.vars, self.env, self.tainted, self.project_vars) = state
+        where, stack, self.oldpwd, (self.vars, self.tainted, self.project_vars) = state
         (self.cwd, self.cwd_text, self.cwd_base), self.stack = where, list(stack)
 
     def items(self, token: str) -> list[str]:
@@ -855,29 +884,15 @@ class Paths:
     def assign(self, words: list[str]) -> list[str] | None:
         """Record `S=value`, `export S=value`, PowerShell `$S = value` or a `for S in ...` loop. Returns None when
         words are not one of those, else the words of a command still to check (`$null = New-Item addons\\x`)."""
-        exported = words[0] == "export" and len(words) == 2
-        if exported:
+        if words[0] == "export" and len(words) == 2:
             words = words[1:]
-        bash = self.shell == BASH
-        if bash and words[0] == "unset":
-            # git then falls back to editors the guard cannot see: an unknown value.
-            self.env.update((w.lower(), None) for w in words[1:] if not w.startswith("-"))
-            return []
         if len(words) == 1 and (match := ASSIGN_RE.match(words[0])):
-            name = match.group(1).lower()
             self.remember(match.group(1), match.group(2), words)
-            if bash and (exported or name in self.env):  # a new value of an exported variable is exported too
-                self.env[name] = self.vars.get(name)
             return []
         if len(words) >= 2 and words[1] == "=" and (var := PS_VAR_RE.match(words[0])):
             simple = len(words) == 3 and not words[2].startswith(("$(", "[")) and not CMDLET_RE.match(words[2])
             self.remember(var.group(1), words[2] if simple else None, words[2:], kind="command")
-            if not bash and words[0].lower().startswith("$env:"):
-                self.env[var.group(1).lower()] = self.vars.get(var.group(1).lower())
             return [] if simple else words[2:]
-        if not bash and words[0].lower() in ("remove-item", "ri", "rm", "del", "erase"):
-            # `Remove-Item Env:X`: X leaves the environment. The command is still judged as a delete below.
-            self.env.update((w[4:].lstrip("\\/").lower(), None) for w in words[1:] if w.lower().startswith("env:"))
         loop = words[1:] if words[0].lower() in ("for", "foreach") else words
         if len(loop) >= 3 and loop[1].lower() == "in" and (m := re.match(r"^\$?([A-Za-z_]\w*)$", loop[0])):
             self.remember(m.group(1), None, loop[2:], kind="loop")
@@ -1589,12 +1604,16 @@ class Analysis:
             # A detached HEAD (no current branch) stays free: no branch moves.
             self.git_finding(shown, f"on another branch ({current}) checked out in the own worktree")
         elif place == OWN and base is not None:
+            # A pathspec the guard cannot resolve (`core/$f.gd` in a loop, `$(git diff --name-only)`) is judged by
+            # its literal part (issue #457): git refuses one outside its repository. Not in a cloud session's main
+            # checkout, whose working tree holds `.git`, `.claude` and the other worktrees.
+            literal = self.paths.own != self.paths.root
             for spec in pathspecs or []:
-                if spec.startswith(":") and self.paths.own == self.paths.root and spec != ":":
+                if spec.startswith(":") and not literal and spec != ":":
                     # A magic pathspec (`:(top).claude/worktrees`) may name the shared parts of a cloud checkout.
                     self.git_finding(shown, f"its path {spec} may reach the shared parts of the main checkout")
                     return
-                if not spec.startswith((":", "-")) and self.paths.where(spec, base) == ELSEWHERE:
+                if not spec.startswith((":", "-")) and self.paths.where(spec, base, literal) == ELSEWHERE:
                     self.git_finding(shown, f"its path {spec} is outside this session's own worktree")
                     return
 
@@ -1730,31 +1749,15 @@ class Analysis:
         else:
             self.git_discards(shown, place, base)
 
-    def git_sequence_editor(self) -> str | None:
-        """`GIT_SEQUENCE_EDITOR` as the command puts it in git's environment: a `VAR=value` prefix, bash `export` or
-        PowerShell `$env:` earlier in the command. It outranks every other editor setting, so it alone decides that
-        an interactive rebase opens no todo editor. None when the command sets none; `?` when it cannot be computed."""
-        if "git_sequence_editor" in self.prefix_env:
-            value: str | None = self.prefix_env["git_sequence_editor"]
-        elif "git_sequence_editor" in self.paths.env:
-            value = self.paths.env["git_sequence_editor"]
-            if value is None:
-                return "?"
-        else:
-            return None
-        return (value or "").strip().strip("'\"")
-
     def git_rebase(self, rest: list[str], place: str, base: str | None) -> None:
-        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask
-        when they open a todo editor, which an agent cannot use; one whose `GIT_SEQUENCE_EDITOR` is a no-op
-        (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) opens none and is judged like any other.
+        """`git rebase` rewrites the history of the branch it names, or of the current one; naming `HEAD` or `@`
+        moves no branch (git rebases a detached HEAD). An interactive rebase is judged like any other, whatever
+        editor it names (issue #457: in the own worktree on its task branch it passes; an editor that opens costs
+        that worktree's own rebase, which `git rebase --abort` ends). `--update-refs` and `--exec` always ask.
         Options are read as git reads them (issue #105): `-qi`, `-x'cmd'`, `--interac`, `--exe=cmd`."""
         shown = ["git", "rebase", *rest]
         order, positionals = _rebase_options(rest)
         options = set(order)
-        if {"--interactive", "--edit-todo"} & options and self.git_sequence_editor() not in NO_OP_EDITORS:
-            self.git_finding(shown, "an interactive rebase opens an editor")
-            return
         if self.rebase_update_refs(order):
             self.git_finding(shown, "--update-refs (or rebase.updateRefs) moves other branches")
             return
@@ -1763,6 +1766,7 @@ class Analysis:
             return
         if not REBASE_STEPS & options:
             named = positionals[:1] if "--root" in options else positionals[1:2]
+            named = [n for n in named if n.lower() not in ("head", "@")]
             if named and self.git_other_branches(shown, named, "rewrites"):
                 return
         self.git_discards(shown, place, base)
@@ -1795,16 +1799,22 @@ class Analysis:
             self.git_other_branches(shown, names[:1], "moves")
 
     def git_worktree(self, rest: list[str], place: str, base: str | None) -> None:
-        """`git worktree remove|move` pass for the own worktree's folder, and an absolute path outside the project,
-        only. git also takes the last parts of a worktree's path (`remove 47`, `worktrees/47`), so any other argument
-        may name another worktree and asks."""
+        """`git worktree remove|move` pass for the own worktree's folder, an absolute path inside it (a worktree
+        nested there, issue #457; also when a loop names its last part: `.../51/tools/out/w$i`), and an absolute path
+        outside the project, only. git also takes the last parts of a worktree's path (`remove 47`, `worktrees/47`,
+        `tools/out/w1`), so any other argument may name another worktree and asks."""
         if not rest or rest[0].lower() not in ("remove", "move"):
             return
+        own = self.paths.own if self.paths.own != self.paths.root else None
         for target in _positionals(rest[1:])[:1]:
             path = self.paths.resolve(target, base if base is not None else "")
             absolute = bool(ABSOLUTE_RE.match(target))
-            if path is not None and self.paths.own and path == self.paths.own != self.paths.root:
+            if path is not None and own and path == own:
                 continue
+            if absolute and own and path is not None and path.startswith(own + "/"):
+                continue
+            if absolute and own and path is None and self.paths.literal_place(target) == OWN:
+                continue  # the folder before the unknown part is the own worktree or inside it: `.../51/w$i`
             if path is not None and absolute and self.paths.place(path) == OUTSIDE_PROJECT:
                 continue
             self.git_finding(["git", "worktree", *rest], "may name another worktree or the main checkout")

@@ -26,7 +26,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from . import slots
-from .common import IS_CI, ROOT, Failure, git, group_kwargs, kill_tree, say
+from .common import IS_CI, Failure, group_kwargs, kill_tree, say
 
 # One busy loop: spins until its own deadline, whatever happens to the runner that started it.
 BUSY = "import sys, time\nend = time.monotonic() + float(sys.argv[1])\nwhile time.monotonic() < end:\n    pass\n"
@@ -98,9 +98,7 @@ def check_args(loops: int, seconds: float) -> None:
 
 
 def own_pool() -> tuple[slots.Pool | None, str]:
-    branch = git("rev-parse", "--abbrev-ref", "HEAD").out.strip()
-    me: dict[str, object] = {"worktree": ROOT.as_posix(), "branch": None if branch in ("", "HEAD") else branch}
-    return slots.for_verify(me, ci=IS_CI, say=say, kind=slots.LOAD)
+    return slots.for_verify(slots.this_checkout(), ci=IS_CI, say=say, kind=slots.LOAD)
 
 
 def main(
@@ -122,5 +120,5 @@ def main(
         if taken.over:
             say(f"load: FAILED: no verify slot within {taken.waited:.0f}s; nothing started. Start it again later")
             return 1
-        say(f"load: slot {taken.slot} of {taken.count}, waited {taken.waited:.1f}s for a verify slot")
+        say(f"load: slot {taken.slot} of {taken.count}{taken.note}, waited {taken.waited:.1f}s for a verify slot")
         return loop_runner(count, seconds)

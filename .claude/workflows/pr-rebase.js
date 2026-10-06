@@ -22,8 +22,9 @@ export const meta = {
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
 // all off by default but bounded_waits (on since #411), as in issue-task.js: with none of them and bounded_waits false
 // every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
-// (tools/runner/tests/test_workflows.py snapshots them, and the default too). The agents each one adds count toward the
-// agent number the kickoff approves (2 to 4 without them):
+// (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
+// default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections). The agents
+// each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -122,9 +123,16 @@ const RULES = [
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close an issue, edit the body of #${A.plan || 30}. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder ${SCRATCH}/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.`,
   '- Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead.',
-  `- Never use \`git stash\` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later \`git reset --soft HEAD~1\`. To fold a fix into an earlier commit: \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`); never an interactive rebase without that variable. Both are free in your own worktree.`,
+  '- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1` (free in your own worktree).',
+  // #456: a fix agent's own sequence editor (a Python script that reworded a commit) made the guard ask, and the night
+  // run waited 9 hours. #457 lets any editor through in the own worktree on its task branch, but an editor that opens
+  // still hangs a headless agent, so the recipe stays editor-free. `git commit --fixup=reword:` and `--fixup=amend:`
+  // open the message editor (git refuses -m and -F with them), so a reword is an `amend!` commit made with -F, which
+  // autosquash applies as `fixup -C`.
+  `- Change an earlier commit only with \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`), free in your own worktree on your task branch. To reword one: \`git commit --allow-empty -F <file>\` with the file's first line \`amend! <that commit's subject>\`, then a blank line and the whole new message, then the same rebase; or leave the message as it is. The last commit alone: \`git commit --amend --no-edit\` or \`--amend -F <file>\`, never a bare \`--amend\`, which opens the editor. Nothing else: another sequence editor (a script, \`sed\`, \`-c sequence.editor=...\`), an interactive rebase without \`GIT_SEQUENCE_EDITOR=:\`, \`--fixup=reword:\` or \`--fixup=amend:\` (both open the message editor) and a \`squash!\` commit each can open an editor or run a program on the todo list (a script can add \`exec\` lines): an editor that opens hangs the call until its timeout, and under Claude Code's \`GIT_EDITOR=true\` a \`--fixup=reword:\` keeps the old message without a word. Since #457 the guard lets each of these through in your own worktree on your task branch (before it, its ask held a night run 9 hours, #456); it still asks for \`git rebase --exec\` and for any rebase in the main checkout or another worktree.`,
   '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.',
   '- Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.',
+  '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
 ].join('\n')
 
 const REVIEW = { type: 'object', properties: { reviewer: { type: 'string' }, verdict: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, file: { type: 'string' }, line: { type: 'number' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'problem'] } } }, required: ['verdict', 'findings'] }
@@ -219,6 +227,10 @@ const base = [
   `Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: \`git -C ${WTB} range-diff <old_tip>...<new_tip>\` where the tips are known, and \`git -C ${WTB} diff origin/${BASE}...HEAD\`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.${A.focus ? '\n' + A.focus : ''}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.',
 ].join('\n\n')
+// #339 (the instruction-diet ADR's N1 (a)), the same sentence as in issue-task.js (test_workflows.py compares the
+// two): the netcode reviewers (the second_review pass too) always read the sections where a leak shows, whatever the
+// change touches; a change that touches only §4.7 or §7.1 can still add a snapshot field the leak test does not compare.
+const NETCODE_SECTIONS = `Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: \`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6\` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.`
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
 // tests/harness/ holds the information-leak test, and client/ renders public data (a rendering leak is an
@@ -226,12 +238,12 @@ const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phas
 const netcode = !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
 if (netcode) {
   labels.push('netcode-security-reviewer')
-  thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.', asReviewer({ label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
+  thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
 }
 // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
 if (netcode && SECOND_REVIEW) {
   labels.push('second netcode-security-reviewer')
-  thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers view_of, event audiences and snapshots. Take the attacker\'s side over the merged code instead: what a modified client could now send that the host accepts, and what a curious player could now learn from the wire, logs, audio or screen (the host\'s own client included) because the two sides were joined; and whether the information-leak test (tests/harness/) would still fail on a leak in what changed. A gap there is a finding.', asReviewer({ label: `review:netcode-second:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
+  thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers view_of, event audiences and snapshots. Take the attacker\'s side over the merged code instead: what a modified client could now send that the host accepts, and what a curious player could now learn from the wire, logs, audio or screen (the host\'s own client included) because the two sides were joined; and whether the information-leak test (tests/harness/) would still fail on a leak in what changed. A gap there is a finding. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode-second:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
 }
 const results = await parallel(thunks)
 // Every routed reviewer must answer: an empty review list is not a clean review. A resume replays the ones that did.

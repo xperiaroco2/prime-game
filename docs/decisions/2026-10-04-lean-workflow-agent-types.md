@@ -1,6 +1,7 @@
 # Lean workflow agent types for the implementer and the publisher
 
-- **Status:** Accepted for an opt-in trial (default off); the default is the engineer's call after the A/B below
+- **Status:** Accepted for an opt-in trial (default off); the default is the engineer's call after the A/B below.
+  Amended 2026-10-05 (below): on in every launch from the reset of 2026-10-06 10:00 UTC; the default flips with P3b
 - **Date:** 2026-10-04
 - **Deciders:** the engineer: build the token efficiency research's proposals, lean agent types once the cache-read
   probe has a result (#302 comment 5974021004); the probe found cache reads count at about 0.5-1 of list (#302
@@ -47,7 +48,9 @@ WebSearch); Monitor, TaskStop, WebFetch, Grep; and a handful of single calls (Sk
 `docs/AGENT_WORKFLOW.md` §5 kept every project subagent read-only. These two names are the exception, and only
 they: `tools/runner/instructions.py` (`WRITERS`) holds each to its own allowlist, requires NotebookEdit, Agent and
 Skill in `disallowedTools` and rejects an `effort:` (the workflow sets it per role); every other agent keeps the
-read-only check word for word. A third writable type needs a new ADR.
+read-only check word for word. A third writable type needs a new ADR: `lean-writer`, with the read-only
+`lean-reader`, for the workflows outside these two ([ADR](2026-10-06-lean-reader-and-writer-types.md), #466;
+Approved by the engineer: [#466 comment 6014948170](https://github.com/xperiaroco2/prime-game/issues/466#issuecomment-6014948170)).
 
 ### Permissions: no widening
 The types are a strict subset of what a general workflow agent can do today. No agent file may set
@@ -100,6 +103,12 @@ CLAUDE.md's first hard rule, a skill listing), both `effort: 'low'`:
   of the week (the medians above), and the fixed overhead (first call minus the prompt) is reported;
 - no task fails for a missing tool;
 - the run's effort args still apply (the transcripts' requests carry the per-role effort).
+
+## Amendment 2026-10-05: on in every launch
+The engineer's answer N4 (a) to the [weekly budget ADR](2026-10-05-weekly-budget-across-four-tracks.md)
+([PR #403 comment 5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)): the
+manager passes `lean: true` on every launch from the weekly reset of 2026-10-06 10:00 UTC; the default flips after a
+clean week, with P3b of that ADR.
 
 ## Alternatives
 - Role packs with `omitClaudeMd` and per-role instructions (#325 O5, N3 (b)): a larger change; later, after this

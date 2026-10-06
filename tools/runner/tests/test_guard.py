@@ -422,6 +422,68 @@ OWN_WORK = [
     (B, "export GIT_SEQUENCE_EDITOR=:; bash -c 'git rebase -i --autosquash origin/main'"),
     (B, "GIT_SEQUENCE_EDITOR=':' git rebase -i --autosquash origin/main"),
     (P, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
+    # #457 reverses #104's editor asks: an interactive rebase in the own worktree on its task branch passes whatever
+    # editor it names (the engineer, 2026-10-06: git is protected on GitHub). These asked until #457.
+    (B, "git rebase -i HEAD~3"),
+    (B, "git rebase --interactive origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR= git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=code GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=$E git rebase -i origin/main"),
+    (B, "GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "git -c core.editor=true rebase -i origin/main"),
+    (B, "git -c sequence.editor=: rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    (P, "$GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git log -1; git rebase -i origin/main"),
+    (B, "(export GIT_SEQUENCE_EDITOR=:); git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; unset GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; Remove-Item Env:GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (B, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i origin/main"),
+    (P, "export GIT_SEQUENCE_EDITOR=:; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=$E; git rebase -i origin/main"),
+    (B, "git rebase -qi origin/main"),
+    (B, "git rebase -ir origin/main"),
+    (B, "git rebase --interac origin/main"),
+    (B, "git rebase --in origin/main"),
+    (B, "git rebase --edit-t"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim bash -c 'git rebase -i origin/main'"),
+    (B, "GIT_SEQUENCE_EDITOR=$E bash -c 'git rebase -i origin/main'"),
+    # The prompts #457 removes, from the week's transcripts: a `sed` sequence editor that adds `exec git commit
+    # --amend` lines (#445's fix agent waited from 21:56 to 07:19 UTC on 2026-10-05/06), a Python one (2026-10-01),
+    # `-c core.editor=true` (2026-10-03), and their neighbours.
+    (
+        B,
+        "SP=/c/x/r445 && \"$PYTHON_BIN\" - \"$SP/m.txt\" <<'EOF'\nprint(1)\nEOF\n"
+        "GIT_SEQUENCE_EDITOR=\"sed -i '/^pick 2c3e0d21/a exec git commit -q --amend --cleanup=verbatim -F $SP/m.txt'\" "
+        "git rebase -q -i origin/main && git log --oneline origin/main..HEAD",
+    ),
+    (B, "GIT_SEQUENCE_EDITOR=\"\\\"$PYTHON_BIN\\\" C:/x/a143/seq.py\" git rebase -q -i origin/release/m4"),
+    (B, "GIT_SEQUENCE_EDITOR='\"$PYTHON_BIN\" C:/x/seq.py' git rebase -q -i origin/release/m4"),
+    (B, "git -c core.editor=true rebase -q -i --autosquash origin/main"),
+    (B, "GIT_EDITOR=vim git rebase -i origin/main"),
+    (B, "git rebase --edit-todo"),
+    (B, "git rebase -i --onto origin/main HEAD~3"),
+    (P, "git rebase -i origin/main"),
+    # A rebase that names HEAD or @ moves no branch: git rebases a detached HEAD (#457).
+    (B, "git rebase origin/main HEAD"),
+    (B, "git rebase -i origin/main @"),
+    (B, "git rebase --root head"),
+    # Already free before #457, pinned by it: amend, and resets to a computed commit.
+    (B, "git commit --amend --no-edit"),
+    (B, 'git reset --soft "$(git merge-base HEAD origin/main)"'),
+    (B, "git reset --hard 1a2b3c4"),
+    # A pathspec the guard cannot resolve stays in the own worktree: git refuses one outside its repository (#457).
+    (B, "for f in a b; do git checkout --ours core/events/$f.gd core/events/$f.gd.uid; done"),
+    (B, "git checkout -- $(git diff --name-only)"),
+    (B, "git restore $(git ls-files -m)"),
+    (B, "for d in core tests; do git clean -fd $d/x; done"),
+    (P, "git checkout -- (git diff --name-only)"),
+    # A worktree nested in the own worktree, by absolute path (git matches no other worktree by it, #457).
+    (B, "git worktree remove --force D:/prime-game/.claude/worktrees/51/tools/out/measure/w1"),
+    (B, "for i in 1 2; do git worktree remove --force D:/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done"),
+    (B, "git worktree move D:/prime-game/.claude/worktrees/51/tools/out/w1 /tmp/w1"),
     # Options are read as git reads them (#105): bundled short flags, values, unique prefixes, and a prefix that a
     # nested shell inherits.
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -qi --autosquash origin/main"),
@@ -475,6 +537,15 @@ MANAGED_WORK = [
     (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; git reset --hard"),
     (P, "cd D:\\prime-game\\.claude\\worktrees\\51; git rebase origin/main"),
     (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; Remove-Item -Recurse -Force core\\match"),
+    # #457: the commands that asked on 2026-09-30, 10-01, 10-03 and 10-05 in their own worktree.
+    (B, "cd /d/prime-game/.claude/worktrees/51 && GIT_SEQUENCE_EDITOR=\"python seq.py\" git rebase -q -i origin/main"),
+    (B, "cd /d/prime-game/.claude/worktrees/51 && git -c core.editor=true rebase -q -i --autosquash origin/main"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && for f in x y; do git checkout --ours core/$f.gd; done"),
+    (
+        B,
+        "cd /d/prime-game/.claude/worktrees/51 && for i in 1 2; do "
+        "git worktree remove --force /d/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done",
+    ),
 ]
 
 # (shell, command) from the own worktree that reach the main checkout, another worktree or another branch: each asks.
@@ -509,46 +580,20 @@ BEYOND_OWN = [
     (B, "git switch -C tooling/47-guard"),
     (B, "git checkout main && git reset --hard origin/main"),
     (B, "git switch main; git clean -fdx"),
-    (B, "git rebase -i HEAD~3"),
-    (B, "git rebase --interactive origin/main"),
-    # An interactive rebase that opens an editor, whichever setting names it, and the other rewrites still ask
-    # with a no-op todo editor (#104).
-    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
-    (B, "GIT_SEQUENCE_EDITOR= git rebase -i origin/main"),
-    (B, "GIT_SEQUENCE_EDITOR=code GIT_EDITOR=: git rebase -i origin/main"),
-    (B, "GIT_SEQUENCE_EDITOR=$E git rebase -i origin/main"),
-    # Only GIT_SEQUENCE_EDITOR outranks every other setting (an inherited one, the git config files), so the lower
-    # tiers still ask.
-    (B, "GIT_EDITOR=: git rebase -i origin/main"),
-    (B, "git -c core.editor=true rebase -i origin/main"),
-    (B, "git -c sequence.editor=: rebase -i --autosquash origin/main"),
-    # A shell variable that is not exported never reaches git; a prefix is the next command's only.
-    (B, "GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
-    (P, "$GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
-    (B, "GIT_SEQUENCE_EDITOR=: git log -1; git rebase -i origin/main"),
-    (B, "(export GIT_SEQUENCE_EDITOR=:); git rebase -i origin/main"),
-    # A later value or `unset` of the exported variable is what git sees; each shell's own syntax only.
-    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim; git rebase -i origin/main"),
-    (B, "export GIT_SEQUENCE_EDITOR=:; unset GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
-    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; Remove-Item Env:GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
-    (B, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i origin/main"),
-    (P, "export GIT_SEQUENCE_EDITOR=:; git rebase -i origin/main"),
-    (B, "export GIT_SEQUENCE_EDITOR=$E; git rebase -i origin/main"),
+    # The other rewrites still ask, with or without an editor (#104, #457): --update-refs moves other branches,
+    # --exec runs commands the deny rules cannot see, and a named branch is another one.
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --update-refs origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x 'tools/run.sh test' origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main main"),
+    (B, "git rebase -i origin/main tooling/47-guard"),
+    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i -x true origin/main"),
     (B, "git rebase --update-refs origin/main"),
     # Every spelling git accepts (#105): bundled short flags, an attached value, unique prefixes of long options,
     # `rebase.updateRefs` from `-c`, and a prefix a nested shell inherits.
-    (B, "git rebase -qi origin/main"),
-    (B, "git rebase -ir origin/main"),
     (B, "git rebase -rx 'tools/run.sh test' origin/main"),
     (B, "git rebase -qx 'tools/run.sh test' origin/main"),
     (B, "git rebase -x'tools/run.sh test' origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x'tools/run.sh test' --autosquash origin/main"),
-    (B, "git rebase --interac origin/main"),
-    (B, "git rebase --in origin/main"),
-    (B, "git rebase --edit-t"),
     (B, "git rebase --exe=true origin/main"),
     (B, "git rebase --ex true origin/main"),
     (B, "git rebase --update-ref origin/main"),
@@ -562,8 +607,6 @@ BEYOND_OWN = [
     (B, "git --config-env=rebase.updateRefs=V rebase origin/main"),
     (B, "git -c rebase.updateRefs=false rebase --update-refs origin/main"),
     (P, "git -c rebase.updateRefs=true rebase origin/main"),
-    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim bash -c 'git rebase -i origin/main'"),
-    (B, "GIT_SEQUENCE_EDITOR=$E bash -c 'git rebase -i origin/main'"),
     # Found by the review of #105: a prefix the guard cannot compute still names the project inside the nested shell.
     (B, "D=$(realpath core) bash -c 'rm -rf \"$D\"'"),
     (B, "D=$X bash -c 'rm -rf \"$D\"'"),
@@ -585,6 +628,32 @@ BEYOND_OWN = [
     (B, "git worktree remove --force worktrees/47"),
     (B, "git worktree move 47 /tmp/x"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && git worktree remove --force 47"),
+    # What #457 keeps asking: the same work in another worktree or on another branch, a relative worktree name (git's
+    # last-parts lookup may find another session's nested worktree), a path whose literal part leaves the own
+    # worktree, and git over other repositories' worktrees in a loop.
+    (B, "git -C ../47 rebase -i origin/main"),
+    (B, "cd ../47 && GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
+    (B, "git worktree remove --force tools/out/measure/w1"),
+    (B, "for i in 1 2; do git worktree remove --force tools/out/measure/w$i; done"),
+    (B, "git worktree remove D:/prime-game/.claude/worktrees/51/../47"),
+    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/51/$i/../../47; done"),
+    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/$i; done"),
+    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/51$i; done"),
+    (B, "for n in 2 3; do git -C D:/prime-game/.claude/worktrees/$n reset --hard; done"),
+    (B, "git restore ../47/core/$f.gd"),
+    (B, "for f in a b; do git restore ../47/core/$f.gd; done"),
+    (B, "for f in a b; do git checkout -- D:/prime-game/core/$f.gd; done"),
+    (B, "for f in a b; do git checkout -- core/$f/../../../47/core; done"),
+    (B, "git checkout -- addons/$f"),
+    (B, "for f in a b; do git restore addons/$f; done"),
+    # Found by the implementer of #457: an unknown part in or naming `.claude`, `.git` or `addons` may be a protected
+    # path, which the text check cannot see (`settings.json` alone names none), so it keeps asking as before.
+    (B, "for f in settings.json x; do git checkout -- .claude/$f; done"),
+    (B, "for f in a b; do git checkout -- .git/$f; done"),
+    (B, "git checkout -- $(ls .claude/settings*)"),
+    (B, "git checkout -- $(git diff --name-only .claude)"),
+    (P, "git checkout -- (Get-ChildItem .claude -Filter settings*)"),
+    (B, "for f in a b; do git checkout -- */$f; done"),
     # The repository and the working tree are judged apart; GIT_DIR and GIT_WORK_TREE count like the options.
     (B, "git --git-dir=D:/prime-game/.git --work-tree=. reset --hard HEAD~3"),
     (B, "GIT_DIR=D:/prime-game/.git git reset --hard HEAD~3"),
@@ -616,6 +685,12 @@ MAIN_CHECKOUT = [
     (B, "git switch -f main"),
     (B, "git worktree remove .claude/worktrees/47"),
     (B, "rm -rf core/match"),
+    # #457 frees the own worktree only: the same commands in the main checkout still ask.
+    (B, "git rebase -i HEAD~3"),
+    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
+    (B, "git checkout -- $(git diff --name-only)"),
+    (B, "for f in a b; do git checkout --ours core/$f.gd; done"),
+    (B, "git worktree remove --force D:/prime-game/tools/out/measure/w1"),
     (P, "git rebase origin/main"),
     (P, "git clean -fdx"),
     (P, "git restore core"),
@@ -684,7 +759,13 @@ class OwnWorktreeTest(unittest.TestCase):
     def test_another_branch_checked_out_in_the_own_worktree_is_not_the_task_branch(self) -> None:
         # Found by the review of #51: `git checkout core/42-vote` in one call, then work that discards in the next.
         repo = FakeRepo(own="core/42-vote")
-        for command in ("git reset --hard HEAD~1", "git rebase origin/main", "git branch -D core/42-vote-x"):
+        for command in (
+            "git reset --hard HEAD~1",
+            "git rebase origin/main",
+            "git branch -D core/42-vote-x",
+            "git rebase -i origin/main HEAD",  # #457: naming HEAD frees no other branch
+            "for f in a b; do git checkout -- core/$f.gd; done",
+        ):
             with self.subTest(command=command):
                 self.assertTrue(in_own(B, command, repo=repo), "expected the guard to ask")
         self.assertTrue(in_own(B, "git clean -fdx", cwd=ROOT, repo=repo))
@@ -770,6 +851,9 @@ CLOUD_WORK = [
     (B, "bash -c 'git reset --soft HEAD~1'"),
     (B, "GIT_SEQUENCE_EDITOR=: bash -c 'git rebase -i --autosquash origin/main'"),
     (B, "git clean -fd core"),
+    # #457: an interactive rebase passes whatever editor it names, as in a worktree on its task branch.
+    (B, "git rebase -i HEAD~2"),
+    (B, "git -c core.editor=true rebase -q -i --autosquash origin/main"),
 ]
 
 # (shell, command) that still asks in a cloud session on its task branch: other checkouts, other branches, the
@@ -822,6 +906,11 @@ CLOUD_BEYOND = [
     (B, "git stash -a"),
     (B, "git stash push --all -m x"),
     (B, "git stash save -a x"),
+    # #457 counts a pathspec the guard cannot resolve as the own worktree's, but not here: the main checkout holds
+    # .git, .claude and the other worktrees.
+    (B, "git checkout -- $(git ls-files)"),
+    (B, "for f in a b; do git restore core/$f.gd; done"),
+    (B, "git worktree remove --force D:/prime-game/tools/out/measure/w1"),
 ]
 
 

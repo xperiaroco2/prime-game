@@ -33,14 +33,26 @@ import json
 import os
 import re
 import shutil
-import stat
 import sys
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import IS_WINDOWS, ROOT, Failure, bad, ok, project_name, remove_own_user_dir, run, say, user_dir_of, warn
+from .common import (
+    IS_WINDOWS,
+    ROOT,
+    Failure,
+    bad,
+    force_rmtree,
+    ok,
+    project_name,
+    remove_own_user_dir,
+    run,
+    say,
+    user_dir_of,
+    warn,
+)
 
 # Where mutants may go: production code only (never tests/, tools/, docs/, content/ or levels/).
 PRODUCTION = ("core", "server", "net", "client", "voice")
@@ -92,8 +104,14 @@ exit codes:
   2  the scratch worktree could not be removed, or the task's git status changed: run no more mutants and tell
      the human (git worktree list shows the leftover; a later run removes it first)
 
-A foreground shell call dies at 600 s: run one mutant per call (about 20 s with small suites), or several in
-the background and read the report file."""
+Run it in the Bash tool in the background (run_in_background, its timeout 3600000: a foreground shell call dies at
+600 s, and setup and the baseline come before the first mutant; PowerShell 5.1's `>` writes UTF-16 and its `$?` is a
+boolean, so the log would never end in `exit=<n>`). Then call wait in separate calls, the tool's timeout at 300000
+(its default 120000 cuts a 240 s wait short), again while it exits 124 (still running); a workflow agent or subagent
+blocks no call over 240 s:
+  tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>
+  tools/run.sh wait <log>
+The report file shows the progress meanwhile."""
 
 # Runs in the scratch tree with its own runner (HEAD's code), so its ROOT, logs and reports are the scratch tree's.
 STEP = """\
@@ -353,19 +371,6 @@ def registered(root: Path, folder: Path) -> list[str]:
     return found
 
 
-def _rmtree(path: Path) -> None:
-    """Git makes its object files read-only; Windows refuses to delete those without a chmod."""
-
-    def retry(func, target, _exc):  # type: ignore[no-untyped-def]
-        os.chmod(target, stat.S_IWRITE)
-        func(target)
-
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=retry)
-    else:
-        shutil.rmtree(path, onerror=retry)
-
-
 def _trees(root: Path, folder: Path) -> dict[str, str]:
     """The scratch worktrees in folder, registered or a `tree-*` folder, by normalized path."""
     found = {_norm(p): p for p in registered(root, folder)}
@@ -386,7 +391,7 @@ def remove_trees(root: Path) -> list[str]:
         for path in sorted(folder.glob(TREE_PREFIX + "*")):
             if path.is_dir():
                 try:
-                    _rmtree(path)
+                    force_rmtree(path)
                 except OSError as exc:
                     warn(f"cannot delete {path.as_posix()}: {exc.strerror or exc} (a program may hold a file in it)")
     # A folder deleted by hand leaves git's entry: `worktree remove` drops it once the folder is gone.

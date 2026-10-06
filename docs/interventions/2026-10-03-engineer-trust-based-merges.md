@@ -34,8 +34,10 @@
 - The ADR above, and dated amendments to `2026-09-28-humans-merge-prs.md`, `2026-10-01-release-branch-per-milestone.md`,
   `2026-09-30-orchestrator-session.md` and `2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`.
 - `tools/runner/merge.py` (`merge <pr> --base main [--dry-run]`) and its tests in `tools/runner/tests/test_merge.py`.
-- Root `CLAUDE.md`: the `merge` row of the commands table, definition of done 4 and 5, and "Stop and ask before",
-  reworded in place within the 150-line launch budget.
+- Root `CLAUDE.md`: definition of done 4 and 5, and "Stop and ask before", reworded in place within the 150-line
+  launch budget.
+- `merge --help`: its description in `tools/runner/cli.py` (until #340, the `merge` row of root `CLAUDE.md`'s
+  commands table).
 - `docs/AGENT_WORKFLOW.md` §4.2 (item 4), §7.1 (Git flow, Parallel tracks, The human), §8.3, §9 and §10 (Merging).
 - `.claude/skills/orchestrate-stage/SKILL.md` §1, §2, §4, §5, §6, §8 and the kickoff template;
   `.claude/skills/finish-task/SKILL.md` steps 4 and 8; `.claude/skills/onboard/SKILL.md`.

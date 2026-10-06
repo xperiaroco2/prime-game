@@ -1,6 +1,7 @@
 """Machine-wide verify slots (#185): real lock files in a temporary folder, a fake clock for the waits, and a child
 process that takes a slot and is killed for the stale reclaim."""
 
+import io
 import json
 import os
 import subprocess
@@ -8,9 +9,12 @@ import sys
 import tempfile
 import unittest
 from collections.abc import Callable
+from contextlib import redirect_stderr, redirect_stdout
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest import mock
 
-from runner import slots
+from runner import cli, slots
 from runner.common import ROOT, Failure, kill_tree
 
 
@@ -284,6 +288,372 @@ class StaleTest(SlotsCase):
         self.assertEqual(taken.record()["reclaimed"], 1)
 
 
+NOW = datetime(2026, 10, 5, 12, 0, tzinfo=UTC)
+
+
+class QuietTest(SlotsCase):
+    """#416: `slots --quiet <hours>` leaves one slot to the new runs of every checkout until its end time."""
+
+    def env(self, count: str = "2") -> dict[str, str]:
+        return {slots.DIR_VAR: str(self.where), slots.COUNT_VAR: count}
+
+    def quiet(self, arg: str, now: datetime = NOW) -> list[str]:
+        out: list[str] = []
+        me = {"worktree": "D:/prime-game", "branch": "main"}
+        self.assertEqual(slots.quiet_command(arg, self.env(), now=now, me=me, out=out.append), 0)
+        return out
+
+    def verify_pool(self, now: datetime, max_wait: float = 30.0, kind: str = slots.VERIFY) -> slots.Pool:
+        pool, why = slots.for_verify({"worktree": "D:/wt/late", "branch": None}, env=self.env(), say=self.said.append,
+                                     now=now, kind=kind)  # fmt: skip
+        assert pool is not None, why
+        self.addCleanup(pool.release)
+        fake = FakeClock()
+        pool.clock, pool.sleep, pool.max_wait = fake.clock, fake.sleep, max_wait
+        return pool
+
+    def test_quiet_hours_writes_one_slot_and_its_end_into_the_shared_folder(self) -> None:
+        out = self.quiet("3")
+        data = json.loads((self.where / slots.QUIET_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(
+            data,
+            {"until": "2026-10-05T15:00:00Z", "since": "2026-10-05T12:00:00Z", "slots": 1,
+             "worktree": "D:/prime-game", "branch": "main"},
+        )  # fmt: skip
+        self.assertIn("slots: quiet until 2026-10-05T15:00:00Z", out[0])
+        self.assertIn("take 1 of the 2 slots", out[0])
+        self.assertEqual(self.where, slots.folder(self.env()))  # the folder every checkout's verify reads
+
+    def test_a_verify_in_a_quiet_window_takes_one_slot_and_says_so_in_its_slot_line(self) -> None:
+        self.quiet("3")
+        pool = self.verify_pool(NOW + timedelta(hours=1))
+        self.assertEqual((pool.count, pool.configured), (1, 2))
+        taken = pool.acquire()
+        self.assertEqual(taken.slot, 1)
+        note = "quiet window until 2026-10-05T15:00:00Z: 1 of 2 slots"
+        self.assertEqual(taken.summary(), f"slot: 1 of 1 ({note}), waited 0.0s for a verify slot")
+        self.assertEqual(taken.record()["quiet"], note)
+
+    def test_in_a_quiet_window_a_second_run_waits_although_slot_2_is_free(self) -> None:
+        self.quiet("3")
+        self.pool(count=2, name="first").acquire()  # slot 1
+        taken = self.verify_pool(NOW + timedelta(hours=1)).acquire()
+        self.assertTrue(taken.over)
+        self.assertIn("quiet window until 2026-10-05T15:00:00Z", taken.summary())
+        waiting = [line for line in self.said if line.startswith("verify: waiting for a slot")]
+        self.assertTrue(waiting and "1 of 1 held; quiet window until" in waiting[0], self.said)
+        self.assertNotIn("slot 2", waiting[0])  # no new run takes the second slot in a quiet window
+
+    def test_a_run_holding_slot_2_when_the_window_starts_keeps_it(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        second = self.pool(count=2, name="b")
+        self.assertEqual(second.acquire().slot, 2)
+        self.quiet("1")
+        self.assertIsNone(self.verify_pool(NOW).try_take())
+        self.assertEqual(self.pool(count=2, name="reader").holder(2).worktree, "D:/wt/b")  # type: ignore[union-attr]
+
+    def test_a_run_already_waiting_when_the_window_starts_does_not_take_slot_2(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        second = self.pool(count=2, name="b")
+        second.acquire()  # both slots held: the late run waits
+        late = self.verify_pool(NOW, max_wait=30.0)
+        fake = FakeClock()
+        late.clock, late.sleep = fake.clock, fake.sleep
+        fake.at.append((fake.now + 10, lambda: self.quiet("3")))
+        fake.at.append((fake.now + 20, second.release))  # slot 2 frees inside the window
+        taken = late.acquire()
+        self.assertTrue(taken.over, taken.summary())  # it did not take slot 2
+        self.assertEqual((late.count, late.configured), (1, 2))
+        self.assertIn("1 of 2 slots", taken.summary())
+        self.assertTrue(any("began while waiting" in line for line in self.said), self.said)
+        self.assertIsNone(late.holder(2))  # slot 2 stays free for the engineer's own use
+
+    def test_a_run_waiting_when_no_window_starts_still_takes_slot_2(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        second = self.pool(count=2, name="b")
+        second.acquire()
+        late = self.verify_pool(NOW, max_wait=30.0)
+        fake = FakeClock()
+        late.clock, late.sleep = fake.clock, fake.sleep
+        fake.at.append((fake.now + 20, second.release))
+        self.assertEqual(late.acquire().slot, 2)
+        self.assertFalse(any("quiet" in line for line in self.said), self.said)
+
+    def test_a_load_run_in_a_quiet_window_takes_one_slot_too(self) -> None:
+        self.quiet("2")
+        pool = self.verify_pool(NOW, kind=slots.LOAD)
+        self.assertEqual((pool.kind, pool.count), (slots.LOAD, 1))
+
+    def test_quiet_off_ends_the_window(self) -> None:
+        self.quiet("3")
+        ended = "slots: quiet window ended; new verify and load runs take any of the 2 slots again"
+        self.assertEqual(self.quiet("off"), [ended])
+        self.assertFalse((self.where / slots.QUIET_FILE).exists())
+        self.assertEqual(self.verify_pool(NOW).count, 2)
+        self.assertEqual(self.quiet("OFF"), ["slots: no quiet window to end"])
+
+    def test_a_new_window_replaces_the_last(self) -> None:
+        self.quiet("3")
+        self.quiet("0.5", now=NOW + timedelta(hours=1))
+        quiet = slots.read_quiet(self.where, now=NOW + timedelta(hours=1))
+        assert quiet is not None
+        self.assertEqual(slots.stamp(quiet.until), "2026-10-05T13:30:00Z")
+
+    def test_an_expired_quiet_file_is_ignored_with_a_warning(self) -> None:
+        self.quiet("1")
+        pool = self.verify_pool(NOW + timedelta(hours=1, seconds=1))
+        self.assertEqual((pool.count, pool.quiet), (2, None))
+        self.assertTrue(any("warn" in line and "the quiet window ended at 2026-10-05T13:00:00Z" in line
+                            for line in self.said), self.said)  # fmt: skip
+        self.assertNotIn("quiet", pool.acquire().summary())
+
+    def test_an_unreadable_or_malformed_quiet_file_is_ignored_with_a_warning(self) -> None:
+        far = slots.stamp(NOW + timedelta(hours=slots.MAX_QUIET_HOURS + 1))
+        for text in ("", "{", "[]", '{"slots": 1}', '{"until": "soon"}', json.dumps({"until": far})):
+            with self.subTest(text=text):
+                self.where.mkdir(parents=True, exist_ok=True)
+                (self.where / slots.QUIET_FILE).write_text(text, encoding="utf-8")
+                self.said.clear()
+                self.assertEqual(self.verify_pool(NOW).count, 2)
+                self.assertTrue(any("warn" in line and "ignored" in line for line in self.said), self.said)
+        (self.where / slots.QUIET_FILE).unlink()
+        (self.where / slots.QUIET_FILE).mkdir()  # a quiet "file" that cannot be read as one
+        self.said.clear()
+        self.assertEqual(self.verify_pool(NOW).count, 2)
+        self.assertTrue(any("cannot be read" in line for line in self.said), self.said)
+
+    def test_no_quiet_file_is_no_window_and_no_warning(self) -> None:
+        self.assertEqual(self.verify_pool(NOW).count, 2)
+        self.assertEqual(self.said, [])
+
+    def test_the_waiting_line_names_a_run_that_holds_slot_2_from_before_the_window(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        self.pool(count=2, name="b").acquire()  # slot 2, taken before the window
+        self.quiet("3")
+        late = self.verify_pool(NOW + timedelta(hours=1), max_wait=30.0)
+        taken = late.acquire()
+        self.assertTrue(taken.over)
+        waiting = [line for line in self.said if line.startswith("verify: waiting for a slot")]
+        self.assertTrue(waiting and "slot 2: D:/wt/b" in waiting[0], self.said)
+        self.assertEqual([h.slot for h in taken.holders], [1, 2])  # the over-the-limit warning names both too
+
+    def test_the_hours_are_bounded(self) -> None:
+        for arg in ("0", "-1", "24.5", "nan", "inf", "three", ""):
+            with self.subTest(arg=arg), self.assertRaisesRegex(Failure, "--quiet"):
+                self.quiet(arg)
+        self.assertFalse(self.where.exists())
+        self.quiet(str(slots.MAX_QUIET_HOURS))
+        self.assertIsNotNone(slots.read_quiet(self.where, now=NOW + timedelta(hours=23)))
+
+
+class WaiterTest(SlotsCase):
+    """#416: a waiting run names itself in a waiter file while it waits, and while it runs without a slot."""
+
+    def waiters(self) -> list[slots.Waiter]:
+        return slots.read_waiters(self.where)
+
+    def test_a_waiting_run_has_a_waiter_file_until_it_takes_a_slot(self) -> None:
+        holder = self.pool(count=1, name="busy")
+        holder.acquire()
+        seen: list[list[slots.Waiter]] = []
+        fake = FakeClock()
+        fake.at.append((fake.now + 10, lambda: seen.append(self.waiters())))
+        fake.at.append((fake.now + 20, holder.release))
+        taken = self.pool(count=1, name="waiting", clock=fake).acquire()
+        self.assertEqual(taken.slot, 1)
+        found = [(w.worktree, w.branch, w.pid, w.kind, w.state) for w in seen[0]]
+        self.assertEqual(found, [("D:/wt/waiting", "tooling/1-waiting", os.getpid(), slots.VERIFY, slots.WAITING)])
+        self.assertEqual(self.waiters(), [])
+
+    def test_a_verify_over_the_limit_keeps_its_file_until_it_ends(self) -> None:
+        self.pool(count=1, name="busy").acquire()
+        late = self.pool(count=1, max_wait=30, name="late", clock=FakeClock())
+        self.assertTrue(late.acquire().over)
+        self.assertEqual([w.state for w in self.waiters()], [slots.OVER])
+        late.release()
+        self.assertEqual(self.waiters(), [])
+
+    def test_a_load_run_past_the_wait_and_a_failing_folder_leave_no_waiter_file(self) -> None:
+        self.pool(count=1, name="busy").acquire()
+        self.assertTrue(self.pool(count=1, max_wait=30, name="load", clock=FakeClock(), kind=slots.LOAD).acquire().over)
+        self.assertEqual(self.waiters(), [])
+
+    def test_a_run_that_takes_a_slot_at_once_writes_no_waiter_file(self) -> None:
+        self.pool(name="a").acquire()
+        self.assertEqual([p.name for p in self.where.iterdir() if p.name.startswith(slots.WAITER_PREFIX)], [])
+
+
+class StatusTest(SlotsCase):
+    """#416: `slots --status`."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.history = self.where.parent / "verify-history.jsonl"
+
+    def status(self, now: datetime = NOW, alive: Callable[[int], bool] | None = None) -> list[str]:
+        out: list[str] = []
+        env = {slots.DIR_VAR: str(self.where), slots.COUNT_VAR: "2"}
+        rc = slots.status(env, now=now, alive=alive or (lambda pid: pid == os.getpid()),
+                          histories=lambda: [self.history], out=out.append)  # fmt: skip
+        self.assertEqual(rc, 0)
+        return out
+
+    def test_an_empty_folder_shows_free_slots_and_no_waiters(self) -> None:
+        out = self.status()
+        self.assertEqual(out[1:], [
+            "quiet: none (slots --quiet <hours> starts one)",
+            "holders:",
+            "  slot 1: free",
+            "  slot 2: free",
+            "waiters: none",
+            "without a slot in the last hour (verify history): none",
+            "slots: no run waits for a slot (0 of 2 held)",
+        ])  # fmt: skip
+        self.assertIn(str(self.where), out[0])
+
+    def test_holders_waiters_and_the_quiet_window(self) -> None:
+        holder = self.pool(count=1, name="busy")
+        holder.acquire()
+        now = datetime.now(UTC)  # the waiter file is stamped with the real time, and a stale one is left out
+        slots.write_quiet(self.where, 2, now=now - timedelta(minutes=30), me={"worktree": "D:/prime-game"})
+        left = json.dumps({"worktree": "D:/wt/killed", "pid": 999999})
+        (self.where / "slot-2.json").write_text(left, encoding="utf-8")
+        seen: list[list[str]] = []
+        fake = FakeClock()
+        fake.at.append((fake.now + 10, lambda: seen.append(self.status(now=datetime.now(UTC)))))
+        fake.at.append((fake.now + 20, holder.release))
+        self.pool(count=1, name="waiting", clock=fake).acquire()
+        out = seen[0]
+        until = slots.stamp(now + timedelta(minutes=90))
+        quiet = f"quiet: until {until} (90 min left): a new verify or load run takes 1 of 2 slots"
+        self.assertIn(quiet, out[1])
+        self.assertTrue(out[3].startswith(f"  slot 1: D:/wt/busy (tooling/1-busy, pid {os.getpid()}, since "), out)
+        self.assertEqual(out[4], "  slot 2: free (its last holder, pid 999999 in D:/wt/killed, ended without "
+                                 "releasing it; the next run takes it over)")  # fmt: skip
+        self.assertEqual(out[5], "waiters: 1")
+        waiter = f"verify in D:/wt/waiting (tooling/1-waiting, pid {os.getpid()}) waiting for a slot since"
+        self.assertIn(waiter, out[6])
+        self.assertEqual(out[-1], "slots: 1 run(s) waiting for a slot (1 of 2 held): launch nothing now")
+
+    def test_a_run_over_the_limit_shows_until_it_ends_and_is_no_waiter(self) -> None:
+        self.pool(count=1, name="busy").acquire()
+        late = self.pool(count=1, max_wait=30, name="late", clock=FakeClock())
+        late.acquire()
+        out = self.status()
+        self.assertIn("waiters: none", out)
+        at = out.index("running without a slot now: 1")
+        self.assertIn("verify in D:/wt/late (tooling/1-late", out[at + 1])
+        self.assertIn("running OVER THE LIMIT, without a slot, since", out[at + 1])
+        self.assertEqual(out[-1], "slots: 1 running over the limit (1 of 2 held): launch nothing now")
+        late.release()
+        out = self.status()
+        self.assertNotIn("running without a slot now: 1", out)
+        self.assertTrue(out[-1].startswith("slots: no run waits for a slot"))
+
+    def test_the_file_of_a_killed_waiter_is_left_out_and_removed(self) -> None:
+        self.where.mkdir(parents=True)
+        stale = self.where / f"{slots.WAITER_PREFIX}999999-dead.json"
+        stale.write_text(json.dumps({"worktree": "D:/wt/killed", "pid": 999999, "since": "2026-10-05T11:00:00Z",
+                                     "state": slots.WAITING}), encoding="utf-8")  # fmt: skip
+        out = self.status()
+        self.assertIn("waiters: none", out)
+        self.assertFalse(stale.exists())
+
+    def test_a_waiting_file_older_than_its_wait_is_a_ghost_even_when_its_pid_lives(self) -> None:
+        # The run was killed while it waited and Windows gave its pid to a long-lived process: the pid looks alive.
+        self.where.mkdir(parents=True)
+
+        def waiter(name: str, since: datetime, state: str, wait: float | None) -> Path:
+            data: dict[str, object] = {"worktree": f"D:/wt/{name}", "pid": os.getpid(), "since": slots.stamp(since),
+                                       "state": state}  # fmt: skip
+            if wait is not None:
+                data["wait"] = wait
+            path = self.where / f"{slots.WAITER_PREFIX}{os.getpid()}-{name}.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            return path
+
+        margin = timedelta(seconds=slots.STALE_MARGIN)
+        ghost = waiter("ghost", NOW - timedelta(seconds=600) - margin - timedelta(seconds=5), slots.WAITING, 600)
+        no_wait = waiter("nowait", NOW - timedelta(seconds=slots.DEFAULT_WAIT) - margin * 2, slots.WAITING, None)
+        fresh = waiter("fresh", NOW - timedelta(seconds=500), slots.WAITING, 600)
+        patient = waiter("patient", NOW - timedelta(seconds=900), slots.WAITING, 3600)  # a longer wait, its own
+        over = waiter("over", NOW - timedelta(hours=2), slots.OVER, 600)  # a verify runs as long as it runs
+        out = self.status()
+        self.assertIn("waiters: 2", out)
+        self.assertEqual([ghost.exists(), no_wait.exists()], [False, False])
+        self.assertTrue(fresh.exists() and patient.exists() and over.exists())
+        self.assertIn("running without a slot now: 1", out)
+
+    def test_the_last_hours_runs_without_a_slot_come_from_the_verify_history(self) -> None:
+        def run(start: str, slot: object, seconds: float = 400.0, status: str = "passed") -> dict[str, object]:
+            return {"start": start, "worktree": "D:/wt/x", "branch": "tooling/9-x", "status": status,
+                    "seconds": seconds, "slot": slot}  # fmt: skip
+
+        over = {"slot": None, "of": 2, "waited": 600.0, "over": True, "reclaimed": 0}
+        records = [
+            run("2026-10-05T10:00:00Z", over),  # ended 10:16:40, before the hour
+            run("2026-10-05T10:45:00Z", over, status="FAILED"),  # ended 11:01:40
+            run("2026-10-05T11:40:00Z", {"slot": 1, "of": 2, "waited": 3.0, "over": False, "reclaimed": 0}),
+            run("2026-10-05T11:50:00Z", None),  # CI or no limit: no slot record
+            run("2026-10-05T11:30:00Z", {"slot": None, "of": 2, "waited": 0.0, "over": True, "reclaimed": 0,
+                                         "error": "OSError: denied"}),  # fmt: skip
+        ]
+        self.history.parent.mkdir(parents=True, exist_ok=True)
+        self.history.write_text("".join(json.dumps(r) + "\n" for r in records) + "not json\n", encoding="utf-8")
+        out = self.status()
+        at = out.index("without a slot in the last hour (verify history): 2")
+        self.assertEqual(out[at + 1:at + 3], [
+            "  2026-10-05T10:45:00Z D:/wt/x (tooling/9-x): over the limit, FAILED in 400.0 s after waiting 600.0 s",
+            "  2026-10-05T11:30:00Z D:/wt/x (tooling/9-x): the slot folder failed, passed in 400.0 s after waiting "
+            "0.0 s",
+        ])  # fmt: skip
+
+    def test_with_no_limit_it_says_so(self) -> None:
+        out: list[str] = []
+        env = {slots.DIR_VAR: str(self.where), slots.COUNT_VAR: "0"}
+        slots.status(env, now=NOW, histories=lambda: [], out=out.append)
+        self.assertIn("no limit", out[0])
+        self.assertIn("  none (no limit)", out)
+
+
+class CommandTest(unittest.TestCase):
+    """#416: the `slots` command line."""
+
+    def run_cli(self, *argv: str) -> tuple[int, str]:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, {slots.DIR_VAR: tmp.name, slots.COUNT_VAR: "2"}), redirect_stdout(out):
+            rc = cli.main(["slots", *argv])
+            rc2 = cli.main(["slots", "--status"])
+        return rc, out.getvalue() + f"\nstatus rc={rc2}"
+
+    def test_quiet_then_status(self) -> None:
+        rc, out = self.run_cli("--quiet", "2")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("slots: quiet until", out)
+        self.assertIn("quiet: until", out)
+        self.assertIn("status rc=0", out)
+
+    def test_a_wrong_hours_value_fails(self) -> None:
+        rc, out = self.run_cli("--quiet", "100")
+        self.assertEqual(rc, 1, out)
+
+    def test_status_or_quiet_is_required_and_not_both(self) -> None:
+        for argv in ([], ["--status", "--quiet", "1"]):
+            with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                cli.build_parser().parse_args(["slots", *argv])
+
+    def test_the_help_describes_status_and_quiet(self) -> None:
+        parser = dict(next(a for a in cli.build_parser()._actions if hasattr(a, "choices") and a.choices
+                           and "slots" in a.choices).choices)["slots"]  # fmt: skip
+        text = " ".join(parser.format_help().split())
+        for phrase in ("--status", "holders (worktree, branch, pid, since)", "waiting for a slot", "last hour",
+                       "over the limit", "verify history", "--quiet <hours>", "one slot", "--quiet off",
+                       "expired", "ignored"):  # fmt: skip
+            self.assertIn(phrase, text)
+
+
 class SettingsTest(unittest.TestCase):
     def test_the_folder_is_machine_local_and_outside_every_checkout(self) -> None:
         env = {"LOCALAPPDATA": "C:/Users/x/AppData/Local", "XDG_CACHE_HOME": "/home/x/.cache"}
@@ -294,11 +664,14 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(slots.folder({slots.DIR_VAR: "E:/locks"}), Path("E:/locks"))
 
     def test_the_environment_overrides_the_count_and_the_wait(self) -> None:
-        env = {slots.COUNT_VAR: "3", slots.WAIT_VAR: "40", slots.DIR_VAR: "E:/locks"}
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        env = {slots.COUNT_VAR: "3", slots.WAIT_VAR: "40", slots.DIR_VAR: tmp.name}
         pool, why = slots.for_verify({}, env=env)
         assert pool is not None
-        self.assertEqual((pool.count, pool.max_wait, pool.where, why), (3, 40.0, Path("E:/locks"), ""))
-        pool, _ = slots.for_verify({}, env={})
+        self.assertEqual((pool.count, pool.max_wait, pool.where, why), (3, 40.0, Path(tmp.name), ""))
+        # Only the folder is the test's own: a quiet window on this PC (#416) would lower the real folder's count.
+        pool, _ = slots.for_verify({}, env={slots.DIR_VAR: tmp.name})
         assert pool is not None
         self.assertEqual((pool.count, pool.max_wait), (slots.DEFAULT_COUNT, slots.DEFAULT_WAIT))
 

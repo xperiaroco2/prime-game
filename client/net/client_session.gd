@@ -141,7 +141,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 
 
 ## The content hash Hello carries for `mode`: a code host's `open` and a joiner's version check
-## against the service's `found` use the same (the M6 design §2.5).
+## against the service's `found` use the same (the M6 ADR §2.5).
 static func content_of(mode: GameMode) -> int:
 	return ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 

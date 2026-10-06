@@ -39,7 +39,9 @@
 
 **Where the rule lives now.**
 - This entry.
-- Root `CLAUDE.md`, "Stop and ask before" (rule 1) and the `start` row of "Commands" (rule 3).
+- Root `CLAUDE.md`, "Stop and ask before" (rule 1).
+- `start --help` (rule 3): its description in `tools/runner/cli.py` (until #340, the `start` row of root
+  `CLAUDE.md`'s commands table).
 - `docs/AGENT_WORKFLOW.md` §4.1 (rule 3), §8.1 and §8.2 (rules 1 and 2).
 - `tools/runner/guard.py`, `tools/runner/hooks.py` and their selftests (rule 2); `.claude/settings.json` (rule 2);
   `tools/runner/start.py` and its tests (rule 3).

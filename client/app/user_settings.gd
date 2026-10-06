@@ -46,7 +46,7 @@ var threshold := VoiceGate.DEFAULT_THRESHOLD:
 		threshold = VoiceGate.clamp_threshold(value)
 ## RNNoise, on by default (E37).
 var denoise := true
-## The device whose opening has not finished (§1.1); "" when none.
+## The device whose opening has not finished (the M5 ADR's §1.1); "" when none.
 var opening := ""
 
 var _volumes: Dictionary[StringName, float] = {}

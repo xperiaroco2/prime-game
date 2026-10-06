@@ -5,7 +5,7 @@ extends RefCounted
 ##   --host [--local]    host a session; --local listens on 127.0.0.1 only, else on every interface
 ##   --join=<target>     join that host: a room's code, or address[:port] (JoinTarget.parse)
 ##   --code              host with a code: over WebRTC through the signalling service (the M6
-##                       design §2.3); without it the host listens over ENet (Direct)
+##                       ADR §2.3); without it the host listens over ENet (Direct)
 ##   --signal=<url|lan>  the signalling service (default JoinTarget.SERVICE_URL); "lan": a host
 ##                       serves LanSignalling itself on the port (TCP), with --room=<CODE> its code
 ##   --port=<p>          the UDP port (default DEFAULT_PORT)

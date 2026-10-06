@@ -42,18 +42,16 @@ One message from the human with `ultracode` in it (template in §10). It must st
   once and never edited); if the kickoff names none, recommend that;
 - the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
   and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
-- the concurrency cap (default three tasks at once; at most about six task workflows across all tracks, so fewer
-  while other tracks run) and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls,
-  reviewers about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40,
-  the test reviewer about 60, each skeptic about 30, a publisher that only reports a stop about 30);
+- the concurrency cap (default three tasks at once, fewer where budget.md's PC share is lower: meta by day 1)
+  and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls, reviewers about 60,
+  publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
+  about 60, each skeptic about 30, a publisher that only reports a stop about 30);
 - explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
-  3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and a budget for the
-  whole stage as a percentage of the weekly limit (`metrics` converts its API list $; §9 has the numbers), so you do
-  not ask before each workflow (root `CLAUDE.md`, §7 of AGENT_WORKFLOW);
+  3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and the `Track:` line,
+  whose weekly budget (budget.md) covers the stage: you do not ask before each workflow (root `CLAUDE.md`);
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
   that model's own weekly window (at most half across all tracks). You stay on the shared models;
-- whether one wave of this stage is the #308 publisher trial (`models.publish_clean`, §3), and which: one wave only;
 - the rules: you merge into `release/m<k>` and, through the gate, into `main` (§5); you close issues, workflow
   agents never; each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -64,9 +62,11 @@ One message from the human with `ultracode` in it (template in §10). It must st
 
 Something missing: ask once, batched, with a recommendation for each item. Then, always, restate in the human's
 language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost as a
-percentage of the weekly limit (§9 numbers). Within 15% of the week for the stage or track and with no "ask and
-wait" item (the trust ADR's tiers), the restatement is a report and you go on; above it, wait for their yes. That
-covers every later `issue-task` and `pr-rebase` run of the stage; a new kind of workflow still asks.
+percentage of the weekly limit (budget.md's cost per task). Within the track's weekly budget (else 15% of the
+week) and with no "ask and wait" item (the trust ADR's tiers), the restatement is a report and you go on; above it,
+wait for their yes. That covers every later `issue-task` and `pr-rebase` run of the stage; a new kind still asks.
+
+**The week's budget** (the engineer's answers of 2026-10-05): read [budget.md](budget.md) now and before each wave.
 
 **Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
 scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
@@ -126,7 +126,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
    an agent. From its output take the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in
    the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
-   `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object:
+   `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object. Before
+   each launch: [budget.md](budget.md)'s PC cap, its 93% stop and its args on every launch.
 
 | arg | what |
 |---|---|
@@ -135,7 +136,7 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
-| `reading` | overrides the default reading list (the issue's links, handoffs, ADRs, area CLAUDE.md files) |
+| `reading` | overrides the default reading list (the issue's links, handoffs and ADRs, the ARCHITECTURE sections it names by section, the code; area CLAUDE.md files and rules load by path, #339) |
 | `testing` | overrides the default test expectations, which follow the branch's area: `core` a seeded Match and `view_of`; `net`/`server` loopback-transport tests plus the ENet runs in verify; `tooling` the runner selftest; others generic |
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
@@ -152,15 +153,15 @@ toward the number per workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
-| `lean: true` | `issue-task` and `pr-rebase`: the 3-4 A/B tasks the kickoff names (#332, results on #302), until the engineer turns it on by default; only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role) | 0 |
+| `lean: true` | every `issue-task` and `pr-rebase` launch from the reset (budget.md, N4) until the default flips (P3b); only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
 
-- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or (the trial) `publish_clean`,
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or `publish_clean`,
   never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
   covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
   too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
   publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
-  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit or for yourself.
+  leave `efforts.publish_clean` unset, so only the model varies. Other models never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -210,13 +211,7 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
-- A `publish_clean` trial run (#308) relaunched fresh after any of the above drops `models.publish_clean` (an Opus
-  publisher, as before); the report counts the first run as a trial failure, not the relaunch as a second trial run.
-
-**The publisher trial's report** (#308, after its one wave): a comment on #302 with, per run, `publish_clean`
-(applied or why not), CI red rounds (failed runs on the PR's branch before its last green: `gh run list --branch
-<branch>`), the publisher's fix rounds, `fixed` and `not_fixed`, and its $ and output tokens from `tools\run.cmd
-metrics`, against comparable earlier clean runs with Opus publishers. The engineer keeps or drops the trial.
+- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean`).
 
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
@@ -322,11 +317,12 @@ taken in a `main` that has them.
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
   `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
   running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
-  line of the same command with `--since <stage start>`, and compare its % with the kickoff's budget. This block is
-  the second thing to drop when the budget runs out, after the kickoff's first. Where a launch ran a model beyond
+  line of the same command with `--since <stage start>`. This block is the second thing to drop when the budget
+  runs out, after the kickoff's first. Where a launch ran a model beyond
   the shared list, add that model's line from the desktop app's `get_usage` tool (the session-management MCP
   server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
   it and weighs it at Opus rates.
+- **The budget line** of [budget.md](budget.md) ("Reading the spend", `metrics --track`), in every wave comment.
 - **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
 - **Handover data** in every wave comment, which `tools\run.cmd wave --since <wave start>` writes from your
   transcript (#277; no args files): each running run's args as launched (worktree included), its runId and your
@@ -371,7 +367,7 @@ taken in a `main` that has them.
 - **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
   context makes each call about 3 times dearer (§9). A handover is due only at a wave boundary (its runs ended, its
   PRs merged or waiting for the human, its comment posted; never mid-wave, the engineer on #329), with work left, and
-  the session over 12 hours old or its context over 500k tokens (both in the footer of `tools\run.cmd wave`). Post one
+  the session over 12 hours old or its context over 300k tokens (N6, budget.md; both in `wave`'s footer). Post one
   plan-issue comment, `wave --since <session start> --title "Handover to a fresh manager session" --notes <file>`
   (#278; before it, your notes above its body): the order from here, the open questions, every `human_steps` command
   still due, the stage's start and `wave`'s handover data (since the session start: every failed run not relaunched,
@@ -488,7 +484,7 @@ English (`metrics --track` reads it). Moving state (which issues, which PRs) goe
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most three at once (about six task workflows across all tracks).
+task = one issue-task workflow, at most <n> at once (your track's PC share in budget.md).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
@@ -507,12 +503,12 @@ PR.
 Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
-≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow) and a budget of
-about <P>% of the weekly limit for the stage (metrics converts API list $ to it); do not ask before each workflow;
-within that budget (15% of the week at most) your restatement is a report.
+≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
+each workflow.
+Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
+it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
 PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
-Publisher trial (#308): <none | wave <k>: models.publish_clean "sonnet" on its non-design issue-task launches>.
 Rules: into main only through the gate; you close issues, workflow agents never; each agent only in its worktree;
 no git stash; you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the

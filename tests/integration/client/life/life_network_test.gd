@@ -12,7 +12,10 @@ extends GdUnitTestSuite
 ##   person, invulnerable on the host's screen, its body gone; never a Correction;
 ## - a respawned joiner looks level with the yaw it had while downed, whatever it did downed or
 ##   dead (mouse motion while dead turns nothing), from the first claim after the respawn (#191);
-##   the host's living player, who sees that respawn too, keeps its own look.
+##   the host's living player, who sees that respawn too, keeps its own look;
+## - a joiner who died looking up, never respawned before the round ended, is placed level with
+##   the yaw it had by End -> Lobby's PlayersPlaced, and again by the next match's deal after
+##   looking up in the lobby, from the placement's Correction on (#240).
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The fixture's respawn markers (steps_room.tscn).
@@ -239,6 +242,73 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 	assert_float(_pitch(watcher)).is_equal_approx(0.6, 0.0001)
 	assert_float(angle_difference(watcher.rotation.y, watcher_yaw)).is_equal_approx(0.0, 0.0001)
 	assert_float(watcher.look_vector().y).is_greater(0.5)
+	assert_int(session.corrections).is_equal(0)
+	await _pair.stop()
+
+
+func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
+	# #240: a player who died looking up and was next placed by a new match (the own
+	# PlayersPlaced), not by a respawn, kept that pitch. The engineer's answer on #240 (option b):
+	# every placement into a round starts level with the yaw kept, as the own Respawned has it.
+	# No respawn within the test: the round ends first.
+	_pair.mode.player_rules.respawn_s = 300.0
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var player := _pair.client.player()
+	var session := _pair.client.client()
+	_pair.knock_down(_pair.client)
+	assert_bool(await _until(func() -> bool: return player.is_downed())).is_true()
+	player.look(0.6, 1.0)
+	await _pair.frames(5)
+	var yaw := player.rotation.y
+	_pair.client.life().give_up()
+	var dead := func() -> bool: return session.model.life_of(joiner) == ClientModel.Life.DEAD
+	assert_bool(await _until(dead)).is_true()
+	assert_float(_pitch(player)).is_equal_approx(1.0, 0.001)
+	# What the next MoveClaim would say at the own placement's Correction (the lambdas read the
+	# session through the pair: one holding the session would hold itself).
+	var placed: Array[bool] = [false]
+	var at_placement: Array[Vector3] = []
+	session.event_received.connect(
+		func(event_name: StringName, fields: Dictionary) -> void:
+			if event_name == &"PlayersPlaced" and (fields["spots"] as Dictionary).has(joiner):
+				placed[0] = true
+	)
+	session.corrected.connect(
+		func(_position: Vector3, _velocity: Vector3) -> void:
+			if placed[0] and at_placement.is_empty():
+				at_placement.append(_pair.client.client().get("_facing") as Vector3)
+	)
+	# The round ends while the joiner is dead; the host's Back to lobby places everyone.
+	_pair.win()
+	var ended := func() -> bool: return session.model.phase == &"end"
+	assert_bool(await _until(ended)).is_true()
+	assert_float(_pitch(player)).is_equal_approx(1.0, 0.001)
+	_pair.host.return_to_lobby()
+	var lobby := func() -> bool:
+		return session.model.phase == &"lobby" and not at_placement.is_empty()
+	assert_bool(await _until(lobby)).is_true()
+	await _pair.frames(5)
+	var ahead := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
+	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	assert_vector(player.look_vector()).is_equal_approx(ahead, Vector3.ONE * 0.0001)
+	assert_vector(at_placement[0]).is_equal_approx(ahead, Vector3.ONE * 0.0001)
+	# In the lobby the living player looks up and aside; the new match's deal places it level
+	# again, with the yaw it had.
+	player.look(-0.4, 0.8)
+	await _pair.frames(2)
+	assert_float(_pitch(player)).is_equal_approx(0.8, 0.0001)
+	yaw = player.rotation.y
+	placed[0] = false
+	at_placement.clear()
+	assert_bool(await _pair.to_round()).is_true()
+	assert_int(at_placement.size()).is_equal(1)
+	ahead = Vector3(-sin(yaw), 0.0, -cos(yaw))
+	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
+	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	assert_vector(at_placement[0]).is_equal_approx(ahead, Vector3.ONE * 0.0001)
 	assert_int(session.corrections).is_equal(0)
 	await _pair.stop()
 
