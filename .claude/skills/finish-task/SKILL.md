@@ -41,9 +41,10 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - `core/`, `server/`, `net/`, `client/` (what it renders) or `tests/harness/` (the information-leak test)
      changed → also `netcode-security-reviewer`;
    - `.gd`, `.tscn` or `.tres` changed → also `godot-api-checker`.
-   Fix each finding in a new commit and run `verify` again, or list the findings you leave, with the reason, in the
-   PR. If a project subagent reviewed, `tools\run.cmd agents-check` confirms it ran on its own model (with no
-   project subagent in this session it has nothing to judge and fails; skip it then).
+   Fix each finding in a new commit and run the tests it touches and `check` (no standalone `verify`: step 5's
+   `publish` verifies the new tree), or list the findings you leave, with the reason, in the PR. If a project
+   subagent reviewed, `tools\run.cmd agents-check` confirms it ran on its own model (with no project subagent in this
+   session it has nothing to judge and fails; skip it then).
 3. **Docs.** Durable knowledge changed → update the owning doc (`docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`,
    `docs/GDD.md`, an ADR). A human corrected you during the task → skill `log-intervention`. A third-party asset →
    `docs/credits/<asset>.md`, then `tools\run.cmd credits`. Commit these too.
@@ -53,12 +54,13 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    unsure, **ask exactly once:** "Publish now? (push + PR + handoff comment)". Anything but a yes: stop and summarise
    what is done and what is left.
 5. **Publish.** `tools\run.cmd publish`, in the background with `wait <log>` like `verify`. It rebases on the PR's
-   base (else the recorded parent, else `main`), runs `verify` again and pushes the task branch with a lease; its line
-   `base origin/<base>` names the PR's base. If it stops (a conflict, red verify, or remote commits the branch never
-   had), report what it said and ask the human. Never push by hand and never force-push. "cannot confirm that the
-   parent … was merged": ask the human to check the parent's PR; only after they confirm the merge,
-   `tools\run.cmd publish --base main`. A task of a stage (its PR targets `release/m<k>`):
-   `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
+   base (else the recorded parent, else `main`), runs `verify` again unless an identical tree was just verified green
+   (the newest verify passed at the same head, tree and runner under 2 hours ago: it says so, #471) and pushes the
+   task branch with a lease; a red verify pushes nothing. Its line `base origin/<base>` names the PR's base. If it
+   stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human.
+   Never push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check
+   the parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. A task of a stage (its PR
+   targets `release/m<k>`): `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
    `publish` just reported: `main`, a stage's `release/m<k>` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
