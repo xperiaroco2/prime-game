@@ -41,8 +41,9 @@ which the engineer confirms in the PR that brought this file (its "Needs the eng
   3. Arm the task: `fireAt` 3 minutes ahead (ISO 8601 with its offset, in the future), `notifyOnCompletion: false`
      (true is refused in a session a scheduled task started), never a `cronExpression`. It exists
      (`list_scheduled_tasks`): `update_scheduled_task` (a new `fireAt` re-arms a one-time task that fired and disabled
-     itself), with a new `prompt` only when the stage, the plan issue or the human's kickoff changed (read the stored
-     one first from the `path` the list gives), never per handover. None: `create_scheduled_task` with that `taskId`, a
+     itself), with a new `prompt` only when the stage, the plan issue or the human's kickoff changed, or the stored
+     prompt lacks §4's two lines (a task created before #484, such as the probe's `meta-manager`); read the stored
+     one first from the `path` the list gives; never per handover. None: `create_scheduled_task` with that `taskId`, a
      `description`, the standing kickoff (§4 below) as `prompt` and those fields. The tool takes no folder: the probe's
      tasks, created from a session in `D:\prime-game`, ran there, so create it from your track's checkout and check the
      successor's folder (`get_session`) after its first run. A one-time task fires by itself at its `fireAt`, while the
