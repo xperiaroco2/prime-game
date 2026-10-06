@@ -2277,210 +2277,229 @@ removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voic
 ### 6.5 Designed for M5
 (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
 2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
-The lessons above, answered:
-- **The codec boundary, the gate and the jitter buffer** (E34, E37, E38, E39; built in M5-2, #216). `voice/`'s
-  `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
-  (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
-  (`push(frame, conceal)`, `queued_frames()`, `free_frames()`, `set_running(on)`, `flush()`) are what `client/`
-  and the rest of `voice/` use; each base is a codec that is never available. `TwoVoipCodec` (with
-  `TwoVoipEncoder` and `TwoVoipPlayback`) reaches the addon only through `ClassDB.class_exists`, `instantiate` and
-  `Object.call` with typed results, with the M1 spike's settings (48 kHz, mono, 960 samples, 24 kbit/s,
-  complexity 5, RNNoise or none) and the spike's method names; its class names are constructor arguments
-  defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
-  addon every script parses, voice is unavailable and the game runs.
-  `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
-  activity (the default) opens while the raw chunk's peak is over `threshold` (0.05) and for a hangover of 300 ms
-  after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
-  pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
-  closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
-  the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
-  sent nor kept for the pre-roll, though its chunk counts for the hangover; while the gate is closed it empties the
-  ring, so audio from before an outage never goes out as pre-roll (M5-6). `threshold` is clamped to 0.01 (−40 dBFS,
-  a placeholder) to 1: at or below 0 the gate would open on digital silence and a silent player would stream.
-  `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
-  `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
-  the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
-  missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
-  decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
-  a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
-  stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
-  decoded frame's is the next spurt, never decoded into a run still playing, so a spurt after a pause of more than
-  2 ticks starts under its own prebuffer (a spurt that only the late-arrival rule below sees plays on in the run
-  still playing). The prebuffer is chosen at each start: the largest spread of
-  arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
-  starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
-  frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
-  jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
-  discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
-  burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over
-  50 ms, then says flush; `flush()` empties the held frames, and a frame older than the flush arrives late. A stream
-  that restarts at seq 0 gets a new `VoiceJitter`. No queue cap after a burst (the manager's call, until the
-  listening test shows a problem); `VoicePlayback.push` does not check for room either, so its caller (`VoiceSpeaker`,
-  M5-5) checks `free_frames()` first and drops a frame that does not fit. A known limit for the listening test (M5-6,
-  M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale. A voice-activity spurt lasts at
-  least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
-  pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
-  placeholder, "not a decision".
-  Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
-  `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
-  60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
-  played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on any script outside `addons/`
-  naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
-  names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
-  (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
-  `verify` step). CI runs without the addon (the next bullet).
-- **The addon in the repo** (E35 (a), the ADR §2; **built in M5-3**, #217): TwoVoIP v6.5 in `addons/twovoip/`,
-  plain git files outside LFS: the `.gdextension` and its `.uid` as shipped and the two Windows libraries, nothing
-  else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
-  `docs/credits/twovoip.md`. Windows `verify` (every agent's, the engineer's, `publish`'s) loads it. CI on Linux
-  deletes `twovoip.gdextension` and its `.uid` before `verify` (`.github/workflows/ci.yml`; each night job of
-  `nightly.yml` too, which runs main), and a cloud session leaves both out of its clone with a sparse checkout
-  (`tools/cloud/setup.sh`, #345, AGENT_WORKFLOW §2.1), because Godot prints an
-  `ERROR:` line for a `.gdextension` it cannot load; with no `.gdextension` Godot loads nothing and voice is
-  unavailable (E34). The libraries stay as inert files: deleting the whole folder fails `check`'s credits step,
-  since `docs/credits/twovoip.md`'s glob would match no file. A checkout's `.godot/extension_list.cfg` lists the
-  extensions its last import found, and the runner's import before a launch (#174) compares modification times:
-  it sees the addon arrive with a pull (git dates the files now), not a delete, nor a hand copy that keeps the
-  archive's dates. After a local delete of the `.gdextension`, `run` still loads it and fails on the `ERROR:` line
-  until `check` imports. The round trip on Windows with v6.5 (M5-3): the encoder, the stream and the
-  playback work by class name with the M1 spike's method names, which v6.5's `ClassDB` lists as the spike used
-  them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC seen:** with
-  `TwoVoipEncoder`'s settings a frame decoded from the next packet with `conceal` is Opus concealment (the probe's
-  lost frame keeps the 440 Hz before the gap, with no trace of the 660 Hz after it), and v6.5's `ClassDB` lists no
-  setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a listing in M5-3's PR), so
-  `VoiceJitter`'s `conceal` conceals. The encoder offers
-  `get_speech_probability()` (and `get_peak()`, `get_rms()`; `DENOISER_SPEEX` besides RNNoise). `flush()` (stop,
-  then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
-  2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
-- **Capture and the gate** (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7):
-  - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
-    `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
-    (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
-    Off, none in a headless run (the Dummy driver captures nothing, and headless sessions must write no mark); else
-    the picked device, or before any pick the Windows default, so voice activity works without the menu.
-  - The "opening" mark (#22: Godot 4.7.2 freezes on a microphone of more than two channels and cannot tell the
-    count beforehand): `VoiceCapture.mark_changed` names the device before it opens and `VoiceControl` writes it to
-    the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
-    the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
-    microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
-    microphone privacy) show in the Voice tab.
-  - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
-    and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
-    frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
-    the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it goes up at each
-    phase change and each time the own life leaves living, so a knockdown and its revive, or Round, End and Lobby,
-    folded between two steps by a hang are not missed, #241), what Godot has handed over by then is fed as unspeakable
-    too, however long that frame was. It was recorded before the change, except the audio between the fold and the
-    sender's step in that frame, which is dropped with it (as at a change between two phases that both hear); the
-    driver's own buffer, under one chunk, may still hold a little from before the change, which goes out as speakable.
-    A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through
-    `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold living and `VoiceRule.radius_of` of the
-    current phase > 0 in the client's own mode, never `Match` or `MatchState` (the E18 boundary test scans
-    `res://client` and `res://voice`). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
-    hears nobody, nothing in Off or with no device open.
-  - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
-    with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
-    counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
-    Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
-    voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
-    In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
-    saved. F3 shows the own gate, peak, frame age and encode µs.
-  - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
-- **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
-  tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
-  `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
-  cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
-  each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies the
-  command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per speaker
-  at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with the body,
-  and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode, again whenever
-  the model's phase changes (a `PhaseChanged`, or a `Welcome` into a phase). It plays only `voice_received` frames,
-  and drops every frame: of a speaker with no body, not living (downed, dead), gone from the roster or left, or the
-  own peer; while the own life fold is dead; while the phase's radius is 0; of a speaker farther from the ears than
-  `max_distance`; and stamped at or below the newest host tick (snapshots and frames) recorded at that speaker's
-  latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flushes and frees it at its
-  `PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
-  flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
-  `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
-  with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
-  through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
-  target's head, the own body without a target. Godot measures a 3D player's distance from the current
-  `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
-  docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
-  (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
-  concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
-- **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
-  Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
-  Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
-  (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
-  window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
-  the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-  `VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
-  (M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
-- **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
-  speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
-  F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
-  through a mouth animation with the masks of #73 (after the MVP).
-- **Occlusion** (E42, D13 (a); **built in M5-7**, #221): on the listener only, one ray from the ears per audible
-  speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
-  world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
-  level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
-  Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
-  and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
-  measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
-- **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a
-  distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
-  upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
-  in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
-  engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
-  every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49 datagrams
-  per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms, 54 to 62 µs per
-  send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes one datagram), an
-  average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's alone about 19 to 22 µs
-  if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame),
-  0.40 of snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0
-  ms, 0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
-  backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time (25
-  to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each snapshot
-  holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5 with every
-  frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process (debug build, 10
-  speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and 9 µs in
-  `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the measurement
-  crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to encode each frame
-  once first (#245, §4.5 "Voice relay").
-  #245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
-  after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures are
-  the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to 18 µs
-  inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about 1.3 to 1.4
-  ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell from about
-  37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of each send; the
-  copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21
-  to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after.
-  The upload is unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4
-  ms before, **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2
-  ms, though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
-  true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60% of
-  what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
-  `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
-  20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
-  ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
-  the engineer's (§10).
-- **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
-  `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
-  included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
-  `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
-  it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
-  (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
-  base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
-  routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
-  decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
-  whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
-  `voice_beyond_the_radius` (§9.7) has bots talking beyond the radius, then within it, in the Round. The bots talk
-  at 50 frames a second in talk spurts (§4.6.2). Tests: the voice rules' suites in `tests/unit/voice/` and
-  `tests/unit/content/voice_rule_test.gd` (per class, per phase, null), `content_modes_test.gd` (the base mode's
-  radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bot_voice_test.gd`.
-- Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
-  indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
+The lessons above, answered.
+
+#### 6.5.1 The codec boundary, the gate and the jitter buffer (E34, E37, E38, E39; built in M5-2, #216)
+`voice/`'s
+`VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
+(`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
+(`push(frame, conceal)`, `queued_frames()`, `free_frames()`, `set_running(on)`, `flush()`) are what `client/`
+and the rest of `voice/` use; each base is a codec that is never available. `TwoVoipCodec` (with
+`TwoVoipEncoder` and `TwoVoipPlayback`) reaches the addon only through `ClassDB.class_exists`, `instantiate` and
+`Object.call` with typed results, with the M1 spike's settings (48 kHz, mono, 960 samples, 24 kbit/s,
+complexity 5, RNNoise or none) and the spike's method names; its class names are constructor arguments
+defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
+addon every script parses, voice is unavailable and the game runs.
+`VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
+activity (the default) opens while the raw chunk's peak is over `threshold` (0.05) and for a hangover of 300 ms
+after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
+pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
+closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
+the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
+sent nor kept for the pre-roll, though its chunk counts for the hangover; while the gate is closed it empties the
+ring, so audio from before an outage never goes out as pre-roll (M5-6). `threshold` is clamped to 0.01 (−40 dBFS,
+a placeholder) to 1: at or below 0 the gate would open on digital silence and a silent player would stream.
+`VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
+`update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
+the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
+missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
+decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
+a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
+stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
+decoded frame's is the next spurt, never decoded into a run still playing, so a spurt after a pause of more than
+2 ticks starts under its own prebuffer (a spurt that only the late-arrival rule below sees plays on in the run
+still playing). The prebuffer is chosen at each start: the largest spread of
+arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
+starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
+frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
+jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
+discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
+burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over
+50 ms, then says flush; `flush()` empties the held frames, and a frame older than the flush arrives late. A stream
+that restarts at seq 0 gets a new `VoiceJitter`. No queue cap after a burst (the manager's call, until the
+listening test shows a problem); `VoicePlayback.push` does not check for room either, so its caller (`VoiceSpeaker`,
+M5-5) checks `free_frames()` first and drops a frame that does not fit. A known limit for the listening test (M5-6,
+M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale. A voice-activity spurt lasts at
+least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
+pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
+placeholder, "not a decision".
+Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
+`voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
+60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
+played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on any script outside `addons/`
+naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
+names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
+(`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
+`verify` step). CI runs without the addon (the next bullet).
+
+#### 6.5.2 The addon in the repo (E35 (a), the ADR §2; **built in M5-3**, #217)
+TwoVoIP v6.5 in `addons/twovoip/`,
+plain git files outside LFS: the `.gdextension` and its `.uid` as shipped and the two Windows libraries, nothing
+else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
+`docs/credits/twovoip.md`. Windows `verify` (every agent's, the engineer's, `publish`'s) loads it. CI on Linux
+deletes `twovoip.gdextension` and its `.uid` before `verify` (`.github/workflows/ci.yml`; each night job of
+`nightly.yml` too, which runs main), and a cloud session leaves both out of its clone with a sparse checkout
+(`tools/cloud/setup.sh`, #345, AGENT_WORKFLOW §2.1), because Godot prints an
+`ERROR:` line for a `.gdextension` it cannot load; with no `.gdextension` Godot loads nothing and voice is
+unavailable (E34). The libraries stay as inert files: deleting the whole folder fails `check`'s credits step,
+since `docs/credits/twovoip.md`'s glob would match no file. A checkout's `.godot/extension_list.cfg` lists the
+extensions its last import found, and the runner's import before a launch (#174) compares modification times:
+it sees the addon arrive with a pull (git dates the files now), not a delete, nor a hand copy that keeps the
+archive's dates. After a local delete of the `.gdextension`, `run` still loads it and fails on the `ERROR:` line
+until `check` imports. The round trip on Windows with v6.5 (M5-3): the encoder, the stream and the
+playback work by class name with the M1 spike's method names, which v6.5's `ClassDB` lists as the spike used
+them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC seen:** with
+`TwoVoipEncoder`'s settings a frame decoded from the next packet with `conceal` is Opus concealment (the probe's
+lost frame keeps the 440 Hz before the gap, with no trace of the 660 Hz after it), and v6.5's `ClassDB` lists no
+setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a listing in M5-3's PR), so
+`VoiceJitter`'s `conceal` conceals. The encoder offers
+`get_speech_probability()` (and `get_peak()`, `get_rms()`; `DENOISER_SPEEX` besides RNNoise). `flush()` (stop,
+then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
+2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
+
+#### 6.5.3 Capture and the gate (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7)
+- The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
+  `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
+  (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
+  Off, none in a headless run (the Dummy driver captures nothing, and headless sessions must write no mark); else
+  the picked device, or before any pick the Windows default, so voice activity works without the menu.
+- The "opening" mark (#22: Godot 4.7.2 freezes on a microphone of more than two channels and cannot tell the
+  count beforehand): `VoiceCapture.mark_changed` names the device before it opens and `VoiceControl` writes it to
+  the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
+  the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
+  microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
+  microphone privacy) show in the Voice tab.
+- The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
+  and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
+  frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
+  the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it goes up at each
+  phase change and each time the own life leaves living, so a knockdown and its revive, or Round, End and Lobby,
+  folded between two steps by a hang are not missed, #241), what Godot has handed over by then is fed as unspeakable
+  too, however long that frame was. It was recorded before the change, except the audio between the fold and the
+  sender's step in that frame, which is dropped with it (as at a change between two phases that both hear); the
+  driver's own buffer, under one chunk, may still hold a little from before the change, which goes out as speakable.
+  A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through
+  `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold living and `VoiceRule.radius_of` of the
+  current phase > 0 in the client's own mode, never `Match` or `MatchState` (the E18 boundary test scans
+  `res://client` and `res://voice`). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+  hears nobody, nothing in Off or with no device open.
+- Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
+  with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
+  counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+  Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
+  voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
+  In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
+  saved. F3 shows the own gate, peak, frame age and encode µs.
+- 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
+
+#### 6.5.4 Playback and the ears (E40, E41, D12; **built in M5-5**, #219)
+`ClientSession.voice_received(speaker, seq,
+tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
+`AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
+cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
+each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies the
+command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per speaker
+at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with the body,
+and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode, again whenever
+the model's phase changes (a `PhaseChanged`, or a `Welcome` into a phase). It plays only `voice_received` frames,
+and drops every frame: of a speaker with no body, not living (downed, dead), gone from the roster or left, or the
+own peer; while the own life fold is dead; while the phase's radius is 0; of a speaker farther from the ears than
+`max_distance`; and stamped at or below the newest host tick (snapshots and frames) recorded at that speaker's
+latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flushes and frees it at its
+`PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
+flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
+`client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
+with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
+through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
+target's head, the own body without a target. Godot measures a 3D player's distance from the current
+`AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
+docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
+(debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
+concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
+
+#### 6.5.5 Buses and the mix (E43, D15)
+`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
+Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
+Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
+(0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
+window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
+the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
+`VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
+(M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
+
+#### 6.5.6 No talking indicator in M5 (D14, the engineer's answer)
+No own transmit icon on the HUD, no icon over a
+speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
+F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
+through a mouth animation with the masks of #73 (after the MVP).
+
+#### 6.5.7 Occlusion (E42, D13 (a); **built in M5-7**, #221)
+On the listener only, one ray from the ears per audible
+speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
+world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
+level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
+Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
+and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
+measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
+
+#### 6.5.8 The wire (E44; **measured in M5-4**, #218, and again after #245)
+Unchanged in M5 so far. The leak test gained a
+distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
+upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
+in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
+engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
+every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49 datagrams
+per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms, 54 to 62 µs per
+send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes one datagram), an
+average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's alone about 19 to 22 µs
+if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame),
+0.40 of snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0
+ms, 0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
+backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time (25
+to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each snapshot
+holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5 with every
+frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process (debug build, 10
+speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and 9 µs in
+`VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the measurement
+crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to encode each frame
+once first (#245, §4.5 "Voice relay").
+#245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
+after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures are
+the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to 18 µs
+inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about 1.3 to 1.4
+ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell from about
+37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of each send; the
+copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21
+to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after.
+The upload is unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4
+ms before, **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2
+ms, though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
+true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60% of
+what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
+`VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
+20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
+ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
+the engineer's (§10).
+
+#### 6.5.9 The cutoff and the distance invariant (E41, E45; **built in M5-1**, #215)
+Every voice rule answers
+`hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
+included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
+`RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
+it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
+(M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
+base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
+decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
+whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
+`voice_beyond_the_radius` (§9.7) has bots talking beyond the radius, then within it, in the Round. The bots talk
+at 50 frames a second in talk spurts (§4.6.2). Tests: the voice rules' suites in `tests/unit/voice/` and
+`tests/unit/content/voice_rule_test.gd` (per class, per phase, null), `content_modes_test.gd` (the base mode's
+radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bot_voice_test.gd`.
+
+#### 6.5.10 Not in M5
+Radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
+indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
 ## 7. Movement
 
