@@ -1,6 +1,6 @@
 class_name JoinProgress
 extends RefCounted
-## How a join is going, in words for the connecting screen and the lobby (the M6 design §2.3, §2.5
+## How a join is going, in words for the connecting screen and the lobby (the M6 ADR §2.3, §2.5
 ## and §3; pure, so it is tested headless). The step: finding the game (a code, before the service
 ## answered `found`), connecting (WebRTC or ENet under way), joined (connected, waiting for the
 ## host's Welcome). The version check: the service's advisory `found` against this game's own

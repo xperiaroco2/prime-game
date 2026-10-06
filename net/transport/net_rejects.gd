@@ -24,10 +24,10 @@ enum Reason {
 	## A LATEST packet shorter than LaneOrder's header (WebRTC and later backends).
 	ORDER_HEADER_SHORT,
 	## LaneOrder: a hold that no reliable packet released for LaneOrder.STALL_MS, a transport fault
-	## that disconnects the peer (the M6 design §2.2).
+	## that disconnects the peer (the M6 ADR §2.2).
 	ORDER_STALLED,
 	## WebRTC: one of a peer's data channels closed while its connection stayed up, and the host
-	## was not closing that peer; the peer leaves (the M6 design §2.6).
+	## was not closing that peer; the peer leaves (the M6 ADR §2.6).
 	CHANNEL_CLOSED,
 }
 

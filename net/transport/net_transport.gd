@@ -48,7 +48,7 @@ enum Route { NONE, LOCAL, DIRECT, DIRECT_OR_RELAYED }
 const HOST_ID := 1
 ## At most one summary line of rejected packets per interval, so one peer cannot flood the log.
 const REJECT_SUMMARY_INTERVAL_MS := 10000
-## connect_failed's reasons (the M6 design §2.3; EndReasons says each in words). No host, a full
+## connect_failed's reasons (the M6 ADR §2.3; EndReasons says each in words). No host, a full
 ## or refusing one, no answer within the join timeout, or a bad admission.
 const JOIN_FAILED := &"connect_failed"
 ## WebRTC: the signalling service has no room with that code.
@@ -65,7 +65,7 @@ const JOIN_SERVICE_REFUSED := &"service_refused"
 ## the two machines.
 const JOIN_UNREACHABLE := &"host_unreachable"
 ## WebRTC: the service's `found` named another protocol version or content hash than the joiner
-## expects (the M6 design §2.5; advisory, before any ICE); a Rejected Hello's reasons too.
+## expects (the M6 ADR §2.5; advisory, before any ICE); a Rejected Hello's reasons too.
 const JOIN_WRONG_VERSION := &"wrong_version"
 const JOIN_WRONG_CONTENT := &"wrong_content"
 

@@ -16,7 +16,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   connection per client, three negotiated channels, `ADMIT` with the id the host assigned, the keepalive and silence rule, the
   own connection's kind and round-trip pings, the debug-only `FaultShim`; ARCHITECTURE §4), `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
-  payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, M6 §2.2),
+  payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, the M6 ADR §2.2),
   `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
   `packet_rejected(peer, reason)` signal per reject. `JoinTarget` (M6-7): what a player typed (a code or
   `address[:port]`) and the transport that joins it. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".

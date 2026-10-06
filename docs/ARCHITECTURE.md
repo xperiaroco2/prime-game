@@ -314,7 +314,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
   inbox right after that reliable packet), and drops one that is behind or not newer. At `HOLD_CAP` (8, a
   placeholder) held packets one packet of the arriving one's kind, the arriving one included, is dropped: first the
   oldest that a newer one waiting for the same reliable packet follows (the inbox's merge would drop it anyway),
-  else the oldest (§2.2's rule; it loses the claim between two reliable packets only with 8 in flight), and with
+  else the oldest (the M6 ADR's §2.2 rule; it loses the claim between two reliable packets only with 8 in flight), and with
   none of that kind held the arriving one. The dropped frame comes back in `Read.superseded`: the backend decodes
   it without delivering it and counts it in `latest_superseded` when valid, as the inbox does. A per-peer clock
   starts when the hold turns non-empty and restarts at each release; past `STALL_MS` (20 s, the silence rule),
@@ -365,7 +365,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
     the peer id (u32, 7 bytes in all), and `peer_joined` follows. The client's first RELIABLE packet must be it; it
     learns its id there, and an id of 1 or less, or anything else, ends the join with `connect_failed`. A host that
     refuses joins when a connection opens closes it instead.
-  - **Keepalive and the silence rule** (§2.6): WebRTC's own keepalives run on libdatachannel's threads, so a hung main
+  - **Keepalive and the silence rule** (the M6 ADR §2.6): WebRTC's own keepalives run on libdatachannel's threads, so a hung main
     thread stays `CONNECTED` (M6-1). `poll()` sends each live peer exactly `[0, 0, 0]` on VOICE when nothing went to
     it for `KEEPALIVE_MS` (1 s), from the main thread only; the receiver consumes exactly that packet on VOICE before
     the inbox (and the round trip's probes below), and any other kind-0 packet reaches the inbox, which rejects it
@@ -416,7 +416,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
     first claim of an epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected
     (1 of 5 runs under load). Only clients: a host that drops a late `MoveClaim` behind a reliable `PickUp` (the rule
     at work) checks the `PickUp` against the claim before and refuses an honest bot (`out_of_reach`, 1 of 3 chaos
-    runs), the M6 design's §2.2 case, which on a real path needs datagrams reordered by more than a claim interval.
+    runs), the M6 ADR's §2.2 case, which on a real path needs datagrams reordered by more than a claim interval.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -2365,10 +2365,10 @@ numbers without a fraction; the content hash, an s64, travels as 16 lowercase he
 | host → service | `open {protocol: u16, content: hex16, max: 1..255}` (the first message; `max` is how many joiners at once, the mode's maximum minus the host); `offer {to, id, sdp}`; `candidate {to, mid, index, cand}`; `close`; `reopen` |
 | service → host | `room {code, ice_servers}`; `join {from}` (joiner `from` wants in); `answer {from, sdp}`; `candidate {from, mid, index, cand}`; `error {why}` |
 | joiner → service | `join {code}` (the first message); `answer {sdp}`; `candidate {mid, index, cand}` |
-| service → joiner | `found {protocol, content}` (advisory, §2.5 of the design); `offer {id, sdp, ice_servers}`; `candidate {mid, index, cand}`; `error {why}` |
+| service → joiner | `found {protocol, content}` (advisory, §2.5 of the M6 ADR); `offer {id, sdp, ice_servers}`; `candidate {mid, index, cand}`; `error {why}` |
 
 `to` and `from` are the service's number for a joiner in its room (1 upward, never reused in that room), not a game
-peer id: the game's id comes in `ADMIT` (§2.3 of the design). `id` is the host's id for that connection attempt,
+peer id: the game's id comes in `ADMIT` (§2.3 of the M6 ADR). `id` is the host's id for that connection attempt,
 which the service checks as an id (1 to 2^31 - 1) and otherwise passes on. `sdp` is 1 to 12288 characters, `cand` 0 to 1024 (empty: end of candidates),
 `mid` 0 to 64, `index` 0 to 255; `ice_servers` is a list of at most 8 `{urls: [1 to 4 "stun:", "stuns:", "turn:" or
 "turns:" URLs], username?, credential?}`. Codes are 6 characters from the 31 that cannot be misread
@@ -2402,7 +2402,7 @@ which the service checks as an id (1 to 2^31 - 1) and otherwise passes on. `sdp`
   its ICE servers) can push a message at the cap over it, and the receiver would drop it unread, so the sender gets
   `too large` instead; 32 candidates per joiner each way, the 33rd refused with `too many candidates` to its sender;
   `max` joiners at once. Offers and answers are not counted: the service forwards each, and the host takes one answer
-  per offer and the joiner one offer per attempt (§2.3 of the design).
+  per offer and the joiner one offer per attempt (§2.3 of the M6 ADR).
 - **No reclaim:** the host's socket closing closes the room; its joiners get `the host left` and the service closes
   their sockets; the code is free, and hosting again makes a new room.
 - **Closing after an error:** the service closes a socket a moment after the message that ends it
@@ -2492,7 +2492,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   joiner, failed `forged_offer` in both suites, then was reverted. M6-10's plants, the credential also on `found` and
   one credential reused for every joiner, each failed `turn_per_joiner`, then were reverted.
 
-**Joining in the game (M6-7, #373;** the M6 design §2.3, §2.5, §3; D19, E51):
+**Joining in the game (M6-7, #373;** the M6 ADR §2.3, §2.5, §3; D19, E51):
 - **`JoinTarget`** (`net/transport/`) is what the player typed: a code (6 characters of the alphabet above, any case,
   spaces and dashes dropped) or a host's `address[:port]` (IPv4, IPv6 in brackets with a port, or a host name, so a
   playit.gg address works). `transport(kinds)` makes the join's backend (a code: `WebRtcTransport` at the service

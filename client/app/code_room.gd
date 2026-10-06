@@ -1,6 +1,6 @@
 class_name CodeRoom
 extends RefCounted
-## A host's room with a code (the M6 design §2.3): the WebRtcTransport that opens it at the
+## A host's room with a code (the M6 ADR §2.3): the WebRtcTransport that opens it at the
 ## signalling service, and with --signal=lan the LanSignalling this process serves itself on the
 ## host's port (TCP). The game and tools/run/headless_session.gd host through it alike.
 
