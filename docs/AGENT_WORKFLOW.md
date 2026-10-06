@@ -623,9 +623,10 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   one short line on what changed. "що нового?" digests at once.
 - **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (below); `list_sessions`, `list_events` and
   `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news.
-- **Relays:** `send_message` to the session that asked; a session started unattended (a scheduled-task manager)
-  refuses it (#484), so the answer goes as a comment on the plan issue that session watches, or on the PR the item
-  came from, quoting the engineer's words.
+- **Relays:** `send_message` to the session that asked; a session a scheduled task started is unattended and refuses
+  it ("messages can't be delivered there", probed on
+  [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
+  comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
 - **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
   on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
   it, or `For you: nothing.`; the same block goes into the wave comment's notes, where `inbox` reads it.
@@ -648,25 +649,31 @@ minutes old as "probably waits on a permission card", and names the session and 
 known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
 the engineer's screen.
 
-**Set up** (the engineer, once): the issue and its pin, then the Desktop scheduled task.
+**Set up** (the engineer, once): the issue and its pin.
 ```powershell
 cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The secretary session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
 ```
 ```powershell
 cd D:\prime-game; gh issue pin <the new issue's number>
 ```
-In the desktop app, Scheduled, a new local task: **Name** `secretary`; **Description** "The engineer's inbox
-(AGENT_WORKFLOW §7.2)"; **Instructions** the kickoff below; folder `D:\prime-game`, no worktree; model Opus, effort
-medium; the permission mode he uses for his own sessions; no schedule (ad hoc): he starts it with "Run now" when he
-sits down, or a manager starts it with `run_scheduled_task` (#484's route).
+**Start** (the engineer, when he sits down): a plain new Desktop session (not a scheduled task) in `D:\prime-game`,
+no worktree, model Opus, effort medium, the permission mode he uses for his own sessions, with the kickoff below
+pasted. A plain session, because the secretary lives on his chat and its relays, and a scheduled-task run is the
+wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
+allows only the writes the task file names; no other session can `send_message` to it; it starts in `acceptEdits`
+at medium whatever its creator ran in; and an unattended session cannot `run_scheduled_task`, so a scheduled-task
+manager could not start it anyway. Whether the engineer can type into a scheduled-task run is still unprobed.
+A scheduled task `secretary` stays an option only once those are probed; its kickoff would then have to name the
+writes (the inbox body, relay comments, `send_message`) and say the engineer is present.
 
 The kickoff:
 ```text
 /secretary
-Digest now, then every 30 to 60 minutes while I am at the PC.
+Digest now, then every 30 to 60 minutes while I am at the PC. I am here and answer in this chat.
 ```
 No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
-share, where the secretary's cost belongs.
+share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
+`send_message` load (ToolSearch) and names any that does not in its chat line.
 
 **Open (not a decision):** when the timer stops. (a) After 3 hours without a word from the engineer in its chat
 (the skill's default, recommended: it costs nothing while he is away and one word restarts it); (b) outside a fixed
