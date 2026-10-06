@@ -33,14 +33,26 @@ import json
 import os
 import re
 import shutil
-import stat
 import sys
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import IS_WINDOWS, ROOT, Failure, bad, ok, project_name, remove_own_user_dir, run, say, user_dir_of, warn
+from .common import (
+    IS_WINDOWS,
+    ROOT,
+    Failure,
+    bad,
+    force_rmtree,
+    ok,
+    project_name,
+    remove_own_user_dir,
+    run,
+    say,
+    user_dir_of,
+    warn,
+)
 
 # Where mutants may go: production code only (never tests/, tools/, docs/, content/ or levels/).
 PRODUCTION = ("core", "server", "net", "client", "voice")
@@ -359,19 +371,6 @@ def registered(root: Path, folder: Path) -> list[str]:
     return found
 
 
-def _rmtree(path: Path) -> None:
-    """Git makes its object files read-only; Windows refuses to delete those without a chmod."""
-
-    def retry(func, target, _exc):  # type: ignore[no-untyped-def]
-        os.chmod(target, stat.S_IWRITE)
-        func(target)
-
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=retry)
-    else:
-        shutil.rmtree(path, onerror=retry)
-
-
 def _trees(root: Path, folder: Path) -> dict[str, str]:
     """The scratch worktrees in folder, registered or a `tree-*` folder, by normalized path."""
     found = {_norm(p): p for p in registered(root, folder)}
@@ -392,7 +391,7 @@ def remove_trees(root: Path) -> list[str]:
         for path in sorted(folder.glob(TREE_PREFIX + "*")):
             if path.is_dir():
                 try:
-                    _rmtree(path)
+                    force_rmtree(path)
                 except OSError as exc:
                     warn(f"cannot delete {path.as_posix()}: {exc.strerror or exc} (a program may hold a file in it)")
     # A folder deleted by hand leaves git's entry: `worktree remove` drops it once the folder is gone.

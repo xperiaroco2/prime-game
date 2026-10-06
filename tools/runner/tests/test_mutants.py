@@ -6,6 +6,7 @@ import inspect
 import io
 import json
 import os
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -251,6 +252,33 @@ class RunTest(RepoCase):
             self.assertEqual(self.run_spec(BOUNDARY), mutants.LEFTOVER)
         self.assertIn("could not be removed (exit 2)", self.out.getvalue())
         self.assertIn("EXIT 2: the scratch worktree could not be removed", self.report())
+
+    def test_a_leftover_whose_folders_vanish_mid_delete_counts_as_removed(self) -> None:
+        # A leftover tree's read-only object files (git's), and a git process of the killed run that removes its
+        # object folders between the refused delete and the retry (#453): removed, no warning, nothing left.
+        objects = self.work / "tools" / "out" / "mutants" / "tree-old" / "objects"
+        for name in ("a6", "b7"):
+            (objects / name).mkdir(parents=True)
+            (objects / name / "obj").write_text("x\n", encoding="utf-8")
+            (objects / name / "obj").chmod(stat.S_IREAD)
+        unlink = os.unlink
+        raced: list[str] = []
+
+        def racing_unlink(target, *args, **kwargs):  # type: ignore[no-untyped-def]
+            if raced:
+                return unlink(target, *args, **kwargs)
+            for folder in sorted(objects.iterdir()):
+                (folder / "obj").chmod(stat.S_IWRITE)
+                unlink(folder / "obj")
+                folder.rmdir()
+                raced.append(folder.name)
+            raise PermissionError(13, "Access is denied", str(target))
+
+        with mock.patch.object(os, "unlink", racing_unlink):
+            self.assertEqual(mutants.remove_trees(self.work), [])
+        self.assertEqual(raced, ["a6", "b7"])
+        self.assertFalse(objects.parent.exists())
+        self.assertNotIn("cannot delete", self.out.getvalue())
 
     def test_a_leftover_that_cannot_be_removed_at_the_start_exits_2(self) -> None:
         with mock.patch.object(mutants, "remove_trees", return_value=["tools/out/mutants/tree-work"]):
