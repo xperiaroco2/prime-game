@@ -351,33 +351,33 @@ taken in a `main` that has them.
   own; otherwise they fail and you resume after the reset. While you wait, the keep-alive below is your only timer.
 - **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
-  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000: the default background timeout of 30
-  minutes would end it early), armed only as the turn-end order says, one at a time (its task id and arm time in the
+  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order says, one at a time (its task id and arm time in the
   state file); it fires before the cache your latest call refreshed expires.
 - **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
   this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking
   you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json number,mergedAt`). Then follow the turn-end
-  order, with no message or PushNotification unless you hand over or that line needs the human. After 14 wakes in a row
+  order, silent unless you hand over or that line needs the human. After 14 wakes in a row
   (about 12 hours; a human message resets the count) arm no more.
 - **The turn-end check**, at each turn end, wake and launch: `tools\run.cmd wave --since <session start>
   --no-merge-check --out <scratchpad>\manager\turn-end.md` (about 10 s; never the default `--out`). Its last line:
   `handover due: <why>` or `handover not due` with clauses. Due: the context over 300k or the session over 12 hours old,
-  even mid-wave (#467 replaced #329); or, once your runs end, a merge into `main` since your start that changed root
-  `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (your agents get your cached copy); until then it says "launch
-  nothing new": obey it.
-- **The turn-end order**: (1) A handover due: hand over (launch and arm nothing), even mid-wave, but not while your own
-  `merge`, `merge-train` or `publish` runs. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A
-  stop for the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over
-  150k), else arm nothing. (4) Otherwise arm nothing.
-- **A handover** (#467): (a) TaskStop each run the verdict names, stale ones too (a publish, rebase or fix agent at
+  even mid-wave; or, once your runs end, a merge into `main` since your start that changed root
+  `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (agents get your cached copy); until then it says "launch
+  nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
+  over once it is pulled.
+- **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
+  waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
+  the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
+  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k) and
+  work is left, else arm nothing. (4) Otherwise arm nothing.
+- **A handover** (#467): (a) TaskStop each run the verdict names (a publish, rebase or fix agent at
   work: after it, the timer armed), until the check shows none in flight. (b) One plan-issue comment, `wave --since
   <session start> --title "Handover to a fresh manager session" --notes <file>`: the order from here, open questions,
   `human_steps` still due, the stage's start, the runs you stopped (relaunch fresh) and the handover data. (c) "For
   you:": close this session, paste the §10 kickoff with "Continue from" and `Track:` into a new session in
-  `D:\prime-game` (pull it first for an instruction change). Then a PushNotification; stop, no timer, launch nothing
-  more. The successor takes that comment as §2.2's answer (a fresh commit in a worktree is no live run), relaunches the
-  stopped runs fresh with their args and takes the stage's yes as given: it restates the order and goes on (§1's wait
-  does not apply).
+  `D:\prime-game`. Then a PushNotification; stop, no timer, launch nothing more. The successor takes that comment as
+  §2.2's answer, relaunches the stopped runs fresh and takes the stage's yes as given: it restates the order and goes
+  on (§1's wait does not apply).
 - **Keep your context small**: planning reads, ADR, doc and issue-body drafts, metrics tables and audits go to a
   subagent (Agent tool, Sonnet) that returns at most about 2k characters with links and numbers, or a scratchpad file
   you pass to `gh --body-file` unread. Write no large file yourself.
