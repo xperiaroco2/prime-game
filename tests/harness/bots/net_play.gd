@@ -61,6 +61,10 @@ var ends_from_bots := false
 ## claims as it polls, before the bot moves, so the bot moves one client tick at most per frame: a
 ## stall slows it down.
 var claims_after_moves := false
+## The joins a bot that joins at the start makes at most; once the last ended, its join is lost
+## for good (_lost_join). 0 is no bound: BotsEnet and the playcheck bots, whose processes a loaded
+## machine starts seconds apart, wait for the host as long as it takes.
+var max_joins := 0
 
 ## Bot number -> the client tick of its last move: kept by _stand only in the client tick of that
 ## move, and dropped while the bot is dead, so the first walk after standing or a respawn covers one
@@ -366,6 +370,9 @@ func _unanswered(client: BotClient) -> bool:
 func _joins_again(bot: ScenarioBot) -> bool:
 	var client: BotClient = clients.get(bot.number)
 	if client == null or not _join_failed.has(bot.number):
+		return false
+	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
+	if max_joins > 0 and ended.size() + 1 >= max_joins:
 		return false
 	if client.end_reason in ROOM_NOT_UP:
 		return true

@@ -192,3 +192,26 @@ func test_a_join_that_found_no_room_joins_again_without_starting_play() -> void:
 		var line := run.failures[0] if not run.failures.is_empty() else ""
 		assert_str(line).contains("(host_unreachable); earlier joins ended %s" % reason)
 		run.close()
+
+
+func test_a_join_retried_max_joins_times_fails_naming_every_reason() -> void:
+	var run := UnhostedChaos.new()
+	run.join_without_host()
+	for i in ChaosRun.MAX_JOINS - 1:
+		run.clients[2].end_reason = NetTransport.JOIN_SERVICE_UNREACHABLE
+		run.play_frame(2 * i)
+		run.clock_usec += NetPlay.ROOM_RETRY_USEC
+		run.play_frame(2 * i + 1)
+	assert_array(run.failures).is_empty()
+	var last: BotClient = run.clients[2]
+	last.end_reason = NetTransport.JOIN_SERVICE_UNREACHABLE
+	run.play_frame(10)
+	assert_array(run.failures).has_size(1)
+	var line := run.failures[0] if not run.failures.is_empty() else ""
+	assert_str(line).contains(
+		"(service_unreachable); earlier joins ended service_unreachable, service_unreachable"
+	)
+	run.clock_usec += NetPlay.ROOM_RETRY_USEC
+	run.play_frame(11)
+	assert_object(run.clients[2]).override_failure_message("joined a 4th time").is_same(last)
+	run.close()

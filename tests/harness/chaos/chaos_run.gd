@@ -40,6 +40,11 @@ const ENET_DRAIN_FRAMES := 120
 ## of the run's transports.
 const SHIM_SEED := 188_000
 const SHIM_SEED_STRIDE := 16
+## The joins each bot makes at most over the network (NetPlay.max_joins, #483): the host is up in
+## this process before the bots join, and three attempts fail before the runner's 60 s kill (over
+## WebRTC a retried join, no room, ends within the 5 s signalling cap plus the 0.5 s wait; over
+## ENet an unanswered one after JOIN_TIMEOUT_MS, 15 s).
+const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
 var chaos_mode := Mode.CHAOS
@@ -99,6 +104,7 @@ func _init(
 		webrtc = over_webrtc
 		port = net_port
 		one_process = false
+		max_joins = MAX_JOINS
 
 
 ## Plays one run to its end and closes it; see `failures`.
