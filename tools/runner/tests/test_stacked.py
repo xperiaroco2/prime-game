@@ -51,6 +51,7 @@ class Repos(unittest.TestCase):
             mock.patch.object(publish, "REPO", self.work),
             mock.patch.object(publish, "pr_base", side_effect=lambda branch: self.pr_base),
             mock.patch.object(publish.verify, "main", return_value=0),
+            mock.patch.object(publish.verify, "HISTORY", self.tmp / "verify-history.jsonl"),
         ):
             patch.start()
             self.addCleanup(patch.stop)

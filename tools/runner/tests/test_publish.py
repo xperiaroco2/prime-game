@@ -1,15 +1,22 @@
-"""publish: which branch it rebases on, and what it refuses before touching git history."""
+"""publish: which branch it rebases on, what it refuses before touching git history, and when it reuses a green verify
+of the same tree instead of verifying again (#471)."""
 
+import json
 import os
 import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest import mock
 
-from runner import publish
+from runner import publish, wait
 from runner.common import ROOT, Failure, Result, force_rmtree
+
+
+# An hour after the passed records below start (10:00): inside wait.REUSE_MAX_AGE.
+NOW = datetime(2026, 10, 6, 11, 0, tzinfo=UTC)
 
 
 def _result(rc: int, out: str) -> Result:
@@ -73,18 +80,24 @@ class RealGitTest(unittest.TestCase):
         self.git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
         self.work, self.other = self.clone("work"), None
         self.write(self.work, "f.txt", "one\n")
-        self.git(self.work, "add", "f.txt")
+        (self.work / "tools" / "runner").mkdir(parents=True)
+        self.write(self.work, "tools/runner/r.py", "")  # its tree hash is the runner's version in a verify record
+        self.git(self.work, "add", "f.txt", "tools")
         self.git(self.work, "commit", "-q", "-m", "c1")
         self.git(self.work, "push", "-q", "origin", "main")
         self.git(self.work, "config", "core.hooksPath", str(hooks))
         self.other = self.clone("other")  # the other machine, or GitHub's web editor
+        self.history = self.tmp / "verify-history.jsonl"
+        self.verify = mock.patch.object(publish.verify, "main", return_value=0).start()
+        self.addCleanup(mock.patch.stopall)
+        self.ok = mock.patch.object(publish, "ok").start()
         for patch in (
             mock.patch.object(publish, "REPO", self.work),
             mock.patch.object(publish, "say"),
-            mock.patch.object(publish, "ok"),
             mock.patch.object(publish, "bad"),
             mock.patch.object(publish, "pr_base", return_value=None),
-            mock.patch.object(publish.verify, "main", return_value=0),
+            mock.patch.object(publish.verify, "HISTORY", self.history),  # never this checkout's own history
+            mock.patch.object(wait, "utc_now", return_value=NOW),
         ):
             patch.start()
             self.addCleanup(patch.stop)
@@ -117,6 +130,76 @@ class RealGitTest(unittest.TestCase):
 
     def remote(self, ref: str) -> str:
         return self.git(self.tmp / "remote.git", "rev-parse", ref)
+
+    def record(self, **fields: object) -> None:
+        """Append a verify record of the work checkout as it is now (verify.git_facts' keys), passed at 10:00."""
+        facts = {f: self.git(self.work, "rev-parse", spec) for f, spec in
+                 (("head", "HEAD"), ("tree", "HEAD^{tree}"), ("runner", "HEAD:tools/runner"))}  # fmt: skip
+        record = {"start": "2026-10-06T10:00:00Z", "branch": "tooling/1-x", **facts, "status": "passed", **fields}
+        with self.history.open("a", encoding="utf-8", newline="\n") as out:
+            out.write(json.dumps(record) + "\n")
+
+    def skipped(self) -> bool:
+        return any("verify skipped" in str(call.args[0]) for call in self.ok.call_args_list)
+
+    def test_an_identical_tree_verified_green_is_not_verified_again(self) -> None:
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.record()
+        self.assertEqual(publish.main(), 0)  # the rebase is a no-op: the record stands for this tree
+        self.verify.assert_not_called()
+        self.assertTrue(self.skipped(), self.ok.call_args_list)
+        self.assertEqual(self.remote("tooling/1-x"), self.git(self.work, "rev-parse", "HEAD"))
+
+    def test_a_rebase_that_moves_the_tree_still_verifies(self) -> None:
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        before = self.git(self.work, "rev-parse", "HEAD")
+        self.record()
+        self.commit(self.other, "h.txt", "theirs\n", "main moves")
+        self.git(self.other, "push", "-q", "origin", "main")
+        self.assertEqual(publish.main(), 0)
+        self.assertNotEqual(self.git(self.work, "rev-parse", "HEAD"), before)
+        self.verify.assert_called_once()
+        self.assertFalse(self.skipped())
+
+    def test_each_unmet_condition_verifies(self) -> None:
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        cases: dict[str, list[dict[str, object]]] = {
+            "no record": [],
+            "red": [{"status": "FAILED"}],
+            "the newest is red": [{}, {"status": "FAILED"}],
+            "another head": [{"head": "b" * 40}],
+            "another tree": [{"tree": "c" * 40}],
+            "a dirty run": [{"tree": None}],
+            "another runner": [{"runner": "d" * 40}],
+            "two hours old": [{"start": "2026-10-06T09:00:00Z"}],
+            "dirty now": [{}],
+        }
+        for name, records in cases.items():
+            with self.subTest(case=name):
+                self.history.unlink(missing_ok=True)
+                self.verify.reset_mock()
+                self.ok.reset_mock()
+                for fields in records:
+                    self.record(**fields)
+                if name == "dirty now":  # an untracked file: publish's own refusal looks at tracked files only
+                    self.write(self.work, "new.txt", "stray\n")
+                self.assertEqual(publish.main(), 0)
+                self.verify.assert_called_once()
+                self.assertFalse(self.skipped())
+                (self.work / "new.txt").unlink(missing_ok=True)
+
+    def test_a_red_verify_pushes_nothing(self) -> None:
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.record(status="FAILED")
+        self.verify.return_value = 1
+        with self.assertRaises(Failure) as caught:
+            publish.main()
+        self.assertIn("verify is red after the rebase; nothing was pushed", str(caught.exception))
+        self.assertEqual(self.git(self.tmp / "remote.git", "branch", "--list", "tooling/1-x"), "")
 
     def test_rebases_on_moved_main_and_pushes_with_the_lease(self) -> None:
         self.git(self.work, "switch", "-q", "-c", "tooling/1-x")

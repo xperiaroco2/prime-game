@@ -16,17 +16,21 @@ No log, or one it cannot read: 2.
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
 
-`wait --verified` answers whether a standalone verify before `publish` is needed: 0 when this checkout's newest
-verify record (tools/out/logs/verify-history.jsonl) passed at HEAD with a clean tree and the tree is still clean.
+`wait --verified` answers whether `publish` would reuse this checkout's newest verify instead of running its own
+(#471): 0 when that record (tools/out/logs/verify-history.jsonl) passed at HEAD, on the same tree and runner, with a
+clean tree, under REUSE_MAX_AGE ago, and the tree is still clean. `reuse_refusal` is that test, which `publish` runs
+after its rebase.
 """
 
 from __future__ import annotations
 
 import codecs
+import json
 import os
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .common import say
@@ -42,6 +46,9 @@ TAIL_LINES = 20
 # follows the verify summaries of the publishes it ran.
 SUMMARY_HEADS = ("verify summary", "merge-train summary")
 EXIT_LINE = re.compile(r"^exit=(\d+)$")
+# How old a passed verify may be for `publish` to push on it instead of verifying again (#471): a verify that ran two
+# hours before the push tested the same bytes, but the PC (Godot, the pins, the other worktrees' load) may have moved.
+REUSE_MAX_AGE = timedelta(hours=2)
 MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?=/|$)")
 
 
@@ -88,17 +95,15 @@ def summary_lines(lines: list[str], tail: int = TAIL_LINES) -> list[str]:
     return [line for line in body if line.strip()][-tail:]
 
 
-def verified() -> int:
-    """`wait --verified`: 0 when this checkout's newest verify record passed at HEAD with a clean tree and the tree is
-    still clean (then `publish`, which runs verify itself, needs no standalone verify before it), else 1."""
-    import json
+def utc_now() -> datetime:
+    return datetime.now(UTC)
 
-    from . import verify
-    from .common import git_status
 
+def newest_record(history: Path) -> dict[str, object]:
+    """The last JSON object in a verify history (one record a line), or {} when there is none or no file."""
     record: dict[str, object] = {}
     try:
-        with verify.HISTORY.open(encoding="utf-8", errors="replace") as lines:
+        with history.open(encoding="utf-8", errors="replace") as lines:
             for line in lines:
                 try:
                     parsed = json.loads(line)
@@ -108,25 +113,85 @@ def verified() -> int:
                     record = parsed
     except OSError:
         pass
-    dirty = bool(git_status())
-    head = verify.git_facts(clean=not dirty)["head"]
+    return record
+
+
+def record_age(record: Mapping[str, object], now: datetime) -> timedelta | None:
+    """How long ago the record's verify started, or None when its start is missing or unreadable."""
+    try:
+        start = datetime.fromisoformat(str(record.get("start")).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if start.tzinfo is None:
+        return None
+    return now - start
+
+
+def reuse_refusal(
+    record: Mapping[str, object],
+    facts: Mapping[str, object],
+    dirty: bool,
+    now: datetime,
+    max_age: timedelta = REUSE_MAX_AGE,
+) -> str:
+    """Why the newest verify record does not stand for a verify of this checkout now, or "" when it does (#471): it
+    passed at the same head, tree and runner (facts: verify.git_facts' keys), with a clean tree then and now, and it
+    started under max_age before now. `publish` skips its own verify only on ""."""
+    when = record.get("start")
+
+    def ran(key: str) -> str:  # the record's value and this checkout's, side by side
+        return f"{str(record.get(key))[:12]}, HEAD's is {str(facts.get(key))[:12]}"
+
     if not record:
-        why = f"no verify record in {verify.HISTORY}"
-    elif record.get("status") != "passed":
-        why = f"the newest verify ({record.get('start')}) is {record.get('status')}"
-    elif record.get("head") != head:
-        why = f"the newest verify ({record.get('start')}) ran at {str(record.get('head'))[:12]}, HEAD is {str(head)[:12]}"
-    elif not record.get("tree"):
-        why = f"the newest verify ({record.get('start')}) ran with uncommitted changes"
-    elif dirty:
-        why = "the working tree has uncommitted changes now"
-    else:
+        return "there is no verify record"
+    if record.get("status") != "passed":
+        return f"the newest verify ({when}) is {record.get('status')}"
+    if record.get("head") != facts.get("head"):
+        head = str(facts.get("head"))[:12]
+        return f"the newest verify ({when}) ran at {str(record.get('head'))[:12]}, HEAD is {head}"
+    if not record.get("tree"):
+        return f"the newest verify ({when}) ran with uncommitted changes"
+    if dirty:
+        return "the working tree has uncommitted changes now"
+    if record.get("tree") != facts.get("tree"):
+        return f"the newest verify ({when}) ran on tree {ran('tree')}"
+    if not record.get("runner") or record.get("runner") != facts.get("runner"):
+        return f"the newest verify ({when}) ran with runner {ran('runner')}"
+    age = record_age(record, now)
+    if age is None:
+        return f"the newest verify has no readable start time ({when})"
+    if age < timedelta(0):
+        return f"the newest verify starts in the future ({when}): this PC's clock moved"
+    if age >= max_age:
+        return f"the newest verify ({when}) started {minutes(age)} ago, over the {minutes(max_age)} limit"
+    return ""
+
+
+def minutes(span: timedelta) -> str:
+    """A span as "1 h 05 min" or "42 min"."""
+    total = int(span.total_seconds() // 60)
+    return f"{total // 60} h {total % 60:02d} min" if total >= 60 else f"{total} min"
+
+
+def verified() -> int:
+    """`wait --verified`: 0 when `publish` would reuse this checkout's newest verify record instead of running verify
+    (reuse_refusal is ""), so no standalone verify is needed before it; else 1."""
+    from . import verify
+    from .common import git_status
+
+    record = newest_record(verify.HISTORY)
+    dirty = bool(git_status())
+    facts = verify.git_facts(clean=not dirty)
+    why = reuse_refusal(record, facts, dirty, utc_now())
+    if not why:
         say(
-            f"wait: verify passed at HEAD {str(head)[:12]} with a clean tree ({record.get('start')}); "
-            "`publish` runs verify itself: no standalone verify before it"
+            f"wait: verify passed at HEAD {str(facts['head'])[:12]} with a clean tree ({record.get('start')}); "
+            "`publish` reuses it instead of verifying again"
         )
         return 0
-    say(f"wait: no passed verify at HEAD with a clean tree: {why}; run verify (or publish, which runs it)")
+    if not record:
+        why = f"no verify record in {verify.HISTORY}"
+    say(f"wait: no passed verify at HEAD with a clean tree that publish would reuse: {why}; publish runs verify itself")
     return 1
 
 
