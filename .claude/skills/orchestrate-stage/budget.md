@@ -80,6 +80,10 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
+- **`models: {plan: "sonnet"}`** on every `issue-task` launch with `plan_review` (#469, the engineer's yes on the
+  issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
+  non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
+  the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
 - `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
   launched before #458 without `lean`, add `lean: false` (§3's row), or the lean agent types change its agents and the
   resume replays nothing past the reviews.
