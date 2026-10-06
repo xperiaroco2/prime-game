@@ -62,6 +62,10 @@ func judge(low_ms: int, high_ms: int) -> String:
 		return "never dropped the stalled side"
 	if dropped_after_ms() < low_ms:
 		return "dropped after %d ms, under %d ms" % [dropped_after_ms(), low_ms]
+	if kept_at_ms < stalled_at_ms:
+		# The top is proven by the polls, so a run that recorded none after the stall proves nothing:
+		# the owner stopped calling serviced() (or polls the running side elsewhere).
+		return "had no poll of the running side recorded after the stall"
 	if kept_after_ms() > high_ms:
 		return (
 			"still had the stalled side at its poll %d ms after the stall, over %d ms (dropped after %d ms)"

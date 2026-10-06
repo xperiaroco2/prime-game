@@ -65,6 +65,16 @@ func test_polls_after_the_drop_change_nothing() -> void:
 	assert_str(watch.judge(LOW, HIGH)).is_empty()
 
 
+## A late drop must not pass because the polls were never recorded: kept_after_ms() would be
+## negative, under every top.
+func test_a_drop_with_no_poll_recorded_after_the_stall_fails() -> void:
+	var watch := StallWatch.new()
+	watch.serviced(STALL_AT - 16)
+	watch.stall(STALL_AT)
+	watch.drop(STALL_AT + 30000)
+	assert_str(watch.judge(LOW, HIGH)).contains("no poll of the running side")
+
+
 func test_no_drop_fails() -> void:
 	var watch := _watch_polled_every(16, STALL_AT + 30000)
 	assert_bool(watch.dropped()).is_false()
