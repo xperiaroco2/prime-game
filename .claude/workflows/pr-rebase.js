@@ -20,8 +20,9 @@ export const meta = {
 //   plan    the plan issue whose body no agent edits (default 30)
 //   manager who runs this (default 'the manager session')
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
-// all off by default but bounded_waits (on since #411), as in issue-task.js: with none of them and bounded_waits false
-// every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
+// all off by default but bounded_waits (on since #411) and lean (on since #458), as in issue-task.js: with none of them
+// and bounded_waits and lean false every agent's prompt, label, phase, schema and options are byte-identical to the
+// script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections). The agents
 // each one adds count toward the agent number the kickoff approves (2 to 4 without them):

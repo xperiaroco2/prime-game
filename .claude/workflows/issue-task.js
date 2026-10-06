@@ -27,9 +27,10 @@ export const meta = {
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default but bounded_waits (on since #411). With none of them and bounded_waits false every agent's prompt, label,
-// phase, schema and options are byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots
-// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged, but for
+// by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
+// false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
+// (tools/runner/tests/test_workflows.py snapshots them, and the default too), so a launch or resume with the earlier
+// args, bounded_waits false and lean false is unchanged, but for
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
