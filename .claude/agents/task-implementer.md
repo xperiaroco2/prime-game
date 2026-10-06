@@ -1,6 +1,6 @@
 ---
 name: task-implementer
-description: Only for the issue-task workflow launched with the lean arg (its implementer, plan agent and test reviewer). Builds one issue in its task worktree as the workflow prompt directs. Not for interactive use.
+description: Only for the issue-task workflow under the lean arg, on by default (its implementer, plan agent and test reviewer). Builds one issue in its task worktree as the workflow prompt directs. Not for interactive use.
 model: opus
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, Monitor, TaskStop, WebFetch, WebSearch
 disallowedTools: NotebookEdit, Agent, Skill

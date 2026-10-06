@@ -1,6 +1,6 @@
 ---
 name: task-publisher
-description: Only for the issue-task and pr-rebase workflows launched with the lean arg (the publisher, rebase and fix agents). Fixes findings, verifies and publishes one task branch as the workflow prompt directs. Not for interactive use.
+description: Only for the issue-task and pr-rebase workflows under the lean arg, on by default (the publisher, rebase and fix agents). Fixes findings, verifies and publishes one task branch as the workflow prompt directs. Not for interactive use.
 model: opus
 tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, Monitor, TaskStop, WebFetch, WebSearch, SendUserFile
 disallowedTools: NotebookEdit, Agent, Skill

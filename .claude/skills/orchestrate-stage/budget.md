@@ -68,10 +68,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   (`slots --status` and `--quiet` are #416, P2), the cap above is the rule and the engineer's word in the chat pauses
   launches.
 
-## Args on every launch (N4 (a), N5 (a))
-- **`lean: true`** on every `issue-task` and `pr-rebase` launch from the reset, except a task whose agents need a skill
-  through the Skill tool (§3's row). The default flips in the workflows (P3b) after a clean week: a week of such
-  runs with no task failed for a missing tool
+## Args on every launch (N4 (b), N5 (a))
+- **`lean`** is the default of `issue-task` and `pr-rebase` since #458 (the engineer's N4 (b), 2026-10-06): pass
+  nothing. `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (§3's row)
   ([lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
   `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as
@@ -81,7 +80,7 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
 - `bounded_waits` is the default since #411: pass nothing. A resume keeps the args of its launch (§7), so a run
-  launched before the reset resumes without `lean`.
+  launched before #458 without `lean` resumes with `lean: false`.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
