@@ -209,10 +209,12 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
 5. `tools\run.cmd publish`, in the background with `wait <log>` like `verify`: rebase on the open PR's base (else the
-   `start --base` parent, else `origin/main`), re-run `verify`, push the task branch with a lease (§8.3). Under
-   `bounded_waits` (§7.1) the publishing agents of `issue-task` and `pr-rebase` run no standalone `verify` before
-   `publish` when `tools\run.cmd wait --verified` exits 0 (the newest verify passed at HEAD with a clean tree), since
-   `publish` runs it anyway.
+   `start --base` parent, else `origin/main`); verify, unless an identical tree was just verified green (the newest
+   verify record passed at the same head, tree and runner, with a clean tree then and now, under 2 hours ago: it says
+   so and pushes on that record, #471); push the task branch with a lease (§8.3). A red verify pushes nothing, so after
+   review fixes the tests they touch and `check` come before `publish`, with no standalone `verify`: the publishing
+   agents of `issue-task` and `pr-rebase` (§7.1) and `finish-task` step 2 work this way. A rebase that moves the
+   branch changes its head, so `publish` verifies it as always; CI runs the full verify before any merge.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -228,7 +230,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
-`pr-rebase` launched with `lean: true` use (§7.1), and `lean-writer`
+`pr-rebase` under `lean` (their default since #458) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
 writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, and sets no
 `effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
@@ -242,8 +244,8 @@ rules.
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
-| `task-implementer` | `lean: true` only: the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
-| `task-publisher` | `lean: true` only: the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
+| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
+| `task-publisher` | `lean` only (the default): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
 
@@ -393,8 +395,9 @@ Rules for every workflow run:
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
   shrank from 89k to 11k characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
-  earlier args and `bounded_waits: false` gets the earlier agents byte for byte
+  optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
+  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
+  byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
@@ -418,22 +421,22 @@ Rules for every workflow run:
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
-  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents also skip a standalone
-  verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow agent without it once on
+  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents run no standalone
+  verify before `publish`, §4.2 step 5). The root CLAUDE.md rule reaches every workflow agent without it once on
   main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
   (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix
   agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
   The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
   comment give the counts, the roles and their fallbacks.
-- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean: true` (`issue-task`
-  and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
+- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean` (`issue-task`
+  and `pr-rebase`, +0 agents, on by default since #458) runs the implementer, the plan agent and the test reviewer as
   `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
   or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
-  median of about 57k for a general implementer's whole first call under a desktop manager; the clean week of N4 (a)
-  measures the real difference. It appends only `agentType` to their options; prompts, efforts and models stay.
-  Passed on every launch from the reset of 2026-10-06 (the weekly budget ADR's N4 (a)); the default flips after a clean week (P3b). The
+  median of about 57k for a general implementer's whole first call under a desktop manager; the A/B's real tasks
+  started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
+  prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
   manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
-  through the Skill tool stays off it.
+  through the Skill tool passes `lean: false`.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
@@ -553,20 +556,21 @@ Rules for every workflow run:
   decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
   session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
   The manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human. While it waits (a run of its own in flight, or a stop with a context over about 150k and no once-a-day handover
-  due, #279) it keeps its 1-hour prompt cache warm with one background `sleep 3000` re-armed on each cheap wake, for at
-  most about 12 hours of the human's absence (the skill's §7, #305). Each command the human must run (a workflow's
-  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
-  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
-  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts with
-  `cd` to its absolute folder.
+  human. While a run of its own is in flight it keeps its 1-hour prompt cache warm with one background `sleep 3000`
+  re-armed on each cheap wake, for at most about 12 hours of the human's absence (the skill's §7, #305, #467). Each
+  command the human must run (a workflow's `human_steps`, housekeeping) goes into the chat itself, one runnable
+  PowerShell block per command ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan
+  issue may list it too. The publishing agents return `human_steps` as `{why, command}` pairs, each command one
+  PowerShell line that starts with `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
-  Once a day that handover is deliberate (#279, the engineer's option A): a manager that stops for the human with no
-  run of its own in flight and either its session over 12 hours old or its context over 300k tokens (the weekly
-  budget ADR's N6 (b); `wave` prints both) posts a handover wave comment and gives the human the kickoff to
-  paste into a new session (the skill's §7).
+  The handover is mechanical (#279, #467): at each turn end the manager runs `wave`, whose last line is the verdict.
+  It hands over once its context is over 300k tokens or its session over 12 hours old, even mid-wave (the engineer
+  on #467, replacing #329's "never mid-wave"): it stops its runs, posts a handover wave comment with their args and
+  gives the human the kickoff to paste into a new session, which relaunches them fresh. It also hands over once its
+  runs end after a merge into `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get
+  its cached copy), and at a stop for the human with the context over 150k (the skill's §7).
 
 ## 8. Permissions, guards and hooks
 
@@ -709,6 +713,23 @@ holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/
   from the environment or a PowerShell variable the command never assigns, when its text does not name the project;
   filtered deletes, even project-wide ones (`find . -name '*.orig' -delete`, `find . -name '*.gd' -delete`,
   `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
+- **A filtered recursive delete in the temp folder is judged by what it matches** (#464): a glob after `$TEMP`,
+  `$TMP`, `$TMPDIR`, `$env:TEMP`, `%TEMP%` or `/tmp` (`rm -rf "$TEMP"/rmtree-*`, `Remove-Item -Recurse
+  $env:TEMP\x*`), and a PowerShell `Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse
+  -Force` that does not recurse (its targets are `$env:TEMP\rmtree-*`, not the folder). A filter matches the Win32
+  way, so the guard reads it as a glob that matches at least as much (`x.*` and `x.` also match `x`, so `*.*` matches
+  every name; a `?` also matches nothing; `[` is a literal), and a filter without a glob (`-Filter claude`) is judged
+  the same way. It passes unless the pattern reaches outside the folder (`..`) or has a part the guard cannot read
+  (`"$TEMP"/$X*`, `-Filter $f`, a `~` that may match an 8.3 short name), may match a Claude scratchpad root or a
+  folder that holds one (`claude/<project>/<session>/scratchpad`: `"$TEMP"/cl*`, `"$TEMP"/claude/*/*`; any
+  session's, the guard does not know which is the caller's) or reach into scratchpads through a wildcard project or
+  session (`"$TEMP"/claude/*/*/scratchpad/*`), or a match is or holds a worktree (a `.git` file in it, a worktree of
+  this repository at or below it, or a symbolic link or junction at or above it; `hooks.GitFiles.temp_matches` lists
+  the folder when the hook runs). A delete inside one named session's scratchpad
+  (`"$TEMP"/claude/<project>/<session>/scratchpad/a1*`) passes. A recursive listing (`Get-ChildItem $env:TEMP
+  -Recurse -Filter x`), `-Filter *` and an unfiltered one still delete the temp folder itself and ask; a literal
+  path there (`$TEMP/x`) is judged as before. One such delete of `rmtree-*` leftovers waited 8.8 hours on
+  2026-10-05.
 
 #### 8.2.4 `tests/scratch/`
 Is for temporary files that must be under `res://` (a probe test). It is gitignored but not
@@ -786,10 +807,27 @@ make it a POST). Everything else there asks, `gh issue create --repo godotengine
 `--jq`) never name the repository, and an option is never taken as the value of another one
 (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
 repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
-of another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`)
-are other repositories too: a session that manages one runs in that repository's checkout, never in
-`D:\prime-game`, where each of its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of
-waiting, one `gh pr create` over a whole night, #312).
+of another repository without naming it.
+
+**A repository of gh's own account passes like this project's** (#464, wanted by the engineer on 2026-10-06): when
+the owner of the named repository is the account `gh api user` returns (`hooks.GitFiles.gh_user` reads its login from
+gh's `hosts.yml`, in `GH_CONFIG_DIR`, `%AppData%\GitHub CLI` or `~/.config/gh`, without a network call; unknown when
+`GH_TOKEN` or `GITHUB_TOKEN` is set), the guard leaves the command to the rules, as for this repository: on the
+engineer's machine `gh issue create|comment|edit`, `gh pr create|comment|edit`, `gh label`, `gh repo create` and
+`gh api` POSTs to `xperiaroco2/prime-game-art`, `xperiaroco2/prime-game-ui` or any `xperiaroco2/*` pass (30 asks on
+2026-10-02 and 10-03 before, about 12.6 hours of waiting, one `gh pr create` over a whole night, #312). It also
+fills in a variable the same command assigns (`R=xperiaroco2/prime-game-art; gh issue create -R "$R"`) and takes
+an owner it can read alone (`-R "xperiaroco2/$1"`). On the designer's machine the account is the designer's, so the
+engineer's repositories still ask there. What keeps the guard's ask in those repositories, because a spelling like
+`gh pr -R x merge 5` slips past the rules' text: every `gh` command a deny or ask rule names (`pr merge|review`,
+`repo delete|archive|unarchive|rename|edit|deploy-key`, `issue delete`, `label delete`, `project delete`, release
+changes, `workflow run|enable|disable`, `auth`, `secret`, `variable`, `--delete-last`; `guard.GH_OWNER_KEPT`, a test
+checks it against `.claude/settings.json`), `gh issue transfer`, and a `gh api` write that is not a POST or reaches a
+`merges`, `merge`, `secrets`, `variables`, `keys`, `dispatches`, `releases` or `transfer` endpoint. Such a kept
+command that names this project's repository asks too (`R=xperiaroco2/prime-game; gh pr -R $R merge 5`); a `gh api`
+write here stays with the rules. The deny and ask rules themselves are unchanged: `gh pr merge 5 -R
+xperiaroco2/prime-game-art` is still denied, `gh secret set` still asks. Any other owner (`godotengine/godot`, an
+organization the account belongs to) asks as before.
 
 #### 8.2.8 Targets and the prompt
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
@@ -871,6 +909,15 @@ waiting, one `gh pr create` over a whole night, #312).
   2026-09-28`, 33,381 calls, bypass mode): 70 prompts before, 64 after (68 and 62 guard), 38 denied in both, no crash;
   the 6 that pass are the six above, and no call that was silent before asks now. The replay reads today's branches:
   a deleted worktree's call reads as a detached HEAD, which is free, so it may undercount the asks of the past.
+- The account's own repositories and filtered temp deletes (#464), replayed on 2026-10-06 with `tools\run.cmd
+  permissions --since 2026-09-28` (bypass mode, `origin/main` against the branch; 35,388 calls in 1,261
+  transcripts): 66 prompts before (64 guard), 31 after (29 guard), 38 denied in both, no crash, and no call that was
+  silent before asks now. The 35 that pass: 34 calls with `gh` writes to `xperiaroco2/prime-game-art` and
+  `xperiaroco2/prime-game-ui` (issues, comments, PRs, both `gh repo create`s, `-R "$R"` after `R=...`; one a probe
+  of a missing `xperiaroco2/nonexistent-zz9`), and the
+  `Get-ChildItem $env:TEMP -Filter 'rmtree-*' | Remove-Item -Recurse` of 2026-10-05. The one `gh` ask left is
+  `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
+  today's gh account.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -884,13 +931,14 @@ marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` 
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
   the server ruleset stand. Task branches start from `main`, which has the hook.
 - `publish`: `git fetch --prune origin`, rebase on `--base`, else the open PR's base (a stacked PR's parent), else the
-  parent `start --base` recorded, else `main`; then `verify` and the lease push. It stops before touching anything
-  when the remote branch has a commit this branch never had (a suggestion committed on GitHub, "Update branch", a push
-  from the other machine): the lease alone would not protect it, because the fetch just updated the expected value. A
-  conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing. After its parent was
-  rebased or amended, a stacked child replays only its own commits: those after the parent commit `start` recorded
-  (`branch.<task>.primeBaseTip`, renewed by each publish on the parent; `rebase --onto`), else those after the fork
-  point (`--fork-point`, which needs the reflog of the parent's remote ref).
+  parent `start --base` recorded, else `main`; then `verify` (unless an identical tree was just verified green, §4.2
+  step 5) and the lease push. It stops before touching anything when the remote branch has a commit this branch never
+  had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease alone would not
+  protect it, because the fetch just updated the expected value. A conflict aborts the rebase and leaves the branch as
+  it was; a red `verify` pushes nothing. After its parent was rebased or amended, a stacked child replays only its own
+  commits: those after the parent commit `start` recorded (`branch.<task>.primeBaseTip`, renewed by each publish on the
+  parent; `rebase --onto`), else those after the fork point (`--fork-point`, which needs the reflog of the parent's
+  remote ref).
   After a hand rebase on a newer base (`git rebase origin/<base>` in the worktree), the merge-base of the branch and
   its base replaces a recorded tip it descends from, so the base's own commits are not replayed again (#113).
 - A recorded base outside `<area>/<n>-<slug>` (a stage's `release/m<k>`, any long-lived branch) is never a done
@@ -1230,7 +1278,12 @@ list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more l
 hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
 that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
-context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
+context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
+also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
+orchestrate-stage skill's §7 turn-end check). It reads two more sources: one `gh pr list --base main --json files` for
+the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
+`.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
+HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
 "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
 body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
 fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
@@ -1559,11 +1612,12 @@ ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch --interval 3
 the tool's timeout at 300000 (its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own
 program), repeated while rc is 124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not
 registered yet. `wait --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl`
-passed at HEAD with a clean tree (`tree` set) and the tree is still clean, else 1 with the reason: a publisher then
-skips its standalone `verify`, since `publish` runs one. On a branch whose base predates `wait`, the agents run these
-commands in the foreground as before. Tests: `tools/runner/tests/test_wait.py` (a fake clock; the launch line and
-`wait` through Git Bash, cmd and PowerShell 5.1; the commands pass the permission model outside bypass). The rule is
-one Shell bullet of root CLAUDE.md, the commands are `bounded_waits` (§7.1).
+passed at HEAD with a clean tree (`tree` set), on HEAD's tree and runner, under 2 hours ago, and the tree is still
+clean, else 1 with the reason: the test `publish` runs before it reuses that verify (§4.2 step 5, #471). On a branch
+whose base predates `wait`, the agents run these commands in the foreground as before. Tests:
+`tools/runner/tests/test_wait.py` (a fake clock; the launch line and `wait` through Git Bash, cmd and PowerShell 5.1;
+the commands pass the permission model outside bypass). The rule is one Shell bullet of root CLAUDE.md, the commands are
+`bounded_waits` (§7.1).
 
 ### 11.18 An own `user://` per worktree [applied] (#182)
 Godot names `user://` after the project, so every checkout of

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -258,11 +259,13 @@ class WaitTest(unittest.TestCase):
 
 
 HEAD = "a" * 40
+# The newest record below started at 18:00: an hour before this "now", inside wait.REUSE_MAX_AGE.
+NOW = datetime(2026, 10, 4, 19, 0, tzinfo=UTC)
 
 
 class VerifiedTest(unittest.TestCase):
-    """`wait --verified`: a standalone verify before `publish` (which runs verify itself) is needed unless the newest
-    record passed at HEAD with a clean tree and the tree is still clean."""
+    """`wait --verified` (#471): 0 when `publish` would reuse the newest verify record instead of verifying again: it
+    passed at HEAD, on the same tree and runner, with a clean tree then and now, under 2 hours ago."""
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="prime wait "))
@@ -273,12 +276,13 @@ class VerifiedTest(unittest.TestCase):
         if records is not None:
             self.history.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
         status = {" M core/x.gd"} if dirty else set()
-        facts = {"branch": "tooling/7-x", "head": head, "tree": None if dirty else "t" * 40, "runner": "r"}
+        facts = {"branch": "tooling/7-x", "head": head, "tree": None if dirty else "t" * 40, "runner": "r" * 40}
         out = io.StringIO()
         with (
             mock.patch.object(verify, "HISTORY", self.history),
             mock.patch("runner.common.git_status", return_value=status),
             mock.patch.object(verify, "git_facts", return_value=facts),
+            mock.patch.object(wait, "utc_now", return_value=NOW),
             contextlib.redirect_stdout(out),
         ):
             rc = cli.main(["wait", "--verified"])
@@ -286,12 +290,14 @@ class VerifiedTest(unittest.TestCase):
 
     @staticmethod
     def record(**fields: object) -> dict:
-        return {"start": "2026-10-04T18:00:00Z", "head": HEAD, "tree": "t" * 40, "status": "passed", **fields}
+        record = {"start": "2026-10-04T18:00:00Z", "head": HEAD, "tree": "t" * 40, "runner": "r" * 40}
+        return {**record, "status": "passed", **fields}
 
     def test_a_passed_verify_at_head_with_a_clean_tree_needs_no_second_one(self) -> None:
         rc, out = self.run_verified([self.record(status="FAILED"), self.record()])
         self.assertEqual(rc, 0, out)
         self.assertIn("wait: verify passed at HEAD aaaaaaaaaaaa with a clean tree", out)
+        self.assertIn("`publish` reuses it", out)
 
     def test_anything_else_needs_a_verify(self) -> None:
         cases = {
@@ -302,6 +308,14 @@ class VerifiedTest(unittest.TestCase):
             "a dirty run": ([self.record(tree=None)], False, "ran with uncommitted changes"),
             "dirty now": ([self.record()], True, "uncommitted changes now"),
             "the newest is red": ([self.record(), self.record(status="FAILED")], False, "is FAILED"),
+            "another tree": ([self.record(tree="u" * 40)], False, "ran on tree uuuuuuuuuuuu, HEAD's is tttttttttttt"),
+            "another runner": ([self.record(runner="s" * 40)], False, "ran with runner ssssssssssss, HEAD's is rrrr"),
+            "no runner": ([self.record(runner=None)], False, "ran with runner None"),
+            "two hours old": ([self.record(start="2026-10-04T17:00:00Z")], False, "started 2 h 00 min ago, over"),
+            "older": ([self.record(start="2026-10-03T18:00:00Z")], False, "started 25 h 00 min ago"),
+            "no start": ([self.record(start=None)], False, "no readable start time"),
+            "a local time": ([self.record(start="2026-10-04T18:00:00")], False, "no readable start time"),
+            "in the future": ([self.record(start="2026-10-04T19:30:00Z")], False, "starts in the future"),
         }
         for name, (records, dirty, why) in cases.items():
             with self.subTest(case=name):
@@ -310,6 +324,22 @@ class VerifiedTest(unittest.TestCase):
                 self.assertEqual(rc, 1, out)
                 self.assertTrue(out.startswith("wait: no passed verify at HEAD"), out)
                 self.assertIn(why, out)
+                self.assertIn("publish runs verify itself", out)
+
+    def test_the_age_bound(self) -> None:
+        # Just under the bound reuses; at the bound it verifies again.
+        facts = {"head": HEAD, "tree": "t" * 40, "runner": "r" * 40}
+        start = datetime(2026, 10, 4, 18, 0, tzinfo=UTC)
+        for age, reused in ((timedelta(0), True), (timedelta(hours=2, seconds=-1), True), (timedelta(hours=2), False)):
+            with self.subTest(age=age):
+                why = wait.reuse_refusal(self.record(), facts, False, start + age)
+                self.assertEqual(why == "", reused, why)
+
+    def test_the_newest_record_wins_and_junk_lines_are_skipped(self) -> None:
+        lines = [json.dumps(self.record(status="FAILED")), "not json", "[1]", json.dumps(self.record()), "{"]
+        self.history.write_text("\n".join(lines), encoding="utf-8")
+        self.assertEqual(wait.newest_record(self.history), self.record())
+        self.assertEqual(wait.newest_record(self.tmp / "none.jsonl"), {})
 
     def test_a_log_and_verified_together_or_neither_is_2(self) -> None:
         for argv in (["wait"], ["wait", "x.log", "--verified"]):

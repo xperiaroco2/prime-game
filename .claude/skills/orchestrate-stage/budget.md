@@ -68,10 +68,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   (`slots --status` and `--quiet` are #416, P2), the cap above is the rule and the engineer's word in the chat pauses
   launches.
 
-## Args on every launch (N4 (a), N5 (a))
-- **`lean: true`** on every `issue-task` and `pr-rebase` launch from the reset, except a task whose agents need a skill
-  through the Skill tool (§3's row). The default flips in the workflows (P3b) after a clean week: a week of such
-  runs with no task failed for a missing tool
+## Launch args (N4 (b), N5 (a))
+- **`lean`** is the default of `issue-task` and `pr-rebase` since #458 (the engineer's N4 (b), 2026-10-06): pass
+  nothing. `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (§3's row)
   ([lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
   `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as
@@ -80,13 +79,21 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
-- `bounded_waits` is the default since #411: pass nothing. A resume keeps the args of its launch (§7), so a run
-  launched before the reset resumes without `lean`.
+- `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
+  launched before #458 without `lean`, add `lean: false` (§3's row), or the lean agent types change its agents and the
+  resume replays nothing past the reviews.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
   and art managers run their own repos' workflows (P5 ports the levers there).
-- **A handover** (§7) is due at a wave boundary once the session is over 12 hours old or its context over 300k tokens.
+- **A handover** (§7) is due once the context is over 300k tokens or the session over 12 hours old, even mid-wave:
+  N6 (b) as changed by the engineer on
+  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287), replacing "still only at a wave
+  boundary" (#329). Also due once the runs in flight end after a merge into `main` changed root `CLAUDE.md`,
+  `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context over 150k and no run in flight
+  (instead of a keep-alive). `wave`'s last line says which (§7's turn-end check).
+- **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
+  returns a compact result, and the manager writes no large file itself.
 
 ## The rhythm (N8 (b))
 - **By day**, while the engineer answers: UI, art and the game's tasks that need his answers or taste.

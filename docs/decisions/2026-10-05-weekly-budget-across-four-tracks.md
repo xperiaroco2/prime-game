@@ -4,6 +4,9 @@
   N4 (a), N5 (a), N6 (b), N7 (a) and N8 (b) ([PR #403 comment
   5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)). They govern the week from
   the weekly reset of 2026-10-06 10:00 UTC; N5 (the Sonnet publisher on clean runs) holds from the answer.
+  Amended 2026-10-06: N4 moved to (b), the default flipped now ([#302 comment
+  6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870)); P3b (#458) made `lean`
+  the default of `issue-task` and `pr-rebase`, with no clean week first.
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -163,6 +166,9 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   the four-track load (row 12). #307 proposed a one-stage trial after #332's A/B so the two effects stay apart; the
   A/B is done, and rotation acts on the managers while lean acts on workflow agents, so `metrics`' manager rows
   measure it alone. The risk is a handover that loses a detail; the wave comment's handover data carries the runs.
+  **Amended 2026-10-06** (#467; approved by the engineer:
+  [#467 comment 6014950287](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287)): the
+  handover may come mid-wave; the successor relaunches the runs in flight fresh from their commits.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

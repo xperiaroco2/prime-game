@@ -136,7 +136,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Wait at most S s (default 240) for a background job's last line exit=<n> (the job run as "
         "`<command> > <log> 2>&1; echo \"exit=$?\" >> <log>`), then print its summary and return n. Else 124 with a "
         "'still running' line: call wait again, never start the job again. 2 with a 'wait: ' line: no log, or one "
-        "it cannot read. --verified: 0 when the newest verify passed at HEAD with a clean tree.",
+        "it cannot read. --verified: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago "
+        "(publish reuses it).",
     )
     p.add_argument(
         "log", nargs="?", help="the job's log: its output, then the line exit=<n> (docs/AGENT_WORKFLOW.md §11)"
@@ -144,7 +145,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--verified",
         action="store_true",
-        help="no log: 0 when the newest verify passed at HEAD with a clean tree (publish needs no verify before it)",
+        help="no log: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago (publish reuses "
+        "it instead of verifying again)",
     )
     p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
     p = sub.add_parser(
@@ -256,9 +258,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "publish",
-        help="fetch, rebase the task branch on its base, verify, push with a lease",
+        help="fetch, rebase the task branch on its base, verify (unless an identical tree was just verified green), "
+        "push with a lease",
         description="Fetch, rebase the task branch on its PR's base (else start --base, else main), run verify, "
-        "push the branch with a lease. The only way a rebased branch goes up.",
+        "push the branch with a lease. The only way a rebased branch goes up. The verify is skipped, and publish says "
+        "so, when an identical tree was just verified green: the newest verify passed at the same head, tree and "
+        "runner, with a clean tree then and now, under 2 hours ago (wait --verified tells in advance).",
     )
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
 
@@ -501,8 +506,8 @@ def build_parser() -> argparse.ArgumentParser:
         "posts nothing)",
         description="A manager's finished and running runs and handover args, from its transcript and the journals: "
         "--since T writes the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; "
-        "--base B: whose merges, open PRs and merge-check; it posts nothing); --args N prints issue N's latest "
-        "launch args as JSON.",
+        "--base B: whose merges, open PRs and merge-check; it posts nothing; its last line is the handover verdict, "
+        "'handover due: <why>' or 'handover not due'); --args N prints issue N's latest launch args as JSON.",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")

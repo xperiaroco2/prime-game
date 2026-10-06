@@ -23,6 +23,10 @@
 - **Amended 2026-10-04 (#340):** root CLAUDE.md has a line of command names instead of the commands table; a task
   that adds a runner command adds its name in alphabetical order and a `description` in `tools/runner/cli.py`
   that its `--help` prints (`docs/AGENT_WORKFLOW.md` §3), not a table row ("Within a wave" under the proposed issues).
+- **Amended 2026-10-06 (#471):** item 2 (g) is adopted: `publish` skips its verify, and says so, only when the
+  newest verify passed at the same head, tree and runner, with a clean tree then and now, under 2 hours ago; any
+  other case, a rebase that moves the tree included, verifies as before (the engineer's answer on #471). Root
+  CLAUDE.md's definition of done says so, and the publishers run no standalone verify before `publish`.
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -263,7 +267,7 @@ P2 asserts, locally and on CI, that the number of runner tests actually run (not
 | (d) a machine-wide limit of N verify runs at once | four tracks starving each other's verify runs, and timing-sensitive steps (freeze, stall) failing under load | one task (S) | **recommended** (P8) |
 | (e) the ENet runs in parallel | | they measure timeouts and freezes in real time; overlap on a loaded CPU makes them flaky | rejected |
 | (f) selftest locally only when `tools/` (or `.claude/`) changed; CI still runs it | 199 s of CPU per run | changes the definition of done (`verify` = what CI runs) | **Needs the engineer** (N4); recommended **no**: after (a) and (b) selftest is off the critical path |
-| (g) `publish` skips its verify when the tree equals one already verified green | one run per task | publishers change the tree in nearly every task (360 fixes in 52 publishes), so it rarely applies; changes the definition of done | rejected |
+| (g) `publish` skips its verify when the tree equals one already verified green | one run per task | publishers change the tree in nearly every task (360 fixes in 52 publishes), so it rarely applies; changes the definition of done | rejected; adopted by #471 (amended 2026-10-06) |
 | (h) cache Godot's import on CI | | `check` is 12 s on CI | rejected |
 | (i) split CI into parallel jobs with a final `verify` job | the 5-minute CI watch per task | `.github/` edit; whether the runner's cores make (a) enough is measured in P2 first | later, if P2's CI timing says so |
 

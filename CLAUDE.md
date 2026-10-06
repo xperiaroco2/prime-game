@@ -97,8 +97,9 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 2. Fresh-context review as routed above. Fix the findings or list them in the PR.
 3. Docs updated if durable knowledge changed; intervention and credit entries added if any.
 4. In the engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; otherwise ask once: "Publish now?".
-   Then `publish` (rebase, verify, push), the PR from the template (linked issue, summary, verification output,
-   screenshots for visual changes, docs updated yes/no) and the handoff comment: done, left, decisions, gotchas.
+   Then `publish` (rebase; verify, unless an identical tree was just verified green; push), the PR from the template
+   (linked issue, summary, verification output, screenshots for visual changes, docs updated yes/no) and the handoff
+   comment: done, left, decisions, gotchas.
 5. Merges: `merge <pr> --base main` (its gate: the trust ADR) by the engineer's manager, task PRs into `release/m<k>`;
    gate exceptions, the designer's PRs and solo sessions without the engineer's word go to a human. Merging a parent
    deletes its branch and GitHub retargets each child; a child still on it gets `gh pr edit <n> --base <its base>`.

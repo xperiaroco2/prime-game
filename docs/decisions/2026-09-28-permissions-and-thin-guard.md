@@ -6,7 +6,9 @@
   2026-09-30 (Consequences); all git that discards work or rewrites history judged by the session's own worktree
   and task branch, same day (issue #51, Consequences); `gh` reads of other repositories freed and `gh` writes there
   judged by the guard, same day (issue #68, Consequences); every git command in the own worktree on its task branch
-  freed, an interactive rebase whatever its editor included, on 2026-10-06 (issue #457, Consequences)
+  freed, an interactive rebase whatever its editor included, on 2026-10-06 (issue #457, Consequences); `gh` writes
+  to the repositories of gh's own account and filtered deletes in the temp folder freed, same day (issue #464,
+  Consequences)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -106,3 +108,19 @@ ADRs).
   Kept: the main checkout, other worktrees and branches, the stash, the protected paths, `--update-refs`, `--exec`,
   `update-ref --stdin`, `git -c core.hooksPath`, and every push rule and the pre-push hook. `--exec` is a deliberate
   exception to #457's "every form" (its command can be a push the deny rules cannot see), left to the engineer.
+- **Amended 2026-10-06 (issue #464):** a `gh` write to a repository owned by gh's active account (the login
+  `gh api user` returns, read from gh's `hosts.yml`) passes like the same write to this repository, so the rules
+  judge it; the guard keeps its ask there for every `gh` command a deny or ask rule names (merges, deletion, auth,
+  secrets, ...), `gh issue transfer`, and `gh api` writes that are not a POST or reach a merge, secret, variable,
+  key, dispatch, release or transfer endpoint, because a spelling like `gh pr -R x merge` slips past the rules' text.
+  A filtered recursive delete in the temp folder (`rm -rf "$TEMP"/x*`, a non-recursive `Get-ChildItem $env:TEMP
+  -Filter x*` piped to `Remove-Item -Recurse`) is judged by what it matches: it asks only when the pattern reaches
+  outside the folder or cannot be read, may match a Claude scratchpad root or a folder holding one, or a match is or
+  holds a worktree (or a link or junction there); a kept `gh` command that names this repository asks too. Reason:
+  the engineer wanted both (PR #463's answers) and approved the issue on 2026-10-06;
+  over the week to 2026-10-06 the 30 asks for `gh` writes to `prime-game-art` and `prime-game-ui` waited about 12.6
+  hours and the one `rmtree-*` cleanup 8.8 hours, protecting nothing (`docs/AGENT_WORKFLOW.md` §8.2: the replay
+  shows 35 prompts gone and none new). The deny and ask rules, other owners and the other kept asks are unchanged.
+  Wanted by the engineer: https://github.com/xperiaroco2/prime-game/pull/463#issuecomment-6014583090 (answer 5);
+  approved for building, relayed by the manager:
+  https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6014999058.
