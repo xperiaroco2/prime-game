@@ -2097,7 +2097,7 @@ Windows lifts a starved thread, about every 4 s; such windows took up to 9.5 s t
 (about 75 runs), a headless bots process about 1 s. **Known load limits** (#354's runs of `playcheck spectate`
 before its fix, beside 32 busy loops on 16 cores, PR #394; #406): besides the slow exits, one run each failed with an
 honest bot corrected outside a placement, with a Godot process that exited with 0xC0000142 (Windows'
-STATUS_DLL_INIT_FAILED: it could not start; AGENT_WORKFLOW §11 since #441), and with window 2 not finishing its steps
+STATUS_DLL_INIT_FAILED: it could not start; AGENT_WORKFLOW §11.16 since #441), and with window 2 not finishing its steps
 (`wait life dead`); one more, under the other workflows' load alone, with player 2 never downed though the bot had
 finished its script (the next run passed). Five failed because the bots' process, which starts only once window 1
 hosts, joined so late that window 1's setup timed out after 30 s with 2 of 3 players: since #406, when bots play,
