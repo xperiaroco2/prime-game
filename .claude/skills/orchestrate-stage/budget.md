@@ -86,7 +86,14 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
   and art managers run their own repos' workflows (P5 ports the levers there).
-- **A handover** (§7) is due at a wave boundary once the session is over 12 hours old or its context over 300k tokens.
+- **A handover** (§7) is due once the context is over 300k tokens or the session over 12 hours old, even mid-wave:
+  N6 (b) as changed by the engineer on
+  [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287), replacing "still only at a wave
+  boundary" (#329). Also due once the runs in flight end after a merge into `main` changed root `CLAUDE.md`,
+  `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context over 150k and no run in flight
+  (instead of a keep-alive). `wave`'s last line says which (§7's turn-end check).
+- **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
+  returns a compact result, and the manager writes no large file itself.
 
 ## The rhythm (N8 (b))
 - **By day**, while the engineer answers: UI, art and the game's tasks that need his answers or taste.
