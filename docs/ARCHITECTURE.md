@@ -112,7 +112,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -391,10 +391,10 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
-| `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1, M4-5) |
-| `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1). Only the hand item: a belt item alone is `empty_hand` |
-| `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
+| `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5) |
+| `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
+| `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
 | `ReturnToLobby()` | the host only; End | |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
@@ -431,7 +431,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29) | everyone | `PickUp` |
 | `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is never sent to it) |
 | `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's) | everyone | an item comes to rest |
-| `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
+| `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
@@ -443,7 +443,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
 | `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); no `Correction` (it was held in place) |
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
-| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
@@ -456,7 +456,7 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
-(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6).
+(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -464,7 +464,7 @@ reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for 
 byte (the frame header, §4 Transport), its direction (C→H: a client to the host; H→C: the host to a client), its lane,
 its fields in order and its payload cap. **The field names are `core/`'s**: an intent's are the `args` its rules read
 (`MatchCommand`), an event's are the keys of its `to_dict()`. So a decoded message compares equal with what `core/`
-emitted, which the leak test needs (§4.6).
+emitted, which the leak test needs (§4.6.4).
 
 #### 4.3.1 Wire types
 Little-endian; sizes in bytes.
@@ -641,7 +641,7 @@ The rules of the table:
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
-  `ItemPickedUp`, `Swapped`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6);
+  `ItemPickedUp`, `Swapped`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6.1);
   a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item` and `belt_item`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests; the leak
   test compares the avatars. Prevents: a snapshot of every item and body (about 920 bytes with 10 players and 20 items)
   outgrowing the 1024-byte unreliable cap as a map gets more knives, with no way to split it, because the LATEST merge
@@ -649,7 +649,7 @@ The rules of the table:
 - **`MoveClaim` and the jump** (E2). `MoveClaim` stays on LATEST and carries `jumps`: the number of jumps the client
   made since it adopted the claim's epoch (0 after `Welcome`, after every `Correction` and after every placement). The
   movement rule compares it with the last accepted claim's count in that epoch: a rise d ≥ 1 is one jump allowance,
-  from the floor under the last accepted position (§7.1), and costs d times the jump cost (stamina settled first; not
+  from the floor under the last accepted position (§7.1.4), and costs d times the jump cost (stamina settled first; not
   covered: `Correction`); a fall within an epoch is `Correction`. `jumps` replaces `jumped` (3e). Prevents: the LATEST
   merge keeps the newest claim of a burst, a jump in an older one is lost, and the player is corrected to the ground
   for a jump the host never saw. Accepted: a merged burst grants one jump height, because the take-off points of the
@@ -728,7 +728,7 @@ The rules of the table:
 linked through `own_client_of`), the levels' collision worlds (3c, below) and the bookkeeping per peer. A thin `Node`
 calls `step(now_usec)` from `_physics_process` with `Time.get_ticks_usec()`, before the own client's nodes
 (`process_physics_priority`); tests and the bots runner call it with a clock of their own (§4.6). The host's own
-client is a `ClientSession` on the loopback like any other (§4.6) and reads nothing of `HostSession`.
+client is a `ClientSession` on the loopback like any other (§4.6.1) and reads nothing of `HostSession`.
 
 #### 4.5.1 Starting
 (1) Load the game mode and every level it names (the lobby and the maps), build each level's collision
@@ -806,7 +806,7 @@ failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd
 `tests/integration/server/host_session_voice_test.gd` (also a listener after one that is unreachable while the relay
 still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent unpatched;
 no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`, `bots-enet` and
-`bots --chaos` (§4.6).
+`bots --chaos` (§4.6.5).
 
 #### 4.5.6 Rate limits and malformed packets
 (E7; the numbers are placeholders, "not a decision"). The accident they bound:
@@ -855,7 +855,7 @@ the tests; the host's own client never counts. The F3 overlay shows the relay's
 counters only while the client's own copy of the phase has the class `LobbyPhase`, `CountdownPhase` or `EndPhase`
 (`DebugOverlay.shows_relay`; any other phase class, a later one included, shows only a note): live during a Round they
 would tell the host's player how many hear them (`voice_sent` rising by one per frame says exactly one unseen player
-is within 8 m). The bots runner's ENet host prints them every 5 s and at the end of its run (`RelayReport`, §4.6).
+is within 8 m). The bots runner's ENet host prints them every 5 s and at the end of its run (`RelayReport`, §4.6.3).
 Tests: `tests/integration/server/host_session_counters_test.gd` (with `HostNode.counters()`'s `over_budget` leaving out
 a voice frame over budget, seen failing with the session's `over_budget`), `host_node_test.gd`,
 `tests/unit/net/transport/loopback_transport_test.gd`, `tests/integration/net/enet_host_and_two_clients.gd` (ENet's
@@ -894,8 +894,8 @@ round).
   put-down, the body in `LifeRules`); and `stand_floor_below(p)` (in the port since 3e, #97), p's x and z at the height
   of the highest floor under five downward rays, at p and at four points on a circle of the capsule's radius around
   it, for a player's standing (`MovementRule`'s take-off and landing, the reach's eye height), so a player on a
-  ledge's edge stands on the ledge (§7.1's note). Prevents: a package put down within a capsule radius of a low ledge
-  resting at the ledge's height beside it, which the delivery check reads (§7.1), so the same drop counts or not by the
+  ledge's edge stands on the ledge (§7.1.5's note). Prevents: a package put down within a capsule radius of a low ledge
+  resting at the ledge's height beside it, which the delivery check reads (§7.1.14), so the same drop counts or not by the
   ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
   the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
@@ -918,7 +918,7 @@ round).
   host. `HostWorldQuery` (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule
   radius, `errors`; `add_level`, `use_level`) answers as above; with no level (an empty or unknown path) it answers like
   an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
-  (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1's limit that the host does not check walls),
+  (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1.9's limit that the host does not check walls),
   and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as `core/` does.
   `MarkerReader.read_levels` calls `use_level(path)` before reading each level. Tests: `tests/integration/server/`
   (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
@@ -931,7 +931,7 @@ seed, from which every later match's seed is derived (§3.3), so a log written a
 or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
 log next to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
 reading back). The log holds the seed: it stays on the host's disk and is never sent (§5). A host started from a task
-worktree writes into that worktree's own `user://` (#182, `docs/AGENT_WORKFLOW.md` §11), not the main checkout's.
+worktree writes into that worktree's own `user://` (#182, `docs/AGENT_WORKFLOW.md` §11.18), not the main checkout's.
 
 #### 4.5.11 A failed deal is fatal
 (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
@@ -972,407 +972,418 @@ The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comm
   `ClientSession` ends with its reason when the transport then reports the host lost.
 
 ### 4.6 The client, the bots and the leak test in M3 (#89)
-- **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
-  over ENet, and every bot. It decodes each message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView`
-  (§5): the events in order as (name, fields), the snapshots by tick, the voice frames as (speaker, tick, bytes). From
-  it, it keeps what a player may know: its peer id and epoch, the phase, the roster, the settings; the items, stations,
-  bodies and each player's life folded from the events (cleared on `LoadMatch` and on entering the lobby); the
-  avatars of the newest
-  snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
-  client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
-  state (invariant 2).
-  Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
-  `ClientModel` (the fold). What the build pinned:
-  - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
-    and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
-    physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
-    of travel in a claim of one client tick, past the crawl's allowance. So the client tick follows physics steps
-    on purpose, and `SessionNode` checks that the physics rate is a multiple of `Ticks.RATE`. After a hitch longer
-    than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
-    with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
-    out, steps trailing the real clock by 3 or more jump forward by whole client ticks, and the next claim covers
-    those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). While the
-    client sends no claims (`claims_accepted()` false: before the Welcome, in Loading, while dead) the steps are
-    re-synced the same way before every step, since its next claim follows a placement, whose credit
-    (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
-    tick counts `Ticks.RATE` ticks from the first step; a step sends at
-    most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
-    (`set_motion`, `count_jump`; `set_facing` for a turn outside its physics step, the respawn's level look, #191)
-    and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
-    reset the jump count and put the claims at the host's position.
-  - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
-    by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
-    phase accepts (the dead send no intents). Before `Welcome` it claims nothing.
-  - **The life fold** (E25, M4-2 #138): `ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
-    `Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
-    `Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
-    undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
-    `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
-    snapshot's avatar flag (the own player's never arrives);
-    `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
-    names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
-    `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
-  - **The slots and the tasks** (E25 for M4-5, #141): each `ClientModel.Item` holds its holder and whether it is
-    `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
-    (the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
-    `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
-    fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
-    Tests: `client_model_test.gd`.
-  - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
-    `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
-    M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
-    `EndReasons` (`client/app/`) says each in words.
-    `map_loaded(path, scene)` fires before `LoadAck` goes out, so its owner instantiates the scene in the handler; a
-    bot (`load_levels` off) checks the map and acknowledges without loading.
-  - "Entering the lobby" is entering a phase whose level is the lobby from one whose level is not (End to Lobby): the
-    model then clears a match's facts (items, stations, bodies, loads, role, teammates, tasks, the winner and the
-    avatars), as on `LoadMatch`, and keeps the roster and the settings. It then folds no snapshot of a host tick at
-    or below a floor (#251): the host tick estimated at the change (`host_tick_now`, which `AvatarViews` sets to its
-    `host_tick()`; a bot has none) or the newest snapshot held, the higher. A round snapshot sent before the
-    `PhaseChanged` (unreliable lane) can arrive after it (reliable lane), usually newer than every snapshot held
-    (tick T-1 delayed past the change of tick T), so the newest held alone does not reject it, and the wire carries
-    no tick of the change (`PhaseChanged` has `phase` and `end_tick`; the engineer chose no wire change). The host
-    tick runs on across matches, so the floor never holds back a later match's snapshots.
-  - The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
-    10-minute match); the bots and the leak test turn it on. The model is always kept. A decoded voice frame costs
-    about 250 B there (measured with M5-1's 30 to 60 B frames, #215): the four bots of `crew_delivers_every_package`
-    keep about 1 MB over its 25 s, but ten bots each hearing nine talkers for 10 minutes would keep 0.4 to 0.7 GB
-    (talk spurts to continuous), so bot scenarios stay short.
-  - `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
-    (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
-    no `core/` class (a test pins it). Each level's file and every scene and resource it reaches are hashed (§4.3).
-  - The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
-    the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
-  - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
-    `LoopbackHub`; the end-to-end tests against `HostSession` are 3f's (#100,
-    `tests/integration/server/host_session_end_to_end_test.gd` and its siblings), the bots 3h's.
-- **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script and an honest mover. The script is the
-  core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
-  stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
-  splits the steps from the stand-in and has `ScenarioBot` learn from (name, fields), which the core runner takes from
-  `to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
-  `ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
-  §4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
-  the flat levels (2j), at the crawl speed with no sprint while downed, claims every client tick, counts its jumps
-  and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
-  A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
-  wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
-  run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
-  the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
-  their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
-  `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
-  runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
-  (`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
-  on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
-  and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
-  is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
-  after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
-  listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
-  like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
-  with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
-  0.8 to 1.7 s, then a silence of 0.3 to 0.9 s, both lengths and the start shifted per bot; placeholders, "not a
-  decision"), so every scenario starts and stops streams; continuously when the scenario's `voice` says so (§9.7),
-  the load M5-4's `voice_load` measures. After a hitch of the clock at most the newest 5 frames go out at once (the
-  relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
-  none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
-  its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
-  **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
-  claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
-  them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
-  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once, and
-  with `hold_claims` its `MoveClaim` until its bot moved, #284),
-  `BotsRunner` (one process), `BotsEnet` (one instance over ENet), `LeakCheck`, `BotWatcher` (the lurker and the
-  refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
-  - A network bot's intent reaches `Match` one host tick or so after the core runner's would (the host reads it in
-    its next step), so a step's timing differs by that much between the runners; the six MVP scenarios pass in both.
-  - The mover claims one client tick of travel per client tick. Since #284 the bots runner and the ENet runner
-    (`NetPlay.claims_after_moves`) poll every client, let the bots act and move, and only then claim
-    (`BotClient.hold_claims`, `claim_clients`): a walk advances by the client ticks since the bot's last move or its
-    client's last claim, the later, which is exactly what that frame's claim covers (one tick after a `Welcome` or a
-    placement, and a walk of more than one tick walks instead of sprinting: the predicted stamina pays for one).
-    Standing, it claims where it stands with no velocity. Until #284 every client claimed as it polled, before its
-    bot moved, and the bot then advanced by every client tick since its last move: after a stall of the process
-    the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
-    (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
-    allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
-    honest bot (7 of 12 loaded runs, 2026-10-04). The chaos runner, a `BotsRunner`, claims after the moves too (its
-    hostile acts after the honest claims of the frame went out, as before). The perf and playcheck runners keep
-    claiming as they poll, so their bots move one client tick at most per frame (a stall slows them down).
-    `tests/scenarios/bots_stall_test.gd` stalls the one-process runner's clock (`BotsRunner._frame_usec`) in the
-    middle of a walk (60 ms to 1.5 s: no correction; 120 ms and more corrected before the fix), and pins the
-    accepted limit of §7.1: a stall right after the first claim of an epoch costs nothing up to `TICK_LEAD` (0.5 s)
-    and corrects the bots once past it. `tests/scenarios/bots_enet_test.gd` covers the ENet runner's start below.
-  - Bot 1 sends the `ForceRole`s once it knows the peer of every bot that joins at the start, then the setup's
-    `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
-  - Over ENet bot 1 takes its first step only once every bot that joins at the start is in its lobby (their
-    `PlayerJoined`), as both one-process runners join them all before the first tick; a remote bot that joins at
-    the start and whose join failed unanswered (`connect_failed` after `EnetTransport.JOIN_TIMEOUT_MS`) joins again
-    (that instance logs `joins again`). Under load an instance's process can start seconds before or after the
-    host's: until #284 a bot gave up on a host that was not listening yet and sat out the run, and bot 1 readied
-    alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
-    countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
-    more after it started is tried again: a host that refuses a join answers at once, before the admission with
-    `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-    both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
-    variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
-    every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
-    `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
-    admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
-    the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
-    time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
-    gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
-    chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
-    cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots
-    played in all 20, and both reds were a window that did not exit within `hostjoin`'s 10 s grace after the
-    stop (#354; since then a window gets 30 s, §4.7's `playcheck`).
-  - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
-    `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
-  - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
-    acts no more, but the `WaitFor` and `Expect` steps left in its script are checked on what it received, and any
-    step still left fails (M4-6): so `dropped_at_the_loading_deadline`'s third bot waits for its
-    `Disconnecting(load_deadline)`, which arrives just before the disconnect.
-- **The runners** (§9.7; E12):
-  - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/` but the measurements
-    (`BotScenario.measurement`, M5-4's `voice_load`), or those named, in one headless process over `LoopbackHub`: a
-    `HostSession` with `keep_history` on, bot 1 its own client, the others loopback clients, all stepped by a
-    simulated clock (60 steps per simulated second) as fast as the machine runs. A 10-minute scenario takes seconds
-    and runs the same every time.
-  - `--instances N` runs one scenario over ENet on 127.0.0.1, on a free port as `verify`'s `enet` step: instance 1
-    hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
-    peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
-    lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares. The host prints
-    its relay counters (§4.5 "The host's counters") every 5 s of the run and every total at the end, in instance 1's
-    log (`tools/out/logs/run/bots_main-1.log`): `VoiceDown`s sent per 20 ms, the relay's microseconds per 20 ms and
-    per send, the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
-    snapshots and the rest apart (`RelayReport`, M5-4).
-  - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
-    MVP scenarios, a few seconds more with M4-3's respawn scenario);
-    the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
-    M4-2 (#138) rewrote that scenario to knock both crew bots down, let them die and end by time up in a one-minute
-    match (the shortest `match_duration`), so it took about 67 s. M4-3 (#139) brought it back under a minute
-    without changing what it proves: the scenario forces a 40 s clock (`clock_s`, the debug command `ForceClock`),
-    so it still knocks down, kills and ends by time up over ENet, in about 48 s; its 55 s time limit fails a run
-    whose ForceClock was lost (the 1-minute clock). With M5-1's voice (50 frames a second in spurts, #215) the
-    one-process run of the 14 scenarios took 34 to 51 s on the engineer's machine while other worktrees ran their
-    checks (25 s before M5-1 on the same busy machine; the runner's limit is 300 s), and `bots-enet` 48 to 49 s
-    (2026-10-03).
-  - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
-    session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
-    file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
-    last `MatchEnded`, and its own bot, the lurker and the refused bot exactly. The one-process runner compares
-    every bot that did not leave exactly.
-  - A scenario step that needs two events in one poll (an `Expect` with `within_s` 0 right after a `WaitFor`) is
-    exact in one process but timing-dependent over ENet, where a poll may split them:
-    `dropped_at_the_loading_deadline --instances 3` failed once in four runs (2026-10-01), then passed 3 times. The
-    ENet runs checked to pass: `dissident_kills_the_crew` (the `verify` step), `late_join_cancels_the_countdown`
-    and `crew_delivers_every_package`. The bot's own placement check does not depend on polls: core/ emits one
-    `Correction` after each placement of a player and after its knockdown (M4-2), and the bot expects exactly that
-    one; a death sends none.
-- **The information-leak test** (§5) compares what each bot b decoded with `view_of(b)`:
-  - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
-  - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
-    lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
-    (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
-  - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
-    from the voice rule, the distance invariant (M5-1, #215, below and §5);
-  - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
-    client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
-    (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
-    Over ENet only the host's own in-process bot is held to it (a remote bot's real network may bunch two
-    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap (wrapping
-    at 65536), across the silences of the bots' talk spurts too (M5-1): the relay renumbers per speaker and listener
-    and the loopback loses nothing, so a relay that forwards the speaker's own seq (how long it talked to others)
-    fails. Every runner also fails on a packet its transport rejected or a message that did not decode (over ENet,
-    bot 1's over its whole run), and the one-process runner on a message the host counted over budget or a packet
-    the host's transport rejected;
-  - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
-    `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
-    `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
-    deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
-    events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
-    with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
-    `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
-    refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
-    `core/` disconnected that is still connected fails (`server/` did not carry it out). Prevents: a `server/`
-    refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
-    recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
-    which every bot is a player within one tick;
-  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
-    peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
-    read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
-    decoded: every event for one peer that b decoded names b as its subject, and a view with no peer id that decoded
-    anything fails. The events for one peer are a hand-written list in `LeakCheck.FOR_ONE` (`Welcome`,
-    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`, and since M4-6 `Disconnecting`), which does
-    not trust the declarations, plus any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
-    from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
-    bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
-    that match's dissidents only; no bot decodes a dead player's avatar, or a downed or dead speaker's voice frame, a
-    downed bot hears only the living and a dead bot nobody; no bot decodes a frame of a speaker farther away than the
-    hearing radius of the phase at the frame's tick (`VoiceRule.radius_of` the mode's rule for it), between the two
-    last accepted positions after that tick, which `LeakCheck.record_tick` records per tick with the radius, in 3D,
-    compared as `VoiceRule.within` compares them (`ScenarioInvariants.distance_problem`: the distance squared
-    against the radius squared, written again, never a call of the rule), and none under a radius of 0; a tick it
-    never recorded or a speaker that was not present then fails too (the distance invariant, M5-1, #215, E45: the
-    relay stamps a frame with the tick whose routing it used, refreshed right after that tick from the same state,
-    so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for
-    it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
-    (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
-    present for a whole round decode the same task events; no decoded message has a field that names a seed; a peer
-    that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
-    decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
-    window and drops what it compared.
-  - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
-    one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
-    catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
-    fail on each, revert, and record all three in the PR. **Done in 3h (#102)** with `tools\run.cmd bots`: the first
-    failed 5 of the 6 scenarios on the comparison alone (`refusals` has one bot, which gets its own `RoleAssigned`
-    anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
-    1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
-    with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
-    player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
-    comparison of each of the three bots, the remote ones compared as a prefix. After #115's review two more:
-    `server/` sending peer 1's snapshot to every present peer before each peer's own failed all 6 scenarios on the
-    superseded LATEST messages of every bot (before the fix all 6 passed), and over ENet on bot 1's; the relay
-    forwarding the speaker's own seq failed 4 of 6 on the voice streams (`refusals` has one bot; in
-    `dropped_at_the_loading_deadline` no stream is interrupted). `tests/scenarios/bots_runner_test.gd` sees each check
-    of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots and a second one of a tick, a
-    dead player's avatar and voice, the voice invariant, an event that reached the dead and not every living peer,
-    voice frames and seqs, seeds, task events, lost packets, a view with no peer, a prefix short of the last
-    `MatchEnded`) and the watcher's checks fail on a planted leak. **M4-2 (#138)** planted `Snapshots.for_peer`
-    sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
-    `ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
-    alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
-    **M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
-    `StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
-    planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
-    crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
-    `ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
-    its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
-    out of both lists passed: the check sees the plant only through a bot that is not living as a `TaskState` goes
-    out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
-    stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
-    two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
-    now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
-    `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
-    **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
-    distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
-    (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
-    hearing 1), and with that check switched off on `LeakCheck` alone for both bots (`it heard 2 at tick 125 from
-    8.130 m`, 67 and 76 frames beyond the radius), with no routing failure: `view_of` reads the same rule; then
-    passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd` plays the scenario under
-    `FixtureRoundVoicePastItsRadius` (ScenarioInvariants fail; with them left out, through the runner's
-    `_check_invariants` hook, LeakCheck fails both bots while `view_of` allows every frame decoded), and
-    `scenario_runner_test.gd` in the core runner. They also see the distance checks fail on a planted frame or
-    routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
-    with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
-    fails that sweep).
-- **Chaos bots** (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
-  P11): invariant 1 (the host validates every intent) against what a modified client can send, in
-  `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
-  package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
-  **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
-  downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
-  that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
-  it. Each peer's inputs come from a seeded `RandomNumberGenerator`; one rule per input class, each from the
-  sections named:
-  1. malformed frames (too short, too large, an unknown kind, random bytes behind one, the wrong direction or lane,
-     a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
-     item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
-     field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
-     `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
-  2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
-     (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
-  3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
-     it (`ChaosLog`, a `Logger`), what it sent after it in that poll counted `UNKNOWN_PEER` (§4, §4.5);
-  4. well-formed intents the phase or the rules refuse (§3.1, §3.2, §4.1; never one a race could turn into an
-     action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
-     `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
-     state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
-     `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
-     claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
-     §9.4), and no reply to a `LoadAck` of another match;
-  5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
-     stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire), each with
-     the per-tick masks (protocol v7, #155) of a client that walked every tick (`sprint_ticks` 0, `moved_ticks` all
-     ones: `ChaosFrames.HONEST_MOVED_TICKS`), so the shape alone calls for the answer (a mask outside the u32 the
-     encoder refuses, and core corrects; bits older than the covered ticks count for nothing: both
-     `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
-     the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
-     position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
-     a new baseline, checked as one tick and corrected: either answer passes;
-  6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
-     answer echoing the seq it carried (4 checks each copy);
-  7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
-     or End (§6; the leak test's voice checks run too);
-  8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
-     the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
-     player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
-     (`unavailable`), bot 1's knife among them.
 
-  4 to 7 are checked per `Match` call through `HostSession`'s observer, on the state the command met. In one
-  process the host's counts per chaos peer are replayed exactly from what it sent (`ChaosBudget`: `PeerBudget`'s
-  buckets refilled per host step, the 50-in-10 s count) and compared reason by reason with the host transport's,
-  which `CountingLoopback` keeps for the whole run (`RejectLedger`: `NetRejects` keeps per-peer counts only between
-  two summary lines); and the honest bots' decoded views (events, snapshots, voice but the hostile's) equal a
-  **baseline** run with the same seed and roster whose chaos peers are joined but idle. The leak test stays whole:
-  every bot, the lurker and the refused bot get `LeakCheck` and `check_counters` unchanged, the malformed peer
-  `check_bot` (its decoded events exactly `view_of`'s `Rejected`s) and, whatever `view_of` says, no snapshot, no
-  voice and no event but a `not_accepted` `Rejected` of an intent it sent; only the host's two counts (`host_problems`:
-  nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
-  (`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
-  process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,
-  the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
-  each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
-  a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
-  Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
-  `BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
-  - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
-    baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
-    step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
-    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
-    `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
-    `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
-  - **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
-    replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
-    (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
-    malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
-    forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
-    class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
-    chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
-    `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-    claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
-  - **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
-    kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
-    23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
-    `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
-    in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
-- **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
-  with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
-  headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
-  #21 ran; with `--headless` they still do. Since #149 (M4-6) they open the game in windows (§4.7). The default port
-  is a placeholder. Several windows on one PC
-  met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
-  **Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
-  everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
-  `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
-  with `content/modes/base_mode.tres`, the transport's `max_clients` one above the mode's remote players (so the one
-  too many hears `full` from `core/`, not a silent refusal by ENet), a `HostNode`, and the own `ClientSession`;
-  `--local` binds 127.0.0.1, else every interface. `--join=<address>` runs a `ClientSession` over `EnetTransport` with
-  the default `load_levels`. Each prints the roster, the phase and the counters from its `ClientModel`, transport and
-  `HostSession` (the runner's `--clients` start after the host printed `session: hosting`), and stops cleanly on the
-  runner's stop file (Ctrl+C, `--seconds`), or by itself once the runner's alive file is gone or stale (a killed
-  runner). A join that ends or is stopped before `Welcome` exits 1 with its reason in words, as does a welcomed client
-  that ends for anything but `host_lost`; the host exits 1 when it cannot start, its session ends for an error or its
-  own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.
-  Since M4-6 (#142) its arguments are `LaunchOptions` and its end texts `EndReasons`, both in `client/app/`, which
-  the game reads alike.
-  Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
-  `tests/unit/client/app/launch_options_test.gd` (the arguments) and
-  `tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, taken
-  at its own exit even while a kill of another process blocks, a killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
-  lobby roster Player1 to Player3).
-  Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
-  `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
+#### 4.6.1 `ClientSession` (`client/net/`, 3g)
+Is what every client runs: the host's own over the loopback, a remote one
+over ENet, and every bot. It decodes each message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView`
+(§5): the events in order as (name, fields), the snapshots by tick, the voice frames as (speaker, tick, bytes). From
+it, it keeps what a player may know: its peer id and epoch, the phase, the roster, the settings; the items, stations,
+bodies and each player's life folded from the events (cleared on `LoadMatch` and on entering the lobby); the
+avatars of the newest
+snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
+client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
+state (invariant 2).
+Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
+`ClientModel` (the fold). What the build pinned:
+- The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
+  and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
+  physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
+  of travel in a claim of one client tick, past the crawl's allowance. So the client tick follows physics steps
+  on purpose, and `SessionNode` checks that the physics rate is a multiple of `Ticks.RATE`. After a hitch longer
+  than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
+  with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
+  out, steps trailing the real clock by 3 or more jump forward by whole client ticks, and the next claim covers
+  those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). While the
+  client sends no claims (`claims_accepted()` false: before the Welcome, in Loading, while dead) the steps are
+  re-synced the same way before every step, since its next claim follows a placement, whose credit
+  (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
+  tick counts `Ticks.RATE` ticks from the first step; a step sends at
+  most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
+  (`set_motion`, `count_jump`; `set_facing` for a turn outside its physics step, the respawn's level look, #191)
+  and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
+  reset the jump count and put the claims at the host's position.
+- A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
+  by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
+  phase accepts (the dead send no intents). Before `Welcome` it claims nothing.
+- **The life fold** (E25, M4-2 #138): `ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
+  `Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
+  `Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
+  undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
+  `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
+  snapshot's avatar flag (the own player's never arrives);
+  `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
+  names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
+  `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
+- **The slots and the tasks** (E25 for M4-5, #141): each `ClientModel.Item` holds its holder and whether it is
+  `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
+  (the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
+  `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
+  fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
+  Tests: `client_model_test.gd`.
+- It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
+  `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
+  M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
+  `EndReasons` (`client/app/`) says each in words.
+  `map_loaded(path, scene)` fires before `LoadAck` goes out, so its owner instantiates the scene in the handler; a
+  bot (`load_levels` off) checks the map and acknowledges without loading.
+- "Entering the lobby" is entering a phase whose level is the lobby from one whose level is not (End to Lobby): the
+  model then clears a match's facts (items, stations, bodies, loads, role, teammates, tasks, the winner and the
+  avatars), as on `LoadMatch`, and keeps the roster and the settings. It then folds no snapshot of a host tick at
+  or below a floor (#251): the host tick estimated at the change (`host_tick_now`, which `AvatarViews` sets to its
+  `host_tick()`; a bot has none) or the newest snapshot held, the higher. A round snapshot sent before the
+  `PhaseChanged` (unreliable lane) can arrive after it (reliable lane), usually newer than every snapshot held
+  (tick T-1 delayed past the change of tick T), so the newest held alone does not reject it, and the wire carries
+  no tick of the change (`PhaseChanged` has `phase` and `end_tick`; the engineer chose no wire change). The host
+  tick runs on across matches, so the floor never holds back a later match's snapshots.
+- The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
+  10-minute match); the bots and the leak test turn it on. The model is always kept. A decoded voice frame costs
+  about 250 B there (measured with M5-1's 30 to 60 B frames, #215): the four bots of `crew_delivers_every_package`
+  keep about 1 MB over its 25 s, but ten bots each hearing nine talkers for 10 minutes would keep 0.4 to 0.7 GB
+  (talk spurts to continuous), so bot scenarios stay short.
+- `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
+  (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
+  no `core/` class (a test pins it). Each level's file and every scene and resource it reaches are hashed (§4.3).
+- The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
+  the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
+- Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
+  `LoopbackHub`; the end-to-end tests against `HostSession` are 3f's (#100,
+  `tests/integration/server/host_session_end_to_end_test.gd` and its siblings), the bots 3h's.
+
+#### 4.6.2 Bots (`tests/harness/`, 3h)
+A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
+core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
+stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
+splits the steps from the stand-in and has `ScenarioBot` learn from (name, fields), which the core runner takes from
+`to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
+`ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
+§4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
+the flat levels (2j), at the crawl speed with no sprint while downed, claims every client tick, counts its jumps
+and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
+wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
+run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
+the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
+their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
+`ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
+runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
+(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
+on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
+and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
+is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
+like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
+with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
+0.8 to 1.7 s, then a silence of 0.3 to 0.9 s, both lengths and the start shifted per bot; placeholders, "not a
+decision"), so every scenario starts and stops streams; continuously when the scenario's `voice` says so (§9.7),
+the load M5-4's `voice_load` measures. After a hitch of the clock at most the newest 5 frames go out at once (the
+relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
+none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
+its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
+**Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
+claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
+them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
+`LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once, and
+with `hold_claims` its `MoveClaim` until its bot moved, #284),
+`BotsRunner` (one process), `BotsEnet` (one instance over ENet), `LeakCheck`, `BotWatcher` (the lurker and the
+refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
+- A network bot's intent reaches `Match` one host tick or so after the core runner's would (the host reads it in
+  its next step), so a step's timing differs by that much between the runners; the six MVP scenarios pass in both.
+- The mover claims one client tick of travel per client tick. Since #284 the bots runner and the ENet runner
+  (`NetPlay.claims_after_moves`) poll every client, let the bots act and move, and only then claim
+  (`BotClient.hold_claims`, `claim_clients`): a walk advances by the client ticks since the bot's last move or its
+  client's last claim, the later, which is exactly what that frame's claim covers (one tick after a `Welcome` or a
+  placement, and a walk of more than one tick walks instead of sprinting: the predicted stamina pays for one).
+  Standing, it claims where it stands with no velocity. Until #284 every client claimed as it polled, before its
+  bot moved, and the bot then advanced by every client tick since its last move: after a stall of the process
+  the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
+  (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
+  allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
+  honest bot (7 of 12 loaded runs, 2026-10-04). The chaos runner, a `BotsRunner`, claims after the moves too (its
+  hostile acts after the honest claims of the frame went out, as before). The perf and playcheck runners keep
+  claiming as they poll, so their bots move one client tick at most per frame (a stall slows them down).
+  `tests/scenarios/bots_stall_test.gd` stalls the one-process runner's clock (`BotsRunner._frame_usec`) in the
+  middle of a walk (60 ms to 1.5 s: no correction; 120 ms and more corrected before the fix), and pins the
+  accepted limit of §7.1.5: a stall right after the first claim of an epoch costs nothing up to `TICK_LEAD` (0.5 s)
+  and corrects the bots once past it. `tests/scenarios/bots_enet_test.gd` covers the ENet runner's start below.
+- Bot 1 sends the `ForceRole`s once it knows the peer of every bot that joins at the start, then the setup's
+  `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
+- Over ENet bot 1 takes its first step only once every bot that joins at the start is in its lobby (their
+  `PlayerJoined`), as both one-process runners join them all before the first tick; a remote bot that joins at
+  the start and whose join failed unanswered (`connect_failed` after `EnetTransport.JOIN_TIMEOUT_MS`) joins again
+  (that instance logs `joins again`). Under load an instance's process can start seconds before or after the
+  host's: until #284 a bot gave up on a host that was not listening yet and sat out the run, and bot 1 readied
+  alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
+  countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
+  more after it started is tried again: a host that refuses a join answers at once, before the admission with
+  `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
+  both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+  variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
+  every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
+  `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
+  admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
+  the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
+  time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
+  gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
+  chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
+  cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots
+  played in all 20, and both reds were a window that did not exit within `hostjoin`'s 10 s grace after the
+  stop (#354; since then a window gets 30 s, §4.7's `playcheck`).
+- `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
+  `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
+- A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
+  acts no more, but the `WaitFor` and `Expect` steps left in its script are checked on what it received, and any
+  step still left fails (M4-6): so `dropped_at_the_loading_deadline`'s third bot waits for its
+  `Disconnecting(load_deadline)`, which arrives just before the disconnect.
+
+#### 4.6.3 The runners (§9.7; E12)
+- `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/` but the measurements
+  (`BotScenario.measurement`, M5-4's `voice_load`), or those named, in one headless process over `LoopbackHub`: a
+  `HostSession` with `keep_history` on, bot 1 its own client, the others loopback clients, all stepped by a
+  simulated clock (60 steps per simulated second) as fast as the machine runs. A 10-minute scenario takes seconds
+  and runs the same every time.
+- `--instances N` runs one scenario over ENet on 127.0.0.1, on a free port as `verify`'s `enet` step: instance 1
+  hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
+  peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
+  lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares. The host prints
+  its relay counters (§4.5 "The host's counters") every 5 s of the run and every total at the end, in instance 1's
+  log (`tools/out/logs/run/bots_main-1.log`): `VoiceDown`s sent per 20 ms, the relay's microseconds per 20 ms and
+  per send, the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
+  snapshots and the rest apart (`RelayReport`, M5-4).
+- The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
+  MVP scenarios, a few seconds more with M4-3's respawn scenario);
+  the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
+  M4-2 (#138) rewrote that scenario to knock both crew bots down, let them die and end by time up in a one-minute
+  match (the shortest `match_duration`), so it took about 67 s. M4-3 (#139) brought it back under a minute
+  without changing what it proves: the scenario forces a 40 s clock (`clock_s`, the debug command `ForceClock`),
+  so it still knocks down, kills and ends by time up over ENet, in about 48 s; its 55 s time limit fails a run
+  whose ForceClock was lost (the 1-minute clock). With M5-1's voice (50 frames a second in spurts, #215) the
+  one-process run of the 14 scenarios took 34 to 51 s on the engineer's machine while other worktrees ran their
+  checks (25 s before M5-1 on the same busy machine; the runner's limit is 300 s), and `bots-enet` 48 to 49 s
+  (2026-10-03).
+- Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
+  session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
+  file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
+  last `MatchEnded`, and its own bot, the lurker and the refused bot exactly. The one-process runner compares
+  every bot that did not leave exactly.
+- A scenario step that needs two events in one poll (an `Expect` with `within_s` 0 right after a `WaitFor`) is
+  exact in one process but timing-dependent over ENet, where a poll may split them:
+  `dropped_at_the_loading_deadline --instances 3` failed once in four runs (2026-10-01), then passed 3 times. The
+  ENet runs checked to pass: `dissident_kills_the_crew` (the `verify` step), `late_join_cancels_the_countdown`
+  and `crew_delivers_every_package`. The bot's own placement check does not depend on polls: core/ emits one
+  `Correction` after each placement of a player and after its knockdown (M4-2), and the bot expects exactly that
+  one; a death sends none.
+
+#### 4.6.4 The information-leak test (§5)
+Compares what each bot b decoded with `view_of(b)`:
+- events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
+- snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
+  lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
+  (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
+- voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
+  from the voice rule, the distance invariant (M5-1, #215, below and §5);
+- what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
+  client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
+  (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
+  Over ENet only the host's own in-process bot is held to it (a remote bot's real network may bunch two
+  snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap (wrapping
+  at 65536), across the silences of the bots' talk spurts too (M5-1): the relay renumbers per speaker and listener
+  and the loopback loses nothing, so a relay that forwards the speaker's own seq (how long it talked to others)
+  fails. Every runner also fails on a packet its transport rejected or a message that did not decode (over ENet,
+  bot 1's over its whole run), and the one-process runner on a message the host counted over budget or a packet
+  the host's transport rejected;
+- peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
+  `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
+  `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
+  deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
+  events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
+  with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
+  `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
+  refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
+  `core/` disconnected that is still connected fails (`server/` did not carry it out). Prevents: a `server/`
+  refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
+  recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
+  which every bot is a player within one tick;
+- the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
+  peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
+  read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
+  decoded: every event for one peer that b decoded names b as its subject, and a view with no peer id that decoded
+  anything fails. The events for one peer are a hand-written list in `LeakCheck.FOR_ONE` (`Welcome`,
+  `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`, and since M4-6 `Disconnecting`), which does
+  not trust the declarations, plus any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
+  from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
+  bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
+  that match's dissidents only; no bot decodes a dead player's avatar, or a downed or dead speaker's voice frame, a
+  downed bot hears only the living and a dead bot nobody; no bot decodes a frame of a speaker farther away than the
+  hearing radius of the phase at the frame's tick (`VoiceRule.radius_of` the mode's rule for it), between the two
+  last accepted positions after that tick, which `LeakCheck.record_tick` records per tick with the radius, in 3D,
+  compared as `VoiceRule.within` compares them (`ScenarioInvariants.distance_problem`: the distance squared
+  against the radius squared, written again, never a call of the rule), and none under a radius of 0; a tick it
+  never recorded or a speaker that was not present then fails too (the distance invariant, M5-1, #215, E45: the
+  relay stamps a frame with the tick whose routing it used, refreshed right after that tick from the same state,
+  so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for
+  it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
+  (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
+  present for a whole round decode the same task events; no decoded message has a field that names a seed; a peer
+  that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
+  decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
+  window and drops what it compared.
+- **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
+  one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
+  catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
+  fail on each, revert, and record all three in the PR. **Done in 3h (#102)** with `tools\run.cmd bots`: the first
+  failed 5 of the 6 scenarios on the comparison alone (`refusals` has one bot, which gets its own `RoleAssigned`
+  anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
+  1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
+  with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
+  player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
+  comparison of each of the three bots, the remote ones compared as a prefix. After #115's review two more:
+  `server/` sending peer 1's snapshot to every present peer before each peer's own failed all 6 scenarios on the
+  superseded LATEST messages of every bot (before the fix all 6 passed), and over ENet on bot 1's; the relay
+  forwarding the speaker's own seq failed 4 of 6 on the voice streams (`refusals` has one bot; in
+  `dropped_at_the_loading_deadline` no stream is interrupted). `tests/scenarios/bots_runner_test.gd` sees each check
+  of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots and a second one of a tick, a
+  dead player's avatar and voice, the voice invariant, an event that reached the dead and not every living peer,
+  voice frames and seqs, seeds, task events, lost packets, a view with no peer, a prefix short of the last
+  `MatchEnded`) and the watcher's checks fail on a planted leak. **M4-2 (#138)** planted `Snapshots.for_peer`
+  sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
+  `ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
+  alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
+  **M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
+  `StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
+  planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
+  crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
+  `ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
+  its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
+  out of both lists passed: the check sees the plant only through a bot that is not living as a `TaskState` goes
+  out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
+  stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
+  two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
+  now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
+  `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+  **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
+  distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
+  (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
+  hearing 1), and with that check switched off on `LeakCheck` alone for both bots (`it heard 2 at tick 125 from
+  8.130 m`, 67 and 76 frames beyond the radius), with no routing failure: `view_of` reads the same rule; then
+  passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd` plays the scenario under
+  `FixtureRoundVoicePastItsRadius` (ScenarioInvariants fail; with them left out, through the runner's
+  `_check_invariants` hook, LeakCheck fails both bots while `view_of` allows every frame decoded), and
+  `scenario_runner_test.gd` in the core runner. They also see the distance checks fail on a planted frame or
+  routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
+  with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
+  fails that sweep).
+
+#### 4.6.5 Chaos bots
+(#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
+P11): invariant 1 (the host validates every intent) against what a modified client can send, in
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
+package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+**hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
+downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
+that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
+it. Each peer's inputs come from a seeded `RandomNumberGenerator`; one rule per input class, each from the
+sections named:
+1. malformed frames (too short, too large, an unknown kind, random bytes behind one, the wrong direction or lane,
+   a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
+   item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
+   field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
+   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
+   (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
+3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
+   it (`ChaosLog`, a `Logger`), what it sent after it in that poll counted `UNKNOWN_PEER` (§4, §4.5);
+4. well-formed intents the phase or the rules refuse (§3.1, §3.2, §4.1; never one a race could turn into an
+   action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
+   `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
+   state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
+   `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
+   claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
+   §9.4), and no reply to a `LoadAck` of another match;
+5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
+   stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire), each with
+   the per-tick masks (protocol v7, #155) of a client that walked every tick (`sprint_ticks` 0, `moved_ticks` all
+   ones: `ChaosFrames.HONEST_MOVED_TICKS`), so the shape alone calls for the answer (a mask outside the u32 the
+   encoder refuses, and core corrects; bits older than the covered ticks count for nothing: both
+   `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
+   the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
+   position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
+   a new baseline, checked as one tick and corrected: either answer passes;
+6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
+   answer echoing the seq it carried (4 checks each copy);
+7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
+   or End (§6; the leak test's voice checks run too);
+8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
+   the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
+   player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
+   (`unavailable`), bot 1's knife among them.
+
+4 to 7 are checked per `Match` call through `HostSession`'s observer, on the state the command met. In one
+process the host's counts per chaos peer are replayed exactly from what it sent (`ChaosBudget`: `PeerBudget`'s
+buckets refilled per host step, the 50-in-10 s count) and compared reason by reason with the host transport's,
+which `CountingLoopback` keeps for the whole run (`RejectLedger`: `NetRejects` keeps per-peer counts only between
+two summary lines); and the honest bots' decoded views (events, snapshots, voice but the hostile's) equal a
+**baseline** run with the same seed and roster whose chaos peers are joined but idle. The leak test stays whole:
+every bot, the lurker and the refused bot get `LeakCheck` and `check_counters` unchanged, the malformed peer
+`check_bot` (its decoded events exactly `view_of`'s `Rejected`s) and, whatever `view_of` says, no snapshot, no
+voice and no event but a `not_accepted` `Rejected` of an intent it sent; only the host's two counts (`host_problems`:
+nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
+(`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
+process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,
+the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
+each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
+a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
+Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
+`BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
+- **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
+  baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
+  step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+  about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
+  `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
+  `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+- **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
+  replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
+  (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
+  malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
+  forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
+  class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
+  chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
+  `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
+  claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+- **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
+  kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
+  23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
+  `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
+  in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
+
+#### 4.6.6 `host` and `join` (3i)
+`tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
+with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
+headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
+#21 ran; with `--headless` they still do. Since #149 (M4-6) they open the game in windows (§4.7). The default port
+is a placeholder. Several windows on one PC
+met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
+**Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
+everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
+`ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
+with `content/modes/base_mode.tres`, the transport's `max_clients` one above the mode's remote players (so the one
+too many hears `full` from `core/`, not a silent refusal by ENet), a `HostNode`, and the own `ClientSession`;
+`--local` binds 127.0.0.1, else every interface. `--join=<address>` runs a `ClientSession` over `EnetTransport` with
+the default `load_levels`. Each prints the roster, the phase and the counters from its `ClientModel`, transport and
+`HostSession` (the runner's `--clients` start after the host printed `session: hosting`), and stops cleanly on the
+runner's stop file (Ctrl+C, `--seconds`), or by itself once the runner's alive file is gone or stale (a killed
+runner). A join that ends or is stopped before `Welcome` exits 1 with its reason in words, as does a welcomed client
+that ends for anything but `host_lost`; the host exits 1 when it cannot start, its session ends for an error or its
+own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.
+Since M4-6 (#142) its arguments are `LaunchOptions` and its end texts `EndReasons`, both in `client/app/`, which
+the game reads alike.
+Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
+`tests/unit/client/app/launch_options_test.gd` (the arguments) and
+`tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, taken
+at its own exit even while a kill of another process blocks, a killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
+lobby roster Player1 to Player3).
+Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
+`CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
 
 ### 4.7 The game client (M4 design, #125)
 Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
@@ -1446,7 +1457,7 @@ the others again from the round's poses behind the interpolation delay, at their
 the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`. One reordered packet still brought them
 back until #251: a round snapshot sent before the change and arriving after it. `SnapshotBuffer.clear(floor_tick)` now
 keeps no snapshot at or below the host tick estimated at the change (nor at or below the newest it held), and the
-model folds none (§4.6); such an arrival still counts for the jitter.
+model folds none (§4.6.1); such an arrival still counts for the jitter.
 
 #### 4.7.4 The flow
 
@@ -1541,7 +1552,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
   and `count_jump` at a jump, and `set_facing` when it turns outside the step (the level look of a respawn or a
   placement, #191, #240);
-  `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
+  `ClientSession` sends one claim per 20 Hz client tick (§4.6.1). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
   stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
@@ -1555,7 +1566,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - **Stamina** (E24): `PredictedStamina`, which replaced `LocalStamina` (the client's only copy of
   `StaminaLedger`'s rule), predicts between `SelfStatus` updates; the HUD shows the prediction, and sprint and jump
   are gated by it. On the network it settles claim by claim and follows each `SelfStatus` from the claim it names,
-  without giving back the ticks in flight (#155, §7.1 Speed).
+  without giving back the ticks in flight (#155, §7.1.5 Speed).
 - **Remote players** (E23): `SnapshotBuffer` (pure, unit-tested) keeps the newest snapshots by host tick, estimates
   the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
   player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
@@ -1580,7 +1591,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
   `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
   `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
-  §7.1 Speed); `PlayerTuning` holds the push factors and the view's easing only. `RemotePlayerBody` takes its
+  §7.1.5 Speed); `PlayerTuning` holds the push factors and the view's easing only. `RemotePlayerBody` takes its
   capsule and eye height from the rules, turns the body by the yaw and the head (a visor) by the pitch, and is a
   `StaticBody3D` (above).
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
@@ -1667,7 +1678,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   "not a decision"), for the living, the downed and the dead alike: a pure sound chooser (unit-tested) drops an event
   from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
   so an uncut sound would tell every client through the walls where a package was just put down. Behind the level
-  a sound plays muffled, not cut (one ray from the ears as it starts, M5-7; §6's occlusion).
+  a sound plays muffled, not cut (one ray from the ears as it starts, M5-7; §6.5's occlusion).
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
   the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands
@@ -1907,7 +1918,7 @@ follows the M5 ADR's checklist (its §3; §6 below).
 #### 4.7.15 Built in M5-5 (#219), hearing voice
 - `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
   `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
-  `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6's "Playback and the ears".
+  `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6.5's "Playback and the ears".
   `WorldSounds` plays on the Effects bus and measures its range from the viewport's current `AudioListener3D`.
 - `client/life/`: `Ears` (an `AudioListener3D`; `Ears.point()` and `lying_head()` are pure), placed by `LifeView`
   after the cameras in each physics step, turned with the current camera, current while a session runs. `LiftMusic`
@@ -1967,7 +1978,7 @@ a follow-up on #144 and #145):
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
-#### 4.7.17 Built in M5-6 (#220), speaking (§6's "Capture and the gate")
+#### 4.7.17 Built in M5-6 (#220), speaking (§6.5's "Capture and the gate")
 - `voice/`: `VoiceCapture` (the device list, the chosen device opened, every whole 20 ms chunk at the device's rate
   with its age, errors in words, the "opening" mark through `mark_changed`) over a `VoiceMicrophone` (the machine's,
   through 4.7's `AudioServer` input API; `VoiceToneMicrophone`, the debug test tone; the tests' `FakeMicrophone`).
@@ -2076,7 +2087,7 @@ stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `C
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
-went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6 "bots runner"). Nothing in
+went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6.2 "bots runner"). Nothing in
 `client/` changed for it. The stop is `host`'s: the stop file, then a kill once a process's grace has passed, 30 s
 for a window (`WINDOW_GRACE_SECONDS`) and `host`'s 10 s for the bots; the report gives each one's time from the stop
 to its exit. A window's grace is longer because its exit can wait seconds on the GPU driver (#354): on a PC whose
@@ -2086,7 +2097,7 @@ Windows lifts a starved thread, about every 4 s; such windows took up to 9.5 s t
 (about 75 runs), a headless bots process about 1 s. **Known load limits** (#354's runs of `playcheck spectate`
 before its fix, beside 32 busy loops on 16 cores, PR #394; #406): besides the slow exits, one run each failed with an
 honest bot corrected outside a placement, with a Godot process that exited with 0xC0000142 (Windows'
-STATUS_DLL_INIT_FAILED: it could not start; AGENT_WORKFLOW §11 since #441), and with window 2 not finishing its steps
+STATUS_DLL_INIT_FAILED: it could not start; AGENT_WORKFLOW §11.16 since #441), and with window 2 not finishing its steps
 (`wait life dead`); one more, under the other workflows' load alone, with player 2 never downed though the bot had
 finished its script (the next run passed). Five failed because the bots' process, which starts only once window 1
 hosts, joined so late that window 1's setup timed out after 30 s with 2 of 3 players: since #406, when bots play,
@@ -2127,7 +2138,7 @@ ADR's §6 check the rest.
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
 - The information-leak test (bot harness, M3) asserts that no client ever receives anything it is not entitled to,
   connected peers that are not players included: they receive at most a `Rejected`, none unless they sent a `Hello`
-  (§4.6's lurker). It is the most important test in the project. Once it exists, prove it: inject a leak, see it
+  (§4.6.4's lurker). It is the most important test in the project. Once it exists, prove it: inject a leak, see it
   fail, revert.
 - `tools\run.cmd bots` (M3) starts a headless host and N headless bot clients that play a full scripted match, then
   asserts: the match ends, the winner is correct, no errors are logged, and no client received information it was
@@ -2159,7 +2170,7 @@ ADR's §6 check the rest.
   nothing: the downed are public, `Respawned` is as public as the body it removes and the avatar that appears again,
   a raise and a revive are as public as the two avatars (M4-4), a dead player
   gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
-  no event that a living peer present then does not get (the leak test checks it, §4.6; M4-2 tests the snapshots in
+  no event that a living peer present then does not get (the leak test checks it, §4.6.4; M4-2 tests the snapshots in
   `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
   side, and each player knows from its own role whether it won. A later mode that reveals roles would add an event with
   its own audience. A joiner's `Welcome` holds public facts only.
@@ -2173,21 +2184,21 @@ ADR's §6 check the rest.
   sends each tick, is empty for anyone but a present player, and in a phase that sends no snapshots
   (`tests/unit/match/view_of_test.gd`). The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
-  `view_of` does not hold is a leak (§4.6: the events exactly, the snapshots' avatars and the voice frames as
+  `view_of` does not hold is a leak (§4.6.4: the events exactly, the snapshots' avatars and the voice frames as
   subsets).
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
-  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; the voice invariant (§6): no
+  dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; the voice invariant (§6.3): no
   peer gets a downed or dead speaker's voice frame, a downed peer gets only the living's and a dead peer none;
   the distance invariant (M5-1, #215, E45): no peer gets a frame of a speaker farther away than the phase's hearing
   radius (`VoiceRule.radius_of`, the client's cutoff, E41) at the frame's tick, between the last accepted positions,
   in 3D, compared as `VoiceRule.within` does, and none under a radius of 0 (`ScenarioInvariants` per tick on
   `speakers_for`, `LeakCheck` per decoded frame; seen failing on a `RoundVoice` that ignores its radius, which
-  `view_of` agrees with, §4.6);
+  `view_of` agrees with, §4.6.4);
   nothing reaches only the dead: every event a dead peer gets is for it alone or also reaches every living peer
   present then (`ScenarioInvariants` and `LeakCheck`, M4-2, each seen failing on a plant in `tests/scenarios/` and
-  the first on `bots`, §4.6); nobody gets another player's health, stamina or damage; every player receives the same
+  the first on `bots`, §4.6.4); nobody gets another player's health, stamina or damage; every player receives the same
   task events; no message holds a seed.
 
 Rejected ways of expressing it (per field, per content part, filtering in `server/`): the ADR.
@@ -2196,20 +2207,20 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 capture → gate → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
 `server/`) → listener → jitter buffer → decode → `AudioStreamPlayer3D` on the speaker's avatar → the listener's ears.
-- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities. Walls
+- Routing inputs: distance, life (the voice invariant, §6.3), later items such as radios and role abilities. Walls
   do not enter the routing: they muffle on the listener (the M5 ADR's D13 (a), the engineer's answer). Dead chat and
   meetings, in the brief, are gone (vision revision 1).
-- **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
-  and #16):
-  - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
-    24 kbit/s, RNNoise. v6.6 crashes the editor on import (goatchurchprime/two-voip-godot-4#107).
-  - Audio is **relayed through the host**, which routes each frame and never decodes it. Clients then receive only
-    the voice they are entitled to (§5), and no peer-to-peer connection is needed.
-  - Falloff happens on the listener: the `AudioStreamPlayer3D`'s `max_distance` equals the host's cutoff, so the
-    sound fades to about zero where delivery stops. Only the host's rule decides who hears; the fade is cosmetic.
-  - Measured: mouth to ear 365–375 ms on one machine, of which ~70 % is the audio devices and Windows, which
-    Godot does not see. The game's own path is ~85 ms, plus ~23 ms for RNNoise. CPU for 10 players talking at once:
-    ≤ 11 % of one core. A speaker uploads ~54 kbit/s on the wire.
+
+### 6.1 Decided by the M1 spike ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15 and #16)
+- Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
+  24 kbit/s, RNNoise. v6.6 crashes the editor on import (goatchurchprime/two-voip-godot-4#107).
+- Audio is **relayed through the host**, which routes each frame and never decodes it. Clients then receive only
+  the voice they are entitled to (§5), and no peer-to-peer connection is needed.
+- Falloff happens on the listener: the `AudioStreamPlayer3D`'s `max_distance` equals the host's cutoff, so the
+  sound fades to about zero where delivery stops. Only the host's rule decides who hears; the fade is cosmetic.
+- Measured: mouth to ear 365–375 ms on one machine, of which ~70 % is the audio devices and Windows, which
+  Godot does not see. The game's own path is ~85 ms, plus ~23 ms for RNNoise. CPU for 10 players talking at once:
+  ≤ 11 % of one core. A speaker uploads ~54 kbit/s on the wire.
 - Lessons for M5:
   - Voice routing follows the same visibility rules as snapshots.
   - Stop sending during silence (voice activity detection or Opus DTX). A silent player's steady stream costs
@@ -2225,234 +2236,242 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     would be ~40 % of one core.
   - Godot 4.7.2 WASAPI reads only mono or stereo microphones; laptop arrays need 4.8 (#22). There is no
     input-latency API in 4.7.
-- **Routing per phase in the base mode** (#32; radii in the [MVP rules](decisions/2026-09-29-mvp-rules.md)). The mode's
-  data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
 
-  | Phase | Who hears whom |
-  |---|---|
-  | Lobby, Countdown | every pair within the voice radius |
-  | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
-  | Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
-  | End | nobody: the game is frozen |
+### 6.2 Routing per phase in the base mode (#32; radii in the [MVP rules](decisions/2026-09-29-mvp-rules.md))
+The mode's
+data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
 
-  A player who left hears nobody and is heard by nobody.
-- **The voice invariant** (vision revision 1; built in M4-1, #137): nobody hears a downed or dead player, under
-  any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
-  and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
-  replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
-  `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5).
-- **Built in 2i** (#65, `core/voice/`): `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
-  data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
-  positions (§7.1), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
-  `distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
-  A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
-  removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
-- **Designed for M5** (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
-  2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
-  The lessons above, answered:
-  - **The codec boundary, the gate and the jitter buffer** (E34, E37, E38, E39; built in M5-2, #216). `voice/`'s
-    `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
-    (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
-    (`push(frame, conceal)`, `queued_frames()`, `free_frames()`, `set_running(on)`, `flush()`) are what `client/`
-    and the rest of `voice/` use; each base is a codec that is never available. `TwoVoipCodec` (with
-    `TwoVoipEncoder` and `TwoVoipPlayback`) reaches the addon only through `ClassDB.class_exists`, `instantiate` and
-    `Object.call` with typed results, with the M1 spike's settings (48 kHz, mono, 960 samples, 24 kbit/s,
-    complexity 5, RNNoise or none) and the spike's method names; its class names are constructor arguments
-    defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
-    addon every script parses, voice is unavailable and the game runs.
-    `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
-    activity (the default) opens while the raw chunk's peak is over `threshold` (0.05) and for a hangover of 300 ms
-    after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
-    pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
-    closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
-    the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
-    sent nor kept for the pre-roll, though its chunk counts for the hangover; while the gate is closed it empties the
-    ring, so audio from before an outage never goes out as pre-roll (M5-6). `threshold` is clamped to 0.01 (−40 dBFS,
-    a placeholder) to 1: at or below 0 the gate would open on digital silence and a silent player would stream.
-    `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
-    `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
-    the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
-    missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
-    decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
-    a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
-    stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
-    decoded frame's is the next spurt, never decoded into a run still playing, so a spurt after a pause of more than
-    2 ticks starts under its own prebuffer (a spurt that only the late-arrival rule below sees plays on in the run
-    still playing). The prebuffer is chosen at each start: the largest spread of
-    arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
-    starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
-    frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
-    jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
-    discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
-    burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over
-    50 ms, then says flush; `flush()` empties the held frames, and a frame older than the flush arrives late. A stream
-    that restarts at seq 0 gets a new `VoiceJitter`. No queue cap after a burst (the manager's call, until the
-    listening test shows a problem); `VoicePlayback.push` does not check for room either, so its caller (`VoiceSpeaker`,
-    M5-5) checks `free_frames()` first and drops a frame that does not fit. A known limit for the listening test (M5-6,
-    M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale. A voice-activity spurt lasts at
-    least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
-    pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
-    placeholder, "not a decision".
-    Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
-    `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
-    60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
-    played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on any script outside `addons/`
-    naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
-    names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
-    (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
-    `verify` step). CI runs without the addon (the next bullet).
-  - **The addon in the repo** (E35 (a), the ADR §2; **built in M5-3**, #217): TwoVoIP v6.5 in `addons/twovoip/`,
-    plain git files outside LFS: the `.gdextension` and its `.uid` as shipped and the two Windows libraries, nothing
-    else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
-    `docs/credits/twovoip.md`. Windows `verify` (every agent's, the engineer's, `publish`'s) loads it. CI on Linux
-    deletes `twovoip.gdextension` and its `.uid` before `verify` (`.github/workflows/ci.yml`; each night job of
-    `nightly.yml` too, which runs main), and a cloud session leaves both out of its clone with a sparse checkout
-    (`tools/cloud/setup.sh`, #345, AGENT_WORKFLOW §2.1), because Godot prints an
-    `ERROR:` line for a `.gdextension` it cannot load; with no `.gdextension` Godot loads nothing and voice is
-    unavailable (E34). The libraries stay as inert files: deleting the whole folder fails `check`'s credits step,
-    since `docs/credits/twovoip.md`'s glob would match no file. A checkout's `.godot/extension_list.cfg` lists the
-    extensions its last import found, and the runner's import before a launch (#174) compares modification times:
-    it sees the addon arrive with a pull (git dates the files now), not a delete, nor a hand copy that keeps the
-    archive's dates. After a local delete of the `.gdextension`, `run` still loads it and fails on the `ERROR:` line
-    until `check` imports. The round trip on Windows with v6.5 (M5-3): the encoder, the stream and the
-    playback work by class name with the M1 spike's method names, which v6.5's `ClassDB` lists as the spike used
-    them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC seen:** with
-    `TwoVoipEncoder`'s settings a frame decoded from the next packet with `conceal` is Opus concealment (the probe's
-    lost frame keeps the 440 Hz before the gap, with no trace of the 660 Hz after it), and v6.5's `ClassDB` lists no
-    setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a listing in M5-3's PR), so
-    `VoiceJitter`'s `conceal` conceals. The encoder offers
-    `get_speech_probability()` (and `get_peak()`, `get_rms()`; `DENOISER_SPEEX` besides RNNoise). `flush()` (stop,
-    then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
-    2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
-  - **Capture and the gate** (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7):
-    - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
-      `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
-      (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
-      Off, none in a headless run (the Dummy driver captures nothing, and headless sessions must write no mark); else
-      the picked device, or before any pick the Windows default, so voice activity works without the menu.
-    - The "opening" mark (#22: Godot 4.7.2 freezes on a microphone of more than two channels and cannot tell the
-      count beforehand): `VoiceCapture.mark_changed` names the device before it opens and `VoiceControl` writes it to
-      the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
-      the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
-      microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
-      microphone privacy) show in the Voice tab.
-    - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
-      and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
-      frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
-      the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it goes up at each
-      phase change and each time the own life leaves living, so a knockdown and its revive, or Round, End and Lobby,
-      folded between two steps by a hang are not missed, #241), what Godot has handed over by then is fed as unspeakable
-      too, however long that frame was. It was recorded before the change, except the audio between the fold and the
-      sender's step in that frame, which is dropped with it (as at a change between two phases that both hear); the
-      driver's own buffer, under one chunk, may still hold a little from before the change, which goes out as speakable.
-      A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through
-      `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold living and `VoiceRule.radius_of` of the
-      current phase > 0 in the client's own mode, never `Match` or `MatchState` (the E18 boundary test scans
-      `res://client` and `res://voice`). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
-      hears nobody, nothing in Off or with no device open.
-    - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
-      with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
-      counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
-      Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
-      voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
-      In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
-      saved. F3 shows the own gate, peak, frame age and encode µs.
-    - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
-  - **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
-    tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
-    `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
-    cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
-    each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies the
-    command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per speaker
-    at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with the body,
-    and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode, again whenever
-    the model's phase changes (a `PhaseChanged`, or a `Welcome` into a phase). It plays only `voice_received` frames,
-    and drops every frame: of a speaker with no body, not living (downed, dead), gone from the roster or left, or the
-    own peer; while the own life fold is dead; while the phase's radius is 0; of a speaker farther from the ears than
-    `max_distance`; and stamped at or below the newest host tick (snapshots and frames) recorded at that speaker's
-    latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flushes and frees it at its
-    `PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
-    flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
-    `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
-    with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
-    through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
-    target's head, the own body without a target. Godot measures a 3D player's distance from the current
-    `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
-    docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
-    (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
-    concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
-  - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
-    Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
-    Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
-    (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
-    window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
-    the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-    `VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
-    (M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
-  - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
-    speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
-    F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
-    through a mouth animation with the masks of #73 (after the MVP).
-  - **Occlusion** (E42, D13 (a); **built in M5-7**, #221): on the listener only, one ray from the ears per audible
-    speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
-    world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
-    level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
-    Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
-    and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
-    measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
-  - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a
-    distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
-    upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
-    in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
-    engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
-    every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49 datagrams
-    per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms, 54 to 62 µs per
-    send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes one datagram), an
-    average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's alone about 19 to 22 µs
-    if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame),
-    0.40 of snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0
-    ms, 0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
-    backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time (25
-    to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each snapshot
-    holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5 with every
-    frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process (debug build, 10
-    speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and 9 µs in
-    `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the measurement
-    crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to encode each frame
-    once first (#245, §4.5 "Voice relay").
-    #245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
-    after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures are
-    the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to 18 µs
-    inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about 1.3 to 1.4
-    ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell from about
-    37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of each send; the
-    copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21
-    to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after.
-    The upload is unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4
-    ms before, **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2
-    ms, though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
-    true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60% of
-    what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
-    `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
-    20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
-    ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
-    the engineer's (§10).
-  - **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
-    `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
-    included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
-    `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
-    it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
-    (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
-    base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
-    routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
-    decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
-    whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
-    `voice_beyond_the_radius` (§9.7) has bots talking beyond the radius, then within it, in the Round. The bots talk
-    at 50 frames a second in talk spurts (§4.6). Tests: the voice rules' suites in `tests/unit/voice/` and
-    `tests/unit/content/voice_rule_test.gd` (per class, per phase, null), `content_modes_test.gd` (the base mode's
-    radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bot_voice_test.gd`.
-  - Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
-    indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
+| Phase | Who hears whom |
+|---|---|
+| Lobby, Countdown | every pair within the voice radius |
+| Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
+| Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
+| End | nobody: the game is frozen |
+
+A player who left hears nobody and is heard by nobody.
+
+### 6.3 The voice invariant (vision revision 1; built in M4-1, #137)
+Nobody hears a downed or dead player, under
+any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
+and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
+replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
+`FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5).
+
+### 6.4 Built in 2i (#65, `core/voice/`)
+`SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
+data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
+positions (§7.1.2), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
+`distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
+A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
+removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
+
+### 6.5 Designed for M5
+(#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
+2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
+The lessons above, answered:
+- **The codec boundary, the gate and the jitter buffer** (E34, E37, E38, E39; built in M5-2, #216). `voice/`'s
+  `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
+  (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
+  (`push(frame, conceal)`, `queued_frames()`, `free_frames()`, `set_running(on)`, `flush()`) are what `client/`
+  and the rest of `voice/` use; each base is a codec that is never available. `TwoVoipCodec` (with
+  `TwoVoipEncoder` and `TwoVoipPlayback`) reaches the addon only through `ClassDB.class_exists`, `instantiate` and
+  `Object.call` with typed results, with the M1 spike's settings (48 kHz, mono, 960 samples, 24 kbit/s,
+  complexity 5, RNNoise or none) and the spike's method names; its class names are constructor arguments
+  defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
+  addon every script parses, voice is unavailable and the game runs.
+  `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
+  activity (the default) opens while the raw chunk's peak is over `threshold` (0.05) and for a hangover of 300 ms
+  after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
+  pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
+  closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
+  the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
+  sent nor kept for the pre-roll, though its chunk counts for the hangover; while the gate is closed it empties the
+  ring, so audio from before an outage never goes out as pre-roll (M5-6). `threshold` is clamped to 0.01 (−40 dBFS,
+  a placeholder) to 1: at or below 0 the gate would open on digital silence and a silent player would stream.
+  `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
+  `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
+  the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
+  missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
+  decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
+  a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
+  stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
+  decoded frame's is the next spurt, never decoded into a run still playing, so a spurt after a pause of more than
+  2 ticks starts under its own prebuffer (a spurt that only the late-arrival rule below sees plays on in the run
+  still playing). The prebuffer is chosen at each start: the largest spread of
+  arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
+  starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
+  frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
+  jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
+  discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
+  burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over
+  50 ms, then says flush; `flush()` empties the held frames, and a frame older than the flush arrives late. A stream
+  that restarts at seq 0 gets a new `VoiceJitter`. No queue cap after a burst (the manager's call, until the
+  listening test shows a problem); `VoicePlayback.push` does not check for room either, so its caller (`VoiceSpeaker`,
+  M5-5) checks `free_frames()` first and drops a frame that does not fit. A known limit for the listening test (M5-6,
+  M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale. A voice-activity spurt lasts at
+  least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
+  pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
+  placeholder, "not a decision".
+  Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
+  `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
+  60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
+  played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on any script outside `addons/`
+  naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
+  names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
+  (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
+  `verify` step). CI runs without the addon (the next bullet).
+- **The addon in the repo** (E35 (a), the ADR §2; **built in M5-3**, #217): TwoVoIP v6.5 in `addons/twovoip/`,
+  plain git files outside LFS: the `.gdextension` and its `.uid` as shipped and the two Windows libraries, nothing
+  else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
+  `docs/credits/twovoip.md`. Windows `verify` (every agent's, the engineer's, `publish`'s) loads it. CI on Linux
+  deletes `twovoip.gdextension` and its `.uid` before `verify` (`.github/workflows/ci.yml`; each night job of
+  `nightly.yml` too, which runs main), and a cloud session leaves both out of its clone with a sparse checkout
+  (`tools/cloud/setup.sh`, #345, AGENT_WORKFLOW §2.1), because Godot prints an
+  `ERROR:` line for a `.gdextension` it cannot load; with no `.gdextension` Godot loads nothing and voice is
+  unavailable (E34). The libraries stay as inert files: deleting the whole folder fails `check`'s credits step,
+  since `docs/credits/twovoip.md`'s glob would match no file. A checkout's `.godot/extension_list.cfg` lists the
+  extensions its last import found, and the runner's import before a launch (#174) compares modification times:
+  it sees the addon arrive with a pull (git dates the files now), not a delete, nor a hand copy that keeps the
+  archive's dates. After a local delete of the `.gdextension`, `run` still loads it and fails on the `ERROR:` line
+  until `check` imports. The round trip on Windows with v6.5 (M5-3): the encoder, the stream and the
+  playback work by class name with the M1 spike's method names, which v6.5's `ClassDB` lists as the spike used
+  them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC seen:** with
+  `TwoVoipEncoder`'s settings a frame decoded from the next packet with `conceal` is Opus concealment (the probe's
+  lost frame keeps the 440 Hz before the gap, with no trace of the 660 Hz after it), and v6.5's `ClassDB` lists no
+  setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a listing in M5-3's PR), so
+  `VoiceJitter`'s `conceal` conceals. The encoder offers
+  `get_speech_probability()` (and `get_peak()`, `get_rms()`; `DENOISER_SPEEX` besides RNNoise). `flush()` (stop,
+  then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
+  2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
+- **Capture and the gate** (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7):
+  - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
+    `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
+    (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
+    Off, none in a headless run (the Dummy driver captures nothing, and headless sessions must write no mark); else
+    the picked device, or before any pick the Windows default, so voice activity works without the menu.
+  - The "opening" mark (#22: Godot 4.7.2 freezes on a microphone of more than two channels and cannot tell the
+    count beforehand): `VoiceCapture.mark_changed` names the device before it opens and `VoiceControl` writes it to
+    the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
+    the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
+    microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
+    microphone privacy) show in the Voice tab.
+  - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
+    and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
+    frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
+    the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it goes up at each
+    phase change and each time the own life leaves living, so a knockdown and its revive, or Round, End and Lobby,
+    folded between two steps by a hang are not missed, #241), what Godot has handed over by then is fed as unspeakable
+    too, however long that frame was. It was recorded before the change, except the audio between the fold and the
+    sender's step in that frame, which is dropped with it (as at a change between two phases that both hear); the
+    driver's own buffer, under one chunk, may still hold a little from before the change, which goes out as speakable.
+    A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through
+    `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold living and `VoiceRule.radius_of` of the
+    current phase > 0 in the client's own mode, never `Match` or `MatchState` (the E18 boundary test scans
+    `res://client` and `res://voice`). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+    hears nobody, nothing in Off or with no device open.
+  - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
+    with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
+    counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+    Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
+    voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
+    In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
+    saved. F3 shows the own gate, peak, frame age and encode µs.
+  - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
+- **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
+  tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
+  `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
+  cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
+  each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies the
+  command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per speaker
+  at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with the body,
+  and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode, again whenever
+  the model's phase changes (a `PhaseChanged`, or a `Welcome` into a phase). It plays only `voice_received` frames,
+  and drops every frame: of a speaker with no body, not living (downed, dead), gone from the roster or left, or the
+  own peer; while the own life fold is dead; while the phase's radius is 0; of a speaker farther from the ears than
+  `max_distance`; and stamped at or below the newest host tick (snapshots and frames) recorded at that speaker's
+  latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flushes and frees it at its
+  `PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
+  flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
+  `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
+  with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
+  through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
+  target's head, the own body without a target. Godot measures a 3D player's distance from the current
+  `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
+  docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
+  (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
+  concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
+- **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
+  Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
+  Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
+  (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
+  window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
+  the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
+  `VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
+  (M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
+- **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
+  speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
+  F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
+  through a mouth animation with the masks of #73 (after the MVP).
+- **Occlusion** (E42, D13 (a); **built in M5-7**, #221): on the listener only, one ray from the ears per audible
+  speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
+  world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
+  level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
+  Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
+  and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
+  measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
+- **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a
+  distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
+  upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
+  in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
+  engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
+  every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49 datagrams
+  per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms, 54 to 62 µs per
+  send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes one datagram), an
+  average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's alone about 19 to 22 µs
+  if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame),
+  0.40 of snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0
+  ms, 0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
+  backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time (25
+  to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each snapshot
+  holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5 with every
+  frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process (debug build, 10
+  speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and 9 µs in
+  `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the measurement
+  crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to encode each frame
+  once first (#245, §4.5 "Voice relay").
+  #245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
+  after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures are
+  the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to 18 µs
+  inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about 1.3 to 1.4
+  ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell from about
+  37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of each send; the
+  copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21
+  to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after.
+  The upload is unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4
+  ms before, **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2
+  ms, though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
+  true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60% of
+  what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
+  `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
+  20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
+  ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
+  the engineer's (§10).
+- **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
+  `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
+  included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
+  `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
+  it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
+  (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
+  base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+  routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
+  decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
+  whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
+  `voice_beyond_the_radius` (§9.7) has bots talking beyond the radius, then within it, in the Round. The bots talk
+  at 50 frames a second in talk spurts (§4.6.2). Tests: the voice rules' suites in `tests/unit/voice/` and
+  `tests/unit/content/voice_rule_test.gd` (per class, per phase, null), `content_modes_test.gd` (the base mode's
+  radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bot_voice_test.gd`.
+- Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
+  indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
 ## 7. Movement
 
@@ -2492,12 +2511,12 @@ The local player's controller (#46, `client/player/`):
   numbers `core/` checks with (M4-7); `client/player/player_tuning.tres` (`PlayerTuning`) keeps the client's feel
   only (the push factors, the view's easing), with script defaults of 0 so no number is repeated in code.
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
-  a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
+  a step counts as moving only while the player gives movement input, so a push is free (§7.1.3 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
   the only copy of it on the client, and follows each `SelfStatus`: off the network as it arrives, on it claim by
-  claim from the claim the status names (#155, §7.1 Speed).
+  claim from the claim the status names (#155, §7.1.5 Speed).
 - A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) crawls as the host's crawl check
-  allows (§7.1 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
+  allows (§7.1.7 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
   lying mesh), gravity, floor, steps and slopes at `PlayerRules.crawl_speed_mps`, with no sprint and no jump;
   `StaminaSource` refuses both to the downed, and their stamina regenerates as usual. There is no flight (the
   engineer's correction of 2026-09-30, #46). While a raise holds it (`held`, from `ClientModel.raiser_of(own) != 0`)
@@ -2508,7 +2527,7 @@ The local player's controller (#46, `client/player/`):
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
   only; the dead are on no layer; a living player finds the
-  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other players are
+  other living players with a contact search on layer 2 and pushes them (§7.1.6 "Pushing apart"). Other players are
   `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
@@ -2527,279 +2546,307 @@ The local player's controller (#46, `client/player/`):
 ### 7.1 Authority for the MVP's mechanics (#32)
 Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/2026-09-29-mvp-rules.md) (placeholders,
 "not a decision"), including the player's capsule, eye height and step height; tolerances: M4.
-- **Geometry through a port.** `WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric
-  questions of the rules: line of sight between two points, the floor below a point, and where an item placed from A
-  towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
-  the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
-  is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
-  when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
-  queries before its first step was probed in 3c (#99): it does (§4.5).
-- **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
-  range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
-  claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/` (only the living sprint; the downed regenerate, see The crawl below). The client
-  predicts its own from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the
-  network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up to which stamina is
-  settled. A claim settles the ticks it covers (its client-tick delta, never past the current host tick), each with
-  the flags its masks give that tick (#155, Speed below): a covered tick in the sprint state in which the player gave
-  movement input and moved horizontally costs 1/20 of the per-second cost, and every other covered tick regenerates.
-  Only the player's own movement counts (the engineer's decision of 2026-09-30, #46): a pushed player holding sprint
-  without movement input pays nothing for the push.
-  `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
-  (`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
-  jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
-  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim
-  first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
-  (Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
-  is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
-  sprint speed in the sprint state, else the walk speed, plus the push allowance near another living player (Pushing
-  apart below), measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
-  a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
-- **Jumps** are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
-  step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
-  the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost; a
-  downed player's new jump is always corrected (The crawl below). Until the next landing
-  the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
-  corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
-  it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
-  which stamina must cover d times; a count that falls within an epoch is corrected, and so is a rise d above the
-  client ticks the claim covers, since a client lands between two jumps (#76, from #117 item 6), except in a fresh
-  claim (the first of a client-tick baseline, after a placement or a rebase), which the host counts as one tick
-  whatever span it carries; the count restarts at 0 with every new epoch. So a jump in a claim that the LATEST lane
-  merged away or lost still counts in the next one.
-- **The movement checks** (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60). Every
-  tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
-  - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
-    does not cascade. Every other failed check sends `Correction` with a new epoch and the host's position to that
-    player only, and changes nothing else (stamina settled up to now aside, §9.2).
-  - Well formed: an int client tick and finite position, velocity and facing. The velocity is not bounded: it only
-    feeds the other clients' interpolation.
-  - The client tick's rate: `client_tick` counts 20 Hz core ticks of the client's own clock, not its physics frames
-    (60 Hz), so the M3 client derives it from a 20 Hz counter (or its physics frame divided by 3). A player earns
-    one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
-    (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
-    (#70: 50 to 100 claims in one host tick after 5 s, or, merged by the LATEST lane (§4), one claim covering
-    them all) passes, a client that runs its tick ahead gets
-    `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
-    is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
-    ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
-    restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
-  - Speed: per covered tick the state's speed, each tick with its own flags (below; a tick past the host's clock,
-    which the ledger cannot settle yet, is run on from the settled ones for the speed alone; a living player's tick
-    without its own movement gets the walk speed, since only movement pays for sprint),
-    for the living plus `sprint_speed` for at most `PUSH_TICKS` (10) covered ticks while another living player's
-    last accepted position is within `MovementRule.push_reach()` of the claim's path (Pushing apart below; #76);
-    for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M`
-    (0.05 m) per claim, or
-    for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
-    crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
-    No tick of sprint goes uncharged (#155). From #76 to #155 the host granted "the sprint's last tick", one covered
-    tick more at sprint speed after a sprinting claim, which a modified client alternating its flags turned into
-    about eight times the sprint endurance. #155 replaced it with exact data, so three honest cases pass without it:
-    - **The claim that stops a sprint.** A claim covers the 3 physics steps (60 Hz) since the one before, and
-      `ClientSession` latches its `sprint` and `moving` flags over them: each says whether any of those steps had
-      the sprint state or movement input, not only the last one. So the claim of the tick a sprinter lets go in
-      still says it sprinted, pays for that tick and is allowed its travel. A `Correction` drops the steps before
-      it.
-    - **A claim merged at a sprint's end.** The LATEST lane delivers only the newest claim of a poll (§4), so over
-      a jittery link (or after a freeze, #70) the walk's claim after a release reaches the host with the sprint's
-      last claims folded into it. `MoveClaim`'s masks `sprint_ticks` and `moved_ticks` repeat the latched flags
-      per client tick, bit i for client tick `client_tick - i`, every tick a claim covered taking that claim's
-      flags; the host settles each covered tick with its bits (`StaminaLedger.simulate_ticks`) and grants sprint
-      speed for exactly the ticks in the sprint state with the player's own movement, which it charges. A covered
-      tick older than the 32 bits takes bit 31; bits older than the covered ticks count for nothing. A claim
-      without masks, which only `core/`'s own callers send (the in-process scenario runner, unit tests), gives
-      every covered tick its `sprint` and `moving` flags. A client that claims sprint for ticks its stamina does
-      not cover is still corrected by the ledger.
-    - **Stamina running out.** A `SelfStatus` answers a claim some ticks old (a round trip), so a client that set
-      each one as it arrived got back the ticks still in flight and sprinted on for a round trip after its stamina
-      ran out. On the network `PredictedStamina` settles by the claims instead (`ClientSession.claim_sent`: the
-      claim's epoch and client tick, the ticks it covers, its latched sprint flag, and whether it moved itself
-      from the last claim's position): the ledger's rule, the same ticks with the same flags, a claim's jumps paid
-      after its ticks. Each `SelfStatus` names the client tick of the last claim the host settled (`claim_tick`,
-      -1 for none since a placement); `follow_status` takes the host's number and sprint availability (which is
-      the host's sprint state wherever that decides the next tick) and settles again exactly the claims after
-      that one (with none, the claims of the current epoch), of the last 32 it remembers. A refused claim
-      settles nothing on the host (`MovementRule.apply` puts back the ledger a jump claim's check committed), and
-      the next claim covers its ticks. A claim after the named one from an older epoch than the client's was
-      refused or dropped as stale, so it is settled again without its jumps: events share one ordered reliable
-      channel, so a status that arrives after a `Correction` was sent after it. So a cost it does not predict (a
-      hit), a refused jump or a tick the host could not settle yet is taken in with the next status, and nothing
-      in flight is given back. The jumps since the last claim are forgotten when the session adopts a new epoch,
-      whose claims count jumps from 0. The network bots sprint by the same prediction (`NetPlay`).
-      Accepted, until a later `SelfStatus` (no guard test met a `Correction` from these):
-      - A claim whose ticks reach past the host's clock when it arrives (it overtook the host's ticks, at an
-        epoch's start or when the delay shrinks) has those ticks left unsettled, so the client may predict a tick
-        of regeneration more than the host has.
-      - Before a jump or a `StaminaCost` the host settles the ticks past the last claim with its flags
-        (`settle_ahead`), up to the ledger's lag behind the client (about the one-way delay in ticks); the next
-        claim settles only the ticks left, while the client settles all of them again on top of a status that
-        names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
-        test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
-      - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
-        the host takes the next claim as one tick, while the client counts it from its last claim.
-    Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
-    does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
-    (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks
-    on), `tests/unit/stamina/stamina_ledger_test.gd` (`simulate_ticks`), `tests/unit/stamina/self_status_feed_test.gd`
-    (`claim_tick`), `tests/unit/client/net/client_session_claims_test.gd` (the latch, the masks, `claim_sent`),
-    `tests/unit/client/player/predicted_stamina_test.gd` (claim by claim against `StaminaLedger`, `follow_status`),
-    `tests/integration/client/player/player_network_sprint_test.gd` (the real controller over the loopback lets go
-    of sprint, or of every key, at each step of a claim's tick, sprints until stamina runs out, and holds sprint
-    through running out and back, with no delay, with every packet held back four physics frames each way, and
-    with 1 to 9 frames of jitter in order, each jitter test checking that the host merged claims; and three claims
-    held and merged while it lets go of sprint: 0 Corrections), and the bot scenarios `crew_delivers_every_package`
-    and `dissidents_win_by_the_clock`, in one process and over ENet.
-  - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
-    `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
-    starts): after an accepted jump, the jump height
-    plus `capsule_radius * (1 - cos 45°) + STEP_CLEARANCE` (about 0.127 m, §7) from the take-off, the higher of its
-    floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
-    travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
-    `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
-    The slope allowance counts the travel of at most `SLOPE_TICKS` (10) covered ticks: when a claim covers more, its
-    allowed travel times 10 / covered (#76). A claim covering stored credit (up to 200 ticks after 10 s of silence)
-    used to rise as far as it travelled, onto a roof tens of metres away; up to nine lost claims in a row change
-    nothing, so an honest climb whose unreliable claims were lost passes (a bound of one tick's travel would have
-    corrected it, #74). Accepted: a 45° climb through a stall of more than about half a second is corrected once.
-    A landing's floor is the higher of the floor `WorldQuery` found and the claim's feet less
-    `MovementRule.landing_slack()`, r (1 − cos 45°) ≈ 0.12 m, the most a capsule's rounded bottom hangs below a
-    step's corner it rests on (#76; found by M4-7, #143): on stairs whose treads are narrower than the capsule
-    (0.3 m against 0.8 m), the five rays may all miss the step the capsule rests on and find the one below, and
-    honest climbs were corrected on almost every step. A claim floating above the floor gains at most one step this
-    way and is still corrected. Tests: `tests/unit/movement/movement_rule_jump_test.gd` (the stairs test replays
-    the claims #143's network test sent on 0.3 m treads).
-  - Cost: two `WorldQuery.stand_floor_below` calls per jump and one per claim on the floor, each recorded in the
-    command log. The movement rule's floor (`stand_floor_below`, 3e) looks below the whole capsule footprint, not one
-    ray at the origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be
-    corrected (§4.5, E10). The item rules' eye (`Items.eye_of`) stands on the same floor; an item's or a body's
-    floor is one ray (`floor_below`).
-  - The facing (M4-2, #138; the M4 ADR §3, Host trust): it is a claim relayed to everyone in the snapshots, and an
-    honest one can be degenerate (a bot falling straight down claims (0, -1, 0); a standing client may claim zero).
-    An accepted claim stores a unit facing (`MovementRule.stored_facing`): a claim with no direction keeps the last
-    one, one straight up or down keeps the last yaw, and the pitch is clamped to ±89° (`MAX_PITCH_DEG`). Tests:
-    `tests/unit/movement/movement_rule_test.gd`.
-- **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
-  players never pass through each other, but a body cannot block a passage. Each client moves only its own player
-  against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
-  corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living
-  layer finds the capsules it touches, and for each one:
-  - Walking into it pushes: the part of the motion into it slows to `push_speed_factor`, and the pusher drifts to its
-    own right at `push_side_bias` of that speed, so a perfectly straight contact slides off instead of freezing. The
-    pusher stops advancing once it is `push_max_overlap` deep in the other capsule (numbers in `PlayerTuning`).
-  - Any other overlap is left at once (at most at sprint speed). That is how the pushed player's client moves its
-    player: from the pusher's interpolated motion, at the pusher's reduced speed.
-  - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
-    the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
-  - A downed player runs no search, and its layer is not searched: the downed push nobody and nobody pushes them.
-    The dead run no physics step at all.
 
-  Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
-  while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
-  caps the push-out at `sprint_speed`, so the host's speed bound for a living player is its state's speed plus
-  `sprint_speed` (proposed for M4, not decided; a test pins the cap). The allowance is granted only while another
-  living player's last accepted position is within `MovementRule.push_reach()` of the claim's path (#76): measured
-  horizontally from the segment between the last accepted position and the claim's, with the feet at most the
-  capsule's height apart. The reach grows by a tick of sprinting for each host tick since the other player's last
-  accepted claim beyond the usual one, up to `PUSH_TICKS`: a pusher whose unreliable claims are lost while it pushes
-  is farther ahead than its stored position. The allowance counts at most `PUSH_TICKS` covered ticks, so a claim
-  spending stored credit buys no more push than that; accepted: an honest player pushed through a stall of more than
-  about half a second is corrected once. The reach is two capsule radii (touching) plus 0.2 s of sprinting, 2.2 m: the
-  pushed client moves away from where it draws the pusher, the interpolation delay (§7) plus a round trip behind the
-  pusher's position on the host, and with two radii alone the honest head-on push of M4-7's network test over the
-  loopback was corrected (0.86 m apart). Before #76 a modified client claiming a push with nobody near moved at
-  11.5 m/s with no input and no stamina. The downed get no allowance: they are never pushed, and they push nobody.
+#### 7.1.1 Geometry through a port
+`WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric
+questions of the rules: line of sight between two points, the floor below a point, and where an item placed from A
+towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
+the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
+is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
+when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
+queries before its first step was probed in 3c (#99): it does (§4.5).
 
-  Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
-  Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
-  trip late (its own motion reaches the other client, which moves, and that motion comes back: about 0.2 s with
-  100 ms interpolation on each side). Over a network the overlap limit, not the push speed factor, sets how fast a
-  straight push goes: at most `push_max_overlap` per round trip, 1 m/s at 0.2 s instead of 2.25 m/s. The
-  two-client tests (`player_controller_push_test.gd`) run with that delay. *Open (M4):* the playtest over a network
-  decides whether that is enough; the options are a larger limit (deeper visible overlap) or drawing the pushed
-  capsule moved ahead on the pusher's client (display only).
-- **The crawl** (vision revision 1; M4-2, #138, replacing the ghosts' movement). A downed player's claims get the
-  movement checks with the crawl's bounds: the allowed travel is `PlayerRules.crawl_speed_mps` times the ticks covered
-  (plus a tenth of that, and 1 mm for floats), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
-  (plus `STEP_CLEARANCE` and the slope allowance) above the last landing. The downed are never in the sprint state and
-  spend no stamina; it regenerates as usual. They collide with the level client-side and with no player. `PickUp`,
-  `PutDown` and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead
-  send no intent that is accepted (§3.1). The knockdown places the downed player where it stood, on the floor below
-  its last accepted position, with a new epoch and a `Correction` (`LifeRules.knock_down`), even on the floor. The
-  movement rule treats that like a placement: walking claims in flight are dropped as stale instead of failing the
-  crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
-  the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
-  `tests/unit/life/life_rules_test.gd`.
-- **The raise** (vision revision 1, Revive; M4-4, #140). The host checks the raise's conditions when `Raise` arrives
-  and again every tick while it runs (a channel, §9.4): the target is downed, it lies within the pick-up's reach
-  (2 m) of the raiser's last accepted position, both feet, and the line from the raiser's eye (`Items.eye_of`) to
-  just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
-  sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
-  raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
-  `MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
-  started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
-  `Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
-  just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
-  anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
-  it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a
-  stop restarts only a knockdown the raise paused, of a player still downed).
-- **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
-  walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
-  wall.
-- **Hits** (the knife's `Use`: `Strike`, §9.4). The host picks the targets: every living player other than the
-  attacker (strikes skip the downed, the dead and the invulnerable: for `PlayerRules.invulnerable_s` after a
-  respawn or a revive, `PlayerState.is_invulnerable`, which nothing ends early, not even the player's own attack, the
-  engineer's answer 3 on PR #133; M4-3, the revive M4-4) whose capsule has a point within
-  the weapon's reach of the attacker's position and within half the weapon's angle of the facing, overlapping
-  vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in the
-  weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it.
-  The facing is a claim, which is harmless because the reach is the host's. No lag compensation in the MVP: at walk
-  speed a target is up to ~0.5 m ahead of what the attacker saw (100 ms of interpolation) against a 1.5 m reach. The
-  playtest decides; rewinding targets to the attacker's view is the fallback. Prevents: hits on someone far away,
-  behind a wall, without a weapon, or without stamina.
-  2g (#63, `Strike` in `core/combat/strike.gd`) measures it so: the zone is a horizontal sector with its apex at the
-  attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide around the horizontal part of
-  the facing; a target's capsule has a point in it when its circle of `capsule_radius_m` around the target's
-  position touches the sector (so an overlapping capsule touches the apex whatever the facing); it overlaps
-  vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's eye
-  (`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
-  horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
-  cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
-- **Pick up and swap.** The client names the item; the host checks reach and line of sight from its own positions.
-  The picked item goes to the hand (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an
-  empty belt; otherwise (a full belt, or a two-handed hand item: the package) the hand item rests where the
-  picked-up one lay, a spot already known to be valid, whichever of the two is two-handed. `Swap()` exchanges the
-  hand and belt items; it needs an item in one of them (`nothing_to_swap`) and is refused with a two-handed item in
-  the hand (`two_handed`), so a package carrier cannot draw a belted knife (V13), and only the living send it. Only
-  the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep both
-  slots; a death places both at the body and a leave drops both, the hand item first; a respawn starts empty.
-  2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
-  the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
-- **Put down.** The client sends only its facing. The host places the item at the put-down distance along the
-  horizontal facing, through `WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put
-  straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye towards the
-  point at that distance, so an item goes over what the player sees over (a low crate) and is stopped by a wall; a
-  facing straight up or down puts it at the feet. The eye of the item rules (`Items.eye_of`) is the floor below
-  the last accepted position plus the eye height, so a jump does not raise it: nobody puts a package, or sees one,
-  over a partition from the top of a jump.
-- **Drops.** An item dropped at a death or a leave, a downed player, and a body, come to rest on the floor below the
-  player's last position (through `WorldQuery`), never in mid-air. `Items.drop_carried` (2e, #61; both slots, M4-5) drops the items, asking the floor
-  from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
-  level bug: the item rests at that position and the match logs an error. Where a knocked-down player lies
-  (`LifeRules.knock_down`) and its body at the death (`LifeRules.die`; M4-2) are found the same way, with the same
-  fallback, and at the death the items then drop at the body (`Items.place_carried`). Nothing drops at a knockdown.
-- **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
-  an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
-  `server/` reports from its physics (`ItemRested`, #37). A package resting inside its own circle is delivered: it
-  stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
-  never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
-  (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
-  placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
-  included, and from the marker's height up to that plus the height, both included (1 mm below the marker
-  still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
-  point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
-  `server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
-  a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
+#### 7.1.2 Positions
+`core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
+range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
+claiming to stand next to what it wants to grab.
+
+#### 7.1.3 Stamina
+Belongs to `core/` (only the living sprint; the downed regenerate, see §7.1.7 The crawl). The client
+predicts its own from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the
+network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up to which stamina is
+settled. A claim settles the ticks it covers (its client-tick delta, never past the current host tick), each with
+the flags its masks give that tick (#155, §7.1.5 Speed): a covered tick in the sprint state in which the player gave
+movement input and moved horizontally costs 1/20 of the per-second cost, and every other covered tick regenerates.
+Only the player's own movement counts (the engineer's decision of 2026-09-30, #46): a pushed player holding sprint
+without movement input pays nothing for the push.
+`PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
+(`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
+jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
+flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim
+first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
+(Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
+is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
+sprint speed in the sprint state, else the walk speed, plus the push allowance near another living player (§7.1.6 Pushing apart),
+measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
+a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
+
+#### 7.1.4 Jumps
+Are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
+step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
+the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost; a
+downed player's new jump is always corrected (§7.1.7 The crawl). Until the next landing
+the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
+corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
+it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
+which stamina must cover d times; a count that falls within an epoch is corrected, and so is a rise d above the
+client ticks the claim covers, since a client lands between two jumps (#76, from #117 item 6), except in a fresh
+claim (the first of a client-tick baseline, after a placement or a rebase), which the host counts as one tick
+whatever span it carries; the count restarts at 0 with every new epoch. So a jump in a claim that the LATEST lane
+merged away or lost still counts in the next one.
+
+#### 7.1.5 The movement checks (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60)
+Every
+tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
+- A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
+  does not cascade. Every other failed check sends `Correction` with a new epoch and the host's position to that
+  player only, and changes nothing else (stamina settled up to now aside, §9.2).
+- Well formed: an int client tick and finite position, velocity and facing. The velocity is not bounded: it only
+  feeds the other clients' interpolation.
+- The client tick's rate: `client_tick` counts 20 Hz core ticks of the client's own clock, not its physics frames
+  (60 Hz), so the M3 client derives it from a 20 Hz counter (or its physics frame divided by 3). A player earns
+  one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
+  (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
+  (#70: 50 to 100 claims in one host tick after 5 s, or, merged by the LATEST lane (§4), one claim covering
+  them all) passes, a client that runs its tick ahead gets
+  `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
+  is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
+  ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
+  restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
+- Speed: per covered tick the state's speed, each tick with its own flags (below; a tick past the host's clock,
+  which the ledger cannot settle yet, is run on from the settled ones for the speed alone; a living player's tick
+  without its own movement gets the walk speed, since only movement pays for sprint),
+  for the living plus `sprint_speed` for at most `PUSH_TICKS` (10) covered ticks while another living player's
+  last accepted position is within `MovementRule.push_reach()` of the claim's path (§7.1.6 Pushing apart; #76);
+  for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M`
+  (0.05 m) per claim, or
+  for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
+  crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
+  No tick of sprint goes uncharged (#155). From #76 to #155 the host granted "the sprint's last tick", one covered
+  tick more at sprint speed after a sprinting claim, which a modified client alternating its flags turned into
+  about eight times the sprint endurance. #155 replaced it with exact data, so three honest cases pass without it:
+  - **The claim that stops a sprint.** A claim covers the 3 physics steps (60 Hz) since the one before, and
+    `ClientSession` latches its `sprint` and `moving` flags over them: each says whether any of those steps had
+    the sprint state or movement input, not only the last one. So the claim of the tick a sprinter lets go in
+    still says it sprinted, pays for that tick and is allowed its travel. A `Correction` drops the steps before
+    it.
+  - **A claim merged at a sprint's end.** The LATEST lane delivers only the newest claim of a poll (§4), so over
+    a jittery link (or after a freeze, #70) the walk's claim after a release reaches the host with the sprint's
+    last claims folded into it. `MoveClaim`'s masks `sprint_ticks` and `moved_ticks` repeat the latched flags
+    per client tick, bit i for client tick `client_tick - i`, every tick a claim covered taking that claim's
+    flags; the host settles each covered tick with its bits (`StaminaLedger.simulate_ticks`) and grants sprint
+    speed for exactly the ticks in the sprint state with the player's own movement, which it charges. A covered
+    tick older than the 32 bits takes bit 31; bits older than the covered ticks count for nothing. A claim
+    without masks, which only `core/`'s own callers send (the in-process scenario runner, unit tests), gives
+    every covered tick its `sprint` and `moving` flags. A client that claims sprint for ticks its stamina does
+    not cover is still corrected by the ledger.
+  - **Stamina running out.** A `SelfStatus` answers a claim some ticks old (a round trip), so a client that set
+    each one as it arrived got back the ticks still in flight and sprinted on for a round trip after its stamina
+    ran out. On the network `PredictedStamina` settles by the claims instead (`ClientSession.claim_sent`: the
+    claim's epoch and client tick, the ticks it covers, its latched sprint flag, and whether it moved itself
+    from the last claim's position): the ledger's rule, the same ticks with the same flags, a claim's jumps paid
+    after its ticks. Each `SelfStatus` names the client tick of the last claim the host settled (`claim_tick`,
+    -1 for none since a placement); `follow_status` takes the host's number and sprint availability (which is
+    the host's sprint state wherever that decides the next tick) and settles again exactly the claims after
+    that one (with none, the claims of the current epoch), of the last 32 it remembers. A refused claim
+    settles nothing on the host (`MovementRule.apply` puts back the ledger a jump claim's check committed), and
+    the next claim covers its ticks. A claim after the named one from an older epoch than the client's was
+    refused or dropped as stale, so it is settled again without its jumps: events share one ordered reliable
+    channel, so a status that arrives after a `Correction` was sent after it. So a cost it does not predict (a
+    hit), a refused jump or a tick the host could not settle yet is taken in with the next status, and nothing
+    in flight is given back. The jumps since the last claim are forgotten when the session adopts a new epoch,
+    whose claims count jumps from 0. The network bots sprint by the same prediction (`NetPlay`).
+    Accepted, until a later `SelfStatus` (no guard test met a `Correction` from these):
+    - A claim whose ticks reach past the host's clock when it arrives (it overtook the host's ticks, at an
+      epoch's start or when the delay shrinks) has those ticks left unsettled, so the client may predict a tick
+      of regeneration more than the host has.
+    - Before a jump or a `StaminaCost` the host settles the ticks past the last claim with its flags
+      (`settle_ahead`), up to the ledger's lag behind the client (about the one-way delay in ticks); the next
+      claim settles only the ticks left, while the client settles all of them again on top of a status that
+      names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
+      test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
+    - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
+      the host takes the next claim as one tick, while the client counts it from its last claim.
+  Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
+  does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
+  (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks
+  on), `tests/unit/stamina/stamina_ledger_test.gd` (`simulate_ticks`), `tests/unit/stamina/self_status_feed_test.gd`
+  (`claim_tick`), `tests/unit/client/net/client_session_claims_test.gd` (the latch, the masks, `claim_sent`),
+  `tests/unit/client/player/predicted_stamina_test.gd` (claim by claim against `StaminaLedger`, `follow_status`),
+  `tests/integration/client/player/player_network_sprint_test.gd` (the real controller over the loopback lets go
+  of sprint, or of every key, at each step of a claim's tick, sprints until stamina runs out, and holds sprint
+  through running out and back, with no delay, with every packet held back four physics frames each way, and
+  with 1 to 9 frames of jitter in order, each jitter test checking that the host merged claims; and three claims
+  held and merged while it lets go of sprint: 0 Corrections), and the bot scenarios `crew_delivers_every_package`
+  and `dissidents_win_by_the_clock`, in one process and over ENet.
+- Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
+  `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
+  starts): after an accepted jump, the jump height
+  plus `capsule_radius * (1 - cos 45°) + STEP_CLEARANCE` (about 0.127 m, §7) from the take-off, the higher of its
+  floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
+  travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
+  `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
+  The slope allowance counts the travel of at most `SLOPE_TICKS` (10) covered ticks: when a claim covers more, its
+  allowed travel times 10 / covered (#76). A claim covering stored credit (up to 200 ticks after 10 s of silence)
+  used to rise as far as it travelled, onto a roof tens of metres away; up to nine lost claims in a row change
+  nothing, so an honest climb whose unreliable claims were lost passes (a bound of one tick's travel would have
+  corrected it, #74). Accepted: a 45° climb through a stall of more than about half a second is corrected once.
+  A landing's floor is the higher of the floor `WorldQuery` found and the claim's feet less
+  `MovementRule.landing_slack()`, r (1 − cos 45°) ≈ 0.12 m, the most a capsule's rounded bottom hangs below a
+  step's corner it rests on (#76; found by M4-7, #143): on stairs whose treads are narrower than the capsule
+  (0.3 m against 0.8 m), the five rays may all miss the step the capsule rests on and find the one below, and
+  honest climbs were corrected on almost every step. A claim floating above the floor gains at most one step this
+  way and is still corrected. Tests: `tests/unit/movement/movement_rule_jump_test.gd` (the stairs test replays
+  the claims #143's network test sent on 0.3 m treads).
+- Cost: two `WorldQuery.stand_floor_below` calls per jump and one per claim on the floor, each recorded in the
+  command log. The movement rule's floor (`stand_floor_below`, 3e) looks below the whole capsule footprint, not one
+  ray at the origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be
+  corrected (§4.5, E10). The item rules' eye (`Items.eye_of`) stands on the same floor; an item's or a body's
+  floor is one ray (`floor_below`).
+- The facing (M4-2, #138; the M4 ADR §3, Host trust): it is a claim relayed to everyone in the snapshots, and an
+  honest one can be degenerate (a bot falling straight down claims (0, -1, 0); a standing client may claim zero).
+  An accepted claim stores a unit facing (`MovementRule.stored_facing`): a claim with no direction keeps the last
+  one, one straight up or down keeps the last yaw, and the pitch is clamped to ±89° (`MAX_PITCH_DEG`). Tests:
+  `tests/unit/movement/movement_rule_test.gd`.
+
+#### 7.1.6 Pushing apart (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions")
+Living
+players never pass through each other, but a body cannot block a passage. Each client moves only its own player
+against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
+corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living
+layer finds the capsules it touches, and for each one:
+- Walking into it pushes: the part of the motion into it slows to `push_speed_factor`, and the pusher drifts to its
+  own right at `push_side_bias` of that speed, so a perfectly straight contact slides off instead of freezing. The
+  pusher stops advancing once it is `push_max_overlap` deep in the other capsule (numbers in `PlayerTuning`).
+- Any other overlap is left at once (at most at sprint speed). That is how the pushed player's client moves its
+  player: from the pusher's interpolated motion, at the pusher's reduced speed.
+- Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
+  the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
+- A downed player runs no search, and its layer is not searched: the downed push nobody and nobody pushes them.
+  The dead run no physics step at all.
+
+Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
+while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
+caps the push-out at `sprint_speed`, so the host's speed bound for a living player is its state's speed plus
+`sprint_speed` (proposed for M4, not decided; a test pins the cap). The allowance is granted only while another
+living player's last accepted position is within `MovementRule.push_reach()` of the claim's path (#76): measured
+horizontally from the segment between the last accepted position and the claim's, with the feet at most the
+capsule's height apart. The reach grows by a tick of sprinting for each host tick since the other player's last
+accepted claim beyond the usual one, up to `PUSH_TICKS`: a pusher whose unreliable claims are lost while it pushes
+is farther ahead than its stored position. The allowance counts at most `PUSH_TICKS` covered ticks, so a claim
+spending stored credit buys no more push than that; accepted: an honest player pushed through a stall of more than
+about half a second is corrected once. The reach is two capsule radii (touching) plus 0.2 s of sprinting, 2.2 m: the
+pushed client moves away from where it draws the pusher, the interpolation delay (§7) plus a round trip behind the
+pusher's position on the host, and with two radii alone the honest head-on push of M4-7's network test over the
+loopback was corrected (0.86 m apart). Before #76 a modified client claiming a push with nobody near moved at
+11.5 m/s with no input and no stamina. The downed get no allowance: they are never pushed, and they push nobody.
+
+Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
+Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
+trip late (its own motion reaches the other client, which moves, and that motion comes back: about 0.2 s with
+100 ms interpolation on each side). Over a network the overlap limit, not the push speed factor, sets how fast a
+straight push goes: at most `push_max_overlap` per round trip, 1 m/s at 0.2 s instead of 2.25 m/s. The
+two-client tests (`player_controller_push_test.gd`) run with that delay. *Open (M4):* the playtest over a network
+decides whether that is enough; the options are a larger limit (deeper visible overlap) or drawing the pushed
+capsule moved ahead on the pusher's client (display only).
+
+#### 7.1.7 The crawl (vision revision 1; M4-2, #138, replacing the ghosts' movement)
+A downed player's claims get the
+movement checks with the crawl's bounds: the allowed travel is `PlayerRules.crawl_speed_mps` times the ticks covered
+(plus a tenth of that, and 1 mm for floats), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
+(plus `STEP_CLEARANCE` and the slope allowance) above the last landing. The downed are never in the sprint state and
+spend no stamina; it regenerates as usual. They collide with the level client-side and with no player. `PickUp`,
+`PutDown` and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead
+send no intent that is accepted (§3.1). The knockdown places the downed player where it stood, on the floor below
+its last accepted position, with a new epoch and a `Correction` (`LifeRules.knock_down`), even on the floor. The
+movement rule treats that like a placement: walking claims in flight are dropped as stale instead of failing the
+crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
+the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
+`tests/unit/life/life_rules_test.gd`.
+
+#### 7.1.8 The raise (vision revision 1, Revive; M4-4, #140)
+The host checks the raise's conditions when `Raise` arrives
+and again every tick while it runs (a channel, §9.4): the target is downed, it lies within the pick-up's reach
+(2 m) of the raiser's last accepted position, both feet, and the line from the raiser's eye (`Items.eye_of`) to
+just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
+sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
+raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
+`MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
+started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
+`Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
+just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
+anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
+it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a
+stop restarts only a knockdown the raise paused, of a player still downed).
+
+#### 7.1.9 Walls
+The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
+walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
+wall.
+
+#### 7.1.10 Hits (the knife's `Use`: `Strike`, §9.4)
+The host picks the targets: every living player other than the
+attacker (strikes skip the downed, the dead and the invulnerable: for `PlayerRules.invulnerable_s` after a
+respawn or a revive, `PlayerState.is_invulnerable`, which nothing ends early, not even the player's own attack, the
+engineer's answer 3 on PR #133; M4-3, the revive M4-4) whose capsule has a point within
+the weapon's reach of the attacker's position and within half the weapon's angle of the facing, overlapping
+vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in the
+weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it.
+The facing is a claim, which is harmless because the reach is the host's. No lag compensation in the MVP: at walk
+speed a target is up to ~0.5 m ahead of what the attacker saw (100 ms of interpolation) against a 1.5 m reach. The
+playtest decides; rewinding targets to the attacker's view is the fallback. Prevents: hits on someone far away,
+behind a wall, without a weapon, or without stamina.
+2g (#63, `Strike` in `core/combat/strike.gd`) measures it so: the zone is a horizontal sector with its apex at the
+attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide around the horizontal part of
+the facing; a target's capsule has a point in it when its circle of `capsule_radius_m` around the target's
+position touches the sector (so an overlapping capsule touches the apex whatever the facing); it overlaps
+vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's eye
+(`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
+horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
+cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
+
+#### 7.1.11 Pick up and swap
+The client names the item; the host checks reach and line of sight from its own positions.
+The picked item goes to the hand (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an
+empty belt; otherwise (a full belt, or a two-handed hand item: the package) the hand item rests where the
+picked-up one lay, a spot already known to be valid, whichever of the two is two-handed. `Swap()` exchanges the
+hand and belt items; it needs an item in one of them (`nothing_to_swap`) and is refused with a two-handed item in
+the hand (`two_handed`), so a package carrier cannot draw a belted knife (V13), and only the living send it. Only
+the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep both
+slots; a death places both at the body and a leave drops both, the hand item first; a respawn starts empty.
+2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
+the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
+
+#### 7.1.12 Put down
+The client sends only its facing. The host places the item at the put-down distance along the
+horizontal facing, through `WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put
+straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye towards the
+point at that distance, so an item goes over what the player sees over (a low crate) and is stopped by a wall; a
+facing straight up or down puts it at the feet. The eye of the item rules (`Items.eye_of`) is the floor below
+the last accepted position plus the eye height, so a jump does not raise it: nobody puts a package, or sees one,
+over a partition from the top of a jump.
+
+#### 7.1.13 Drops
+An item dropped at a death or a leave, a downed player, and a body, come to rest on the floor below the
+player's last position (through `WorldQuery`), never in mid-air. `Items.drop_carried` (2e, #61; both slots, M4-5) drops the items, asking the floor
+from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
+level bug: the item rests at that position and the match logs an error. Where a knocked-down player lies
+(`LifeRules.knock_down`) and its body at the death (`LifeRules.die`; M4-2) are found the same way, with the same
+fallback, and at the death the items then drop at the body (`Items.place_carried`). Nothing drops at a knockdown.
+
+#### 7.1.14 Delivery
+The rule is "the package rests inside its circle, however it got there". So one check runs whenever
+an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
+`server/` reports from its physics (`ItemRested`, #37). A package resting inside its own circle is delivered: it
+stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
+never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
+(the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
+placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
+included, and from the marker's height up to that plus the height, both included (1 mm below the marker
+still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
+point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
+`server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
+a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
 
 ## 8. Debug tooling
 
@@ -3141,11 +3188,11 @@ names the facts that do.
 
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
-| `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1; the belt M4-5). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61); the belt M4-5 (#141) |
+| `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1.11; the belt M4-5). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61); the belt M4-5 (#141) |
 | `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
-| `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
-| `Strike` | picks the targets as in §7.1 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
-| `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
+| `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
+| `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
+| `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
@@ -3194,7 +3241,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | 2i (#65, `SilentVoice`); the radius M5-1 (#215) |
-| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
+| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6.3, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
 | `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137); the radius M5-1 (#215) |
 
 #### 9.4.6 A voice rule's hearing radius (M5-1, #215; E41)
@@ -3241,7 +3288,7 @@ Settings:
   the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
   `PlayerRules`' class defaults are 0,
   so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
-  check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
+  check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1.6) is not in `PlayerRules`: `push_speed_factor`,
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
@@ -3302,7 +3349,7 @@ Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Test
 
 #### 9.5.4 Delivery (task type)
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
-when its package rests inside its own circle, however it got there (§7.1). Nobody owns the task: any living player
+when its package rests inside its own circle, however it got there (§7.1.14). Nobody owns the task: any living player
 delivers any package.
 Settings: `package`: the Package item kind; `circle`: a station kind (spawn tag `circle`, radius 1 m (0.2 to 10;
 game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeholder, "not a decision"), a colour
@@ -3326,7 +3373,7 @@ palette: 10 distinct colours, provisional, one per package at the most `packages
   colour is what players see. The mode check refuses a circle station kind and a package item kind with the same
   spawn tag.
 - Check, on `item_rested`: a package of an undone subtask that rests on the ground inside its circle's cylinder
-  (`Delivery.rests_in`, §7.1: its rest position within the radius horizontally, and from the marker's height up to
+  (`Delivery.rests_in`, §7.1.14: its rest position within the radius horizontally, and from the marker's height up to
   that plus the height, edges included) is delivered: locked (no longer interactive), its circle done, its subtask
   done; then `PackageDelivered`, `TaskState` (M4-5), `TaskProgress` and `subtask_done` (detail: the subtask's index
   and its package), in that order. Any other item in a circle, or a package in another package's circle, does nothing.
@@ -3362,7 +3409,7 @@ What it does: the MVP's weapon: `Use` strikes in front of the holder.
 Settings: id `knife`; display name "Knife"; spawn tag `knife`; `hands` 1 (M4-5: it fits the belt, and one player
 may carry both knives, one in hand and one on the belt, V13); actions: one rule on `Use` with costs `Cooldown`
 (key `hit`, 0.5 s) and `StaminaCost` (25), and the effect `Strike` (30°, 1.5 m, 50 damage). The cooldown key is per
-player, so swapping to a second knife does not skip the interval (§7.1). Placed by `SpawnItems` (`knives`).
+player, so swapping to a second knife does not skip the interval (§7.1.10). Placed by `SpawnItems` (`knives`).
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; on `Use`: `Swung`, `Damaged`, `SelfStatus` (the attacker's
 stamina, the victim's health), and on a knockdown `KnockedDown` and the downed player's `Correction` (M4-2).
 Visible to: `Swung` and `KnockedDown` everyone; `Damaged` only the victim; the attacker gets no confirmation of a hit
@@ -3414,7 +3461,7 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres
 
 #### 9.5.10 PickUp (action)
 What it does: takes an item from the ground into the hand; a one-handed hand item goes to an empty belt, any other
-rests where the picked one lay (§7.1; M4-5).
+rests where the picked one lay (§7.1.11; M4-5).
 Settings: a rule on the base mode: trigger `PickUp`; conditions `ItemOnGround`, `InReach` (2 m), `InSight`;
 effects `TakeIntoHand`.
 Produces: `ItemPickedUp` (with `belted`, the item moved to the belt, or none); with a hand item that does not go to
@@ -3426,7 +3473,7 @@ Status: designed in #33; built in 2e (#61); the belt in M4-5 (#141). Tests: `tes
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
 
 #### 9.5.11 PutDown (action)
-What it does: puts the hand item down in front of the player (§7.1); a belt item stays (`empty_hand` with only one).
+What it does: puts the hand item down in front of the player (§7.1.12); a belt item stays (`empty_hand` with only one).
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
 Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its public events reveal no role.
@@ -3477,7 +3524,7 @@ mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_w
 What it does: the `sprint` flag of `MoveClaim` and its per-tick mask `sprint_ticks` (#155), settled by the movement
 rule for every tick a claim covers (§7.1), with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick
 costs only when the claim's `moving` flag and `moved_ticks` say the player gave movement input and it moved
-horizontally. The downed never sprint: they crawl at 1 m/s (§7.1
+horizontally. The downed never sprint: they crawl at 1 m/s (§7.1.7
 The crawl, M4-2).
 Why not a part: a rule fires once per trigger, while sprint cost and speed apply to every covered tick of a
 continuous claim. A mechanic that changes movement (a faster role, a slowing item) needs a movement modifier that the
@@ -3488,9 +3535,9 @@ Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`; 
 `tests/unit/stamina/stamina_ledger_test.gd`.
 
 #### 9.5.16 Jump (not a part in v0)
-What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1 with the numbers in
+What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1.4 with the numbers in
 `PlayerRules`: 1 m for 10 per jump.
-The downed never jump: a new jump of theirs is corrected (§7.1 The crawl, M4-2).
+The downed never jump: a new jump of theirs is corrected (§7.1.7 The crawl, M4-2).
 Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
@@ -3530,7 +3577,7 @@ levels/
   (the editor's Groups dock: `spawn_package`); a marker in two such groups is a load error. Packages and knives share
   spawn points when their item kinds name the same tag (say `item`), which is content data; a deal puts at most one
   item on a marker. A `circle` marker sits exactly on the floor a package rests on: its circle's cylinder starts at
-  the marker's height, so a marker even a little above the floor leaves packages below the cylinder (§7.1); a
+  the marker's height, so a marker even a little above the floor leaves packages below the cylinder (§7.1.14); a
   `package` marker also sits on the floor.
   One tag per marker keeps the `all_ready` fit check exact: the demands per tag are summed and
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
@@ -3563,7 +3610,7 @@ told. One format runs in two runners.
     scenario can go back to the lobby and play a second match (seed *k*+1, §3.3). A time limit for the whole run;
   - `never`: events that one bot, or every bot, must never receive;
   - `voice` (M5-1, #215): how the bots' synthetic voice talks, in talk spurts (the default, a pattern per bot) or
-    continuously (§4.6); every bot talks from its join until a `Talk` step silences it;
+    continuously (§4.6.2); every bot talks from its join until a `Talk` step silences it;
   - `measurement` (M5-4, #218): a load measurement, which the bots runner plays only when it is named, never in its
     run of every scenario (`verify`'s `bots`), whose time it would multiply; the core runner's suite still plays it.
 - **Steps** are a closed list, like parts: the engineer adds a step and lists it here. Every step that sends an intent
@@ -3660,10 +3707,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over ENet
     on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
     `ScenarioInvariants` (per `Match` call, through `HostSession`'s observer, §4.5), with `HostSession` in the place
-    of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
+    of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6.1).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
-    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11).
+    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -3685,7 +3732,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
   M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
-  only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6),
+  only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6.4),
   `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second in the hand, then the package: the hand knife
   rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
   package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
@@ -3696,11 +3743,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `none`. None of M4-5's runs in `bots-enet`.
   M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m from the middle towards -z and bot 2
   about 5 m towards +z, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to
-  about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6), which
+  about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6.4), which
   expects `none`; not a `bots-enet` step (`--instances 2` passed once, 2026-10-03).
   M5-4 (#218): `voice_load`, a `measurement` (8 bots walk to a circle of 3 m in the lobby, all within its 8 m, talk
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
-  with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6 "The wire" has its
+  with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5 "The wire" has its
   numbers); in one process it took 84 s.
 
 ### 9.8 The extensibility test
@@ -3710,7 +3757,7 @@ costs outside it.
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
 | Zone task (#36): stand in a zone for N seconds | a task type `.tres` (N, the zone radius; #36's questions, reset or pause and shared zones, become settings), a zone station kind, `zone` markers in the map, the mode's task types | one task type (one script, §9.3): its deal places the zones and binds each subtask to one; its tick (through `TaskTicks`) advances the time in the zone, kept in its task state, for each subtask whose counted player is alive inside the zone. Who counts (any living player, or only those inside the zone) is #36's question | none for placement and progress: `StationPlaced` and `TaskProgress` are generic. One more if #36 wants the time in the zone shown live, and one if a zone is shown as done to everyone (`PackageDelivered` is Delivery's) | none: `DealTasks` draws among the mode's task types (#79), and the zone task brings its own subtasks setting |
-| Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (#36's zone task, a #34 medic's resurrection at a body) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
+| Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (#36's zone task, a #34 medic's resurrection at a body) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37) | a `Throw` rule on the mode, for any held item | one: the `Throw` effect, which takes the item out of the hand into a *flying* state | a public `ItemThrown`, and a directive (audience *server*) that tells `server/` to simulate the flight | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; `server/` simulates the flight and reports `ItemRested`, which raises `item_rested`, so delivery works unchanged. How the flight is shown is #37's: `core/` builds the snapshots but does not know an item's position in flight, so either `server/` reports the positions as logged commands, or clients draw the arc from `ItemThrown` until `ItemPlaced`. Damage on impact needs an impact fact: #37 decides |
 
@@ -3742,10 +3789,10 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
-| Lag compensation for hits (§7.1) | after the MVP playtest |
+| Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added with the CC0 sounds of #144 and #145 (a follow-up: M5-7, #221, built the muffle before the files arrived) |
