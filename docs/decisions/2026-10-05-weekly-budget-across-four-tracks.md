@@ -169,6 +169,21 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   **Amended 2026-10-06** (#467; approved by the engineer:
   [#467 comment 6014950287](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287)): the
   handover may come mid-wave; the successor relaunches the runs in flight fresh from their commits.
+  **Amended 2026-10-07** (#484). Approved by the engineer:
+  [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550). The
+  thresholds stay mandatory (300k, 12 hours, changed instructions); a manager may also hand over earlier, at a natural
+  break (no run in flight, or a stop for the engineer), when its cost math says a fresh start is cheaper. The manager
+  starts its successor itself and the engineer pastes nothing: an ad-hoc Desktop scheduled task holds the track's
+  standing kickoff, and the manager sets its `fireAt` a few minutes ahead (route C), checks that the successor
+  started, sets its effort and closes itself where the app allows. The approved comment's route B
+  (`run_scheduled_task`) was probed first
+  ([#484 comment 6025319228](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025319228),
+  [6025434392](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025434392)) and does not chain:
+  a session a scheduled task started is refused it, while a `fireAt` task fires by itself
+  ([6025677487](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)). The successor starts
+  in `acceptEdits` at medium effort whatever its predecessor's mode, so while the engineer is away a manager hands
+  over only when a threshold forces it. It applies to every track's manager: game, UI, art and meta. How:
+  orchestrate-stage handover.md, AGENT_WORKFLOW §7.1.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

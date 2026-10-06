@@ -546,10 +546,11 @@ Rules for every workflow run:
   own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
   rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
   manager says so on each running manager's plan issue.
-- **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
-  answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges the gate's
-  exceptions. The manager closes issues whose work is on `main` (a comment linking the PRs and merge commits) and runs
-  `worktree-done` for its merged tasks when no live session sits there. Every message from the manager ends with one
+- **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
+  weekly limit; the manager stores it as the track's standing kickoff, Recovery below), answers the numbered "Needs
+  the engineer" questions, gives each milestone's go (a playtest) and merges the gate's exceptions. The manager closes
+  issues whose work is on `main` (a comment linking the PRs and merge commits) and runs `worktree-done` for its merged
+  tasks when no live session sits there. Every message from the manager ends with one
   short "For you:" block in the human's language, numbered, listing only what needs the human now (a refused merge, a
   decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
   session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
@@ -566,9 +567,29 @@ Rules for every workflow run:
   The handover is mechanical (#279, #467): at each turn end the manager runs `wave`, whose last line is the verdict.
   It hands over once its context is over 300k tokens or its session over 12 hours old, even mid-wave (the engineer
   on #467, replacing #329's "never mid-wave"): it stops its runs, posts a handover wave comment with their args and
-  gives the human the kickoff to paste into a new session, which relaunches them fresh. It also hands over once its
-  runs end after a merge into `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get
-  its cached copy), and at a stop for the human with the context over 150k (the skill's §7).
+  starts its successor itself, which relaunches them fresh. It also hands over once its runs end after a merge into
+  `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get its cached copy), at a stop
+  for the human with the context over 150k, and earlier at a natural break when its cost math says a fresh start is
+  cheaper (the skill's §7); while the human is away, only when a threshold (300k, 12 hours, changed instructions)
+  forces it. **The successor's start** (#484, route C; the engineer's rule for every track's manager, game, UI, art
+  and meta, [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
+  with route C in place of its route B after
+  [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)): each track's standing
+  kickoff is stored once per stage as the prompt of one ad-hoc Desktop scheduled task, `<track>-manager`: the human's
+  stage kickoff with its start lines replaced by a "Continue from the latest handover comment on #<plan>" line and a
+  line that names the manager's writes against the app's scheduled-task frame (the skill's `handover.md`). At a
+  handover the manager sets that task's `fireAt` 3 minutes ahead (`update_scheduled_task`, `notifyOnCompletion:
+  false`; a one-time task fires by itself), checks with `list_task_runs` that the successor's run started, sets its
+  effort and archives itself where the app allows, and stops, launching nothing more. `run_scheduled_task` is refused
+  in a session a scheduled task started, so it would not chain; no kickoff is pasted, and the human's paste is left
+  only for a missing or refused tool. The successor starts in `acceptEdits` at medium effort whatever its
+  predecessor's mode and cannot raise either itself (the human switches them by hand; until then it launches nothing
+  that prompts there), has no AskUserQuestion (read-backs go to plain chat) and takes no other session's
+  `send_message` (the app counts it as unattended; the human types into it as usual); before any launch it checks that
+  no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own repos
+  (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`, and need the same there: their task created
+  from a session in their checkout, holding their kickoff (the UI repo's `CLAUDE.md` keeps one under "Starting a new
+  manager session") with these two lines, and the steps above in their `CLAUDE.md`.
 
 ## 8. Permissions, guards and hooks
 
@@ -1280,9 +1301,10 @@ that no later launch of its issue and workflow has replaced (the args exactly as
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
 context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
 also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
-orchestrate-stage skill's §7 turn-end check). A due verdict ends with the successor's start (#484): `run_scheduled_task
-<track>-manager` (or `-b`), `set_session_effort` and `archive_session self`, the track read from the `Track:` line of
-the session's kickoff (as `metrics --track` reads it, inside a scheduled task's frame too). It reads two more sources: one `gh pr list --base main --json files` for
+orchestrate-stage skill's §7 turn-end check). A due verdict ends with the successor's start (#484, route C):
+`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead, the track read from the `Track:` line of the
+session's kickoff (as `metrics --track` reads it, inside a scheduled task's frame too). It reads two more sources: one
+`gh pr list --base main --json files` for
 the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
 `.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
 HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
