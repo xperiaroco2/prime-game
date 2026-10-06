@@ -48,14 +48,17 @@ which the engineer confirms in the PR that brought this file (its "Needs the eng
      successor's folder (`get_session`) after its first run. A one-time task fires by itself at its `fireAt`, while the
      desktop app is open.
   4. Once the `fireAt` is past, `list_task_runs` of the task, again after a background `sleep 120`, at most three
-     checks (no foreground sleep): a new run is your successor. Then `set_session_effort` on its session (your
-     kickoff's effort, else `high`; from its second turn on); a session a scheduled task started may be refused it:
-     the successor then runs at medium until the human raises it. No new run after the third check (whether a task
+     checks (no foreground sleep): a new run is your successor. Send the PushNotification of step 5 first; then,
+     only while the human is present (§1), `set_session_effort` on its session (your kickoff's effort, else `high`;
+     from its second turn on): it may show an approval card, which at night would block your turn before the archive.
+     Refused, or the human away: the successor runs at medium until the human raises it (its For-you asks). No new
+     run after the third check (whether a task
      fires while an earlier run of it still counts as running is not probed): `create_scheduled_task` once more as
      `<track>-manager-<UTC yyyymmddhhmm>` with the same prompt and fields, name it in the handover comment, and check
      again.
   5. One chat line naming the successor ([its title](#<session id>)), its mode and effort, the For-you ("nothing", or
-     the pull), a PushNotification, then `archive_session("self")` as your last call; refused (likely in a session a
+     the pull), the PushNotification (sent before step 4's `set_session_effort`), then `archive_session("self")` as
+     your last call; refused (likely in a session a
      scheduled task started), you just stop: no timer, launch nothing more either way.
 - **The paste**, only when route C fails (no such tools, a create or update refused, still no run): "For you:" close
   this session and paste the stored task's prompt (else the skill's §10 kickoff with "Continue from" and `Track:`) into
