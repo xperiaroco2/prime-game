@@ -109,8 +109,9 @@ not .md: a Read, or a shell step that is only `cat <file>` or `sed -n <ranges> <
 a chain (`;`, `&&`, `||`) counts, and a `cat` of several files none. It is big when it reads one whole file (a Read
 without offset and limit, a `cat`) and returns more than BIG_READ_LINES lines (the reading rule's "a code file over
 400 lines"). It is a re-read when its lines (a Read's line numbers, a `cat`'s 1 to n, a `sed -n`'s ranges) were all
-(whole) or partly (partial) read already by the same agent with no Edit, Write or `sed -i` of that file, no
-`git rebase/checkout/switch/reset/pull/merge` and no compaction in between; results under REPEAT_MIN_CHARS characters
+(whole) or partly (partial) read already by the same agent with no Edit, Write, `sed -i` or `>` redirect into that
+file, no `git rebase/checkout/switch/reset/pull/merge/restore/cherry-pick/am/apply/revert`, no runner `publish`,
+`normalize` or `merge` and no compaction in between; results under REPEAT_MIN_CHARS characters
 ("File unchanged since last read") are none. Tokens are characters / CHARS_PER_TOKEN, a Read's line-number prefixes
 included as the audit counted them; a re-read's tokens are those of its repeated lines (a shell result's characters
 split evenly over its lines). The table gives per role the agents, tool calls and API list $ per agent and those
@@ -287,8 +288,16 @@ CODE_SHELL_READ = re.compile(
 REDIRECT = re.compile(r"\s+\d*>>?&?\s*\S+")
 SED_EDIT = re.compile(rf"sed\s+-i\b.*?(?P<path>{SHELL_WORD})\s*$")
 SED_RANGE = re.compile(r"(\d+)(?:,(\d+))?p")
-# Steps after which a read of unchanged-looking content is a fresh read: the tree may have changed under it.
-TREE_CHANGE = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(?:rebase|checkout|switch|reset|pull|merge)\b")
+# Steps after which a read of unchanged-looking content is a fresh read: the tree may have changed under it (git, and
+# the runner commands that rebase or rewrite files).
+TREE_CHANGE = re.compile(
+    r"\bgit\s+(?:-C\s+\S+\s+)?(?:rebase|checkout|switch|reset|pull|merge|restore|cherry-pick|am|apply|revert)\b"
+    r"|\brun\.(?:sh|cmd)\s+(?:publish|normalize|merge)\b"
+)
+# A write of a step's output into a file (`> f`, `>> f`, `1> f`); `2> f` and `>&2` write no output there.
+WRITE_REDIRECT = re.compile(r"(?:^|\s)1?>>?\s*(?P<path>[^\s&>][^\s]*)")
+# A heredoc's body (`<<'EOF'` to its EOF line): text, not shell steps.
+HEREDOC_BODY = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*)\n.*?\n\s*\3\s*(?=\n|$)", re.DOTALL)
 READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
 # The file a Grep output line starts with (an absolute or relative path with an extension, then `:` or `-` and a
 # line number, a `:`, or the end of the line).
@@ -669,13 +678,14 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
 
 
 def code_edits(cmd: str) -> list[str]:
-    """The repository code files a shell command edits in place (`sed -i`)."""
+    """The repository code files a shell command edits in place (`sed -i`) or writes its output into (`> f`, a heredoc
+    `cat > f <<'EOF'`)."""
     edits = []
-    for step, _piped in shell_steps(cmd):
+    for step, _piped in shell_steps(HEREDOC_BODY.sub(r"\1", cmd)):
         match = SED_EDIT.fullmatch(step)
-        rel = _shell_path(match.group("path")) if match else None
-        if rel:
-            edits.append(rel)
+        targets = [match.group("path")] if match else []
+        targets += [m.group("path") for m in WRITE_REDIRECT.finditer(step)]
+        edits += [rel for rel in map(_shell_path, targets) if rel]
     return edits
 
 

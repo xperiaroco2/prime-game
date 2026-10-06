@@ -51,6 +51,13 @@ class CodeReadTest(unittest.TestCase):
         self.assertEqual(metrics.code_edits(f"cd {WT} && sed -i 's/a;b/c/' tools/x.py && sed -n 3p tools/x.py"),
                          ["tools/x.py"])
 
+    def test_a_redirect_into_a_code_file_is_an_edit(self) -> None:
+        heredoc = f"cd {WT} && cat > tools/x.py <<'EOF'\nprint(1) > other.py\nEOF"
+        self.assertEqual(metrics.code_edits(heredoc), ["tools/x.py"])
+        self.assertEqual(metrics.code_edits("echo x >> core/z.gd"), ["core/z.gd"])
+        self.assertEqual(metrics.code_edits("printf a 1> core/z.gd"), ["core/z.gd"])
+        self.assertEqual(metrics.code_edits("tools/run.sh lint > /dev/null 2>&1; git diff 2>out.log >/dev/null"), [])
+
 
 class CodeReadsTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -94,6 +101,24 @@ class CodeReadsTest(unittest.TestCase):
         again = chars(first, range(1, 21)) + chars(shifted, range(11, 21)) + len(sed) + chars(part, range(3, 6))
         again += chars(part, range(9, 13))
         self.assertAlmostEqual(got["repeat_tokens"], again / metrics.CHARS_PER_TOKEN)
+
+    def test_a_step_that_changes_the_tree_forgets_what_was_read(self) -> None:
+        x_py = metrics.REPO_ROOT / "tools" / "x.py"
+        text = numbered(1, 30)
+        steps = [f"cd {WT} && tools/run.sh publish > a.log 2>&1", "tools\\run.cmd normalize", "tools/run.sh merge 5",
+                 "git restore tools/x.py", "git cherry-pick abc", "git am p.patch", "git apply p.diff",
+                 "git revert HEAD", f"cd {WT} && cat > tools/x.py <<'EOF'\nx = 1\nEOF"]
+        for step in steps:
+            with self.subTest(step=step):
+                got = self.counts([
+                    (read("r1", x_py), text),
+                    (bash("b1", step), "done"),
+                    (read("r2", x_py), text),
+                ])
+                self.assertEqual((got["repeat"], got["partial"]), (0, 0))
+        # A step that changes nothing keeps it: the same read again is a whole re-read.
+        got = self.counts([(read("r1", x_py), text), (bash("b1", "git status"), "clean"), (read("r2", x_py), text)])
+        self.assertEqual(got["repeat"], 1)
 
     def test_a_compaction_forgets_what_was_read(self) -> None:
         x_py = metrics.REPO_ROOT / "tools" / "x.py"
