@@ -53,7 +53,8 @@ export const meta = {
 //                 publisher run verify, publish and mutants in the background and poll them with `tools\run.cmd wait`
 //                 (#303), and wait on CI in calls of at most 240 s, so no tool call outlasts their 5-minute prompt
 //                 cache; the publisher runs no standalone verify before `publish`, which verifies itself unless an
-//                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground. false: the prompts of before #411, byte for byte. +0 agents
+//                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground.
+//                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
 //                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
