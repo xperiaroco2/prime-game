@@ -368,7 +368,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   - **Keepalive and the silence rule** (§2.6): WebRTC's own keepalives run on libdatachannel's threads, so a hung main
     thread stays `CONNECTED` (M6-1). `poll()` sends each live peer exactly `[0, 0, 0]` on VOICE when nothing went to
     it for `KEEPALIVE_MS` (1 s), from the main thread only; the receiver consumes exactly that packet on VOICE before
-    the inbox, and any other kind-0 packet reaches the inbox, which rejects it (`UNKNOWN_KIND`). After every channel
+    the inbox (and the round trip's probes below), and any other kind-0 packet reaches the inbox, which rejects it
+    (`UNKNOWN_KIND`). After every channel
     was read (the backlog drained first, so a thawed side drops nobody), a peer heard nothing from for `SILENCE_MS`
     (20 s), keepalives included, leaves: `peer_left` on the host, `host_lost` on a client. So does a connection in
     `FAILED` or `CLOSED` (judged after its channels were read, so what came with the end comes first, as on ENet;
@@ -385,6 +386,19 @@ dissidents, no crew present only once every crew member left, End widens nothing
     connection or another channel closed) or `CLOSE_WAIT_MS` (5 s) passed. Held LATEST packets are discarded at once,
     and nothing more is sent to it. A leave the host decides (silence, a stall, a closed channel) closes the
     connection at once.
+  - **The own connection** (the design's §3 item 4, #431; every backend has `own_route()` and
+    `own_round_trip_ms()`, a client's own only, NONE and -1 on a host): webrtc-native 1.2.2 registers no method of its
+    own, so neither the selected candidate pair (host, srflx or relay) nor a round trip can be read
+    (`webrtc_native_addon_test` pins it). The kind follows from the ICE servers the offer brought (`route_of`):
+    `DIRECT` without a TURN server (no relay candidate exists), `DIRECT_OR_RELAYED` with one. With
+    `measure_round_trip` set (the client's F3 while it shows) a client pings the host on VOICE once admitted and every
+    `PING_INTERVAL_MS` (1 s, a placeholder; a ping counts as a keepalive): a kind-0 frame of 5 bytes, `PING` and its
+    clock in ms (u32), 8 in all (`PING_BYTES`). The host answers the pings of one poll once, after the reads, with
+    `PONG` and the last stamp read; the client takes `now - stamp` (dropped when later than now or older than
+    `SILENCE_MS`) into a smoothed round trip (gain 1/8). Both are consumed before the inbox; one the wrong way, or
+    malformed, reaches it and is rejected. Off by default, so the silence twin's upload is keepalives alone. A sample
+    includes up to a frame on each side, as ENet's acknowledgements do. ENet: `DIRECT` and its smoothed
+    `PEER_ROUND_TRIP_TIME`; the loopback: `LOCAL`, no round trip.
   - **`take_upload()`** counts each packet a channel took (the header included) plus `PACKET_OVERHEAD_BYTES`, E56's
     108 B, one datagram each; SCTP's acknowledgements are left out (the transport never sees them).
   - **The fault shim** (`FaultShim`, `use_faults`, debug builds only and off by default; the design's §5): on what
@@ -433,8 +447,11 @@ dissidents, no crew present only once every crew member left, End widens nothing
 - Checked by `tests/unit/net/transport/`, `tests/integration/net/webrtc_transport_test.gd` (WebRTC against forged
   peers in one process: a half-made connection against the maximum, a second answer, an `ADMIT` of the host's id,
   keepalives and other kind-0 packets, the join's reasons, a peer's last message before its leave, a kick's
-  reason read with the closed channel, ids not reused, a channel closed under a live connection) and seven headless runs on 127.0.0.1, which `verify`, and
-  so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet runs below, and their WebRTC
+  reason read with the closed channel, ids not reused, a channel closed under a live connection; the round trip's
+  pings only while measuring, one answer per poll, probes the wrong way rejected),
+  `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
+  127.0.0.1, which `verify`, and so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet
+  runs below (the host and two clients also check each side's own connection), and their WebRTC
   twins with `LanSignalling` on that port, no ICE servers and host candidates only (M6-4, #370):
   `webrtc_host_and_two_clients.gd` (`--instances 3`: the ids 2 and 3, then 4, `disconnect_peer` after a last
   message, every peer's own id on every lane, which caught the design's §5 plant of a swapped id-to-connection map,
@@ -1733,7 +1750,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
-  for `shot`).
+  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8).
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
@@ -2248,8 +2265,10 @@ versioned apart from the game's wire (`"v"`, 1 today) and changes no row of §4.
 **Pieces** (`net/signal/`): `SignalCodec` (the messages, their fields and checks), `SignalRouter` (the service's
 rooms and routing, with no sockets: a socket number in, the messages to send out), `LanSignalling` (the router over
 `ws://` from `TCPServer` and `WebSocketPeer`, served by the host itself on a LAN and in every headless test) and
-`Signaller` (the client side for a host and a joiner over `WebSocketPeer`; its signals fire from `poll()`). The
-Worker (M6-5b, `tools/signal/`) implements the same router in JavaScript.
+`Signaller` (the client side for a host and a joiner over `WebSocketPeer`; its signals fire from `poll()`; a socket
+still connecting after `CONNECT_TIMEOUT_MS`, 5 s, a placeholder, is closed and `closed` fires: on Windows a refused
+connect stays connecting for 20 s and more, #431). The Worker (M6-5b, `tools/signal/`) implements the same router in
+JavaScript.
 
 **Messages:** JSON text, printable ASCII (tab, CR and LF allowed: no `get_string_from_utf8` engine error a peer could
 repeat), at most 16 KB (16384 bytes, counted before parsing), each with `"t"` (the type) and `"v"`. Integers are JSON
@@ -2327,7 +2346,8 @@ decoder: every truncation, every field of every type replaced by each other JSON
 input and random bytes give a clean reject or a canonical message and no engine error line) and
 `tests/integration/net/lan_signalling_test.gd` (every transcript replayed byte for byte over real WebSockets on
 127.0.0.1 through `LanSignalling` on a free port; a host and a joiner `Signaller` through a whole exchange with a
-default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what is not for its side, with no signal).
+default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what is not for its side, with no signal;
+one still connecting to a server that never answers the handshake closed after its timeout).
 `Signaller.room_found` gives the content hash as the s64 `ContentFingerprint` makes. The
 design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
 
@@ -2410,8 +2430,14 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
   away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
-  no address or ICE-state API and that `client/ui/` names no transport. The F3 line with the own connection's kind and
-  round trip (§3 item 4 of the design) is not built: `WebRtcTransport` exposes neither yet.
+  no address or ICE-state API and that `client/ui/` names no transport.
+- **F3's connection line** (§3 item 4 of the design, #431; debug builds only): the own connection's kind ("direct",
+  "direct or relayed (WebRTC does not say which)", or "in this process" for the host's own player) and its round
+  trip, from the own `ClientSession` (`route()`, `round_trip_ms()`), which has its transport measure only while F3
+  shows (`set_measuring_round_trip`; WebRTC pings for it, §4 above). A source test holds that no `client/` file but
+  `ClientSession`, and no `server/` file, calls the transport's own-connection API; `game_code_join_test` checks the
+  joiner's line over real WebRTC and that the host's overlay shows nothing of the joiner's;
+  `client/dev/debug_overlay_joiner_preview.tscn` shows a joiner's view for `shot`.
 - **The command line and the runner:** `--host --code [--signal=lan --room=<CODE>]` hosts a room (`lan`: this process
   serves `LanSignalling` on TCP of its port); `--join=<code>` with `--signal=ws://<host>:<port>` joins one.
   `tools\run.cmd host --code [--clients N] [--local]` picks a random code and starts the clients with it;
