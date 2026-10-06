@@ -18,12 +18,21 @@ NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its f
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
 READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent but the lean writers is read-only (§5)
-# The lean workflow agent types, the only writable ones: exactly these names, each within its own tools allowlist
-# (docs/decisions/2026-10-04-lean-workflow-agent-types.md). A third writer needs a new ADR.
+# The lean workflow agent types: exactly these names, each within its own tools allowlist, Skill disallowed, no
+# effort (docs/decisions/2026-10-04-lean-workflow-agent-types.md; the reader and lean-writer:
+# docs/decisions/2026-10-06-lean-reader-and-writer-types.md). The writers are the only writable subagents; a fourth
+# writer needs a new ADR. The reader stays read-only.
 _LEAN_TOOLS = (
     "Bash", "PowerShell", "Read", "Edit", "Write", "Grep", "Glob", "Monitor", "TaskStop", "WebFetch", "WebSearch",
 )  # fmt: skip
-WRITERS = {"task-implementer": _LEAN_TOOLS, "task-publisher": (*_LEAN_TOOLS, "SendUserFile")}
+_READER_TOOLS = ("Read", "Grep", "Glob", "Bash", "PowerShell", "WebFetch", "WebSearch")
+WRITERS = {
+    "task-implementer": _LEAN_TOOLS,
+    "task-publisher": (*_LEAN_TOOLS, "SendUserFile"),
+    "lean-writer": (*_READER_TOOLS, "Edit", "Write"),
+}
+READERS = {"lean-reader": _READER_TOOLS}
+LEAN = {**WRITERS, **READERS}
 WRITER_DISALLOWED = ("NotebookEdit", "Agent", "Skill")
 # Skills (§6), against the frontmatter reference at code.claude.com/docs/en/skills (checked 2026-09-29). Claude Code
 # ignores an unknown field without a word, so a misspelled `allowed_tools` would silently grant nothing.
@@ -358,19 +367,22 @@ def agent_problems(path: Path) -> list[str]:
     if not tools:
         problems.append("tools: is empty (list the minimal tools)")
     disallowed = _as_list(fm.fields.get("disallowedTools"))
-    if path.stem in WRITERS:
+    if path.stem in LEAN:
         for tool in tools:
-            if tool not in WRITERS[path.stem]:
+            if tool not in LEAN[path.stem]:
                 problems.append(f"tools: {tool} is outside the lean allowlist (lean agent types ADR)")
-        missing = [t for t in WRITER_DISALLOWED if t not in disallowed]
+    if path.stem not in WRITERS:
+        missing = [t for t in READ_ONLY if t not in disallowed]
+        if missing:
+            problems.append(f"disallowedTools: must include {', '.join(missing)} (subagents are read-only)")
+    if path.stem in LEAN:
+        # A reader's NotebookEdit and Agent are already in the read-only line above.
+        required = WRITER_DISALLOWED if path.stem in WRITERS else [t for t in WRITER_DISALLOWED if t not in READ_ONLY]
+        missing = [t for t in required if t not in disallowed]
         if missing:
             problems.append(f"disallowedTools: must include {', '.join(missing)} (lean agent types ADR)")
         if "effort" in fm.fields:
             problems.append("effort: is set by the workflow per role (lean agent types ADR)")
-    else:
-        missing = [t for t in READ_ONLY if t not in disallowed]
-        if missing:
-            problems.append(f"disallowedTools: must include {', '.join(missing)} (subagents are read-only)")
     if "permissionMode" in fm.fields:
         problems.append("permissionMode: project subagents inherit the session's mode (lean agent types ADR)")
     if "memory" in fm.fields:

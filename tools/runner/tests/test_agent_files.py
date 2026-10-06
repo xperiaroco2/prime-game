@@ -111,5 +111,38 @@ class ReviewerAgentFilesTest(unittest.TestCase):
                     self.assertEqual(got[0], permissions.PASS, got)
 
 
+
+class LeanAgentFilesTest(unittest.TestCase):
+    """#466: the lean types of the workflows outside issue-task and pr-rebase
+    (docs/decisions/2026-10-06-lean-reader-and-writer-types.md)."""
+
+    READER_TOOLS = ["Read", "Grep", "Glob", "Bash", "PowerShell", "WebFetch", "WebSearch"]
+
+    def test_the_reader_is_read_only_on_sonnet(self) -> None:
+        fm = instructions.parse(text("lean-reader"))
+        self.assertEqual(instructions.agent_problems(AGENTS / "lean-reader.md"), [])
+        self.assertEqual(fm.fields.get("model"), "sonnet")  # finders and gatherers; a skeptic's call passes opus
+        self.assertEqual(sorted(instructions._as_list(fm.fields.get("tools"))), sorted(self.READER_TOOLS))
+        disallowed = instructions._as_list(fm.fields.get("disallowedTools"))
+        for tool in (*instructions.READ_ONLY, "Skill"):
+            self.assertIn(tool, disallowed)
+
+    def test_the_writer_adds_only_edit_and_write_on_opus(self) -> None:
+        fm = instructions.parse(text("lean-writer"))
+        self.assertEqual(instructions.agent_problems(AGENTS / "lean-writer.md"), [])
+        self.assertEqual(fm.fields.get("model"), "opus")
+        self.assertEqual(
+            sorted(instructions._as_list(fm.fields.get("tools"))), sorted([*self.READER_TOOLS, "Edit", "Write"])
+        )
+
+    def test_their_bodies_stay_short(self) -> None:
+        # Each body is the whole system prompt of every agent of its type: a line here is paid on every launch.
+        for name in ("lean-reader", "lean-writer"):
+            with self.subTest(agent=name):
+                body = instructions.parse(text(name)).body
+                self.assertLessEqual(instructions.loaded_lines(body), 15)
+                self.assertIn("docs/decisions/2026-10-06-lean-reader-and-writer-types.md", " ".join(body))
+
+
 if __name__ == "__main__":
     unittest.main()
