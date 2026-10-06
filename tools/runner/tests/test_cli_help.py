@@ -108,6 +108,8 @@ OLD_ROWS = {
         "rebase the task branch on its PR's base (else start --base, else main)",
         "run verify",
         "push the branch with a lease",
+        "unless an identical tree was just verified green",
+        "under 2 hours ago",
     ],
     "run": [
         "pinned Godot",
@@ -155,7 +157,7 @@ OLD_ROWS = {
         "124",
         "still running",
         "no log",
-        "--verified: 0 when the newest verify passed at HEAD with a clean tree",
+        "--verified: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago",
     ],
     "wave": [
         "finished and running runs and handover args",

@@ -1,5 +1,10 @@
 """`publish`: rebase the current task branch on its base, verify it, and push it with --force-with-lease.
 
+It verifies unless an identical tree was just verified green (#471): when, after the rebase, this checkout's newest
+verify record passed at the same head, tree and runner, with a clean tree then and now, under wait.REUSE_MAX_AGE ago
+(wait.reuse_refusal), publish says so and pushes on that record. A rebase that moved the branch changes the head, so
+it verifies as always. CI still runs the full verify before any merge.
+
 The only way the agent updates a pushed branch after a rebase (docs/decisions/2026-09-28-force-with-lease-on-task-
 branches.md). The pre-push hook lets this one non-fast-forward push through because the runner marks it with
 PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker and is blocked.
@@ -11,7 +16,7 @@ import json
 import re
 import shutil
 
-from . import verify
+from . import verify, wait
 from .common import ROOT, Failure, Result, bad, ok, run, say, warn
 
 REMOTE = "origin"
@@ -77,6 +82,19 @@ def was_local(branch: str, oid: str) -> bool:
         return True
     reflog = _git("reflog", "show", "--format=%H", f"refs/heads/{branch}").out.split()
     return oid in reflog
+
+
+def reuse_refusal() -> str:
+    """Why this checkout's newest verify record does not stand for a verify now, or "" when publish may push on it
+    (wait.reuse_refusal on the record in verify.HISTORY and this checkout's head, tree, runner and status)."""
+
+    def rev(spec: str) -> str | None:
+        res = _git("rev-parse", spec)
+        return res.out.strip() if res.rc == 0 and res.out.strip() else None
+
+    dirty = bool(_git("status", "--porcelain", "--untracked-files=all").out.strip())
+    facts = {"head": rev("HEAD"), "tree": None if dirty else rev("HEAD^{tree}"), "runner": rev("HEAD:tools/runner")}
+    return wait.reuse_refusal(wait.newest_record(verify.HISTORY), facts, dirty, wait.utc_now())
 
 
 def main(base: str | None = None) -> int:
@@ -172,8 +190,21 @@ def main(base: str | None = None) -> int:
         _must(_git("config", tip_key(branch), _sha(upstream)), "recording the parent's tip")
 
     say()
-    if verify.main() != 0:
-        raise Failure("verify is red after the rebase; nothing was pushed")
+    why = reuse_refusal()
+    if not why:
+        record = wait.newest_record(verify.HISTORY)
+        age = wait.record_age(record, wait.utc_now())
+        ok(
+            f"verify skipped: an identical tree was just verified green: the newest verify ({record.get('start')}, "
+            f"{wait.minutes(age) if age is not None else '?'} ago) passed at head {after[:10]} on tree "
+            f"{str(record.get('tree'))[:10]} and runner {str(record.get('runner'))[:10]} with a clean tree (#471); "
+            "CI still runs the full verify before any merge"
+        )
+    else:
+        say(f"publish: verify runs: {why}")
+        say()
+        if verify.main() != 0:
+            raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 
     # An empty expected value means the branch must not exist on the remote yet.
