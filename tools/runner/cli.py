@@ -398,14 +398,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "section",
-        help="a doc's outline (§, title, lines, tokens) or exactly the sections named; --refs: § references",
+        help="a doc's outline (§, title, lines, tokens) or exactly the sections named; a .py, .gd or .js file's "
+        "symbols or one symbol; --refs: § references",
         description="Print a doc's outline (§, title, line range, token estimate) or exactly the sections named, "
         "each up to the next heading of the same or a higher level. A doc is a path, ARCHITECTURE, AGENT_WORKFLOW "
-        "or part of an ADR's file name. Read a long doc by section instead of whole. lint fails a duplicate § and a "
-        "§ reference that does not resolve; --refs runs that check and lists each reference with no doc in scope.",
+        "or part of an ADR's file name. Read a long doc by section instead of whole. A code file (.py, .gd or .js) "
+        "gives its top-level symbols (classes, functions, constants and variables; a class's methods one level "
+        "down; any other statement over 5 lines as a block) with line ranges, and `section <file> <symbol>` prints "
+        "one symbol whole, by name or Class.method (#468): read a big code file by its outline, then the symbol. A "
+        "relative path is looked up under the current folder first. lint fails a duplicate § and a § reference "
+        "that does not resolve; --refs runs that check and lists each reference with no doc in scope.",
     )
-    p.add_argument("doc", nargs="?", help="a path, ARCHITECTURE, AGENT_WORKFLOW, or part of an ADR's file name")
-    p.add_argument("sections", nargs="*", help="§ numbers (4.5 or §4.5) or, for unnumbered headings, title words")
+    p.add_argument(
+        "doc", nargs="?", help="a path (a doc, or a .py, .gd or .js file), ARCHITECTURE, AGENT_WORKFLOW, or part of an "
+        "ADR's file name"
+    )
+    p.add_argument(
+        "sections",
+        nargs="*",
+        metavar="<section or symbol>",
+        help="§ numbers (4.5 or §4.5) or, for unnumbered headings, title words; for a code file, a <symbol>: its "
+        "name or Class.method",
+    )
     p.add_argument("--refs", action="store_true", help="lint's § check, listing each reference with no doc in scope")
 
     sub.add_parser(
