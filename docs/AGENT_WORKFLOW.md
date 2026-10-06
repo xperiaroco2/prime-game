@@ -349,12 +349,13 @@ Rules for every workflow run:
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
   rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
-  too, identical in the two scripts. A fourth (#456) is the one way to change an earlier commit, after a fix agent's
-  own sequence editor (a script that reworded a commit) made the guard ask and a night run waited 9 hours: a
-  `git commit --fixup=<sha>`, or for a new message a `git commit --allow-empty -F <file>` whose first line is
-  `amend! <that commit's subject>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (§8.2);
-  `--fixup=reword:` and `--fixup=amend:` open the message editor (git refuses `-m` and `-F` with them). The test pins
-  the line and runs the recipe through git with every editor failing.
+  too, identical in the two scripts. A fourth (#456) is the one way to change an earlier commit, after a fix agent's own
+  sequence editor (a script that reworded a commit) made the guard ask and a night run waited 9 hours: a `git commit
+  --fixup=<sha>`, or for a new message a `git commit --allow-empty -F <file>` whose first line is `amend! <that commit's
+  subject>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (§8.2); `--fixup=reword:` and
+  `--fixup=amend:` open the message editor (git refuses `-m` and `-F` with them), and so does a bare `git commit
+  --amend`; the last commit alone may use `--amend --no-edit` or `--amend -F <file>`. The test pins the line and runs
+  the recipe through git with every editor failing.
   Both return a compact result (#386), because the harness prints a run's return value into the manager's context
   and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
   `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
@@ -370,33 +371,33 @@ Rules for every workflow run:
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
-  `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR
-  (+2 agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code
-  with `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background
-  with a new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding,
-  and the publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not
-  resume (+1; none for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
-  wherever the netcode review is routed (+1). `skeptic: true` or a number: a read-only agent tries to refute each
-  blocker or major finding before the publisher (a number caps the agents); refuted ones are listed in the PR with the
-  reason (+1 each). `visual: true` (the scenarios the notes name), a scenario or a list: the implementer runs
-  `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the rule on Godot windows also allows
-  `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review, review, netcode, second_review,
-  godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an
-  effort or a model only when one is set, and no default names a model (the model-guard ADR); a model beyond the
-  shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A, §5). `publish_clean`
-  (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full publisher of a run with
-  no blocker or major left open after the reviews, the test review and the skeptics, never of a design task; the
-  result's `publish_clean` says whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
-  and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
-  it off for a resume of an earlier run launched without it): each agent that runs `verify`, `publish`, `mutants` or a
-  CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI commands
-  of §11.17 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows done). The
-  root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
-  `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
-  netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
-  result's `note` asks the manager to list the refuted findings with their reasons in the PR body. The kickoff's
-  approved agent count must cover the options the manager will pass; each script's
-  `whenToUse` and args comment give the counts, the roles and their fallbacks.
+  `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
+  agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
+  `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
+  new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
+  publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
+  for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review: true`: a second
+  `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1). `skeptic: true` or a
+  number: a read-only agent tries to refute each blocker or major finding before the publisher (a number caps the
+  agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
+  scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the
+  rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
+  review, netcode, second_review, godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back
+  to `effort`, a reviewer gets an effort or a model only when one is set, and no default names a model (the model-guard
+  ADR); a model beyond the shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A,
+  §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
+  publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
+  design task; the result's `publish_clean` says whether it applied. A missing `mutants` or `playcheck` on the task's
+  branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
+  +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
+  runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
+  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents also skip a standalone
+  verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow agent without it once on
+  main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
+  (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix
+  agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
+  The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
+  comment give the counts, the roles and their fallbacks.
 - **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean: true` (`issue-task`
   and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
   `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
@@ -734,7 +735,8 @@ whose git config names a `sequence.editor` (`code --wait`) would open it and the
 `git rebase --abort` in the own worktree then ends it. A reword stays editor-free too, through an `amend!` commit
 made with `git commit --allow-empty -F <file>` (its first line `amend! <subject>`), which autosquash applies as
 `fixup -C`; `--fixup=reword:` and `--fixup=amend:` open the message editor (#456, the workflows' rules).
-Always asks: `rebase --update-refs` (moves other branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
+Always asks: `rebase --update-refs` (moves other branches), `rebase -x|--exec` (runs commands, a push among
+them, that the deny rules cannot see; a sequence
 editor is such a command too, and passes since #457: the pre-push hook and GitHub's branch protection still stop a
 push to `main` and a force push; a deliberate exception to #457's "every form", kept because the task forbade
 weakening a push rule and left to the engineer on its PR), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
