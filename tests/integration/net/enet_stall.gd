@@ -26,11 +26,15 @@ extends SceneTree
 ##   31.5 s. So this pair cannot see a missing set_timeout; it guards only against a maximum below
 ##   about 7.5 s. Once it has held, neither side is polled again, so ENet's later drop cannot
 ##   fail the run. But ENet's clock is Godot's (milliseconds since the process started), and a
-##   client pings at once when it connects with its clock past the 500 ms ping interval: a process
-##   that starts slowly on a loaded PC measures the round trip from that ping before the stall and
-##   drops the host at about 10 to 12 s instead (#443: 11.8 s after a 600 ms start). A drop at
-##   PEER_TIMEOUT_MIN_MS or later is therefore the client keeping the host as long as it must: a
-##   frame hitch across the 10 s mark lets that drop's poll run before the hold is seen.
+##   client pings at once when it connects with its clock past the 500 ms ping interval: only a
+##   client that connects within its process's first 500 ms (as this run usually does) keeps the
+##   31.5 s. One that connects later, as every real game client does from a menu, or this run when
+##   its process starts slowly on a loaded PC, measures the round trip from that ping before the
+##   stall and drops a host stalled at the connection at about 10 to 12 s instead (#443: 11.8 s
+##   after a 600 ms start). A drop at PEER_TIMEOUT_MIN_MS or later is therefore the client keeping
+##   the host as long as it must: a frame hitch across the 10 s mark lets that drop's poll run
+##   before the hold is seen. A hitch spanning an earlier drop can hide it the same way (see
+##   _on_drop).
 ## - Pair 2, the client's timeout on its host peer: both beat for WARM_MS, so the round trip is
 ##   measured, then the host stops polling. The client must drop it after PEER_TIMEOUT_MIN_MS to
 ##   PEER_TIMEOUT_MAX_MS. Known limit: both builds drop at a resend of the same doubling chain, and
@@ -91,7 +95,6 @@ class Pair:
 	var host_paused := false
 	var client_paused := false
 	var connected_ms := -1
-	var stalled_at_ms := -1
 	## The stall, the running side's polls and its drop of the stalled side.
 	var watch := StallWatch.new()
 	var held := false
@@ -116,15 +119,14 @@ class Pair:
 	func warming() -> bool:
 		return (
 			connected_ms >= 0
-			and stalled_at_ms < 0
+			and watch.stalled_at_ms < 0
 			and not backlog_due
 			and backlog_sent_ms < 0
 			and not hold_only
 		)
 
 	func stall() -> void:
-		stalled_at_ms = Time.get_ticks_msec()
-		watch.stall(stalled_at_ms)
+		watch.stall(Time.get_ticks_msec())
 		host_paused = stalling == "host"
 		client_paused = stalling == "client"
 		print("NET stall %s: the %s stops polling" % [name, stalling])
@@ -134,7 +136,7 @@ class Pair:
 		var now := Time.get_ticks_msec()
 		if watch.dropped() or held or now - last_beat_ms < BEAT_EVERY_MS:
 			return
-		if not warming() and stalled_at_ms < 0:
+		if not warming() and watch.stalled_at_ms < 0:
 			return
 		last_beat_ms = now
 		if not client_paused:
@@ -218,9 +220,9 @@ func _process(_delta: float) -> bool:
 			pair.stall()
 		elif pair.backlog_sent_ms >= 0 and now - pair.backlog_sent_ms >= BACKLOG_SETTLE_MS:
 			_take_backlog(pair)
-		elif pair.hold_only and not pair.held and pair.stalled_at_ms >= 0:
-			if now - pair.stalled_at_ms >= EnetTransport.PEER_TIMEOUT_MIN_MS:
-				_hold(pair, now - pair.stalled_at_ms, "")
+		elif pair.hold_only and not pair.held and pair.watch.stalled_at_ms >= 0:
+			if now - pair.watch.stalled_at_ms >= EnetTransport.PEER_TIMEOUT_MIN_MS:
+				_hold(pair, now - pair.watch.stalled_at_ms, "")
 	if _pairs.all(func(pair: Pair) -> bool: return pair.done()):
 		_finish()
 	return false
@@ -268,12 +270,14 @@ func _hold(pair: Pair, kept_ms: int, note: String) -> void:
 
 ## The running side lost the stalled one: expected, and timed. Pair 1 must have kept it first for
 ## PEER_TIMEOUT_MIN_MS: a drop at or after it, which a hitch let run before the hold was seen, is
-## that hold.
+## that hold. Its bottom is the drop's wall clock, so a hitch that spans a too-early drop can hide
+## it (a maximum of about 7.5 s dropped at 10.5 s behind a hitch), as at the bottom of pairs 2 and
+## 3; the hold line prints the poll before the drop to show such a gap.
 func _on_drop(pair: Pair, side: String) -> void:
 	if pair.held:
 		return
 	var running := "client" if pair.stalling == "host" else "host"
-	if side != running or pair.stalled_at_ms < 0:
+	if side != running or pair.watch.stalled_at_ms < 0:
 		_fail("%s: the %s lost the other side in the run" % [pair.name, side])
 		return
 	pair.dropped()
@@ -288,7 +292,14 @@ func _on_drop(pair: Pair, side: String) -> void:
 			)
 		)
 		return
-	_hold(pair, kept_ms, ", then dropped it at its resend check")
+	_hold(
+		pair,
+		kept_ms,
+		(
+			", then dropped it at its resend check (its poll before: %d ms)"
+			% pair.watch.kept_after_ms()
+		)
+	)
 
 
 ## One pose per client poll: each poll flushes what was sent since the last one as one datagram.
