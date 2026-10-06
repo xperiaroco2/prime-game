@@ -483,6 +483,18 @@ class CliTest(unittest.TestCase):
         for key in (*mutants.KEYS, "exit codes:", "  0  the run completed", "  1  an invalid spec", "  2  the scratch"):
             self.assertIn(key, mutants.HELP)
 
+    def test_the_help_says_to_run_it_in_the_background_with_wait(self) -> None:
+        # #435: the help gives the background form with wait (AGENT_WORKFLOW §11, "Bounded waits").
+        for key in (
+            'tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>',
+            "tools/run.sh wait <log>",
+            "Bash tool in the background",
+            "3600000",
+            "300000",
+        ):
+            self.assertIn(key, mutants.HELP)
+        self.assertNotIn("one mutant per call", mutants.HELP)
+
 
 class GuardTest(unittest.TestCase):
     """The runner's own git commands are not shell commands of the session, so only its command line is judged: it
