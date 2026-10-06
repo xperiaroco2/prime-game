@@ -15,7 +15,7 @@ rule covers every other case. `workflow_snapshots/<script>/<case>.txt` holds the
 paragraph). A deliberate change of a default prompt rewrites them: run `selftest` once with
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
 commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
-line of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
+and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
 root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list); they landed between waves, when
 no run could resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays
 agents, not the return): #386 made it compact and changed only that part of every snapshot.
@@ -31,7 +31,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from runner.common import ROOT
+from runner.common import ROOT, force_rmtree
 
 WORKFLOWS = ROOT / ".claude" / "workflows"
 SNAPSHOTS = Path(__file__).resolve().parent / "workflow_snapshots"
@@ -103,6 +103,10 @@ HOOKS_RULE = "- Read the hooks path with `git rev-parse --git-path hooks`, never
 SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
 # #413's one-line rule: the writes outside the worktree and the scratchpad that a throwaway first command made.
 WRITE_RULE = "- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway"
+# #456's one-line rule: the one way to change or reword an earlier commit, with no editor.
+REBASE_RULE = "- Change an earlier commit only with `git commit --fixup=<sha>`"
+# The reword commit the rule names; RebaseRuleTest runs it through git.
+REWORD_COMMIT = ("git", "commit", "--allow-empty", "-F")
 # The agent types of the read-only reviewers, which get no RULES.
 READ_ONLY_TYPES = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 MAJOR = {"severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "fix": "f1"}
@@ -300,6 +304,67 @@ class WorkflowTest(unittest.TestCase):
         for trap in ("`cat > ../../../../tmp_unused`", '`cat > "$TMP/x" 2>/dev/null;`', "`$TEMP`", "`$TMPDIR`",
                      "`/tmp`", "`/c/...`", "`tools\\run.cmd`", "`/dev/null` (Git Bash)", "`$null` (PowerShell)"):
             self.assertIn(trap, rule)
+
+    def test_every_agent_gets_the_editor_free_rebase_rule(self) -> None:
+        # #456: on the night of 2026-10-05/06 the fix agent of a pr-rebase run reworded a commit with its own sequence
+        # editor (a Python script); the guard asked and the run waited 9 hours. Since #457 the guard lets that through in
+        # the own worktree, but an editor that opens still hangs an agent. The one way to change or reword an
+        # earlier commit is one line of the shared RULES, the same in both scripts and in a lean run, and the only
+        # line of a prompt that names an autosquash (the stash line no longer repeats it).
+        base = {"base": "release/m3"}
+        jobs = [
+            ("issue-task.js", dict(ARGS, **base), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **base, **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **base, lean=True), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, **base, bounded_waits=False), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, **base), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, **base, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, **base, lean=True), {"paths": ["tools/x.py"], "findings": [MAJOR]}),
+        ]
+        lines: set[str] = set()
+        seen: set[tuple[str, str]] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                if options(event).get("agentType") in READ_ONLY_TYPES:
+                    continue  # reviewers are read-only
+                seen.add((name, event["label"].split(":")[0]))
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(REBASE_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    lines.add(found[0])
+                    autosquash = [line for line in event["prompt"].splitlines() if "--autosquash" in line]
+                    self.assertEqual(autosquash, found)
+        # Every agent that can commit: the plan agent, the implementer, the test reviewer, the publisher, the rebase
+        # and fix agents.
+        for want in (("issue-task.js", "plan"), ("issue-task.js", "implement"), ("issue-task.js", "test-review"),
+                     ("issue-task.js", "publish"), ("pr-rebase.js", "rebase"), ("pr-rebase.js", "fix")):
+            self.assertIn(want, seen)
+        self.assertEqual(len(lines), 1, f"the rule differs between agents or scripts: {sorted(lines)}")
+        rule = next(iter(lines))
+        for text in (
+            "`git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/release/m3`",
+            "in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/release/m3`",
+            f"To reword one: `{' '.join(REWORD_COMMIT)} <file>` with the file's first line `amend! <that commit's subject>`",
+            "then the same rebase",
+            "or leave the message as it is",
+            "The last commit alone: `git commit --amend --no-edit` or `--amend -F <file>`, never a bare `--amend`",
+            "which opens the editor",
+            "another sequence editor (a script, `sed`, `-c sequence.editor=...`)",
+            "an interactive rebase without `GIT_SEQUENCE_EDITOR=:`",
+            "`--fixup=reword:` or `--fixup=amend:` (both open the message editor)",
+            "a `squash!` commit",
+            "an editor that opens hangs the call until its timeout",
+            "a `--fixup=reword:` keeps the old message without a word",
+            "Since #457 the guard lets each of these through in your own worktree on your task branch",
+            "9 hours",
+            "it still asks for `git rebase --exec` and for any rebase in the main checkout or another worktree",
+        ):
+            self.assertIn(text, rule)
+        # #457 (the guard) lets a sequence editor and every amend form through in the own worktree on its task branch:
+        # the rule gives no reason that says the guard asks for them.
+        self.assertNotIn("make the guard ask", rule)
+        self.assertNotIn("until the human returns", rule)
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
         # A release base is always passed, so publish never depends on the record start --base left (#113).
@@ -538,6 +603,30 @@ PLAYCHECK_LINE = (
     "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or "
     "`tools\\run.cmd playcheck` (both off-screen)."
 )
+# #455: how the test reviewer runs a mutants spec and the publisher a survived mutant again, with bounded waits (the
+# default: in the background, a new log, `wait`) and without (the foreground text of before #411), for ARGS.
+MUTANTS_RUN = {
+    True: (
+        "Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the "
+        "baseline come before the first mutant): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
+        '<spec.json> > <log> 2>&1; echo "exit=$?" >> <log>` in the Bash tool with run_in_background true and its timeout '
+        "3600000, a NEW log under a7/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then "
+        "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
+        "bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a "
+        "time: another mutants run in the same checkout exits 1."
+    ),
+    False: (
+        "Run ONE mutant per `tools\\run.cmd mutants <spec.json>` call (a foreground call dies at 600 s), or start it in "
+        "the background and wait for it."
+    ),
+}
+MUTANTS_RERUN = {
+    True: (
+        "then run that mutant again in the background (a NEW log under a7/ of your scratchpad, then "
+        "`tools/run.sh wait <log>`, as the bounded waits below say) to show it killed"
+    ),
+    False: "then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed",
+}
 PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
 # lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
@@ -808,8 +897,9 @@ class PipelineV2Test(unittest.TestCase):
                 dict(ARGS, branch="core/7-x", test_review=True),
                 dict(core, queues={"publish": [{"published": False, "handoff_posted": True, "stopped_by_mutants": True}]}),
             ),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True, bounded_waits=False), core),
         ]
-        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck = run_jobs(jobs)
+        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck, unbounded = run_jobs(jobs)
         # The publisher's own mutants rerun exited 2: the result says so, like the test review's, with the way on.
         self.assertIn("stopped_by_mutants true", calls(pub_stuck, "publish")[0]["prompt"])
         self.assertIn("stopped_by_mutants", options(calls(pub_stuck, "publish")[0])["schema"]["properties"])
@@ -826,8 +916,23 @@ class PipelineV2Test(unittest.TestCase):
         self.assertEqual(labels[-2:], ["test-review:#7", "publish:#7"])
         self.assertTrue(all(label.startswith(("implement", "review:")) for label in labels[:-2]), labels)
         test_review = calls(ok, "test-review")[0]["prompt"]
-        for text in ("`tools\\run.cmd mutants --help`", "ONE mutant per `tools\\run.cmd mutants <spec.json>` call", "600 s", "exit_2 true"):
+        for text in ("`tools\\run.cmd mutants --help`", "exit_2 true"):
             self.assertIn(text, test_review)
+        # #455: with bounded waits (the default) each spec runs in the background with a new log and `wait`, as
+        # verify and publish do, before the bounded-waits paragraph that gives the commands; the foreground advice of
+        # before #411 is left only to bounded_waits false, and so is the publisher's rerun of a survived mutant.
+        publish = calls(ok, "publish")[0]["prompt"]
+        for prompt, text in ((test_review, MUTANTS_RUN), (publish, MUTANTS_RERUN)):
+            self.assertEqual(prompt.count(text[True]), 1)
+            self.assertNotIn(text[False], prompt)
+            self.assertLess(prompt.index(text[True]), prompt.index("Bounded waits (bounded_waits)"))
+            for foreground in ("ONE mutant per", "one per call"):
+                self.assertNotIn(foreground, prompt)
+        old_review, old_publish = calls(unbounded, "test-review")[0]["prompt"], calls(unbounded, "publish")[0]["prompt"]
+        for prompt, text in ((old_review, MUTANTS_RUN), (old_publish, MUTANTS_RERUN)):
+            self.assertEqual(prompt.count(text[False]), 1)
+            self.assertNotIn(text[True], prompt)
+            self.assertNotIn("Bounded waits (bounded_waits)", prompt)
         # What `mutants` really does (#202): its exit codes, the spec rules it enforces, its per-test-run timeout,
         # and its `not run` result, which the schema's enum lacks.
         for text in (
@@ -1068,7 +1173,8 @@ class PipelineV2Test(unittest.TestCase):
         # #303: a tool call that blocks over 5 minutes (verify, publish, mutants, CI) costs the agent's whole context
         # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces. #411 made
         # it the default (a missing or null arg); with bounded_waits false every prompt is the one before (the
-        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged.
+        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged. #455 changed one sentence
+        # more where mutants run: the test reviewer's run of a spec and the publisher's rerun of a survived mutant.
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
         design = {"paths": ["docs/x.md"], "findings": [MAJOR]}
@@ -1100,7 +1206,15 @@ class PipelineV2Test(unittest.TestCase):
                     if not label.startswith(waiting) or (stopped and label.startswith("publish")):
                         self.assertEqual(after["prompt"], before["prompt"])
                         continue
-                    old, new = before["prompt"].split("\n\n"), after["prompt"].split("\n\n")
+                    # #455: the one other text bounded waits change is how mutants run, in the background with `wait`.
+                    prompt = after["prompt"]
+                    if label.startswith("test-review"):
+                        self.assertIn(MUTANTS_RUN[True], prompt)
+                    for text in (MUTANTS_RUN, MUTANTS_RERUN):
+                        if text[True] in prompt:
+                            self.assertEqual(before["prompt"].count(text[False]), 1)
+                            prompt = prompt.replace(text[True], text[False])
+                    old, new = before["prompt"].split("\n\n"), prompt.split("\n\n")
                     self.assertEqual(len(new), len(old) + 1)
                     i = next(i for i, (a, b) in enumerate(zip(old + [None], new)) if a != b)
                     paragraph = new[i]
@@ -1429,6 +1543,96 @@ class NodeOnCiTest(unittest.TestCase):
         # The ubuntu-24.04 image (20260927.320) lists Node.js 22. Without Node on PATH there, every test above would
         # skip silently and the snapshots would guard nothing on CI.
         self.assertIsNotNone(NODE, "Node is not on PATH on GitHub Actions: the workflow tests would skip")
+
+
+@unittest.skipUnless(shutil.which("git"), "needs git on PATH")
+class RebaseRuleTest(unittest.TestCase):
+    """#456's rule run through git with every editor failing: its fixup and its reword need none, and the two
+    commands it rules out for a reword do (git refuses -F with --fixup=reword:, so that one opens the editor)."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="rebase-rule-"))
+        self.addCleanup(force_rmtree, str(self.tmp))
+        self.repo = self.tmp / "repo"  # the message files stay outside it
+        self.repo.mkdir()
+        # An editor that runs fails the command, and the environment and the user's config cannot change that.
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        self.env.update(GIT_EDITOR="false", GIT_SEQUENCE_EDITOR="false", GIT_TERMINAL_PROMPT="0")
+        self.git("init", "-q", "-b", "main")
+        for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+            self.git("config", key, value)
+        for subject, line in (("chore: base", "a"), ("feat: tow", "b"), ("feat: three", "c")):
+            with open(self.repo / "f.txt", "a", encoding="utf-8", newline="") as f:
+                f.write(line + "\n")
+            self.git("add", "f.txt")
+            self.git("commit", "-q", "-m", subject)
+        self.base = self.git("rev-parse", "HEAD~2")
+
+    def run_git(self, *args: str, **env: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=self.repo, capture_output=True, text=True, encoding="utf-8", timeout=60,
+            env={**self.env, **env},
+        )  # fmt: skip
+
+    def git(self, *args: str, **env: str) -> str:
+        res = self.run_git(*args, **env)
+        if res.returncode != 0:
+            raise AssertionError(f"git {' '.join(args)} failed: {res.stderr}")
+        return res.stdout.strip()
+
+    def test_the_fixup_and_the_reword_need_no_editor(self) -> None:
+        typo = self.git("rev-parse", "HEAD~1")
+        # A fix folded into the last commit, and a reword of the one before it, as the rule says.
+        with open(self.repo / "f.txt", "a", encoding="utf-8", newline="") as f:
+            f.write("d\n")
+        self.git("add", "f.txt")
+        self.git("commit", "-q", "--fixup=HEAD")
+        message = self.tmp / "msg.txt"
+        message.write_bytes(b"amend! feat: tow\n\nfeat: two\n\nThe new body.\n")
+        self.git(*REWORD_COMMIT[1:], str(message))
+        self.git("rebase", "-q", "-i", "--autosquash", self.base, GIT_SEQUENCE_EDITOR=":")
+        self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: two"])
+        self.assertEqual(self.git("log", "-1", "--format=%B", "HEAD~1"), "feat: two\n\nThe new body.")
+        self.assertEqual(self.git("show", "HEAD:f.txt").splitlines(), ["a", "b", "c", "d"])
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertNotEqual(self.git("rev-parse", "HEAD~1"), typo)
+
+    def test_amending_the_last_commit_needs_an_editor_only_when_bare(self) -> None:
+        # The rule's clause for the last commit: --no-edit and -F need no editor, a bare --amend opens it.
+        message = self.tmp / "msg.txt"
+        message.write_bytes(b"feat: three, reworded\n")
+        self.assertNotEqual(self.run_git("commit", "--amend").returncode, 0)
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "feat: three")
+        self.git("commit", "-q", "--amend", "--allow-empty", "--no-edit")
+        self.git("commit", "-q", "--amend", "--allow-empty", "-F", str(message))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "feat: three, reworded")
+
+    def test_the_reword_commands_the_rule_rules_out_open_the_editor(self) -> None:
+        typo = self.git("rev-parse", "HEAD~1")
+        message = self.tmp / "msg.txt"
+        message.write_bytes(b"feat: two\n")
+        for args in ((f"--fixup=reword:{typo}", "-F", str(message)), (f"--fixup=amend:{typo}", "-F", str(message))):
+            with self.subTest(args=args[0].split(":")[0]):
+                self.assertNotEqual(self.run_git("commit", *args).returncode, 0)
+        for prefix in ("reword", "amend"):
+            with self.subTest(prefix=prefix):
+                res = self.run_git("commit", f"--fixup={prefix}:{typo}")
+                self.assertNotEqual(res.returncode, 0)
+                self.assertIn("editor", res.stderr)
+        # An interactive rebase without GIT_SEQUENCE_EDITOR=: runs the todo editor (here one that fails).
+        res = self.run_git("rebase", "-q", "-i", self.base)
+        self.assertNotEqual(res.returncode, 0)
+        self.run_git("rebase", "--abort")
+        self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: tow"])
+
+    def test_a_reword_fixup_under_an_editor_that_exits_at_once_keeps_the_old_message(self) -> None:
+        # The rule's reason since #457: Claude Code's tools set GIT_EDITOR=true, so `--fixup=reword:` hangs nothing
+        # there, but the editor changes nothing either, and the autosquash keeps the old subject without a word.
+        typo = self.git("rev-parse", "HEAD~1")
+        self.git("commit", "-q", f"--fixup=reword:{typo}", GIT_EDITOR="true")
+        self.git("rebase", "-q", "-i", "--autosquash", self.base, GIT_SEQUENCE_EDITOR=":")
+        self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: tow"])
+        self.assertEqual(self.git("status", "--porcelain"), "")
 
 
 if __name__ == "__main__":
