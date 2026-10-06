@@ -19,8 +19,9 @@ which the engineer confirms in the PR that brought this file (its "Needs the eng
 - **Earlier, by judgment**: at a natural break (no run in flight, or a stop for the human) you may hand over before a
   threshold when your cost math says a fresh start is cheaper: the footer's mean $ per call, last 20 against first 20,
   times the calls the work left still takes, against one start-up (about the first 20 calls).
-- **While the human is away** (he said so, or his last message is over 2 hours old), hand over only when a threshold
-  forces it, never by judgment or at §7's "at a stop for the human: due": the successor starts in `acceptEdits` at
+- **While the human is away** (he said so, or his last message is over 2 hours old; a scheduled task's prompt is not
+  a message from him: a successor counts from the time of his last chat message that the handover comment gives, or
+  from his own later messages), hand over only when a threshold forces it, never by judgment or at §7's "at a stop for the human: due": the successor starts in `acceptEdits` at
   medium effort, and whatever prompts there waits for him.
 
 ## 2. The steps
@@ -29,7 +30,7 @@ which the engineer confirms in the PR that brought this file (its "Needs the eng
 - **(b)** One plan-issue comment, `wave --since <session start> --title "Handover to a fresh manager session" --notes
   <file>`: the order from here, open questions, `human_steps` still due, the stage's start, the runs you stopped
   (relaunch fresh), every standing instruction the human gave in chat since the kickoff (a pause, a changed budget:
-  the stored kickoff does not hold it), your app session id (`get_session("self")`), the successor's start (route C at
+  the stored kickoff does not hold it), the UTC time of his last chat message (§1), your app session id (`get_session("self")`), the successor's start (route C at
   its `fireAt`, in `acceptEdits` at medium effort: what prompts there waits for the engineer) and the handover data.
 - **(c) Start your successor yourself** (route C); nothing is pasted. Load `mcp__scheduled-tasks__*` and
   `mcp__ccd_session_mgmt__*` with ToolSearch. Never `run_scheduled_task`: a session a scheduled task started is
