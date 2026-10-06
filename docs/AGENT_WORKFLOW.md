@@ -549,20 +549,21 @@ Rules for every workflow run:
   decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
   session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
   The manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human. While it waits (a run of its own in flight, or a stop with a context over about 150k and no once-a-day handover
-  due, #279) it keeps its 1-hour prompt cache warm with one background `sleep 3000` re-armed on each cheap wake, for at
-  most about 12 hours of the human's absence (the skill's §7, #305). Each command the human must run (a workflow's
-  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
-  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
-  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts with
-  `cd` to its absolute folder.
+  human. While a run of its own is in flight it keeps its 1-hour prompt cache warm with one background `sleep 3000`
+  re-armed on each cheap wake, for at most about 12 hours of the human's absence (the skill's §7, #305, #467). Each
+  command the human must run (a workflow's `human_steps`, housekeeping) goes into the chat itself, one runnable
+  PowerShell block per command ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan
+  issue may list it too. The publishing agents return `human_steps` as `{why, command}` pairs, each command one
+  PowerShell line that starts with `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
-  Once a day that handover is deliberate (#279, the engineer's option A): a manager that stops for the human with no
-  run of its own in flight and either its session over 12 hours old or its context over 300k tokens (the weekly
-  budget ADR's N6 (b); `wave` prints both) posts a handover wave comment and gives the human the kickoff to
-  paste into a new session (the skill's §7).
+  The handover is mechanical (#279, #467): at each turn end the manager runs `wave`, whose last line is the verdict.
+  It hands over once its context is over 300k tokens or its session over 12 hours old, even mid-wave (the engineer
+  on #467, replacing #329's "never mid-wave"): it stops its runs, posts a handover wave comment with their args and
+  gives the human the kickoff to paste into a new session, which relaunches them fresh. It also hands over once its
+  runs end after a merge into `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get
+  its cached copy), and at a stop for the human with the context over 150k (the skill's §7).
 
 ## 8. Permissions, guards and hooks
 
@@ -1226,7 +1227,12 @@ list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more l
 hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
 that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
-context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
+context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
+also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
+orchestrate-stage skill's §7 turn-end check). It reads two more sources: one `gh pr list --base main --json files` for
+the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
+`.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
+HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
 "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
 body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
 fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
