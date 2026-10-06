@@ -1491,8 +1491,10 @@ the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main che
 writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
 as N, and the `test` shards that did not end with exit 0, #273, and how many of the window's recorded `check` steps
 passed although Godot crashed at exit, #449: records without the `exit_crash` field are not counted), review
-findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the prompt
-cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the plan
+phase per run with a planner (#469: the planner's model, the plan's and its critique's API list $, the files the
+planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
+prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
