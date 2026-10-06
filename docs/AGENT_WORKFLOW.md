@@ -205,10 +205,12 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
 5. `tools\run.cmd publish`, in the background with `wait <log>` like `verify`: rebase on the open PR's base (else the
-   `start --base` parent, else `origin/main`), re-run `verify`, push the task branch with a lease (§8.3). Under
-   `bounded_waits` (§7.1) the publishing agents of `issue-task` and `pr-rebase` run no standalone `verify` before
-   `publish` when `tools\run.cmd wait --verified` exits 0 (the newest verify passed at HEAD with a clean tree), since
-   `publish` runs it anyway.
+   `start --base` parent, else `origin/main`); verify, unless an identical tree was just verified green (the newest
+   verify record passed at the same head, tree and runner, with a clean tree then and now, under 2 hours ago: it says
+   so and pushes on that record, #471); push the task branch with a lease (§8.3). A red verify pushes nothing, so after
+   review fixes the tests they touch and `check` come before `publish`, with no standalone `verify`: the publishing
+   agents of `issue-task` and `pr-rebase` (§7.1) and `finish-task` step 2 work this way. A rebase that moves the
+   branch changes its head, so `publish` verifies it as always; CI runs the full verify before any merge.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -415,8 +417,8 @@ Rules for every workflow run:
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
-  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents also skip a standalone
-  verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow agent without it once on
+  background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents run no standalone
+  verify before `publish`, §4.2 step 5). The root CLAUDE.md rule reaches every workflow agent without it once on
   main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
   (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix
   agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
@@ -882,13 +884,14 @@ marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` 
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
   the server ruleset stand. Task branches start from `main`, which has the hook.
 - `publish`: `git fetch --prune origin`, rebase on `--base`, else the open PR's base (a stacked PR's parent), else the
-  parent `start --base` recorded, else `main`; then `verify` and the lease push. It stops before touching anything
-  when the remote branch has a commit this branch never had (a suggestion committed on GitHub, "Update branch", a push
-  from the other machine): the lease alone would not protect it, because the fetch just updated the expected value. A
-  conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing. After its parent was
-  rebased or amended, a stacked child replays only its own commits: those after the parent commit `start` recorded
-  (`branch.<task>.primeBaseTip`, renewed by each publish on the parent; `rebase --onto`), else those after the fork
-  point (`--fork-point`, which needs the reflog of the parent's remote ref).
+  parent `start --base` recorded, else `main`; then `verify` (unless an identical tree was just verified green, §4.2
+  step 5) and the lease push. It stops before touching anything when the remote branch has a commit this branch never
+  had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease alone would not
+  protect it, because the fetch just updated the expected value. A conflict aborts the rebase and leaves the branch as
+  it was; a red `verify` pushes nothing. After its parent was rebased or amended, a stacked child replays only its own
+  commits: those after the parent commit `start` recorded (`branch.<task>.primeBaseTip`, renewed by each publish on the
+  parent; `rebase --onto`), else those after the fork point (`--fork-point`, which needs the reflog of the parent's
+  remote ref).
   After a hand rebase on a newer base (`git rebase origin/<base>` in the worktree), the merge-base of the branch and
   its base replaces a recorded tip it descends from, so the base's own commits are not replayed again (#113).
 - A recorded base outside `<area>/<n>-<slug>` (a stage's `release/m<k>`, any long-lived branch) is never a done
@@ -1545,11 +1548,12 @@ ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch --interval 3
 the tool's timeout at 300000 (its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own
 program), repeated while rc is 124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not
 registered yet. `wait --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl`
-passed at HEAD with a clean tree (`tree` set) and the tree is still clean, else 1 with the reason: a publisher then
-skips its standalone `verify`, since `publish` runs one. On a branch whose base predates `wait`, the agents run these
-commands in the foreground as before. Tests: `tools/runner/tests/test_wait.py` (a fake clock; the launch line and
-`wait` through Git Bash, cmd and PowerShell 5.1; the commands pass the permission model outside bypass). The rule is
-one Shell bullet of root CLAUDE.md, the commands are `bounded_waits` (§7.1).
+passed at HEAD with a clean tree (`tree` set), on HEAD's tree and runner, under 2 hours ago, and the tree is still
+clean, else 1 with the reason: the test `publish` runs before it reuses that verify (§4.2 step 5, #471). On a branch
+whose base predates `wait`, the agents run these commands in the foreground as before. Tests:
+`tools/runner/tests/test_wait.py` (a fake clock; the launch line and `wait` through Git Bash, cmd and PowerShell 5.1;
+the commands pass the permission model outside bypass). The rule is one Shell bullet of root CLAUDE.md, the commands are
+`bounded_waits` (§7.1).
 
 ### 11.18 An own `user://` per worktree [applied] (#182)
 Godot names `user://` after the project, so every checkout of
