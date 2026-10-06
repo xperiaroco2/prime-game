@@ -50,6 +50,12 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
 - Lenses beyond docs drift are the first thing to drop: the engineer drops them by setting every weekday below to
   `docs-drift`.
 
+## As a workflow
+A manager may run one lens as a workflow instead (same bounds, the same three roles), each `agent()` call with its
+lean type (AGENT_WORKFLOW §5, #466): the auditor (step 3) `{agentType: 'lean-reader'}`, on Sonnet; the skeptic (step
+4) `{agentType: 'night-skeptic'}`, as above; the filer (steps 5 and 6) `{agentType: 'lean-writer', model:
+'sonnet'}`. Lean agents have no Skill tool: each prompt names this file and the steps that agent follows.
+
 ## Steps
 1. **Where you are.** Find the Night jobs issue first: `gh issue list --state open --search "\"Night jobs\"
    in:title" --json number,title`, the one titled exactly "Night jobs" (none: create it as in step 6 when you first
