@@ -1,7 +1,8 @@
 # Trust-based autonomy: the manager merges into main through a gate
 
 - **Status:** Accepted: the engineer's decision on #170 and #300; its wording approved by merging its PR (#300), the
-  last PR of the tooling track the engineer merges by hand under the old rule
+  last PR of the tooling track the engineer merges by hand under the old rule; the launch budget amended 2026-10-05
+  (the weekly budget ADR's N1 (b), below)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
@@ -51,6 +52,11 @@ not large in scale, or can easily be changed later, and what the agent judges be
 - **Workflows launch without a "yes" within a budget:** up to 15% of the weekly limit per stage or track, the spend
   reported in every wave comment; above it the manager asks. The kickoff's restatement is then a report, not a
   question, unless it asks for more than that or for a tier (c) item.
+  **Amended 2026-10-05** (the engineer's answer N1 (b) to the
+  [weekly budget ADR](2026-10-05-weekly-budget-across-four-tracks.md), [PR #403 comment
+  5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)): "15% of the weekly limit
+  per stage or track" reads as the track's weekly budget under that ADR (game 26%, UI 20%, art 20%, meta 12%), else
+  15%.
 - **Fewer small stops.** No "Publish now?" in the engineer's sessions (`gh api user` is the engineer's account): an
   agent publishes once `verify` is green and the fresh review is done; the designer's sessions still ask. A stage's
   issues opened from an accepted design are created and reported, without a "yes" to the list. The milestone's goal

@@ -11,8 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import common, sessions, start
-from runner.common import Failure, Result
-from runner.tests.test_githooks import _rmtree
+from runner.common import Failure, Result, force_rmtree
 
 
 def git(where: Path, *args: str) -> str:
@@ -47,7 +46,7 @@ class SlugAndAreaTest(unittest.TestCase):
 class StartTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="start-"))
-        self.addCleanup(_rmtree, str(self.tmp))
+        self.addCleanup(force_rmtree, str(self.tmp))
         git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
         git(self.tmp, "clone", "-q", str(self.tmp / "remote.git"), "work")
         self.work = self.tmp / "work"
@@ -611,7 +610,7 @@ class StartTest(unittest.TestCase):
 class SessionsTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="sessions-"))
-        self.addCleanup(_rmtree, str(self.tmp))
+        self.addCleanup(force_rmtree, str(self.tmp))
         self.checkout = self.tmp / "prime-game"
         (self.checkout / ".claude" / "worktrees" / "7").mkdir(parents=True)
         self.now = 1_800_000_000.0

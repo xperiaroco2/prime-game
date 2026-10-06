@@ -88,6 +88,24 @@ class ReadTest(unittest.TestCase):
         self.assertEqual(models.get("test-runner"), "haiku")
         self.assertEqual(agents_check.allowed_models(), ALLOWED)
 
+    def test_the_lean_reader_and_writer_are_judged_by_their_files_unless_the_call_names_a_model(self) -> None:
+        # #466: a finder or gatherer launched with agentType lean-reader and no model must run on Sonnet; a skeptic
+        # of that type passes model 'opus', recorded in its meta file, and is judged by it.
+        models = agents_check.agent_models()
+        self.assertEqual((models.get("lean-reader"), models.get("lean-writer")), ("sonnet", "opus"))
+        cases = (
+            (t("lean-reader", {"claude-sonnet-5-5"}), "ok"),
+            (t("lean-reader", {"claude-opus-5-5"}), "FAIL"),
+            (t("lean-reader", {"claude-opus-5-5"}, "opus"), "ok"),
+            (t("lean-reader", {"claude-sonnet-5-5"}, "opus"), "FAIL"),
+            (t("lean-writer", {"claude-opus-5-5"}), "ok"),
+            (t("lean-writer", {"claude-sonnet-5-5"}, "sonnet"), "ok"),
+            (t("lean-writer", {"claude-sonnet-5-5"}), "FAIL"),
+        )
+        for transcript, want in cases:
+            with self.subTest(agent=transcript.agent_type, requested=transcript.requested, served=transcript.served):
+                self.assertEqual(agents_check.judge(transcript, models, ALLOWED)[0], want)
+
 
 GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import common, credits, uids
-from .common import ROOT, Failure, bad, ensure_out, git_status, godot, ok, say, warn
+from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, say, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
 REQUIRED_WARNINGS = (
@@ -26,6 +26,14 @@ IMPORT_TIMEOUT = 300
 CHECK_TIMEOUT = 180
 # Exit codes of a finished Godot process that still count as "ran normally".
 NORMAL_EXIT = (0, 1)
+# An access violation: Windows' STATUS_ACCESS_VIOLATION (0xC0000005) and a POSIX SIGSEGV as subprocess reports it.
+# Godot 4.7.2 sometimes dies with it while it shuts down after the project check printed a clean summary (#442): both
+# such crashes in the 326 check steps of the agents' verify and publish logs printed `CHECK summary ... errors=0` as
+# their last line and none of the lines every run's engine shutdown prints after it ("ObjectDB instances were leaked
+# at exit", "resources still in use at exit"). EXIT_CRASH_LOG keeps such a run's whole output.
+ACCESS_VIOLATION = (0xC0000005, -11)
+EXIT_CRASH_LOG = "check-exit-crash"
+SUMMARY_ERRORS = re.compile(r"\berrors=(\d+)\b")
 
 
 def section_values(text: str, section: str) -> dict[str, str]:
@@ -290,6 +298,39 @@ def main(files: list[str] | None = None) -> int:
     else:
         ok(f"credits ({credits.count(credit_report.entries)}; every LFS asset outside addons/ credited)")
 
+    if not project_check(files):
+        failed = True
+
+    say("check: FAILED" if failed else "check: passed")
+    return 1 if failed else 0
+
+
+def crashed_after_clean_run(res: Result) -> str | None:
+    """The summary line when Godot died of an access violation (ACCESS_VIOLATION) only after check_project.gd had
+    finished cleanly: it printed its summary with errors=0 as its last CHECK line and no `CHECK error` line. None
+    for any other run: another exit code, no summary (a crash mid-run) or errors reported."""
+    if res.rc not in ACCESS_VIOLATION:
+        return None
+    checks = [line for line in res.lines if line.startswith("CHECK ")]
+    if not checks or not checks[-1].startswith("CHECK summary"):
+        return None
+    errors = SUMMARY_ERRORS.search(checks[-1])
+    if errors is None or errors.group(1) != "0" or any(line.startswith("CHECK error ") for line in checks):
+        return None
+    return checks[-1]
+
+
+def exit_text(rc: int) -> str:
+    """`exit 3221225477, 0xC0000005` for a Windows status, `signal 11` for a POSIX signal."""
+    return f"signal {-rc}" if rc < 0 else f"exit {rc}, 0x{rc:08X}"
+
+
+def project_check(files: list[str] | None = None) -> bool:
+    """Run check_project.gd over the project (or `files`) and report its lines; True when it passed.
+
+    Raises Failure on a timeout or a crash, except Godot's access violation at exit after a clean run (#442,
+    crashed_after_clean_run): every file was checked and none failed, so it passes with a warning that names the
+    crash, and its output is kept in tools/out/logs/check-exit-crash.log."""
     args = ["--headless", "-d", "--ignore-error-breaks", "-s", "res://tools/check/check_project.gd"]
     if files:
         args += ["--", *files]
@@ -300,7 +341,8 @@ def main(files: list[str] | None = None) -> int:
             "or a tool script (log: tools/out/logs/check.log)"
         )
     summary = next((line for line in res.lines if line.startswith("CHECK summary")), None)
-    if summary is None or res.rc not in NORMAL_EXIT:
+    exit_crash = crashed_after_clean_run(res)
+    if summary is None or (res.rc not in NORMAL_EXIT and exit_crash is None):
         tail = "\n".join(res.lines[-15:])
         raise Failure(f"project check crashed (exit {res.rc}). Last lines:\n{tail}")
     for line in res.lines:
@@ -308,10 +350,15 @@ def main(files: list[str] | None = None) -> int:
             warn(line.removeprefix("CHECK warning "))
         elif line.startswith("CHECK error "):
             bad(line.removeprefix("CHECK error "))
-    if res.rc != 0:
-        failed = True
-    else:
-        ok(summary.removeprefix("CHECK summary "))
-
-    say("check: FAILED" if failed else "check: passed")
-    return 1 if failed else 0
+    if exit_crash is not None:
+        ensure_out()
+        (common.LOGS / f"{EXIT_CRASH_LOG}.log").write_text(res.out, encoding="utf-8")
+        warn(
+            f"GODOT CRASHED AT EXIT: access violation ({exit_text(res.rc)}) after the project"
+            f" check finished cleanly ({exit_crash.removeprefix('CHECK summary ')}); counted as passed, since every"
+            f" file was checked (#442). Log: tools/out/logs/{EXIT_CRASH_LOG}.log"
+        )
+    if res.rc == 1:
+        return False
+    ok(summary.removeprefix("CHECK summary "))
+    return True

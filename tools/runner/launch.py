@@ -25,11 +25,13 @@ from .common import (
     check_godot_version,
     ensure_out,
     ensure_user_dir,
+    not_started,
     ok,
     rel,
     require_godot,
     run,
     say,
+    start_problem,
     warn,
 )
 
@@ -125,6 +127,9 @@ class Instance:
         """Why this instance failed, or '' when it passed."""
         if self.result.timed_out:
             return f"timed out after {self.seconds}s and was killed"
+        # No seconds: run() judged each start's life itself, and a restart's result counts from the first start.
+        if not_started(self.result.rc, self.result.out):
+            return start_problem(self.result.rc, self.result.restarted)
         if self.result.rc != 0:
             return f"exited {self.result.rc}"
         count = self.errors[0]
@@ -146,7 +151,8 @@ def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd
     def one(number: int, cmd: list[str]) -> None:
         env = {INSTANCE_ENV: str(number)}
         try:
-            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env)
+            # One of several instances (one ENet game on one port) is not restarted: its late start fails the others.
+            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env, restart=len(cmds) == 1)
         except Failure as exc:  # the exe could not start: report it once, after the others finished
             failures.append(exc)
 

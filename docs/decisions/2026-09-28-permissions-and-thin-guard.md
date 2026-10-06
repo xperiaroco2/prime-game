@@ -5,7 +5,8 @@
   guard scope widened to recursive deletes and `git reset`, and the scratch folder `tests/scratch/` added, on
   2026-09-30 (Consequences); all git that discards work or rewrites history judged by the session's own worktree
   and task branch, same day (issue #51, Consequences); `gh` reads of other repositories freed and `gh` writes there
-  judged by the guard, same day (issue #68, Consequences)
+  judged by the guard, same day (issue #68, Consequences); every git command in the own worktree on its task branch
+  freed, an interactive rebase whatever its editor included, on 2026-10-06 (issue #457, Consequences)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -95,3 +96,13 @@ ADRs).
   rule per read (ask would still win). Left open: GraphQL mutations and a `gh` command run inside a clone of another
   repository. `runner.permissions` models Claude Code's matcher, so selftests check the lists with the guard, and
   replays local transcripts through the rules and the guard of two revisions.
+- **Amended 2026-10-06 (issue #457):** in the own worktree on its task branch an interactive rebase passes whatever
+  editor it names (the editor ask above, and #104's no-op-editor exception, are gone), a rebase that names `HEAD` or
+  `@` is judged by where it runs (git rebases a detached HEAD), a pathspec the guard cannot resolve is judged by the
+  folder before its unknown part (git refuses one outside its repository; not in a cloud session's main checkout),
+  and `worktree remove|move` of an absolute path inside the worktree passes. Reason: the engineer, 2026-10-06, "git is
+  protected on GitHub"; over the week to 2026-10-06 six such asks protected nothing and one kept #445's fix agent
+  waiting a night (`docs/AGENT_WORKFLOW.md` §8.2, intervention `2026-10-06-engineer-git-free-in-own-worktree.md`).
+  Kept: the main checkout, other worktrees and branches, the stash, the protected paths, `--update-refs`, `--exec`,
+  `update-ref --stdin`, `git -c core.hooksPath`, and every push rule and the pre-push hook. `--exec` is a deliberate
+  exception to #457's "every form" (its command can be a push the deny rules cannot see), left to the engineer.

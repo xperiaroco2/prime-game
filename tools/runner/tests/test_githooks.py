@@ -3,28 +3,13 @@
 import os
 import re
 import shutil
-import stat
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from runner.common import ROOT
+from runner.common import ROOT, force_rmtree
 from runner.publish import MARKER
-
-
-def _rmtree(path: str) -> None:
-    """Git makes its object files read-only; Windows refuses to delete those without a chmod."""
-
-    def retry(func, target, _exc):  # type: ignore[no-untyped-def]
-        os.chmod(target, stat.S_IWRITE)
-        func(target)
-
-    if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=retry)
-    else:
-        shutil.rmtree(path, onerror=retry)
 
 
 class PrePushTest(unittest.TestCase):
@@ -34,7 +19,7 @@ class PrePushTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.tmp = Path(tempfile.mkdtemp(prefix="prepush-"))
-        cls.addClassCleanup(_rmtree, str(cls.tmp))
+        cls.addClassCleanup(force_rmtree, str(cls.tmp))
         hooks = cls.tmp / "hooks"
         hooks.mkdir()
         shutil.copy(ROOT / ".claude" / "githooks" / "pre-push", hooks / "pre-push")

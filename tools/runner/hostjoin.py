@@ -43,7 +43,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import launch, shot
-from .common import IS_WINDOWS, LOGS, ROOT, Failure, bad, ensure_out, kill_tree, ok, rel, require_godot, say
+from .common import (
+    IS_WINDOWS,
+    LOGS,
+    ROOT,
+    Failure,
+    bad,
+    ensure_out,
+    kill_tree,
+    not_started,
+    ok,
+    rel,
+    require_godot,
+    say,
+    start_problem,
+)
 
 SCRIPT = "tools/run/headless_session.gd"
 GAME = "client/app/game.tscn"
@@ -125,6 +139,8 @@ class Part:
             return "never started"
         if self.killed:
             return f"did not stop within {self.grace_seconds:g}s of the stop and was killed; {self.last_words()}"
+        if not_started(self.proc.returncode, "".join(self.lines)):
+            return start_problem(self.proc.returncode)
         if self.proc.returncode != 0:
             last = next((line for line in reversed(self.lines) if line.startswith("session: ")), "")
             return f"exited {self.proc.returncode}" + (f" ({last.removeprefix('session: ')})" if last else "")

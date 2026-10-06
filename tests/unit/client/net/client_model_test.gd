@@ -194,6 +194,58 @@ func test_entering_the_lobby_clears_the_match() -> void:
 	assert_int(_model.settings[&"knives"]).is_equal(2)
 
 
+func test_a_round_snapshot_that_arrives_after_end_to_lobby_is_not_kept() -> void:
+	# #251: snapshots travel on the unreliable lane, events on the reliable one. The round's
+	# snapshot of tick 49, sent before the PhaseChanged of tick 50, arrives after it: it is newer
+	# than every snapshot held (41), so only the host tick estimated at the change rejects it.
+	var host_tick := [50]
+	_model.host_tick_now = func() -> int: return host_tick[0]
+	_to_round()
+	_fold(PhaseChangedEvent.new(&"end", -1))
+	_fold(PhaseChangedEvent.new(&"lobby", -1))
+	_model.fold_snapshot({"tick": 49, "avatars": {1: {"position": Vector3.ONE}}})
+	_model.fold_snapshot({"tick": 50, "avatars": {1: {"position": Vector3.ONE}}})
+	assert_int(_model.snapshot_tick).is_equal(-1)
+	assert_bool(_model.avatars.is_empty()).is_true()
+	# The lobby's own snapshots fold.
+	_model.fold_snapshot({"tick": 51, "avatars": {1: {"position": Vector3.ZERO}}})
+	assert_int(_model.snapshot_tick).is_equal(51)
+	assert_vector(_model.avatars[1]["position"]).is_equal(Vector3.ZERO)
+
+
+func test_a_snapshot_that_arrives_after_load_match_is_not_kept_and_a_later_match_folds() -> void:
+	var host_tick := [50]
+	_model.host_tick_now = func() -> int: return host_tick[0]
+	_to_round()
+	_fold(PhaseChangedEvent.new(&"end", -1))
+	_fold(PhaseChangedEvent.new(&"lobby", -1))
+	_model.fold_snapshot({"tick": 60, "avatars": {1: {"position": Vector3.ZERO}}})
+	# The next match: the host's tick runs on, so its snapshots stay above the lobby's floor.
+	host_tick[0] = 300
+	var settings: Dictionary[StringName, int] = {&"knives": 1}
+	_fold(LoadMatchEvent.new(2, "res://levels/c.tscn", settings))
+	_model.fold_snapshot({"tick": 299, "avatars": {1: {"position": Vector3.ZERO}}})
+	assert_int(_model.snapshot_tick).is_equal(-1)
+	assert_bool(_model.avatars.is_empty()).is_true()
+	_model.fold_snapshot({"tick": 301, "avatars": {1: {"position": Vector3.ONE}}})
+	assert_int(_model.snapshot_tick).is_equal(301)
+	assert_vector(_model.avatars[1]["position"]).is_equal(Vector3.ONE)
+
+
+func test_without_a_host_tick_the_floor_is_the_newest_snapshot_held() -> void:
+	# A bot draws nothing and has no estimate: a snapshot no newer than one of the match it forgot
+	# is still not kept.
+	_to_round()
+	_model.fold_snapshot({"tick": 45, "avatars": {1: {"position": Vector3.ONE}}})
+	_fold(PhaseChangedEvent.new(&"end", -1))
+	_fold(PhaseChangedEvent.new(&"lobby", -1))
+	_model.fold_snapshot({"tick": 44, "avatars": {1: {"position": Vector3.ONE}}})
+	_model.fold_snapshot({"tick": 45, "avatars": {1: {"position": Vector3.ONE}}})
+	assert_int(_model.snapshot_tick).is_equal(-1)
+	_model.fold_snapshot({"tick": 46, "avatars": {}})
+	assert_int(_model.snapshot_tick).is_equal(46)
+
+
 func test_a_cancelled_countdown_back_to_the_lobby_clears_nothing() -> void:
 	_fold(PhaseChangedEvent.new(&"countdown", 100))
 	_fold(DiedEvent.new(1, Vector3.ZERO))

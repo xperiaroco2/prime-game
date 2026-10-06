@@ -1,7 +1,8 @@
 # Model guard; reviewers on Opus, not Fable
 
 - **Status:** Accepted; amended 2026-10-02 by amendment A (the engineer's answer N1 (b), #183); amended 2026-10-04
-  (#308: `godot-api-checker`'s effort, the publisher trial under amendment A)
+  (#308: `godot-api-checker`'s effort, the publisher trial under amendment A); amended 2026-10-05 (the Sonnet
+  publisher on clean runs a standing rule, the weekly budget ADR's N5 (a))
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -44,6 +45,11 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     #302, and the engineer keeps or drops it
     ([effort ADR](2026-09-28-effort-and-workflow-bounds.md), amendment of 2026-10-04). No script, default or agent file
     names the model; the workflow tests still assert it.
+  - **2026-10-05** (the engineer's answer N5 (a) to the
+    [weekly budget ADR](2026-10-05-weekly-budget-across-four-tracks.md), [PR #403 comment
+    5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)): the Sonnet publisher on
+    clean runs is a standing rule until it is judged again at the next reset: the manager passes
+    `models.publish_clean: "sonnet"` on every non-design `issue-task` launch, not only in one wave.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.

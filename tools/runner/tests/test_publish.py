@@ -9,8 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import publish
-from runner.common import ROOT, Failure, Result
-from runner.tests.test_githooks import _rmtree
+from runner.common import ROOT, Failure, Result, force_rmtree
 
 
 def _result(rc: int, out: str) -> Result:
@@ -66,7 +65,7 @@ class RealGitTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="publish-"))
-        self.addCleanup(_rmtree, str(self.tmp))
+        self.addCleanup(force_rmtree, str(self.tmp))
         hooks = self.tmp / "hooks"
         hooks.mkdir()
         shutil.copy(ROOT / ".claude" / "githooks" / "pre-push", hooks / "pre-push")

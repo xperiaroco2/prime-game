@@ -1,11 +1,12 @@
-"""`lint`: gdformat --check and gdlint over project GDScript (never addons/)."""
+"""`lint`: gdformat --check and gdlint over project GDScript (never addons/); with no paths, also the instruction
+files and the docs' § references."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from . import instructions, pins
+from . import instructions, pins, refs
 from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
 
 TIMEOUT = 300
@@ -95,18 +96,39 @@ def main(fix: bool = False, files: list[str] | None = None) -> int:
         ok("no GDScript files to lint")
     if not files:
         failed = instruction_files() or failed
+        failed = section_refs() or failed
     say("lint: FAILED" if failed else "lint: passed")
     return 1 if failed else 0
 
 
 def instruction_files() -> bool:
-    """CLAUDE.md budgets and rule/agent frontmatter. Returns True when something failed."""
+    """CLAUDE.md budgets, rule/agent/skill frontmatter and skill links. Returns True when something failed."""
     report = instructions.check(ROOT)
     for line in report.errors:
         bad(line)
-    if any("budget" in line for line in report.errors):
+    # A budget error ends ", budget <n>"; a link to budget.md or a budget ADR is no budget problem (#415).
+    if any(", budget " in line for line in report.errors):
         bad("instruction files over budget", instructions.OVER_BUDGET_FIX)
     if report.errors:
+        return True
+    for line in report.notes:
+        ok(line)
+    return False
+
+
+def section_refs() -> bool:
+    """Duplicate § in a doc, unnumbered headings under numbered ones in ARCHITECTURE and AGENT_WORKFLOW, and §
+    references to those two that resolve to nothing (#338). Returns True when something failed."""
+    report = refs.check(ROOT)
+    for line in report.errors:
+        bad(line)
+    if report.errors:
+        bad(
+            "a § is duplicated or missing, or a § reference does not resolve",
+            "Point each at the section it means (tools\\run.cmd section <doc> prints the outline), or name its doc\n"
+            "where the scope rules in tools/runner/refs.py pick the wrong one; a new heading takes the next free\n"
+            "number under its parent (#### 9.5.<n> ...); never renumber a section.",
+        )
         return True
     for line in report.notes:
         ok(line)

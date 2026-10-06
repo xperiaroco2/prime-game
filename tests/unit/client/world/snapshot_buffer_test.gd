@@ -116,6 +116,36 @@ func test_a_placement_snaps() -> void:
 	assert_vector(early.pose_of(PEER, 1.5).position).is_equal(Vector3.ZERO)
 
 
+func test_a_snapshot_at_or_below_the_floor_is_not_kept_but_counts_for_the_jitter() -> void:
+	# #251: End -> Lobby clears the buffer at the host tick estimated at the change (here 13). The
+	# round's snapshot of tick 12, sent before the change, arrives after it: newer than every one
+	# held, it would draw the player at its round spot in the lobby for the interpolation delay.
+	var buffer := SnapshotBuffer.new()
+	var round_spot := _avatar(Vector3(2, 0, 0), Vector3.FORWARD)
+	var lobby_spot := _avatar(Vector3(-4, 0, 0), Vector3.FORWARD)
+	for tick: int in range(8, 12):
+		buffer.add(tick, {PEER: round_spot}, tick * USEC_PER_TICK)
+	assert_float(buffer.jitter_ticks()).is_equal_approx(0.0, 1e-6)
+	buffer.clear(13)
+	buffer.add(12, {PEER: round_spot}, 14 * USEC_PER_TICK)
+	buffer.add(13, {PEER: lobby_spot}, 14 * USEC_PER_TICK)
+	assert_int(buffer.newest_tick()).is_equal(-1)
+	assert_object(buffer.pose_of(PEER, 12.0)).is_null()
+	# Both arrivals still count: the late one widened the jitter.
+	assert_float(buffer.jitter_ticks()).is_equal_approx(2.0, 1e-6)
+	buffer.add(14, {PEER: lobby_spot}, 15 * USEC_PER_TICK)
+	assert_int(buffer.newest_tick()).is_equal(14)
+	assert_vector(buffer.pose_of(PEER, 14.0).position).is_equal(Vector3(-4, 0, 0))
+	# A clear with no floor given keeps the newest held as one, and a later match (the host's tick
+	# runs on) adds again.
+	buffer.clear()
+	buffer.add(14, {PEER: round_spot}, 16 * USEC_PER_TICK)
+	assert_int(buffer.newest_tick()).is_equal(-1)
+	buffer.clear(300)
+	buffer.add(301, {PEER: lobby_spot}, 301 * USEC_PER_TICK)
+	assert_int(buffer.newest_tick()).is_equal(301)
+
+
 func test_degenerate_facings_keep_a_unit_facing_and_the_last_turn() -> void:
 	var buffer := SnapshotBuffer.new()
 	var facings: Array[Vector3] = [

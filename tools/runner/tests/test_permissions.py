@@ -174,12 +174,38 @@ class ProtectionsTest(unittest.TestCase):
             ("Bash", "gh pr create -R xperiaroco2/prime-game-art --title x"),
             ("Bash", "mv addons/twovoip /tmp/x"),
             ("PowerShell", "Copy-Item x .claude/settings.json"),
-            # #104: only GIT_SEQUENCE_EDITOR=: makes an interactive rebase editor-free; -c core.editor still asks.
-            ("Bash", "git -c core.editor=true rebase -i --autosquash origin/main"),
+            # #457 lets an interactive rebase pass in the own worktree on its task branch, not in the main checkout.
+            ("Bash", f"git -C {MAIN_POSIX} rebase -i --autosquash origin/main"),
         ):  # fmt: skip
             for bypass in (True, False):
                 with self.subTest(tool=tool, command=command, bypass=bypass):
                     self.assertEqual(verdict(tool, command, bypass)[0], permissions.PROMPT)
+
+    def test_the_engineers_interactive_rebase_passes_in_the_own_worktree(self) -> None:
+        # #457: #445's fix agent waited from 21:56 to 07:19 UTC on this prompt in its own worktree, on its task branch.
+        worktree = f"{MAIN_POSIX}/.claude/worktrees/51"
+
+        class TaskRepo(OwnRepo):
+            def __init__(self, branch: str) -> None:
+                self.checked_out = branch
+
+            def branch(self, checkout: str) -> str | None:
+                return self.checked_out if checkout == guard.normalize(worktree) else "main"
+
+        command = (
+            f"cd {worktree} && SP=/c/x/r445 && GIT_SEQUENCE_EDITOR=\"sed -i '/^pick 2c3e0d21/a exec git commit -q "
+            "--amend --cleanup=verbatim -F $SP/m.txt'\" git rebase -q -i origin/main"
+        )
+        for cwd in (MAIN, worktree):
+            with self.subTest(cwd=cwd):
+                judged = permissions.verdict(RULES, guard, "Bash", command, cwd, MAIN, TaskRepo("tooling/51-x"))
+                self.assertEqual(judged[0], permissions.PASS)
+        # Another branch checked out in the worktree, or the main checkout, still asks.
+        other = permissions.verdict(RULES, guard, "Bash", command, MAIN, MAIN, TaskRepo("core/42-vote"))
+        self.assertEqual(other[0], permissions.PROMPT)
+        main = command.replace(f"cd {worktree}", f"cd {MAIN_POSIX}")
+        self.assertEqual(permissions.verdict(RULES, guard, "Bash", main, MAIN, MAIN, TaskRepo("tooling/51-x"))[0],
+                         permissions.PROMPT)
 
 
 class SettingsTest(unittest.TestCase):
@@ -198,6 +224,88 @@ class SettingsTest(unittest.TestCase):
             for command in ("gh issue view 1 -R o/r", "gh pr list --repo o/r", "gh search issues x --repo o/r"):
                 with self.subTest(tool=tool, command=command):
                     self.assertEqual(RULES.judge(tool, command)[0], permissions.ALLOW)
+
+
+WORKTREE = str(ROOT).replace("\\", "/")
+BRANCH = "tooling/342-push-twins"
+# The spellings of git that name a checkout or a config value before `push` (issue #342); plain `git` too.
+GIT_PREFIXES = [
+    "git",
+    f"git -C {WORKTREE}",
+    "git -C ..",
+    "git -c http.postBuffer=524288000",
+    f"git -c k=v -C {WORKTREE}",
+    f"git -C {WORKTREE} -c k=v",
+]
+# One push per deny rule on `git push`: to main, by HEAD, forced, without the hook, deleting, pruning, mirroring.
+FORBIDDEN_PUSHES = [
+    "push",
+    "push origin",
+    "push -u origin",
+    "push origin main",
+    "push -u origin main",
+    "push origin main --dry-run",
+    "push origin HEAD",
+    "push -u origin HEAD:main",
+    f"push origin {BRANCH}:refs/heads/main",
+    f"push origin {BRANCH}:main",
+    f"push --force origin {BRANCH}",
+    f"push --force-with-lease origin {BRANCH}",
+    f"push -f origin {BRANCH}",
+    f"push origin {BRANCH} --force",
+    f"push origin {BRANCH} -f",
+    f"push origin -f {BRANCH}",
+    f"push origin +{BRANCH}",
+    f"push --no-verify origin {BRANCH}",
+    f"push origin --delete {BRANCH}",
+    f"push origin -d {BRANCH}",
+    "push --prune origin",
+    "push --mirror origin",
+    "push --all origin",
+]
+TASK_PUSHES = [f"push -u origin {BRANCH}", f"push origin {BRANCH}"]
+# The documented trade-off (AGENT_WORKFLOW 8.1): `*` spans words, so a `-m` message that reads like a push is denied.
+MESSAGES_LIKE_PUSHES = ['"x push HEAD"', '"fix: deny git -C and git -c pushes like git push"', '"x push origin main"']
+
+
+class PushTwinsTest(unittest.TestCase):
+    """`git -C <path> push` and `git -c k=v push` meet the same deny rules as `git push` (issue #342)."""
+
+    def test_each_push_deny_rule_has_its_dash_C_and_dash_c_twins_in_both_shells(self) -> None:
+        deny = {written for _, _, written in RULES.lists[permissions.DENY]}
+        pushes = [rule[len("Bash(git push") :] for rule in deny if rule.startswith("Bash(git push")]
+        self.assertGreater(len(pushes), 10)
+        for rest in pushes:
+            for tool in TOOLS:
+                for option in ("-C", "-c"):
+                    with self.subTest(tool=tool, option=option, rule=rest):
+                        self.assertIn(f"{tool}(git {option} * push{rest}", deny)
+
+    def test_forbidden_pushes_are_denied_after_dash_C_and_dash_c(self) -> None:
+        for tool in TOOLS:
+            for prefix in GIT_PREFIXES:
+                for push in FORBIDDEN_PUSHES:
+                    for bypass in (True, False):
+                        command = f"{prefix} {push}"
+                        with self.subTest(tool=tool, command=command, bypass=bypass):
+                            self.assertEqual(verdict(tool, command, bypass)[0], permissions.DENIED)
+
+    def test_task_branch_pushes_and_the_runner_still_pass(self) -> None:
+        for tool in TOOLS:
+            run = "tools\\run.cmd" if tool == "PowerShell" else "tools/run.sh"
+            commands = [f"{prefix} {push}" for prefix in GIT_PREFIXES for push in TASK_PUSHES]
+            commands += [f"{run} publish", f"{run} publish --base main", f"{run} merge 5 --base release/m7"]
+            for command in commands:
+                with self.subTest(tool=tool, command=command):
+                    self.assertEqual(verdict(tool, command)[0], permissions.PASS)
+
+    def test_a_commit_message_that_reads_like_a_forbidden_push_is_denied(self) -> None:
+        for tool in TOOLS:
+            for message in MESSAGES_LIKE_PUSHES:
+                for prefix in (f"git -C {WORKTREE}", "git -c k=v"):
+                    command = f"{prefix} commit -m {message}"
+                    with self.subTest(tool=tool, command=command):
+                        self.assertEqual(verdict(tool, command)[0], permissions.DENIED)
 
 
 class MatcherTest(unittest.TestCase):

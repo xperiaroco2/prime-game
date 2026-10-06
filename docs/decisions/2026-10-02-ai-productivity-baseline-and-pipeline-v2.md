@@ -20,6 +20,9 @@
   `--fixed-fps 60` (`test` with no paths: in shards of their own, the rest real-time); the nightly `flaky` job stays
   real-time. The engineer's decision, option (b) on PR #323; item 2 and N4 (a) still hold (the amendment of #341
   below).
+- **Amended 2026-10-04 (#340):** root CLAUDE.md has a line of command names instead of the commands table; a task
+  that adds a runner command adds its name in alphabetical order and a `description` in `tools/runner/cli.py`
+  that its `--help` prints (`docs/AGENT_WORKFLOW.md` §3), not a table row ("Within a wave" under the proposed issues).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -461,7 +464,7 @@ the kickoff), so P3 and P6 go early.
 
 Within a wave at most one task edits `tools/runner/cli.py` or `tools/runner/verify.py`, and each task owns a different
 paragraph of `docs/AGENT_WORKFLOW.md`. Each task that adds a runner command (P1, P4, P7, P9, P10) adds its row to
-the root CLAUDE.md commands table within the budget `lint` checks (merging rows if needed), and P2 updates the
+the root CLAUDE.md commands table (amended by #340: its name and a `--help` description instead) within the budget `lint` checks (merging rows if needed), and P2 updates the
 `verify` row and `verify.py`'s docstring, which say "in the same order"; waves 4 to 6 assume the M4 manager has finished (otherwise the third task
 waits). The order follows leverage: what speeds up or measures every later task first (P1, P2), then the workflow
 and the merge flow the other tracks will use (P3, P4), then the rest. Cost: about $15 to $30 list a task, about
