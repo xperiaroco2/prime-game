@@ -1559,7 +1559,9 @@ that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#1
 dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
 webrtc` (one chaos run paced to the real clock, about 16 s); `bots-webrtc` passed 5 runs and `chaos-webrtc` 10 in a
 row (seeds 188001 and 188002) beside a `load` of 8 busy
-loops on a 4-CPU cloud container (2026-10-05). `game` (#149, about 5 s) starts
+loops on a 4-CPU cloud container (2026-10-05). Since #429 the shim also drops and delays LATEST on the host (the
+client sends the claims that matter on `MoveClaimReliable`), and `WebRtcTransport` refuses an empty packet; the
+two steps' baseline under load is #475. `game` (#149, about 5 s) starts
 `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
 (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
 file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
