@@ -833,9 +833,29 @@ class PipelineV2Test(unittest.TestCase):
         rule = next(iter(lines))
         for part in ("over 400 lines", "`grep -n`", "`cd <your worktree> && tools/run.sh section <file>`",
                      "`tools/run.sh section <file> <symbol>`", "main's copy", "a base before #468",
+                     "the rows of that outline do not each start with a kind", "`#` comments as headings or nothing after its first line",
                      "an edit, a rebase, a checkout, a failed Edit or a compaction", "parallel calls", "`sed -n`",
                      "only when you restructure it"):
             self.assertIn(part, rule)
+        # The old-base test must not misfire on a base with #468: every outline row of the repository's own code,
+        # the two workflow scripts (all const and let) included, starts with a kind the line names.
+        named = re.search(r"start with a kind \(([^)]*)\)", rule)
+        self.assertIsNotNone(named, rule)
+        kinds = set(re.split(r", | or ", named.group(1)))
+        from runner import symbols
+
+        paths = [WORKFLOWS / "issue-task.js", WORKFLOWS / "pr-rebase.js"]
+        paths += sorted((ROOT / "tools" / "runner").glob("*.py"))
+        for area in ("core", "server", "net", "client", "voice"):
+            paths += sorted((ROOT / area).rglob("*.gd"))
+        for path in paths:
+            rows = symbols.outline(path)[1:]
+            with self.subTest(file=path.relative_to(ROOT).as_posix()):
+                # An empty outline reads as an old base; that costs nothing only for a file too short to outline.
+                if not rows:
+                    self.assertLess(len(path.read_text(encoding="utf-8").splitlines()), 20)
+                for row in rows:
+                    self.assertIn(row.split()[0].rstrip("*"), kinds, row)
 
     def test_every_v2_agent_gets_the_rules_or_is_a_read_only_reviewer(self) -> None:
         jobs = [
