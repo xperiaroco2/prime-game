@@ -979,7 +979,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 
   An honest client sends about 50 frames, a few intents and about 1 KB of claims per second, so each bucket holds
   more than 10 s of it (a twin before each player action doubles what an action costs, and each `Correction` costs
-  one twin, so 10 actions a second, or a correction every frame, is where an honest client would meet the bucket):
+  one twin, so 10 actions a second, or a correction on every claim (20 a second), is where an honest client would
+  meet the bucket):
   a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
   its own bucket so that a player talking at a high Opus bitrate never drains the budget that a `SetReady` or a
   `LoadAck` needs: a reliable intent dropped on a budget is acknowledged by ENet and never answered, and the client's
