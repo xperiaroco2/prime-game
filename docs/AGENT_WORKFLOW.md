@@ -709,6 +709,23 @@ holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/
   from the environment or a PowerShell variable the command never assigns, when its text does not name the project;
   filtered deletes, even project-wide ones (`find . -name '*.orig' -delete`, `find . -name '*.gd' -delete`,
   `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
+- **A filtered recursive delete in the temp folder is judged by what it matches** (#464): a glob after `$TEMP`,
+  `$TMP`, `$TMPDIR`, `$env:TEMP`, `%TEMP%` or `/tmp` (`rm -rf "$TEMP"/rmtree-*`, `Remove-Item -Recurse
+  $env:TEMP\x*`), and a PowerShell `Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse
+  -Force` that does not recurse (its targets are `$env:TEMP\rmtree-*`, not the folder). A filter matches the Win32
+  way, so the guard reads it as a glob that matches at least as much (`x.*` and `x.` also match `x`, so `*.*` matches
+  every name; a `?` also matches nothing; `[` is a literal), and a filter without a glob (`-Filter claude`) is judged
+  the same way. It passes unless the pattern reaches outside the folder (`..`) or has a part the guard cannot read
+  (`"$TEMP"/$X*`, `-Filter $f`, a `~` that may match an 8.3 short name), may match a Claude scratchpad root or a
+  folder that holds one (`claude/<project>/<session>/scratchpad`: `"$TEMP"/cl*`, `"$TEMP"/claude/*/*`; any
+  session's, the guard does not know which is the caller's) or reach into scratchpads through a wildcard project or
+  session (`"$TEMP"/claude/*/*/scratchpad/*`), or a match is or holds a worktree (a `.git` file in it, a worktree of
+  this repository at or below it, or a symbolic link or junction at or above it; `hooks.GitFiles.temp_matches` lists
+  the folder when the hook runs). A delete inside one named session's scratchpad
+  (`"$TEMP"/claude/<project>/<session>/scratchpad/a1*`) passes. A recursive listing (`Get-ChildItem $env:TEMP
+  -Recurse -Filter x`), `-Filter *` and an unfiltered one still delete the temp folder itself and ask; a literal
+  path there (`$TEMP/x`) is judged as before. One such delete of `rmtree-*` leftovers waited 8.8 hours on
+  2026-10-05.
 
 #### 8.2.4 `tests/scratch/`
 Is for temporary files that must be under `res://` (a probe test). It is gitignored but not
@@ -786,10 +803,27 @@ make it a POST). Everything else there asks, `gh issue create --repo godotengine
 `--jq`) never name the repository, and an option is never taken as the value of another one
 (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
 repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
-of another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`)
-are other repositories too: a session that manages one runs in that repository's checkout, never in
-`D:\prime-game`, where each of its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of
-waiting, one `gh pr create` over a whole night, #312).
+of another repository without naming it.
+
+**A repository of gh's own account passes like this project's** (#464, wanted by the engineer on 2026-10-06): when
+the owner of the named repository is the account `gh api user` returns (`hooks.GitFiles.gh_user` reads its login from
+gh's `hosts.yml`, in `GH_CONFIG_DIR`, `%AppData%\GitHub CLI` or `~/.config/gh`, without a network call; unknown when
+`GH_TOKEN` or `GITHUB_TOKEN` is set), the guard leaves the command to the rules, as for this repository: on the
+engineer's machine `gh issue create|comment|edit`, `gh pr create|comment|edit`, `gh label`, `gh repo create` and
+`gh api` POSTs to `xperiaroco2/prime-game-art`, `xperiaroco2/prime-game-ui` or any `xperiaroco2/*` pass (30 asks on
+2026-10-02 and 10-03 before, about 12.6 hours of waiting, one `gh pr create` over a whole night, #312). It also
+fills in a variable the same command assigns (`R=xperiaroco2/prime-game-art; gh issue create -R "$R"`) and takes
+an owner it can read alone (`-R "xperiaroco2/$1"`). On the designer's machine the account is the designer's, so the
+engineer's repositories still ask there. What keeps the guard's ask in those repositories, because a spelling like
+`gh pr -R x merge 5` slips past the rules' text: every `gh` command a deny or ask rule names (`pr merge|review`,
+`repo delete|archive|unarchive|rename|edit|deploy-key`, `issue delete`, `label delete`, `project delete`, release
+changes, `workflow run|enable|disable`, `auth`, `secret`, `variable`, `--delete-last`; `guard.GH_OWNER_KEPT`, a test
+checks it against `.claude/settings.json`), `gh issue transfer`, and a `gh api` write that is not a POST or reaches a
+`merges`, `merge`, `secrets`, `variables`, `keys`, `dispatches`, `releases` or `transfer` endpoint. Such a kept
+command that names this project's repository asks too (`R=xperiaroco2/prime-game; gh pr -R $R merge 5`); a `gh api`
+write here stays with the rules. The deny and ask rules themselves are unchanged: `gh pr merge 5 -R
+xperiaroco2/prime-game-art` is still denied, `gh secret set` still asks. Any other owner (`godotengine/godot`, an
+organization the account belongs to) asks as before.
 
 #### 8.2.8 Targets and the prompt
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
@@ -871,6 +905,15 @@ waiting, one `gh pr create` over a whole night, #312).
   2026-09-28`, 33,381 calls, bypass mode): 70 prompts before, 64 after (68 and 62 guard), 38 denied in both, no crash;
   the 6 that pass are the six above, and no call that was silent before asks now. The replay reads today's branches:
   a deleted worktree's call reads as a detached HEAD, which is free, so it may undercount the asks of the past.
+- The account's own repositories and filtered temp deletes (#464), replayed on 2026-10-06 with `tools\run.cmd
+  permissions --since 2026-09-28` (bypass mode, `origin/main` against the branch; 35,388 calls in 1,261
+  transcripts): 66 prompts before (64 guard), 31 after (29 guard), 38 denied in both, no crash, and no call that was
+  silent before asks now. The 35 that pass: 34 calls with `gh` writes to `xperiaroco2/prime-game-art` and
+  `xperiaroco2/prime-game-ui` (issues, comments, PRs, both `gh repo create`s, `-R "$R"` after `R=...`; one a probe
+  of a missing `xperiaroco2/nonexistent-zz9`), and the
+  `Get-ChildItem $env:TEMP -Filter 'rmtree-*' | Remove-Item -Recurse` of 2026-10-05. The one `gh` ask left is
+  `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
+  today's gh account.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own

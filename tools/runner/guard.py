@@ -34,6 +34,13 @@ two commands by their target (issue #47):
   the command never assigns, a path read from a file, a computed `rmtree(p)`), filtered deletes, even project-wide
   ones (`find . -name '*.orig' -delete`, `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*` or
   before `-prune -o` is none), and links (a delete through a junction in `tests/scratch/` reaches its target).
+- A filtered recursive delete in the temp folder (issue #464: a glob after `$TEMP`, `$TMP`, `$TMPDIR`, `$env:TEMP`,
+  `%TEMP%` or `/tmp`, such as `rm -rf "$TEMP"/rmtree-*`, or a PowerShell `Get-ChildItem $env:TEMP -Filter 'x*'` that
+  does not recurse, piped to `Remove-Item -Recurse`) is judged by what it matches: it passes unless the pattern
+  reaches outside the folder (`..`) or has an unknown part, it may match a Claude scratchpad root or a folder that
+  holds one (`claude/<project>/<session>/scratchpad`, any session's: the guard does not know the session), or a
+  match the repository reader lists (hooks.GitFiles.temp_matches) is or holds a worktree. A literal path there is
+  judged as before.
 
 The session's own worktree is free (issue #51): the worktree `.claude/worktrees/<n>` its working directory is in, or,
 for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
@@ -70,7 +77,12 @@ is not a read (GH_READS, `gh api` GET): through `-R|--repo`, `GH_REPO`, a github
 `gh repo <sub> owner/name`, `gh issue transfer`'s destination or a `gh api repos/owner/name/...` endpoint with a
 write method (`-X`, or fields that make it a POST). The values of text options (`--body`, `--title`, `-f`) never
 name the repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a gh command run in
-a clone of another repository without naming it.
+a clone of another repository without naming it. A repository owned by gh's active account (what `gh api user` returns,
+read from gh's `hosts.yml` by hooks.GitFiles; issue #464), also through a variable the command assigns or with only
+its owner readable (`xperiaroco2/$1`), passes like this project's, so the rules judge the command, except the kinds
+the rules deny or ask for (GH_OWNER_KEPT, GH_OWNER_KEPT_OPTIONS: merges, deletion, auth, secrets, ...), `gh issue
+transfer`, and a `gh api` write that is not a POST or reaches a kept endpoint (GH_API_KEPT_RE): those keep the
+guard's ask, since a spelling like `gh pr -R x merge` slips past the rules' text.
 
 Like those Edit rules, it protects the project's own paths: `addons/` and `.claude/settings*.json` at the top of the
 main checkout or of a worktree. It resolves each target against the session's working directory, `cd`, and the
@@ -196,6 +208,8 @@ SETTINGS_NAMES = ("settings.json", "settings.local.json")
 
 # Finding areas of the target-judged commands (the others are the protected paths above, or "piped").
 DELETE, GIT = "recursive delete", "git"
+# A filtered recursive delete in the temp folder that may reach a Claude scratchpad root or a worktree (issue #464).
+TEMP_DELETE = "filtered delete in temp"
 # Commands that delete; each is recursive only with its recursive option.
 DELETE_VERBS = {"rm", "del", "erase", "rd", "rmdir", "ri", "remove-item"}
 # cmd.exe delete commands, and their switches (`rmdir /s /q x`, `rd /s/q x`): options, not paths.
@@ -213,6 +227,15 @@ ABSOLUTE_RE = re.compile(r"^([A-Za-z]:)?[\\/~]|^[A-Za-z]:|^\$")
 CWD_TEXT_RE = re.compile(r"\$pwd\b|\$\(pwd\)|get-location|\$\{pwd\}|%cd%", re.IGNORECASE)
 # A home or temp folder itself (`~`, `$HOME`, `$env:TEMP\`, `$TEMP/*`), not a folder in it.
 OUTSIDE_ROOT_RE = re.compile(r"^(<outside>|~)[/\\]*\*?$")
+# A delete target in the temp folder (issue #464): `$TEMP/x`, `${TMPDIR}/x`, `$env:TEMP\x`, `%TEMP%\x`, `/tmp/x`; the
+# variable's name (none for `/tmp`) and the part after it.
+TEMP_TARGET_RE = re.compile(
+    r"^(?:\$\{?(temp|tmp|tmpdir)\}?|\$env:(temp|tmp)|%(temp|tmp)%|/tmp)(?![\w:])[\\/]+(.*)$", re.IGNORECASE
+)
+# A glob character: the delete names what a pattern matches, not one path.
+GLOB_RE = re.compile(r"[*?\[]")
+# Where Claude Code keeps a session's scratchpad in the temp folder: `claude/<project>/<session>/scratchpad`.
+SCRATCHPAD_PARTS = ("claude", "*", "*", "scratchpad")
 # git reset modes that discard work in the working tree or the index.
 RESET_MODES = {"--hard", "--merge", "--keep"}
 # A lone `git reset` argument that is a revision rather than a path: HEAD~1, main^, @{u}, a SHA, a remote or ref
@@ -333,6 +356,30 @@ GH_REPO_RE = re.compile(r"^(?:([\w.-]+\.[a-z]+)/)?([\w.-]+)/([\w.-]+?)(?:\.git)?
 GH_API_REPO_RE = re.compile(r"^/?repos/([^/\s]+)/([^/\s?]+)", re.IGNORECASE)
 # The variable that names the repository gh acts on when a command names none (else the working directory's).
 GH_REPO_ENV = "gh_repo"
+# gh commands that keep asking in a repository of gh's own account (issue #464): every one a deny or ask rule of
+# .claude/settings.json names (merges, deletion, auth, secrets, ...), since `gh pr -R x merge` slips past the rule's
+# text, and `gh issue transfer`, which moves an issue out of this repository. None: every subcommand of the group.
+GH_OWNER_KEPT: dict[str, set[str] | None] = {
+    "pr": {"merge", "review"},
+    "repo": {"delete", "archive", "unarchive", "rename", "edit", "deploy-key"},
+    "issue": {"delete", "transfer"},
+    "label": {"delete"},
+    "project": {"delete"},
+    "release": {"create", "edit", "delete", "delete-asset", "upload", "download"},
+    "workflow": {"run", "enable", "disable"},
+    "auth": None,
+    "secret": None,
+    "variable": None,
+}
+# gh options that keep the ask there too: `gh issue comment --delete-last` (an ask rule).
+GH_OWNER_KEPT_OPTIONS = {"--delete-last"}
+# gh api endpoints that keep asking there with any write method (only POST passes): merges, secrets and variables,
+# deploy keys, workflow dispatches, releases and a repository transfer, the API twins of the kept commands.
+GH_API_KEPT_RE = re.compile(
+    r"/(?:merges?|secrets|variables|keys|dispatches|releases|transfer)(?:[/?#]|$)", re.IGNORECASE
+)
+# The owner of a repository whose name the guard cannot read (`xperiaroco2/$1`, `https://github.com/o/$n`).
+GH_OWNER_RE = re.compile(r"^(?:(?:https?://)?(?:www\.)?github\.com/)?([\w.-]+)/", re.IGNORECASE)
 
 
 class NoRepo:
@@ -358,6 +405,16 @@ class NoRepo:
     def github_repo(self) -> str | None:
         """This project's GitHub repository as `owner/name` (lower-case), from the `origin` remote; None when
         unknown, and then every repository a `gh` command names counts as another one."""
+        return None
+
+    def gh_user(self) -> str | None:
+        """The login of gh's active github.com account (what `gh api user` returns), lower-case; None when unknown,
+        and then no repository passes for its owner (issue #464)."""
+        return None
+
+    def temp_matches(self, pattern: str) -> list[tuple[str, bool]] | None:
+        """What a glob pattern relative to the temp folder (`/`-separated, no `..`) matches now: each match's path
+        relative to it, and whether it is or holds a worktree; None when the folder cannot be listed (issue #464)."""
         return None
 
 # `$(git rev-parse --show-toplevel)`: the checkout that contains the working directory.
@@ -1318,6 +1375,35 @@ def _recursive_listing(words: list[str] | None, shell: str) -> bool:
     return _recursive("remove-item", args, POWERSHELL)
 
 
+def _win32_filter(text: str) -> str | None:
+    """A glob that matches at least what a PowerShell `-Filter` matches (issue #464), or None when the guard cannot
+    tell. A filter matches the way Win32 FindFirstFile does, not fnmatch: `x.*` and `x.` also match `x` (so `*.*`
+    matches every name), a `?` before a dot or at the end also matches nothing, and `[` is a literal. The 8.3 short
+    names a filter also matches (`CLAUDE~1`) are not listed, so a filter with `~` is unknown."""
+    if not text or "~" in text:
+        return None
+    text = text.replace("[", "[[]").replace("?", "*")
+    if text.endswith(".*"):
+        text = text[:-2] + "*"
+    elif text.endswith("."):
+        text = text[:-1] + "*"
+    return text
+
+
+def _scratchpad_holder(parts: list[str]) -> bool:
+    """A path in the temp folder, as its parts, is or may match (as a glob) a Claude scratchpad root
+    (`claude/<project>/<session>/scratchpad`) or a folder that holds one (issue #464). A deeper pattern counts
+    when a wildcard in its project or session part reaches into other sessions' scratchpads
+    (`claude/*/*/scratchpad/*`); one inside a named session's scratchpad does not."""
+    deep = len(parts) > len(SCRATCHPAD_PARTS)
+    if deep and not any(GLOB_RE.search(part) for part in parts[1:3]):
+        return False
+    return all(
+        fnmatch.fnmatchcase(name, part.lower()) or fnmatch.fnmatchcase(part.lower(), name)
+        for part, name in zip(parts, SCRATCHPAD_PARTS, strict=False)
+    )
+
+
 def _find_deletes_all(args: list[str]) -> bool:
     """`find` deletes everything under its start paths: `-delete`, or `-exec rm -rf {}`, with no name or path
     filter (`find . -name '*.orig' -delete` is a targeted cleanup)."""
@@ -1471,11 +1557,64 @@ class Analysis:
             for a in _positionals(args, PATH_OPTIONS | VALUE_OPTIONS) + _option_values(args, PATH_OPTIONS)
             if not (cmd and CMD_SWITCH_RE.match(a))
         ]
+        filtered: set[str] = set()
         if fed is not None and all(PIPE_ITEM_RE.match(t) for t in targets):
-            targets = self.paths.output_paths(fed) if fed else ["."]
+            listed = self.paths.output_paths(fed) if fed else []
+            targets = self.filtered_listing(fed, listed) if fed else ["."]
+            filtered = set(targets) - set(listed)
         for target in targets:
             if self.paths.project_target(target, own_ok=True):
                 self.findings.append(Finding(target, DELETE, verb))
+            elif self.temp_glob_reaches(target, target in filtered):
+                self.findings.append(Finding(target, TEMP_DELETE, verb))
+
+    def filtered_listing(self, words: list[str], paths: list[str]) -> list[str]:
+        """The paths a listing piped to a delete hands on: a PowerShell `Get-ChildItem <temp folder> -Filter x` that
+        does not recurse hands on what `<temp folder>/x` matches, not the folder (issue #464), as the glob
+        _win32_filter makes of x. Other listings and folders, and a filter the guard cannot read, are judged by their
+        paths, as before (the temp folder itself asks)."""
+        verb, args = _verb(words[0]), words[1:]
+        if self.paths.shell != POWERSHELL or verb not in ("get-childitem", "gci", "ls", "dir"):
+            return paths
+        filters = _option_values(args, {"-filter"})
+        if len(filters) != 1 or filters[0] in ("*", "") or _recursive("remove-item", args, POWERSHELL):
+            return paths
+        if any(a.lower().partition(":")[0] == "-depth" for a in args):
+            return paths
+        text = self.paths.expand(filters[0])
+        pattern = _win32_filter(text) if text is not None and OUTSIDE not in text else None
+        if pattern is None:
+            return paths
+        joined = [f"{p}/{pattern}" for p in paths]
+        return [j if TEMP_TARGET_RE.match(j) else p for p, j in zip(paths, joined, strict=True)]
+
+    def temp_glob_reaches(self, token: str, filtered: bool = False) -> bool:
+        """A delete target that is a glob in the temp folder (`$TEMP/rmtree-*`, `$env:TEMP/x*`) may reach what no
+        one meant (issue #464): a match outside the temp folder (`..`), a Claude scratchpad root or a folder that
+        holds one (`claude/<project>/<session>/scratchpad`, by the pattern and by its matches), a worktree (by its
+        matches, when the repository reader lists the folder), or what the guard cannot tell (an unknown variable).
+        A literal path in the temp folder is judged as before (it passes), but not one a `-Filter` made (filtered):
+        `Get-ChildItem $env:TEMP -Filter claude` names what it matches too."""
+        for item in self.paths.items(token):
+            match = TEMP_TARGET_RE.match(item)
+            name = match and (match.group(1) or match.group(2) or match.group(3) or "").lower()
+            if not match or (name and name in self.paths.vars):
+                continue  # not the temp folder, or a variable the command set itself
+            text = self.paths.expand(match.group(4), empty=self.paths.shell == BASH)
+            if text is None or OUTSIDE in text:
+                if GLOB_RE.search(match.group(4)):
+                    return True
+                continue
+            if not filtered and not GLOB_RE.search(text):
+                continue
+            # Bash negates a class with `[^...]` as well as `[!...]`; fnmatch and glob take only `[!...]`.
+            parts = [p.replace("[^", "[!") for p in text.replace("\\", "/").split("/") if p not in ("", ".")]
+            if not parts or ".." in parts or _scratchpad_holder(parts):
+                return True
+            matches = self.repo.temp_matches("/".join(parts))
+            if matches and any(worktree or _scratchpad_holder(path.split("/")) for path, worktree in matches):
+                return True
+        return False
 
     # --- git: free in the own worktree and task branch, asks elsewhere (issue #51) ------------------------------------
 
@@ -1838,7 +1977,9 @@ class Analysis:
         """A gh command that names a repository other than this project's asks, unless it only reads (GH_READS,
         `gh api` GET or HEAD). The repository comes from `-R|--repo`, `GH_REPO`, a github.com URL argument,
         `gh repo <sub> owner/name`, the destination of `gh issue transfer`, or a `gh api repos/owner/name/...`
-        endpoint. A command that names no repository acts on this project's and is left to the rules."""
+        endpoint. A command that names no repository acts on this project's and is left to the rules; so is one that
+        names a repository of gh's own account, unless it is a kept kind (GH_OWNER_KEPT, issue #464); a kept kind
+        other than a `gh api` write asks when it names this project's repository too."""
         group = args[0].lower() if args else ""
         # The subcommand is the first word after the group that is no option: `-R` is a persistent flag of the
         # group, so `gh issue -R o/r view 1` is a read too.
@@ -1852,21 +1993,49 @@ class Analysis:
                 sub, rest = args[i].lower(), args[1:i] + args[i + 1 :]
                 break
         if group == "api":
-            method, targets = self.gh_api(args[1:])
+            method, targets, endpoint = self.gh_api(args[1:])
             if method in GH_READ_METHODS:
                 return
+            kept = method != "POST" or bool(GH_API_KEPT_RE.search(endpoint))
         else:
             reads = GH_READS.get(group, set())
             if group in GH_READS and (reads is None or sub in reads):
                 return
             targets = self.gh_targets(group, sub, rest)
+            subs = GH_OWNER_KEPT.get(group, set())
+            kept = group in GH_OWNER_KEPT and (subs is None or sub in subs)
+            kept = kept or any(a.lower().partition("=")[0] in GH_OWNER_KEPT_OPTIONS for a in rest)
         env = self.gh_env()
         if env is not None:
             targets.append(env)
         own = self.repo.github_repo()
-        others = [t for t in targets if own is None or gh_repo_name(t) != own]
+        # A kept kind that names this repository asks too: `R=o/this; gh pr -R $R merge 5` slips past the rules' text.
+        # gh api writes to this repository stay with the rules (they ask for PUT, PATCH and DELETE).
+        keep_own = kept and group != "api"
+        others = [t for t in targets if own is None or keep_own or gh_repo_name(self.gh_value(t)) != own]
+        if others and not kept:
+            # A repository of gh's own account passes like this one (issue #464): the rules judge the command.
+            account = self.repo.gh_user()
+            others = [t for t in others if account is None or self.gh_owner(t) != account]
         if others:
             self.findings.append(Finding(" ".join(["gh", *args])[:100], GH, others[0]))
+
+    def gh_value(self, target: str) -> str:
+        """A repository argument with the variables the command assigns filled in (`-R "$R"` after `R=o/r`)."""
+        value = self.paths.expand(target)
+        return target if value is None or OUTSIDE in value else value
+
+    def gh_owner(self, target: str) -> str | None:
+        """The lower-case owner of a repository argument on github.com, also when only its owner can be read
+        (`xperiaroco2/$1`); None for another host or a value the guard cannot read."""
+        value = self.gh_value(target)
+        name = gh_repo_name(value)
+        if name is not None:
+            return name.split("/", 1)[0]
+        match = GH_OWNER_RE.match(value)
+        if not match or GH_REPO_RE.match(value) or "." in match.group(1):
+            return None  # `ghe.example.com/o/r` names another host
+        return match.group(1).lower()
 
     def gh_targets(self, group: str, sub: str, rest: list[str]) -> list[str]:
         """The repositories a gh command other than `gh api` names."""
@@ -1896,9 +2065,9 @@ class Analysis:
             targets.append(positionals[1])
         return targets
 
-    def gh_api(self, rest: list[str]) -> tuple[str, list[str]]:
-        """The method of a `gh api` request (GET unless -X names another, POST when fields are added) and the
-        repositories it names."""
+    def gh_api(self, rest: list[str]) -> tuple[str, list[str], str]:
+        """The method of a `gh api` request (GET unless -X names another, POST when fields are added), the
+        repositories it names, and its endpoint ("" when none)."""
         method, fields, endpoint, targets, i = "", False, None, [], 0
         while i < len(rest):
             arg = rest[i]
@@ -1924,7 +2093,7 @@ class Analysis:
                 targets.append(f"{api.group(1)}/{api.group(2)}")
             elif GH_URL_RE.match(endpoint):
                 targets.append(endpoint)
-        return (method or ("POST" if fields else "GET")).upper(), targets
+        return (method or ("POST" if fields else "GET")).upper(), targets, endpoint or ""
 
     def gh_env(self) -> str | None:
         """GH_REPO as the command sets it (a `VAR=value` prefix, or `export` / `$env:` earlier in the command); a
@@ -2028,8 +2197,9 @@ def check(
 
 def reason(findings: list[Finding]) -> str:
     """The text shown in the permission prompt."""
-    writes = [f for f in findings if f.area not in (DELETE, GIT, GH)]
+    writes = [f for f in findings if f.area not in (DELETE, TEMP_DELETE, GIT, GH)]
     deletes = sorted({f"{f.verb} -> {f.path}" for f in findings if f.area == DELETE})
+    temps = sorted({f"{f.verb} -> {f.path}" for f in findings if f.area == TEMP_DELETE})
     gits = sorted({f"{f.path} ({f.verb})" for f in findings if f.area == GIT})
     ghs = sorted({f"{f.path} (repository {f.verb})" for f in findings if f.area == GH})
     parts = []
@@ -2042,10 +2212,18 @@ def reason(findings: list[Finding]) -> str:
         )
     if deletes:
         parts.append(f"Recursive delete in the project: {'; '.join(deletes[:5])} (outside this session's own worktree).")
+    if temps:
+        parts.append(
+            f"Filtered recursive delete in the temp folder: {'; '.join(temps[:5])} may match a Claude scratchpad"
+            " root (any session's) or a worktree, reach outside the temp folder, or match what the guard cannot tell."
+        )
     if gits:
         parts.append(f"git that discards work or rewrites history: {'; '.join(gits[:3])}.")
     if ghs:
         parts.append(
-            f"gh that may write to another repository: {'; '.join(ghs[:3])}. Reads of other repositories pass."
+            f"gh that may write to another repository, or that names a repository for a change the rules guard:"
+            f" {'; '.join(ghs[:3])}. Reads of other repositories pass, and"
+            " so do writes to your gh account's own ones, but merges, deletion, auth, secrets and the other changes"
+            " the rules guard."
         )
     return " ".join(parts) + " (docs/AGENT_WORKFLOW.md §8.2)"
