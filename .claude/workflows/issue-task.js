@@ -32,7 +32,8 @@ export const meta = {
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), so a launch or resume with the earlier
 // args, bounded_waits false and lean false is unchanged, but for
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
-// section reads, #468's reading line). The agents each one adds count toward the agent number the kickoff approves
+// section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
+// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task steps). The agents each one adds count toward the agent number the kickoff approves
 // (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
@@ -205,6 +206,9 @@ const RULES = [
   A.decisions ? `- The engineer's standing decisions for this work:\n${A.decisions}` : '',
 ].filter(Boolean).join('\n')
 
+// #470: the implementer's summary is capped (3,552 characters on average in the token audit of 2026-10-06, written
+// once and read by every later agent): a few lines on what changed and why; the why of each choice goes in decisions.
+const SUMMARY_MAX = 1200
 const IMPL = {
   type: 'object',
   properties: {
@@ -214,7 +218,7 @@ const IMPL = {
     commits: { type: 'array', items: { type: 'string' } },
     complete: { type: 'boolean' },
     left: { type: 'array', items: { type: 'string' } },
-    summary: { type: 'string' },
+    summary: { type: 'string', maxLength: SUMMARY_MAX },
     decisions: { type: 'array', items: { type: 'string' } },
     needs_engineer: { type: 'array', items: { type: 'string' } },
     provisional_content: { type: 'array', items: { type: 'string' } },
@@ -359,6 +363,44 @@ const WORK = DESIGN
   ].join('\n\n')
   : `Plan, then implement every acceptance criterion. ${TESTS} If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish \`git fetch\` and check whether it reached origin/${BASE}; if it did, rebase on it inside your worktree and use it.`
 
+// The compact result's helpers come before the agents: the reviewers' digest (#470) uses them too.
+// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
+// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
+const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
+const line = (s, max = 160) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  const first = t.split('\n')[0].trim()
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
+}
+const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
+const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
+const tally = (list, key, order) => {
+  const c = {}
+  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
+  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
+}
+const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
+const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
+// A list's "None" or empty entries say nothing.
+const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
+
+// #470: the reviewers and the test reviewer get a digest of the implementer's report, not the whole of it (6.9k
+// characters at the median of 26 reviewers since 2026-10-05, 7.9k to 9.3k a run in the token audit of 2026-10-06):
+// its summary, the changed paths, and each decision and item for the engineer cut to a line. They review the diff;
+// the publisher still gets the whole report (the PR and the handoff carry its rationale, what is left, the verify tail).
+const clip = (s, max) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
+}
+const digest = r => ({
+  summary: clip(r.summary, SUMMARY_MAX),
+  changed_paths: r.changed_paths || [],
+  ...(items(r.decisions).length ? { decisions: lines(items(r.decisions)) } : {}),
+  ...(items(r.needs_engineer).length ? { needs_engineer: lines(items(r.needs_engineer)) } : {}),
+})
+const REPORT = 'The implementer\'s report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change):'
+
 phase('Implement')
 // plan_review: a plan agent, then a fresh critique of its plan; the implementer builds with both.
 let planned = null
@@ -402,7 +444,7 @@ const impl = await agent([
   BOUNDED ? waits(false) : '',
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
-  `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end.`,
+  `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end. summary: at most ${SUMMARY_MAX} characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.`,
 ].filter(Boolean).join('\n\n'), withModel({ label: `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: IMPL_SCHEMA }, 'implement'))
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
@@ -431,7 +473,7 @@ if (impl.verify_green) {
     READ_RULE,
     `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs the issue links, the area CLAUDE.md files and ${arch(DESIGN ? 'the design' : 'the change')}. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
-    `The implementer reported: ${JSON.stringify(impl)}`,
+    `${REPORT} ${JSON.stringify(digest(impl))}`,
     `Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. ${DESIGN ? 'A design that would let information reach a peer that is not entitled to it, trust a client field, leave an intent unvalidated, or contradict an accepted ADR or the code on main is a blocker or major.' : 'Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test.'} No findings is a valid answer.`,
   ].filter(Boolean).join('\n\n')
   const codeFocus = DESIGN
@@ -481,7 +523,7 @@ if (impl.verify_green) {
         '4. Each survived mutant is a finding: major when the fault breaks an acceptance criterion or an invariant (a leak, an unvalidated intent, a wrong rule) and no test caught it, else minor; the file and line of the mutant, the problem, and as the fix the test that would kill it. A mutant that changes no behaviour is equivalent, not a finding. At the end confirm that `git status` in the worktree is unchanged.',
       ].join('\n'),
       ...(BOUNDED ? [waits(false)] : []),
-      `The implementer reported: ${JSON.stringify(impl)}`,
+      `${REPORT} ${JSON.stringify(digest(impl))}`,
       `Fresh reviewers found: ${JSON.stringify(reviews)}`,
       'Return the structured result: every mutant you ran in mutants, each with its result (killed, survived, error or equivalent) and exit code. A mutant that a stopped run lists as `not run` is reported as error, with why in notes.',
     ].join('\n\n'), withModel({ label: `test-review:#${N}`, phase: 'Review', effort: TEST_EFFORT, schema: TEST_REVIEW_SCHEMA }, 'test_review'))
@@ -513,27 +555,6 @@ if (impl.verify_green) {
   }
   openSerious = SKEPTICS ? skeptic.stood.length + skeptic.unchecked.length : serious.length
 }
-
-// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
-// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
-// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
-const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
-const line = (s, max = 160) => {
-  const t = s === undefined || s === null ? '' : String(s).trim()
-  const first = t.split('\n')[0].trim()
-  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
-}
-const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
-const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
-const tally = (list, key, order) => {
-  const c = {}
-  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
-  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
-}
-const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
-const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
-// A list's "None" or empty entries say nothing.
-const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
 
 // issue-task's own result: the implementer's verdict, the reviews' counts, the publisher's fields and each v2 option's.
 const brief = (stopped, pub, extra) => {
@@ -617,7 +638,7 @@ const pub = stoppedByMutants
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
-    planned ? `The plan and its critique (plan_review): ${JSON.stringify(planned)}\n\nIn the PR, under "Plan review": the plan in a few lines, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
+    planned ? `The plan's summary and its critique (plan_review; the whole plan stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary), then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
       : !testReview ? ''
       : testReview.available
@@ -631,9 +652,10 @@ const pub = stoppedByMutants
         ? `Visual check (visual): the implementer's playcheck run: ${JSON.stringify(shots)}\n\nIf a fix changes what a scenario shows, run \`tools\\run.cmd playcheck <scenario>\` again. In the PR's Screenshots section list each PNG's path for the engineer to drag in (gh cannot upload images), and add that under human_steps.`
         : `Visual check (visual): no screenshots: ${shots.notes || 'the implementer returned none'} (\`tools\\run.cmd playcheck\` is P9, #186). Say so in the PR's Screenshots and verification sections.`,
     [
-      'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
-      `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}.`,
-      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+      'Then, in this order (the definition of done; the reviews above were its review step):',
+      '- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human\'s correction of how the agents work that the notes or the issue\'s comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.',
+      `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}. If it stops on remote commits the branch never had, or with "cannot confirm that the parent … was merged", push nothing by hand: return published false with what it said, and the engineer's check under human_steps.`,
+      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
       `- \`gh pr checks <pr> --watch\`. Red: fix, run the touched tests and \`check\`, publish again (it verifies); at most two rounds, then report what is still red.`,
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
