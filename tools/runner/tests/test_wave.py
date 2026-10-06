@@ -1220,6 +1220,22 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.40M is over 300k; instruction "
                          "changes unavailable: merged PRs: gh: HTTP 503.", "the context still decides")  # fmt: skip
 
+    def test_instruction_changes_incomplete_when_gh_cut_the_list(self) -> None:
+        """gh's merged list cut after the session start: a merge between the start and the cut may be missing."""
+        self.context(0, 1000)
+        with mock.patch.object(wave, "MERGED_LIMIT", 3):
+            cut = [merged_pr(310, "tooling/10-x", at(60)), merged_pr(312, "tooling/12-x", at(70)),
+                   merged_pr(311, "tooling/11-x", at(20), updated_at=at(30))]  # fmt: skip
+            _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False,
+                                  sources=FakeSources(merged=cut))  # fmt: skip
+            self.assertEqual(out.strip().splitlines()[-1], "handover not due; instruction changes may be incomplete "
+                             f"(gh's merged list is cut at {at(30)[:19]}Z, after the session start).")  # fmt: skip
+            whole = [merged_pr(310, "tooling/10-x", at(60)), merged_pr(312, "tooling/12-x", at(70)),
+                     merged_pr(309, "tooling/9-x", at(-90), updated_at=at(-10))]  # fmt: skip
+            _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False,
+                                  sources=FakeSources(merged=whole))  # fmt: skip
+            self.assertEqual(out.strip().splitlines()[-1], "handover not due.", "the cut is before the session start")
+
     def test_main_checkout_behind(self) -> None:
         self.context(0, 1000)
         src = FakeSources(behind=["CLAUDE.md", ".claude/rules/tests.md"])

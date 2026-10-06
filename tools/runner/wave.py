@@ -1363,6 +1363,9 @@ def handover_verdict(w: Wave) -> str:
                  "before a handover")  # fmt: skip
     if isinstance(w.instructions, str):
         line += f"; instruction changes unavailable: {cell(w.instructions)}"
+    elif w.merged_cut is not None and s.first is not None and w.merged_cut > s.first:
+        line += (f"; instruction changes may be incomplete (gh's merged list is cut at {metrics.iso(w.merged_cut)}, "
+                 "after the session start)")  # fmt: skip
     if isinstance(w.behind, str):
         line += f"; the main checkout's instruction files unavailable: {cell(w.behind)}"
     elif w.behind:
