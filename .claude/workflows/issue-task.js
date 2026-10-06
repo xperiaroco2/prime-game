@@ -27,9 +27,10 @@ export const meta = {
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default but bounded_waits (on since #411). With none of them and bounded_waits false every agent's prompt, label,
-// phase, schema and options are byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots
-// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged, but for
+// by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
+// false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
+// (tools/runner/tests/test_workflows.py snapshots them, and the default too), so a launch or resume with the earlier
+// args, bounded_waits false and lean false is unchanged, but for
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
@@ -69,11 +70,13 @@ export const meta = {
 //                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
-//   lean          true: the implementer, the plan agent and the test reviewer run as the agent type task-implementer,
-//                 the publisher (both kinds) as task-publisher: lean tool allowlists, no Skill tool (#332,
+//   lean          true (the default since #458; a missing or null arg is true): the implementer, the plan agent and
+//                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
+//                 task-publisher: lean tool allowlists, no Skill tool (#332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
-//                 options; prompts, efforts and models stay. Opt-in until the A/B on #302; .claude/agents/ in the
-//                 manager's checkout must have both files. +0 agents
+//                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
+//                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
+//                 the manager's checkout must have both files. +0 agents
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
@@ -119,7 +122,8 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
 // On unless a launch passes false (#411): a missing or null arg is the default.
 const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
-const LEAN = flag('lean')
+// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
+const LEAN = flag('lean') || A.lean === undefined || A.lean === null
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'

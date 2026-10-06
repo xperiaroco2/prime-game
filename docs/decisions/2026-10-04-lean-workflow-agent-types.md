@@ -1,7 +1,8 @@
 # Lean workflow agent types for the implementer and the publisher
 
-- **Status:** Accepted for an opt-in trial (default off); the default is the engineer's call after the A/B below.
-  Amended 2026-10-05 (below): on in every launch from the reset of 2026-10-06 10:00 UTC; the default flips with P3b
+- **Status:** Accepted; on by default since 2026-10-06 (the engineer's N4 (b),
+  [#302 comment 6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870); #458).
+  Accepted 2026-10-04 for an opt-in trial (default off); amended 2026-10-05 and 2026-10-06 (below)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer: build the token efficiency research's proposals, lean agent types once the cache-read
   probe has a result (#302 comment 5974021004); the probe found cache reads count at about 0.5-1 of list (#302
@@ -34,11 +35,11 @@ WebSearch); Monitor, TaskStop, WebFetch, Grep; and a handful of single calls (Sk
   Their bodies hold only the shell facts and how to follow a skill without the Skill tool (read its `SKILL.md`):
   a typed workflow agent already gets the environment block with the scratchpad, `CLAUDE.md`, the git status and
   the attribution lines (checked in a `review:plan` transcript of #332's own run and in the probe below).
-- A workflow arg `lean` (boolean, default off) in `issue-task` and `pr-rebase`. When true it appends `agentType` as the
-  last option key: `task-implementer` for the implementer, the plan agent and the test reviewer; `task-publisher` for
-  the publisher (both kinds) and `pr-rebase`'s rebase and fix agents. It changes no prompt, label, phase, schema,
-  effort or model; a reviewer's own `agentType` wins. Without it every agent call stays byte-identical
-  (`tools/runner/tests/workflow_snapshots/`).
+- A workflow arg `lean` (boolean; default off, on since the 2026-10-06 amendment) in `issue-task` and `pr-rebase`.
+  When true it appends `agentType` as the last option key: `task-implementer` for the implementer, the plan agent and
+  the test reviewer; `task-publisher` for the publisher (both kinds) and `pr-rebase`'s rebase and fix agents. It
+  changes no prompt, label, phase, schema, effort or model; a reviewer's own `agentType` wins. With `lean: false`
+  every agent call stays byte-identical to the scripts before it (`tools/runner/tests/workflow_snapshots/`).
 - ToolSearch is not on the allowlists: an agent type loads its allowlisted tools directly (`godot-api-checker`
   called WebFetch 19 times this week with no ToolSearch).
 - The Skill tool is disallowed explicitly. A `tools:` allowlist without `Skill` already leaves it out (the listing's
@@ -110,10 +111,23 @@ The engineer's answer N4 (a) to the [weekly budget ADR](2026-10-05-weekly-budget
 manager passes `lean: true` on every launch from the weekly reset of 2026-10-06 10:00 UTC; the default flips after a
 clean week, with P3b of that ADR.
 
+## Amendment 2026-10-06: on by default
+The engineer moved N4 to (b) on 2026-10-06
+([#302 comment 6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870)): the default
+flips at once, with no clean week first. #458 made `lean` true when a launch omits it or passes null, in both
+`issue-task` and `pr-rebase`; `lean: false` stays accepted and gives the general workflow agent, for a task whose
+agents need a skill through the Skill tool (editing `.claude/workflows/` with `workflow-authoring`). The as-launched
+snapshots gained the `agentType` on purpose; the `unbounded/` snapshots pass `lean: false` and stay byte for byte. It
+lands only with no `issue-task` or `pr-rebase` run in flight, since a run launched without `lean` would resume with
+the types appended (such a resume passes `lean: false`). The A/B's results (#302 comment 5985172345): every lean run
+passed the missing-tool and effort criteria, first calls 24.4k for the implementers
+and 29.6k to 32.1k for the publishers.
+
 ## Alternatives
 - Role packs with `omitClaudeMd` and per-role instructions (#325 O5, N3 (b)): a larger change; later, after this
   trial.
-- Lean for every general agent, or on by default: not before the A/B shows no task fails for a missing tool.
+- Lean for every general agent: the reviewers already have their own types; the plan critique and the skeptics
+  run as `code-reviewer`. On by default was deferred until the A/B; the 2026-10-06 amendment made it so.
 - Keeping ToolSearch or the Skill tool: each costs schema or listing tokens on every call for a handful of uses a
   week; a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used
   `workflow-authoring`) stays off `lean`.

@@ -224,7 +224,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
-`pr-rebase` launched with `lean: true` use (§7.1), and `lean-writer`
+`pr-rebase` under `lean` (their default since #458) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
 writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, and sets no
 `effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
@@ -238,8 +238,8 @@ rules.
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
-| `task-implementer` | `lean: true` only: the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
-| `task-publisher` | `lean: true` only: the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
+| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
+| `task-publisher` | `lean` only (the default): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
 
@@ -389,8 +389,9 @@ Rules for every workflow run:
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
   shrank from 89k to 11k characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
-  earlier args and `bounded_waits: false` gets the earlier agents byte for byte
+  optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
+  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
+  byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
@@ -421,15 +422,15 @@ Rules for every workflow run:
   agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
   The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
   comment give the counts, the roles and their fallbacks.
-- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean: true` (`issue-task`
-  and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
+- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean` (`issue-task`
+  and `pr-rebase`, +0 agents, on by default since #458) runs the implementer, the plan agent and the test reviewer as
   `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
   or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
-  median of about 57k for a general implementer's whole first call under a desktop manager; the clean week of N4 (a)
-  measures the real difference. It appends only `agentType` to their options; prompts, efforts and models stay.
-  Passed on every launch from the reset of 2026-10-06 (the weekly budget ADR's N4 (a)); the default flips after a clean week (P3b). The
+  median of about 57k for a general implementer's whole first call under a desktop manager; the A/B's real tasks
+  started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
+  prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
   manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
-  through the Skill tool stays off it.
+  through the Skill tool passes `lean: false`.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its

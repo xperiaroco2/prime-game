@@ -6,15 +6,17 @@ tests skip, except on GitHub Actions, where a missing Node fails `test_github_ac
 
 Snapshots: other managers launch these scripts by name from their own copies and resume runs with the same args, and a
 resume replays an agent only while its prompt and options are unchanged. So with none of the optional pipeline-v2 args
-(docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4) and `bounded_waits: false` every
-agent's prompt, label, phase, schema and options must stay byte-identical: `workflow_snapshots/<script>/unbounded/`
-holds them for representative arg sets, captured from the scripts on origin/main before v2 changed them. The one
-exception is `publish-clean-main`: it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical
-rule covers every other case. `workflow_snapshots/<script>/<case>.txt` holds the same cases as launched, with
-`bounded_waits` on by default since #411 (their one deliberate change: each agent that waits gained the bounded-waits
-paragraph). A deliberate change of a default prompt rewrites them: run `selftest` once with
-PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
-commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
+(docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), `bounded_waits: false` and
+`lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
+`workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
+origin/main before v2 changed them. The one exception is `publish-clean-main`: it passes a v2 arg and pins the
+publish_clean trial of #308, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
+holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
+bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
+an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
+resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
+run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
+wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
 and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
 root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list); they landed between waves, when
 no run could resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays
@@ -566,13 +568,13 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main passes no v2 arg besides the bounded_waits false of its unbounded/ run). Each
-        # case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411) and with bounded_waits
-        # false (`unbounded/<case>.txt`, the text before #411).
+        # case but publish-clean-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
+        # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
+        # and with both false (`unbounded/<case>.txt`, the text and options before #411).
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                for extra, folder in (({}, ()), ({"bounded_waits": False}, ("unbounded",))):
+                for extra, folder in (({}, ()), ({"bounded_waits": False, "lean": False}, ("unbounded",))):
                     jobs.append((name, dict(ARGS, **args, **extra), stub))
                     files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
         results = run_jobs(jobs)
@@ -639,8 +641,9 @@ LEAN_TYPES = {
     "rebase": "task-publisher",
     "fix": "task-publisher",
 }
-# The lean snapshots pin the options lean adds. They sit beside the pre-v2 snapshots but are not part of that guard:
-# every other case runs without a v2 arg.
+# The lean snapshots pin the options lean adds, for a launch that passes `lean: true` (every launch of the week of
+# N4 (a), 2026-10-06, before #458 made it the default). They sit beside the pre-v2 snapshots but are not part of that
+# guard: every other case's unbounded/ run passes lean false.
 LEAN_SNAPSHOT_CASES = {
     "issue-task.js": [("lean-main", {"branch": "core/7-x", "lean": True}, {"paths": ["core/x.gd"]})],
     "pr-rebase.js": [("lean-main", {"lean": True}, {"paths": ["core/x.gd"], "findings": [MAJOR]})],
@@ -802,8 +805,9 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
-        # With lean the implementing and publishing agents get a lean writer type (#332) and still every rule.
-        jobs += [(name, dict(args, lean=True), stub) for name, args, stub in jobs]
+        # With lean (the default since #458) the implementing and publishing agents get a lean writer type (#332) and
+        # still every rule; with lean false they are general workflow agents, also with every rule.
+        jobs += [(name, dict(args, lean=False), stub) for name, args, stub in jobs]
         for result in run_jobs(jobs):
             for event in agents(result):
                 with self.subTest(agent=event["label"]):
@@ -1279,7 +1283,8 @@ class PipelineV2Test(unittest.TestCase):
 
     def test_lean_adds_only_the_agent_type(self) -> None:
         # #332: lean must change nothing but an agentType appended to the implementing and publishing agents' options,
-        # so the efforts and models a launch sets still reach them, and a run without lean stays as it was.
+        # so the efforts and models a launch sets still reach them, and a run with lean false stays as it was. Since
+        # #458 lean is the default: a launch without the arg, or with null, is a lean launch.
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "n"}
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         tuned = {"bounded_waits": True, "efforts": {"implement": "medium", "publish": "low"}, "models": {"implement": AVAILABLE[0]}}
@@ -1289,16 +1294,18 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, efforts={"fix": "medium"}), core),
         ]
-        jobs = [(name, dict(args, **extra), stub) for name, args, stub in bases for extra in ({}, {"lean": False}, {"lean": True})]
+        extras = ({}, {"lean": None}, {"lean": False}, {"lean": True})
+        jobs = [(name, dict(args, **extra), stub) for name, args, stub in bases for extra in extras]
         results = run_jobs(jobs)
         typed = set()
         for i, (name, _, _) in enumerate(bases):
-            plain, off, lean = results[3 * i : 3 * i + 3]
+            plain, null, off, lean = results[len(extras) * i : len(extras) * (i + 1)]
             with self.subTest(job=i, workflow=name):
-                for result in (plain, off, lean):
+                for result in (plain, null, off, lean):
                     self.assertIsNone(result["error"])
-                self.assertEqual(render(off), render(plain))
-                before, after = agents(plain), agents(lean)
+                self.assertEqual(render(plain), render(lean))
+                self.assertEqual(render(null), render(lean))
+                before, after = agents(off), agents(lean)
                 self.assertEqual([e["label"] for e in after], [e["label"] for e in before])
                 for old, new in zip(before, after):
                     self.assertEqual(new["prompt"], old["prompt"], old["label"])
@@ -1312,7 +1319,7 @@ class PipelineV2Test(unittest.TestCase):
                     self.assertEqual(list(options(new))[-1], "agentType", old["label"])  # appended last
         self.assertEqual(sorted(typed), sorted(LEAN_TYPES))
         # The tuned launch's effort and model still reach the lean implementer and publisher.
-        lean = {e["label"]: options(e) for e in agents(results[2])}
+        lean = {e["label"]: options(e) for e in agents(results[3])}
         self.assertEqual((lean["implement:#7"]["effort"], lean["implement:#7"]["model"]), ("medium", AVAILABLE[0]))
         self.assertEqual(lean["publish:#7"]["effort"], "low")
 

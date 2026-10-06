@@ -20,8 +20,9 @@ export const meta = {
 //   plan    the plan issue whose body no agent edits (default 30)
 //   manager who runs this (default 'the manager session')
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
-// all off by default but bounded_waits (on since #411), as in issue-task.js: with none of them and bounded_waits false
-// every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
+// all off by default but bounded_waits (on since #411) and lean (on since #458), as in issue-task.js: with none of them
+// and bounded_waits and lean false every agent's prompt, label, phase, schema and options are byte-identical to the
+// script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections). The agents
 // each one adds count toward the agent number the kickoff approves (2 to 4 without them):
@@ -42,9 +43,11 @@ export const meta = {
 //                 one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 and no default (the model-guard ADR and its amendment A). +0 agents
-//   lean          true: the rebase and fix agents run as the agent type task-publisher (a lean tool allowlist, no
-//                 Skill tool; #332, docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js.
-//                 Only agentType is appended to their options. Opt-in until the A/B on #302. +0 agents
+//   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
+//                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
+//                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
+//                 appended to their options. false: the general workflow agent, for a PR whose fix needs the Skill
+//                 tool. +0 agents
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
 // problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
@@ -78,7 +81,8 @@ if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounde
 // On unless a launch passes false (#411): a missing or null arg is the default.
 const BOUNDED = A.bounded_waits !== false
 if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
-const LEAN = A.lean === true
+// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
+const LEAN = A.lean !== false
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
