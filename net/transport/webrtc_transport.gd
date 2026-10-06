@@ -77,6 +77,8 @@ var found_protocol := -1
 var found_content := 0
 ## JOIN_TIMEOUT_MS; tests shorten it.
 var join_timeout_ms := JOIN_TIMEOUT_MS
+## The signalling socket's Signaller.CONNECT_TIMEOUT_MS; tests shorten it below join_timeout_ms.
+var signal_connect_timeout_ms := Signaller.CONNECT_TIMEOUT_MS
 
 var _signaller: Signaller = null
 var _keepalive := PackedByteArray(KEEPALIVE)
@@ -329,6 +331,7 @@ func _backend_disconnect(peer_id: int) -> void:
 
 func _open_signaller() -> Error:
 	var signaller := Signaller.new()
+	signaller.connect_timeout_ms = signal_connect_timeout_ms
 	var err := signaller.connect_to(signal_url)
 	if err != OK:
 		return err

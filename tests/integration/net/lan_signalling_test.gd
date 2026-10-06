@@ -125,6 +125,27 @@ func test_a_signaller_drops_what_is_not_for_its_side() -> void:
 	server.stop()
 
 
+## A socket still connecting after connect_timeout_ms is given up, and closed fires: on Windows a
+## refused connect stays connecting for 20 s and more (Godot 4.7.2, #431), and a server that takes
+## the TCP connection but never answers the handshake holds it there on every system.
+func test_a_socket_still_connecting_after_the_timeout_closes() -> void:
+	var mute := TCPServer.new()
+	assert_int(mute.listen(0, "127.0.0.1")).is_equal(OK)
+	var signaller := Signaller.new()
+	signaller.connect_timeout_ms = 300
+	var closed := [false]
+	signaller.closed.connect(func() -> void: closed[0] = true)
+	assert_int(signaller.connect_to("ws://127.0.0.1:%d" % mute.get_local_port())).is_equal(OK)
+	var started := Time.get_ticks_msec()
+	var gone := func() -> bool:
+		signaller.poll()
+		return closed[0]
+	assert_bool(await _until_alone(gone)).is_true()
+	assert_int(Time.get_ticks_msec() - started).is_greater_equal(300)
+	assert_bool(signaller.is_open()).is_false()
+	mute.stop()
+
+
 ## _until without the transcript server: polls only what `condition` polls.
 func _until_alone(condition: Callable) -> bool:
 	var deadline := Time.get_ticks_msec() + MAX_WAIT_MS
