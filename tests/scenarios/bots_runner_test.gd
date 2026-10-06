@@ -398,6 +398,18 @@ func test_a_lurker_lost_early_or_a_refused_bot_not_refused_fails() -> void:
 	cut.peer = runner.refused.peer
 	cut.lost = true
 	assert_str(_text(leaks.check_watcher(cut))).contains("not on entering Loading")
+	# A lurker that never connected: the failure names why its join was lost (#483).
+	var stuck := BotWatcher.lurker(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema
+	)
+	assert_str(_text(leaks.check_watcher(stuck))).contains(
+		"it never connected (no connect_failed: still joining when the run ended)"
+	)
+	stuck.transport.connect_failed.emit(NetTransport.JOIN_SERVICE_UNREACHABLE)
+	assert_bool(stuck.lost).is_true()
+	assert_str(_text(leaks.check_watcher(stuck))).contains(
+		"it never connected (connect_failed: service_unreachable)"
+	)
 	# A lurker core/ disconnected that server/ left connected.
 	runner.lurker.lost = false
 	assert_str(_text(leaks.check_watcher(runner.lurker))).contains("but it is still connected")

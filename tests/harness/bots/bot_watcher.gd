@@ -16,6 +16,9 @@ var peer := 0
 var said_hello := false
 ## The host disconnected it (or closed).
 var lost := false
+## Why its join failed (connect_failed's reason, NetTransport.JOIN_*); empty while it never failed.
+## The leak test names it when the watcher never connected (#483).
+var failed_reason := &""
 ## Messages it received that did not decode.
 var undecodable := 0
 
@@ -33,7 +36,7 @@ func _init(
 	_hello = hello
 	transport.connected.connect(_on_connected)
 	transport.host_lost.connect(_on_lost)
-	transport.connect_failed.connect(_on_lost.unbind(1))
+	transport.connect_failed.connect(_on_failed)
 	transport.packet_received.connect(_on_packet)
 
 
@@ -73,6 +76,11 @@ func _on_connected(own_id: int) -> void:
 
 
 func _on_lost() -> void:
+	lost = true
+
+
+func _on_failed(reason: StringName) -> void:
+	failed_reason = reason
 	lost = true
 
 
