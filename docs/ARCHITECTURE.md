@@ -1395,7 +1395,7 @@ the default `load_levels`. Each prints the roster, the phase and the counters fr
 runner's stop file (Ctrl+C, `--seconds`), or by itself once the runner's alive file is gone or stale (a killed
 runner). A join that ends or is stopped before `Welcome` exits 1 with its reason in words, as does a welcomed client
 that ends for anything but `host_lost`; the host exits 1 when it cannot start, its session ends for an error or its
-own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.
+own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.8.
 Since M4-6 (#142) its arguments are `LaunchOptions` and its end texts `EndReasons`, both in `client/app/`, which
 the game reads alike.
 Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
@@ -2369,7 +2369,7 @@ setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a li
 then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
 2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
 
-#### 6.5.3 Capture and the gate (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7)
+#### 6.5.3 Capture and the gate (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7.17)
 - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
   `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
   (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
@@ -2427,7 +2427,7 @@ target's head, the own body without a target. Godot measures a 3D player's dista
 `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
 docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
-concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
+concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
 
 #### 6.5.5 Buses and the mix (E43, D15)
 `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
@@ -2452,7 +2452,7 @@ world layer of the client's own level, never a player's capsule; the host keeps 
 level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
 Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
 and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
-measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
+measurement (§4.7.16 Built in M5-7). Beyond one ray (several rays, thickness, portals) is not built.
 
 #### 6.5.8 The wire (E44; **measured in M5-4**, #218, and again after #245)
 Unchanged in M5 so far. The leak test gained a
