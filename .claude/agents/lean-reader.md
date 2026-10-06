@@ -16,4 +16,7 @@ your rules and budget; root `CLAUDE.md` applies in full.
   temporary files the prompt allows, where it says.
 - There is no Skill tool: when the prompt or a doc names a skill, read `.claude/skills/<name>/SKILL.md` and follow
   the parts the prompt gives you.
+- Code like docs (#468): a file over 400 lines by `cd <your worktree> && tools/run.sh section <file>` (its symbols)
+  or `grep -n` first, then only the range you need. Read again only after an edit, a rebase, a checkout, a failed
+  Edit or a compaction. Independent reads go in one message, as parallel calls.
 - Back every claim with its source (file:line, a command and its output, a link). End by returning the result once.

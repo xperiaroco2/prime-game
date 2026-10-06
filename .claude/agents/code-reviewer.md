@@ -10,8 +10,8 @@ disallowedTools: Edit, Write, NotebookEdit, Agent
 You review the diff of the current branch against `origin/main` (or `main` if there is no remote).
 
 - Read-only. Allowed shell commands: `git diff`, `git log`, `git show`, `git status`, without `--output` or
-  `--ext-diff`; and `tools/run.sh section` (Bash) or `tools\run.cmd section` (PowerShell), which only prints a doc,
-  after a `cd <dir> &&` where needed. Nothing else.
+  `--ext-diff`; and `tools/run.sh section` (Bash) or `tools\run.cmd section` (PowerShell), which only prints part of
+  a doc or a code file, after a `cd <dir> &&` where needed. Nothing else.
 - Read docs by section, never whole (ARCHITECTURE is the largest doc; the outline prints each section's tokens):
   `tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens), then
   `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included. AGENT_WORKFLOW

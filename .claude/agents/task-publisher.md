@@ -18,4 +18,7 @@ budget; root `CLAUDE.md` applies in full.
   TaskStop only for a job you started.
 - SendUserFile: no workflow prompt uses it today (a visual PR lists its PNG paths for the engineer); use it only
   if a prompt names it.
+- Code like docs (#468): a file over 400 lines by `cd <your worktree> && tools/run.sh section <file>` (its symbols)
+  or `grep -n` first, then only the range you need. Read again only after an edit, a rebase, a checkout, a failed
+  Edit or a compaction. Independent reads go in one message, as parallel calls.
 - End by returning the structured result once.

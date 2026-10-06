@@ -11,7 +11,8 @@ from .test_permissions import MAIN, OwnRepo
 
 AGENTS = ROOT / ".claude" / "agents"
 REVIEWERS = ("code-reviewer", "netcode-security-reviewer")
-# The runner commands each reviewer may run: `section` only prints a doc; `bots` is the information-leak test.
+# The runner commands each reviewer may run: `section` only prints part of a doc or a code file (#468); `bots` is the
+# information-leak test.
 RUNNER_COMMANDS = {"code-reviewer": {"section"}, "netcode-security-reviewer": {"bots", "section"}}
 OUTLINE = "`tools/run.sh section docs/ARCHITECTURE.md`"
 # The always-read sections of the netcode reviewers, with the labels of NETCODE_SECTIONS in the workflows.
@@ -141,6 +142,20 @@ class LeanAgentFilesTest(unittest.TestCase):
                 body = instructions.parse(text(name)).body
                 self.assertLessEqual(instructions.loaded_lines(body), 15)
                 self.assertIn("docs/decisions/2026-10-06-lean-reader-and-writer-types.md", " ".join(body))
+
+
+class LeanReadingTest(unittest.TestCase):
+    """#468: the lean agent files carry the reading rule for code, briefly. issue-task and pr-rebase give theirs the
+    whole line in the prompt too; a lean reader or writer launched by another workflow has only its file."""
+
+    def test_the_lean_files_carry_the_reading_line(self) -> None:
+        for name in ("task-implementer", "task-publisher", "lean-reader", "lean-writer"):
+            with self.subTest(agent=name):
+                body = " ".join(" ".join(instructions.parse(text(name)).body).split())
+                item = next((part for part in body.split(" - ") if "#468" in part), "")
+                for phrase in ("over 400 lines", "`cd <your worktree> && tools/run.sh section <file>`", "`grep -n`",
+                               "an edit, a rebase, a checkout, a failed Edit or a compaction", "parallel calls"):
+                    self.assertIn(phrase, item)
 
 
 if __name__ == "__main__":
