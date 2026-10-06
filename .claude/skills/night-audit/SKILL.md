@@ -51,10 +51,15 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
   `docs-drift`.
 
 ## As a workflow
-A manager may run one lens as a workflow instead (same bounds, the same three roles), each `agent()` call with its
-lean type (AGENT_WORKFLOW §5, #466): the auditor (step 3) `{agentType: 'lean-reader'}`, on Sonnet; the skeptic (step
-4) `{agentType: 'night-skeptic'}`, as above; the filer (steps 5 and 6) `{agentType: 'lean-writer', model:
-'sonnet'}`. Lean agents have no Skill tool: each prompt names this file and the steps that agent follows.
+A manager may run one lens as a workflow instead, each `agent()` call with its lean type (AGENT_WORKFLOW §5, #466).
+Bounds: 3 agents, about 100 tool calls split among them (auditor about 60, skeptic about 30, filer about 10), the
+rest of the bounds above. Steps 1 and 2 are the script's or the manager's, not an agent's: a workflow agent starts in
+the manager's checkout, where step 1's own-worktree test would skip the run and a lean type may not switch
+branches. The manager makes a detached worktree at origin/main, finds the Night jobs issue and the lens (and stops
+when today's summary exists), and puts the worktree's `cd`, the origin/main sha, the lens and the issue number in
+every prompt. Then: the auditor (step 3) `{agentType: 'lean-reader'}`, on Sonnet; the skeptic (step 4) `{agentType:
+'night-skeptic'}`, as above; the filer (steps 5 and 6) `{agentType: 'lean-writer', model: 'sonnet'}`. Lean agents
+have no Skill tool: each prompt names this file and the steps that agent follows.
 
 ## Steps
 1. **Where you are.** Find the Night jobs issue first: `gh issue list --state open --search "\"Night jobs\"
