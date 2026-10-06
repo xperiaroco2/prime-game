@@ -5,12 +5,15 @@ extends GdUnitTestSuite
 ## applied changes nothing, a hostile one gets a Correction to its sender alone and never a
 ## Rejected, one from a sender no phase takes a claim from is dropped in silence (E15), and twins
 ## take the reliable-intents budget. End to end: an epoch's first claim, which ClientSession sends
-## on the twin, survives a link that loses LATEST, so no honest walker is corrected.
+## on the twin, survives a link that loses LATEST, so no honest walker is corrected; and the last
+## claim before a PickUp, which ClientSession sends again on the twin, so the PickUp is not refused.
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 const EAST := Vector3(1, 0, 0)
 ## Under the walk speed (0.225 m per tick) and its slack: two of them fail a one-tick span.
 const WALK_STEP := 0.2
+## The client tick from which the lossy link loses the next claim in the pick-up test.
+const LAST_STEP := 9
 
 var _h: Harness
 
@@ -153,6 +156,57 @@ func test_an_epochs_first_claim_survives_a_link_that_loses_latest() -> void:
 	assert_int(walker.corrections).is_equal(0)
 	var accepted := _h.session.game.state.player(_h.peer_of(walker)).position
 	assert_vector(accepted).is_equal_approx(at, Vector3.ONE * 1e-4)
+
+
+## #429's first behaviour, end to end (A1): the walker walks ten client ticks towards a tool and
+## stops 1.9 m from it, within the 2 m reach; the link loses the LATEST claim of its last step, so
+## the host has it 2.1 m away. The client resends that claim on the twin right before the PickUp,
+## which the host takes after it, so the PickUp is not refused for `out_of_reach`.
+func test_an_honest_pick_up_survives_a_link_that_loses_the_claim_before_it() -> void:
+	var mode := _item_mode()
+	_h = Harness.new(mode, false)
+	var walker := _h.join_lossy()
+	for i in 20:
+		if walker.is_welcomed():
+			break
+		_h.now += Harness.FRAME_USEC
+		_h.session.step(_h.now)
+		_h.lossy.poll()
+	assert_bool(walker.is_welcomed()).is_true()
+	var spot := walker.view.events_named(&"Welcome")[0].fields["spot"] as Vector3
+	var at := spot
+	for i in 60:
+		var tick := walker.client_tick(_h.now + Harness.FRAME_USEC)
+		if tick >= LAST_STEP:
+			_h.lossy.claims_to_lose = 1
+		at = spot + EAST * WALK_STEP * (tick + 1)
+		walker.set_motion(at, EAST, Vector3.FORWARD, false, true, true)
+		_h.pump()
+		if _h.lossy.lost > 0:
+			break
+	# The motion stays as set, so the next claim would be a fresh one at the same spot: the PickUp
+	# goes out before the next frame's client step. The tool lies 1.9 m past the last step.
+	assert_int(_h.lossy.lost).is_equal(1)
+	var item := _h.session.game.state.add_item(mode.find_item_kind(&"tool"), at + EAST * 1.9)
+	var player := _h.session.game.state.player(_h.peer_of(walker))
+	assert_float(player.position.distance_to(item.position)).is_greater(FixtureItemModes.REACH_M)
+	walker.send_intent(Intents.PICK_UP, {"item": item.id})
+	_h.pump_frames(2)
+	assert_array(walker.view.events_named(&"Rejected")).is_empty()
+	assert_array(walker.view.events_named(&"Correction")).is_empty()
+	assert_int(item.where).is_equal(ItemState.Where.HAND)
+	assert_vector(player.position).is_equal_approx(at, Vector3.ONE * 1e-4)
+
+
+## The lobby mode with a tool, the pick-up (reach 2 m) and the eye height; the lobby takes a
+## PickUp, which the fixture's Round would too (FixtureItemModes.basic()).
+func _item_mode() -> GameMode:
+	var made := Harness.fixture_mode()
+	made.player_rules.eye_height_m = FixtureItemModes.EYE_HEIGHT_M
+	made.item_kinds = [FixtureItemModes.item_kind(&"tool", [])]
+	made.actions.append(FixtureItemModes.pick_up_rule(FixtureItemModes.REACH_M))
+	made.find_phase(&"lobby").accepts.append(AcceptSpec.of(Intents.PICK_UP, AcceptSpec.From.LIVING))
+	return made
 
 
 ## A raw client that is a player of the lobby, its Welcome decoded.
