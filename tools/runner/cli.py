@@ -507,6 +507,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p = sub.add_parser(
+        "inbox",
+        help="the GitHub half of the secretary's digest across the game, UI and art repos (read-only)",
+        description="The GitHub half of the secretary's digest (#485), across the game, UI and art repos in one call: "
+        "open PRs' unanswered 'Needs the engineer' items, the gate's exceptions (merges only the engineer makes) and "
+        "each thread's latest 'For you:' block by the engineer's account since --since. Posts and writes nothing; "
+        "exit 1 when a source could not be read (the rest is still printed).",
+    )
+    p.add_argument(
+        "--since", help="ISO 8601 time: comments updated at or after it (default 72 hours ago); PRs: all open ones"
+    )
+    p.add_argument(
+        "--repo", nargs="+", action="extend", default=[], metavar="OWNER/NAME", help="only these repos (default all three)"
+    )
+
+    p = sub.add_parser(
         "pins", help="print pinned tool versions as JSON", description="Print the pinned tool versions as JSON."
     )
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -725,6 +740,10 @@ def main(argv: list[str] | None = None) -> int:
                 base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
                 merge_check=args.merge_check,
             )  # fmt: skip
+        if args.command == "inbox":
+            from . import inbox
+
+            return inbox.main(since=args.since, repos=args.repo)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
