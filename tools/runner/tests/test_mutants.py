@@ -13,9 +13,8 @@ from pathlib import Path
 from unittest import mock
 
 from runner import check, cli, common, gdunit, guard, mutants, permissions
-from runner.common import ROOT
+from runner.common import ROOT, force_rmtree
 from runner.mutants import ERROR, KILLED, SURVIVED, Outcome
-from runner.tests.test_githooks import _rmtree
 
 SOURCE = "extends RefCounted\n\n\nfunc allowed(tick: int, paid_at: int) -> bool:\n\treturn tick - paid_at >= 10\n"
 TEST = "extends GdUnitTestSuite\n"
@@ -44,7 +43,7 @@ class RepoCase(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="mutants-")).resolve()
-        self.addCleanup(_rmtree, self.tmp)
+        self.addCleanup(force_rmtree, self.tmp)
         self.work = self.tmp / "work"
         self.work.mkdir()
         git(self.work, "init", "-q", "-b", "main")
@@ -181,7 +180,7 @@ class RunTest(RepoCase):
         (old / "core" / "x.gd").write_text("x\n", encoding="utf-8")
         gone = self.work / "tools" / "out" / "mutants" / "tree-gone"
         git(self.work, "worktree", "add", "-q", "--detach", str(gone), "HEAD")
-        _rmtree(gone)
+        force_rmtree(gone)
         for tree in (self.tree, old, gone):  # each one's user:// folder too
             self.plant_user_dir(tree)
         if self.users is not None:

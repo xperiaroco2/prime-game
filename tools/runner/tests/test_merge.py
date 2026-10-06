@@ -12,8 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import cli, common, guard, merge, permissions
-from runner.common import ROOT, Failure, Result
-from runner.tests.test_githooks import _rmtree
+from runner.common import ROOT, Failure, Result, force_rmtree
 
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT)).replace("\\", "/")
 RULES = permissions.Rules.load(ROOT / ".claude" / "settings.json")
@@ -154,7 +153,7 @@ class Repo:
     def __init__(self, test: unittest.TestCase, files: dict[str, str | None]) -> None:
         template, self.base = self._template(type(test), files)
         self.tmp = Path(tempfile.mkdtemp(prefix="merge-"))
-        test.addCleanup(_rmtree, str(self.tmp))
+        test.addCleanup(force_rmtree, str(self.tmp))
         shutil.copytree(template, self.tmp, dirs_exist_ok=True)
         self.work = self.tmp / "work"
         config = self.work / ".git" / "config"
@@ -165,7 +164,7 @@ class Repo:
     def _template(cls, owner: type, files: dict[str, str | None]) -> tuple[Path, str]:
         if owner not in cls.templates:
             tmp = Path(tempfile.mkdtemp(prefix="merge-template-"))
-            owner.addClassCleanup(_rmtree, str(tmp))  # type: ignore[attr-defined]
+            owner.addClassCleanup(force_rmtree, str(tmp))  # type: ignore[attr-defined]
             owner.addClassCleanup(cls.templates.pop, owner)  # type: ignore[attr-defined]
             _git(tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
             _git(tmp, "clone", "-q", (tmp / "remote.git").as_posix(), "work")

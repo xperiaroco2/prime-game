@@ -8,6 +8,7 @@ import re
 import shutil
 import signal
 import site
+import stat
 import subprocess
 import sys
 import tempfile
@@ -581,6 +582,31 @@ def remove_folder(path: Path, attempts: int = 5, pause: float = 0.5) -> bool:
                 return False
             time.sleep(pause)
     return not path.exists()
+
+
+def _delete_again(func, target, exc) -> None:  # type: ignore[no-untyped-def]
+    """rmtree's error handler for force_rmtree. A refused delete (os.unlink, os.rmdir) is tried once more after adding
+    the write bit to the path's mode. A path that vanished meanwhile counts as deleted. Every other error is raised,
+    including a failed walk step (os.open, os.scandir, ...), which a retry with the path alone cannot redo."""
+    error = exc[1] if isinstance(exc, tuple) else exc  # onerror (3.11) passes sys.exc_info(), onexc the exception
+    try:
+        if func not in (os.unlink, os.rmdir):
+            raise error
+        os.chmod(target, stat.S_IMODE(os.lstat(target).st_mode) | stat.S_IWRITE)  # S_IWRITE alone drops r and x
+        func(target)
+    except FileNotFoundError:
+        if os.path.lexists(target):
+            raise
+
+
+def force_rmtree(path: Path | str) -> None:
+    """Delete a folder that git made: git makes its object files read-only, and Windows refuses to delete those
+    without a chmod. A path that vanishes meanwhile (a git process still tidying its object folders, #440) counts as
+    deleted; every other error is raised. Used by mutants' scratch worktrees and the runner tests' temp repos (#453)."""
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_delete_again)
+    else:
+        shutil.rmtree(path, onerror=_delete_again)
 
 
 def remove_own_user_dir(folder: Path | None) -> bool:
