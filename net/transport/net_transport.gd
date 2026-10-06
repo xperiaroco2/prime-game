@@ -38,6 +38,12 @@ signal packet_received(from_peer: int, kind: int, payload: PackedByteArray)
 signal packet_rejected(from_peer: int, reason: NetRejects.Reason)
 
 enum Role { IDLE, HOST, CLIENT }
+## What carries a client's own connection to the host (own_route(); the M6 design §3 item 4): NONE
+## for a host, an idle transport or one not connected yet; LOCAL in this process (the host's own
+## client, the loopback); DIRECT host to client with no relay (ENet; WebRTC without a TURN server);
+## DIRECT_OR_RELAYED when WebRTC had a TURN server, since webrtc-native does not report the
+## selected candidate pair (#431).
+enum Route { NONE, LOCAL, DIRECT, DIRECT_OR_RELAYED }
 
 const HOST_ID := 1
 ## At most one summary line of rejected packets per interval, so one peer cannot flood the log.
@@ -68,6 +74,9 @@ var rejects := NetRejects.new()
 ## the same poll, with no reliable message from that peer between. Not rejects: nothing was wrong
 ## with them.
 var latest_superseded := 0
+## Client: measure the own round trip (own_round_trip_ms()) where that costs traffic of its own
+## (WebRtcTransport's pings); the debug overlay sets it while it shows. ENet measures anyway.
+var measure_round_trip := false
 
 var _kinds: NetKindTable
 var _role := Role.IDLE
@@ -297,6 +306,18 @@ func take_upload() -> Vector2i:
 	_upload_bytes = 0
 	_upload_frames = 0
 	return found
+
+
+## A client's own connection to the host (Route), for the debug overlay; NONE on a host or before
+## the connection. Never another peer's: a host has no such call per peer (the M6 design §3 item 4).
+func own_route() -> Route:
+	return Route.NONE
+
+
+## A client's own round trip to the host in ms, as the backend measures it; -1 when it has none
+## (a host, the loopback, before the first measurement).
+func own_round_trip_ms() -> int:
+	return -1
 
 
 ## Counts a message that the layer above dropped after the transport passed it (server/'s

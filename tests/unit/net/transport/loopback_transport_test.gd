@@ -97,6 +97,23 @@ func test_own_client_once_and_only_for_a_host() -> void:
 	assert_object(LoopbackTransport.own_client_of(LoopbackTransport.new(_kinds, _hub))).is_null()
 
 
+## The own connection (the M6 design §3 item 4, #431): an in-process client's is LOCAL, with no
+## round trip; a host, or a transport before its connection, has none.
+func test_an_in_process_client_reports_a_local_connection_and_a_host_none() -> void:
+	var host := _host()
+	var own := LoopbackTransport.own_client_of(host)
+	var remote := _client()
+	assert_int(own.own_route()).is_equal(NetTransport.Route.NONE)
+	_poll([host, own, remote])
+	for client: LoopbackTransport in [own, remote]:
+		assert_int(client.own_route()).is_equal(NetTransport.Route.LOCAL)
+		assert_int(client.own_round_trip_ms()).is_equal(-1)
+	assert_int(host.own_route()).is_equal(NetTransport.Route.NONE)
+	assert_int(host.own_round_trip_ms()).is_equal(-1)
+	remote.close()
+	assert_int(remote.own_route()).is_equal(NetTransport.Route.NONE)
+
+
 func test_clients_join_with_their_own_ids() -> void:
 	var host := _host()
 	var host_rec := Recorder.new(host)

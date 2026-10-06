@@ -15,6 +15,8 @@ extends SceneTree
 ## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
 ## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
+## The own connection (the M6 design §3 item 4, #431): each client, when pinged, reports a direct
+## one with a round trip ENet measured; the host's own client a local one; the host none.
 
 const ADDRESS := "127.0.0.1"
 const DEFAULT_PORT := 24571
@@ -25,6 +27,8 @@ const RETRY_JOIN_MS := 500
 const POLLS_AFTER_LOST := 10
 const FORGED_ID := -5
 const FORGED_WAIT_MS := 3000
+## A round trip on 127.0.0.1 is well below ENet's starting guess of 500 ms.
+const ROUND_TRIP_MAX_MS := 500
 const TALK := 1  # both ways, reliable
 const LATEST := 2  # both ways, unreliable ordered
 const VOICE := 3  # both ways, voice lane
@@ -70,6 +74,9 @@ class EchoClient:
 	var host_lost_count := 0
 	var told_to_leave := false
 	var pinged_lanes: Dictionary[int, bool] = {}
+	## own_route() and own_round_trip_ms() at the last ping.
+	var route_seen := NetTransport.Route.NONE
+	var round_trip_seen := -1
 
 	func _init(client_transport: NetTransport, instance_number: int) -> void:
 		transport = client_transport
@@ -93,6 +100,8 @@ class EchoClient:
 				failure = "got peer %s's message on lane %d" % [words[1], kind]
 				return
 			pinged_lanes[kind] = true
+			route_seen = transport.own_route()
+			round_trip_seen = transport.own_round_trip_ms()
 			transport.send(from_peer, kind, ("echo %s" % words[1]).to_utf8_buffer())
 		else:
 			failure = "unexpected message kind %d: %s" % [kind, payload.get_string_from_utf8()]
@@ -188,6 +197,17 @@ func _host_step() -> void:
 			_resend_unreliable_pings()
 			if _echoed.size() == 3 * LANES.size():
 				print("NET host every peer echoed its own id on every lane")
+				if (
+					_host.own_route() != NetTransport.Route.NONE
+					or _own.route_seen != NetTransport.Route.LOCAL
+				):
+					_fail(
+						(
+							"the host's route is %d and its own client's %d"
+							% [_host.own_route(), _own.route_seen]
+						)
+					)
+					return
 				_start_probe()
 		"probe":
 			if _prober_result == "connect_failed":
@@ -386,6 +406,7 @@ func _client_step() -> void:
 		_fail(_client.failure)
 	elif _client.told_to_leave:
 		print("NET client %d leaving (rejected=%d)" % [_instance, transport.rejects.total()])
+		_check_client_route()
 		transport.close()
 		_check_client_rejects()
 		if not _done:
@@ -410,6 +431,7 @@ func _finish_client() -> void:
 		_fail("client 2 saw host_lost %d times" % _client.host_lost_count)
 		return
 	_check_client_rejects()
+	_check_client_route()
 	if not _done:
 		print("NET client 2 saw host_lost after the host left; PASS")
 		_pass()
@@ -418,6 +440,20 @@ func _finish_client() -> void:
 func _check_client_rejects() -> void:
 	if _client.transport.rejects.total() != 0:
 		_fail("%d packet(s) rejected on client %d" % [_client.transport.rejects.total(), _instance])
+
+
+## A client's own connection while pinged: direct, with a round trip ENet measured on 127.0.0.1.
+func _check_client_route() -> void:
+	print(
+		(
+			"NET client %d route %d, round trip %d ms"
+			% [_instance, _client.route_seen, _client.round_trip_seen]
+		)
+	)
+	if _client.route_seen != NetTransport.Route.DIRECT:
+		_fail("client %d's route was %d, not direct" % [_instance, _client.route_seen])
+	elif _client.round_trip_seen < 0 or _client.round_trip_seen >= ROUND_TRIP_MAX_MS:
+		_fail("client %d's round trip was %d ms" % [_instance, _client.round_trip_seen])
 
 
 func _pass() -> void:

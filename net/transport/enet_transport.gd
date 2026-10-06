@@ -116,6 +116,23 @@ func _backend_send(to_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane
 	return _peer.put_packet(bytes)
 
 
+## A client's own connection once admitted: DIRECT (ENet has no relay of its own; a tunnel such as
+## playit.gg is invisible to it).
+func own_route() -> Route:
+	return Route.DIRECT if role() == Role.CLIENT and _admitted else Route.NONE
+
+
+## ENet's smoothed round trip to the host (PEER_ROUND_TRIP_TIME, from its acknowledgements: it
+## starts at 500 ms and settles within a few), once admitted; -1 otherwise.
+func own_round_trip_ms() -> int:
+	if own_route() == Route.NONE or not _live.has(HOST_ID):
+		return -1
+	var host_peer := _peer.get_peer(HOST_ID)
+	if host_peer == null:
+		return -1
+	return roundi(host_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
+
 ## ENet's statistics on top of the links' (only the host's own client, which never counts). Godot
 ## 4.7.2's put_packet flushes, so each send is one datagram at once: a caller that takes the
 ## upload before and after its sends gets their bytes and datagrams alone.

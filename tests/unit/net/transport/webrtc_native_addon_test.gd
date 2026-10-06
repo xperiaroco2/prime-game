@@ -13,6 +13,21 @@ func test_the_extension_is_loaded() -> void:
 	assert_bool(ClassDB.class_exists(&"WebRTCLibDataChannel")).is_true()
 
 
+## The evidence for #431: webrtc-native 1.2.2 registers no method of its own, so neither the
+## selected candidate pair (host, srflx or relay) nor a round trip can be read; the engine's
+## WebRTCPeerConnection has only the three states. WebRtcTransport therefore measures the round
+## trip with its own ping and tells the kind from the ICE servers (route_of). Should a newer
+## extension add a stats call, this fails: use it there instead.
+func test_the_extension_reports_no_candidate_pair_or_round_trip() -> void:
+	assert_array(ClassDB.class_get_method_list(&"WebRTCLibPeerConnection", true)).is_empty()
+	var names := PackedStringArray()
+	for method: Dictionary in ClassDB.class_get_method_list(&"WebRTCPeerConnection", true):
+		names.append(str(method["name"]))
+	for word: String in ["stats", "statistic", "candidate_pair", "rtt", "round_trip"]:
+		for method_name: String in names:
+			assert_str(method_name).override_failure_message(method_name).not_contains(word)
+
+
 func test_a_peer_connection_creates_a_data_channel() -> void:
 	var connection := WebRTCPeerConnection.new()
 	assert_int(connection.initialize({})).is_equal(OK)

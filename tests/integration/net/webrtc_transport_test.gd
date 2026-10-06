@@ -229,6 +229,107 @@ func test_keepalives_go_on_voice_and_other_kind_0_packets_are_rejected() -> void
 	assert_int(client.rejects.total()).is_equal(2)
 
 
+## The own connection (the M6 design §3 item 4, #431): a client measuring its round trip pings the
+## host on VOICE once admitted and every PING_INTERVAL_MS; the answer, echoing the client's clock,
+## gives the round trip, and with no TURN server the kind is direct. Neither reaches the game.
+func test_a_measuring_client_pings_and_the_answer_gives_its_round_trip() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	client.measure_round_trip = true
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	assert_int(client.own_route()).is_equal(NetTransport.Route.NONE)
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	assert_int(client.own_route()).is_equal(NetTransport.Route.DIRECT)
+	assert_int(client.own_round_trip_ms()).is_equal(-1)
+	var pings: Array[PackedByteArray] = []
+	var pinged := func() -> bool:
+		pings.append_array(_probes(fake_host, WebRtcTransport.PING))
+		return not pings.is_empty()
+	assert_bool(await _until(pinged)).is_true()
+	assert_int(pings[0].size()).is_equal(WebRtcTransport.PING_BYTES)
+	var answer := pings[0].duplicate()
+	answer[NetFrame.HEADER_BYTES] = WebRtcTransport.PONG
+	fake_host.put(NetKindTable.Lane.VOICE, answer)
+	assert_bool(await _until(func() -> bool: return client.own_round_trip_ms() >= 0)).is_true()
+	assert_int(client.own_round_trip_ms()).is_less(MAX_WAIT_MS)
+	assert_int(client.rejects.total()).is_equal(0)
+	assert_bool(_any_begins_with("client got")).is_false()
+	client.close()
+	assert_int(client.own_route()).is_equal(NetTransport.Route.NONE)
+	assert_int(client.own_round_trip_ms()).is_equal(-1)
+
+
+## A client not measuring sends no ping, so its upload stays the keepalives of §2.6.
+func test_a_client_not_measuring_sends_no_ping() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	var heard: Array[PackedByteArray] = []
+	await _poll_for(
+		WebRtcTransport.PING_INTERVAL_MS + 300,
+		func() -> void: heard.append_array(fake_host.take(NetKindTable.Lane.VOICE))
+	)
+	assert_array(heard).is_not_empty()
+	for bytes: PackedByteArray in heard:
+		assert_bool(bytes == PackedByteArray(WebRtcTransport.KEEPALIVE)).is_true()
+
+
+## The host answers the pings a peer sent since its last poll once, echoing the last one read
+## (VOICE is unordered, so the last read); its own route is none: a host has no connection of its
+## own, and nothing tells it a peer's.
+func test_the_host_answers_the_pings_of_one_poll_once() -> void:
+	var joiner := await _admitted_fake()
+	var host := _transports[0]
+	joiner.put(NetKindTable.Lane.VOICE, _probe(WebRtcTransport.PING, 5))
+	joiner.put(NetKindTable.Lane.VOICE, _probe(WebRtcTransport.PING, 9))
+	await _idle(300)
+	var answers: Array[PackedByteArray] = []
+	var answered := func() -> bool:
+		answers.append_array(_probes(joiner, WebRtcTransport.PONG))
+		return not answers.is_empty()
+	assert_bool(await _until(answered)).is_true()
+	await _poll_for(
+		300, func() -> void: answers.append_array(_probes(joiner, WebRtcTransport.PONG))
+	)
+	assert_int(answers.size()).is_equal(1)
+	assert_int(answers[0].size()).is_equal(WebRtcTransport.PING_BYTES)
+	assert_int(answers[0].decode_u32(NetFrame.HEADER_BYTES + 1)).is_in([5, 9])
+	assert_int(host.rejects.total()).is_equal(0)
+	assert_bool(_any_begins_with("host got")).is_false()
+	assert_int(host.own_route()).is_equal(NetTransport.Route.NONE)
+	assert_int(host.own_round_trip_ms()).is_equal(-1)
+
+
+## A ping the wrong way is a kind-0 packet like any other: rejected. An answer to a ping the host
+## never got (stamped later than now) changes no round trip.
+func test_probes_the_wrong_way_are_rejected_and_an_impossible_answer_ignored() -> void:
+	var joiner := await _admitted_fake()
+	var host := _transports[0]
+	joiner.put(NetKindTable.Lane.VOICE, _probe(WebRtcTransport.PONG, 1))
+	assert_bool(await _until(func() -> bool: return host.rejects.total() == 1)).is_true()
+	assert_int(host.rejects.of_reason(NetRejects.Reason.UNKNOWN_KIND)).is_equal(1)
+	var fake_host := await _fake_host()
+	var client := _client()
+	client.measure_round_trip = true
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	fake_host.put(NetKindTable.Lane.VOICE, _probe(WebRtcTransport.PING, 1))
+	var future := (Time.get_ticks_msec() + 60000) & 0xFFFFFFFF
+	fake_host.put(NetKindTable.Lane.VOICE, _probe(WebRtcTransport.PONG, future))
+	assert_bool(await _until(func() -> bool: return client.rejects.total() == 1)).is_true()
+	await _poll_for(300, func() -> void: pass)
+	assert_int(client.rejects.of_reason(NetRejects.Reason.UNKNOWN_KIND)).is_equal(1)
+	assert_int(client.rejects.total()).is_equal(1)
+	assert_int(client.own_round_trip_ms()).is_equal(-1)
+
+
 ## A client's own close resets its channels before the connection ends, and under load the host
 ## can read the first in a poll before the second: that is an honest leave, never a reject.
 func test_a_client_closing_its_channels_then_its_connection_leaves_unrejected() -> void:
@@ -392,6 +493,39 @@ static func _admit(peer_id: int) -> PackedByteArray:
 	admit.resize(WebRtcTransport.ADMIT_BYTES)
 	admit.encode_u32(NetFrame.HEADER_BYTES, peer_id)
 	return admit
+
+
+## A round-trip probe as WebRtcTransport sends it: a kind-0 frame of 5 bytes, its type and a stamp.
+static func _probe(type: int, stamp: int) -> PackedByteArray:
+	var bytes := PackedByteArray([0, 5, 0, type, 0, 0, 0, 0])
+	bytes.encode_u32(NetFrame.HEADER_BYTES + 1, stamp)
+	return bytes
+
+
+## The probes of `type` the fake has received on VOICE since the last take (keepalives dropped).
+static func _probes(fake: FakePeer, type: int) -> Array[PackedByteArray]:
+	var found: Array[PackedByteArray] = []
+	for bytes: PackedByteArray in fake.take(NetKindTable.Lane.VOICE):
+		if bytes.size() == WebRtcTransport.PING_BYTES and bytes[NetFrame.HEADER_BYTES] == type:
+			found.append(bytes)
+	return found
+
+
+## Polls everything for `ms`, calling `each` after every round.
+func _poll_for(ms: int, each: Callable) -> void:
+	var until := Time.get_ticks_msec() + ms
+	while Time.get_ticks_msec() < until:
+		_server.poll()
+		for transport: WebRtcTransport in _transports:
+			transport.poll()
+		for fake: FakePeer in _fakes:
+			fake.poll()
+		each.call()
+		await get_tree().process_frame
+
+
+func _any_begins_with(prefix: String) -> bool:
+	return Array(_events).any(func(line: String) -> bool: return line.begins_with(prefix))
 
 
 func _has(line: String) -> bool:
