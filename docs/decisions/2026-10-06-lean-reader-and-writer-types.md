@@ -12,8 +12,9 @@
 The [lean agent types ADR](2026-10-04-lean-workflow-agent-types.md) gave `issue-task` and `pr-rebase` typed agents
 that start at about 20k tokens instead of about 57k. Every other workflow agent still ran as `workflow-subagent`:
 in the 7 days from 2026-09-29 11:00 UTC, 84 of them (lens, te, scout, find, gather, audit, verify, synthesis),
-whose first call less their own prompt averaged 55.4k tokens over 25.7 calls each, all on Opus (#466). Most of them
-only read: a night-audit lens, the weekly report's gatherers, a research run's finders and scouts.
+whose first call less their own prompt averaged 55.4k tokens over 25.7 calls each, all but the night audit's
+filing step on Opus (#466). Most of them only read: a night-audit lens, the weekly report's gatherers, a research
+run's finders and scouts.
 
 ## Decision
 - Two agent types in `.claude/agents/`, both with `disallowedTools` NotebookEdit, Agent and Skill, no `effort` (the
