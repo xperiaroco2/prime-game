@@ -38,6 +38,9 @@ class ProjectCheckExitTest(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.logs = Path(tmp.name)
+        patcher = mock.patch.object(check, "_exit_crashes", 0)  # this test's count only; the old one comes back after
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def run_check(self, rc: int, out: str, *, timed_out: bool = False) -> tuple[bool, str]:
         """project_check over a faked Godot run: (passed, what it printed). Failure propagates."""
@@ -74,6 +77,19 @@ class ProjectCheckExitTest(unittest.TestCase):
         self.assertIn("files=612 errors=0 warnings=2", warning)
         self.assertIn("#442", warning)
         self.assertEqual(self.crash_log().read_text(encoding="utf-8"), CLEAN)
+
+    def test_each_crash_it_passes_is_counted_once_for_the_verify_record(self) -> None:
+        # #449: verify's lane takes the count after the check step, so its record and summary name the crash.
+        self.assertEqual(check.take_exit_crashes(), 0)
+        self.run_check(0, CLEAN + SHUTDOWN)
+        self.assertEqual(check.take_exit_crashes(), 0, "a clean exit is no crash")
+        self.run_check(WINDOWS_ACCESS_VIOLATION, CLEAN)
+        self.run_check(POSIX_SIGSEGV, CLEAN)
+        self.assertEqual(check.take_exit_crashes(), 2)
+        self.assertEqual(check.take_exit_crashes(), 0, "taken: the count starts again from zero")
+        with self.assertRaises(Failure):
+            self.run_check(WINDOWS_ACCESS_VIOLATION, WARNINGS)
+        self.assertEqual(check.take_exit_crashes(), 0, "a red crash is the step's failure, not a passed crash")
 
     def test_a_posix_segfault_at_exit_after_a_clean_summary_passes_loudly(self) -> None:
         passed, said = self.run_check(POSIX_SIGSEGV, CLEAN)
