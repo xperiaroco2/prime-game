@@ -307,7 +307,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_gets_the_editor_free_rebase_rule(self) -> None:
         # #456: on the night of 2026-10-05/06 the fix agent of a pr-rebase run reworded a commit with its own sequence
-        # editor (a Python script); the guard asked and the run waited 9 hours. The one way to change or reword an
+        # editor (a Python script); the guard asked and the run waited 9 hours. Since #457 the guard lets that through in
+        # the own worktree, but an editor that opens still hangs an agent. The one way to change or reword an
         # earlier commit is one line of the shared RULES, the same in both scripts and in a lean run, and the only
         # line of a prompt that names an autosquash (the stash line no longer repeats it).
         base = {"base": "release/m3"}
@@ -353,10 +354,17 @@ class WorkflowTest(unittest.TestCase):
             "an interactive rebase without `GIT_SEQUENCE_EDITOR=:`",
             "`--fixup=reword:` or `--fixup=amend:` (both open the message editor)",
             "a `squash!` commit",
-            "blocks the run until the human returns",
+            "an editor that opens hangs the call until its timeout",
+            "a `--fixup=reword:` keeps the old message without a word",
+            "Since #457 the guard lets each of these through in your own worktree on your task branch",
             "9 hours",
+            "it still asks for `git rebase --exec` and for any rebase in the main checkout or another worktree",
         ):
             self.assertIn(text, rule)
+        # #457 (the guard) lets a sequence editor and every amend form through in the own worktree on its task branch:
+        # the rule gives no reason that says the guard asks for them.
+        self.assertNotIn("make the guard ask", rule)
+        self.assertNotIn("until the human returns", rule)
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
         # A release base is always passed, so publish never depends on the record start --base left (#113).
@@ -1616,6 +1624,15 @@ class RebaseRuleTest(unittest.TestCase):
         self.assertNotEqual(res.returncode, 0)
         self.run_git("rebase", "--abort")
         self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: tow"])
+
+    def test_a_reword_fixup_under_an_editor_that_exits_at_once_keeps_the_old_message(self) -> None:
+        # The rule's reason since #457: Claude Code's tools set GIT_EDITOR=true, so `--fixup=reword:` hangs nothing
+        # there, but the editor changes nothing either, and the autosquash keeps the old subject without a word.
+        typo = self.git("rev-parse", "HEAD~1")
+        self.git("commit", "-q", f"--fixup=reword:{typo}", GIT_EDITOR="true")
+        self.git("rebase", "-q", "-i", "--autosquash", self.base, GIT_SEQUENCE_EDITOR=":")
+        self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: tow"])
+        self.assertEqual(self.git("status", "--porcelain"), "")
 
 
 if __name__ == "__main__":

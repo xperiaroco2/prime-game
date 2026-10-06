@@ -354,8 +354,12 @@ Rules for every workflow run:
   --fixup=<sha>`, or for a new message a `git commit --allow-empty -F <file>` whose first line is `amend! <that commit's
   subject>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (§8.2); `--fixup=reword:` and
   `--fixup=amend:` open the message editor (git refuses `-m` and `-F` with them), and so does a bare `git commit
-  --amend`; the last commit alone may use `--amend --no-edit` or `--amend -F <file>`. The test pins the line and runs
-  the recipe through git with every editor failing.
+  --amend`; the last commit alone may use `--amend --no-edit` or `--amend -F <file>`. Since #457 the guard lets every
+  one of these through in the own worktree on its task branch (§8.2.6), so the line gives the reasons that remain: an
+  editor that opens hangs the call until its timeout, a script sequence editor can add `exec` lines, and under Claude
+  Code's `GIT_EDITOR=true` a `--fixup=reword:` keeps the old message without a word; it names what the guard still
+  asks for (`git rebase --exec`, any rebase in the main checkout or another worktree). The test pins the line and runs
+  the recipe through git with every editor failing, and the silent reword with `GIT_EDITOR=true`.
   Both return a compact result (#386), because the harness prints a run's return value into the manager's context
   and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
   `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
@@ -734,9 +738,9 @@ editor opens; agents still write `git commit --fixup=<sha>` then
 whose git config names a `sequence.editor` (`code --wait`) would open it and the call would run to its timeout:
 `git rebase --abort` in the own worktree then ends it. A reword stays editor-free too, through an `amend!` commit
 made with `git commit --allow-empty -F <file>` (its first line `amend! <subject>`), which autosquash applies as
-`fixup -C`; `--fixup=reword:` and `--fixup=amend:` open the message editor (#456, the workflows' rules).
-Always asks: `rebase --update-refs` (moves other branches), `rebase -x|--exec` (runs commands, a push among
-them, that the deny rules cannot see; a sequence
+`fixup -C`; `--fixup=reword:` and `--fixup=amend:` open the message editor (under `GIT_EDITOR=true` the reword
+keeps the old message without a word; #456, the workflows' rules). Always asks: `rebase --update-refs` (moves
+other branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
 editor is such a command too, and passes since #457: the pre-push hook and GitHub's branch protection still stop a
 push to `main` and a force push; a deliberate exception to #457's "every form", kept because the task forbade
 weakening a push rule and left to the engineer on its PR), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
