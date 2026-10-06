@@ -177,6 +177,58 @@ class GitFiles:
                 return guard.gh_repo_name(ssh.group(1) if ssh else url)
         return None
 
+    def gh_user(self) -> str | None:
+        """The login of gh's active github.com account, from `hosts.yml` in gh's config folder (`GH_CONFIG_DIR`,
+        `$XDG_CONFIG_HOME/gh`, `%AppData%/GitHub CLI` on Windows, else `~/.config/gh`): what `gh api user` returns,
+        without a network call (issue #464). None when `GH_TOKEN` or `GITHUB_TOKEN` is set (gh then acts as the
+        token's account, which the file does not name) or the file names none."""
+        if os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN"):
+            return None
+        folder = os.environ.get("GH_CONFIG_DIR", "")
+        if not folder and os.environ.get("XDG_CONFIG_HOME"):
+            folder = os.path.join(os.environ["XDG_CONFIG_HOME"], "gh")
+        if not folder and os.name == "nt" and os.environ.get("APPDATA"):
+            folder = os.path.join(os.environ["APPDATA"], "GitHub CLI")
+        folder = folder or os.path.join(os.path.expanduser("~"), ".config", "gh")
+        host, indent = "", None
+        for line in self._read(folder, "hosts.yml").splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if not line[0].isspace():
+                host, indent = line.strip().rstrip(":").strip("'\"").lower(), None
+                continue
+            depth = len(line) - len(line.lstrip())
+            indent = depth if indent is None else indent
+            match = re.match(r"^user:\s*['\"]?([A-Za-z0-9-]+)['\"]?\s*$", line.strip())
+            if host == "github.com" and depth == indent and match:
+                return match.group(1).lower()
+        return None
+
+    def temp_matches(self, pattern: str) -> list[tuple[str, bool]] | None:
+        """What a glob pattern relative to the temp folder matches now (hidden names too), with whether each match is
+        or holds a worktree: a `.git` file in it, or a worktree of this repository (`.git/worktrees/*/gitdir`) at or
+        below it (issue #464). None when the temp folder is unknown."""
+        import glob
+        import tempfile
+
+        temp = getattr(self, "temp", "") or tempfile.gettempdir()
+        if not temp or not os.path.isdir(temp):
+            return None
+        worktrees = []
+        admin = os.path.join(self.common, "worktrees")
+        for name in os.listdir(admin) if os.path.isdir(admin) else []:
+            gitdir = self._read(admin, name, "gitdir").strip()
+            if gitdir:
+                worktrees.append(os.path.normcase(os.path.abspath(os.path.dirname(gitdir))))
+        found = []
+        for path in glob.glob(os.path.join(glob.escape(temp), pattern), include_hidden=True):
+            full = os.path.normcase(os.path.abspath(path))
+            holds = os.path.isfile(os.path.join(path, ".git")) or any(
+                w == full or w.startswith(full + os.sep) for w in worktrees
+            )
+            found.append((os.path.relpath(path, temp).replace("\\", "/").lower(), holds))
+        return found
+
     def stash_branches(self) -> list[str] | None:
         """The branch each stash entry was made on, newest (`stash@{0}`) first, from the stash's reflog."""
         log = os.path.join(self.common, "logs", "refs", "stash")

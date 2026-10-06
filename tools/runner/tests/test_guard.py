@@ -1,8 +1,12 @@
 """The thin guard: it asks before shell writes to .claude/settings*.json and addons/, and is silent otherwise."""
 
+import fnmatch
+import json
+import re
 import unittest
 
 from runner import guard
+from runner.common import ROOT as ROOT_PATH
 
 B, P = guard.BASH, guard.POWERSHELL
 ROOT = "D:\\prime-game"
@@ -1170,6 +1174,239 @@ class GhOtherRepositoryTest(unittest.TestCase):
         self.assertIn("another repository", text)
         self.assertIn("o/r", text)
         self.assertIn("Reads of other repositories pass", text)
+
+
+class OwnerRepo(GhRepo):
+    """The engineer's machine: gh's active account owns this project's repository and its siblings."""
+
+    def gh_user(self) -> str | None:
+        return "xperiaroco2"
+
+
+# The gh asks of the week before issue #464 (PR #463's table), as the transcripts spell them: writes to the
+# engineer's own repositories.
+OWNER_WRITES = [
+    "gh issue create -R xperiaroco2/prime-game-art --title x --body-file f.md",
+    "gh issue create -R xperiaroco2/prime-game-ui --title x --label docs --body-file f.md",
+    "gh issue comment 11 -R xperiaroco2/prime-game-art --body-file C:/Users/xperi/AppData/Local/Temp/b.md",
+    "gh issue comment 5 -R XperiaRoco2/Prime-Game-Art --body x",
+    "gh issue edit 5 --repo=xperiaroco2/prime-game-art --add-label bug",
+    "gh pr create -R xperiaroco2/prime-game-art --base main --head art/11-blender-mannequin --title x --body y",
+    "gh pr edit 9 -R xperiaroco2/prime-game-art --body-file b.md",
+    "gh pr comment 9 -Rxperiaroco2/prime-game-ui -b hi",
+    "gh label create bug -R xperiaroco2/prime-game-art",
+    "gh issue comment https://github.com/xperiaroco2/prime-game-art/issues/1 --body x",
+    "gh repo create xperiaroco2/prime-game-ui --public --description x",
+    "gh api repos/xperiaroco2/prime-game-art/issues -f title=x",
+    "gh api -X POST repos/xperiaroco2/prime-game-art/labels -f name=x",
+]
+
+# The same writes through a variable the command assigns, or a repository named by gh's environment (bash).
+OWNER_WRITES_BASH = [
+    "GH_REPO=xperiaroco2/prime-game-art gh issue close 1",
+    'R=xperiaroco2/prime-game-art; gh issue create -R "$R" --title x --body-file f.md',
+    "R=xperiaroco2/prime-game-ui && gh issue create -R $R --title x --body y",
+    'gh issue comment "$2" -R "xperiaroco2/$1" --body x',
+]
+
+# Writes that keep asking with the account known: another owner, a value the guard cannot read, and the kinds the
+# rules deny or ask for in this repository too (merges, deletion, auth, secrets, ...), in spellings they miss.
+ART = "xperiaroco2/prime-game-art"
+OWNER_KEPT = {
+    "gh issue create --repo godotengine/godot --title x --body-file f.md": "godotengine/godot",
+    "gh issue comment 1 -R swiftysinister/prime-game -b x": "swiftysinister/prime-game",
+    "gh issue comment 1 -R xperiaroco2-fork/prime-game-art -b x": "xperiaroco2-fork/prime-game-art",
+    f"gh issue comment 1 -R ghe.example.com/{ART} -b x": f"ghe.example.com/{ART}",
+    'gh issue close 1 -R "$R"': "$R",
+    "gh issue close 1 -R $R/prime-game-art": "$R/prime-game-art",
+    f"gh pr -R {ART} merge 5": ART,
+    f"gh pr merge 5 -R {ART} --squash": ART,
+    f"GH_REPO={ART} gh pr merge 5": ART,
+    f"gh pr -R {ART} review 5 --approve": ART,
+    f"gh repo delete {ART} --yes": ART,
+    f"gh repo -R {ART} archive": ART,
+    f"gh repo edit {ART} --visibility public": ART,
+    f"gh secret -R {ART} set TOKEN": ART,
+    f"gh variable set X -R {ART} --body y": ART,
+    f"gh auth -R {ART} token": ART,
+    f"gh issue -R {ART} delete 5": ART,
+    f"gh issue transfer 5 {ART}": ART,
+    f"gh issue comment 5 -R {ART} --delete-last --yes": ART,
+    f"gh release -R {ART} create v1": ART,
+    f"gh workflow -R {ART} run ci.yml": ART,
+    f"gh api -XPUT repos/{ART}/pulls/5/merge": ART,
+    f"gh api -X DELETE repos/{ART}": ART,
+    f"gh api --method=PATCH repos/{ART} -f private=false": ART,
+    f"gh api repos/{ART}/merges -f base=main -f head=x": ART,
+    f"gh api repos/{ART}/actions/variables -f name=X -f value=y": ART,
+    f"gh api repos/{ART}/keys -f key=x": ART,
+    f"gh api repos/{ART}/transfer -f new_owner=o": ART,
+    f"gh api repos/{ART}/actions/workflows/ci.yml/dispatches -f ref=main": ART,
+    f"gh api repos/{ART}/releases -f tag_name=v1": ART,
+}
+
+
+class GhOwnAccountTest(unittest.TestCase):
+    """Writes to a repository owned by gh's active account pass like the same write to this project's repository
+    (issue #464); merges, deletion, auth, secrets and the other kinds the rules guard keep asking there."""
+
+    def test_writes_to_the_accounts_own_repositories_pass(self) -> None:
+        for shell in (B, P):
+            for command in OWNER_WRITES:
+                with self.subTest(shell=shell, command=command):
+                    self.assertEqual(gh(shell, command, OwnerRepo()), [])
+        for command in OWNER_WRITES_BASH:
+            with self.subTest(command=command):
+                self.assertEqual(gh(B, command, OwnerRepo()), [])
+        self.assertEqual(gh(P, f"$R = '{ART}'; gh issue create -R $R --title x -b y", OwnerRepo()), [])
+        self.assertEqual(gh(P, f"$env:GH_REPO = '{ART}'; gh issue close 1", OwnerRepo()), [])
+
+    def test_without_the_account_they_ask_as_before(self) -> None:
+        for command in OWNER_WRITES + OWNER_WRITES_BASH:
+            with self.subTest(command=command):
+                self.assertNotEqual(gh(B, command, GhRepo()), [])
+
+    def test_other_owners_unknown_values_and_kept_kinds_still_ask(self) -> None:
+        for command, expected in OWNER_KEPT.items():
+            with self.subTest(command=command):
+                self.assertEqual(gh(B, command, OwnerRepo()), [expected])
+
+    def test_every_gh_deny_and_ask_rule_keeps_its_guard_ask_in_the_accounts_repositories(self) -> None:
+        # The rules match the usual spelling only; `gh <group> -R <repo> <sub>` slips past them, so the guard keeps its
+        # ask in the account's repositories for every gh command a deny or ask rule names (gh api: the test above).
+        settings = json.loads((ROOT_PATH / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        rules = settings["permissions"]["deny"] + settings["permissions"]["ask"]
+        texts = sorted({m.group(1) for r in rules if (m := re.match(r"^Bash\((gh (?!api )[^)]*)\)$", r))})
+        self.assertIn("gh pr merge *", texts)
+        self.assertIn("gh repo delete *", texts)
+        self.assertIn("gh secret *", texts)
+        for text in texts:
+            words = text.replace("*", "").split()
+            command = " ".join([*words[:2], "-R", ART, *words[2:]])
+            with self.subTest(rule=text, command=command):
+                self.assertEqual(gh(B, command, OwnerRepo()), [ART])
+
+    def test_the_reason_names_the_accounts_repositories(self) -> None:
+        findings = guard.check(f"gh pr -R {ART} merge 5", B, ROOT, ROOT, "", OwnerRepo())
+        self.assertIn("your gh account's", guard.reason(findings))
+
+
+class TempRepo(guard.NoRepo):
+    """A temp folder: two rmtree leftovers, a worktree, and Claude Code's scratchpads (issue #464)."""
+
+    ENTRIES = {
+        "rmtree-a": False,
+        "rmtree-b": False,
+        "rmtree-wt": True,
+        "claude": False,
+        "claude/d--prime-game": False,
+        "claude/d--prime-game/s1": False,
+        "claude/d--prime-game/s1/scratchpad": False,
+        "claude/d--prime-game/s1/scratchpad/a464": False,
+        "lab": True,  # holds the worktree lab/wt
+        "lab/wt": True,
+    }
+
+    def temp_matches(self, pattern: str) -> list[tuple[str, bool]] | None:
+        parts = pattern.lower().split("/")
+        return [
+            (path, worktree)
+            for path, worktree in self.ENTRIES.items()
+            if len(path.split("/")) == len(parts)
+            and all(fnmatch.fnmatchcase(a, b) for a, b in zip(path.split("/"), parts, strict=True))
+        ]
+
+
+class Leftovers(TempRepo):
+    """The same temp folder without the worktree among the rmtree leftovers."""
+
+    ENTRIES = {k: v for k, v in TempRepo.ENTRIES.items() if k != "rmtree-wt"}
+
+
+INCIDENT_464 = (
+    "Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse -Force; "
+    "(Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Measure-Object).Count"
+)
+
+# Filtered recursive deletes in the temp folder whose matches are all inside it, and none is a Claude scratchpad
+# root, a folder that holds one, or a worktree: they pass (issue #464).
+TEMP_FILTERED_PASS = [
+    (P, INCIDENT_464),
+    (P, "Get-ChildItem -Path $env:TEMP -Filter rmtree-a | Remove-Item -Recurse"),
+    (P, "gci $env:TMP -Filter 'rmtree-?' -Directory | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP\\lab -Filter 'old*' | Remove-Item -Recurse -Force"),
+    (P, "Remove-Item -Recurse -Force $env:TEMP\\rmtree-[ab]"),
+    (B, 'rm -rf "$TEMP"/rmtree-a*'),
+    (B, 'rm -rf "$TEMP"/rmtree-? /tmp/rmtree-b'),
+    (B, 'rm -rf "${TMPDIR}"/rmtree-*a'),
+    (B, 'rm -rf "$TEMP"/nothing-*'),
+    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratchpad/a464*'),
+    (B, 'rm -rf "$TEMP"/claude/d--prime-game/s1/tasks*'),
+]
+
+# Filtered deletes that keep asking: a match is a scratchpad root or holds one, is or holds a worktree, reaches
+# outside the temp folder, or cannot be told; and the unfiltered or recursive listings of the temp folder itself.
+TEMP_FILTERED_ASK = [
+    (B, 'rm -rf "$TEMP"/cl*'),
+    (B, 'rm -rf "$TEMP"/c*e'),
+    (B, 'rm -rf "$TEMP"/[^x]laude'),
+    (B, "rm -rf /tmp/*/d--prime-game"),
+    (B, 'rm -rf "$TEMP"/claude/*/*'),
+    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratch*'),
+    (B, 'rm -rf "$TEMP"/rmtree-*'),
+    (B, 'rm -rf "$TEMP"/rmtree-w?'),
+    (B, 'rm -rf "$TEMP"/l*'),
+    (B, 'rm -rf "$TEMP"/lab/w*'),
+    (B, 'rm -rf "$TEMP"/../x*'),
+    (B, 'rm -rf "$TEMP"/$X*'),
+    (B, 'rm -rf "$TEMP"/{rmtree-a,cl*}'),
+    (P, "Get-ChildItem $env:TEMP -Filter 'c*' -Directory | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter '..\\x*' | Remove-Item -Recurse"),
+    (P, "Remove-Item -Recurse $env:TEMP\\$X*"),
+    (P, "Get-ChildItem $env:TEMP -Recurse -Filter 'rmtree-*' | Remove-Item -Recurse -Force"),
+    (P, "Get-ChildItem $env:TEMP -Filter * | Remove-Item -Recurse"),
+    (P, "Get-ChildItem $env:TEMP | Remove-Item -Recurse"),
+]
+
+
+class TempFilteredDeleteTest(unittest.TestCase):
+    """A filtered recursive delete in the temp folder is judged by what it matches (issue #464)."""
+
+    def judge(self, shell: str, command: str, repo: guard.NoRepo) -> list[guard.Finding]:
+        return guard.check(command, shell, ROOT, ROOT, "", repo)
+
+    def test_matches_inside_temp_pass(self) -> None:
+        for shell, command in TEMP_FILTERED_PASS:
+            with self.subTest(shell=shell, command=command):
+                self.assertEqual(self.judge(shell, command, Leftovers()), [])
+
+    def test_scratchpads_worktrees_and_the_unknown_still_ask(self) -> None:
+        for shell, command in TEMP_FILTERED_ASK:
+            with self.subTest(shell=shell, command=command):
+                self.assertTrue(self.judge(shell, command, TempRepo()), "expected the guard to ask")
+
+    def test_without_the_listing_the_pattern_alone_decides(self) -> None:
+        self.assertEqual(self.judge(B, 'rm -rf "$TEMP"/rmtree-*', guard.NoRepo()), [])
+        self.assertEqual(self.judge(P, INCIDENT_464, guard.NoRepo()), [])
+        self.assertTrue(self.judge(B, 'rm -rf "$TEMP"/cl*', guard.NoRepo()))
+        self.assertTrue(self.judge(B, 'rm -rf "$TEMP"/claude/x/*', guard.NoRepo()))
+
+    def test_literal_temp_paths_are_judged_as_before(self) -> None:
+        for shell, command in (
+            (B, 'rm -rf "$TEMP/claude"'),
+            (P, "Remove-Item -Recurse -Force $env:TEMP\\claude\\old"),
+            (B, 'rm -rf "$TEMP"/rmtree-wt'),
+            (B, 'TEMP=/x/y; rm -rf "$TEMP"/cl*'),
+        ):
+            with self.subTest(shell=shell, command=command):
+                self.assertEqual(self.judge(shell, command, TempRepo()), [])
+
+    def test_the_reason_names_the_temp_folder(self) -> None:
+        findings = self.judge(B, 'rm -rf "$TEMP"/cl*', TempRepo())
+        self.assertEqual({f.area for f in findings}, {guard.TEMP_DELETE})
+        self.assertIn("temp folder", guard.reason(findings))
+        self.assertIn("scratchpad", guard.reason(findings))
 
 
 if __name__ == "__main__":

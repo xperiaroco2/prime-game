@@ -146,6 +146,68 @@ class OtherRepositoriesTest(unittest.TestCase):
         self.assertEqual(verdict("Bash", OTHER_READS[1], rules=old)[0], permissions.PROMPT)
 
 
+class AccountRepo(OwnRepo):
+    """The engineer's machine: gh's active account is the owner of this project's repository (issue #464)."""
+
+    def gh_user(self) -> str | None:
+        return "xperiaroco2"
+
+
+ART = "xperiaroco2/prime-game-art"
+
+
+class OwnAccountAndTempTest(unittest.TestCase):
+    """Issue #464 through the rules and the guard together: writes to gh's own account's repositories and filtered
+    deletes in the temp folder pass; merges, deletion, auth, secrets, other owners and scratchpad roots do not."""
+
+    def judge(self, tool: str, command: str, bypass: bool = True) -> str:
+        return permissions.verdict(RULES, guard, tool, command, str(ROOT), MAIN, AccountRepo(), bypass)[0]
+
+    def test_writes_to_the_accounts_repositories_pass_like_writes_here(self) -> None:
+        for tool in TOOLS:
+            for command in (
+                f"gh issue create -R {ART} --title x --body-file f.md",
+                f"gh issue comment 5 -R {ART} --body-file b.md",
+                f"gh pr create -R {ART} --base main --head x --title t --body b",
+                f"gh pr edit 9 -R {ART} --base main",
+                "gh issue create -R xperiaroco2/prime-game-ui --title x --label docs --body-file f.md",
+                f"gh api repos/{ART}/issues -f title=x",
+            ):
+                for bypass in (True, False):
+                    with self.subTest(tool=tool, command=command, bypass=bypass):
+                        self.assertEqual(self.judge(tool, command, bypass), permissions.PASS)
+
+    def test_merges_deletion_auth_secrets_and_other_owners_stay_as_they_were(self) -> None:
+        for tool in TOOLS:
+            for command, expected in (
+                (f"gh pr merge 5 -R {ART}", permissions.DENIED),
+                (f"gh repo delete {ART} --yes", permissions.DENIED),
+                ("gh auth token", permissions.DENIED),
+                (f"gh pr -R {ART} merge 5", permissions.PROMPT),
+                (f"gh secret set X -R {ART}", permissions.PROMPT),
+                (f"gh secret -R {ART} set X", permissions.PROMPT),
+                (f"gh api -X PUT repos/{ART}/pulls/5/merge", permissions.PROMPT),
+                (f"gh api -XDELETE repos/{ART}", permissions.PROMPT),
+                ("gh issue comment 1 -R godotengine/godot --body x", permissions.PROMPT),
+            ):
+                with self.subTest(tool=tool, command=command):
+                    self.assertEqual(self.judge(tool, command), expected)
+                    self.assertEqual(verdict(tool, command)[0], expected)  # the same without the account
+
+    def test_a_filtered_delete_in_temp_is_judged_by_what_it_matches(self) -> None:
+        incident = "Get-ChildItem $env:TEMP -Filter 'rmtree-*' -Directory | Remove-Item -Recurse -Force"
+        self.assertEqual(self.judge("PowerShell", incident), permissions.PASS)
+        self.assertEqual(self.judge("Bash", 'rm -rf "$TEMP"/rmtree-*'), permissions.PASS)
+        for tool, command in (
+            ("PowerShell", "Get-ChildItem $env:TEMP -Filter 'cl*' -Directory | Remove-Item -Recurse -Force"),
+            ("PowerShell", "Get-ChildItem $env:TEMP -Directory | Remove-Item -Recurse -Force"),
+            ("Bash", 'rm -rf "$TEMP"/cl*'),
+            ("Bash", 'rm -rf "$TEMP"/../x*'),
+        ):
+            with self.subTest(tool=tool, command=command):
+                self.assertEqual(self.judge(tool, command), permissions.PROMPT)
+
+
 class ProtectionsTest(unittest.TestCase):
     """The protections #312 must not weaken (its AC4), in both shells and both modes, for the patterns that met them
     in the week's transcripts and their neighbours."""

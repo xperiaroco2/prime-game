@@ -301,6 +301,59 @@ class GitFilesTest(unittest.TestCase):
                     subprocess.run(["git", "remote", "add", "origin", url], cwd=main, check=True, capture_output=True)
                     self.assertEqual(hooks.GitFiles(str(worktree)).github_repo(), expected)
 
+    def test_the_gh_account_comes_from_gh_hosts_file(self) -> None:
+        # Issue #464: the account `gh api user` returns, read from gh's config folder without a network call.
+        with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
+            files = hooks.GitFiles(str(Path(tmp) / "game"))
+            clean = {"GH_CONFIG_DIR": tmp, "GH_TOKEN": "", "GITHUB_TOKEN": ""}
+            hosts = Path(tmp) / "hosts.yml"
+            for text, expected in (
+                (
+                    "github.com:\n    git_protocol: https\n    users:\n        Other:\n    user: XperiaRoco2\n",
+                    "xperiaroco2",
+                ),
+                ("github.com:\n    oauth_token: x\n    user: owner-1\n    git_protocol: ssh\n", "owner-1"),
+                ("ghe.example.com:\n    user: corp\ngithub.com:\n    users:\n        a:\n            user: no\n", None),
+                ("", None),
+            ):
+                with self.subTest(text=text):
+                    hosts.write_text(text, encoding="utf-8")
+                    with unittest.mock.patch.dict(os.environ, clean):
+                        self.assertEqual(files.gh_user(), expected)
+            hosts.write_text("github.com:\n    user: owner-1\n", encoding="utf-8")
+            with unittest.mock.patch.dict(os.environ, {**clean, "GH_TOKEN": "t"}):
+                self.assertIsNone(files.gh_user())
+            with unittest.mock.patch.dict(os.environ, {**clean, "GH_CONFIG_DIR": str(Path(tmp) / "none")}):
+                self.assertIsNone(files.gh_user())
+
+    def test_temp_matches_list_the_temp_folder_and_find_worktrees(self) -> None:
+        # Issue #464: a filtered delete in the temp folder is judged by what it matches now.
+        with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
+            main, temp = Path(tmp) / "game", Path(tmp) / "temp"
+            main.mkdir()
+            temp.mkdir()
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True, capture_output=True)
+            for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+                subprocess.run(["git", "config", key, value], cwd=main, check=True, capture_output=True)
+            commit = ["git", "commit", "-q", "--allow-empty", "-m", "c"]
+            subprocess.run(commit, cwd=main, check=True, capture_output=True)
+            for folder in ("rmtree-a", "rmtree-b/x", ".rmtree-hidden", "other", "linked/inner"):
+                (temp / folder).mkdir(parents=True)
+            (temp / "linked" / "inner" / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            add = ["git", "worktree", "add", "-q", "--detach", str(temp / "held" / "wt")]
+            subprocess.run(add, cwd=main, check=True, capture_output=True)
+            files = hooks.GitFiles(str(main))
+            files.temp = str(temp)
+            self.assertEqual(sorted(files.temp_matches("rmtree-*") or []), [("rmtree-a", False), ("rmtree-b", False)])
+            self.assertEqual(files.temp_matches(".rmtree-*"), [(".rmtree-hidden", False)])
+            self.assertEqual(files.temp_matches("h*"), [("held", True)])
+            self.assertEqual(files.temp_matches("held/w?"), [("held/wt", True)])
+            self.assertEqual(files.temp_matches("linked/*"), [("linked/inner", True)])
+            self.assertEqual(files.temp_matches("linked"), [("linked", False)])  # only a worktree of this repository
+            self.assertEqual(files.temp_matches("none-*"), [])
+            files.temp = str(Path(tmp) / "missing")
+            self.assertIsNone(files.temp_matches("rmtree-*"))
+
     def test_a_worktree_is_busy_while_another_live_session_works_there(self) -> None:
         with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
             worktree = Path(tmp) / "game" / ".claude" / "worktrees" / "7"
