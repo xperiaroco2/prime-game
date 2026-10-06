@@ -35,11 +35,11 @@ func test_the_physics_rate_is_a_multiple_of_the_client_tick_rate() -> void:
 
 func test_n_steps_are_n_physics_frames_of_time_and_a_claim_every_third() -> void:
 	var start := _node.steps()
-	var claims_before := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	var claims_before := _harness.claims().size()
 	var claimed_at: Array[int] = []
 	for i: int in 60:
 		_step()
-		var made := _harness.sent_named(Intents.MOVE_CLAIM).size()
+		var made := _harness.claims().size()
 		if made > claims_before + claimed_at.size():
 			claimed_at.append(i)
 	var steps_run := _node.steps() - start
@@ -130,7 +130,7 @@ func _real_steps() -> float:
 
 func _claim_ticks() -> Array[int]:
 	var ticks: Array[int] = []
-	for claim: WireMessage in _harness.sent_named(Intents.MOVE_CLAIM):
+	for claim: WireMessage in _harness.claims():
 		ticks.append(claim.fields["client_tick"] as int)
 	return ticks
 

@@ -7,6 +7,13 @@ extends RefCounted
 ## after loading, and VoiceUp. It never reads core/ state (invariant 2): only what the host sent it
 ## and its own copy of the game mode.
 ##
+## The claims a lossy link must not lose go on MoveClaimReliable, MoveClaim's RELIABLE twin (#429;
+## ARCHITECTURE §7.1 "Lost claims"): the first claim of every epoch it adopts (the Welcome, a
+## placement, a Correction), which the host takes as one tick, so a lost one would make the next
+## claim's span look too long; and, right before a player action, its last claim again, exactly as
+## sent (the same tick, position and masks), so the host checks the action against where the
+## player stood. A resend is no new claim: claim_sent does not fire for it.
+##
 ## The owner calls step(now_usec) every frame with a clock in microseconds, like HostSession: the
 ## transport is polled there, and signals fire from it.
 ##
@@ -37,10 +44,11 @@ signal voice_received(speaker: int, seq: int, tick: int, opus: PackedByteArray)
 ## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
 ## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
 signal snapshot_received(tick: int, avatars: Dictionary)
-## A MoveClaim went out: its epoch and client tick, the client ticks the host settles for it
-## (`covered`: 1 for the first claim after the Welcome or a placement, which the host takes as one
-## tick), its latched sprint flag, and whether it moved itself as the host's stamina counts it
-## (movement input and horizontal travel from the last claim's position beyond MOVE_EPSILON).
+## A claim went out (MoveClaim, or its RELIABLE twin; never a resend): its epoch and client tick,
+## the client ticks the host settles for it (`covered`: 1 for the first claim after the Welcome or
+## a placement, which the host takes as one tick), its latched sprint flag, and whether it moved
+## itself as the host's stamina counts it (movement input and horizontal travel from the last
+## claim's position beyond MOVE_EPSILON).
 ## PredictedStamina settles the same ticks with the same flags, and the SelfStatus that names this
 ## claim's tick answers it (#155).
 signal claim_sent(epoch: int, tick: int, covered: int, sprint: bool, moved_itself: bool)
@@ -106,6 +114,11 @@ var _moving := false
 ## state (_sprint_history), or the player's own movement (_moved_history), by the claim covering it.
 var _sprint_history := 0
 var _moved_history := 0
+## The last claim sent, as sent (its fields; empty before the first), the epoch it was sent in, and
+## whether it went on the RELIABLE twin, by itself or resent before a player action (#429).
+var _last_claim: Dictionary = {}
+var _last_claim_epoch := -1
+var _last_claim_reliable := false
 ## Where the last claim went, or where the host put the client (Welcome, a Correction): the next
 ## claim's travel is measured from it, as the host measures from its last accepted position.
 var _claimed_position := Vector3.ZERO
@@ -241,6 +254,7 @@ func jumps() -> int:
 ## Sends an intent with the next seq, its fields as the MatchCommand's args; returns the seq, or -1
 ## when it could not be sent (not connected, or the codec refused it and logged why).
 func send_intent(intent: StringName, args: Dictionary = {}) -> int:
+	_resend_claim(intent)
 	var seq := _seq + 1
 	if _send(WireMessage.new(intent, args, seq)) != OK:
 		return -1
@@ -419,8 +433,15 @@ func _claim(now_usec: int) -> void:
 		"sprint_ticks": sprint_ticks,
 		"moved_ticks": moved_ticks,
 	}
-	if _send(WireMessage.new(Intents.MOVE_CLAIM, claim)) != OK:
+	# The first claim of an epoch goes on the twin: the host counts it as one tick, so it must not
+	# be lost (#429).
+	var reliable := model.epoch != _last_claim_epoch
+	var row := WireSchema.RELIABLE_CLAIM if reliable else Intents.MOVE_CLAIM
+	if _send(WireMessage.new(row, claim)) != OK:
 		return
+	_last_claim = claim
+	_last_claim_epoch = model.epoch
+	_last_claim_reliable = reliable
 	var sprint := _sprint
 	_last_claim_tick = tick
 	_claimed_position = _position
@@ -430,6 +451,20 @@ func _claim(now_usec: int) -> void:
 	_sprint = false
 	_moving = false
 	claim_sent.emit(model.epoch, tick, covered, sprint, moved_itself)
+
+
+## Right before a player action (#429): the last claim again, exactly as sent, on the RELIABLE
+## twin, so the host has the position the action was taken from even if the LATEST one is lost.
+## Once per claim, only for a claim of the current epoch, and only while claims go out.
+func _resend_claim(intent: StringName) -> void:
+	if intent == Intents.MOVE_CLAIM or not Intents.PLAYER_ACTIONS.has(intent):
+		return
+	if _last_claim.is_empty() or _last_claim_reliable or _last_claim_epoch != model.epoch:
+		return
+	if not claims_accepted():
+		return
+	if _send(WireMessage.new(WireSchema.RELIABLE_CLAIM, _last_claim)) == OK:
+		_last_claim_reliable = true
 
 
 ## `mask` moved on by `ticks` client ticks, each of which takes `flag`, cut to MASK_TICKS bits.
