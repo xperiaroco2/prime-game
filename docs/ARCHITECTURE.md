@@ -320,10 +320,12 @@ dissidents, no crew present only once every crew member left, End widens nothing
   past the minimum after the command's 6th attempt (timeout limit 32), so a drop comes between 10 s and about
   20 s (with ENet's default of 5 s: 5 to 10 s). Right after a connection, before a round trip is measured, it
   starts from 500 ms (checks at 0.5, 1.5, 3.5, 7.5, 15.5 and 31.5 s) and, with EnetTransport's 10 to 20 s,
-  drops only after about 31.5 s (#95). ENet's clock is Godot's (milliseconds since the process started), so a
-  client that connects after its first 500 ms pings at once and measures the round trip from the answer:
-  a process that starts slowly on a loaded PC drops a host that stops at the connection after about 10 to 12 s
-  (#443).
+  drops only after about 31.5 s (#95): that holds only for a client that connects within its process's first
+  500 ms (as `enet_stall` usually does). ENet's clock is Godot's (milliseconds since the process started; read
+  in the engine's `enet_godot.cpp` and shown by the #443 probe, a round trip of 500/0 against 7/4, not in
+  the API dump), so a client that connects later, as every real game client does from a menu, pings at once
+  and measures the round trip from the answer: it drops a host that stops at the connection after about 10 to
+  12 s (#443: 11.8 s after a 600 ms start).
 - **The backlog in one poll:** ENet reads at most 256 datagrams per service and `ENetMultiplayerPeer.poll()`
   services once, so after a freeze one service took only the oldest part of the backlog (on the Linux CI runner
   the thawed host's newest pose was up to 3.1 s old, #95). `EnetTransport.poll` services until one reads fewer
@@ -343,8 +345,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
     connection (`applied_timeouts`: the proof that both sides set them from the start), the running side must
     drop a stalled one after 10 to 20 s (the client's timeout on its host, and the host's on its client), and a
     backlog of 320 datagrams arrives in one poll. A host stalled at the moment of connection is also kept past
-    10 s, which guards only against a too-low maximum: ENet waits about 31.5 s there with any timeout (a slow
-    start: about 10 to 12 s, above):
+    10 s, which guards only against a too-low maximum: ENet waits about 31.5 s there with any timeout when the
+    client connects in its process's first 500 ms, and about 10 to 12 s when it connects later (above):
     `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. A drop comes only inside
     the running side's poll, and a frame hitch on a loaded PC delays that poll, so the window's top is judged at
     its last poll before the drop and the bottom at the drop (`tests/harness/net/stall_watch.gd`, tested by
