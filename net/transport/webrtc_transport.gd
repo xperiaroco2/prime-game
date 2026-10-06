@@ -23,6 +23,14 @@ extends NetTransport
 ## heard from for SILENCE_MS (backlog drained first) leaves, as does a connection that reaches
 ## FAILED or CLOSED, or a channel that closes under a live connection. DISCONNECTED is transient.
 ## Nothing is ever written to a channel that is not open: that prints an engine error (M6-1).
+##
+## The own connection for the debug overlay (the M6 design §3 item 4, #431): webrtc-native reports
+## neither the selected candidate pair nor a round trip (webrtc_native_addon_test). So own_route()
+## tells the kind from the ICE servers the offer brought (route_of: with no TURN server nothing can
+## be relayed), and a client with measure_round_trip set pings the host on VOICE every
+## PING_INTERVAL_MS; the host answers the pings of one poll once, echoing the client's clock, and
+## the client smooths the round trips into own_round_trip_ms(). Both are consumed before the inbox,
+## as KEEPALIVE: a probe the wrong way, or malformed, is a kind-0 packet the inbox rejects.
 
 ## Host: the service made the room; its code is what friends type.
 signal room_opened(code: String)
@@ -57,6 +65,16 @@ const CLOSE_WAIT_MS := 5000
 const PACKET_OVERHEAD_BYTES := 108
 ## ADMIT: the 3-byte frame header of kind 0 with a 4-byte payload, the peer id.
 const ADMIT_BYTES := NetFrame.HEADER_BYTES + 4
+## The round trip's probes on VOICE: the header of kind 0 with a 5-byte payload, the type (PING from
+## the client, PONG from the host) and the client's clock in ms (u32) when it pinged.
+const PING_BYTES := NetFrame.HEADER_BYTES + 5
+const PING := 1
+const PONG := 2
+## A measuring client pings this often (a placeholder, not a decision): a ping also counts as a
+## keepalive.
+const PING_INTERVAL_MS := 1000
+## Each round trip measured moves own_round_trip_ms() this part of the way (as TCP's smoothed RTT).
+const ROUND_TRIP_GAIN := 0.125
 
 ## The signalling service: ws://host:port for a LanSignalling, wss:// for the Worker.
 var signal_url := ""
@@ -77,6 +95,8 @@ var found_protocol := -1
 var found_content := 0
 ## JOIN_TIMEOUT_MS; tests shorten it.
 var join_timeout_ms := JOIN_TIMEOUT_MS
+## The signalling socket's Signaller.CONNECT_TIMEOUT_MS; tests shorten it below join_timeout_ms.
+var signal_connect_timeout_ms := Signaller.CONNECT_TIMEOUT_MS
 
 var _signaller: Signaller = null
 var _keepalive := PackedByteArray(KEEPALIVE)
@@ -99,6 +119,9 @@ var _client_id := 0
 var _found_refused := false
 ## When poll() last ran; -1 before the first.
 var _last_poll_ms := -1
+## Client: when it last pinged the host, -1 before; the smoothed round trip, -1 before the first.
+var _last_ping_ms := -1
+var _round_trip_ms := -1.0
 
 
 ## One connection and what the backend knows about it.
@@ -133,6 +156,10 @@ class Conn:
 	## decreasing: a late packet holds back the ones behind it).
 	var late_latest: Array[PackedByteArray] = []
 	var late_latest_due: PackedInt64Array = PackedInt64Array()
+	## The ICE servers it was made with include a TURN server (route_of).
+	var may_relay := false
+	## Host: the stamp of the last ping read this poll, answered after the reads; -1 for none.
+	var ping_stamp := -1
 
 	func all_channels_open() -> bool:
 		for channel: WebRTCDataChannel in channels.values():
@@ -214,6 +241,37 @@ func room_code() -> String:
 	return _room_code
 
 
+## Client: the own connection once admitted (route_of its ICE servers); NONE otherwise.
+func own_route() -> Route:
+	var conn: Conn = _conns.get(HOST_ID)
+	if role() != Role.CLIENT or conn == null or not _is_live(conn):
+		return Route.NONE
+	return Route.DIRECT_OR_RELAYED if conn.may_relay else Route.DIRECT
+
+
+## Client: the smoothed round trip of its pings (measure_round_trip), -1 before the first answer or
+## without a connection.
+func own_round_trip_ms() -> int:
+	if own_route() == Route.NONE or _round_trip_ms < 0.0:
+		return -1
+	return roundi(_round_trip_ms)
+
+
+## The kind of a connection made with `ice_servers` (the service's list, as SignalCodec rebuilds
+## it): DIRECT_OR_RELAYED when one of them is a TURN server ("turn:" or "turns:", any case), else
+## DIRECT: without TURN no relay candidate exists, and host and server-reflexive pairs are direct.
+static func route_of(ice_servers: Array) -> Route:
+	for server: Variant in ice_servers:
+		if not server is Dictionary:
+			continue
+		var urls: Variant = (server as Dictionary).get("urls")
+		var listed: Array = urls if urls is Array else [urls]
+		for url: Variant in listed:
+			if url is String and (url as String).to_lower().begins_with("turn"):
+				return Route.DIRECT_OR_RELAYED
+	return Route.DIRECT
+
+
 ## Whether the socket to the signalling service is open (or opening): false once it closed or
 ## failed, so a host's lobby can say that no code is coming (M6-7).
 func signalling_open() -> bool:
@@ -283,6 +341,7 @@ func _backend_poll() -> void:
 	_judge(now)
 	if role() == Role.CLIENT and _client_id == 0 and now - _join_started_ms > join_timeout_ms:
 		_fail_join(JOIN_UNREACHABLE)
+	_ping(now)
 	for conn: Conn in _conns.values():
 		if _is_live(conn) and now - conn.last_sent_ms >= KEEPALIVE_MS:
 			_put(conn, NetKindTable.Lane.VOICE, _keepalive)
@@ -310,6 +369,8 @@ func _backend_close() -> void:
 	_client_id = 0
 	_signal_opened = false
 	_last_poll_ms = -1
+	_last_ping_ms = -1
+	_round_trip_ms = -1.0
 	_found_refused = false
 	# found_protocol and found_content stay: the menu names them after a join ends on them.
 
@@ -329,6 +390,7 @@ func _backend_disconnect(peer_id: int) -> void:
 
 func _open_signaller() -> Error:
 	var signaller := Signaller.new()
+	signaller.connect_timeout_ms = signal_connect_timeout_ms
 	var err := signaller.connect_to(signal_url)
 	if err != OK:
 		return err
@@ -353,6 +415,7 @@ func _new_connection(key: int, joiner: int, ice_servers: Array) -> Conn:
 	conn.peer_id = key
 	conn.joiner = joiner
 	conn.pc = WebRTCPeerConnection.new()
+	conn.may_relay = route_of(ice_servers) == Route.DIRECT_OR_RELAYED
 	if conn.pc.initialize({"iceServers": ice_servers}) != OK:
 		return null
 	for lane: NetKindTable.Lane in CHANNEL_IDS:
@@ -466,11 +529,65 @@ func _read(conn: Conn, now: int, since: int) -> void:
 					else:
 						_delay_reliable(conn, bytes, since)
 				NetKindTable.Lane.VOICE:
-					if bytes != _keepalive:
+					if bytes != _keepalive and not _took_probe(conn, bytes, now):
 						_push_packet(conn.peer_id, bytes, lane)
 			if not _conns.has(conn.peer_id):
 				return  # a bad ADMIT ended the join
+	if conn.ping_stamp >= 0:
+		_put(conn, NetKindTable.Lane.VOICE, _probe(PONG, conn.ping_stamp))
+		conn.ping_stamp = -1
 	_release_delayed(conn, now)
+
+
+## A round-trip probe the right way, consumed: the host notes a ping to answer, the client takes
+## an answer's round trip (one stamped later than now, or older than SILENCE_MS, is dropped). False
+## for anything else, which goes on to the inbox.
+func _took_probe(conn: Conn, bytes: PackedByteArray, now: int) -> bool:
+	if bytes.size() != PING_BYTES or bytes[0] != 0 or bytes.decode_u16(1) != PING_BYTES - 3:
+		return false
+	var type := bytes[NetFrame.HEADER_BYTES]
+	var stamp := bytes.decode_u32(NetFrame.HEADER_BYTES + 1)
+	if is_host() and type == PING:
+		if _is_live(conn):
+			conn.ping_stamp = stamp
+		return true
+	if not is_host() and type == PONG:
+		if not measure_round_trip:
+			return true
+		var sample := (now - stamp) & 0xFFFFFFFF
+		if sample <= SILENCE_MS:
+			if _round_trip_ms < 0.0:
+				_round_trip_ms = float(sample)
+			else:
+				_round_trip_ms += (sample - _round_trip_ms) * ROUND_TRIP_GAIN
+		return true
+	return false
+
+
+## Client: pings the host when measure_round_trip is set, once admitted and every PING_INTERVAL_MS.
+func _ping(now: int) -> void:
+	if role() != Role.CLIENT:
+		return
+	if not measure_round_trip:
+		# Not measuring (the overlay is hidden): forget the old figure, or reopening it would show
+		# a round trip of minutes ago as the current one.
+		_last_ping_ms = -1
+		_round_trip_ms = -1.0
+		return
+	var conn: Conn = _conns.get(HOST_ID)
+	if conn == null or not _is_live(conn):
+		return
+	if _last_ping_ms >= 0 and now - _last_ping_ms < PING_INTERVAL_MS:
+		return
+	if _put(conn, NetKindTable.Lane.VOICE, _probe(PING, now)) == OK:
+		_last_ping_ms = now
+
+
+## A probe of `type` stamped with the client's clock `stamp_ms` (its low 32 bits).
+static func _probe(type: int, stamp_ms: int) -> PackedByteArray:
+	var bytes := PackedByteArray([0, PING_BYTES - NetFrame.HEADER_BYTES, 0, type, 0, 0, 0, 0])
+	bytes.encode_u32(NetFrame.HEADER_BYTES + 1, stamp_ms & 0xFFFFFFFF)
+	return bytes
 
 
 func _take_latest(conn: Conn, bytes: PackedByteArray, now: int) -> void:

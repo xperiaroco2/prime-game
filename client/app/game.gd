@@ -20,7 +20,7 @@ extends Node
 ## Movement on the network (M4-7): the local PlayerController takes the mode's PlayerRules and
 ## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
 ## others and the countdown and the clock read the estimated host tick. A debug build has the
-## debug overlay (F3).
+## debug overlay (F3), with the own connection's kind and round trip (#431).
 ##
 ## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
 ## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
@@ -667,17 +667,24 @@ func _refresh_join() -> void:
 	ui.esc.lobby.show_code(line, code)
 
 
-## The overlay's numbers, while it shows: the own client's, and on the host the session's counters
-## and, outside a Round, the voice relay's (DebugOverlay.shows_relay).
+## The overlay's numbers, while it shows: the own client's, its own connection (only its own
+## ClientSession's, the M6 design §3 item 4), and on the host the session's counters and, outside a
+## Round, the voice relay's (DebugOverlay.shows_relay). The own session measures its round trip
+## only while the overlay shows (WebRTC pings for it).
 func _refresh_overlay() -> void:
-	if _overlay == null or not _overlay.visible:
+	var shown := _overlay != null and _overlay.visible
+	if _client != null:
+		_client.set_measuring_round_trip(shown)
+	if not shown:
 		return
 	var counters: Dictionary[StringName, int] = {}
 	_refresh_voice_overlay()
 	if _client == null:
 		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
 		_overlay.show_relay(counters, null)
+		_overlay.show_connection(NetTransport.Route.NONE, -1)
 		return
+	_overlay.show_connection(_client.route(), _client.round_trip_ms())
 	var relay: Dictionary[StringName, int] = {}
 	if _host != null:
 		counters = _host.counters()

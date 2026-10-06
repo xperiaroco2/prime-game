@@ -168,6 +168,27 @@ func is_ended() -> bool:
 	return not end_reason.is_empty()
 
 
+## The own connection's kind (the M6 design §3 item 4, #431): its own transport's, never another
+## peer's; the debug overlay shows it. LOCAL for the host's own client.
+func route() -> NetTransport.Route:
+	return _transport.own_route()
+
+
+## The own round trip to the host in ms, -1 when none is measured (see set_measuring_round_trip).
+func round_trip_ms() -> int:
+	return _transport.own_round_trip_ms()
+
+
+## Has the own transport measure the round trip where that costs traffic (WebRTC's pings): the
+## debug overlay turns it on while it shows.
+func set_measuring_round_trip(on: bool) -> void:
+	_transport.measure_round_trip = on
+
+
+func is_measuring_round_trip() -> bool:
+	return _transport.measure_round_trip
+
+
 ## The client tick at `now_usec`: 20 Hz core ticks of this client's own clock (Ticks.RATE),
 ## counted from its first step.
 func client_tick(now_usec: int) -> int:

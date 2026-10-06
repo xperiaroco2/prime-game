@@ -29,8 +29,16 @@ signal refused(why: String)
 
 enum Role { NONE, HOST, JOINER }
 
+## A socket still connecting this long after connect_to() is given up, and closed fires (a
+## placeholder, not a decision). On Windows a refused TCP connect stays connecting for 20 s and more
+## (Godot 4.7.2, #431), so without it a joiner whose service is down waited for its join timeout
+## and failed as host_unreachable instead of service_unreachable.
+const CONNECT_TIMEOUT_MS := 5000
+
 ## Received messages dropped as malformed or not meant for this side.
 var rejected := 0
+## CONNECT_TIMEOUT_MS; tests shorten it.
+var connect_timeout_ms := CONNECT_TIMEOUT_MS
 
 var _socket := WebSocketPeer.new()
 var _role := Role.NONE
@@ -38,11 +46,13 @@ var _queue := PackedStringArray()
 var _started := false
 var _open := false
 var _done := false
+var _started_ms := 0
 
 
 func connect_to(url: String) -> Error:
 	var error := _socket.connect_to_url(url)
 	_started = error == OK
+	_started_ms = Time.get_ticks_msec()
 	return error
 
 
@@ -71,7 +81,13 @@ func poll() -> void:
 			rejected += 1
 			continue
 		_handle(bytes)
-	if state == WebSocketPeer.STATE_CLOSED:
+	var stuck := (
+		state == WebSocketPeer.STATE_CONNECTING
+		and Time.get_ticks_msec() - _started_ms > connect_timeout_ms
+	)
+	if stuck:
+		_socket.close()
+	if state == WebSocketPeer.STATE_CLOSED or stuck:
 		_done = true
 		closed.emit()
 

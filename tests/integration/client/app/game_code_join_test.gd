@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## Joining with a code in the game (client/app/game.gd; the M6 design §2.3, §3): a Game hosting a
 ## room with a code over WebRTC, its signalling served here (--signal=lan, LanSignalling on a free
 ## port of 127.0.0.1), a Game joining with that code; and a code no room holds. The lobby shows the
-## code to both, Copy holds it, and no screen names the other side's address. Real WebRTC on
-## 127.0.0.1, so the waits are bounded in wall-clock time, as webrtc_transport_test's.
+## code to both, Copy holds it, and no screen names the other side's address; F3 shows the own
+## connection only. Real WebRTC on 127.0.0.1, so the waits are bounded in wall-clock time, as
+## webrtc_transport_test's.
 
 const GAME := preload("res://client/app/game.tscn")
 const CODE := "K7M2QX"
@@ -30,6 +31,44 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 		assert_bool(game.ui.esc.lobby.copy_button.visible).is_true()
 		for text: String in _texts(game.ui):
 			assert_str(text).override_failure_message(text).not_contains("127.0.0.1")
+	joiner.leave()
+	host.leave()
+	await get_tree().process_frame
+
+
+## F3 (the M6 design §3 item 4, #431): the joiner's overlay shows its own connection, direct, with
+## the round trip its own pings measured; the host's shows its own player's, in this process, and
+## nothing of the joiner's. The joiner measures only while its overlay shows.
+func test_f3_shows_the_own_connection_and_nothing_of_another() -> void:
+	var host := _lan_host()
+	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_true()
+	var service := "ws://127.0.0.1:%d" % host.room().lan.port()
+	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
+	var joiner := _game(["--signal=%s" % service])
+	joiner.join_code(CODE)
+	var in_lobby := func() -> bool: return joiner.screen() == GameFlow.Screen.LOBBY
+	assert_bool(await _until(in_lobby)).is_true()
+	await get_tree().process_frame
+	assert_bool(joiner.client().is_measuring_round_trip()).is_false()
+	for game: Game in [host, joiner]:
+		game.overlay().visible = true
+	var measured := func() -> bool:
+		var line := joiner.overlay().connection_label.text
+		return line.begins_with("connection: direct, round trip ") and line.ends_with(" ms")
+	assert_bool(await _until(measured)).is_true()
+	assert_bool(joiner.client().is_measuring_round_trip()).is_true()
+	assert_bool(joiner.overlay().connection_label.visible).is_true()
+	assert_str(host.overlay().connection_label.text).is_equal(
+		"connection: in this process, no network"
+	)
+	# The host's relay counters name "voice_relayed": the joiner's kind would follow "connection:".
+	for text: String in _texts(host.ui):
+		assert_str(text).override_failure_message(text).not_contains("round trip")
+		assert_str(text).override_failure_message(text).not_contains("connection: direct")
+	joiner.overlay().visible = false
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(joiner.client().is_measuring_round_trip()).is_false()
 	joiner.leave()
 	host.leave()
 	await get_tree().process_frame

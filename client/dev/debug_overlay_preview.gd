@@ -3,8 +3,12 @@ extends Node
 ## with made-up numbers over a grey backdrop. Dev only: nothing here reaches the game.
 ## `in_round` shows it during a Round: the relay's counters give way to their note, and the voice
 ## lines (the own voice, two speakers) come into view (debug_overlay_voice_preview.tscn).
+## The own connection's line: the host's player's is in this process; `joiner` shows a joiner's
+## view instead, its direct connection and round trip, and no host counters
+## (debug_overlay_joiner_preview.tscn, #431).
 
 @export var in_round := false
+@export var joiner := false
 
 
 func _ready() -> void:
@@ -21,7 +25,14 @@ func _ready() -> void:
 	var counters: Dictionary[StringName, int] = {
 		&"over_budget": 0, &"bad_payloads": 0, &"malformed_disconnects": 0
 	}
+	if joiner:
+		counters.clear()
+		overlay.show_connection(NetTransport.Route.DIRECT, 48)
+	else:
+		overlay.show_connection(NetTransport.Route.LOCAL, -1)
 	overlay.show_numbers(0, 1, 4821, 150.0, counters)
+	if joiner:
+		return
 	# The relay's counters as the lobby shows them (M5-4); a round shows only the note.
 	var relay: Dictionary[StringName, int] = {
 		&"session_ms": 62753,

@@ -3,7 +3,9 @@ extends PanelContainer
 ## The debug overlay (the M4 ADR's §2; F3, debug builds only, invariant 8): the own client's count
 ## of Corrections of refused claims and, apart, of placements (a placement or a death sends one
 ## too), the estimated host tick and the interpolation delay, and on the host the session's
-## counters (budgets, malformed messages). The playtests read it, above all for #76's tuning:
+## counters (budgets, malformed messages), then the own connection's kind and round trip (the M6
+## design §3 item 4, #431; show_connection()): only the own, never another player's, and the host's
+## player's is in this process. The playtests read it, above all for #76's tuning:
 ## honest play gets no correction, only placements. The game creates it in debug builds only and
 ## feeds it while it shows; it reads nothing itself.
 ##
@@ -20,6 +22,8 @@ extends PanelContainer
 const RELAY_HIDDEN := "host voice: shown in the lobby, the countdown and the end"
 
 var label := Label.new()
+## The own connection's line (show_connection()); hidden without a connection.
+var connection_label := Label.new()
 ## The host's voice relay counters, or the note that hides them; empty on a client.
 var relay_label := Label.new()
 ## The own voice's line (show_own_voice()).
@@ -36,10 +40,13 @@ func _init() -> void:
 	label.theme_type_variation = &"DebugText"
 	relay_label.theme_type_variation = &"DebugText"
 	relay_label.visible = false
+	connection_label.theme_type_variation = &"DebugText"
+	connection_label.visible = false
 	var margin := MarginContainer.new()
 	margin.theme_type_variation = &"DebugMargin"
 	var lines := VBoxContainer.new()
 	lines.add_child(label)
+	lines.add_child(connection_label)
 	lines.add_child(relay_label)
 	own_voice_label.theme_type_variation = &"DebugText"
 	own_voice_label.visible = false
@@ -89,6 +96,29 @@ static func text(
 		for key: StringName in names:
 			lines.append("  %s: %d" % [key, counters[key]])
 	return "\n".join(lines)
+
+
+## Shows the own connection's line, or nothing with no connection (`route` NONE).
+func show_connection(route: NetTransport.Route, round_trip_ms: int) -> void:
+	connection_label.text = connection_text(route, round_trip_ms)
+	connection_label.visible = not connection_label.text.is_empty()
+
+
+## The own connection's line (pure, for the tests): its kind and, over a network, its round trip in
+## ms (`round_trip_ms` -1: none measured yet); empty for NONE.
+static func connection_text(route: NetTransport.Route, round_trip_ms: int) -> String:
+	var kind := ""
+	match route:
+		NetTransport.Route.LOCAL:
+			return "connection: in this process, no network"
+		NetTransport.Route.DIRECT:
+			kind = "direct"
+		NetTransport.Route.DIRECT_OR_RELAYED:
+			kind = "direct or relayed (WebRTC does not say which)"
+		_:
+			return ""
+	var trip := "%d ms" % round_trip_ms if round_trip_ms >= 0 else "not measured yet"
+	return "connection: %s, round trip %s" % [kind, trip]
 
 
 ## Shows the host's voice relay counters for the client's own copy of the current phase (`phase`
