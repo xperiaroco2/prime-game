@@ -27,8 +27,9 @@ const RETRY_JOIN_MS := 500
 const POLLS_AFTER_LOST := 10
 const FORGED_ID := -5
 const FORGED_WAIT_MS := 3000
-## A round trip on 127.0.0.1 is well below ENet's starting guess of 500 ms.
-const ROUND_TRIP_MAX_MS := 500
+## A round trip on 127.0.0.1 is a few ms (6 to 7 seen). 250 ms is half of ENet's starting guess of
+## 500 ms: met only once real acknowledgements smoothed the figure, and load cannot break it.
+const ROUND_TRIP_MAX_MS := 250
 const TALK := 1  # both ways, reliable
 const LATEST := 2  # both ways, unreliable ordered
 const VOICE := 3  # both ways, voice lane

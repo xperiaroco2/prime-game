@@ -151,7 +151,7 @@ func test_a_join_with_no_service_fails_as_unreachable() -> void:
 	var client := _client()
 	client.signal_url = "ws://127.0.0.1:%d" % port
 	# Under the shortened join timeout: on Windows a refused connect stays connecting (#431).
-	client.signal_connect_timeout_ms = SHORT_JOIN_MS / 2
+	client.signal_connect_timeout_ms = SHORT_JOIN_MS >> 1
 	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
 	assert_bool(await _until(_has.bind("client failed service_unreachable"))).is_true()
 
