@@ -25,7 +25,16 @@ extends SceneTree
 ##   31.5 s) and, with EnetTransport's 10 to 20 s as with ENet's default, drops only at about
 ##   31.5 s. So this pair cannot see a missing set_timeout; it guards only against a maximum below
 ##   about 7.5 s. Once it has held, neither side is polled again, so ENet's later drop cannot
-##   fail the run.
+##   fail the run. But ENet's clock is Godot's (milliseconds since the process started), and a
+##   client pings at once when it connects with its clock past the 500 ms ping interval: only a
+##   client that connects within its process's first 500 ms (as this run usually does) keeps the
+##   31.5 s. One that connects later, as every real game client does from a menu, or this run when
+##   its process starts slowly on a loaded PC, measures the round trip from that ping before the
+##   stall and drops a host stalled at the connection at about 10 to 12 s instead (#443: 11.8 s
+##   after a 600 ms start). A drop at PEER_TIMEOUT_MIN_MS or later is therefore the client keeping
+##   the host as long as it must: a frame hitch across the 10 s mark lets that drop's poll run
+##   before the hold is seen. A hitch spanning an earlier drop can hide it the same way (see
+##   _on_drop).
 ## - Pair 2, the client's timeout on its host peer: both beat for WARM_MS, so the round trip is
 ##   measured, then the host stops polling. The client must drop it after PEER_TIMEOUT_MIN_MS to
 ##   PEER_TIMEOUT_MAX_MS. Known limit: both builds drop at a resend of the same doubling chain, and
@@ -37,6 +46,10 @@ extends SceneTree
 ##   bound. If a correct build ever drops under it, widen EARLY_MS, never the window's top.
 ## - Pair 3, the host's timeout on its client: first the backlog below; then both beat for
 ##   WARM_MS, the client stops polling, and the host must drop it within the same window.
+## - The window's top is judged at the running side's last poll before the drop (StallWatch):
+##   ENet drops only inside a service, so a main-thread hitch on a loaded PC delays the drop's
+##   poll past the top although ENet dropped at its first chance (#443: 21649 ms, its run beside
+##   two other verifies). The bottom is the drop's wall clock: a hitch only makes a drop later.
 ## - Backlog: pair 3's host is not polled while its client sends more LATEST poses than ENet reads
 ##   per service (EnetTransport.ENET_RECEIVES_PER_SERVICE), one datagram each. The host's next poll
 ##   must take the whole backlog: its newest pose is past the first service's worth, and the poll
@@ -52,7 +65,7 @@ const WARM_MS := 2500
 ## stopped.
 const EARLY_MS := 50
 ## ENet checks a timeout only when a resend is due, so a drop may come a little after
-## PEER_TIMEOUT_MAX_MS.
+## PEER_TIMEOUT_MAX_MS: the running side's last poll before the drop may be this much past it.
 const LATE_MS := 1000
 ## Poses in the backlog: more than one ENet service reads, few enough for a default socket receive
 ## buffer to hold them all. On Linux that is net.core.rmem_default (208 KB), which some container
@@ -82,8 +95,8 @@ class Pair:
 	var host_paused := false
 	var client_paused := false
 	var connected_ms := -1
-	var stalled_at_ms := -1
-	var dropped_after_ms := -1
+	## The stall, the running side's polls and its drop of the stalled side.
+	var watch := StallWatch.new()
 	var held := false
 	var last_beat_ms := 0
 	var backlog_due := false
@@ -93,21 +106,27 @@ class Pair:
 
 	func poll() -> void:
 		if not host_paused:
-			host.poll()
+			_poll_side(host, stalling == "client")
 		if not client_paused:
-			client.poll()
+			_poll_side(client, stalling == "host")
+
+	func _poll_side(transport: EnetTransport, running: bool) -> void:
+		var started := Time.get_ticks_msec()
+		transport.poll()
+		if running:
+			watch.serviced(started)
 
 	func warming() -> bool:
 		return (
 			connected_ms >= 0
-			and stalled_at_ms < 0
+			and watch.stalled_at_ms < 0
 			and not backlog_due
 			and backlog_sent_ms < 0
 			and not hold_only
 		)
 
 	func stall() -> void:
-		stalled_at_ms = Time.get_ticks_msec()
+		watch.stall(Time.get_ticks_msec())
 		host_paused = stalling == "host"
 		client_paused = stalling == "client"
 		print("NET stall %s: the %s stops polling" % [name, stalling])
@@ -115,9 +134,9 @@ class Pair:
 	## Reliable beats: both ways while warming, then from the running side to the stalled one.
 	func beat() -> void:
 		var now := Time.get_ticks_msec()
-		if dropped_after_ms >= 0 or held or now - last_beat_ms < BEAT_EVERY_MS:
+		if watch.dropped() or held or now - last_beat_ms < BEAT_EVERY_MS:
 			return
-		if not warming() and stalled_at_ms < 0:
+		if not warming() and watch.stalled_at_ms < 0:
 			return
 		last_beat_ms = now
 		if not client_paused:
@@ -126,13 +145,16 @@ class Pair:
 			host.send(host.peers()[0], BEAT, PackedByteArray([1]))
 
 	func dropped() -> void:
-		dropped_after_ms = Time.get_ticks_msec() - stalled_at_ms if stalled_at_ms >= 0 else 0
+		watch.drop(Time.get_ticks_msec())
 		print(
-			"NET stall %s: the stalled %s dropped after %d ms" % [name, stalling, dropped_after_ms]
+			(
+				"NET stall %s: the stalled %s dropped after %d ms (the poll before it: %d ms)"
+				% [name, stalling, watch.dropped_after_ms(), watch.kept_after_ms()]
+			)
 		)
 
 	func done() -> bool:
-		return held or dropped_after_ms >= 0
+		return held or watch.dropped()
 
 
 func _initialize() -> void:
@@ -198,18 +220,9 @@ func _process(_delta: float) -> bool:
 			pair.stall()
 		elif pair.backlog_sent_ms >= 0 and now - pair.backlog_sent_ms >= BACKLOG_SETTLE_MS:
 			_take_backlog(pair)
-		elif pair.hold_only and not pair.held and pair.stalled_at_ms >= 0:
-			if now - pair.stalled_at_ms >= EnetTransport.PEER_TIMEOUT_MIN_MS:
-				pair.held = true
-				# ENet would drop the host at about 31.5 s: poll neither side again.
-				pair.host_paused = true
-				pair.client_paused = true
-				print(
-					(
-						"NET stall %s: the client kept the host for %d ms"
-						% [pair.name, now - pair.stalled_at_ms]
-					)
-				)
+		elif pair.hold_only and not pair.held and pair.watch.stalled_at_ms >= 0:
+			if now - pair.watch.stalled_at_ms >= EnetTransport.PEER_TIMEOUT_MIN_MS:
+				_hold(pair, now - pair.watch.stalled_at_ms, "")
 	if _pairs.all(func(pair: Pair) -> bool: return pair.done()):
 		_finish()
 	return false
@@ -246,15 +259,47 @@ func _check_timeouts(pair: Pair, side: String, transport: EnetTransport, peer_id
 		)
 
 
-## The running side lost the stalled one: expected, and timed, unless this pair only holds.
+## Pair 1 kept its host for PEER_TIMEOUT_MIN_MS: ENet would drop it later (at about 31.5 s, or
+## soon after 10 s once a round trip was measured), so neither side is polled again.
+func _hold(pair: Pair, kept_ms: int, note: String) -> void:
+	pair.held = true
+	pair.host_paused = true
+	pair.client_paused = true
+	print("NET stall %s: the client kept the host for %d ms%s" % [pair.name, kept_ms, note])
+
+
+## The running side lost the stalled one: expected, and timed. Pair 1 must have kept it first for
+## PEER_TIMEOUT_MIN_MS: a drop at or after it, which a hitch let run before the hold was seen, is
+## that hold. Its bottom is the drop's wall clock, so a hitch that spans a too-early drop can hide
+## it (a maximum of about 7.5 s dropped at 10.5 s behind a hitch), as at the bottom of pairs 2 and
+## 3; the hold line prints the poll before the drop to show such a gap.
 func _on_drop(pair: Pair, side: String) -> void:
 	if pair.held:
 		return
 	var running := "client" if pair.stalling == "host" else "host"
-	if side != running or pair.stalled_at_ms < 0 or pair.hold_only:
+	if side != running or pair.watch.stalled_at_ms < 0:
 		_fail("%s: the %s lost the other side in the run" % [pair.name, side])
 		return
 	pair.dropped()
+	if not pair.hold_only:
+		return
+	var kept_ms := pair.watch.dropped_after_ms()
+	if kept_ms < EnetTransport.PEER_TIMEOUT_MIN_MS:
+		_fail(
+			(
+				"%s: the client dropped the stalled host after %d ms, under %d ms"
+				% [pair.name, kept_ms, EnetTransport.PEER_TIMEOUT_MIN_MS]
+			)
+		)
+		return
+	_hold(
+		pair,
+		kept_ms,
+		(
+			", then dropped it at its resend check (its poll before: %d ms)"
+			% pair.watch.kept_after_ms()
+		)
+	)
 
 
 ## One pose per client poll: each poll flushes what was sent since the last one as one datagram.
@@ -327,15 +372,13 @@ func _finish() -> void:
 	var low := EnetTransport.PEER_TIMEOUT_MIN_MS - EARLY_MS
 	var high := EnetTransport.PEER_TIMEOUT_MAX_MS + LATE_MS
 	for pair in _pairs:
-		if not pair.hold_only and (pair.dropped_after_ms < low or pair.dropped_after_ms > high):
+		var why := "" if pair.hold_only else pair.watch.judge(low, high)
+		if why != "":
 			var running := "client" if pair.stalling == "host" else "host"
 			_fail(
 				(
-					(
-						"%s: the %s dropped the stalled %s after %d ms, not within %d to %d ms: its"
-						+ " peer does not have EnetTransport's timeout"
-					)
-					% [pair.name, running, pair.stalling, pair.dropped_after_ms, low, high]
+					"%s: the %s %s, not within %d to %d ms: its peer does not have EnetTransport's timeout"
+					% [pair.name, running, why, low, high]
 				)
 			)
 			return
