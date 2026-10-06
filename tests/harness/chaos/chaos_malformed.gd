@@ -5,7 +5,8 @@ extends RefCounted
 ## It sends, from a seeded RandomNumberGenerator: a few well-formed intents (a newcomer's are
 ## not_accepted, its MoveClaim dropped), its voice (never relayed: it is no player), one burst past
 ## the voice bucket, a debug kind (ForceRole naming bot 2's peer, crew in every run, as a
-## dissident, so a role it changed shows in every variant), then malformed frames of
+## dissident, so a role it changed shows in every variant; none while bot 2 has no peer id, as
+## after a lost join), then malformed frames of
 ## every shape, a few per frame, until the host disconnects it for MALFORMED_LIMIT of them within
 ## the window, with one log line naming it. In the baseline run it connects and stays idle until the
 ## entry into Loading disconnects it (E14).
@@ -59,7 +60,8 @@ func close() -> void:
 	transport.close()
 
 
-## One frame: its chaos, once connected, while connected. `crew_peer` is bot 2's peer.
+## One frame: its chaos, once connected, while connected. `crew_peer` is bot 2's peer, 0 while
+## unknown.
 func act(crew_peer: int) -> void:
 	if not active or peer == 0 or lost:
 		return
@@ -88,8 +90,10 @@ func _first_words(crew_peer: int) -> void:
 	_send(ChaosFrames.message(_schema, Intents.PICK_UP, {"item": ChaosOracle.NO_ITEM}, _next_seq()))
 	var claim := ChaosFrames.claim(ChaosFrames.Claim.TELEPORT, _schema, 0, 0, Vector3.ZERO, 0)
 	_send(claim)
-	var role := {"role": "dissident"}
-	_send(ChaosFrames.message(_schema, &"ForceRole", role, _next_seq(), crew_peer))
+	# No ForceRole while bot 2 has no peer id (its join lost, #483): no message names peer 0.
+	if crew_peer != 0:
+		var role := {"role": "dissident"}
+		_send(ChaosFrames.message(_schema, &"ForceRole", role, _next_seq(), crew_peer))
 	for i in BURST_VOICE:
 		var fields := {"seq": i, "opus": LeakCheck.voice_frame(peer, i)}
 		_send(ChaosFrames.message(_schema, &"VoiceUp", fields))
