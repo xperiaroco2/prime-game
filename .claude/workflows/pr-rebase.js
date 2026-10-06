@@ -42,9 +42,11 @@ export const meta = {
 //                 one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 and no default (the model-guard ADR and its amendment A). +0 agents
-//   lean          true: the rebase and fix agents run as the agent type task-publisher (a lean tool allowlist, no
-//                 Skill tool; #332, docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js.
-//                 Only agentType is appended to their options. Opt-in until the A/B on #302. +0 agents
+//   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
+//                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
+//                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
+//                 appended to their options. false: the general workflow agent, for a PR whose fix needs the Skill
+//                 tool. +0 agents
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
 // problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
@@ -78,7 +80,8 @@ if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounde
 // On unless a launch passes false (#411): a missing or null arg is the default.
 const BOUNDED = A.bounded_waits !== false
 if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
-const LEAN = A.lean === true
+// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
+const LEAN = A.lean !== false
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }

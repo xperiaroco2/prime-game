@@ -69,11 +69,13 @@ export const meta = {
 //                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
-//   lean          true: the implementer, the plan agent and the test reviewer run as the agent type task-implementer,
-//                 the publisher (both kinds) as task-publisher: lean tool allowlists, no Skill tool (#332,
+//   lean          true (the default since #458; a missing or null arg is true): the implementer, the plan agent and
+//                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
+//                 task-publisher: lean tool allowlists, no Skill tool (#332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
-//                 options; prompts, efforts and models stay. Opt-in until the A/B on #302; .claude/agents/ in the
-//                 manager's checkout must have both files. +0 agents
+//                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
+//                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
+//                 the manager's checkout must have both files. +0 agents
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
@@ -119,7 +121,8 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
 // On unless a launch passes false (#411): a missing or null arg is the default.
 const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
-const LEAN = flag('lean')
+// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
+const LEAN = flag('lean') || A.lean === undefined || A.lean === null
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
