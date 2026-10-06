@@ -88,6 +88,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
 | "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
+| "що нового?", the engineer's inbox (a secretary session) | skill `secretary` |
 | review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ client/ tests/harness/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |
