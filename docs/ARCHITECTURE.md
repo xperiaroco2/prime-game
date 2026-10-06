@@ -1372,7 +1372,9 @@ Compares what each bot b decoded with `view_of(b)`:
   with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
   `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
   refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
-  `core/` disconnected that is still connected fails (`server/` did not carry it out). Prevents: a `server/`
+  `core/` disconnected that is still connected fails (`server/` did not carry it out). A watcher that never
+  connected fails with why: its `connect_failed` reason (`service_unreachable`, `host_unreachable`, ...) or "still
+  joining when the run ended" (#483). Prevents: a `server/`
   refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
   recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
   which every bot is a player within one tick;
