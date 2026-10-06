@@ -27,11 +27,15 @@
   names, a rebase that names `HEAD` or `@` (git rebases a detached HEAD), a pathspec the guard cannot resolve (judged by
   the folder before its unknown part: git refuses one outside its repository), and `git worktree remove|move` of an
   absolute path inside the worktree. The guard still asks for the main checkout, other worktrees and branches, the
-  protected paths, `git stash drop|clear` of entries it cannot show are the agent's, `rebase --update-refs`, `rebase
-  --exec` (a push inside it gets past the deny rules; a sequence editor can add such lines too, and the pre-push hook
-  and GitHub's branch protection stop a push to `main` either way) and `git -c core.hooksPath`. Push rules, deny rules
-  and the pre-push hook are unchanged. Agents keep writing `GIT_SEQUENCE_EDITOR=:` (root `CLAUDE.md`, Shell), so a
-  machine whose git config names an editor never opens it.
+  protected paths, `git stash drop|clear` of entries it cannot show are the agent's, `rebase --update-refs`,
+  `git -c core.hooksPath` and `rebase -x|--exec`. Push rules, deny rules and the pre-push hook are unchanged. Agents
+  keep writing `GIT_SEQUENCE_EDITOR=:` (root `CLAUDE.md`, Shell), so a machine whose git config names an editor never
+  opens it.
+- `rebase -x|--exec` is a deliberate exception to the issue's "every form", left to the engineer on #457's PR: its
+  command can be a push the deny rules cannot see, and the task's notes forbade weakening a push rule. It no longer
+  protects much, since a sequence editor can add the same `exec` lines and passes; the pre-push hook and GitHub's branch
+  protection stop a push to `main` and a force push either way. If the engineer answers "let it pass", the follow-up
+  drops the ask in the own worktree on its task branch only.
 
 **Where the rule lives now.**
 - This entry.

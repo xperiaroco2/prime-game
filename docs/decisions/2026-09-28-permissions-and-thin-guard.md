@@ -104,4 +104,5 @@ ADRs).
   protected on GitHub"; over the week to 2026-10-06 six such asks protected nothing and one kept #445's fix agent
   waiting a night (`docs/AGENT_WORKFLOW.md` §8.2, intervention `2026-10-06-engineer-git-free-in-own-worktree.md`).
   Kept: the main checkout, other worktrees and branches, the stash, the protected paths, `--update-refs`, `--exec`,
-  `update-ref --stdin`, `git -c core.hooksPath`, and every push rule and the pre-push hook.
+  `update-ref --stdin`, `git -c core.hooksPath`, and every push rule and the pre-push hook. `--exec` is a deliberate
+  exception to #457's "every form" (its command can be a push the deny rules cannot see), left to the engineer.

@@ -729,7 +729,8 @@ whose git config names a `sequence.editor` (`code --wait`) would open it and the
 `git rebase --abort` in the own worktree then ends it. Always asks: `rebase --update-refs` (moves other
 branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
 editor is such a command too, and passes since #457: the pre-push hook and GitHub's branch protection still stop a
-push to `main` and a force push), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
+push to `main` and a force push; a deliberate exception to #457's "every form", kept because the task forbade
+weakening a push rule and left to the engineer on its PR), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
 `git config *hooksPath*` cannot see it).
 Rebase options are read as git reads them (#105): a cluster letter by letter (`-qi`, `-qx cmd`), an attached
 value (`-x'cmd'`), a unique prefix of a long option (`--interac`, `--exe=cmd`, `--up`), and `rebase.updateRefs`
