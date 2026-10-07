@@ -75,6 +75,9 @@ var _beat_at_phase: Dictionary[int, int] = {}
 var _left: Array[int] = []
 # Client part.
 var _next_join_ms := 0
+## When this client started its last join, and its first (the join lines print both).
+var _join_started_ms := -1
+var _first_join_ms := -1
 var _freeze_requested := false
 var _told_to_end := false
 var _last_packet_ms := 0
@@ -349,6 +352,9 @@ func _client_step() -> void:
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
+			_join_started_ms = Time.get_ticks_msec()
+			if _first_join_ms < 0:
+				_first_join_ms = _join_started_ms
 	_poll()
 	if _done or NetTransport.HOST_ID not in _transport.peers():
 		return
@@ -374,7 +380,13 @@ func _thawing_reported() -> bool:
 
 
 func _on_connected(own_id: int) -> void:
-	print("NET client %d connected as peer %d" % [_instance, own_id])
+	var now := Time.get_ticks_msec()
+	print(
+		(
+			"NET client %d connected as peer %d: its join took %d ms, %d ms after its first"
+			% [_instance, own_id, now - _join_started_ms, now - _first_join_ms]
+		)
+	)
 	var hello := PackedByteArray()
 	hello.resize(4)
 	hello.encode_u32(0, _instance)
@@ -389,7 +401,8 @@ func _on_host_lost() -> void:
 func _on_connect_failed(reason: StringName) -> void:
 	# The clients start with the host: until its service listens and its room is open, a join
 	# fails and is tried again.
-	print("NET client %d join failed (%s); retrying" % [_instance, reason])
+	var took := Time.get_ticks_msec() - _join_started_ms
+	print("NET client %d join failed (%s) after %d ms; retrying" % [_instance, reason, took])
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 

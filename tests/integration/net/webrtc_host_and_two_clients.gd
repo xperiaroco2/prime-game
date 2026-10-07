@@ -57,6 +57,9 @@ var _polls_after_lost := 0
 # Client part.
 var _client: EchoClient
 var _next_join_ms := 0
+## When this client started its last join, and its first (the join lines print both).
+var _join_started_ms := -1
+var _first_join_ms := -1
 
 
 ## A client of the script: says hello, checks and echoes pings, leaves when told to.
@@ -120,6 +123,7 @@ func _initialize() -> void:
 	elif _instance in [2, 3]:
 		_client = EchoClient.new(_new_transport(), _instance)
 		_client.transport.connect_failed.connect(_on_client_connect_failed)
+		_client.transport.connected.connect(_on_client_connected.unbind(1))
 	else:
 		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
 
@@ -379,6 +383,9 @@ func _client_step() -> void:
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
+			_join_started_ms = Time.get_ticks_msec()
+			if _first_join_ms < 0:
+				_first_join_ms = _join_started_ms
 	transport.poll()
 	if _client.failure != "":
 		_fail(_client.failure)
@@ -391,10 +398,21 @@ func _client_step() -> void:
 			_pass()
 
 
+func _on_client_connected() -> void:
+	var now := Time.get_ticks_msec()
+	print(
+		(
+			"NET client %d: its join took %d ms, %d ms after its first"
+			% [_instance, now - _join_started_ms, now - _first_join_ms]
+		)
+	)
+
+
 func _on_client_connect_failed(reason: StringName) -> void:
 	# The clients start with the host: until its service listens and its room is open, a join
 	# fails and is tried again.
-	print("NET client %d join failed (%s); retrying" % [_instance, reason])
+	var took := Time.get_ticks_msec() - _join_started_ms
+	print("NET client %d join failed (%s) after %d ms; retrying" % [_instance, reason, took])
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 

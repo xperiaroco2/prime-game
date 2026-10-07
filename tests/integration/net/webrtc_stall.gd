@@ -60,6 +60,9 @@ class Pair:
 	var host_paused := false
 	var client_paused := false
 	var next_join_ms := 0
+	## When the client started its last join, and its first (the join lines print both).
+	var join_started_ms := -1
+	var first_join_ms := -1
 	var connected_ms := -1
 	var stalled_at_ms := -1
 	var dropped_after_ms := -1
@@ -179,6 +182,9 @@ func _join(pair: Pair, now: int) -> void:
 			var err := pair.client.join(pair.host.room_code(), 0)
 			if err != OK:
 				_fail("%s: join failed to start: %s" % [pair.name, error_string(err)])
+			pair.join_started_ms = now
+			if pair.first_join_ms < 0:
+				pair.first_join_ms = now
 
 
 ## Reliable beats both ways while both run, then from the running side; poses from the client.
@@ -220,11 +226,21 @@ func _late_beat_step(pair: Pair, now: int) -> void:
 
 func _on_connected(pair: Pair) -> void:
 	pair.connected_ms = Time.get_ticks_msec()
-	print("NET stall %s: connected" % pair.name)
+	print(
+		(
+			"NET stall %s: connected; its join took %d ms, %d ms after its first"
+			% [
+				pair.name,
+				pair.connected_ms - pair.join_started_ms,
+				pair.connected_ms - pair.first_join_ms
+			]
+		)
+	)
 
 
 func _on_connect_failed(reason: StringName, pair: Pair) -> void:
-	print("NET stall %s: join failed (%s); retrying" % [pair.name, reason])
+	var took := Time.get_ticks_msec() - pair.join_started_ms
+	print("NET stall %s: join failed (%s) after %d ms; retrying" % [pair.name, reason, took])
 	pair.next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 
