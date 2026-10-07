@@ -1295,7 +1295,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
   both stay failures. A join `_join_again` does not join again is lost for good (`NetPlay._lost_join`, #483): its
   bot's step fails at once, naming the reason it ended and those of its earlier joins; a remote bot then writes its
-  view file with that line, and the host reports it as that bot's failure, not after the time limit. A runner that
+  view file with that line at once, and the host reports it as that bot's failure when its own time limit ends
+  the run (it reads the view files only then). A runner that
   never calls `_join_again` (`PerfRun`) joins nobody again, so every lost join of it fails at once. Since #318 both
   live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
   variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
