@@ -802,8 +802,11 @@ class PipelineV2Test(unittest.TestCase):
         self.assertFalse(calls(plain_run, "review:code-control") or calls(plain_run, "ab-judge"))
         self.assertNotIn("ab_review", plain_run["returned"])
         self.assertNotIn("ab_review", calls(plain_run, "publish")[0]["prompt"])
-        # The order: both code reviewers in the parallel review, then the judge, then the publisher.
-        self.assertEqual([e["label"] for e in agents(run)], ["implement:#7", "review:code:#7", "review:code-control:#7", "ab-judge:#7", "publish:#7"])
+        # Both code reviewers in the parallel review, then the publisher; the judge runs beside the publisher (it is off the
+        # critical path: the publisher never sees it), so only the set of agents is fixed.
+        labels = [e["label"] for e in agents(run)]
+        self.assertEqual(labels[:3], ["implement:#7", "review:code:#7", "review:code-control:#7"])
+        self.assertEqual(set(labels[3:]), {"ab-judge:#7", "publish:#7"})
         trial, control, judge = (calls(run, p)[0] for p in ("review:code:#", "review:code-control", "ab-judge"))
         self.assertEqual(trial["prompt"], control["prompt"])
         self.assertEqual(options(trial)["model"], a)
@@ -816,6 +819,9 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("Reviewer 2 found: ", judge["prompt"])
         for model in AVAILABLE:
             self.assertNotIn(model, judge["prompt"].lower())
+        # Blind: nothing in the prompt points to the A/B's issue or arg, whose texts say which reviewer is the trial.
+        for hint in ("#535", "ab_review", "trial", "control"):
+            self.assertNotIn(hint, judge["prompt"].lower().replace("#7", ""))
         self.assertIn("ab_review, #535", calls(run, "publish")[0]["prompt"])
         self.assertEqual([r["by"] for r in run["returned"]["reviews"]], ["code-reviewer", "code-reviewer (control)"])
         self.assertEqual(
@@ -905,6 +911,7 @@ class PipelineV2Test(unittest.TestCase):
                 {"ab_review": True, "models": {"review": "opus"}},
                 {"ab_review": True, "models": {"code": "sonnet", "review": "sonnet"}},
                 {"ab_review": "yes", "models": {"code": "sonnet"}},
+                {"ab_review": True, "design": True, "models": {"code": "sonnet"}},
                 {"models": {"code": ""}},
             )
         ]

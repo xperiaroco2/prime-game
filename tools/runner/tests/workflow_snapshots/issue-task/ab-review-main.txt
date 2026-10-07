@@ -72,7 +72,7 @@ Issue #7 (t). Branch tooling/7-x in the worktree D:/prime-game/.claude/worktrees
 
 - Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main's copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.
 
-A read-only judge of two independent code reviews of the same diff (ab_review, #535). Budget: at most about 40 tool calls. Edit nothing; you may run `tools\run.cmd test <path>` in the worktree.
+A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\run.cmd test <path>` in the worktree.
 
 Read `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD`, the issue and its comments (`gh issue view 7 --comments`), and the code, tests and docs each finding names.
 

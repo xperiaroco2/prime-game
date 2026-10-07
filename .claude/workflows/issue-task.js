@@ -87,8 +87,8 @@ export const meta = {
 //                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
 //                 the manager's checkout must have both files. +0 agents
 //   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
-//                 Needs models.code, the model on trial, other than the review model (models.review, else the session
-//                 default), which is the control's. A control code-reviewer runs beside the trial one with the same
+//                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
+//                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
 //                 prompt on the review model, and both reviews go on as usual (the publisher fixes the union, so the run
 //                 is reviewed at least as an all-Opus run is). Then a read-only judge on the review model, told neither
 //                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
@@ -173,6 +173,7 @@ const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
 // ab_review (#535): an A/B needs a model on trial that differs from the control's (the review model).
 const AB_REVIEW = flag('ab_review')
 if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
+if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
 if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
@@ -559,6 +560,7 @@ let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
 let judge = null
+let judging = null
 // The blocker and major findings still open before the publisher (publish_clean): a skeptic's refutation closes one.
 let openSerious = 0
 if (impl.verify_green) {
@@ -613,16 +615,17 @@ if (impl.verify_green) {
   reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
 
-  // ab_review (#535): a blind judge of both code reviews. It changes nothing in the run: the publisher never sees it.
+  // ab_review (#535): a blind judge of both code reviews. It changes nothing in the run: the publisher never sees it, so
+  // it runs beside the rest of the review and the publisher and is awaited only before the result is written.
   if (AB_REVIEW) {
     const [trial, control] = [reviews[0].findings || [], reviews[1].findings || []]
     if (!trial.length && !control.length) {
       judge = { skipped: 'neither code reviewer found anything' }
     } else {
-      judge = await agent([
+      judging = agent([
         `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
         READ_RULE,
-        'A read-only judge of two independent code reviews of the same diff (ab_review, #535). Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
+        'A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
         `Read \`git -C ${WTB} diff origin/${BASE}...HEAD\`, the issue and its comments (\`gh issue view ${N} --comments\`), and the code, tests and docs each finding names.`,
         `Reviewer 1 found: ${JSON.stringify(trial)}`,
         `Reviewer 2 found: ${JSON.stringify(control)}`,
@@ -630,9 +633,7 @@ if (impl.verify_green) {
         'Then match the two lists: a finding of reviewer 1 and one of reviewer 2 match when they name the same defect (the same root cause), whatever their wording, line or severity; a finding matches at most one of the other list.',
         'Return verdicts, one per finding of both lists (reviewer 1 or 2, its 0-based index in that reviewer\'s list, the verdict, your severity and a one-line reason), and matches, the pairs {first: an index in reviewer 1\'s list, second: an index in reviewer 2\'s}.',
       ].join('\n\n'), asReviewer({ label: `ab-judge:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: AB_JUDGE_SCHEMA }, 'review'))
-      if (!judge) log(`#${N}: the ab_review judge returned nothing; the run goes on unjudged`)
     }
-    log(`#${N}: ab_review ${judge ? (judge.skipped || `judged ${(judge.verdicts || []).length} finding(s), ${(judge.matches || []).length} pair(s)`) : 'unjudged'}`)
   }
 
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
@@ -811,6 +812,12 @@ const pub = stoppedByMutants
   ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: FULL_PUB_EFFORT, schema: PUB_SCHEMA }, PUB_ROLE))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
+// ab_review (#535): the judge ran beside the publisher; a measurement, not a gate: one that died leaves the run unjudged.
+if (judging) {
+  judge = await judging.catch(() => null)
+  if (!judge) log(`#${N}: the ab_review judge returned nothing; the run goes on unjudged`)
+}
+if (AB_REVIEW && reviews.length) log(`#${N}: ab_review ${judge ? (judge.skipped || `judged ${(judge.verdicts || []).length} finding(s), ${(judge.matches || []).length} pair(s)`) : 'unjudged'}`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 return brief(stoppedByMutants || pub.stopped_by_mutants === true
