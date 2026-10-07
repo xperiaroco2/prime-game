@@ -47,10 +47,11 @@ plan issue, its workflows) stays in its own repo: for game and meta, the `orches
   Housekeeping (a pull of the main checkout, a worktree a live session holds) is batched there once per wave.
 
 ## 4. The keep-alive
-- While a workflow of yours runs or the engineer's reply is expected, one background `sleep 3000` (Bash,
-  `run_in_background`, `timeout` 3300000) keeps the 1-hour prompt cache warm, re-armed at each wake, one at a time. A
-  wake re-reads only your state lines (session start, timer, wake count) and is silent unless it hands over or needs
-  him. At most 14 wakes in a row (a message from him resets the count); none after a handover.
+- While a workflow of yours runs, one background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000) keeps
+  the 1-hour prompt cache warm, re-armed at each wake, one at a time. At a stop for the engineer (no run in flight),
+  arm none: over 250k, hand over instead (§5). A wake re-reads only your state lines (session start, timer, wake
+  count) and is silent unless it hands over or needs him. At most 14 wakes in a row (a message from him resets the
+  count); none after a handover.
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`
@@ -60,7 +61,7 @@ plan issue, its workflows) stays in its own repo: for game and meta, the `orches
   rebases or fixes only after that agent), post the handover (§6); the successor relaunches them fresh. Changed
   instructions with runs in flight: launch nothing new and hand over once they end.
 - **At a stop for the engineer** (no run in flight, work left, he is present): hand over once the context is over
-  **250k**, instead of arming a keep-alive. Half the threshold, as 150k was of 300k before #511.
+  **250k**; otherwise arm nothing. Half the threshold, as 150k was of 300k before #511.
 - **Earlier, by judgment**, at a natural break (no run in flight, or a stop for him): when your cost math says a
   fresh start is cheaper: your mean $ per call, last 20 against first 20, times the calls the work left still takes,
   against one start-up (about the first 20 calls).
