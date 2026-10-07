@@ -106,7 +106,7 @@ func test_a_join_refused_at_once_does_not_join_again_and_ends_the_wait() -> void
 	run.clock_usec += 2 * EnetTransport.JOIN_TIMEOUT_MS * 1000
 	run._join_again(bot)
 	assert_object(run.clients[2]).override_failure_message("judged when first seen").is_same(client)
-	# The bots play, so that its lost join fails the run at once (_lost), not at the time limit.
+	# A direct caller sees it as a reason to play; play_frame fails it first (_fail_lost_join).
 	assert_bool(run._may_play()).is_true()
 
 
@@ -145,3 +145,73 @@ func test_over_enet_a_join_is_judged_on_the_real_clock() -> void:
 	var loopback := ChaosRun.new()
 	loopback.now_usec = START_USEC
 	assert_int(loopback._join_clock_usec()).is_equal(START_USEC)
+
+
+func test_a_join_lost_for_good_fails_the_run_at_once_naming_its_reason() -> void:
+	# The connection never opened, the match started, the room is full, the host dropped the join
+	# before its Welcome, the host refused it at once: none joins again (#483).
+	for reason: StringName in [
+		NetTransport.JOIN_UNREACHABLE,
+		NetTransport.JOIN_STARTED,
+		NetTransport.JOIN_FULL,
+		ClientSession.HOST_LOST,
+		ClientSession.CONNECT_FAILED,
+	]:
+		var run := UnhostedChaos.new()
+		run.join_without_host()
+		run.clients[2].end_reason = reason
+		run.play_frame(0)
+		assert_array(run.failures).override_failure_message(String(reason)).has_size(1)
+		var line := run.failures[0] if not run.failures.is_empty() else ""
+		assert_str(line).contains("bot 2").contains("lost for good").contains(String(reason))
+		assert_str(line).not_contains("earlier joins")
+		assert_bool(run.bots[1].gone).is_true()
+		assert_int(run.bots[0].step_index).override_failure_message("bot 1 acted").is_equal(0)
+		run.close()
+
+
+func test_a_join_that_found_no_room_joins_again_without_starting_play() -> void:
+	for reason: StringName in [NetTransport.JOIN_NO_ROOM, NetTransport.JOIN_SERVICE_UNREACHABLE]:
+		var run := UnhostedChaos.new()
+		run.join_without_host()
+		var first: BotClient = run.clients[2]
+		first.end_reason = reason
+		run.play_frame(0)
+		assert_array(run.failures).override_failure_message(String(reason)).is_empty()
+		assert_bool(run.bots[1].gone).override_failure_message(String(reason)).is_false()
+		assert_bool(run._may_play()).override_failure_message("it waits to join again").is_false()
+		assert_int(run.bots[0].step_index).override_failure_message("bot 1 acted").is_equal(0)
+		run.clock_usec += NetPlay.ROOM_RETRY_USEC
+		run.play_frame(1)
+		assert_object(run.clients[2]).override_failure_message("joined again").is_not_same(first)
+		assert_array(run.failures).is_empty()
+		# Lost for good, its line names the join before it too.
+		run.clients[2].end_reason = NetTransport.JOIN_UNREACHABLE
+		run.play_frame(2)
+		assert_array(run.failures).has_size(1)
+		var line := run.failures[0] if not run.failures.is_empty() else ""
+		assert_str(line).contains("(host_unreachable); earlier joins ended %s" % reason)
+		run.close()
+
+
+func test_a_join_retried_max_joins_times_fails_naming_every_reason() -> void:
+	var run := UnhostedChaos.new()
+	run.join_without_host()
+	for i in ChaosRun.MAX_JOINS - 1:
+		run.clients[2].end_reason = NetTransport.JOIN_SERVICE_UNREACHABLE
+		run.play_frame(2 * i)
+		run.clock_usec += NetPlay.ROOM_RETRY_USEC
+		run.play_frame(2 * i + 1)
+	assert_array(run.failures).is_empty()
+	var last: BotClient = run.clients[2]
+	last.end_reason = NetTransport.JOIN_SERVICE_UNREACHABLE
+	run.play_frame(10)
+	assert_array(run.failures).has_size(1)
+	var line := run.failures[0] if not run.failures.is_empty() else ""
+	assert_str(line).contains(
+		"(service_unreachable); earlier joins ended service_unreachable, service_unreachable"
+	)
+	run.clock_usec += NetPlay.ROOM_RETRY_USEC
+	run.play_frame(11)
+	assert_object(run.clients[2]).override_failure_message("joined a 4th time").is_same(last)
+	run.close()

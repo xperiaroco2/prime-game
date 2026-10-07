@@ -12,7 +12,9 @@ extends NetPlay
 ## when a later one connects), and only then sends the ForceRoles; every other bot reads `peers`
 ## before its first step, and again when it meets a bot number it does not know. Bot 1 takes no
 ## step until every bot that joins at the start is in its lobby (_lobby_full), and a remote bot
-## whose join went unanswered joins again (_join_again, #284).
+## whose join went unanswered joins again (_join_again, #284). A remote bot whose join was lost for
+## good (NetPlay._lost_join) fails at once and writes its view file with the reason, which the host
+## reports as that bot's failure (#483).
 ##
 ## Each bot writes its view file (ViewFile) when its script is done and it decoded the expected
 ## ends, or when its session ended; the host waits for every file (up to the time limit), then
@@ -145,6 +147,8 @@ func step(now: int) -> void:
 	var bot := bots[0]
 	if not is_host():
 		_join_again(bot)
+		# A join lost for good fails at once: its view file below carries the reason (#483).
+		_fail_lost_join(bot)
 	if webrtc and _wrote_view and not is_host():
 		_step_quietly(bot)
 	else:

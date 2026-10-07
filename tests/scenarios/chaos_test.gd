@@ -185,3 +185,41 @@ func test_two_rejected_streams_that_differ_are_reported() -> void:
 	assert_array(found).has_size(1)
 	assert_str(found[0]).contains("from answer 1")
 	assert_array(ChaosRun.compare_rejected(ChaosRun.new(), ChaosRun.new())).has_size(1)
+
+
+func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> void:
+	var schema := WireSchema.game(true)
+	# Bot 2 lost its join (#483): its peer id is 0, which no ForceRole may name.
+	var without := _first_words(schema, 0)
+	assert_array(without["errors"] as PackedStringArray).is_empty()
+	assert_array(without["labels"] as Array).not_contains(["intent ForceRole"])
+	assert_array(without["labels"] as Array).contains(["intent SetReady", "intent VoiceUp"])
+	var with := _first_words(schema, 22)
+	var force_roles := (with["packets"] as Array).filter(
+		func(packet: ChaosFrames.Packet) -> bool: return packet.label == "intent ForceRole"
+	)
+	assert_array(force_roles).has_size(1)
+	var force_role: ChaosFrames.Packet = force_roles[0] if not force_roles.is_empty() else null
+	assert_int(force_role.expect if force_role != null else -1).is_equal(
+		NetRejects.Reason.BAD_PAYLOAD
+	)
+
+
+## What a connected malformed peer sends in its first START_AFTER_FRAMES frames, bot 2's peer being
+## `crew_peer`: {packets, labels, errors (the error lines logged meanwhile)}.
+func _first_words(schema: WireSchema, crew_peer: int) -> Dictionary:
+	var packets: Array[ChaosFrames.Packet] = []
+	var send_raw := func(packet: ChaosFrames.Packet) -> bool:
+		packets.append(packet)
+		return true
+	var malformed := ChaosMalformed.new(
+		LoopbackTransport.new(schema.kind_table()), send_raw, schema, 1
+	)
+	malformed.peer = 7
+	var chaos_log := ChaosLog.new()
+	chaos_log.start()
+	for _i in ChaosMalformed.START_AFTER_FRAMES:
+		malformed.act(crew_peer)
+	chaos_log.stop()
+	var labels: Array = packets.map(func(packet: ChaosFrames.Packet) -> String: return packet.label)
+	return {"packets": packets, "labels": labels, "errors": chaos_log.errors()}

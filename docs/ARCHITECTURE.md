@@ -1293,7 +1293,12 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
   more after it started is tried again: a host that refuses a join answers at once, before the admission with
   `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-  both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+  both stay failures. A join `_join_again` does not join again is lost for good (`NetPlay._lost_join`, #483): its
+  bot's step fails at once, naming the reason it ended and those of its earlier joins; a remote bot then writes its
+  view file with that line at once, and the host reports it as that bot's failure when its own time limit ends
+  the run (it reads the view files only then). A runner that
+  never calls `_join_again` (`PerfRun`) joins nobody again, so every lost join of it fails at once. Since #318 both
+  live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
   variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
   every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
@@ -1517,7 +1522,15 @@ the leak check (no superseded-LATEST or voice-seq check: a network bunches and d
 each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
 a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
 Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
-`BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
+`BotsEnet` (#318; `ChaosRun._may_play`). A join lost for good (any end `_join_again` does not retry: over WebRTC
+every reason but `no_room` and `service_unreachable`, over ENet a `connect_failed` sooner than half the join timeout,
+and `host_lost` before the `Welcome`) fails its bot's step in `play_frame` before any bot acts, naming the reason and
+those of the bot's earlier joins (`NetPlay._lost_join`, #483: `its join was lost for good (host_unreachable)`); a
+join that waits for its retry does not start play. Over the network a bot joins at most `ChaosRun.MAX_JOINS` (3)
+times, so a join retried without end fails too. Until #483 such a run played on without the bot, and over WebRTC,
+paced to the real clock, the runner killed it at 60 s, before its 90 s time limit, with no reason printed. The
+malformed peer sends its `ForceRole` naming bot 2 only once bot 2's peer id is known, so none names peer 0 (which
+the encoder refuses with an error line).
 
 ##### 4.6.5.1 Runs
 `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
@@ -1536,7 +1549,10 @@ forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always 
 class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
 chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
 `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, no
+`ForceRole` for a bot 2 without a peer id), `tests/scenarios/chaos_enet_start_test.gd` (the start over the network:
+a join lost for good fails at once naming its reason, a join that found no room joins again without starting play,
+`MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
 The C→H kinds 1 to 13 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
@@ -1581,8 +1597,10 @@ Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and
 `BotWebRtc` (`tests/harness/bots/`): instance 1 serves `LanSignalling` on the port, whose one room is
 `BotWebRtc.CODE`, and only IPv4 host candidates on 127.0.0.1 are signalled (no STUN in a container, the design's
 §2.7). A bot
-whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later,
-one unanswered (`host_unreachable` after 15 s) as over ENet; `joins_closed` and `full` stay refusals. The fault
+whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later;
+every other end (`host_unreachable`, after 15 s at most: the service answered and the connection never opened;
+`joins_closed`, `full` and the other refusals; `host_lost` before the `Welcome`) fails the bot's step at once,
+naming the reason (#483), and a remote bot's view file carries that line to the host. The fault
 shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % duplicated, and
 on the clients LATEST also 10 % dropped and one in five 120 ms late (a host that loses an epoch's first claim takes
 the next as one tick, §7.1, and corrected an honest chaos bot in 1 of 10 runs under load); not for a measurement (`BotScenario.measurement`, which measures the relay).
@@ -1606,7 +1624,8 @@ packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames`
 `LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
 so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
 about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
-`tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC), `tests/unit/net/transport/fault_shim_test.gd`,
+`tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC, and a join lost for good whose reason reaches the
+view file), `tests/unit/net/transport/fault_shim_test.gd`,
 `tools/runner/tests/test_bots.py` and `test_verify.py`.
 
 ##### 4.6.7.1 Proven (2026-10-05, each plant reverted)
