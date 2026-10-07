@@ -35,7 +35,9 @@ only check before the PR: a trial must not leave a run reviewed worse than today
    and `ab_review: true` on every non-design `issue-task` launch of this repo (orchestrate-stage §3), until `metrics`
    shows a verdict other than "continue" for the pair (Sonnet, Opus). Not on a design task (its code reviewer reviews
    a design: another population) and not on `pr-rebase` (no `code` role; its reviews follow a rebase). `models.review`
-   stays unset, so the control runs on the session's model, Opus. Each such launch runs two agents more than without
+   stays unset, so the control runs on the model in `.claude/agents/code-reviewer.md` (Opus); `models.code` must
+   differ from it
+   (the script names no model, so it cannot check that itself). Each such launch runs two agents more than without
    the arg (the control and the judge; one when neither reviewer found anything): the kickoff's agent count covers them.
 3. **How quality is judged: a control and a blind judge.** With `ab_review` a control `code-reviewer` runs beside the
    trial one, with the same prompt on the review model, and both reviews go on to the skeptics and the publisher as
@@ -80,10 +82,14 @@ first, 2026-10-04 10:45 UTC):
 
 A quarter of the price; one or two more CI reds in 30 and about a third more `publish` reruns per run. The runs are
 not paired (different tasks), so these are signals for the engineer's judgement at the reset, not a verdict.
+During the code reviewer's A/B a run counts as clean only if neither code reviewer's blockers or majors stay open (the
+control's findings count like any reviewer's), so clean runs are fewer than before: compare the publishers' scorecards
+inside the A/B window, not against the earlier one.
 
 ### The art critic's half
-The art critic is a role of `prime-game-art`'s own workflows, run by that repo's manager. A request issue there asks
-for the same method: a control critic on Opus beside a Sonnet critic on the same assets for a fixed number of
+The art critic is a role of `prime-game-art`'s own workflows, run by that repo's manager. A request issue there
+([prime-game-art#46](https://github.com/xperiaroco2/prime-game-art/issues/46)) asks for the same method: a control
+critic on Opus beside a Sonnet critic on the same assets for a fixed number of
 batches, a blind judge (or the human art review) ruling each remark valid or not and pairing the shared ones, a stop
 rule like the one above, and the result reported on prime-game #302. Its manager decides the details.
 

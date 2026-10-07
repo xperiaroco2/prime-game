@@ -160,9 +160,11 @@ toward the number per workflow the kickoff approved:
 | `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: a run's `agent-*.meta.json` shows the `agentType`): pass nothing; `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) or to resume a run launched before #458 without the arg | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or
-  `code` (the diff's code reviewer alone, only with `ab_review`), never `review` or `netcode` (`review` also covers
-  `code`, `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset: every `plan_review` launch sets `models.plan:
-  "sonnet"` (#469). `publish_clean` falls back to `publish` and applies only to the full publisher of a run with no
+  `code` (the diff's code reviewer alone, only with `ab_review`; it must differ from the `model:` of
+  `.claude/agents/code-reviewer.md`, the control's), never `review` or `netcode` (`review` also covers `code`,
+  `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`). `plan` follows
+  `implement` when unset: every `plan_review` launch sets `models.plan: "sonnet"` (#469). `publish_clean` falls back
+  to `publish` and applies only to the full publisher of a run with no
   blocker or major left open (a skeptic-refuted one is closed), never to a design task; leave `efforts.publish_clean`
   unset, so only the model varies. Other models never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three

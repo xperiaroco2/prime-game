@@ -432,13 +432,15 @@ Rules for every workflow run:
   rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
   review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean; `code` is the diff's code
   reviewer alone and falls back to `review`, which also covers the plan critique, the netcode reviews and the skeptics,
-  #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no default names a model (the model-guard
-  ADR); a model beyond the shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A,
+  #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
+  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
+  where the kickoff allows it (its amendment A,
   §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
   publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
   design task; the result's `publish_clean` says whether it applied. `ab_review: true` (#535, needs `models.code`
   other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
-  with the same prompt on the review model beside the trial one, both reviews going on as usual, then a read-only
+  with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
+  one, both reviews going on as usual, then a read-only
   judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
   the runs (+2; +1 when neither reviewer found anything). A missing `mutants` or `playcheck` on the task's
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
