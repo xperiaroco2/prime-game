@@ -130,6 +130,18 @@ once) and answered, those working now (a started key with no result), the newest
 transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
 the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
 no file.
+
+The code reviewer's A/B (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md): per run with a control code
+reviewer (`issue-task`'s ab_review), the trial's and the control's model (from their transcripts), their findings, and
+the blind judge's verdicts: valid findings per side (blockers plus majors by the judge's severity), the control's valid
+findings the trial missed (no pair with a trial finding) and the trial's the control missed, the invalid ones, and the
+API list $ of each reviewer and of the judge. A finding the judge gave no verdict counts as unsure; a pair that names
+an index out of range or one already paired is ignored. A run where neither reviewer found anything is judged with
+zeros; one whose judge returned nothing is listed but left out of the totals. Per (trial, control) pair of models, the
+totals and the stop rule (ab_verdict): stop once the trial missed AB_STOP_MISSES more valid blockers or majors than
+the control did; after AB_RUNS judged runs keep the trial model when it missed at most AB_KEEP_MISSES more, found at
+least AB_RECALL of the control's valid findings, and its invalid share is at most AB_INVALID_MARGIN over the control's;
+else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
 """
 
 from __future__ import annotations
@@ -194,11 +206,14 @@ ROLES = {
     "review:netcode-second": "netcode-second-reviewer",
     "test-review": "test-reviewer",
     "skeptic": "skeptic",
+    # #535's A/B of the code reviewer's model (issue-task's ab_review)
+    "review:code-control": "code-reviewer-control",
+    "ab-judge": "ab-judge",
 }
 # The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
 REVIEWERS = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 # Every agent that reports findings: the review table shows them all.
-FINDERS = (*REVIEWERS, "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
+FINDERS = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
 SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
@@ -244,7 +259,15 @@ BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
 # and the agents whose findings it counts (#315's open blockers and majors).
 SERIOUS = re.compile(r"blocker|major", re.IGNORECASE)
-SERIOUS_FROM = (*REVIEWERS, "netcode-second-reviewer", "test-reviewer")
+SERIOUS_FROM = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "test-reviewer")
+# The code reviewer's A/B (#535, the module docstring): the judged runs per pair of models before the verdict, the
+# early stop, and the bar the trial model must clear to be kept. Proposals the engineer may change (the A/B ADR).
+AB_RUNS = 10
+AB_STOP_MISSES = 2
+AB_KEEP_MISSES = 1
+AB_RECALL = 0.8
+AB_INVALID_MARGIN = 0.15
+AB_SIDES = ("trial", "control")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
 CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
 PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
@@ -1477,6 +1500,9 @@ def build(
     md += code_read_section(counted)
     plans = plan_rows(counted)
     md += plan_section(plans)
+    judged = ab_rows(counted)
+    ab = {"rows": judged, "totals": ab_totals(judged)}
+    md += ab_section(ab)
     instructions = instruction_record(counted, data["sessions"], docs_root)
     md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
@@ -1511,6 +1537,7 @@ def build(
         "manager_rewrites": rewrites,
         "quality": quality,
         "plans": plans,
+        "ab_review": ab,
         "instructions": instructions,
         "compact": compact,
     }
@@ -1709,6 +1736,159 @@ def plan_section(rows: list[dict]) -> list[str]:
         "",
         f"Plan + critique: mean {fmt_usd(sum(both) / len(both))} over {len(both)} runs; the implementers re-read "
         f"{again} of {files} planner files ({again / max(1, files):.0%}).",
+        "",
+    ]
+
+
+def ab_side(found: list, verdicts: dict, paired: set) -> dict:
+    """One code reviewer's findings in a judged A/B run: valid (and serious by the judge), invalid, unsure, and its
+    valid ones the other reviewer missed (unique: all and serious)."""
+    out = {"findings": len(found), "valid": 0, "serious": 0, "invalid": 0, "unsure": 0, "unique": 0, "unique_serious": 0}
+    for i in range(len(found)):
+        verdict, severity = verdicts.get(i, ("unsure", ""))
+        if verdict not in ("valid", "invalid"):
+            verdict = "unsure"
+        out[verdict] += 1
+        if verdict == "valid":
+            serious = severity in ("blocker", "major")
+            out["serious"] += serious
+            if i not in paired:
+                out["unique"] += 1
+                out["unique_serious"] += serious
+    return out
+
+
+def ab_judgement(judge: dict, sizes: tuple[int, int]) -> tuple[dict, dict]:
+    """The judge's verdicts ({1: {index: (verdict, severity)}, 2: ...}, the first per finding) and its pairs ({1: the
+    paired indices of reviewer 1, 2: of reviewer 2}), each index paired at most once and within its list."""
+    verdicts: dict[int, dict] = {1: {}, 2: {}}
+    paired: dict[int, set] = {1: set(), 2: set()}
+    for v in judge.get("verdicts") or []:
+        if isinstance(v, dict) and v.get("reviewer") in (1, 2) and isinstance(v.get("index"), (int, float)):
+            verdicts[int(v["reviewer"])].setdefault(int(v["index"]), (v.get("verdict"), v.get("severity")))
+    for m in judge.get("matches") or []:
+        if not isinstance(m, dict) or not all(isinstance(m.get(k), (int, float)) for k in ("first", "second")):
+            continue
+        a, b = int(m["first"]), int(m["second"])
+        if 0 <= a < sizes[0] and 0 <= b < sizes[1] and a not in paired[1] and b not in paired[2]:
+            paired[1].add(a)
+            paired[2].add(b)
+    return verdicts, paired
+
+
+def ab_rows(counted: list[dict]) -> list[dict]:
+    """#535's A/B per run with a control code reviewer: both models, the judged findings per side and the $."""
+    rows = []
+    for r in counted:
+        roles = ("code-reviewer", "code-reviewer-control", "ab-judge")
+        of = {role: [x for x in r["agents"] if x["role"] == role] for role in roles}
+        if not of["code-reviewer-control"]:
+            continue
+        last = {role: next((x["result"] for x in reversed(xs) if x["result"] is not None), None) for role, xs in of.items()}
+        model = {role: next((x["data"]["model"] for x in reversed(xs) if x["data"]), None) for role, xs in of.items()}
+        trial, control = (
+            [f for f in ((last[role] or {}).get("findings") or []) if isinstance(f, dict)] for role in roles[:2]
+        )
+        judge = last["ab-judge"]
+        judged = (not trial and not control) or judge is not None
+        verdicts, paired = ab_judgement(judge or {}, (len(trial), len(control)))
+        spent = {role: sum(usd(x["data"]["tokens"]) for x in xs if x["data"]) for role, xs in of.items()}
+        rows.append({
+            "session": r["session"], "issue": r["issue"], "wf": r["wf"],
+            "trial_model": model["code-reviewer"], "control_model": model["code-reviewer-control"],
+            "judged": judged, "pairs": len(paired[1]),
+            "trial": ab_side(trial, verdicts[1], paired[1]) if judged else {"findings": len(trial)},
+            "control": ab_side(control, verdicts[2], paired[2]) if judged else {"findings": len(control)},
+            "trial_usd": spent["code-reviewer"], "control_usd": spent["code-reviewer-control"],
+            "judge_usd": spent["ab-judge"],
+        })  # fmt: skip
+    return rows
+
+
+def ab_verdict(runs: int, trial: dict, control: dict) -> str:
+    """The stop rule (the module docstring) over one pair of models' judged runs."""
+    missed, found = trial["missed_serious"], control["missed_serious"]
+    if missed - found >= AB_STOP_MISSES:
+        return (f"stop: drop the trial model (it missed {missed} valid blockers or majors that the control found; the "
+                f"control missed {found} of the trial's)")  # fmt: skip
+    if runs < AB_RUNS:
+        return f"continue: {runs} of {AB_RUNS} judged runs"
+    share = {k: s["invalid"] / s["findings"] if s["findings"] else 0.0 for k, s in (("t", trial), ("c", control))}
+    kept = (missed - found <= AB_KEEP_MISSES and trial["valid"] >= AB_RECALL * control["valid"]
+            and share["t"] <= share["c"] + AB_INVALID_MARGIN)  # fmt: skip
+    return "keep the trial model (the engineer decides)" if kept else "drop the trial model"
+
+
+def ab_totals(rows: list[dict]) -> list[dict]:
+    """Per (trial, control) pair of models: the judged runs' sums, the $ medians and the verdict."""
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for x in rows:
+        groups.setdefault((str(x["trial_model"]), str(x["control_model"])), []).append(x)
+    out = []
+    for (trial_model, control_model), xs in sorted(groups.items()):
+        judged = [x for x in xs if x["judged"]]
+        sums = {}
+        for side, other in (("trial", "control"), ("control", "trial")):
+            sums[side] = {k: sum(x[side][k] for x in judged) for k in ("findings", "valid", "serious", "invalid", "unsure")}
+            # What this side missed: the other side's valid findings without a pair.
+            sums[side]["missed"] = sum(x[other]["unique"] for x in judged)
+            sums[side]["missed_serious"] = sum(x[other]["unique_serious"] for x in judged)
+        out.append({
+            "trial_model": trial_model, "control_model": control_model, "runs": len(xs), "judged": len(judged),
+            "trial": sums["trial"], "control": sums["control"],
+            "trial_usd": med([x["trial_usd"] for x in xs]), "control_usd": med([x["control_usd"] for x in xs]),
+            "judge_usd": med([x["judge_usd"] for x in xs]),
+            "verdict": ab_verdict(len(judged), sums["trial"], sums["control"]),
+        })  # fmt: skip
+    return out
+
+
+def ab_cell(s: dict) -> str:
+    """A side of an A/B run: findings / valid (blockers+majors) / invalid; "?" for an unjudged run."""
+    return f"{s['findings']} / {s['valid']} ({s['serious']}) / {s['invalid']}" if "valid" in s else f"{s['findings']} / ?"
+
+
+def ab_section(record: dict) -> list[str]:
+    """The code reviewer's A/B tables (#535); nothing when no run had a control code reviewer."""
+    rows = record["rows"]
+    if not rows:
+        return []
+    body = []
+    for x in rows:
+        missed = [f"{x[k]['unique']} ({x[k]['unique_serious']})" if x["judged"] else "?" for k in ("control", "trial")]
+        body.append([f"#{x['issue']}" if x["issue"] else x["wf"], x["trial_model"] or "?", x["control_model"] or "?",
+                     "yes" if x["judged"] else "no (the judge returned nothing)", ab_cell(x["trial"]),
+                     ab_cell(x["control"]), *missed, fmt_usd(x["trial_usd"]), fmt_usd(x["control_usd"]),
+                     fmt_usd(x["judge_usd"])])  # fmt: skip
+    head = ["run", "trial model", "control model", "judged", "trial: findings / valid (blocker+major) / invalid",
+            "control: findings / valid (blocker+major) / invalid", "the trial missed (blocker+major)",
+            "the control missed (blocker+major)", "trial $", "control $", "judge $"]  # fmt: skip
+    totals = [
+        [t["trial_model"], t["control_model"], f"{t['judged']} of {t['runs']}",
+         *(f"{t[k]['valid']} ({t[k]['serious']})" for k in AB_SIDES),
+         *(f"{t[k]['missed']} ({t[k]['missed_serious']})" for k in AB_SIDES),
+         *(f"{t[k]['invalid']} of {t[k]['findings']}" for k in AB_SIDES),
+         fmt_usd(t["trial_usd"]), fmt_usd(t["control_usd"]), fmt_usd(t["judge_usd"]), t["verdict"]]
+        for t in record["totals"]
+    ]  # fmt: skip
+    total_head = ["trial model", "control model", "judged runs", "trial valid (blocker+major)",
+                  "control valid (blocker+major)", "trial missed (blocker+major)", "control missed (blocker+major)",
+                  "trial invalid", "control invalid", "trial $ (median)", "control $ (median)", "judge $ (median)",
+                  "verdict"]  # fmt: skip
+    return [
+        "## The code reviewer's A/B (#535)",
+        "",
+        "Per run with a control code reviewer (ab_review): each side's findings, how many the blind judge held valid "
+        "(blockers and majors by its severity) and invalid, and the valid findings of one side that the other missed.",
+        "",
+        table(head, body),
+        "",
+        f"Per pair of models, over the judged runs. Stop once the trial missed {AB_STOP_MISSES} more valid blockers or "
+        f"majors than the control; after {AB_RUNS} judged runs keep it when it missed at most {AB_KEEP_MISSES} more, "
+        f"found at least {AB_RECALL:.0%} of the control's valid findings and its invalid share is at most "
+        f"{AB_INVALID_MARGIN:.0%} over the control's (the A/B ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
         "",
     ]
 
