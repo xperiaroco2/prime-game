@@ -1638,12 +1638,12 @@ Python core `tools/run.py` with
 `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
-tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), and `hook` (for Claude
-Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
-rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
-runner takes the machine paths from the Claude settings (§2).
+`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the
+signalling Worker's tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24),
+`sfx-check` (§11.25), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
+lists only the names, §3). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
+`bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
+Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
 `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
@@ -1956,6 +1956,23 @@ options to `export_presets.cfg`: commit that once; never turn on `application/mo
 `LICENSE*` file is added to or removed from a shipped addon without `NOTICES` following, as `export` would. Only
 files named `LICENSE*` count (not `COPYING` or `NOTICE`) in an addon; in `docs/credits/licenses/` every file of a
 folder of `export.BUNDLED` counts, and a folder there not in `BUNDLED` fails `NoticesTest` too.
+
+### 11.25 `sfx-check <files or folders> [--page] [--category C] [--out DIR]` [applied] (#524)
+The gate a sound file passes before it enters the game (#525 picks the sounds; `tools/runner/sfx.py`, tests:
+`test_sfx.py`, whose WAV and Ogg fixtures are generated, never committed). Python standard library only (`struct`,
+`array`, `json`): numpy or ffmpeg would be a new dependency and need an ADR. What each category must measure is data,
+`tools/sfx/categories.json`: the allowed sample rates, the peak ceiling, the silence level, the leading-silence and
+DC-offset limits, and per category (footstep, item, ui, task; no door, the M6.2 decision on #170) its file-name
+globs, RMS band and duration bounds. Its numbers are provisional, not a decision, until #525 tunes them on the real
+sounds; a change to them is a table edit, not code. A WAV is read whole and fails, by rule, `format`, `pcm16`,
+`mono`, `sample-rate`, `category`, `duration`, `peak` (with the count of samples at full scale), `rms`,
+`leading-silence` or `dc-offset`. An OGG gets its identification header (Vorbis only; channels, rate) and its length
+(the last page's granule position) checked and is "header-checked only": the standard library cannot decode Vorbis.
+The JSON report goes to `tools/out/sfx/<set>.json`; exit 1 on any failure, each printed as `<file>: <rule>:
+<numbers>`. `--page` also writes `tools/out/sfx/<set>.html`: one file with the sounds inside it as data: URLs (no
+server, no external script or font; it still plays when moved), an `<audio>` per file grouped by category with its
+numbers and failures, approve or reject and a note (kept in the browser's storage for that page), and "Export
+verdicts", a JSON download that the engineer saves next to the set as `sfx-verdicts.json`.
 
 ## 12. The designer's agent
 
