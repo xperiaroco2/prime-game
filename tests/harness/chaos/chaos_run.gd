@@ -41,10 +41,11 @@ const ENET_DRAIN_FRAMES := 120
 const SHIM_SEED := 188_000
 const SHIM_SEED_STRIDE := 16
 ## The joins each bot makes at most over the network (NetPlay.max_joins, #483): the host is up in
-## this process before the bots join, and three attempts fail before the runner's 60 s kill (over
-## WebRTC a retried join, no room, ends within the 5 s signalling cap plus the 0.5 s wait; over
-## ENet an unanswered one after EnetTransport.JOIN_TIMEOUT_MS, 5 s; a WebRTC host_unreachable, 15 s,
-## is never retried, so it uses one attempt).
+## this process before the bots join, and three attempts fail before the runner's kill (120 s per
+## seed over a network, bots.CHAOS_NETWORK_SECONDS_PER_SEED; over WebRTC a retried join, no room,
+## ends within the 5 s signalling cap plus the 0.5 s wait; over ENet an unanswered one after
+## EnetTransport.JOIN_TIMEOUT_MS, 5 s; a WebRTC host_unreachable, 15 s, is never retried, so it
+## uses one attempt).
 const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
