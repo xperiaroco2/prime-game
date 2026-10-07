@@ -21,15 +21,18 @@ T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
 NOW = T0.timestamp() + 4 * 3600  # 12:00
 SID = "5ef6e325-aaaa-bbbb-cccc-000000000001"
 SINCE = "2026-10-03T08:00:00Z"
-# The verdict's last step at a handover (#484, route C), for a session whose kickoff has no Track: line and for meta.
-START = ("start the successor (orchestrate-stage handover.md): update_scheduled_task <track>-manager (no Track: line "
-         "in this session's kickoff) with fireAt 3 min ahead and notifyOnCompletion false (create_scheduled_task if "
-         "there is none); once list_task_runs shows its new run, stop and launch nothing more; no run or a refused "
-         "call: the human pastes the kickoff")  # fmt: skip
-START_META = ("start the successor (orchestrate-stage handover.md): update_scheduled_task meta-manager with fireAt "
-              "3 min ahead and notifyOnCompletion false (create_scheduled_task if there is none); once list_task_runs "
-              "shows its new run, stop and launch nothing more; no run or a refused call: the human pastes the "
-              "kickoff")  # fmt: skip
+# The verdict's last step at a handover (#511: the paste by default, route C a fallback), for a session whose kickoff
+# has no Track: line and for meta.
+START = ("the successor (docs/MANAGERS.md §6): the handover comment ends with the ready kickoff and your For you asks "
+         "the human to paste it into a new session in the track's checkout (bypass, effort high); then stop and "
+         "launch nothing more; route C (update_scheduled_task <track>-manager (no Track: line in this session's "
+         "kickoff), fireAt 3 min ahead; orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
+START_META = ("the successor (docs/MANAGERS.md §6): the handover comment ends with the ready kickoff and your For you "
+              "asks the human to paste it into a new session in the track's checkout (bypass, effort high); then stop "
+              "and launch nothing more; route C (update_scheduled_task meta-manager, fireAt 3 min ahead; "
+              "orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
+# The in-flight clause's rule while the human is away (#511): no successor starts before his paste.
+AWAY = "(the human away: launch nothing new and post it once they end instead, docs/MANAGERS.md §5)"
 
 
 def at(minutes: float) -> str:
@@ -1116,13 +1119,15 @@ class WaveTest(unittest.TestCase):
     def test_verdict_due_on_context_even_mid_wave(self) -> None:
         self.in_flight(0, 466, written=NOW - 180)
         self.in_flight(1, 470, label="publish:#470", written=NOW - 60)
-        self.context(2, 310_000)
-        self.assertEqual(self.verdict(), "handover due: the context 0.31M is over 300k; 2 runs in flight (#466 "
+        self.context(2, 510_000)
+        self.assertEqual(self.verdict(), "handover due: the context 0.51M is over 500k; 2 runs in flight (#466 "
                          "implement:#466, 3 min since its last line; #470 publish:#470, 1 min since its last line): "
-                         "stop each (#470 only once its publish, rebase or fix agent ends), then post the handover; "
-                         f"the successor relaunches them fresh; then {START}.")  # fmt: skip
-        self.context(3, 300_000)
-        self.assertTrue(self.verdict().startswith("handover not due"), "exactly 300k is not over it")
+                         "stop each (#470 only once its publish, rebase or fix agent ends), then post the handover "
+                         f"{AWAY}; the successor relaunches them fresh; then {START}.")  # fmt: skip
+        self.context(3, 500_000)
+        self.assertTrue(self.verdict().startswith("handover not due"), "exactly 500k is not over it")
+        self.context(4, 310_000)
+        self.assertTrue(self.verdict().startswith("handover not due"), "#511: 300k no longer hands over")
 
     def test_verdict_due_on_age(self) -> None:
         self.context(0, 1000)
@@ -1135,29 +1140,36 @@ class WaveTest(unittest.TestCase):
                                                                "1 run in flight (#466 implement:#466, "), "mid-wave")
 
     def test_verdict_stop_clause(self) -> None:
-        self.context(0, 180_000)
-        stop = (f"; at a stop for the human: due (the context 0.18M is over 150k and no run is in flight): post the "
+        self.context(0, 260_000)
+        stop = (f"; at a stop for the human: due (the context 0.26M is over 250k and no run is in flight): post the "
                 f"handover; then {START}")  # fmt: skip
         self.assertEqual(self.verdict(), f"handover not due{stop}.")
         self.in_flight(1, 466)
-        self.context(2, 180_000)
+        self.context(2, 260_000)
         self.assertNotIn("at a stop", self.verdict(), "a run in flight: the keep-alive, not a handover")
         self.p.lines = self.p.lines[:1]
-        self.context(0, 140_000)
-        self.assertEqual(self.verdict(), "handover not due.")
+        self.context(0, 250_000)
+        self.assertEqual(self.verdict(), "handover not due.", "exactly 250k is not over it")
+        self.context(1, 180_000)
+        self.assertEqual(self.verdict(), "handover not due.", "#511: 150k no longer hands over at a stop")
+
+    def test_verdict_thresholds(self) -> None:
+        """#511: the engineer's 500k; the stop rule keeps its old ratio, half the handover threshold."""
+        self.assertEqual((wave.HANDOVER_CONTEXT, wave.STOP_CONTEXT, wave.HANDOVER_HOURS), (500_000, 250_000, 12.0))
 
     def test_verdict_stale_run(self) -> None:
         self.in_flight(0, 466, label="publish:#466", written=NOW - 2 * 3600)
-        self.context(1, 180_000)
+        self.context(1, 280_000)
         stale = ("1 stale run, no line for over 60 min, not counted in flight (#466 publish:#466, 120 min since its "
                  "last line): check it, stop it before a handover")  # fmt: skip
-        self.assertEqual(self.verdict(), "handover not due; at a stop for the human: due (the context 0.18M is over "
-                         f"150k and no run is in flight): post the handover; {stale}; then {START}.")  # fmt: skip
+        self.assertEqual(self.verdict(), "handover not due; at a stop for the human: due (the context 0.28M is over "
+                         f"250k and no run is in flight): post the handover; {stale}; then {START}.")  # fmt: skip
         self.in_flight(2, 470, written=NOW - 3600)  # exactly 60 min: still in flight
-        self.context(3, 310_000)
-        self.assertEqual(self.verdict(), "handover due: the context 0.31M is over 300k; 1 run in flight (#470 "
-                         "implement:#470, 60 min since its last line): stop it, then post the handover; the "
-                         f"successor relaunches it fresh; {stale}; then {START}.")  # fmt: skip
+        self.context(3, 510_000)
+        self.assertEqual(self.verdict(), "handover due: the context 0.51M is over 500k; 1 run in flight (#470 "
+                         "implement:#470, 60 min since its last line): stop it, then post the handover "
+                         "(the human away: launch nothing new and post it once it ends instead, docs/MANAGERS.md "
+                         f"§5); the successor relaunches it fresh; {stale}; then {START}.")  # fmt: skip
 
     def test_verdict_names_the_tracks_scheduled_task(self) -> None:
         """#484: the kickoff's Track: line names the task, also inside the frame a scheduled task's run wraps it in;
@@ -1241,10 +1253,10 @@ class WaveTest(unittest.TestCase):
         self.assertIn("warn  wave: instruction changes unavailable: gh: HTTP 502", out)
         self.assertEqual(out.strip().splitlines()[-1],
                          "handover not due; instruction changes unavailable: gh: HTTP 502.")
-        self.context(1, 400_000)
+        self.context(1, 600_000)
         src = FakeSources(fail={"merged": Failure("gh: HTTP 503")})
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.40M is over 300k; post the "
+        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.60M is over 500k; post the "
                          f"handover; instruction changes unavailable: merged PRs: gh: HTTP 503; then {START}.",
                          "the context still decides")  # fmt: skip
 
@@ -1275,10 +1287,10 @@ class WaveTest(unittest.TestCase):
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
         self.assertEqual(out.strip().splitlines()[-1], "handover not due; the main checkout's instruction files "
                          "unavailable: git diff failed.")  # fmt: skip
-        self.context(1, 400_000)  # #484 review: the successor's start comes after the pull it waits for
+        self.context(1, 600_000)  # #484 review: the successor's start comes after the pull it waits for
         src = FakeSources(behind=["CLAUDE.md"])
         _, out, _ = self.main(since=SINCE, out=str(self.root / "w.md"), merge_check=False, sources=src)
-        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.40M is over 300k; post the "
+        self.assertEqual(out.strip().splitlines()[-1], "handover due: the context 0.60M is over 500k; post the "
                          "handover; the main checkout's instruction files are behind origin/main (CLAUDE.md): the "
                          f"human pulls it before the successor starts; then {START}.")  # fmt: skip
 
@@ -1313,8 +1325,9 @@ class WaveTest(unittest.TestCase):
     def test_instruction_paths(self) -> None:
         self.assertEqual(wave.instruction_paths(["CLAUDE.md", "core/CLAUDE.md", ".claude/rules/a.md",
                                                  ".claude/agents/b.md", ".claude/skills/c/SKILL.md", ".claude/rules",
-                                                 "docs/CLAUDE.md"]),  # fmt: skip
-                         ["CLAUDE.md", ".claude/rules/a.md", ".claude/agents/b.md"])
+                                                 "docs/CLAUDE.md", "docs/MANAGERS.md", "docs/AGENT_WORKFLOW.md"]),
+                         ["CLAUDE.md", ".claude/rules/a.md", ".claude/agents/b.md", "docs/MANAGERS.md"],
+                         "#511: the central manager rules change every manager's instructions too")  # fmt: skip
 
 
 if __name__ == "__main__":
