@@ -1638,12 +1638,12 @@ Python core `tools/run.py` with
 `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the
-signalling Worker's tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24),
-`sfx-check` (§11.25), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
-lists only the names, §3). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
-`bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
-Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
+`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
+tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25), and
+`hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
+Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
+runner takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
 `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
@@ -1962,8 +1962,8 @@ The gate a sound file passes before it enters the game (#525 picks the sounds; `
 `test_sfx.py`, whose WAV and Ogg fixtures are generated, never committed). Python standard library only (`struct`,
 `array`, `json`): numpy or ffmpeg would be a new dependency and need an ADR. What each category must measure is data,
 `tools/sfx/categories.json`: the allowed sample rates, the peak ceiling, the silence level, the leading-silence and
-DC-offset limits, and per category (footstep, item, ui, task; no door, the M6.2 decision on #170) its file-name
-globs, RMS band and duration bounds. Its numbers are provisional, not a decision, until #525 tunes them on the real
+DC-offset limits, and per category (footstep, item, ui, task; no door: the engineer's decision of 2026-10-07 on #516
+and #525, no doors in M6.2, not even door sounds) its file-name globs, RMS band and duration bounds. Its numbers are provisional, not a decision, until #525 tunes them on the real
 sounds; a change to them is a table edit, not code. A WAV is read whole and fails, by rule, `format`, `pcm16`,
 `mono`, `sample-rate`, `category`, `duration`, `peak` (with the count of samples at full scale), `rms`,
 `leading-silence` or `dc-offset`. An OGG gets its identification header (Vorbis only; channels, rate) and its length
