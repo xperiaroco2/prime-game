@@ -439,8 +439,7 @@ taken in a `main` that has them.
 - **The information-leak test gets a netcode review.** A PR that touches only `tests/` and `tools/` once had no
   `netcode-security-reviewer` (#115); a pass run by hand found a major blind spot. The workflows now route it for
   `tests/harness/`; for a leak-test change elsewhere (a new runner in `tools/`), run one by hand before the merge.
-- **No `staging`.** A second integration branch was tried and dropped the same night: one `release/m<k>` per
-  milestone.
+- **No `staging`.** A second integration branch was tried and dropped the same night: one `release/m<k>` per milestone.
 
 ### 2026-10-01 (M4)
 - **The netcode review covers `client/`** (#158). What the client renders can leak (a sound through walls, a camera
