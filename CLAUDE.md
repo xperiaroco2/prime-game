@@ -43,7 +43,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 ## Commands
 `tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` says what it does and its options; read docs by section, never whole: `section <doc>` for the outline, then the § you need.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
-Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `host` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
+Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
 
 ## Shell
 PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
@@ -88,6 +88,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
 | "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
+| "/secretary", "секретар", the engineer's inbox ("що нового?" only inside that session) | skill `secretary` |
 | review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ client/ tests/harness/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |

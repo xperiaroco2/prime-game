@@ -302,6 +302,7 @@ and wait for the designer's review.
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
 | `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
+| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -326,6 +327,7 @@ and wait for the designer's review.
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
 | Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it in the session settings) |
+| The secretary session (§7.2) | medium, on Opus (the engineer's answer on #170, #485) |
 
 Rules for every workflow run:
 - **Size guideline `small` (fewer than 5 agents)** [applied: `workflowSizeGuideline` in shared settings].
@@ -600,6 +602,73 @@ Rules for every workflow run:
   from a session in their checkout, holding their kickoff (the UI repo's `CLAUDE.md` keeps one under "Starting a new
   manager session") with these two lines and a `Track:` line, their own thresholds in place of `wave`'s verdict and
   a hand-written handover comment, all in their `CLAUDE.md` (the list in `handover.md` §4).
+
+### 7.2 The secretary session
+
+(#485; the engineer's answers on [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
+recorded in the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), Q5, amended
+2026-10-07.) With four tracks' managers and his own sessions, the engineer went from session to session to find
+what waited for him. One more session, the **secretary**, does that and is no manager: it runs nothing.
+
+- **Who:** one session of the engineer's, Opus at medium effort, in `D:\prime-game` (it only reads the checkout), on
+  the skill `secretary` (`.claude/skills/secretary/SKILL.md`). Its cost counts in the engineer's own 5% of the week
+  (the skill's `budget.md`) until he says otherwise.
+- **Powers:** it reads every session and the three repos, digests, and relays the engineer's answers to the session
+  that asked, which records them on GitHub as usual. It never merges, launches, closes, creates or decides; it never
+  answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
+  comments and `send_message`.
+- **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites every 30 to 60 minutes while the
+  engineer is at the PC (a background `sleep 3000` timer, re-armed while he wrote in its chat in the last 3 hours):
+  what to approve or decide and what to look at, numbered, each item with a link or a ready command. In its chat,
+  one short line on what changed. "що нового?" digests at once.
+- **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
+  `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news.
+- **Relays:** `send_message` to the session that asked; a session a scheduled task started is unattended and refuses
+  it ("messages can't be delivered there", probed on
+  [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
+  comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
+- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
+  on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
+  it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
+
+**Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
+pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
+result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
+then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 240 s
+(§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
+minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
+known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
+the engineer's screen.
+
+**Set up** (the engineer, once): the issue and its pin.
+```powershell
+cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The secretary session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
+```
+```powershell
+cd D:\prime-game; gh issue pin <the new issue's number>
+```
+**Start** (the engineer, when he sits down): a plain new Desktop session (not a scheduled task) in `D:\prime-game`,
+no worktree, model Opus, effort medium, the permission mode he uses for his own sessions, with the kickoff below
+pasted. A plain session, because the secretary lives on his chat and its relays, and a scheduled-task run is the
+wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
+allows only the writes the task file names; no other session can `send_message` to it; it starts in `acceptEdits`
+at medium whatever its creator ran in; and an unattended session cannot `run_scheduled_task`, so a scheduled-task
+manager could not start it anyway. Whether the engineer can type into a scheduled-task run is still unprobed.
+A scheduled task `secretary` stays an option only once those are probed; its kickoff would then have to name the
+writes (the inbox body, relay comments, `send_message`) and say the engineer is present.
+
+The kickoff:
+```text
+/secretary
+Digest now, then every 30 to 60 minutes while I am at the PC. I am here and answer in this chat.
+```
+No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
+share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
+`send_message` load (ToolSearch) and names any that does not in its chat line.
+
+**The timer stops** after 3 hours without a word from the engineer in its chat (his answer (a) on
+[#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361), not a fixed day window or
+"пауза" alone): it costs nothing while he is away, one word restarts it, and "пауза" still stops it at once.
 
 ## 8. Permissions, guards and hooks
 
@@ -1721,6 +1790,19 @@ lists them).
 Before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
 from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
 `docs.godotengine.org/en/4.7/`.
+
+### 11.23 `inbox [--since T] [--repo OWNER/NAME ...]` [applied] (#485)
+The secretary's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
+(`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
+repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
+500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items
+without "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's
+exceptions of each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list:
+the merges only he makes; for a PR with a rename, one `gh api repos/<repo>/pulls/<n>/files` adds each old path as
+a delete, as the gate's `--no-renames` diff sees it); and the "For you:" blocks of each thread's latest comment by
+his account that has one (all its blocks together; a "- " item is read too), with the count of later comments in
+the window. `--since` defaults to 72 hours ago. A source that fails prints "Unavailable: <error>" and exits 1; the
+rest is still printed.
 
 ## 12. The designer's agent
 

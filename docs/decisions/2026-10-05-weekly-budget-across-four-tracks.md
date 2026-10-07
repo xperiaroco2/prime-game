@@ -7,6 +7,8 @@
   Amended 2026-10-06: N4 moved to (b), the default flipped now ([#302 comment
   6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870)); P3b (#458) made `lean`
   the default of `issue-task` and `pr-rebase`, with no clean week first.
+  Amended 2026-10-07 (#485): a secretary session gathers what needs the engineer from every track, inside his own
+  5% (Q5).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -186,6 +188,14 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   orchestrate-stage handover.md, AGENT_WORKFLOW §7.1. The approved comment names route B and says nothing about
   nights: route C and the night rule are the meta manager's reading of the probe, and the engineer confirms them in
   the "Needs the engineer" of the PR that records this amendment (the merge gate holds it until he answers).
+  **Amended 2026-10-07** (#485). Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550
+  - Besides the four managers, one **secretary** session (Opus at medium effort; AGENT_WORKFLOW §7.2, the skill
+    `secretary`) reads every session and the three repos, rewrites the pinned "Engineer's inbox" issue every 30 to
+    60 minutes while the engineer is at the PC (what to approve or decide and what to look at, each item with a link
+    or a ready command) and says in its chat what changed.
+  - It relays his answers to the session that asked, which records them on GitHub; it never merges, launches,
+    closes or decides.
+  - Its cost counts in the engineer's own 5% (N1), until he says otherwise: no budget of its own, no track.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the
