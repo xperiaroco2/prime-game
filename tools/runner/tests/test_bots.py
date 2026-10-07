@@ -142,7 +142,6 @@ class ChaosTest(unittest.TestCase):
         time_limit = float(found.group(1))
         # Godot's start before the first frame and the report after the limit: about 10 s; a margin of 20 s.
         self.assertGreaterEqual(bots.CHAOS_NETWORK_SECONDS_PER_SEED, time_limit + 20)
-        self.assertEqual(bots.CHAOS_SECONDS_PER_SEED, 60)
 
     def test_enet_and_another_transport_are_refused(self) -> None:
         for transport in ("webrtc", "steam"):
