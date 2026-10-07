@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from . import pins
 from .common import Failure, bad
@@ -476,6 +477,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--rev", default="HEAD", help="the commit to export, from a clean tree (default HEAD)")
 
     p = sub.add_parser(
+        "sfx-check",
+        help="check sound files (WAV, OGG headers) against tools/sfx/categories.json; --page: a listening page",
+        description="Check sound files with the Python standard library only (#524). A folder gives its .wav and "
+        ".ogg files, at all depths. Each WAV must be PCM 16-bit, mono, at an allowed sample rate, with peak "
+        "headroom (no clipping), its RMS loudness and duration within its category's bounds, little leading "
+        "silence and no DC offset. The bounds are data: tools/sfx/categories.json, provisional until #525. A "
+        "file's category: --category, else the first category one of whose globs matches its file name, else "
+        "its nearest folder's name. The standard library cannot decode Vorbis: an OGG gets its identification "
+        "header (channels, rate) and its length checked and is reported as header-checked only. Writes a JSON "
+        "report to tools/out/sfx/<set>.json and exits 1 on a failure, naming the file and the rule (format, "
+        "pcm16, mono, sample-rate, category, duration, peak, rms, leading-silence, dc-offset). --page also "
+        "writes tools/out/sfx/<set>.html: one self-contained page (the sounds inside it; no server, no external "
+        "script or font) with an <audio> per file grouped by category, its numbers, approve or reject and a "
+        "note; Export verdicts downloads them as JSON, to save next to the set as sfx-verdicts.json.",
+    )
+    p.add_argument("paths", nargs="+", metavar="<file or folder>", help="sound files, or folders of them")
+    p.add_argument("--page", action="store_true", help="also write the listening page")
+    p.add_argument("--category", help="check every file as this category of the table")
+    p.add_argument("--out", type=Path, help="the folder for the report and the page (default: tools/out/sfx/)")
+
+    p = sub.add_parser(
         "agents-check",
         help="assert each subagent and workflow agent was served by the model family it asked for",
         description="Assert that each subagent and workflow agent ran on the model family it asked for.",
@@ -805,6 +827,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import export
 
             return export.main(version=args.version, rev=args.rev)
+        if args.command == "sfx-check":
+            from . import sfx
+
+            return sfx.main(args.paths, page=args.page, category=args.category, out=args.out)
         if args.command == "agents-check":
             from . import agents_check
 

@@ -1,0 +1,36 @@
+{
+  "about": "sfx-check's table (#524): what a sound file of each category must measure. Every number is provisional, not a decision, until #525 picks the real sounds and tunes them. A file's category: --category, else the first category, in this order, one of whose globs matches its file name (without the extension), else its nearest folder's name. Levels are dBFS: a full-scale square wave is 0, a full-scale sine -3.01.",
+  "defaults": {
+    "sample_rates": [22050, 44100, 48000],
+    "max_peak_dbfs": -1.0,
+    "silence_dbfs": -50.0,
+    "max_leading_silence_s": 0.05,
+    "max_dc_offset": 0.01
+  },
+  "categories": {
+    "footstep": {
+      "about": "one step on a surface",
+      "globs": ["footstep*", "step*"],
+      "rms_dbfs": [-32.0, -12.0],
+      "duration_s": [0.05, 1.0]
+    },
+    "item": {
+      "about": "an item picked up, put down, swung or dropped (the package, the knife)",
+      "globs": ["item*", "package*", "pick*", "put*", "drop*", "knife*", "swing*"],
+      "rms_dbfs": [-30.0, -10.0],
+      "duration_s": [0.05, 1.5]
+    },
+    "ui": {
+      "about": "a click, hover, confirm or back in a menu or the HUD",
+      "globs": ["ui*", "click*", "hover*", "select*", "confirm*", "back*", "switch*", "toggle*"],
+      "rms_dbfs": [-32.0, -12.0],
+      "duration_s": [0.02, 0.6]
+    },
+    "task": {
+      "about": "a task station's sounds: a step done, the task done or failed",
+      "globs": ["task*", "station*", "delivery*"],
+      "rms_dbfs": [-30.0, -10.0],
+      "duration_s": [0.1, 3.0]
+    }
+  }
+}
