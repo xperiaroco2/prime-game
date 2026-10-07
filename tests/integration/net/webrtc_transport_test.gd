@@ -131,9 +131,16 @@ func before() -> void:
 	_kinds.add(STATE, NetKindTable.Lane.LATEST, NetKindTable.Direction.BOTH, 64)
 	_warm_up = WebRtcWarmUp.new()
 	var deadline := Time.get_ticks_msec() + WARM_UP_MS
-	while not _warm_up.is_ready() and Time.get_ticks_msec() < deadline:
+	while not _warm_up.is_ready() and _warm_up.error == OK and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
-	assert_bool(_warm_up.is_ready()).is_true()
+	var why := _warm_up.error_text
+	if why.is_empty():
+		why = "no offer in %d ms" % WARM_UP_MS
+	(
+		assert_bool(_warm_up.is_ready())
+		. override_failure_message("the WebRTC warm-up is not ready: %s (#472)" % why)
+		. is_true()
+	)
 
 
 func after() -> void:

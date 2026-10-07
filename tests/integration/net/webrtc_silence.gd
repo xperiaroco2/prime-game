@@ -60,6 +60,8 @@ func _initialize() -> void:
 		_fail("give -- %s<a free port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
 	_warm_up = WebRtcWarmUp.new()
+	if _warm_up.error != OK:
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
 
 
 func _start() -> void:
