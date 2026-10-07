@@ -13,7 +13,8 @@ const MAX_WAIT_MS := 5000
 ## The longest wait for the WebRTC library's setup: 9 to 11 s were measured under load (#472).
 const WARM_UP_MS := 30000
 ## The joins these tests expect to give up do so after this long, not JOIN_TIMEOUT_MS. Every
-## other client keeps JOIN_TIMEOUT_MS: under load a join took up to 1.7 s (#472).
+## other client keeps JOIN_TIMEOUT_MS unless its test names its own: under load a join took up
+## to 1.7 s (#472).
 const SHORT_JOIN_MS := 1500
 const TALK := 1
 const STATE := 2
