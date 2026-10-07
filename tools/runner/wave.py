@@ -50,9 +50,10 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
   "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
   ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since;
 - for the handover verdict (#467): the PRs merged into main since the session's first record (not --since) whose
-  files include root CLAUDE.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list --base main --json
-  files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call when nothing merged
-  into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main checkout (no fetch).
+  files include root CLAUDE.md, docs/MANAGERS.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list
+  --base main --json files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call
+  when nothing merged into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main
+  checkout (no fetch).
 The handover verdict ends the footer and is stdout's last line (orchestrate-stage §7 runs it at each turn end):
 "handover due: <why>" when the last call's context is over 500k or the session over 12 h old, even with runs in
 flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent;

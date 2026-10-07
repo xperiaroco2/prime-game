@@ -1448,9 +1448,8 @@ ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment end
 pastes; route C (`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead) only if he asked for it, the
 track read from the `Track:` line of the session's kickoff (as `metrics --track` reads it, inside a scheduled task's
 frame too). With runs in flight it adds the rule while the human is away: launch nothing new and post the handover
-once they end. It reads two more sources: one
-`gh pr list --base main --json files` for
-the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
+once they end. It reads two more sources: one `gh pr list --base main --json files` for the PRs merged into main
+since the session's first record that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or
 `.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
 HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
 "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
