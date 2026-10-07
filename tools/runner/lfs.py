@@ -95,9 +95,11 @@ STAND_INS = {
 # Where aside() keeps the pointer files during an import: a .gdignore in it makes Godot's scan skip it (as tools/out's
 # own does, common.ensure_out), and tools/out is gitignored, so `git status` sees nothing once the files are back.
 ASIDE = "tools/out/lfs-aside"
-# A res:// path in a project check line, and one followed by `:<line>`: the file the line is about.
+# A res:// path in a project check line, and a script's followed by `:<line>`: the file the line is about.
 RES_PATH = re.compile(r"res://[^\s\"'()\[\],:;]+")
-LOCATION = re.compile(r"(res://[^\s\"'()\[\],:;]+):\d+")
+SCRIPT_LOCATION = re.compile(r"(res://[^\s\"'()\[\],:;]+\.gd):\d+")
+# The lines by which a script says that it failed to load because of the file they name.
+SCRIPT_FAILED = ("Could not preload resource file", "Parse Error")
 CHECK_LINE = ("CHECK error ", "CHECK warning ")
 SUMMARY = re.compile(r"\berrors=\d+ warnings=\d+")
 
@@ -211,22 +213,22 @@ def drop_lines(lines: list[str], names: list[str], root: Path | None = None) -> 
 
     A CHECK error or warning line is dropped when it names a pointer file or its imported file (res_paths:
     `Failed loading resource: res://a.png`, `referenced non-existent resource at: res://a.png`, an `invalid UID ...
-    using text path instead: res://a.png`, `Unable to open file: res://.godot/imported/a.png-<hash>.ctex`) or a file
-    such a line was about (a script that preloads one fails to compile: `res://p.gd:3: Parse Error: Could not preload
-    resource file "res://a.png"`, then `Failed to load script "res://p.gd"`). So in CI, a problem in a file that uses
-    an LFS asset is left to the local check, which has the content. A pointer file with a stand-in (aside()) causes no
-    lines. The summary line gets the counts of the lines kept; with no pointer files the output is unchanged.
+    using text path instead: res://a.png`, `Unable to open file: res://.godot/imported/a.png-<hash>.ctex`) or a script
+    that failed to load because of one (`res://p.gd:3: Parse Error: Could not preload resource file "res://a.png"`,
+    then `Failed to load script "res://p.gd"`, and a script that preloads that one). A scene that refers to one still
+    loads, so its other lines are kept. A pointer file with a stand-in (aside()) causes no lines. The summary line gets
+    the counts of the lines kept; with no pointer files the output is unchanged.
     """
     if not names:
         return lines, 0, 0
     checks = [line for line in lines if line.startswith(CHECK_LINE)]
     skipped = res_paths(names, root)
     grown = True
-    while grown:  # a file a dropped line was about makes the lines that name it dropped too
+    while grown:  # a script that failed to load because of a skipped file makes the lines that name it dropped too
         grown = False
         for line in checks:
-            if _names(line, skipped):
-                for where in LOCATION.findall(line):
+            if _names(line, skipped) and any(sign in line for sign in SCRIPT_FAILED):
+                for where in SCRIPT_LOCATION.findall(line):
                     if where not in skipped:
                         skipped.add(where)
                         grown = True

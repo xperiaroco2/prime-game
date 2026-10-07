@@ -235,6 +235,24 @@ class DropLinesTest(unittest.TestCase):
     def test_no_pointer_files_change_nothing(self) -> None:
         self.assertEqual(lfs.drop_lines(PROBED, []), (PROBED, 0, 0))
 
+    def test_a_scene_that_uses_one_keeps_its_other_lines(self) -> None:
+        # Godot still loads the scene: its uid warning and missing resource go, an unrelated error in it stays.
+        other = "CHECK error scene/main/node.cpp:1: res://s.tscn:9 - Node not found: \"Missing\". [get_node]"
+        lines = [line for line in PROBED if "s.tscn" in line] + [other, "CHECK summary files=1 errors=2 warnings=1"]
+        kept, errors, warnings = lfs.drop_lines(lines, ["art/a.png"])
+        self.assertEqual((errors, warnings), (1, 1))
+        self.assertEqual(kept, [other, "CHECK summary files=1 errors=1 warnings=0"])
+
+    def test_a_script_that_preloads_a_failed_script_is_dropped_too(self) -> None:
+        lines = [
+            'CHECK error res://pre.gd:4: Parse Error: Could not preload resource file "res://art/a.png". [reload]',
+            'CHECK error res://deep.gd:2: Parse Error: Could not preload resource file "res://pre.gd". [reload]',
+            'CHECK error modules/gdscript/gdscript_resource_format.cpp:46: Failed to load script "res://deep.gd"'
+            ' with error "Parse error". [load]',
+            "CHECK summary files=2 errors=3 warnings=0",
+        ]
+        self.assertEqual(lfs.drop_lines(lines, ["art/a.png"])[1:], (3, 0))
+
     def test_another_file_and_a_longer_name_are_kept(self) -> None:
         lines = [
             "CHECK error core/io/resource_loader.cpp:317: Failed loading resource: res://art/a.png2. [_load]",
