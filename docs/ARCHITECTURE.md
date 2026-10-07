@@ -254,9 +254,14 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 **Transport** (`net/transport/`, #40):
 - `NetTransport` is all game code sees: `host`, `join`, `poll`, `send(to_peer, kind, payload)`, `close`, `own_id`,
-  `peers`, `set_refuse_new_connections`, `disconnect_peer`; signals `connected`, `connect_failed`, `peer_joined`,
-  `peer_left`, `host_lost` and `packet_received`, fired only from `poll()`. A client sends only to the host (peer 1).
-  The host's own client is peer 1 too.
+  `peers`, `set_refuse_new_connections`, `disconnect_peer`; signals `connected`, `connect_failed(reason)`,
+  `peer_joined`, `peer_left`, `host_lost` and `packet_received`, fired only from `poll()`. A client sends only to the
+  host (peer 1). The host's own client is peer 1 too. `connect_failed`'s reason is one of `NetTransport`'s `JOIN_`
+  ids, as precise as the backend can tell (M6-4, #370): ENet and the loopback cannot tell a refusal from no answer
+  and give `connect_failed`; WebRTC adds `no_room`, `joins_closed`, `full` (the service's answers),
+  `service_unreachable` (its socket closed, or not open after the Signaller's 5 s connect timeout, §4.8),
+  `service_refused` and `host_unreachable` (no direct path, or no answer in 15 s).
+  `ClientSession` ends with it, and `EndReasons` (`client/app/`) says each in words.
 - **`disconnect_peer(p)`** carries out `core/`'s `DisconnectPeer` (§3): p leaves `peers()` and `send` at once,
   `peer_left(p)` follows on the next poll like any leave, and p sees `host_lost` (a client cannot tell a kick from
   the host leaving) after whatever was sent to it before the call, a reason for example: ENet uses
@@ -296,6 +301,148 @@ dissidents, no crew present only once every crew member left, End widens nothing
   a host-to-client LATEST kind holds what it describes for every player that recipient may see (filtered by
   `server/`) in one message, never one message per player, or only the last player's would arrive in a poll that
   holds several.
+- **`LaneOrder`** (`net/transport/`, M6-3, #365; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
+  §2.2, E49) restores ENet's channel-0 order of LATEST against RELIABLE for a backend whose channels do not keep it
+  (WebRTC's data channels, a later Steam backend; ENet and the loopback do not use it). Without it a `MoveClaim`
+  sent just before a `PickUp` can arrive after it, and the host refuses the `PickUp`, only over the internet. The
+  sender prefixes each LATEST packet with `[reliable_sent: u16][latest_seq: u16]` (LE, wrapping, compared in
+  serial-number order): the packets written to that peer's RELIABLE channel before it, `ADMIT` included
+  (`count_reliable_sent`), and a per-peer LATEST counter (`stamp_latest`). RELIABLE and VOICE carry no header, and
+  the header sits below `NetFrame`: the frame handed on has none, and the payload caps are unchanged. The receiver
+  reads LATEST before RELIABLE in each poll and calls `read_reliable` for every RELIABLE packet before decoding it;
+  `read_latest` delivers a packet whose `reliable_sent` equals that count and whose seq is newer, holds one that is
+  ahead until its reliable packet is read (`read_reliable` returns the held frames it releases, which go to the
+  inbox right after that reliable packet), and drops one that is behind or not newer. At `HOLD_CAP` (8, a
+  placeholder) held packets one packet of the arriving one's kind, the arriving one included, is dropped: first the
+  oldest that a newer one waiting for the same reliable packet follows (the inbox's merge would drop it anyway),
+  else the oldest (the M6 ADR's §2.2 rule; it loses the claim between two reliable packets only with 8 in flight), and with
+  none of that kind held the arriving one. The dropped frame comes back in `Read.superseded`: the backend decodes
+  it without delivering it and counts it in `latest_superseded` when valid, as the inbox does. A per-peer clock
+  starts when the hold turns non-empty and restarts at each release; past `STALL_MS` (20 s, the silence rule),
+  judged after both channels were read, `stalled_peers` names the peer once and forgets it, and the backend counts
+  `ORDER_STALLED` and disconnects it (a client ends as `host_lost`); a full hold alone never disconnects. Rejects:
+  a LATEST packet shorter than the header (`ORDER_HEADER_SHORT`), longer than the header and the longest frame
+  (`TOO_LARGE`), or from a peer it does not know (`UNKNOWN_PEER`). Peers are explicit: `add_peer` when a connection
+  opens, `forget` at once when it leaves or is disconnected, which discards its held packets undelivered, so a
+  late packet never brings an old connection's counts back. `count_reliable_sent` counts only packets the channel
+  accepted. The class is pure (the caller passes the time); `WebRtcTransport` (below) uses it, and its stall clock
+  is the silence rule's (`STALL_MS` equals `WebRtcTransport.SILENCE_MS`, which a test pins, so the class names no
+  backend).
+- **The WebRTC library** (M6-2, #367; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) E57):
+  webrtc-native 1.2.2 in `addons/webrtc_native/` (the `.gdextension` as shipped and its `.uid`, the Windows and
+  Linux x86_64 libraries, their license files; credits: `docs/credits/webrtc_native.md`). Godot loads it at start
+  in the editor, a Windows export, CI and a cloud session, and it makes its `WebRTCLibPeerConnection` the
+  implementation behind the engine's `WebRTCPeerConnection`. So `WebRtcTransport` (`net/transport/`, M6-4) creates
+  `WebRTCPeerConnection`s and their `WebRTCDataChannel`s with `new()` and `create_data_channel`, names no class of
+  the addon, and is the only code that reaches WebRTC; nothing outside `net/` does. Without the extension those
+  calls return nothing usable (`create_data_channel` gives null): the smoke test
+  `tests/unit/net/transport/webrtc_native_addon_test.gd` fails then, so `verify` catches a lost or unloadable addon.
+  The library sets itself up when a process makes its first connection, and again after its last one is gone; a
+  new connection's offer waits for that (#472, measured on the engineer's PC, 16 logical CPUs): about 30 ms when
+  idle, but 9 to 11 s for a GdUnit process's first offer under `tools\run.cmd load --loops 128`, and often 0.5 to
+  1 s there whenever no other connection was open, against under 10 ms while one was. So every WebRTC run of
+  `verify` keeps one connection open for its whole run (`tests/integration/net/webrtc_warm_up.gd`) and makes no
+  other before it is set up: `webrtc_transport_test.gd` and `webrtc_silence.gd` poll it frame by frame (#472);
+  `webrtc_host_and_two_clients`, `webrtc_freeze`, `webrtc_stall`, each process of the WebRTC bots and the chaos
+  run over WebRTC block in its `wait()` (at most `READY_WITHIN_MS`, 30 s) before they host or join; the twins and
+  the bots print how long the setup and each join took (#510). Before #510 their first join carried the setup:
+  under 128 busy loops `webrtc_host_and_two_clients` failed 3 of 5 runs (both first joins `host_unreachable` after
+  17 to 22 s, so the retries got ids 4 and 5), `webrtc_freeze` lost both first joins the same way in 1 of 4, a
+  `webrtc_stall` join took 9.9 s, and 3 of 4 `bots-webrtc` runs lost a join for good. After it, in 3 runs of each,
+  the setup took 0.5 to 10 s and no join failed or took over 3.1 s; what still fails under that load is not a
+  join: `bots-webrtc` 2 of 3 (an honest bot corrected outside a placement, as in 1 of the 4 runs before) and both
+  chaos runs (`chaos-webrtc` and `chaos` over ENet alike take 90 to 100 s there, past their 60 s).
+- **`WebRtcTransport`** (`net/transport/`, M6-4, #370; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
+  §2.1 to §2.3, §2.6; E48, E50, E54, E56), the second network backend: a star, never a mesh. The host holds one
+  `WebRTCPeerConnection` per client and reads it directly (no `WebRTCMultiplayerPeer`, E48); the host's own client
+  stays a `LoopbackTransport`.
+  - **Signalling** goes through a `Signaller` to the service at `signal_url` (the Worker, or a `LanSignalling` on the
+    LAN and in every headless test). `host()` opens a room (`room_protocol` and `room_content` go into `open`;
+    `room_opened(code)` and `room_code()` give its code; the port is unused); `join(code, _)` joins one, and
+    `found_protocol`/`found_content` keep the service's advisory `found` for the menu (M6-7). Per joiner the host
+    assigns the next peer id (2 upward, never reused in a session, E50), creates the connection with the ICE servers
+    the service gave it, and offers (the offer's attempt id is that peer id); it applies one answer per offer, and a
+    second one, an answer or candidate it cannot apply, or a failed description closes that connection (an admitted
+    peer leaves). The joiner applies one offer per attempt. Half-made connections, and ones the host is closing,
+    count against `max_clients` (`connection_count()`); a full or refusing host answers a joiner nothing, and
+    refusing joins drops the connections still being made and also sends `close` to the service (`reopen` when it allows them again), so a code typed during a
+    match is answered `joins_closed`. Once admitted, the client closes its signalling socket, which frees its place in
+    the room. Tests set `local_candidates`: only IPv4 host candidates are signalled, rewritten to 127.0.0.1.
+  - **Channels:** three negotiated data channels per connection, created by both sides with the same options
+    (`CHANNEL_IDS`): RELIABLE id 1 (reliable, ordered), LATEST id 2 and VOICE id 3 (`ordered: false`,
+    `maxRetransmits: 0`). Each packet reaches the inbox with its channel's lane, so `NetFrame.decode`'s lane check
+    stays. LATEST packets carry `LaneOrder`'s header (`stamp_latest`; every packet RELIABLE took, `ADMIT` included, is
+    counted with `count_reliable_sent`; an empty packet is refused, `ERR_INVALID_DATA`, since the peer never reads an
+    empty message and counting one would hold every later LATEST packet one reliable packet too long, #429); each
+    poll reads every connection's LATEST channel, then RELIABLE (each packet
+    counted with `read_reliable` before anything else, the frames it releases pushed right after it), then VOICE. A
+    LATEST packet `LaneOrder` rejects, and the frames its full hold drops, go to the inbox as `REJECTED` and
+    `SUPERSEDED` items, so they are counted in the inbox's order (the latter through `_decoded`, into
+    `latest_superseded` when valid).
+  - **Admission:** once every channel is open the host sends `ADMIT` on RELIABLE: a kind-0 frame whose payload is
+    the peer id (u32, 7 bytes in all), and `peer_joined` follows. The client's first RELIABLE packet must be it; it
+    learns its id there, and an id of 1 or less, or anything else, ends the join with `connect_failed`. A host that
+    refuses joins when a connection opens closes it instead.
+  - **Keepalive and the silence rule** (the M6 ADR §2.6): WebRTC's own keepalives run on libdatachannel's threads, so a hung main
+    thread stays `CONNECTED` (M6-1). `poll()` sends each live peer exactly `[0, 0, 0]` on VOICE when nothing went to
+    it for `KEEPALIVE_MS` (1 s), from the main thread only; the receiver consumes exactly that packet on VOICE before
+    the inbox (and the round trip's probes below), and any other kind-0 packet reaches the inbox, which rejects it
+    (`UNKNOWN_KIND`). After every channel
+    was read (the backlog drained first, so a thawed side drops nobody), a peer heard nothing from for `SILENCE_MS`
+    (20 s), keepalives included, leaves: `peer_left` on the host, `host_lost` on a client. So does a connection in
+    `FAILED` or `CLOSED` (judged after its channels were read, so what came with the end comes first, as on ENet;
+    the fault shim's late RELIABLE packets too), and a channel not open under a live connection: on a client at once (it is how
+    `disconnect_peer` ends it); on the host after `CHANNEL_GRACE_MS` (1 s) with the connection still up, counted as
+    `CHANNEL_CLOSED` (a client's own close resets its channels just before its connection ends, and under load the
+    host read the first a poll before the second: 1 run in 10). `DISCONNECTED` is transient. A join not admitted
+    `JOIN_TIMEOUT_MS` (15 s) after `join()` gives up with `host_unreachable` (no offer came, or the channels never
+    opened); the host closes a half-made connection after as long. A join whose socket to the service has not opened
+    by `Signaller.CONNECT_TIMEOUT_MS` (5 s, §4.8) gives up before that with `service_unreachable` (#431, #461): on
+    Windows the engine reports a refused connect only at its TCP connect timeout
+    (`network/limits/tcp/connect_timeout_seconds`, 30 s; `WebSocketPeer` and `StreamPeerTCP` alike), though the OS
+    refuses a closed 127.0.0.1 port in about 2 s, and a service that takes the connection but never answers the
+    handshake reports nothing. On Linux the refused socket closes at once (`service_unreachable` too).
+  - **Never a send on a closed channel:** each write checks the channel's `get_ready_state()` first (a closed one
+    prints an engine `ERROR:` line, M6-1). A leaving peer's channels are drained and discarded until it is gone.
+  - **`disconnect_peer`** never blocks: the reason the caller sent goes out first; the next `poll()` closes that
+    peer's RELIABLE channel once its buffered amount is 0, and the connection once the client closed its side (its
+    connection or another channel closed) or `CLOSE_WAIT_MS` (5 s) passed. Held LATEST packets are discarded at once,
+    and nothing more is sent to it. A leave the host decides (silence, a stall, a closed channel) closes the
+    connection at once.
+  - **The own connection** (the design's §3 item 4, #431; every backend has `own_route()` and
+    `own_round_trip_ms()`, a client's own only, NONE and -1 on a host): webrtc-native 1.2.2 registers no method of its
+    own, so neither the selected candidate pair (host, srflx or relay) nor a round trip can be read
+    (`webrtc_native_addon_test` pins it). The kind follows from the ICE servers the offer brought (`route_of`):
+    `DIRECT` without a TURN server (no relay candidate exists), `DIRECT_OR_RELAYED` with one. With
+    `measure_round_trip` set (the client's F3 while it shows) a client pings the host on VOICE once admitted and every
+    `PING_INTERVAL_MS` (1 s, a placeholder; a ping counts as a keepalive): a kind-0 frame of 5 bytes, `PING` and its
+    clock in ms (u32), 8 in all (`PING_BYTES`). The host answers the pings of one poll once, after the reads, with
+    `PONG` and the last stamp read; the client takes `now - stamp` (dropped when later than now or older than
+    `SILENCE_MS`) into a smoothed round trip (gain 1/8). Both are consumed before the inbox; one the wrong way, or
+    malformed, reaches it and is rejected. Off by default, so the silence twin's upload is keepalives alone. A client
+    that stops measuring forgets its figure (the line reads "not measured yet" after F3 is reopened). A sample
+    includes up to a frame on each side, as ENet's acknowledgements do. The host's answers are bounded only by its
+    poll rate, and `PeerBudget` never counts a ping (hobby project: no limit added). ENet: `DIRECT` and its smoothed
+    `PEER_ROUND_TRIP_TIME`; the loopback: `LOCAL`, no round trip.
+  - **`take_upload()`** counts each packet a channel took (the header included) plus `PACKET_OVERHEAD_BYTES`, E56's
+    108 B, one datagram each; SCTP's acknowledgements are left out (the transport never sees them).
+  - **The fault shim** (`FaultShim`, `use_faults`, debug builds only and off by default; the design's §5): on what
+    that side receives, RELIABLE arrives `reliable_delay_ms` late in order, counted from the poll before it was read
+    (so a backlog read after a freeze is not held back again), one packet `delay_next_reliable(ms)` late instead
+    (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates, and at the
+    rate `latest_late` a copy arrives `latest_delay_ms` late, holding back the LATEST packets behind it (M6-6). The
+    freeze twin runs with it on (50 ms, 10 % dropped, 10 % duplicated), the stall twin delays one beat by 3 s while
+    LATEST flows, and the bots and chaos bots over WebRTC (§4.6.7) make one LATEST packet in five that a client receives
+    120 ms late: more than RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST packet sent just before a reliable one
+    arrives after it, the one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule
+    removed passed `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the
+    first claim of an epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected
+    (1 of 5 runs under load). Until #429 only clients lost LATEST and got it late: a host that lost a `MoveClaim`
+    right before a reliable `PickUp` (or dropped a late one behind it, the rule at work) checked the `PickUp` against
+    the claim before and refused an honest bot (`out_of_reach`, 1 of 3 chaos runs), and a host that lost an epoch's
+    first claim took the next as one tick and corrected an honest bot (1 of 10 chaos runs under load). Since #429 the
+    client sends those claims on `MoveClaimReliable` (§4.3, §7.1.15 Lost claims), and every side's shim, the host's
+    included, drops 10 % of LATEST and makes 20 % of it 120 ms late.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -330,8 +477,28 @@ dissidents, no crew present only once every crew member left, End widens nothing
   services once, so after a freeze one service took only the oldest part of the backlog (on the Linux CI runner
   the thawed host's newest pose was up to 3.1 s old, #95). `EnetTransport.poll` services until one reads fewer
   (at most 16 times), so the LATEST merge sees the whole backlog.
-- Checked by `tests/unit/net/transport/` and three headless runs on 127.0.0.1, which `verify`, and so CI, runs on
-  a free port (`-- --port=<p>`; AGENT_WORKFLOW §11):
+- Checked by `tests/unit/net/transport/`, `tests/integration/net/webrtc_transport_test.gd` (WebRTC against forged
+  peers in one process: a half-made connection against the maximum, a second answer, an `ADMIT` of the host's id,
+  keepalives and other kind-0 packets, the join's reasons (a closed service port and a service that never answers
+  the handshake: `service_unreachable` on every OS, with the shipped timeouts too, #461), a peer's last message
+  before its leave, a kick's reason read with the closed channel, ids not reused, a channel closed under a live
+  connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected;
+  a warm-up connection lives as long as the suite, and only the joins a test expects to give up have the short
+  join timeout, since a join under load took up to 1.7 s, #472),
+  `tests/integration/net/webrtc_warm_up_test.gd` (`WebRtcWarmUp.wait()`: ready, its bound's timeout named, a
+  failed setup returned at once, #510), `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
+  127.0.0.1, which `verify`, and so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet
+  runs below (the host and two clients also check each side's own connection), and their WebRTC
+  twins with `LanSignalling` on that port, no ICE servers and host candidates only (M6-4, #370):
+  `webrtc_host_and_two_clients.gd` (`--instances 3`: the ids 2 and 3, then 4, `disconnect_peer` after a last
+  message, every peer's own id on every lane, which caught the design's §5 plant of a swapped id-to-connection map,
+  the upload by E56, a join while refusing answered `joins_closed`), `webrtc_freeze.gd` (`--instances 3`, the fault
+  shim on), `webrtc_stall.gd` (one process: a stalled host and a stalled client dropped by the silence rule, 20 s
+  after their last packet; a reliable packet 3 s late keeps its peer) and `webrtc_silence.gd` (one process: a dead
+  client and a silent Lobby kept for 30 s, keepalives alone, one a second, counted by E56; the room opens only
+  once a warm-up connection is set up, so the library's setup no longer counts against the joins'
+  `JOIN_TIMEOUT_MS`: the likely cause of two `host_unreachable` failures at 16.1 s under load, #472; the other
+  three twins set it up the same way in each process before they host or join, #510):
   - a host (with its own client) and two clients:
     `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
   - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
@@ -355,8 +522,9 @@ dissidents, no crew present only once every crew member left, End widens nothing
 *Designed for M3 (#89; accepted 2026-10-01):* the schemas of every intent, event, the snapshot and the voice frame, and their
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
-survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
-engineer took the recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
+survives a merge (§4.3); since #429 the claims that must not be lost travel on its RELIABLE twin, `MoveClaimReliable`.
+The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The engineer took the
+recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options. The designer took D1 to D3 (a) (#96).
 Every schema change updates §4.3 in the same PR.
 
@@ -496,6 +664,7 @@ Little-endian; sizes in bytes.
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
 | `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
+| `sized_opus` | 2 + n | a u16 length, then that many opaque bytes (a `VoiceBatch` frame's, M5-4b) | 0, or over the field's maximum (500) |
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
 snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
@@ -511,7 +680,8 @@ content edit before a playtest instead of the encoder refusing a reliable event 
 
 #### 4.3.2 Intents (C→H)
 Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
-`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
+`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`; nor has its
+RELIABLE twin `MoveClaimReliable`, which is a claim too. A client stops
 claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
 - **Before its `Welcome`** a client treats any `Rejected` as the end of its join, with a message naming the reason.
   Before 3e a `Hello` that the phase refuses (Loading, Round, End) got `not_accepted` with seq 0 and nothing
@@ -539,6 +709,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 11 | `StopRaise` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
+| 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -599,7 +770,7 @@ directive has no row, because it reaches no peer.
 |---|---|---|---|---|---|
 | 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
-| 113 | `VoiceDown` | H→C | VOICE | `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `tick: tick` (the host tick whose routing let it through, E11), `opus` | 55; 510 |
+| 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
 The rules of the table:
 - **Kinds.** 0 is the transport's `ADMIT`; 1 to 23 are intents, 24 to 31 debug commands (a debug build's table only,
@@ -619,8 +790,9 @@ The rules of the table:
   `invulnerable` and the debug row `ForceClock` (25), 5 when M4-4 (#140) added `Raise`, `StopRaise` and
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
-  `belt_item`, and is 7 since #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`; M4's protocol PRs each set
+  `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), and is 9 since #429 added `MoveClaimReliable` (14);
+  M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -665,14 +837,18 @@ The rules of the table:
   merged claims are lost, so a player who climbed and jumped during a host freeze may be corrected once. The covered
   ticks are settled with the flags `sprint_ticks` and `moved_ticks` give each of them (#155), which hold the last
   32 client ticks (1.6 s); a covered tick older than that, after a longer freeze, takes the oldest bit.
+  `MoveClaimReliable` (14) carries the same fields, so its count and masks are read the same way.
 - **Sizes.** The host sends each remote player a snapshot per tick: about 430 bytes on the wire with 10 players, so
   9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 2 KB/s with headers. A payload over its cap is never
   truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
   longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
   the declared maxima is refused with the kind named.
-- **Voice batching** (M5). One frame per `VoiceDown`. If M5 confirms the per-send ENet cost (§6), a batch of several
-  speakers' frames to one listener is a new row.
+- **Voice batching** (M5-4b, built in M6-8, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
+  frame it hears in that poll, in the relay's order (per speaker in peer-id order, each speaker's in its seq order);
+  frames that would pass the 1024-byte cap start a second batch. `sized_opus` is the only Opus type that may stand
+  before another field (`opus`, the rest of the payload, is a row's last field only). The client turns each frame
+  back into a `VoiceDown` (`DecodedView.voice_downs`), so `voice_received` and the leak test stay per frame.
 
 ### 4.4 The codec (M3 design, #89)
 - **One table** in `net/messages/` declares each row of §4.3: kind, name, direction, lane, cap and the fields with their
@@ -790,8 +966,8 @@ deal (below) is found before the slice is delivered.
 The routing table holds `speakers_for(l)` for every present player l, refreshed after every
 `Match.tick` call (catch-up ticks included: a catch-up that crosses Round → End must not relay under Round's routing),
 so between two ticks it is the routing that `view_of` records for the last one (§5). A `VoiceUp` from speaker s goes, as
-a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged), to each listener l ≠ s whose entry
-holds s; one from a peer that is not a present player is dropped. Between two ticks the transport's word on a leave
+a frame (s, the stream's next seq, the bytes unchanged) of the `VoiceBatch` stamped `ticked_through()`, to each listener
+l ≠ s whose entry holds s; one from a peer that is not a present player is dropped. Between two ticks the transport's word on a leave
 wins: on `peer_left(p)`, p leaves the table at once as speaker and listener until the refresh after the tick that
 applied its `PeerLeft`. Peer ids are chosen by clients and can be reused (§4), so a new connection with a departing
 player's id must not speak or hear as that player before `core/` has seen the leave; the new peer is a newcomer, absent
@@ -803,15 +979,16 @@ worse than a gap (M5 tunes it). Unreliable messages go only to players, and a pl
 overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
 playback are M5.
 
-The send path encodes each frame once (#245, M5-4b's first step, no wire change): `VoiceRelay.flush` gives one
+The send path encodes each frame once (#245) and batches per listener (M5-4b, #374): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
-`VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at
-the offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it), byte
-for byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field
-of varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
-`voice_down_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`, `voice_down_encoder_test.gd` (every copy
-against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap; seen
-failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
+record (speaker, seq, length, bytes) once (if any listener is reachable), gives every reachable listener a copy with its
+own seq written in place in that listener's batch at the offset the schema gives (`VoiceBatchEncoder`, `WireField.fixed_offset` of the record:
+the fixed sizes of the parts before it), then sends each listener, in peer-id order, its copies behind the tick and a
+count in as few `VoiceBatch`es as the cap and `MAX_BATCH_FRAMES` allow, each byte for byte what `WireSchema.encode`
+gives for that batch. A row change that moves the seq behind a part of varying size, or widens it, makes every copy a
+full encoding (slower, never corrupt) and fails `voice_batch_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`,
+`voice_batch_encoder_test.gd` (every batch against the codec for several speakers, ticks, frame sizes and seqs, filled to
+the cap and to the most frames, and through `VoiceRelay` across the u16 wrap), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
 `tests/integration/server/host_session_voice_test.gd` (also a listener after one that is unreachable while the relay
 still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent unpatched;
 no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`, `bots-enet` and
@@ -824,11 +1001,15 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 - Per peer, three token buckets, refilled for the host time elapsed in step 2, before the poll:
   - **voice frames** (`VoiceUp`): 500, refilled at 50 per second (one 20 ms frame each); the relay's newest 5 per
     speaker per poll bounds a backlog further;
-  - **reliable intents**: 100, refilled at 20 per second;
+  - **reliable intents**: 100, refilled at 20 per second; `MoveClaimReliable` is one of them (#429): reliable
+    twins are never merged, so this bucket, not the bytes, bounds what they put in the command log;
   - **bytes** of every other message (the reliable intents and `MoveClaim`): 64 KiB, refilled at 16 KiB/s.
 
   An honest client sends about 50 frames, a few intents and about 1 KB of claims per second, so each bucket holds
-  more than 10 s of it: a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
+  more than 10 s of it (a twin before each player action doubles what an action costs, and each `Correction` costs
+  one twin, so 10 actions a second, or a correction on every claim (20 a second), is where an honest client would
+  meet the bucket):
+  a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
   its own bucket so that a player talking at a high Opus bitrate never drains the budget that a `SetReady` or a
   `LoadAck` needs: a reliable intent dropped on a budget is acknowledged by ENet and never answered, and the client's
   state would diverge silently, which only a looping client may cause. `MoveClaim` is bounded by the LATEST merge as
@@ -850,9 +1031,10 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 over budget (`HostSession.over_budget_but_voice()`), which only the relay's counters give. The voice relay's are apart:
 `HostSession.relay_counters()` (and `HostNode.relay_counters()`) gives, as totals since the session started,
 `voice_relayed` (frames of present players the relay passed on, after the newest 5 per poll, heard or not),
-`voice_sent` (`VoiceDown`s the transport took), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
+`voice_sent` (frames the transport took, one per listener a frame went to), `voice_batches` (the `VoiceBatch`es that
+carried them: the sends), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
 `over_budget`, the frames over a speaker's voice bucket), `voice_relay_usec` (`Time.get_ticks_usec` around a poll's
-flush, encoding and sends, in polls that held frames), `voice_send_usec` (around each `VoiceDown`'s `send` alone),
+flush, encoding and sends, in polls that held frames), `voice_send_usec` (around each `VoiceBatch`'s `send` alone),
 and the upload apart: `voice_up_*`, `snapshot_up_*` and `other_up_*` bytes and datagrams, with `snapshots_sent` and
 `session_ms`. `RelayMeter` (`server/relay_meter.gd`) keeps them; a release build has none. The upload comes from
 `NetTransport.take_upload()`, taken before and after the voice sends and the snapshot sends: `EnetTransport` pops
@@ -990,7 +1172,9 @@ it, it keeps what a player may know: its peer id and epoch, the phase, the roste
 bodies and each player's life folded from the events (cleared on `LoadMatch` and on entering the lobby); the
 avatars of the newest
 snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
-client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
+client tick (20 Hz) with its epoch, client tick and jump count (the first of each epoch, and the last one again
+right before a player action, on its RELIABLE twin `MoveClaimReliable`, #429), and `LoadAck` after loading. It
+never reads `core/`
 state (invariant 2).
 Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
 `ClientModel` (the fold). What the build pinned:
@@ -1130,7 +1314,12 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
   more after it started is tried again: a host that refuses a join answers at once, before the admission with
   `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-  both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+  both stay failures. A join `_join_again` does not join again is lost for good (`NetPlay._lost_join`, #483): its
+  bot's step fails at once, naming the reason it ended and those of its earlier joins; a remote bot then writes its
+  view file with that line at once, and the host reports it as that bot's failure when its own time limit ends
+  the run (it reads the view files only then). A runner that
+  never calls `_join_again` (`PerfRun`) joins nobody again, so every lost join of it fails at once. Since #318 both
+  live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
   variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
   every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
@@ -1160,8 +1349,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
   lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares. The host prints
   its relay counters (§4.5 "The host's counters") every 5 s of the run and every total at the end, in instance 1's
-  log (`tools/out/logs/run/bots_main-1.log`): `VoiceDown`s sent per 20 ms, the relay's microseconds per 20 ms and
-  per send, the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
+  log (`tools/out/logs/run/bots_main-1.log`): the frames sent and the `VoiceBatch`es carrying them per 20 ms, the
+  relay's microseconds per 20 ms and per send (a batch), the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
   snapshots and the rest apart (`RelayReport`, M5-4).
 - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
   MVP scenarios, a few seconds more with M4-3's respawn scenario);
@@ -1194,7 +1383,10 @@ Compares what each bot b decoded with `view_of(b)`:
   lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
   (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
 - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
-  from the voice rule, the distance invariant (M5-1, #215, below and §5);
+  from the voice rule, the distance invariant (M5-1, #215, below and §5). Since protocol 8 every frame arrives in a
+  `VoiceBatch` and is checked as the `VoiceDown` it stands for; a batch with no frame fails too (M5-4b, #374: proven
+  with a planted relay that batched a frame to listeners whose routing lacked its speaker, seen failing in
+  `voice_beyond_the_radius` with "voice of 2 under tick 124, which view_of does not allow", then reverted);
 - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
   client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
   (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
@@ -1207,16 +1399,18 @@ Compares what each bot b decoded with `view_of(b)`:
   the host's transport rejected;
 - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
   `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
-  `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
+  `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceBatch`, even an empty one. The runner raises the hello
   deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
   events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
   with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
   `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
   refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
-  `core/` disconnected that is still connected fails (`server/` did not carry it out). Prevents: a `server/`
-  refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
-  recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
-  which every bot is a player within one tick;
+  `core/` disconnected that is still connected fails (`server/` did not carry it out). A watcher that never
+  connected fails with why: its `connect_failed` reason ("connect_failed, reason service_unreachable", `host_unreachable`,
+  ...; "the backend gave no precise reason" for ENet and the loopback) or "still joining when the run ended" (#483).
+  Prevents: a `server/` refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of
+  `core/`'s recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a
+  test in which every bot is a player within one tick;
 - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
   peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
   read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
@@ -1349,7 +1543,19 @@ the leak check (no superseded-LATEST or voice-seq check: a network bunches and d
 each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
 a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
 Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
-`BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
+`BotsEnet` (#318; `ChaosRun._may_play`). A join lost for good (any end `_join_again` does not retry: over WebRTC
+every reason but `no_room` and `service_unreachable`, over ENet a `connect_failed` sooner than half the join timeout,
+and `host_lost` before the `Welcome`) fails its bot's step in `play_frame` before any bot acts, naming the reason and
+those of the bot's earlier joins (`NetPlay._lost_join`, #483: `its join was lost for good (host_unreachable)`); a
+join that waits for its retry does not start play. Over the network a bot joins at most `ChaosRun.MAX_JOINS` (3)
+times, so a join retried without end fails too. Until #483 such a run played on without the bot, and over WebRTC,
+paced to the real clock, the runner killed it at 60 s, before its 90 s time limit, with no reason printed. Since
+#508 the runner's kill is 120 s per seed over ENet or WebRTC (`bots.CHAOS_NETWORK_SECONDS_PER_SEED`; 60 s over the
+loopback), so a seed that stalls for any other reason fails at `ChaosScenario.TIME_LIMIT_S` with the scenario's
+reason (`not done within the time limit (90.0 s)`; 2026-10-07, a planted stall, bot 3 waiting 200 s in End,
+failed so at 90.6 s over WebRTC, and with `--seconds 60` was killed with no reason). The
+malformed peer sends its `ForceRole` naming bot 2 only once bot 2's peer id is known, so none names peer 0 (which
+the encoder refuses with an error line).
 
 ##### 4.6.5.1 Runs
 `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
@@ -1368,12 +1574,16 @@ forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always 
 class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
 chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
 `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, no
+`ForceRole` for a bot 2 without a peer id), `tests/scenarios/chaos_enet_start_test.gd` (the start over the network:
+a join lost for good fails at once naming its reason, a join that found no room joins again without starting play,
+`MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13 and 112, the debug
-kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
-23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
+The C→H kinds 1 to 13 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
+covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
+`ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111,
+113, 127, 128, 200, 255). A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
 in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
 
@@ -1405,6 +1615,58 @@ at its own exit even while a kill of another process blocks, a killed one's last
 lobby roster Player1 to Player3).
 Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
 `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
+
+#### 4.6.7 Over WebRTC
+(M6-6, #371; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §5, §6):
+`tools\run.cmd bots <scenario> --instances N --transport webrtc` runs `BotsEnet` with every transport a
+`BotWebRtc` (`tests/harness/bots/`): instance 1 serves `LanSignalling` on the port, whose one room is
+`BotWebRtc.CODE`, and only IPv4 host candidates on 127.0.0.1 are signalled (no STUN in a container, the design's
+§2.7). Each process first sets the WebRTC library up and keeps that warm-up connection until its end (§4,
+`WebRtcWarmUp.wait()`, #510), so the setup is in no join's `JOIN_TIMEOUT_MS`; a remote bot prints how long its join
+took. A bot
+whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later;
+every other end (`host_unreachable`, after 15 s at most: the service answered and the connection never opened;
+`joins_closed`, `full` and the other refusals; `host_lost` before the `Welcome`) fails the bot's step at once,
+naming the reason (#483), and a remote bot's view file carries that line to the host. The fault
+shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % duplicated, and
+on the clients LATEST also 10 % dropped and one in five 120 ms late (a host that loses an epoch's first claim takes
+the next as one tick, §7.1, and corrected an honest chaos bot in 1 of 10 runs under load); not for a measurement (`BotScenario.measurement`, which measures the relay).
+A remote bot that wrote its view file sends nothing more and only polls until the host closes, since a send that
+meets the other side's close prints an engine `ERROR:` line (the state check and the send race libdatachannel's
+threads). Every check of the leak test runs unchanged, plus the **order check** (`OrderLog`, the design's §5):
+each transport records per peer a fingerprint (the kind, the payload's hash and size) of every RELIABLE and LATEST
+message its channel took (`send`) and every one it delivered (`packet_received`, after the inbox's merge); what one
+side delivered from a peer must be what that peer sent, in order, with LATEST messages left out at most. It fails on
+a message delivered after one sent later, a RELIABLE message skipped, a recording that delivered nothing, and, as
+the host's lists are whole, a message never sent to that peer (a swapped id-to-connection map). A remote bot's
+lists end with its view file, so the walk of what the host delivered from it stops at the first message missing
+from them. The host checks both directions of each remote bot (its view file carries its lists), the lurker and
+the refused bot; bot 1 is the host's own loopback client. Over WebRTC the relay counters' upload adds no IP and UDP
+bytes per datagram: E56's 108 B per packet already counts them (`RelayReport.window`).
+`tools\run.cmd bots --chaos [--seed N] --transport webrtc` (`--enet` is `--transport enet`) runs `ChaosRun` in one
+process the same way (the library set up first, before the host's transport: `WebRtcWarmUp.wait()`, #510), paced to
+the real clock (a frame waits until the real clock reached the simulated one: the connections and the shim's delays
+are real time), with the ENet variant's invariants plus the order check, both ways for the honest bots and the
+watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
+packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
+`LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
+so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
+about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
+`tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC, and a join lost for good whose reason reaches the
+view file), `tests/unit/net/transport/fault_shim_test.gd`,
+`tools/runner/tests/test_bots.py` and `test_verify.py`.
+
+##### 4.6.7.1 Proven (2026-10-05, each plant reverted)
+`LaneOrder`'s "behind" rule removed (the design's §5 plant, M6-3's
+again): with M6-4's shim alone `bots-webrtc` passed, as 127.0.0.1 never delivered a LATEST packet after a reliable
+one sent after it; with the clients' late LATEST above both steps failed on the order check (`bots-webrtc`: `host
+to bot 3: message 11 was delivered after message 14, which was sent after it`, and a second; `chaos-webrtc`: three
+such lines for bots 2 and 3). #427's plant with real `HostSession`s and `ClientSession`s (its
+review's item 3): a swapped id-to-connection map in `WebRtcTransport._backend_send` (the host's message to peer
+p went on the connection of p xor 1) failed `bots-webrtc` on all three instances: bot 3 decoded another peer's
+`PlayerJoined` where `view_of` holds its own `Welcome`, and other snapshots; the lurker decoded the refused bot's
+`Rejected`, and the refused bot nothing; voice relayed under the wrong speaker; and the order check (`host to bot 3:
+delivered message 0 was never sent to it`).
 
 ### 4.7 The game client (M4 design, #125)
 Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
@@ -1512,12 +1774,34 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
   (§3.2: no names, no roles).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
-  and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
+- **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
+  when they show (no click first; also after Back to lobby), Loading keeps it as it was, and the menu, Connecting
+  and the end screen free it for their buttons. A screen never captures it from under the Esc menu, nor while the
+  window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
+  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
+  menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
+  runs on the lobby's screen, every round started with the cursor showing until a click.
+- **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
+  `project.godot`. Only an export template has the `template` feature, so everything the editor's binary runs (the
+  runner's `shot`, `playcheck`, `host` and `join` windows, the tests, the editor's runs) starts in a window: in
+  Godot 4.7.2 neither `--position` and `--resolution` nor `--windowed` undo a project's fullscreen mode (`main.cpp`
+  creates the window in the setting's mode; `--windowed` only skips a later `window_set_mode`). Not exclusive
+  fullscreen: the docs say it allows one window per screen and turns alt-tab into a fullscreen transition (on
+  Windows driver dependent, with black screens); the borderless window alt-tabs at once and leaves the other
+  monitors usable. Godot binds nothing to Alt+Enter: the action `toggle_fullscreen` (Alt+Enter) flips fullscreen
+  and a window through `GameWindow` (`client/app/game_window.gd`), handled first in `Game._input` on every screen.
+  Resolution options are M6.2's settings screen. Tests: `tests/unit/client/app/game_window_test.gd` (the setting
+  with an export's features and without, the toggle), `input_actions_test.gd`,
+  `tests/integration/client/app/game_window_input_test.gd` (Alt+Enter through `Input` events) and
+  `pointer_flow_test.gd` (a host and a joined client through Ready, the countdown, Loading, the round, the end and
+  back, the mouse captured all the way to the end screen; an open Esc menu and an unfocused window stay free). Not
+  headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
@@ -1530,7 +1814,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   to the dropped player right before its `DisconnectPeer`, and `ClientSession` ends with that reason. ENet's
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
-  runner's `--stop-file` and `--alive-file`; the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+  runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
 
 #### 4.7.5 Built in M4-6 (#142), the shell
 `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
@@ -1551,7 +1835,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   player stands still (no physics step) outside the lobby and the round.
 - The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
   read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
-  player through `PlayerController.teleport()`. Since #169 the lobby keeps the mouse too.
+  player through `PlayerController.teleport()`. Since #169 the lobby keeps the mouse too; since #517 Loading keeps
+  it and the lobby and the round capture it (`GameFlow.pointer_on`, "The mouse" in §4.7.4).
 - Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
   level, the views and the player are freed, and the menu says "The last session ended: <words>". The host's Leave
   and Quit, and closing the host's window, ask first (`EscMenu`); a client's Leave does not.
@@ -1629,7 +1914,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
-  for `shot`).
+  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8).
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
@@ -1850,7 +2135,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
-  longer frees the mouse in the lobby. `MousePointer` captures and frees it through `Input.mouse_mode`; headless
+  longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
+  frees it through `Input.mouse_mode`; headless
   Godot keeps no mouse mode (it reads visible whatever was set, probed on 4.7.2), so tests give `Game` one that
   remembers. The input action `ready` (F, a placeholder) is in `project.godot`.
 - Tests: `tests/unit/client/ui/esc_menu_state_test.gd`, `screens_test.gd` (the menu's pages, the host's question, the
@@ -2173,6 +2459,204 @@ the two-client push runs over the loopback with the interpolation delay. Key eve
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest.
+
+### 4.8 Signalling (M6-5a, #366)
+How a host and a joiner find each other before WebRTC connects (the
+[M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
+versioned apart from the game's wire (`"v"`, 1 today) and changes no row of §4.3. It carries no game data.
+
+**Pieces** (`net/signal/`): `SignalCodec` (the messages, their fields and checks), `SignalRouter` (the service's
+rooms and routing, with no sockets: a socket number in, the messages to send out), `LanSignalling` (the router over
+`ws://` from `TCPServer` and `WebSocketPeer`, served by the host itself on a LAN and in every headless test) and
+`Signaller` (the client side for a host and a joiner over `WebSocketPeer`; its signals fire from `poll()`; a socket
+still connecting after `CONNECT_TIMEOUT_MS`, 5 s, the engineer's choice on #474, is closed and `closed` fires: on
+Windows a refused connect stays connecting until the engine's 30 s TCP connect timeout, #431, #461). The Worker
+(M6-5b, `tools/signal/`) implements the same router in JavaScript.
+
+**Messages:** JSON text, printable ASCII (tab, CR and LF allowed: no `get_string_from_utf8` engine error a peer could
+repeat), at most 16 KB (16384 bytes, counted before parsing), each with `"t"` (the type) and `"v"`. Integers are JSON
+numbers without a fraction; the content hash, an s64, travels as 16 lowercase hex digits (its little-endian bytes;
+`SignalCodec.content_text`), since JavaScript numbers lose an s64's low bits.
+
+| From → to | Type and fields |
+|---|---|
+| host → service | `open {protocol: u16, content: hex16, max: 1..255}` (the first message; `max` is how many joiners at once, the mode's maximum minus the host); `offer {to, id, sdp}`; `candidate {to, mid, index, cand}`; `close`; `reopen` |
+| service → host | `room {code, ice_servers}`; `join {from}` (joiner `from` wants in); `answer {from, sdp}`; `candidate {from, mid, index, cand}`; `error {why}` |
+| joiner → service | `join {code}` (the first message); `answer {sdp}`; `candidate {mid, index, cand}` |
+| service → joiner | `found {protocol, content}` (advisory, §2.5 of the M6 ADR); `offer {id, sdp, ice_servers}`; `candidate {mid, index, cand}`; `error {why}` |
+
+`to` and `from` are the service's number for a joiner in its room (1 upward, never reused in that room), not a game
+peer id: the game's id comes in `ADMIT` (§2.3 of the M6 ADR). `id` is the host's id for that connection attempt,
+which the service checks as an id (1 to 2^31 - 1) and otherwise passes on. `sdp` is 1 to 12288 characters, `cand` 0 to 1024 (empty: end of candidates),
+`mid` 0 to 64, `index` 0 to 255; `ice_servers` is a list of at most 8 `{urls: [1 to 4 "stun:", "stuns:", "turn:" or
+"turns:" URLs], username?, credential?}`. Codes are 6 characters from the 31 that cannot be misread
+(`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: no 0, O, 1, I, L), random per room.
+
+**Rules** (the router's; the Worker keeps them):
+- **Decoding:** over 16384 bytes is `too large`, unread. Not printable ASCII, not JSON or not an object is
+  `bad message`. Any `"v"` but the integer 1 (missing included) is `update the game`, before the type is looked at.
+  An unknown type is `bad message`; a type of the protocol that the sender's side may not send is `not allowed`; a
+  field missing or out of its rule is `bad message`. Unknown fields are ignored, and every message sent on is
+  rebuilt from the checked fields only, so nothing a sender adds passes through.
+- **Roles per socket**, fixed by its first accepted message (the design says "first message"; a refused one fixes
+  nothing): `open` makes it a room's host, `join` a joiner; a socket without a role may send only those two, and one
+  whose `join` failed keeps no role and may try another code. A host's type (`offer`, `close`, `reopen`), or `open`
+  or `join`, from a joiner gets `not allowed` and is never forwarded; so do `open`, `join` and `answer` from a host. A
+  joiner's `answer` and `candidate` go to its room's host with its `from`, whatever they name (a `to` is dropped). The
+  host's `offer` and `candidate` go only to the joiner of its own room named in `to`, else `no such joiner`. Joiners
+  never see each other, and the host never sees another room.
+- **Joining:** `join` of a code no room holds is `no such room`; of a closed room (`close`, entering Loading) `the
+  match has started`, until `reopen`; of a room with `max` joiners `the room is full` (a joiner leaving frees its
+  place). Otherwise the joiner gets `found` and the host `join {from}`.
+- **ICE servers:** `room` carries the service's own (STUN from its configuration, E58); the service adds a joiner's
+  to the host's `offer` to that joiner, never to `found`, so a code pasted in a public chat hands out no relay.
+  `LanSignalling` serves an empty list by default (host candidates connect on a LAN and in tests); the transcripts'
+  replay passes theirs. With TURN on (the Worker only, M6-10, below), `room` also carries a TURN credential minted
+  for the host, and each host `offer` one minted for that joiner alone. The entries' keys (`urls`, `username`,
+  `credential`) are the ones `WebRTCPeerConnection.initialize`'s `"iceServers"` takes (4.7.2's
+  `extension_api.json`), so the WebRTC backend (`WebRtcTransport`, not built yet) can pass `room_opened`'s and
+  `offer_received`'s lists on as `{"iceServers": list}` unchanged.
+- **Caps** (placeholders, "not a decision"): 16 KB a message, received and forwarded: what the service adds (`from`,
+  its ICE servers) can push a message at the cap over it, and the receiver would drop it unread, so the sender gets
+  `too large` instead; 32 candidates per joiner each way, the 33rd refused with `too many candidates` to its sender;
+  `max` joiners at once. Offers and answers are not counted: the service forwards each, and the host takes one answer
+  per offer and the joiner one offer per attempt (§2.3 of the M6 ADR).
+- **No reclaim:** the host's socket closing closes the room; its joiners get `the host left` and the service closes
+  their sockets; the code is free, and hosting again makes a new room.
+- **Closing after an error:** the service closes a socket a moment after the message that ends it
+  (`LanSignalling.close_grace_ms`, 1 s): Godot's `WebSocketPeer` drops a message read together with the close (#366's
+  probe: a text sent just before `close()` never reached the client), so closing at once would lose the reason.
+
+**Shared transcripts** (`tests/fixtures/signal/`, one exchange per file, plain JSON): `config` holds the service's
+`ice_servers` and the `codes` it hands out in order (so GDScript and JavaScript produce the same codes); `steps` are
+`{"open": s}` (socket s connects), `{"gone": s}` (s closes), or `{"from": s, "send": {...}}` / `{"from": s, "raw":
+"text"}` (s sends it; `"pad_to": n` pads the text with spaces to n bytes, `"repeat": n` sends it n times), each with
+`expect`: in order, `{"to": s, "msg": {...}}` the service sends after that step, with `"close": true` when it then
+closes s. Messages compare as JSON values (numbers by value, keys in any order). The flows: `flow_join`, `flow_closed`,
+`flow_no_room`, `flow_wrong_version`, `flow_host_left` (the freed code handed out again), `caps_full`,
+`caps_candidates`, `caps_too_large`, `caps_forwarded_too_large`; the forged types (the design's §5): `forged_offer`,
+`forged_candidate_to`, `forged_close`, `forged_reopen`, `forged_from` (a joiner's `from`, a host's `ice_servers` and
+`from`, all dropped) and `forged_roles` (a host joining or answering, a joiner opening, a host naming another room's
+joiner). Both suites check the exact list, so a deleted transcript fails them. A file with `"turn_only"` (its text
+says why) needs TURN credentials minted, from the fake API answers in `config.turn` (`key_id`, and `minted` in the
+order the offers ask): `SignalRouter`, `LanSignalling` and the Worker's router test skip it, the Worker's service test
+replays it, and `signal_codec_test.gd` checks that the joiner's codec decodes each of its messages to itself.
+`turn_per_joiner` is the only one: a host and two joiners, `room` and each host offer with its receiver's own
+credential, none in `found`, answers or candidates.
+
+**Tests:** `tests/unit/net/signal/` (the codec's rules, the router replaying every transcript, a fuzz test of the
+decoder: every truncation, every field of every type replaced by each other JSON type, oversized and deeply nested
+input and random bytes give a clean reject or a canonical message and no engine error line) and
+`tests/integration/net/lan_signalling_test.gd` (every transcript replayed byte for byte over real WebSockets on
+127.0.0.1 through `LanSignalling` on a free port; a host and a joiner `Signaller` through a whole exchange with a
+default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what is not for its side, with no signal;
+one still connecting to a server that never answers the handshake closed after its timeout).
+`Signaller.room_found` gives the content hash as the s64 `ContentFingerprint` makes. The
+design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
+
+**Decoding cases** (`tests/fixtures/signal/decode/decode_cases.json`, #368): 242 messages from every side with the
+result Godot 4.7.2's `SignalCodec` gives, recorded from it; `signal_codec_test.gd` and the Worker's `codec.test.js` both
+check every one. Godot's JSON parser is not `JSON.parse`: it takes a trailing comma in an object or list, a leading
+zero, `1.`, and a raw tab or line break inside a string, and refuses a lone UTF-16 surrogate escape and a value nested
+deeper than 1024 (the top one at depth 0). Its numbers come from `built_in_strtod`, not a correctly rounded parse: 18
+mantissa digits (leading zeros count, so `0000000000000000001` is 0), a scale built from powers of ten that overflows
+past 1e308 (so `1e-320` is 0), and a wrapping 32-bit exponent taken as at most 511. The Worker reads JSON with its own
+port of those rules, so both answer every message alike. Two inputs make Godot print a line that is not an `ERROR:`
+line, which a LAN peer can repeat: a `\u0000` escape ("Unicode parsing error") and an exponent past 511 ("WARNING:
+Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
+
+**The Worker** (M6-5b, #368; `tools/signal/`, its README is the deploy page): `src/codec.js` and `src/router.js` are
+`SignalCodec` and `SignalRouter` in JavaScript, rule for rule; `src/service.js` is the Durable Object's work, which
+`src/worker.js` (the only file that needs the Cloudflare runtime) wraps.
+- **One Durable Object holds every room**, not one per room: the room is named in the socket's first message, after it
+  is open, and a socket whose `join` failed may try another code, so a socket cannot be routed to its room's object
+  when it connects. It stays far below the Workers Free plan's limits (SQLite-backed objects only on Free).
+- **Hibernation:** sockets are accepted with the WebSocket Hibernation API, so idle rooms cost no duration; the object
+  may leave memory, and its constructor runs again on the next event. So the router's whole state is one record per
+  socket (role, code, number, candidate counts; a host's record also holds its room), kept in that socket's attachment
+  after every change, and the constructor rebuilds the router from the attachments. Socket numbers go on from the
+  highest one held. A socket the router is done with says so in its attachment, `gone` (it closed or failed; marked
+  before anything is sent) or `closing`, so no rebuild gives it back a role, even while the runtime still lists it.
+  Joiners a rebuild finds without their host (its socket left while the object was out of memory) hear `the host
+  left` at the next event and are closed after the grace, as the transcripts expect.
+- **Closing after an error** as `LanSignalling` does: a socket the service ends (the host left) is marked closing in its
+  attachment and closed 1 s later; it gets nothing more, and its messages and close are no events. A close whose timer
+  was lost with the object's memory happens when the object wakes.
+- **A client's close is answered by the service** (`SignalService.clientClosed`, #513), with the client's code when the
+  runtime may send it (1000, 3000-4999) and 1000 otherwise (`closeReplyCode`), even when the service's handling of the
+  close throws; an answer that fails is logged. Cloudflare's docs say the runtime answers a close itself from
+  compatibility date 2026-04-07, but on the first deploy a close without a status (code 1005: a browser's or Node's
+  `close()`; Godot's `WebSocketPeer.close()` sends 1000) was never answered. The likely cause, from workerd's source: the handler
+  answered with the code it was handed, which the runtime's `close()` refuses (workerd allows 1000 and 3000-4999 under
+  its strict rule). The redeploy smoke on #513 confirms or refutes it.
+- **ICE servers** from `ICE_SERVERS` in `wrangler.toml` (`stun:stun.cloudflare.com:3478`, E58), checked by the
+  clients' rules at start.
+- **TURN** (M6-10, #375; D17 (b), E55; `src/turn.js`), on only when the secrets `TURN_KEY_ID` and
+  `TURN_KEY_API_TOKEN` are both set (neither, or one alone, logged: no TURN, and the service is what it was).
+  For the host's `room` and each host `offer` the service asks Cloudflare's TURN key API for a credential
+  (`rtc.live.cloudflare.com/v1/turn/keys/<key id>/credentials/generate-ice-servers`, `{"ttl": 600}`: D17's 10 minutes,
+  a placeholder, `TURN_TTL_SECONDS` in `[vars]` replaces it) and adds it after the configured servers: its `turn:`
+  and `turns:` URLs only, none on port 53 (browsers block it, Cloudflare's page says), split into entries of at most
+  4 URLs with the same username and credential, since Cloudflare answers 6 and the protocol's cap is 4; no protocol
+  change. Minted per message for its receiver (the host's own with `room`, the M6 ADR §2.4), never with `found`, so
+  a code pasted in a public chat hands out no relay and no joiner holds another's credential. Anyone with the
+  service's address can still open a room, join it from a second socket and offer to get one: the code is no key to
+  the relay, the address is. Each socket has its own queue: what follows a waiting message to the same socket waits
+  for it (a candidate never overtakes its offer), no other socket waits, and each request starts at once. If the API
+  fails, takes over 5 s or answers what clients would drop, or the credential would push the message over 16 KB, it
+  goes without TURN and the Worker logs a line. A message still waiting when the object restarts (a deploy) is lost,
+  and its client times out. Cloudflare's FAQ: a credential expiring while its relay is in use disconnects it "after
+  a short delay".
+- **Tests** (`tools/run.sh signal`, a `verify` step; Node pinned in `pins.py`, no npm package): every transcript
+  through the router and through the service over fake sockets and state, each also with the router or the object
+  rebuilt after every step (as after hibernation) and with the object rebuilt as a close wakes it, the close grace,
+  the configuration, and the decoding cases; TURN over a fake `fetch` of Cloudflare's API (the requests and their
+  TTL, a slow mint holding back only its own socket, the API failing or timing out, the cap, the configuration), and
+  the answer to a client's close against a fake socket that refuses the codes the runtime refuses. Only the calls in
+  `worker.js` are left to the deploy, and `tools/signal/smoke.js` checks a running service (it passes against a
+  headless `LanSignalling`; against the first deploy it failed at the host's close, #513). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
+  joiner, failed `forged_offer` in both suites, then was reverted. M6-10's plants, the credential also on `found` and
+  one credential reused for every joiner, each failed `turn_per_joiner`, then were reverted.
+
+**Joining in the game (M6-7, #373;** the M6 ADR §2.3, §2.5, §3; D19, E51):
+- **`JoinTarget`** (`net/transport/`) is what the player typed: a code (6 characters of the alphabet above, any case,
+  spaces and dashes dropped) or a host's `address[:port]` (IPv4, IPv6 in brackets with a port, or a host name, so a
+  playit.gg address works). `transport(kinds)` makes the join's backend (a code: `WebRtcTransport` at the service
+  URL; an address: `EnetTransport`) and `join(join_address(), port)` starts it. `JoinTarget.SERVICE_URL` is the
+  engineer's Worker (`tools/signal/README.md`), `wss://prime-game-signal.xperiaroco-36a.workers.dev/` since 2026-10-07
+  (#513). `--signal=<url>` overrides it; an empty one (`--signal=`) makes a code join end as `service_unreachable`
+  (use Direct) and a code host refuse to start.
+- **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
+  `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
+  one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
+  with its reason; the fields keep what was typed.
+- **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
+  code, before `found`), connecting, joined (connected, before `Welcome`). **The version check** is the joiner's
+  `WebRtcTransport`'s (`expect_protocol`, `expect_content`, which `JoinTarget.transport` sets): a `found` naming
+  another protocol or content hash fails the join as `wrong_version` or `wrong_content` before any offer is applied,
+  and the menu names the host's and the own ("another build" for the content); advisory only, `Hello` still decides.
+- **Failures in words** (`EndReasons`): `no_room`, `joins_closed`, `wrong_version`, `wrong_content` ("another
+  build"), `service_unreachable` (use Direct) and `host_unreachable`, which also covers a full host (it answers a
+  joiner nothing, so the join times out after 15 s) and names the playit.gg fallback under Direct.
+- **The lobby's code** (`LobbyHud` line, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
+  transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
+  away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
+- **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
+  no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
+  `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
+- **F3's connection line** (§3 item 4 of the design, #431; debug builds only): the own connection's kind ("direct",
+  "direct or relayed (WebRTC does not say which)", or "in this process" for the host's own player) and its round
+  trip, from the own `ClientSession` (`route()`, `round_trip_ms()`), which has its transport measure only while F3
+  shows (`set_measuring_round_trip`; WebRTC pings for it, §4 above). A source test holds that no `client/` file but
+  `ClientSession`, and no `server/` file, calls the transport's own-connection API; `game_code_join_test` checks the
+  joiner's line over real WebRTC and that the host's overlay shows nothing of the joiner's;
+  `client/dev/debug_overlay_joiner_preview.tscn` shows a joiner's view for `shot`.
+- **The command line and the runner:** `--host --code [--signal=lan --room=<CODE>]` hosts a room (`lan`: this process
+  serves `LanSignalling` on TCP of its port); `--join=<code>` joins one through `JoinTarget.SERVICE_URL`, or through
+  `--signal=ws://<host>:<port>`. `tools\run.cmd host --code [--clients N] [--local]` picks a random code and starts the
+  clients with it; `tools\run.cmd join <code> --signal ws://<address>:<port>` joins from another machine (without
+  `--signal`, through the deployed Worker). The headless session (`--headless`)
+  does the same through `CodeRoom` and prints `session: room code <CODE>`.
 
 ## 5. Per-peer information filtering
 
@@ -2512,6 +2996,32 @@ what is left is the transport's `send` per datagram, which only fewer datagrams 
 20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
 ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
 the engineer's (§10).
+**Over WebRTC (M6-6, #371, for D24):** `tools/run.sh bots voice_load --instances 8 --transport webrtc` (the fault
+shim off for a measurement) in a cloud container (4 CPUs, Xeon at 2.8 GHz, the 8 bot processes on the same CPUs),
+2026-10-05, so every figure is an upper bound; three quiet runs (load average under 4) and two beside a `load` of 8
+busy loops. With everyone talking (the five full windows of each run): 56 `VoiceDown`s per 20 ms, 49 on the wire,
+as over ENet; the relay took 2.65 to 2.80 ms per 20 ms in the quiet runs' medians (worst window 2.97 ms), 47 to 50
+µs per send (45 to 53 per window), of which 31 to 37 µs inside `WebRtcTransport.send` (webrtc-native's
+`put_packet`, against ENet's 14 to 19 µs); 3.8 to 4.0 ms (worst 5.96) beside the load. The upload was 3.25 Mbit/s of voice and 0.49 of snapshots,
+3.74 Mbit/s, counted by E56 (each packet plus 108 B: IPv6, so about 21 B per datagram high over IPv4); SCTP's
+acknowledgements are not counted. Scaled to 10 players as for M5-4 (90 sends per 20 ms, 81 datagrams on the wire;
+snapshots by 81/49): the relay about 4.4 ms per 20 ms (run medians 4.25 to 4.50 ms, worst window 4.77; 6.1 to 6.4
+ms, worst 9.6, beside the load), and the upload about 6.2 Mbit/s by E56 (about 5.4 over IPv4), plus about 0.3 of
+acknowledgements (the M6 design's §4 estimate): **both over E44's 2 ms and 4.5 Mbit/s**, so by D24 (a) M6-8 (the
+batched row) is wanted. With two talkers: 0.73 to 0.78 ms and 1.29 Mbit/s. The engineer may rerun it on a quiet PC.
+**With the batched row (M6-8, #374, protocol 8):** the same command and container, 2026-10-05, three quiet runs
+(load average under 2) after the header and in-place seq changes. With everyone talking: 56 frames per 20 ms in
+about 19 `VoiceBatch`es (8 listeners, about 2.4 polls per 20 ms: the host flushes every poll that held frames),
+about 16.5 datagrams on the wire; the relay took **1.69 to 1.74 ms per 20 ms** in the run medians (worst window
+1.86), 91 µs per batch of which 38 to 39 µs inside `WebRtcTransport.send`. The voice upload was **1.80 Mbit/s**
+(3.25 before), snapshots 0.49. Scaled to 10 players (batches by 10/8, the rest of the relay and the frame bytes by
+90/56 and 81/49, datagrams by 9/7): the relay about **2.5 ms** per 20 ms (2.8 if all of it scales by 90/56), 37 to
+43% below M6-6's 4.4 but still over E44's 2 ms in this container; the upload about **2.7 Mbit/s of voice + 0.8 of
+snapshots, about 3.5 Mbit/s** (by E56, IPv6), plus SCTP's acknowledgements, fewer with fewer datagrams: **under
+4.5**. About 0.75 ms of the relay's 1.7 is the sends; most of the rest is the relay's flush and one `WireSchema`
+encoding per relayed frame. With two talkers: 0.71 to 0.73 ms and 0.65 Mbit/s. A first run that encoded the header
+per frame and listener took 2.4 to 2.7 ms, as much as before batching. Whether the relay's figure on a quiet PC is
+under 2 ms is the engineer's rerun.
 
 #### 6.5.9 The cutoff and the distance invariant (E41, E45; **built in M5-1**, #215)
 Every voice rule answers
@@ -2726,7 +3236,8 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
       names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
       test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
     - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
-      the host takes the next claim as one tick, while the client counts it from its last claim.
+      the host takes the next claim as one tick, while the client counts it from its last claim. A lost first
+      claim no longer does this: it travels on `MoveClaimReliable` (§7.1.15 Lost claims, #429).
   Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
   does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
   (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks
@@ -2907,6 +3418,24 @@ still counts: float noise between a physics floor and a hand-placed marker). The
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
 `server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
+
+#### 7.1.15 Lost claims (#429, M6; the engineer's A1 + B3 on PR #434)
+Over Wi-Fi a LATEST `MoveClaim` is lost now and then. Two cases hurt an honest player: Alice's claim for the step
+that brought her within reach is lost, and her reliable `PickUp` is checked against the claim before
+(`out_of_reach`); Bob's first claim after a placement is lost, and the next one, two ticks of walking, is taken as one
+and corrected. The host never widens reach or span for a lost claim (a silent client would gain range). Instead the
+client makes those two claims reliable, on `MoveClaimReliable` (§4.3): every epoch's first claim, and its last sent
+claim again, exactly as sent (the same tick, position and masks; a fresh position under an old tick would correct a
+sprinter), right before an intent of `Intents.PLAYER_ACTIONS`, once per claim, never a claim of an older epoch, and
+only while it claims. The host hands the twin to `core/` as the plain `MoveClaim` command, so it passes every check
+of §7.1.5: a twin of a claim already applied, or behind a newer one, does not rise and is dropped in silence; a
+hostile one is corrected. A resend is not a new claim: `claim_sent` does not fire for it, and the stamina prediction
+does not count it. Order holds: ENet carries both lanes on channel 0, and over WebRTC `LaneOrder` drops a LATEST
+original that arrives behind its twin. Still accepted: a lost landing claim before a second jump (the host may still
+have the player in the air), and §7.1.5's notes on the stamina prediction. Tests:
+`tests/unit/client/net/client_session_claim_twin_test.gd`, `tests/integration/server/host_session_claim_twin_test.gd`
+(a lossy link end to end), `tests/unit/movement/movement_rule_claim_loss_test.gd`,
+`tests/unit/net/messages/wire_schema_test.gd`.
 
 ## 8. Debug tooling
 
@@ -3779,7 +4308,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
   `not_accepted`, and it crawls; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
-  step), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
+  step, and over WebRTC `bots-webrtc`, §4.6.7), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
   `Damaged`, then swings again after them, which does; the match ends by time up on a 55 s clock),
   `crew_revives_the_downed` (M4-4: a dissident knocks a crew bot down and another crew bot raises it for 3 s; it
@@ -3852,7 +4381,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5.8 The wire): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6.5.8 The wire): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. M5-4b (the batched voice row, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4) is built in M6-8 (#374, protocol 8) after M6-6 measured WebRTC over E44 (D24 (a)): in the cloud container about 2.5 ms per 20 ms and 3.5 Mbit/s at 10 players (§6.5.8 The wire), the upload under 4.5 Mbit/s and the relay still over 2 ms as an upper bound. Open: the engineer's rerun on a quiet PC |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added with the CC0 sounds of #144 and #145 (a follow-up: M5-7, #221, built the muffle before the files arrived) |

@@ -237,7 +237,7 @@ def lines(report: dict) -> list[str]:
         row("down_bytes_per_second", "B/s per peer (frame bytes: payload + 3-byte header; no ENet or UDP overhead)"),
         row("down_snapshot_bytes_per_second", "B/s per peer"),
         row("down_voice_bytes_per_second", "B/s per peer (synthetic frames: one per client tick, a few bytes; "
-            f"VoiceDown cap {b['voice_down_payload_cap']} B with E11's 4-byte tick)"),  # fmt: skip
+            f"VoiceBatch cap {b['voice_down_payload_cap']} B with E11's 4-byte tick)"),  # fmt: skip
         row("up_bytes_per_second", f"B/s per peer, not voice; E7 budget {up['limit']:g} B/s, headroom "
             f"{up['headroom']:.0%}"),  # fmt: skip
         row("up_voice_frames_per_second", f"per peer; E7 budget {voice['limit']:g}/s, headroom {voice['headroom']:.0%}"),

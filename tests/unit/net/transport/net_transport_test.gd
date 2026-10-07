@@ -56,7 +56,9 @@ class Counter:
 		transport.connected.connect(
 			func(own_id: int) -> void: events.append("connected %d" % own_id)
 		)
-		transport.connect_failed.connect(func() -> void: events.append("connect_failed"))
+		transport.connect_failed.connect(
+			func(reason: StringName) -> void: events.append(String(reason))
+		)
 		transport.peer_joined.connect(
 			func(peer_id: int) -> void: events.append("joined %d" % peer_id)
 		)
@@ -330,6 +332,57 @@ func test_a_state_that_overtook_the_admit_is_rejected_not_counted_as_merged() ->
 	assert_array(counter.events).is_equal(["connected 7", "packet 1:%d:2" % STATE])
 	assert_int(client.rejects.of_reason(NetRejects.Reason.UNKNOWN_PEER)).is_equal(1)
 	assert_int(client.latest_superseded).is_equal(0)
+
+
+func test_a_failed_join_gives_its_backends_reason() -> void:
+	var client := ScriptedTransport.new(_kinds)
+	client.join("somewhere", 1)
+	var counter := Counter.new(client)
+	var failed := NetTransport.Inbound.new(NetTransport.Inbound.Type.CONNECT_FAILED, 1)
+	failed.reason = NetTransport.JOIN_NO_ROOM
+	client.queued.append(failed)
+	client.poll()
+	assert_array(counter.events).is_equal(["no_room"])
+	assert_int(client.role()).is_equal(NetTransport.Role.IDLE)
+
+
+## A backend's own rejects (LaneOrder's) and the LATEST frames its hold dropped are counted in the
+## inbox's order: a valid dropped frame in latest_superseded, never delivered; an invalid one as a
+## reject.
+func test_rejected_and_superseded_items_are_counted_in_order() -> void:
+	var host := _host_with([2])
+	var counter := Counter.new(host)
+	var reasons: Array[NetRejects.Reason] = []
+	host.packet_rejected.connect(
+		func(_peer: int, reason: NetRejects.Reason) -> void: reasons.append(reason)
+	)
+	var rejected := NetTransport.Inbound.new(NetTransport.Inbound.Type.REJECTED, 2)
+	rejected.reject = NetRejects.Reason.ORDER_HEADER_SHORT
+	host.queued.append(rejected)
+	var lane := NetKindTable.Lane.LATEST
+	var superseded := NetTransport.Inbound.Type.SUPERSEDED
+	var pose := NetFrame.encode(POSE, PackedByteArray([5]))
+	host.queued.append(
+		NetTransport.Inbound.new(
+			superseded, 2, pose, NetKindTable.channel_of(lane), NetKindTable.mode_of(lane)
+		)
+	)
+	host.queued.append(
+		NetTransport.Inbound.new(
+			superseded,
+			2,
+			NetFrame.encode(EVENT, PackedByteArray([1])),
+			NetKindTable.channel_of(lane),
+			NetKindTable.mode_of(lane)
+		)
+	)
+	host.queue_message(2, POSE, PackedByteArray([6]))
+	host.poll()
+	assert_array(counter.events).is_equal(["packet 2:%d:6" % POSE])
+	assert_int(host.latest_superseded).is_equal(1)
+	assert_array(reasons).is_equal(
+		[NetRejects.Reason.ORDER_HEADER_SHORT, NetRejects.Reason.WRONG_DIRECTION]
+	)
 
 
 func _connected_client() -> ScriptedTransport:

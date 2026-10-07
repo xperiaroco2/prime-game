@@ -46,6 +46,30 @@ func test_only_move_claim_and_the_snapshot_travel_latest() -> void:
 	assert_array(latest).contains_exactly([&"MoveClaim", &"Snapshot"])
 
 
+## #429: MoveClaimReliable is MoveClaim's RELIABLE twin, field for field, with no seq: a claim
+## the client must not lose (an epoch's first, and the last one again right before a player
+## action) goes on it, and the host hands it to core/ as the plain MoveClaim command.
+func test_the_claims_reliable_twin_is_kind_14_with_move_claims_fields() -> void:
+	var schema := WireSchema.game(false)
+	var claim := schema.row_named(&"MoveClaim")
+	var twin := schema.row_named(&"MoveClaimReliable")
+	assert_object(twin).is_not_null()
+	if twin == null:
+		return
+	assert_int(twin.kind).is_equal(14)
+	assert_int(twin.direction).is_equal(CLIENT_TO_HOST)
+	assert_int(twin.lane).is_equal(NetKindTable.Lane.RELIABLE)
+	assert_int(twin.cap).is_equal(claim.cap)
+	assert_int(twin.max_size()).is_equal(claim.max_size())
+	assert_array(Array(_every_name(twin.fields))).is_equal(Array(_every_name(claim.fields)))
+	for i in claim.fields.size():
+		assert_int(twin.fields[i].type).is_equal(claim.fields[i].type)
+		assert_int(twin.fields[i].slot).is_equal(claim.fields[i].slot)
+	assert_array(Array(_every_name(twin.fields))).not_contains(["seq"])
+	assert_str(twin.command).is_equal(Intents.MOVE_CLAIM)
+	assert_str(claim.command).is_equal(Intents.MOVE_CLAIM)
+
+
 func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 	for each: WireRow in WireSchema.game(true).rows():
 		var message := (
@@ -57,6 +81,12 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 			# The unreliable cap; 15 avatars take 680 bytes (45 each with the belt item, M4-5).
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
 			assert_int(each.max_size()).is_equal(680)
+		elif each.name == &"VoiceBatch":
+			# The unreliable cap bounds it first (M5-4b): 113 frames of one byte fit, of more do not.
+			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
+			assert_int(4 + 1 + WireSchema.MAX_BATCH_FRAMES * 9).is_less_equal(each.cap)
+			assert_int(4 + 1 + (WireSchema.MAX_BATCH_FRAMES + 1) * 9).is_greater(each.cap)
+			assert_int(each.max_size()).is_greater(each.cap)
 		elif each.name in OVER_CAP_AT_MAXIMA:
 			assert_bool(each.content_sized).is_true()
 			assert_int(each.max_size()).override_failure_message(message).is_greater(each.cap)
@@ -68,15 +98,22 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 
 func test_a_field_s_fixed_offset_counts_the_fixed_sizes_before_it() -> void:
 	var schema := WireSchema.game(true)
-	var down := schema.row_named(&"VoiceDown")
-	# speaker (a peer, 4 bytes), seq (u16), tick (4 bytes), then the Opus bytes.
-	assert_int(down.fixed_offset("speaker")).is_equal(0)
-	assert_int(down.fixed_offset("seq")).is_equal(4)
-	assert_int(down.fixed_offset("tick")).is_equal(6)
-	assert_int(down.fixed_offset("opus")).is_equal(-1)
-	assert_int(down.fixed_offset("listener")).is_equal(-1)
-	assert_int(down.field_named("seq").type).is_equal(WireField.Type.U16)
-	assert_object(down.field_named("listener")).is_null()
+	var batch := schema.row_named(&"VoiceBatch")
+	# The tick (4 bytes), then the frames, whose size varies.
+	assert_int(batch.fixed_offset("tick")).is_equal(0)
+	assert_int(batch.fixed_offset("frames")).is_equal(-1)
+	assert_object(batch.field_named("listener")).is_null()
+	# Inside each frame's record: speaker (a peer, 4 bytes), seq (u16), then the sized Opus bytes.
+	var frame := batch.field_named("frames").element
+	assert_int(frame.fixed_offset("speaker")).is_equal(0)
+	assert_int(frame.fixed_offset("seq")).is_equal(4)
+	assert_int(frame.fixed_offset("opus")).is_equal(-1)
+	assert_int(frame.fixed_offset("listener")).is_equal(-1)
+	assert_int(frame.parts[1].type).is_equal(WireField.Type.U16)
+	assert_int(frame.parts[2].type).is_equal(WireField.Type.SIZED_OPUS)
+	# Only a record has parts to place.
+	assert_int(batch.field_named("tick").fixed_offset("tick")).is_equal(-1)
+	assert_object(schema.row_named(&"VoiceDown")).is_null()
 	# A wire-only slot takes its bytes but is no payload field: Raise is seq (u32), then target.
 	var raise := schema.row_named(&"Raise")
 	assert_int(raise.fixed_offset("target")).is_equal(4)

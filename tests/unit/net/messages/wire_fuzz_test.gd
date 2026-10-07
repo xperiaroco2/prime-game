@@ -49,11 +49,10 @@ func test_every_single_byte_change_is_rejected_or_canonical() -> void:
 		var kind := _schema.kind_of(message.name)
 		var payload := _schema.encode(message)
 		# An Opus frame is opaque: the codec reads none of its bytes, so one change each is enough.
-		var frame: PackedByteArray = message.fields.get("opus", PackedByteArray())
-		var opaque_from := payload.size() - frame.size()
+		var opaque := _opaque(message, payload.size())
 		for at: int in payload.size():
 			var original := payload[at]
-			var values: Array = range(256) if at < opaque_from else [original ^ 0xFF]
+			var values: Array = [original ^ 0xFF] if opaque[at] == 1 else range(256)
 			for value: int in values:
 				if value == original:
 					continue
@@ -110,3 +109,23 @@ func _assert_rejected_or_canonical(kind: int, payload: PackedByteArray) -> bool:
 	elif again.payload != payload:
 		_failures.append("kind %d %s re-encoded as %s" % [kind, payload, again.payload])
 	return true
+
+
+## 1 for each byte of `message`'s payload (`size` bytes) that is Opus bytes: the rest of a VoiceUp,
+## or each frame's bytes behind its u16 length in a VoiceBatch (M5-4b), as WireSchema lays them out.
+static func _opaque(message: WireMessage, size: int) -> PackedByteArray:
+	var mask := PackedByteArray()
+	mask.resize(size)
+	var frame: PackedByteArray = message.fields.get("opus", PackedByteArray())
+	for at: int in range(size - frame.size(), size):
+		mask[at] = 1
+	if message.name == &"VoiceBatch":
+		# The tick (4) and the count (1), then per frame speaker (4), seq (2), length (2), bytes.
+		var at := 5
+		for each: Dictionary in message.fields["frames"] as Array:
+			var opus: PackedByteArray = each["opus"]
+			at += 8
+			for i: int in opus.size():
+				mask[at + i] = 1
+			at += opus.size()
+	return mask

@@ -32,7 +32,10 @@ var _options: LaunchOptions
 var _session: HostSession
 var _host_node: HostNode
 var _client: ClientSession
-var _transport: EnetTransport
+var _transport: NetTransport
+## A --code host's room; null otherwise.
+var _room: CodeRoom
+var _shown_code := ""
 var _finished := false
 var _last_stop_check_ms := 0
 var _last_counters_ms := 0
@@ -52,7 +55,27 @@ func _initialize() -> void:
 		_finish(EXIT_FAILED, "cannot load the game mode %s" % MODE_PATH)
 		return
 	var schema := WireSchema.game(OS.is_debug_build())
-	_transport = EnetTransport.new(schema.kind_table())
+	if _options.hosting and _options.by_code:
+		_room = CodeRoom.open(
+			schema.kind_table(),
+			mode,
+			_options.signal_url,
+			_options.port,
+			_options.bind,
+			_options.room
+		)
+		if not _room.problem.is_empty():
+			_finish(EXIT_FAILED, "cannot host: %s" % _room.problem)
+			return
+		_transport = _room.transport
+	elif _options.hosting:
+		var enet := EnetTransport.new(schema.kind_table())
+		enet.bind_address = _options.bind
+		_transport = enet
+	else:
+		_transport = _options.target.transport(
+			schema.kind_table(), WireSchema.VERSION, ClientSession.content_of(mode)
+		)
 	if _options.hosting:
 		_start_host(mode, schema)
 	else:
@@ -63,6 +86,11 @@ func _process(_delta: float) -> bool:
 	if _finished:
 		return false
 	var now := HostNode.now_usec()
+	if _room != null:
+		_room.poll()
+		if _room.code() != _shown_code:
+			_shown_code = _room.code()
+			print("session: room code %s" % (_shown_code if not _shown_code.is_empty() else "gone"))
 	_client.step(now)
 	if _finished:
 		return false
@@ -79,7 +107,6 @@ func _process(_delta: float) -> bool:
 
 
 func _start_host(mode: GameMode, schema: WireSchema) -> void:
-	_transport.bind_address = _options.bind
 	_transport.peer_joined.connect(_on_peer_joined)
 	_transport.peer_left.connect(_on_peer_left)
 	_session = HostSession.new(_transport, schema)
@@ -119,14 +146,12 @@ func _start_join(mode: GameMode, schema: WireSchema) -> void:
 	_client = ClientSession.new(_transport, mode, schema)
 	_client.ended.connect(_on_client_ended)
 	_client.welcomed.connect(_on_welcomed)
-	var err := _transport.join(_options.address, _options.port)
+	var target := _options.target
+	var err := _transport.join(target.join_address(), target.port)
 	if err != OK:
-		_finish(
-			EXIT_FAILED,
-			"cannot join %s:%d: %s" % [_options.address, _options.port, error_string(err)]
-		)
+		_finish(EXIT_FAILED, "cannot join %s: %s" % [target.label(), error_string(err)])
 		return
-	print("session: joining %s:%d" % [_options.address, _options.port])
+	print("session: joining %s" % target.label())
 
 
 ## Prints the roster and the phase when they changed, and the counters at most once a second.
@@ -280,4 +305,6 @@ func _finish(code: int, why: String) -> void:
 		_session.close()
 	if _client != null and not _client.is_ended():
 		_client.leave()
+	if _room != null:
+		_room.stop()
 	quit(code)

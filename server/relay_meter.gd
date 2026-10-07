@@ -7,15 +7,18 @@ extends RefCounted
 ## during a Round: there they would tell the host's player how many hear them (§3 item 11).
 ##
 ## The relay's time is Time.get_ticks_usec() around the flush, the encoding and the sends of a poll
-## that held frames; the send time around each VoiceDown's NetTransport.send alone. The upload is
+## that held frames; the send time around each VoiceBatch's NetTransport.send alone. The upload is
 ## NetTransport.take_upload() taken before and after the voice sends and the snapshot sends, so each
 ## gets what went out during it (Godot's put_packet flushes, one datagram per send); whatever went
 ## out in between (events, and ENet's acknowledgements and pings sent while it polls) counts as
 ## other. An acknowledgement or ping that rides in a datagram a send flushes counts with that send.
 
-## VoiceDown messages the transport took.
+## Frames the transport took towards their listeners (one per listener a frame went to).
 var sent := 0
-## Microseconds in the relay's flush, encoding and sends, and in the VoiceDown sends alone.
+## VoiceBatch messages the transport took, carrying those frames (M5-4b: one per listener per poll
+## that held frames for it, more only past the cap).
+var batches := 0
+## Microseconds in the relay's flush, encoding and sends, and in the VoiceBatch sends alone.
 var relay_usec := 0
 var send_usec := 0
 ## Snapshot messages the transport took.
@@ -58,6 +61,7 @@ func to_dict(relay: VoiceRelay, over_budget: int, session_usec: int) -> Dictiona
 		&"session_ms": session_ms,
 		&"voice_relayed": relay.relayed,
 		&"voice_sent": sent,
+		&"voice_batches": batches,
 		&"voice_dropped": relay.dropped,
 		&"voice_over_budget": over_budget,
 		&"voice_relay_usec": relay_usec,

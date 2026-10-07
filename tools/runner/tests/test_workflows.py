@@ -37,11 +37,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from runner.common import ROOT, force_rmtree
+from runner.common import ROOT, force_rmtree, node_bin
 
 WORKFLOWS = ROOT / ".claude" / "workflows"
 SNAPSHOTS = Path(__file__).resolve().parent / "workflow_snapshots"
-NODE = shutil.which("node")
+NODE = node_bin()
 UPDATE = os.environ.get("PRIME_WORKFLOW_SNAPSHOTS") == "update"
 
 # One Node process runs a list of jobs ({file, args, stub}) read from stdin and prints one result per job: the phase

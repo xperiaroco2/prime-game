@@ -49,3 +49,13 @@ func test_summary_names_at_most_a_few_peers() -> void:
 	assert_str(summary).ends_with("and 3 more")
 	assert_str(summary).contains("10 x1")
 	assert_str(summary).not_contains("%d x1" % (10 + NetRejects.SUMMARY_PEERS))
+
+
+func test_totals_name_every_reason_ever_counted() -> void:
+	var rejects := NetRejects.new()
+	assert_str(rejects.totals()).is_equal("none")
+	rejects.count(2, NetRejects.Reason.CHANNEL_CLOSED)
+	rejects.count(3, NetRejects.Reason.TOO_SHORT)
+	rejects.count(3, NetRejects.Reason.TOO_SHORT)
+	rejects.take_summary()
+	assert_str(rejects.totals()).is_equal("TOO_SHORT x2, CHANNEL_CLOSED x1")

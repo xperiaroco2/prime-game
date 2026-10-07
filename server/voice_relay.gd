@@ -41,8 +41,8 @@ var _held: Dictionary[int, Array] = {}
 
 
 ## One relayed frame: its VoiceDown and, in peer-id order, each listener with its own stream's
-## seq. The message holds the first listener's seq; the host encodes it once and writes each
-## listener's seq into a copy (VoiceDownEncoder).
+## seq. The message holds the first listener's seq; the host encodes its record once and appends it
+## to each listener's VoiceBatch with that listener's seq written in place (VoiceBatchEncoder).
 class Outgoing:
 	extends RefCounted
 	var message: WireMessage

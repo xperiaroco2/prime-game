@@ -12,3 +12,10 @@ func capture(on: bool) -> void:
 
 func captured() -> bool:
 	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+
+
+## Whether the game's window has the focus. Windows clips the cursor to a window that captures it
+## even while another app has the focus (DisplayServerWindows::_set_mouse_mode_impl, 4.7.2), so
+## the game captures on its own only when focused (#517). Headless reads true.
+func focused() -> bool:
+	return DisplayServer.window_is_focused()

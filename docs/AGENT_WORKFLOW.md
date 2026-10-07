@@ -40,7 +40,9 @@ A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clon
 does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.sh`, then `tools/run.sh doctor`.
 - **`tools/cloud/setup.sh`** (from any folder; idempotent; 7 s in #345's session, the Godot download included): installs
   the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned
-  gdtoolkit with pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256
+  gdtoolkit with pip, the pinned Node.js in `~/node` (SHA-256 checked; the runner takes it there in a cloud session,
+  since the image's own Node 22 comes first on PATH and Claude Code runs on it; #368), and raises
+  `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256
   small datagrams in the 208 KB default; verify's stall step queues 320). **In a cloud session only**
   (`CLAUDE_CODE_REMOTE=true`) it also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension`
   and its `.uid`, the M5 voice ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux
@@ -51,6 +53,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `run` still loads the extension until the next `check` (ARCHITECTURE §6.5.2 The addon in the repo); `verify` runs
   `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
   is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
+  The webrtc-native extension (`addons/webrtc_native/`, the M6 ADR's E57, #367) is not left out: it ships a Linux
+  x86_64 library, which loads headless, so a cloud session runs `check` and the WebRTC tests with it, as CI does.
 - **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
   environment caches the resulting filesystem while each session starts from a fresh clone
   (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
@@ -61,8 +65,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
   3.11, and since #349 CI's job `python-min` keeps the minimum true.
 - **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
-  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit. The session's proxy refuses API calls and
-  feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
+  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit; `nodejs.org` for Node (#368). The
+  session's proxy refuses API calls and feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
   reads public pages (docs, release pages) for research.
 - **GitHub:** `gh auth status` calls the token invalid, yet `gh api` REST calls on this repository go through the
   session's GitHub proxy (`gh api user`, `gh api repos/{owner}/{repo}/issues/<n>`). GraphQL is refused (HTTP 403), so
@@ -195,7 +199,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
+   matches too (`bots`, `bots-enet` and `bots-webrtc`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
@@ -1154,7 +1158,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot CLAUDE.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,MANAGERS}.md` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md` |
 | Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1416,7 +1420,7 @@ inside it the harness's meter only appends to a buffer, folded after), `TIME_PHY
 second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
 `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
 the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
-and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
+and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceBatch`). It compares
 with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
 and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
 fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
@@ -1634,7 +1638,8 @@ Python core `tools/run.py` with
 `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), and `hook` (for Claude
+`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
+tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), and `hook` (for Claude
 Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
@@ -1643,8 +1648,13 @@ runner takes the machine paths from the Claude settings (§2).
 ### 11.16 CI [applied]
 `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
 (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
-pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
-seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
+pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
+(the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
+if its Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving
+them to Windows `verify`; that fallback must also give the smoke suite a skip when the `.gdextension` is absent,
+which it has none of today). The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra
+check, and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no
+CI: the manager's
 `verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
 minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
 `selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
@@ -1652,17 +1662,20 @@ public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only 
 session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
 merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
 first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
-(`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of
+(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner
+tests that start no Godot, each test in one of the worker processes, a quarter of
 the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
 `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
-imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
-and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
+imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
+WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`,
+`bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
 output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
 clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
 it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
 `selftest --group python|godot` runs one group without it). The
-summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
-`bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
+summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `webrtc`,
+`webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
+`bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
 test count.
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
@@ -1744,7 +1757,14 @@ fails instead of starting `verify` inside `verify`; a runner test that starts Go
 (`runner.verify`). `bots` is `bots` (every scenario in one process, about 8 s) and `bots-enet` is `bots
 dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
 that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
-188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `game` (#149, about 5 s) starts
+188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `bots-webrtc` and `chaos-webrtc`
+(M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6.7): `bots
+dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
+webrtc` (one chaos run paced to the real clock, about 16 s); `bots-webrtc` passed 5 runs and `chaos-webrtc` 10 in a
+row (seeds 188001 and 188002) beside a `load` of 8 busy
+loops on a 4-CPU cloud container (2026-10-05). Since #429 the shim also drops and delays LATEST on the host (the
+client sends the claims that matter on `MoveClaimReliable`), and `WebRtcTransport` refuses an empty packet; the
+two steps' baseline under load is #475. `game` (#149, about 5 s) starts
 `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
 (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
 file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
@@ -1753,7 +1773,10 @@ file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The 
 `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
 both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
 `run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
-`<p> + 2`. Each gets
+`<p> + 2`. The WebRTC twins (#370) run `tests/integration/net/webrtc_host_and_two_clients.gd` and
+`webrtc_freeze.gd` with `--instances 3`, and `webrtc_stall.gd` (about 23 s: the silence rule's 20 s) and
+`webrtc_silence.gd` (about 31 s) in one process, each with `--seconds 60`; their `<p>` is free for TCP too, since
+`LanSignalling` listens there. Each gets
 `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
 worktrees verifying at once very rarely share a port (if they do, the host fails with
 `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
@@ -1896,6 +1919,44 @@ his account that has one (all its blocks together; a "- " item is read too), wit
 the window. `--since` defaults to 72 hours ago. A source that fails prints "Unavailable: <error>" and exits 1; the
 rest is still printed.
 
+### 11.24 Exported builds: `export [--version V] [--rev R]` [applied] (#369; the M6 ADR's E59 and D20)
+The friends'
+Windows x86_64 builds from the two presets of `export_presets.cfg` (`Windows Release`, `Windows Debug`; the pack
+beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
+checks the pinned export templates (`pins.py`, the release's SHA512-SUMS.txt), exports a clean `git archive` tree
+of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected, and webrtc-native's too when
+the probe below runs the Windows pack, which holds no Linux library), adds the license notices to both builds
+(#419: `CREDITS.md` and every `LICENSE*` file of the addons whose libraries a build ships, TwoVoIP's and
+webrtc-native's, under `licenses/<addon>/` beside the `.exe`, one folder per addon since two could both be
+`LICENSE`; and, #422, every file of `docs/credits/licenses/<folder>/` as `licenses/<folder>/`: Godot 4.7.2-stable's
+`LICENSE.txt` and `COPYRIGHT.txt`, since the `.exe` is its template, and the `COPYING` of Opus, RNNoise and SpeexDSP,
+built into TwoVoIP's library, each verbatim from its primary source, its URL and SHA-256 in
+`docs/credits/licenses/README.md`; a new Godot pin or TwoVoIP release fetches them again), zips both into `tools/out/export/`, checks
+that the release zip holds the release template's `.exe` byte for byte, the release libraries of TwoVoIP and
+webrtc-native (#367), exactly the notices of `export.NOTICES` and no console wrapper (only a release template has
+`OS.is_debug_build()` false, which turns off F3, the dev tools and the debug kinds), checks that the debug zip
+carries the same notices, and proves the content hash in an export with
+`tools/export/export_probe.gd` run
+on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
+a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
+from that tree: the walk reaches the same five files as in the project, and one byte of a reached resource or of a
+texture's source changes the hash. The export converts `.tscn`/`.tres` to binary under `.godot/exported/` behind a `.remap`, and ships an
+imported asset's products without its source; `ContentFingerprint` hashes what is shipped, so an export's hash
+differs from a source run's (M6 ADR §2.5). The debug and the release zip of one commit have one hash and play
+together, so a human who hosts with the debug zip sees hidden information through F3 (invariant 8: on that machine
+only). About 3 minutes after the 1.3 GB download (#369's session). The workflow
+`.github/workflows/release.yml` runs it on a pushed `v*` tag (never on a PR), with LFS content (unlike `verify`),
+attaches only the release zip to that tag's GitHub Release (a re-run replaces it) and keeps the debug zip as a
+7-day workflow artifact. The engineer tags a merged commit:
+`git tag v0.6.0 <commit>; git push origin v0.6.0`. Opening Project > Export in the editor may add the default
+options to `export_presets.cfg`: commit that once; never turn on `application/modify_resources` or
+`binary_format/embed_pck`, or the release check fails. A new addon with a `LICENSE*` file goes into
+`export.SHIPPED_ADDONS` (its notices into `NOTICES`) or, kept out of builds by both presets' `exclude_filter`, into
+`UNSHIPPED_ADDONS` (gdUnit4); `test_export.py`'s `NoticesTest` (in `verify`) fails until it does, and also when a
+`LICENSE*` file is added to or removed from a shipped addon without `NOTICES` following, as `export` would. Only
+files named `LICENSE*` count (not `COPYING` or `NOTICE`) in an addon; in `docs/credits/licenses/` every file of a
+folder of `export.BUNDLED` counts, and a folder there not in `BUNDLED` fails `NoticesTest` too.
+
 ## 12. The designer's agent
 
 - **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
@@ -1980,8 +2041,9 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   out its ref's commit, so a release ref runs its own setup action, `tools/run.sh` and tests (a release's extra
   suites get the same nights as `main`). A step first asks the ref's runner (`--help`) for the options the job
   calls: an older runner fails there, naming what it lacks. Every job also removes the TwoVoIP extension as M5's
-  CI does (`rm -f`, so nothing on a ref without it). The refs' jobs run side by side (`fail-fast: false`); each
-  ref adds its jobs' runner minutes (`main`'s three took about 16 on 2026-10-03), free in this public repository.
+  CI does (`rm -f`, so nothing on a ref without it), and keeps webrtc-native, which loads on Linux (E57, #367).
+  The refs' jobs run side by side (`fail-fast: false`); each ref adds its jobs' runner minutes (`main`'s three took
+  about 16 on 2026-10-03), free in this public repository.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite action
   `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job is one job
   in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an

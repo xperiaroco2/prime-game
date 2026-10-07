@@ -27,6 +27,11 @@ static func own_client_of(host_side: NetTransport) -> LoopbackTransport:
 	return client
 
 
+## A connected client's is in this process: LOCAL, with no round trip.
+func own_route() -> Route:
+	return Route.LOCAL if role() == Role.CLIENT and _peers.has(HOST_ID) else Route.NONE
+
+
 func _backend_host(port: int, max_clients: int) -> Error:
 	if _hub == null:
 		return ERR_UNCONFIGURED

@@ -42,6 +42,8 @@ var last_slice: Array[EmittedEvent] = []
 var claims_in: Dictionary[StringName, int] = {}
 ## Clients that do not step: a frozen client process.
 var frozen: Array[ClientSession] = []
+## The transport of the last join_lossy().
+var lossy: LossyTransport
 
 
 ## A client that sends raw messages and records every message it decodes, in arrival order.
@@ -105,8 +107,33 @@ class RawClient:
 
 	func _on_packet(_from: int, kind: int, payload: PackedByteArray) -> void:
 		var message := schema.decode(kind, payload)
-		if message != null:
-			received.append(message)
+		if message == null:
+			return
+		received.append(message)
+		# Each frame of a VoiceBatch also as the VoiceDown it stands for (M5-4b).
+		if message.name == DecodedView.VOICE_BATCH:
+			received.append_array(DecodedView.voice_downs(message))
+
+
+## A client's transport on a lossy link (#429): the next `claims_to_lose` LATEST MoveClaims it is
+## asked to send are lost on the way, as Wi-Fi loses them; everything else goes out.
+class LossyTransport:
+	extends LoopbackTransport
+	var claims_to_lose := 0
+	## The MoveClaims it lost.
+	var lost := 0
+	var _claim_kind := 0
+
+	func _init(kinds: NetKindTable, hub: LoopbackHub, claim_kind: int) -> void:
+		super(kinds, hub)
+		_claim_kind = claim_kind
+
+	func send(to_peer: int, kind: int, payload: PackedByteArray) -> Error:
+		if kind == _claim_kind and claims_to_lose > 0:
+			claims_to_lose -= 1
+			lost += 1
+			return OK
+		return super(to_peer, kind, payload)
 
 
 func _init(
@@ -160,6 +187,13 @@ func join(client_mode: GameMode = null) -> ClientSession:
 	var joining := LoopbackTransport.new(schema.kind_table(), hub)
 	joining.join("loopback", PORT)
 	return _client_on(joining, client_mode if client_mode != null else mode)
+
+
+## A ClientSession joined over the hub on a LossyTransport, which `lossy` holds.
+func join_lossy() -> ClientSession:
+	lossy = LossyTransport.new(schema.kind_table(), hub, schema.kind_of(Intents.MOVE_CLAIM))
+	lossy.join("loopback", PORT)
+	return _client_on(lossy, mode)
 
 
 ## A raw client joined over the hub.

@@ -20,6 +20,7 @@ const ACTIONS: Array[StringName] = [
 	&"task_screen",
 	&"ready",
 	&"voice_talk",
+	&"toggle_fullscreen",
 ]
 
 
@@ -96,6 +97,22 @@ func test_push_to_talk_is_held_on_v() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_V])
+
+
+func test_alt_enter_toggles_fullscreen_and_enter_alone_does_not() -> void:
+	# #517: Windows games flip fullscreen on Alt+Enter; Godot 4.7.2 binds nothing to it.
+	var events := InputMap.action_get_events(&"toggle_fullscreen")
+	assert_int(events.size()).is_equal(1)
+	var key := events[0] as InputEventKey
+	assert_int(key.physical_keycode).is_equal(KEY_ENTER)
+	assert_bool(key.alt_pressed).is_true()
+	assert_bool(key.ctrl_pressed or key.shift_pressed or key.meta_pressed).is_false()
+	var enter := InputEventKey.new()
+	enter.physical_keycode = KEY_ENTER
+	enter.pressed = true
+	assert_bool(enter.is_action_pressed(&"toggle_fullscreen")).is_false()
+	enter.alt_pressed = true
+	assert_bool(enter.is_action_pressed(&"toggle_fullscreen")).is_true()
 
 
 func test_the_microphone_input_is_enabled() -> void:

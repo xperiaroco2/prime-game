@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The debug overlay's text (the M4 ADR's §2): the own client's corrections and placements,
 ## the estimated host tick and the delay, and the host's counters sorted by name; nothing but a
 ## note without a session. Apart, the host's voice relay counters, only in a Lobby, a Countdown
-## or an End (the M5 ADR §3 item 11).
+## or an End (the M5 ADR §3 item 11). And the own connection's kind and round trip (the M6 design §3
+## item 4).
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 
@@ -118,3 +119,30 @@ func test_the_own_voice_line_shows_the_gate_peak_age_and_encode_time() -> void:
 	overlay.show_own_voice(true, true, 0.5, 21400, 340)
 	assert_bool(overlay.own_voice_label.visible).is_true()
 	assert_str(overlay.own_voice_label.text).is_equal(text)
+
+
+func test_the_connection_line_shows_the_own_kind_and_round_trip() -> void:
+	# The M6 design §3 item 4 (#431): the own connection's kind and round trip, nothing else.
+	assert_str(DebugOverlay.connection_text(NetTransport.Route.DIRECT, 23)).is_equal(
+		"connection: direct, round trip 23 ms"
+	)
+	assert_str(DebugOverlay.connection_text(NetTransport.Route.DIRECT, -1)).is_equal(
+		"connection: direct, round trip not measured yet"
+	)
+	assert_str(DebugOverlay.connection_text(NetTransport.Route.DIRECT_OR_RELAYED, 41)).is_equal(
+		"connection: direct or relayed (WebRTC does not say which), round trip 41 ms"
+	)
+	assert_str(DebugOverlay.connection_text(NetTransport.Route.LOCAL, -1)).is_equal(
+		"connection: in this process, no network"
+	)
+	assert_str(DebugOverlay.connection_text(NetTransport.Route.NONE, 12)).is_empty()
+
+
+func test_the_connection_label_shows_only_with_a_connection() -> void:
+	var overlay: DebugOverlay = auto_free(DebugOverlay.new())
+	assert_bool(overlay.connection_label.visible).is_false()
+	overlay.show_connection(NetTransport.Route.DIRECT, 30)
+	assert_bool(overlay.connection_label.visible).is_true()
+	assert_str(overlay.connection_label.text).is_equal("connection: direct, round trip 30 ms")
+	overlay.show_connection(NetTransport.Route.NONE, -1)
+	assert_bool(overlay.connection_label.visible).is_false()

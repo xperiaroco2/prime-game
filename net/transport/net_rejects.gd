@@ -21,6 +21,14 @@ enum Reason {
 	OVER_BUDGET,
 	## server/: the codec rejected the payload, or a debug kind came from a peer other than 1.
 	BAD_PAYLOAD,
+	## A LATEST packet shorter than LaneOrder's header (WebRTC and later backends).
+	ORDER_HEADER_SHORT,
+	## LaneOrder: a hold that no reliable packet released for LaneOrder.STALL_MS, a transport fault
+	## that disconnects the peer (the M6 ADR §2.2).
+	ORDER_STALLED,
+	## WebRTC: one of a peer's data channels closed while its connection stayed up, and the host
+	## was not closing that peer; the peer leaves (the M6 ADR §2.6).
+	CHANNEL_CLOSED,
 }
 
 ## Peers named in one summary line; the rest are summed up.
@@ -52,6 +60,15 @@ func of_reason(reason: Reason) -> int:
 ## Rejections from this peer since the last summary.
 func from_peer(peer_id: int) -> int:
 	return _pending_by_peer.get(peer_id, 0)
+
+
+## Every rejection so far by reason, "REASON xN, ...", or "none" (a test's failure message: the
+## summaries may have been logged and taken already).
+func totals() -> String:
+	var reasons := PackedStringArray()
+	for reason: int in _sorted_by_count(_by_reason):
+		reasons.append("%s x%d" % [Reason.find_key(reason), _by_reason[reason]])
+	return ", ".join(reasons) if not reasons.is_empty() else "none"
 
 
 ## Rejections since the last summary.

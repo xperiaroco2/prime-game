@@ -11,6 +11,10 @@ func test_every_end_has_its_words() -> void:
 		RejectReasons.JOINS_CLOSED,
 		RejectReasons.FULL,
 		ClientSession.CONNECT_FAILED,
+		NetTransport.JOIN_NO_ROOM,
+		NetTransport.JOIN_SERVICE_UNREACHABLE,
+		NetTransport.JOIN_SERVICE_REFUSED,
+		NetTransport.JOIN_UNREACHABLE,
 		ClientSession.HOST_LOST,
 		ClientSession.UNKNOWN_MAP,
 		ClientSession.LOAD_FAILED,
@@ -44,3 +48,12 @@ func test_an_unknown_reason_is_its_id() -> void:
 	assert_str(EndReasons.words(&"no_such_reason")).is_equal("no_such_reason")
 	assert_str(EndReasons.text(&"no_such_reason")).is_equal("no_such_reason")
 	assert_str(EndReasons.words(&"load_deadline")).contains("too long to load")
+
+
+## A WebRTC join refused for a closed or full room ends as a Rejected Hello would, with its words,
+## and ENet's and the loopback's reason is ClientSession's (net/ names no core/ class, so the ids
+## are pinned here).
+func test_the_transports_join_reasons_are_the_sessions() -> void:
+	assert_str(String(NetTransport.JOIN_STARTED)).is_equal(String(RejectReasons.JOINS_CLOSED))
+	assert_str(String(NetTransport.JOIN_FULL)).is_equal(String(RejectReasons.FULL))
+	assert_str(String(NetTransport.JOIN_FAILED)).is_equal(String(ClientSession.CONNECT_FAILED))

@@ -65,3 +65,37 @@ func test_the_runners_files() -> void:
 	)
 	assert_bool(missing.stop_requested()).is_false()
 	assert_bool(missing.runner_gone()).is_true()
+
+
+func test_code_arguments() -> void:
+	var host := LaunchOptions.parse(
+		PackedStringArray(["--host", "--code", "--signal=lan", "--room=k7m2qx"])
+	)
+	assert_str(host.problem).is_empty()
+	assert_bool(host.by_code).is_true()
+	assert_str(host.signal_url).is_equal(LaunchOptions.LAN_SIGNAL)
+	assert_str(host.room).is_equal("K7M2QX")
+	var joiner := LaunchOptions.parse(
+		PackedStringArray(["--join=K7M2QX", "--signal=ws://127.0.0.1:24600"])
+	)
+	assert_str(joiner.problem).is_empty()
+	assert_bool(joiner.target.is_code()).is_true()
+	assert_str(joiner.target.service_url).is_equal("ws://127.0.0.1:24600")
+	# No --signal: the deployed Worker (#513).
+	var deployed := LaunchOptions.parse(PackedStringArray(["--join=K7M2QX"]))
+	assert_str(deployed.problem).is_empty()
+	assert_str(deployed.target.service_url).starts_with("wss://")
+	assert_str(deployed.target.service_url).is_equal(JoinTarget.SERVICE_URL)
+	var direct := LaunchOptions.parse(PackedStringArray(["--join=example.playit.gg:41234"]))
+	assert_str(direct.problem).is_empty()
+	assert_bool(direct.target.is_code()).is_false()
+	assert_int(direct.target.port).is_equal(41234)
+	var cases: Dictionary[String, PackedStringArray] = {
+		"for the host only": PackedStringArray(["--join=K7M2QX", "--code"]),
+		"takes a code": PackedStringArray(["--host", "--code", "--room=K7M2QX"]),
+		"1 to 65535": PackedStringArray(["--join=host:0"]),
+		"for a --code host only": PackedStringArray(["--join=K7M2QX", "--signal=lan"]),
+	}
+	for expected: String in cases:
+		var options := LaunchOptions.parse(cases[expected])
+		assert_str(options.problem).override_failure_message(expected).contains(expected)

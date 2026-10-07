@@ -1,13 +1,15 @@
 class_name PeerBudget
 extends RefCounted
 ## One peer's three token buckets (ARCHITECTURE §4.5 "Rate limits", E7): voice frames, reliable
-## intents, and the bytes of every message that is not voice (the reliable intents and MoveClaim).
+## intents (MoveClaimReliable, MoveClaim's RELIABLE twin, among them, #429), and the bytes of every
+## message that is not voice (the reliable intents and MoveClaim).
 ## The accident they bound: a client bug that sends an intent every frame, every command of which
 ## stays in the command log for the whole match. Voice has a bucket of its own, so a player talking
 ## at a high bitrate never drains what a SetReady or a LoadAck needs. Each bucket holds more than
-## 10 s of an honest client's traffic, so a thawed peer's backlog passes. A message over a budget is
-## dropped before decoding; nobody is disconnected for its rate. The host's own client (peer 1) has
-## no budget. Every number is a placeholder, "not a decision".
+## 10 s of an honest client's traffic, so a thawed peer's backlog passes; a twin goes once per
+## epoch and once before a player action, so an honest player action costs two intents. A message
+## over a budget is dropped before decoding; nobody is disconnected for its rate. The host's own
+## client (peer 1) has no budget. Every number is a placeholder, "not a decision".
 
 ## Voice frames (one 20 ms frame each): the bucket and its refill per second.
 const VOICE_FRAMES := 500.0

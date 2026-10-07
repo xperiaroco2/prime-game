@@ -111,7 +111,7 @@ var _leaving: Dictionary[int, int] = {}
 ## Peers this session disconnected whose peer_left has not come yet.
 var _disconnected: Dictionary[int, bool] = {}
 var _relay := VoiceRelay.new()
-var _voice_down: VoiceDownEncoder
+var _voice_batch: VoiceBatchEncoder
 ## Debug builds only (E47 as amended): the relay's time and the upload, apart; null in a release
 ## build.
 var _meter: RelayMeter = RelayMeter.new() if _debug else null
@@ -138,7 +138,7 @@ class _Peer:
 func _init(transport: NetTransport, schema: WireSchema = null) -> void:
 	_transport = transport
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
-	_voice_down = VoiceDownEncoder.new(_schema)
+	_voice_batch = VoiceBatchEncoder.new(_schema)
 	# Bound methods, not lambdas: a lambda capturing self, held by the transport, is a cycle.
 	_transport.peer_joined.connect(_on_peer_joined)
 	_transport.peer_left.connect(_on_peer_left)
@@ -392,19 +392,29 @@ func _send_voice() -> void:
 	if _meter != null:
 		_meter.add_other_upload(_transport.take_upload())
 		began = Time.get_ticks_usec()
-	var kind := _voice_down.kind
-	for out: VoiceRelay.Outgoing in _relay.flush(game.ticked_through()):
-		# Encoded once per frame, when a listener is reachable; each gets a copy with its own seq.
+	# Each frame's record is encoded once, when a listener is reachable; each listener's batches
+	# take it with that listener's own stream seq, and go out in as few VoiceBatches as fit.
+	var tick := game.ticked_through()
+	var batched: Dictionary[int, VoiceBatchEncoder.Batches] = {}
+	for out: VoiceRelay.Outgoing in _relay.flush(tick):
 		var encoded := PackedByteArray()
 		for i in out.listeners.size():
 			var listener := out.listeners[i]
 			if not _reachable(listener):
 				continue
 			if encoded.is_empty():
-				encoded = _voice_down.encode(out.message)
+				encoded = _voice_batch.record(out.message)
 				if encoded.is_empty():
 					break  # the codec logged why
-			var payload := _voice_down.with_seq(encoded, out.message, out.seqs[i])
+			if not batched.has(listener):
+				batched[listener] = _voice_batch.start(tick)
+			batched[listener].add_frame(encoded, out.message, out.seqs[i])
+	var listeners: Array[int] = []
+	listeners.assign(batched.keys())
+	listeners.sort()
+	var kind := _voice_batch.kind
+	for listener: int in listeners:
+		for payload: PackedByteArray in batched[listener].finish():
 			if _meter == null:
 				_send(listener, kind, payload)
 				continue
@@ -412,7 +422,8 @@ func _send_voice() -> void:
 			var sent := _send(listener, kind, payload)
 			_meter.send_usec += Time.get_ticks_usec() - send_began
 			if sent == OK:
-				_meter.sent += 1
+				_meter.batches += 1
+				_meter.sent += payload[_voice_batch.count_at]
 	if _meter != null:
 		_meter.relay_usec += Time.get_ticks_usec() - began
 		_meter.add_voice_upload(_transport.take_upload())
@@ -516,9 +527,10 @@ func _on_packet(peer: int, kind: int, payload: PackedByteArray) -> void:
 	if row.lane == NetKindTable.Lane.VOICE:
 		_relay.hold(peer, message.fields["seq"] as int, message.fields["opus"] as PackedByteArray)
 		return
-	# A debug kind names its player in `peer` (E17); every other command is its sender's.
+	# A debug kind names its player in `peer` (E17); every other command is its sender's. A row
+	# becomes its command: MoveClaimReliable is MoveClaim on another lane (#429).
 	var sender := message.peer if debug_kind else peer
-	_queue.append(MatchCommand.new(message.name, sender, 0, message.fields, message.seq))
+	_queue.append(MatchCommand.new(row.command, sender, 0, message.fields, message.seq))
 
 
 func _on_rejected(peer: int, reason: NetRejects.Reason) -> void:

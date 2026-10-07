@@ -18,8 +18,8 @@ const WORDS: Dictionary[StringName, String] = {
 	"the host runs another protocol version: put both machines on the same commit",
 	&"wrong_content":
 	(
-		"the host's game content (content/ or levels/) differs from this machine's: put both"
-		+ " machines on the same commit"
+		"the host runs another build: its game content (content/ or levels/) differs from this"
+		+ " machine's: put both machines on the same build"
 	),
 	&"joins_closed": "the host's match is under way: join again when it is back in the lobby",
 	&"full": "the host's lobby is full",
@@ -27,6 +27,19 @@ const WORDS: Dictionary[StringName, String] = {
 	(
 		"no answer from the host: check that it runs, the address and the port, and that its"
 		+ " firewall lets UDP in"
+	),
+	&"no_room": "no game has that code: check the code with the host",
+	&"service_unreachable":
+	(
+		"the code service could not be reached (or this build has none): join with the host's"
+		+ " address under Direct (LAN or VPN) instead"
+	),
+	&"service_refused": "the code service refused the join: put both machines on the same build",
+	&"host_unreachable":
+	(
+		"the host's lobby is full, or this machine could not reach the host directly: if the"
+		+ " lobby has room, the host can share a playit.gg address to join under Direct (LAN or"
+		+ " VPN)"
 	),
 	&"host_lost": "the host closed, or the connection was lost",
 	&"unknown_map": "the host asked for a map this game does not have: put both on the same commit",

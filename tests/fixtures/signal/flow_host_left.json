@@ -1,0 +1,164 @@
+{
+  "about": "No reclaim: the host's socket closing closes the room; its joiners get an error and their sockets are closed; the code is free, and hosting again makes a new room.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF",
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "open": "j2"
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 2
+          }
+        }
+      ]
+    },
+    {
+      "gone": "host",
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "the host left"
+          },
+          "close": true
+        },
+        {
+          "to": "j2",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "the host left"
+          },
+          "close": true
+        }
+      ]
+    },
+    {
+      "open": "j3"
+    },
+    {
+      "from": "j3",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j3",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "no such room"
+          }
+        }
+      ]
+    },
+    {
+      "open": "host2"
+    },
+    {
+      "from": "host2",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host2",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    }
+  ]
+}

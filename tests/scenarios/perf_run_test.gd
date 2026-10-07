@@ -65,7 +65,7 @@ func test_the_meter_counts_frame_bytes_per_peer_and_tick_and_skips_the_own_clien
 	payload.resize(10)
 	meter.tick = 7
 	meter.sent(2, schema.kind_of(&"Snapshot"), payload)
-	meter.sent(2, schema.kind_of(&"VoiceDown"), payload)
+	meter.sent(2, schema.kind_of(&"VoiceBatch"), payload)
 	meter.sent(NetTransport.HOST_ID, schema.kind_of(&"Snapshot"), payload)
 	meter.received(3, schema.kind_of(&"VoiceUp"), payload)
 	meter.received(3, schema.kind_of(&"SetReady"), payload)

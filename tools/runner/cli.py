@@ -161,12 +161,25 @@ def build_parser() -> argparse.ArgumentParser:
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
         description="Bot scenarios (content/scenarios/) through the host and client sessions, and the "
-        "information-leak test. --instances N (N > 1): one scenario over ENet, a process per bot. --chaos: the "
-        "chaos bots, a hostile and a malformed peer against the host (no --seed: a random one, printed).",
+        "information-leak test. --instances N (N > 1): one scenario over ENet, a process per bot (over WebRTC "
+        "with --transport webrtc). --chaos: the chaos bots, a hostile and a malformed peer against the host (no "
+        "--seed: a random one, printed; --enet or --transport webrtc: over the network).",
     )
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
-    p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
-    p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
+    p.add_argument(
+        "--instances", type=int, default=1, help="over the network, one process per bot: one scenario of N bots"
+    )
+    p.add_argument(
+        "--transport",
+        choices=("enet", "webrtc"),
+        help="the network of --instances or --chaos: enet (the default of --instances) or webrtc (M6-6)",
+    )
+    p.add_argument(
+        "--seconds",
+        type=int,
+        help="hard timeout of the run (default 300 in one process, 180 over the network; --chaos: 60 per seed, "
+        "120 per seed over the network)",
+    )
     p.add_argument("--chaos", action="store_true", help="the chaos bots: a hostile and a malformed peer against the host")
     p.add_argument("--seed", type=int, help="--chaos: the first seed (default: random, printed)")
     p.add_argument("--runs", type=int, default=1, help="--chaos: seeds to run, from --seed up (default 1)")
@@ -384,22 +397,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p = sub.add_parser(
         "host",
-        help="host the game over ENet in a window (--headless: M3's session); Ctrl+C stops",
-        description="Host the game over ENet in a window; --clients N more windows join it (tiled on one PC). "
+        help="host the game over ENet (--code: WebRTC with a room code) in a window (--headless: M3's session); "
+        "Ctrl+C stops",
+        description="Host the game over ENet in a window; --clients N more windows join it (tiled on one PC). --code: "
+        "over WebRTC, a room with a code, the host serving its signalling on TCP of the port. "
         f"Ctrl+C or --seconds stops it cleanly. {host_join}",
     )
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--clients", type=int, default=0, help="also start N clients joined on 127.0.0.1 (windows tiled)")
     p.add_argument("--local", action="store_true", help="listen on 127.0.0.1 only (this PC's clients; no firewall)")
+    p.add_argument(
+        "--code",
+        action="store_true",
+        help="host a room with a code over WebRTC, the host serving its signalling on TCP of the port",
+    )
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
     p = sub.add_parser(
         "join",
-        help="join a host over ENet in a window (--headless: M3's session); Ctrl+C stops",
-        description=f"Join a host over ENet in a window. Ctrl+C or --seconds stops it cleanly. {host_join}",
+        help="join a host over ENet, or a room's code over WebRTC, in a window (--headless: M3's session); "
+        "Ctrl+C stops",
+        description="Join a host over ENet in a window, or a room's code over WebRTC (--signal: the signalling "
+        f"service). Ctrl+C or --seconds stops it cleanly. {host_join}",
     )
-    p.add_argument("address", help="the host's address, such as 192.168.0.195 or 127.0.0.1")
+    p.add_argument("address", help="the host's address[:port] or a room's code, such as 192.168.0.195 or K7M2QX")
+    p.add_argument("--signal", help="with a code: the signalling service, such as ws://192.168.0.195:24600")
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
@@ -431,10 +454,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--refs", action="store_true", help="lint's § check, listing each reference with no doc in scope")
 
     sub.add_parser(
+        "signal",
+        help="the signalling Worker's tests under Node (tools/signal/, a verify step)",
+        description="Run the signalling Worker's tests (tools/signal/test/) with node --test under the pinned Node. "
+        "A step of verify's Python lane.",
+    )
+
+    sub.add_parser(
         "credits",
         help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)",
         description="Write CREDITS.md from docs/credits/. check fails when it is stale or an LFS asset has no entry.",
     )
+
+    p = sub.add_parser(
+        "export",
+        help="the Windows release and debug zips of a commit, the release check and the content-hash proof",
+        description="Export the Windows release and debug zips of a commit into tools/out/export/, check the release "
+        "zip and prove the content hash in an export. Linux only (CI on a pushed v* tag, a cloud session).",
+    )
+    p.add_argument("--version", help="the name in the zips (default: git describe of the commit; CI: the tag)")
+    p.add_argument("--rev", default="HEAD", help="the commit to export, from a clean tree (default HEAD)")
 
     p = sub.add_parser(
         "agents-check",
@@ -632,10 +671,19 @@ def main(argv: list[str] | None = None) -> int:
             if args.chaos:
                 if args.scenarios or args.instances != 1:
                     raise Failure("--chaos plays its own match: no scenario names and no --instances")
-                return bots.chaos(args.seed, args.runs, long=args.long, enet=args.enet, seconds=args.seconds)
+                return bots.chaos(
+                    args.seed,
+                    args.runs,
+                    long=args.long,
+                    enet=args.enet,
+                    seconds=args.seconds,
+                    transport=args.transport,
+                )
             if args.seed is not None or args.runs != 1 or args.long or args.enet:
                 raise Failure("--seed, --runs, --long and --enet need --chaos")
-            return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+            return bots.main(
+                args.scenarios, instances=args.instances, seconds=args.seconds, transport=args.transport or "enet"
+            )
         if args.command == "mutants":
             from . import mutants
 
@@ -725,12 +773,18 @@ def main(argv: list[str] | None = None) -> int:
                 seconds=args.seconds,
                 headless=args.headless,
                 windows=args.windows,
+                code=args.code,
             )
         if args.command == "join":
             from . import hostjoin
 
             return hostjoin.join(
-                args.address, port=args.port, seconds=args.seconds, headless=args.headless, windows=args.windows
+                args.address,
+                port=args.port,
+                seconds=args.seconds,
+                headless=args.headless,
+                windows=args.windows,
+                signal=args.signal,
             )
         if args.command == "section":
             from . import refs, section
@@ -739,10 +793,18 @@ def main(argv: list[str] | None = None) -> int:
                 print("section: give a doc (and sections), or --refs alone", flush=True)
                 return 2
             return refs.main() if args.refs else section.main(args.doc, args.sections)
+        if args.command == "signal":
+            from . import signalling
+
+            return signalling.main()
         if args.command == "credits":
             from . import credits
 
             return credits.main()
+        if args.command == "export":
+            from . import export
+
+            return export.main(version=args.version, rev=args.rev)
         if args.command == "agents-check":
             from . import agents_check
 

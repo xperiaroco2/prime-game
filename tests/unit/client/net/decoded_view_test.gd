@@ -118,10 +118,14 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 		func(speaker: int, seq: int, tick: int, _opus: PackedByteArray) -> void:
 			heard.append(Vector3i(speaker, seq, tick))
 	)
-	_harness.send_message(_voice(1, 0, 20, PackedByteArray([1])))
-	_harness.send_message(_voice(1, 1, 20, PackedByteArray([2, 2])))
-	_harness.send_message(_voice(3, 0, 20, PackedByteArray([3])))
-	_harness.send_message(_voice(3, 1, 21, PackedByteArray([4])))
+	# Two VoiceBatches (M5-4b): three frames under tick 20, one under 21.
+	var first: Array[Dictionary] = [
+		_frame(1, 0, PackedByteArray([1])),
+		_frame(1, 1, PackedByteArray([2, 2])),
+		_frame(3, 0, PackedByteArray([3])),
+	]
+	_harness.send_message(_batch(20, first))
+	_harness.send_message(_batch(21, [_frame(3, 1, PackedByteArray([4]))] as Array[Dictionary]))
 	_harness.pump()
 	var view := _harness.session.view
 	assert_array(view.frames(1, 20)).is_equal([PackedByteArray([1]), PackedByteArray([2, 2])])
@@ -133,7 +137,10 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	var speakers := view.speakers()
 	assert_array(speakers[20]).is_equal(PackedInt32Array([1, 3]))
 	assert_array(speakers[21]).is_equal(PackedInt32Array([3]))
-	# The signal carries each VoiceDown's speaker, seq and tick (M5-5: VoiceJitter orders by seq).
+	assert_int(view.voice_batches).is_equal(2)
+	assert_int(view.empty_batches).is_equal(0)
+	# The signal carries each frame's speaker, seq and tick, in the batch's order (M5-5:
+	# VoiceJitter orders by seq).
 	assert_array(heard).contains_exactly(
 		[Vector3i(1, 0, 20), Vector3i(1, 1, 20), Vector3i(3, 0, 20), Vector3i(3, 1, 21)]
 	)
@@ -168,7 +175,9 @@ static func _avatar(at: Vector3) -> Dictionary:
 	}
 
 
-static func _voice(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> WireMessage:
-	return WireMessage.new(
-		&"VoiceDown", {"speaker": speaker, "seq": seq, "tick": tick, "opus": opus}
-	)
+static func _frame(speaker: int, seq: int, opus: PackedByteArray) -> Dictionary:
+	return {"speaker": speaker, "seq": seq, "opus": opus}
+
+
+static func _batch(tick: int, frames: Array[Dictionary]) -> WireMessage:
+	return WireMessage.new(&"VoiceBatch", {"tick": tick, "frames": frames})

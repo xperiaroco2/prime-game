@@ -7,7 +7,7 @@ extends RefCounted
 ## a network.
 ##
 ## Down (host to client): frame bytes (payload plus NetFrame's header) of every message sent, of the
-## VoiceDown messages alone, and each Snapshot's payload bytes (its row's cap is a payload cap). Up
+## VoiceBatch messages alone, and each Snapshot's payload bytes (its row's cap is a payload cap). Up
 ## (client to host): the payload bytes of every message that is not voice, and the voice frames,
 ## the units of the host's per-peer budgets (PeerBudget, E7).
 ##
@@ -24,7 +24,7 @@ const RECORD := 4
 var tick := 0
 ## Peer -> {tick: frame bytes sent to it}.
 var down: Dictionary[int, Dictionary] = {}
-## Peer -> {tick: frame bytes of the VoiceDown messages sent to it}.
+## Peer -> {tick: frame bytes of the VoiceBatch messages sent to it}.
 var down_voice: Dictionary[int, Dictionary] = {}
 ## Peer -> {tick: payload bytes of the Snapshot sent to it}.
 var snapshots: Dictionary[int, Dictionary] = {}
@@ -34,7 +34,7 @@ var up: Dictionary[int, Dictionary] = {}
 var up_voice: Dictionary[int, Dictionary] = {}
 
 var _snapshot_kind := 0
-var _voice_down_kind := 0
+var _voice_batch_kind := 0
 var _voice_up_kind := 0
 ## Records not yet folded into the tables, RECORD ints each.
 var _pending := PackedInt64Array()
@@ -42,7 +42,7 @@ var _pending := PackedInt64Array()
 
 func _init(schema: WireSchema) -> void:
 	_snapshot_kind = schema.kind_of(&"Snapshot")
-	_voice_down_kind = schema.kind_of(&"VoiceDown")
+	_voice_batch_kind = schema.kind_of(&"VoiceBatch")
 	_voice_up_kind = schema.kind_of(&"VoiceUp")
 
 
@@ -52,7 +52,7 @@ func sent(peer: int, kind: int, payload: PackedByteArray) -> void:
 		return
 	var frame := payload.size() + NetFrame.HEADER_BYTES
 	_record(Table.DOWN, peer, frame)
-	if kind == _voice_down_kind:
+	if kind == _voice_batch_kind:
 		_record(Table.DOWN_VOICE, peer, frame)
 	elif kind == _snapshot_kind:
 		_record(Table.SNAPSHOTS, peer, payload.size())

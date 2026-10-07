@@ -43,7 +43,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 ## Commands
 `tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` says what it does and its options; read docs by section, never whole: `section <doc>` for the outline, then the § you need.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
-Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
+Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `export` `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `signal` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
 
 ## Shell
 PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
@@ -66,8 +66,8 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
   echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one. Workflow agents and subagents block no call over 240 s (5-minute cache; AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
-- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
-  `docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`, `docs/MANAGERS.md`.
+- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`,
+  `export_presets.cfg CLAUDE.md README.md docs/ARCHITECTURE.md`, `docs/{AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise

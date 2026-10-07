@@ -105,6 +105,13 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(found).contains("tick 999999 that view_of lacks")
 	assert_str(found).contains("voice of 7 under tick 3")
 	assert_str(found).contains("was changed")
+	# Through the wire's batched row (M5-4b): a frame of a speaker it may not hear, an empty batch.
+	var batched := _copy(own)
+	var frames: Array[Dictionary] = [{"speaker": 7, "seq": 0, "opus": LeakCheck.voice_frame(7, 0)}]
+	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 3, "frames": frames}))
+	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 4, "frames": [] as Array[Dictionary]}))
+	found = _text(leaks.check_bot("bot 2", 2, batched, false))
+	assert_str(found).contains("voice of 7 under tick 3").contains("1 empty VoiceBatches")
 	# A peer that is not a player and decoded an everyone event, a snapshot or voice.
 	runner.lurker.view.events.append(own.events[0])
 	runner.lurker.view.snapshots[1] = {"tick": 1, "avatars": {}}
@@ -112,6 +119,12 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	var lurked := _text(leaks.check_watcher(runner.lurker))
 	assert_str(lurked).contains("a peer that is not a player").contains("snapshots")
 	assert_str(lurked).contains("decoded voice of 1 speaker-ticks")
+	# Even an empty batch tells it that someone spoke.
+	runner.lurker.view.voice.clear()
+	runner.lurker.view.record(
+		WireMessage.new(&"VoiceBatch", {"tick": 4, "frames": [] as Array[Dictionary]})
+	)
+	assert_str(_text(leaks.check_watcher(runner.lurker))).contains("decoded 1 VoiceBatches")
 	# Different task events for two bots present for the whole match.
 	var tasks_a := DecodedView.new()
 	var tasks_b := DecodedView.new()
@@ -360,6 +373,33 @@ func test_a_second_snapshot_a_gap_in_a_voice_stream_and_lost_packets_are_leaks()
 	runner.host_transport.rejects.count(2, NetRejects.Reason.TOO_SHORT)
 	var host := _text(runner.host_problems())
 	assert_str(host).contains("2 messages over budget").contains("rejected 1 packets")
+
+
+## A watcher whose join was lost fails the leak test with the reason (#483).
+func test_a_watcher_that_never_connected_names_why() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	var leaks := LeakCheck.new(runner.game)
+	var stuck := BotWatcher.lurker(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema
+	)
+	assert_str(_text(leaks.check_watcher(stuck))).contains(
+		"it never connected (no connect_failed: still joining when the run ended)"
+	)
+	stuck.transport.connect_failed.emit(NetTransport.JOIN_SERVICE_UNREACHABLE)
+	assert_bool(stuck.lost).is_true()
+	assert_str(_text(leaks.check_watcher(stuck))).contains(
+		"it never connected (connect_failed, reason service_unreachable)"
+	)
+	# ENet and the loopback cannot tell a refusal from no answer: no precise reason to print.
+	var vague := BotWatcher.lurker(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema
+	)
+	vague.transport.connect_failed.emit(NetTransport.JOIN_FAILED)
+	assert_str(_text(leaks.check_watcher(vague))).contains(
+		"it never connected (connect_failed, the backend gave no precise reason)"
+	)
 
 
 func test_a_lurker_lost_early_or_a_refused_bot_not_refused_fails() -> void:
@@ -694,6 +734,8 @@ static func _copy(view: DecodedView) -> DecodedView:
 	copy.repeated_snapshots = view.repeated_snapshots.duplicate()
 	copy.voice = view.voice.duplicate()
 	copy.voice_seqs = view.voice_seqs.duplicate()
+	copy.voice_batches = view.voice_batches
+	copy.empty_batches = view.empty_batches
 	return copy
 
 

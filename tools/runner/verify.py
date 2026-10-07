@@ -1,10 +1,11 @@
 """`verify` (the definition of done: exactly what CI runs) and `selftest`.
 
 `doctor --quick` runs first, and a red one stops everything. Then two lanes run at once, each in a process of its
-own and serial inside (LANES): the Python lane (`lint`, then `selftest`: the runner tests that start no Godot, in
-worker processes) and the Godot lane (`check`, then `selftest-godot`: the runner tests that start Godot, then
-`test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet`, `chaos` and `game`), so the timing-sensitive ENet runs never
-overlap.
+own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
+`selftest`: the runner tests that start no Godot, in worker processes) and the Godot lane (`check`, then
+`selftest-godot`: the runner tests that start Godot, then `test`, `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`,
+`webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`, `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc` and
+`game`), so the timing-sensitive network runs never overlap.
 Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. After both
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped). The summary lists the steps in STEP_ORDER (the order of the
@@ -34,7 +35,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint, slots
+from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots
 from .common import (
     IS_CI,
     LOGS,
@@ -67,6 +68,15 @@ FREEZE_SECONDS = 60
 STALL_RUN = "tests/integration/net/enet_stall.gd"
 STALL_SECONDS = 60
 STALL_PORTS = 3
+# The WebRTC twins of the three ENet runs (#370; the M6 design §2.6), each on 127.0.0.1 with LanSignalling on a free
+# port and host candidates only: a host and two clients (about 2 s); the freeze, with the fault shim on (about 16 s);
+# the stall, one process whose three pairs share one LanSignalling (about 23 s: the silence rule's 20 s); and the
+# silence, one process keeping a dead client and a silent Lobby for 30 s (about 31 s).
+WEBRTC_RUN = "tests/integration/net/webrtc_host_and_two_clients.gd"
+WEBRTC_FREEZE_RUN = "tests/integration/net/webrtc_freeze.gd"
+WEBRTC_STALL_RUN = "tests/integration/net/webrtc_stall.gd"
+WEBRTC_SILENCE_RUN = "tests/integration/net/webrtc_silence.gd"
+WEBRTC_SECONDS = 60
 # The bot scenarios and the information-leak test (#102): every scenario in one process on a simulated clock (about
 # 8 s), then one scenario over ENet, one process per bot on the real clock: about 48 s since M4-3 (#139), whose
 # scenario ends by time up on a 40 s clock it forces (BotScenario.clock_s).
@@ -83,14 +93,21 @@ PORT_TRIES = 50
 STEP_ORDER = (
     "doctor",
     "lint",
+    "signal",
     "check",
     "test",
     "enet",
     "freeze",
     "stall",
+    "webrtc",
+    "webrtc-freeze",
+    "webrtc-stall",
+    "webrtc-silence",
     "bots",
     "bots-enet",
+    "bots-webrtc",
     "chaos",
+    "chaos-webrtc",
     "game",
     "selftest",
     "selftest-godot",
@@ -99,8 +116,25 @@ STEP_ORDER = (
 # Godot runs (and no two real-time ENet sessions) ever overlap, and its runner tests come after check: a fresh CI
 # checkout has imported the project (.godot/) before RealSessionTest is discovered.
 LANES: dict[str, tuple[str, ...]] = {
-    "python": ("lint", "selftest"),
-    "godot": ("check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"),
+    "python": ("lint", "signal", "selftest"),
+    "godot": (
+        "check",
+        "selftest-godot",
+        "test",
+        "enet",
+        "freeze",
+        "stall",
+        "webrtc",
+        "webrtc-freeze",
+        "webrtc-stall",
+        "webrtc-silence",
+        "bots",
+        "bots-enet",
+        "bots-webrtc",
+        "chaos",
+        "chaos-webrtc",
+        "game",
+    ),
 }
 # A lane process that outlives this is stopped and its unfinished steps fail (CI's whole job has 20 minutes).
 LANE_TIMEOUT = 30 * 60
@@ -119,23 +153,24 @@ INSIDE_VAR = "PRIME_VERIFY_INSIDE"
 TESTS = ROOT / "tools" / "runner" / "tests"
 
 
-def free_udp_port(pick: Callable[[range], int] = random.choice, count: int = 1) -> int:
+def free_udp_port(pick: Callable[[range], int] = random.choice, count: int = 1, tcp: bool = False) -> int:
     """A random UDP port on 127.0.0.1 that nothing holds right now, so worktrees verifying at once rarely share one.
 
-    With `count`, the port and the next `count - 1` are all free. A port that fails to bind (in use, or in a range
+    With `count`, the port and the next `count - 1` are all free; with `tcp`, free for TCP too (the WebRTC runs serve
+    LanSignalling there). A port that fails to bind (in use, or in a range
     Windows reserves) is skipped. The probe socket closes before Godot binds the port, so two worktrees can still
     pick the same one in that window (about 1 in 12,000); the host then fails with "host on 127.0.0.1:<port>
     failed", and running `verify` again picks a new port.
     """
     for _ in range(PORT_TRIES):
         port = pick(range(ENET_PORTS.start, ENET_PORTS.stop - count + 1))
-        if all(_binds(each) for each in range(port, port + count)):
+        if all(_binds(each) and (not tcp or _binds(each, socket.SOCK_STREAM)) for each in range(port, port + count)):
             return port
     raise Failure(f"no free UDP port on 127.0.0.1 in {ENET_PORTS.start}-{ENET_PORTS.stop - 1} after {PORT_TRIES} tries")
 
 
-def _binds(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+def _binds(port: int, kind: int = socket.SOCK_DGRAM) -> bool:
+    with socket.socket(socket.AF_INET, kind) as sock:
         try:
             sock.bind(("127.0.0.1", port))
         except OSError:
@@ -159,6 +194,26 @@ def stall() -> int:
     return launch.main(STALL_RUN, headless=True, seconds=STALL_SECONDS, instances=1, user_args=[f"--port={port}"])
 
 
+def webrtc() -> int:
+    """`run <WEBRTC_RUN> --headless --instances 3 --seconds 60 -- --port=<free>`: any failed instance fails it."""
+    return _headless_on_free_port(WEBRTC_RUN, WEBRTC_SECONDS, tcp=True)
+
+
+def webrtc_freeze() -> int:
+    """`run <WEBRTC_FREEZE_RUN> --headless --instances 3 --seconds 60 -- --port=<free>`."""
+    return _headless_on_free_port(WEBRTC_FREEZE_RUN, WEBRTC_SECONDS, tcp=True)
+
+
+def webrtc_stall() -> int:
+    """`run <WEBRTC_STALL_RUN> --headless --seconds 60 -- --port=<free>`: one process."""
+    return _one_process_on_free_port(WEBRTC_STALL_RUN)
+
+
+def webrtc_silence() -> int:
+    """`run <WEBRTC_SILENCE_RUN> --headless --seconds 60 -- --port=<free>`: one process."""
+    return _one_process_on_free_port(WEBRTC_SILENCE_RUN)
+
+
 def bots_one_process() -> int:
     """`bots`: every scenario in one process over the loopback."""
     return bots.main()
@@ -169,9 +224,21 @@ def bots_enet() -> int:
     return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES)
 
 
+def bots_webrtc() -> int:
+    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`: the same scenario over WebRTC on a free port (M6-6,
+    #371), with the fault shim on and the leak test's order check; one process per bot, about 50 s."""
+    return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES, transport="webrtc")
+
+
 def chaos() -> int:
     """`bots --chaos --seed <CHAOS_SEED>`: the chaos bots' short seeded run (the night job runs random seeds)."""
     return bots.chaos(seed=CHAOS_SEED)
+
+
+def chaos_webrtc() -> int:
+    """`bots --chaos --seed <CHAOS_SEED> --transport webrtc`: the short seeded run over WebRTC on a free port (M6-6),
+    one chaos run in one process paced to the real clock, the fault shim on; about 16 s."""
+    return bots.chaos(seed=CHAOS_SEED, transport="webrtc")
 
 
 def game() -> int:
@@ -181,11 +248,16 @@ def game() -> int:
     return hostjoin.game_check(free_udp_port())
 
 
-def _headless_on_free_port(target: str, seconds: int) -> int:
-    port = free_udp_port()
+def _headless_on_free_port(target: str, seconds: int, tcp: bool = False) -> int:
+    port = free_udp_port(tcp=tcp)
     return launch.main(
         target, headless=True, seconds=seconds, instances=ENET_INSTANCES, user_args=[f"--port={port}"]
     )
+
+
+def _one_process_on_free_port(target: str) -> int:
+    port = free_udp_port(tcp=True)
+    return launch.main(target, headless=True, seconds=WEBRTC_SECONDS, instances=1, user_args=[f"--port={port}"])
 
 
 def steps() -> dict[str, Callable[[], int]]:
@@ -193,15 +265,22 @@ def steps() -> dict[str, Callable[[], int]]:
     return {
         "doctor": lambda: doctor.main(quick=True),
         "lint": lambda: lint.main(),
+        "signal": lambda: signalling.main(),
         "check": lambda: check.main(),
         # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
         "test": lambda: gdunit.main(run_import=False),
         "enet": enet,
         "freeze": freeze,
         "stall": stall,
+        "webrtc": webrtc,
+        "webrtc-freeze": webrtc_freeze,
+        "webrtc-stall": webrtc_stall,
+        "webrtc-silence": webrtc_silence,
         "bots": bots_one_process,
         "bots-enet": bots_enet,
+        "bots-webrtc": bots_webrtc,
         "chaos": chaos,
+        "chaos-webrtc": chaos_webrtc,
         "game": game,
         "selftest": lambda: selftest("python"),
         "selftest-godot": lambda: selftest("godot"),
@@ -730,7 +809,24 @@ def git_facts(clean: bool) -> dict[str, str | None]:
 # else the output's last line. A reason is looked for only in the steps that run the game itself: a runner test's
 # traceback or a lint message can hold an indented "ERROR: " line that is not the cause.
 FAIL_LINE = "  FAIL  "
-REASON_STEPS = frozenset({"check", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"})
+REASON_STEPS = frozenset(
+    {
+        "check",
+        "enet",
+        "freeze",
+        "stall",
+        "webrtc",
+        "webrtc-freeze",
+        "webrtc-stall",
+        "webrtc-silence",
+        "bots",
+        "bots-enet",
+        "bots-webrtc",
+        "chaos",
+        "chaos-webrtc",
+        "game",
+    }
+)
 RUN_FAILED_RE = re.compile(r"^(?:BOTS|CHAOS)\b.*\bFAILED\b")
 # What the runner puts before a Godot line it repeats: an indent, `-> ` (a FAIL line's detail) and `#<instance> `
 # (bots.show_failures over ENet).

@@ -1,0 +1,119 @@
+{
+  "about": "A joiner's candidate with a \"to\" goes to its room's host, never to the joiner it names.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "open": "j2"
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 2
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "to": 2,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host",
+            "from": 1
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -33,7 +33,9 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
      settings files: that prompt is expected). `env` takes effect in the next session; `tools\run.cmd` reads it
      in their own PowerShell too, so they set no Windows environment variables.
 5. **Tools.** gdtoolkit missing or wrong: with their OK, `"<PYTHON_BIN>" -m pip install gdtoolkit==<version>`, the
-   version from `tools\run.cmd pins --get gdtoolkit`. Git LFS: `git lfs install --skip-repo` only. With
+   version from `tools\run.cmd pins --get gdtoolkit`. Node.js missing or another major (`verify`'s `signal` step
+   needs it, #368): with their OK, `winget install OpenJS.NodeJS.LTS --version <version>`, the version from
+   `tools\run.cmd pins --get node`, then a new terminal. Git LFS: `git lfs install --skip-repo` only. With
    `core.hooksPath` set, a plain `git lfs install` or `git lfs update` stops with "Hook already exists" (exit 2) and
    changes nothing; never run `git lfs update --force`, which overwrites the project's pre-push hook.
 6. **Doctor again.** `tools\run.cmd doctor`. What is still red goes into the checklist.

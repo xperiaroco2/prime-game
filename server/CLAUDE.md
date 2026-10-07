@@ -15,11 +15,11 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   exactly its recorded recipients, one message per recipient, *everyone* events included (never the transport's
   broadcast target, which also reaches peers that are not players). Never add a recipient or a field. Snapshots
   and voice routing come from `core/` too (`Match.snapshot_for`, `Match.speakers_for`).
-- Only `server/` makes `PeerConnected` and `PeerLeft`, from what the transport reports; never build a command of
-  those kinds (or any kind that is not in `Intents.ALL`) from a client's message, except a debug kind from peer 1
-  in a debug build, which becomes the command it names (Boundaries below; §4.3, E17). `Match` does not check who made
-  a command. It keeps every command in its log (about 20 MiB per player per 10 minutes at 20 Hz) and records
-  per-tick views only with `keep_history`, which a host leaves off.
+- Only `server/` makes `PeerConnected` and `PeerLeft`, from what the transport reports; never build a command of those
+  kinds (or any kind that is not in `Intents.ALL`) from a client's message, except a debug kind from peer 1 in a debug
+  build, which becomes the command it names (Boundaries below; §4.3, E17); `MoveClaimReliable` is `MoveClaim` (#429).
+  `Match` does not check who made a command. It keeps every command in its log (about 20 MiB per player per 10 minutes
+  at 20 Hz) and records per-tick views only with `keep_history`, which a host leaves off.
 - Carry out the directives whose audience is *server* (`RefuseJoins`, `AllowJoins`, `DisconnectPeer`), in the
   outbox's order: a `DisconnectPeer` comes after the `Rejected` that explains it, which must be sent first.
   Pass `PeerConnected` as soon as the transport admits a peer: `core/` takes a `Hello` only from a peer it knows is
@@ -41,7 +41,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
   uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()`
   (debug builds), `skip_replay()` and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new`
-  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceDownEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
+  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceBatchEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
   builds) gets `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, not a change here.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
@@ -58,9 +58,9 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
   events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
   `Hello`, so nothing overtakes the transport's `ADMIT`.
-- Voice: relay a `VoiceUp` at once, along the routing refreshed after every tick, as a `VoiceDown` with the stream's
-  own seq (per speaker and listener, never the speaker's) and `ticked_through()`, encoded once per frame, each
-  listener's seq patched into a copy (`VoiceDownEncoder`). Never decode Opus. Only present players speak; after a
+- Voice: relay a `VoiceUp` at once, along the routing refreshed after every tick, in each listener's `VoiceBatch` of
+  the poll (M5-4b) with the stream's own seq (per speaker and listener, never the speaker's) and `ticked_through()`,
+  each frame encoded once, each listener's seq written in place (`VoiceBatchEncoder`). Never decode Opus. Only present players speak; after a
   freeze relay only the newest few per speaker. On `peer_left(p)` drop p as speaker and listener at once (ids reused).
 - Budgets per peer (voice frames, reliable intents, bytes of the rest) are refilled for the host time elapsed, before
   the poll; a message over one is dropped before decoding and counted, and nobody is disconnected for its rate. A

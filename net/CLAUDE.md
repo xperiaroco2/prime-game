@@ -12,27 +12,38 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - State sync and interpolation data for remote players.
 
 ## Map
-- `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `LoopbackTransport` and
+- `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `WebRtcTransport` (M6-4: one
+  connection per client, three negotiated channels, `ADMIT` with the id the host assigned, the keepalive and silence rule, the
+  own connection's kind and round-trip pings, the debug-only `FaultShim`; ARCHITECTURE §4), `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
-  payload cap), `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
-  `packet_rejected(peer, reason)` signal per reject. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+  payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, the M6 ADR §2.2),
+  `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
+  `packet_rejected(peer, reason)` signal per reject. `JoinTarget` (M6-7): what a player typed (a code or
+  `address[:port]`) and the transport that joins it. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
   it), `WireRow` (`fixed_offset`: where a fixed-size field starts, so a caller patches it in place without a byte
   index), `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the fields, `seq`
   and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
   `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes;
   it hashes the level files and every scene and resource they reach, scripts left out (#118).
+- `signal/`: the signalling protocol (§4.8, M6): `SignalCodec` (messages and checks), `SignalRouter` (the
+  service's rooms and routing, no sockets), `LanSignalling` (the router over ws://) and `Signaller` (the client).
+  The transcripts and decoding cases in `tests/fixtures/signal/` are shared with the Worker (`tools/signal/`, #368):
+  change the rules in both.
 
 ## Rules
 - A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes
   `VOICE`, unordered), its direction and a payload cap. Never pick a channel or transfer mode anywhere else.
 - The LATEST lane delivers only the newest message per sender and kind per poll between two of that sender's
   reliable messages (the backlog after a freeze, #70): a LATEST message must stand alone. Anything that must not be
-  lost when a newer one replaces it goes RELIABLE. The merge ignores the subject: a host-to-client LATEST kind holds
-  what it describes for every player the recipient may see in one message, never one message per player.
+  lost when a newer one replaces it goes RELIABLE (a claim that must arrive goes on `MoveClaimReliable`, #429). The
+  merge ignores the subject: a host-to-client LATEST kind holds what it describes for every player the recipient may
+  see in one message, never one message per player.
 - Received bytes go through `NetTransport.receive_bytes` and its helper `_decoded` only, whatever the backend, so
   the host's own client decodes exactly what a remote one does (a superseded LATEST packet is checked the same way
   but not delivered). Signals fire from `poll()` only.
+- WebRTC: never write to a channel that is not open (an engine `ERROR:` line); check its ready state first.
+  Keepalive, silence and join timeouts live in `WebRtcTransport` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
   D3D12 process can freeze 5 s (#21); Vulkan, the Windows driver since #124, did not, but other freezes remain.
 - `EnetTransport.poll` services ENet until the socket is drained: one service reads at most 256 datagrams, and a
@@ -75,6 +86,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   and the 5.2 s freeze of the host and of a client,
   `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70), and the
   timeouts and the backlog in one process (#95),
-  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. `verify` and CI run all three on
-  a free port.
+  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. Their WebRTC twins
+  (`webrtc_host_and_two_clients.gd`, `webrtc_freeze.gd` with `--instances 3`; `webrtc_stall.gd`, `webrtc_silence.gd`)
+  take `-- --port=<p>` for `LanSignalling`. `verify` and CI run all seven on a free port.
 - At finish, `netcode-security-reviewer` reviews every `net/` change.

@@ -92,6 +92,35 @@ class OptionsTest(unittest.TestCase):
         joiner = hostjoin.join_parts("192.168.0.195", None, stop=stop)
         self.assertEqual([p.user_args for p in joiner], [["--join=192.168.0.195", *files]])
 
+    def test_a_code_host_serves_its_signalling_and_its_clients_join_with_the_code(self) -> None:
+        stop = Path("stop")
+        files = [f"--stop-file={stop}", f"--alive-file={Path('stop.alive')}"]
+        parts = hostjoin.host_parts(24999, 1, local=True, stop=stop, code="K7M2QX")
+        self.assertEqual(
+            parts[0].user_args,
+            ["--host", "--local", "--code", "--signal=lan", "--room=K7M2QX", "--port=24999", *files],
+        )
+        self.assertEqual(
+            parts[1].user_args, ["--join=K7M2QX", "--signal=ws://127.0.0.1:24999", "--port=24999", *files]
+        )
+        joiner = hostjoin.join_parts("k7m2qx", None, stop=stop, signal="ws://10.0.0.2:24600")
+        self.assertEqual(joiner[0].user_args, ["--join=k7m2qx", "--signal=ws://10.0.0.2:24600", *files])
+
+    def test_the_copied_constants_match_the_games(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        options = (root / "client/app/launch_options.gd").read_text(encoding="utf-8")
+        codec = (root / "net/signal/signal_codec.gd").read_text(encoding="utf-8")
+        self.assertIn(f"const DEFAULT_PORT := {hostjoin.GAME_PORT}\n", options)
+        self.assertIn(f'const CODE_ALPHABET := "{hostjoin.CODE_ALPHABET}"', codec)
+        self.assertIn(f"const CODE_LENGTH := {hostjoin.CODE_LENGTH}\n", codec)
+
+    def test_room_codes_are_the_games(self) -> None:
+        for _ in range(20):
+            self.assertTrue(hostjoin.is_code(hostjoin.room_code()))
+        self.assertTrue(hostjoin.is_code("k7m-2qx"))
+        self.assertFalse(hostjoin.is_code("192.168.0.195"))
+        self.assertFalse(hostjoin.is_code("K7M2Q0"))
+
     def test_the_godot_command_runs_the_script_headless(self) -> None:
         parts = hostjoin.join_parts("10.0.0.2", 7, stop=Path("s"))
         hostjoin.set_commands(parts, "godot")

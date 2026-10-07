@@ -22,7 +22,24 @@ from unittest import mock
 from runner import cli, common, metrics, slots, verify
 from runner.common import ROOT, Failure
 
-GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
+GODOT_STEPS = [
+    "check",
+    "selftest-godot",
+    "test",
+    "enet",
+    "freeze",
+    "stall",
+    "webrtc",
+    "webrtc-freeze",
+    "webrtc-stall",
+    "webrtc-silence",
+    "bots",
+    "bots-enet",
+    "bots-webrtc",
+    "chaos",
+    "chaos-webrtc",
+    "game",
+]
 
 
 def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib.ExitStack:
@@ -42,14 +59,21 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
     for target, attribute, name in (
         (verify.doctor, "main", "doctor"),
         (verify.lint, "main", "lint"),
+        (verify.signalling, "main", "signal"),
         (verify.check, "main", "check"),
         (verify.gdunit, "main", "test"),
         (verify, "enet", "enet"),
         (verify, "freeze", "freeze"),
         (verify, "stall", "stall"),
+        (verify, "webrtc", "webrtc"),
+        (verify, "webrtc_freeze", "webrtc-freeze"),
+        (verify, "webrtc_stall", "webrtc-stall"),
+        (verify, "webrtc_silence", "webrtc-silence"),
         (verify, "bots_one_process", "bots"),
         (verify, "bots_enet", "bots-enet"),
+        (verify, "bots_webrtc", "bots-webrtc"),
         (verify, "chaos", "chaos"),
+        (verify, "chaos_webrtc", "chaos-webrtc"),
         (verify, "game", "game"),
     ):
         stack.enter_context(mock.patch.object(target, attribute, step(name)))
@@ -134,7 +158,7 @@ def summary_rows(text: str) -> list[tuple[str, str]]:
 
 class LaneTest(unittest.TestCase):
     def test_every_step_has_one_lane_and_the_godot_steps_stay_serial_in_one(self) -> None:
-        self.assertEqual(verify.LANES["python"], ("lint", "selftest"))
+        self.assertEqual(verify.LANES["python"], ("lint", "signal", "selftest"))
         self.assertEqual(list(verify.LANES["godot"]), GODOT_STEPS)
         in_lanes = [name for names in verify.LANES.values() for name in names]
         self.assertEqual(sorted(["doctor", *in_lanes]), sorted(verify.STEP_ORDER))
@@ -164,7 +188,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_a_failed_step_of_either_lane_fails_verify_and_the_others_still_run(self) -> None:
-        for failing in ("lint", "selftest", *GODOT_STEPS):
+        for failing in ("lint", "signal", "selftest", *GODOT_STEPS):
             ran: list[str] = []
             with self.subTest(failing=failing), stub_steps(ran, failing):
                 rc, text, record = Verify(self).run(inline_lane)
@@ -911,11 +935,47 @@ class EnetStepTest(unittest.TestCase):
         )
         self.assertTrue((ROOT / verify.STALL_RUN).is_file())
 
+    def test_the_webrtc_twins_run_headless_on_a_port_free_for_tcp_too(self) -> None:
+        cases = (
+            (verify.webrtc, verify.WEBRTC_RUN, 3),
+            (verify.webrtc_freeze, verify.WEBRTC_FREEZE_RUN, 3),
+            (verify.webrtc_stall, verify.WEBRTC_STALL_RUN, 1),
+            (verify.webrtc_silence, verify.WEBRTC_SILENCE_RUN, 1),
+        )
+        for step, target, instances in cases:
+            with (
+                self.subTest(target),
+                mock.patch.object(verify, "free_udp_port", return_value=23459) as pick,
+                mock.patch.object(verify.launch, "main", return_value=0) as run,
+            ):
+                self.assertEqual(step(), 0)
+                pick.assert_called_once_with(tcp=True)
+                run.assert_called_once_with(
+                    target, headless=True, seconds=60, instances=instances, user_args=["--port=23459"]
+                )
+                self.assertTrue((ROOT / target).is_file())
+        self.assertEqual(verify.LANES["godot"].index("webrtc"), verify.LANES["godot"].index("stall") + 1)
+
     def test_the_chaos_step_runs_one_fixed_seed_of_the_short_match(self) -> None:
         with mock.patch.object(verify.bots, "chaos", return_value=0) as run:
             self.assertEqual(verify.chaos(), 0)
         run.assert_called_once_with(seed=verify.CHAOS_SEED)
         self.assertLess(verify.LANES["godot"].index("bots-enet"), verify.LANES["godot"].index("chaos"))
+
+    def test_the_webrtc_bots_and_chaos_run_the_enet_scenario_and_seed_after_their_enet_twins(self) -> None:
+        with mock.patch.object(verify.bots, "main", return_value=0) as run:
+            self.assertEqual(verify.bots_webrtc(), 0)
+        run.assert_called_once_with(
+            [verify.BOTS_ENET_SCENARIO], instances=verify.BOTS_ENET_INSTANCES, transport="webrtc"
+        )
+        with mock.patch.object(verify.bots, "chaos", return_value=0) as chaos:
+            self.assertEqual(verify.chaos_webrtc(), 0)
+        chaos.assert_called_once_with(seed=verify.CHAOS_SEED, transport="webrtc")
+        godot = verify.LANES["godot"]
+        self.assertEqual(godot.index("bots-webrtc"), godot.index("bots-enet") + 1)
+        self.assertEqual(godot.index("chaos-webrtc"), godot.index("chaos") + 1)
+        self.assertIn("bots-webrtc", verify.REASON_STEPS)
+        self.assertIn("chaos-webrtc", verify.REASON_STEPS)
 
     def test_the_bots_run_every_scenario_in_one_process_then_one_over_enet(self) -> None:
         with mock.patch.object(verify.bots, "main", return_value=0) as run:
@@ -945,6 +1005,16 @@ class FreePortTest(unittest.TestCase):
         picks = iter([20000, 20005])
         with mock.patch.object(verify, "_binds", side_effect=lambda port: port not in held):
             self.assertEqual(verify.free_udp_port(lambda _ports: next(picks), count=2), 20005)
+
+    def test_with_tcp_a_port_must_bind_for_tcp_too(self) -> None:
+        tcp_held = {20000}
+        picks = iter([20000, 20005])
+
+        def binds(port: int, kind: int = socket.SOCK_DGRAM) -> bool:
+            return kind != socket.SOCK_STREAM or port not in tcp_held
+
+        with mock.patch.object(verify, "_binds", side_effect=binds):
+            self.assertEqual(verify.free_udp_port(lambda _ports: next(picks), tcp=True), 20005)
 
     def test_the_last_port_of_a_run_stays_in_the_range(self) -> None:
         offered: list[range] = []
