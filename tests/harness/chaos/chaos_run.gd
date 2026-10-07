@@ -43,7 +43,8 @@ const SHIM_SEED_STRIDE := 16
 ## The joins each bot makes at most over the network (NetPlay.max_joins, #483): the host is up in
 ## this process before the bots join, and three attempts fail before the runner's 60 s kill (over
 ## WebRTC a retried join, no room, ends within the 5 s signalling cap plus the 0.5 s wait; over
-## ENet an unanswered one after JOIN_TIMEOUT_MS, 15 s).
+## ENet an unanswered one after EnetTransport.JOIN_TIMEOUT_MS, 5 s; a WebRTC host_unreachable, 15 s,
+## is never retried, so it uses one attempt).
 const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
@@ -359,9 +360,10 @@ func play_frame(at_tick: int) -> void:
 
 
 ## Over ENet the joins take frames: the bots play once bot 1's lobby is full (NetPlay._lobby_full,
-## as BotsEnet's bot 1 waits, #318), or once a bot that joins at the start lost its join for good
-## (NetPlay._lost_join: not joined again), so that _lost reports it; a join that waits for its
-## retry (no room yet) does not start them. Over the loopback they play at once.
+## as BotsEnet's bot 1 waits, #318). play_frame fails a join lost for good (NetPlay._lost_join)
+## before it asks, so the second test only covers a caller that asks first (a unit test, say); a
+## join that waits for its retry (no room yet) does not start them. Over the loopback they play
+## at once.
 func _may_play() -> bool:
 	if not over_network or _lobby_full(bots[0]):
 		return true

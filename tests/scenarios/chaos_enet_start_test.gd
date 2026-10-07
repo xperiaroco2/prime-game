@@ -106,7 +106,7 @@ func test_a_join_refused_at_once_does_not_join_again_and_ends_the_wait() -> void
 	run.clock_usec += 2 * EnetTransport.JOIN_TIMEOUT_MS * 1000
 	run._join_again(bot)
 	assert_object(run.clients[2]).override_failure_message("judged when first seen").is_same(client)
-	# The bots play, so that its lost join fails the run at once (_lost), not at the time limit.
+	# A direct caller sees it as a reason to play; play_frame fails it first (_fail_lost_join).
 	assert_bool(run._may_play()).is_true()
 
 
