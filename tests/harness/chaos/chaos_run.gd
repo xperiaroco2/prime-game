@@ -27,7 +27,9 @@ extends BotsRunner
 ## on the port, paced to the real clock (WebRTC's connections and the shim's delays are real
 ## time), plus the leak test's order check (OrderLog) of every peer but the host's own bot: both
 ## ways for the honest bots and the watchers, from the host only for the chaos peers (their raw
-## sends bypass the recording).
+## sends bypass the recording). Over WebRTC the run first sets the library up (a WebRtcWarmUp,
+## kept until close()): under load the setup took seconds, and in a first connection it counted
+## against the join's JOIN_TIMEOUT_MS (#510).
 
 enum Mode { BASELINE, CHAOS }
 
@@ -47,6 +49,7 @@ const SHIM_SEED_STRIDE := 16
 ## is never retried, so it uses one attempt).
 const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
@@ -86,6 +89,7 @@ var _signalling: LanSignalling
 var _host_rtc: BotWebRtc
 var _transports_made := 0
 var _real_start_usec := -1
+var _warm_up: WebRtcWarmUp
 
 
 func _init(
@@ -204,6 +208,8 @@ func close() -> void:
 	super()
 	if _signalling != null:
 		_signalling.stop()
+	if _warm_up != null:
+		_warm_up.close()
 
 
 ## The hostile chaos peer's id; 0 before it connected.
@@ -213,6 +219,9 @@ func hostile_peer() -> int:
 
 func _make_host_transport() -> NetTransport:
 	if webrtc:
+		_warm_up = WebRtcWarmUp.new()
+		if not _warm_up.wait():
+			failures.append("host: the WebRTC warm-up failed: %s" % _warm_up.error_text)
 		_signalling = BotWebRtc.signalling()
 		if _signalling.listen(port, ENET_ADDRESS) != OK:
 			failures.append("cannot serve signalling on %s:%d" % [ENET_ADDRESS, port])

@@ -5,7 +5,9 @@ extends SceneTree
 ##   (BotsRunner, simulated clock);
 ## - `bots <scenario> --instances N`: one scenario over ENet on 127.0.0.1, one process per bot, on
 ##   the real clock (BotsEnet; PRIME_INSTANCE is the bot); with `--transport webrtc` over WebRTC,
-##   the host serving LanSignalling on the port (M6-6).
+##   the host serving LanSignalling on the port (M6-6). Over WebRTC each process first sets the
+##   library up (a WebRtcWarmUp, kept for the whole run): under load the setup took seconds, and
+##   in a first connection it counted against the join's JOIN_TIMEOUT_MS (#510).
 ## User arguments: scenario names, and over the network `--port=<p>`, `--instances=<n>` and
 ## `--transport=webrtc` (else ENet). Prints one
 ## line per scenario; a failed one prints its seed, each failure (the bot, its step, its last
@@ -13,6 +15,7 @@ extends SceneTree
 ## tools/out/bots/<scenario>/.
 ## Exits 1 when any scenario failed.
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const SCENARIOS_DIR := "res://content/scenarios/"
 const PORT_ARG := "--port="
 const INSTANCES_ARG := "--instances="
@@ -23,6 +26,7 @@ const ENET_FPS := 120
 
 var _enet: BotsEnet
 var _name := ""
+var _warm_up: WebRtcWarmUp
 
 
 func _initialize() -> void:
@@ -56,6 +60,8 @@ func _process(_delta: float) -> bool:
 	if not _enet.done():
 		return false
 	_enet.finish()
+	if _warm_up != null:
+		_warm_up.close()
 	var code := _report(_name, _enet.failures, _enet.scenario, _enet.replay_path, "")
 	if not _enet.is_host():
 		# The host reports every bot; a remote bot's own failures are in its view file too.
@@ -114,6 +120,8 @@ func _start_enet(names: PackedStringArray, port: int, instances: int, webrtc: bo
 				% [_name, scenario.bots, scenario.bots, instances]
 			)
 		)
+	if webrtc and _enet.failures.is_empty():
+		_warm_up_webrtc(instance)
 	if not _enet.failures.is_empty() or not _enet.start(Time.get_ticks_usec()):
 		_report(_name, _enet.failures, scenario, "", "instance %d" % instance)
 		_enet = null
@@ -125,6 +133,18 @@ func _start_enet(names: PackedStringArray, port: int, instances: int, webrtc: bo
 			% [_name, instance, scenario.bots, port, WEBRTC if webrtc else "ENet"]
 		)
 	)
+
+
+## Sets the WebRTC library up before this instance hosts or joins (#510); a failure goes to
+## the instance's failures.
+func _warm_up_webrtc(instance: int) -> void:
+	var started := Time.get_ticks_msec()
+	_warm_up = WebRtcWarmUp.new()
+	if not _warm_up.wait():
+		_enet.failures.append("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+		return
+	var took := Time.get_ticks_msec() - started
+	print("BOTS %s: instance %d set WebRTC up in %d ms" % [_name, instance, took])
 
 
 ## Prints a scenario's result; 1 when it failed.
