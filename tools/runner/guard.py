@@ -7,9 +7,10 @@ Claude Code checks a redirect or `tee` target only against Edit allow and deny r
 the human when one writes to `.claude/settings*.json` or `addons/`. Everything else passes silently, so the agent
 can work alone. In an unattended session in acceptEdits (issue #312: a route-C successor manager and its workflows
 always run in it, #484; hooks.unattended) the hook allows such a call instead (`allows`), so it runs as in bypass,
-unless it writes to a path Claude Code
-protects (CLAUDE_PROTECTED_DIRS and _FILES: `.claude` but Claude's own worktrees, `.git`, ...; Analysis.protected),
-which keeps Claude Code's prompt. The deny and ask rules and Claude Code's own delete checks hold over a hook's allow.
+unless it writes to a path Claude Code protects (CLAUDE_PROTECTED_DIRS and _FILES: `.claude` but Claude's own
+worktrees, `.git`, ...; Analysis.protected) or writes or deletes beyond the session's own worktree, the temp folder
+and the disposable folders (Paths.free; Analysis.beyond): those keep Claude Code's own verdict. The deny and ask rules
+and Claude Code's own delete checks hold over a hook's allow.
 
 Text ask rules cannot tell a delete of the agent's scratch folder from a delete of the repo, so the guard also judges
 two commands by their target (issue #47):
@@ -223,6 +224,10 @@ CLAUDE_PROTECTED_FILES = {
 }  # fmt: skip
 # A path-like word of inline code (text_protected).
 CODE_WORD_RE = re.compile(r"[^\s'\"`()\[\]{},;=<>|&+]+")
+# The write and delete targets the acceptEdits allow covers besides the own worktree and the project's disposable
+# folders (Paths.free): no file, and the temp folder that holds every session's scratchpad.
+NO_FILE_TARGETS = {"/dev/null", "$null", "nul", "/dev/stdout", "/dev/stderr"}
+TEMP_PATH_RE = re.compile(r"^(?:[a-z]:/users/[^/]+/appdata/local/temp|/tmp|/var/tmp)/")
 
 # Finding areas of the target-judged commands (the others are the protected paths above, or "piped").
 DELETE, GIT = "recursive delete", "git"
@@ -912,6 +917,47 @@ class Paths:
                 return True
         return False
 
+    def free(self, token: str, cwd: str | None = "") -> bool:
+        """token, a write or delete target, is one the acceptEdits allow covers (issue #312): no file (`/dev/null`,
+        `$null`), the session's own worktree, the temp folder (the scratchpad: `$TEMP/x`, `/tmp/x`, its literal path),
+        or a disposable folder of the project (DISPOSABLE: `tests/scratch/`, `tools/out/`). Anything else (the main
+        checkout from a worktree, another worktree, a sibling repository, home) and what cannot be resolved is not:
+        there the hook leaves the call to Claude Code's own scope check. Item by item."""
+        for item in self.items(token):
+            if item.lower() in NO_FILE_TARGETS:
+                continue
+            path = self.resolve(item, cwd)
+            if path == OUTSIDE:
+                # Only the temp folder's own variable, not one this command set (`TEMP=$APPDATA; rm $TEMP/x`).
+                match = TEMP_TARGET_RE.match(item)
+                name = match and (match.group(1) or match.group(2) or match.group(3) or "").lower()
+                if not match or (name and name in self.vars) or ".." in match.group(4).replace("\\", "/").split("/"):
+                    return False
+                continue
+            if path is None:
+                path = self.known_folder(item, cwd)
+                if path is None:
+                    return False
+            if TEMP_PATH_RE.match(path) or self.owned(path, root_too=True):
+                continue
+            if path.startswith(self.root + "/") and not self.in_project(path):
+                continue  # a disposable folder of a checkout
+            return False
+        return True
+
+    def known_folder(self, token: str, cwd: str | None = "") -> str | None:
+        """For free: a path whose variables after its first folder separator the command cannot know (a loop's `$n`
+        in `$S/p$n.md`, `out/$f.log`) as a file in the folder its known part resolves to, each unknown variable a
+        plain name; None when an unknown variable comes before every separator (`$f`, `$X/y`: an absolute path,
+        maybe) or the rest cannot be resolved either. An agent's loop variable holds a name, not `../`: the guard
+        prevents accidents, not attackers."""
+        unknown = [m.span() for m in VAR_RE.finditer(token) if self.expand(m.group(0)) is None]
+        if not unknown or not re.search(r"[\\/]", token[: unknown[0][0]]):
+            return None
+        known = VAR_RE.sub(lambda m: "_" if m.span() in unknown else m.group(0), token)
+        path = self.resolve(known, cwd)
+        return None if path in (None, OUTSIDE) else path
+
     def _area(self, token: str, cwd: str | None) -> str | None:
         path = self.resolve(token, cwd)
         if path is None:
@@ -1361,6 +1407,21 @@ def _clean_options(args: list[str]) -> tuple[str, list[str]]:
     return letters, longs
 
 
+def _not_files(verb: str, args: list[str]) -> set[str]:
+    """The arguments a write verb's targets include that name no file it writes (issue #312, Analysis.beyond): the
+    script of `sed -i` and `perl -i` (`-e` values, or the first operand without one), the mode or owner of `chmod`
+    and `chown`."""
+    if verb in IN_PLACE_VERBS:
+        script_flag = re.compile(r"^(-e|--expression|-f|--file)$" if verb == "sed" else r"^-[a-zA-Z]*[eE]$")
+        scripts = {value for flag, value in zip(args, args[1:]) if script_flag.match(flag)}
+        if scripts or any(re.match(r"^--(expression|file)=", a) for a in args):
+            return scripts
+        return set(_positionals(args)[:1])
+    if verb in ("chmod", "chown", "chgrp") and not any(a.startswith("--reference") for a in args):
+        return set(_positionals(args)[:1])
+    return set()
+
+
 def _positionals(args: list[str], valued: set[str] | None = None) -> list[str]:
     """Arguments that are not options, nor the values of the options in valued."""
     result, skip = [], False
@@ -1494,18 +1555,27 @@ class Analysis:
         # Writes to a path Claude Code protects that are no finding here (`.claude/skills/x`, `.git/x`): in
         # acceptEdits the hook then leaves the call to Claude Code (hooks.pre_tool_use, issue #312).
         self.protected: list[str] = []
+        # Writes and deletes beyond what the acceptEdits allow covers (Paths.free: the own worktree, the temp folder,
+        # the disposable folders): the hook leaves those to Claude Code's scope check too (issue #312).
+        self.beyond: list[str] = []
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
         self.prefix_env: dict[str, str] = {}
         # The `-c name=value` and `--config-env` settings of the git command being judged.
         self.git_configs: list[str] = []
 
-    def add(self, path: str, verb: str, cwd: str | None = "") -> None:
+    def add(self, path: str, verb: str, cwd: str | None = "", file: bool = True) -> None:
+        """A write target; file is False for an argument that names no file (a `sed -i` script): only the guard's own
+        ask-protected paths judge it then, as before #312."""
         area = self.paths.area(path, cwd)
         if area:
             self.findings.append(Finding(path, area, verb))
+        elif not file:
+            return
         elif self.paths.claude_protected(path, cwd):
             self.protected.append(path)
+        elif not self.paths.free(path, cwd):
+            self.beyond.append(path)
 
     def code(self, text: str, verb: str) -> None:
         """Inline interpreter code: a line that uses a file-writing API and names a protected path. Code that writes
@@ -1573,8 +1643,9 @@ class Analysis:
         if verb == "git":
             self.git(args)
         else:
+            not_files = _not_files(verb, args)
             for path in self.targets(verb, args, depth):
-                self.add(path, words[0])
+                self.add(path, words[0], file=path not in not_files)
         if verb == "gh":
             self.gh(args)
         if verb in DELETE_VERBS:
@@ -2209,6 +2280,7 @@ class Analysis:
                 inner.command(code, NESTED_SHELLS[verb], depth + 1)
                 self.findings += inner.findings
                 self.protected += inner.protected
+                self.beyond += inner.beyond
                 self.paths.adopt(inner.paths)
         return []
 
@@ -2265,9 +2337,12 @@ def judge(
 
 
 def allows(analysis: Analysis) -> bool:
-    """In acceptEdits the hook allows the call (issue #312): no finding and no write to a path Claude Code protects,
-    so it runs as it would in bypass, and the deny and ask rules and Claude Code's own delete checks still hold."""
-    return not analysis.findings and not analysis.protected
+    """In acceptEdits the hook allows the call (issue #312): no finding, no write to a path Claude Code protects and
+    no write or delete beyond the own worktree, the temp folder and the disposable folders (Analysis.beyond), so it
+    runs as it would in bypass, and the deny and ask rules and Claude Code's own delete checks still hold. A call it
+    does not allow keeps Claude Code's own verdict (its acceptEdits scope check prompts beyond the working directory).
+    """
+    return not analysis.findings and not analysis.protected and not analysis.beyond
 
 
 def reason(findings: list[Finding]) -> str:
