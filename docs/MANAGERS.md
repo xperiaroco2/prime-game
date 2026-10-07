@@ -147,6 +147,7 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
 - **The check**: `tools\run.cmd metrics --run <run id>` (the Workflow tool's run id, or its start) prints a run's
   spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
   $ by phase. UI and art run it in prime-game's main checkout (`cd D:\prime-game`); it reads all three checkouts'
-  transcripts. The first phase within 1.5 times its share of the estimate: go on, and the plan-issue comment gives
-  both numbers. Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left,
-  go on and report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.
+  transcripts. The first phase within 1.5 times its share of the estimate (1.5: #534's reading, until the engineer
+  confirms it): go on, and the plan-issue comment gives both numbers. Over it: re-estimate the rest at the phase's
+  real $ per agent; still within the track's budget left, go on and report it; else launch nothing more of it and ask
+  in "For you:" with both numbers and what the rest buys.
