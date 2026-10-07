@@ -3020,7 +3020,7 @@ def main(
     run_ids: list[str] | None = None,
 ) -> int:
     if run_ids:
-        if track or budget or sessions or since or until or ci or compact:
+        if track or budget or sessions or since or until or ci or compact or out:
             raise Failure("--run stands alone: it reads each named run whole, in flight or finished")
         return runs_main(run_ids)
     if track:  # --session labels the tracks' sessions instead of choosing the report's

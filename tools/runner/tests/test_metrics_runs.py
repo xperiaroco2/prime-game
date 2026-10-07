@@ -124,7 +124,8 @@ class RunsTest(unittest.TestCase):
         with self.assertRaises(Failure) as caught:
             metrics.runs_main(["wf_nosuch"], checkout=CHECKOUT, base=self.root, now=NOW)
         self.assertIn("no workflow run named wf_nosuch", str(caught.exception))
-        for extra in ({"since": "2026-10-06T10:00:00Z"}, {"track": ["game"]}, {"compact": True}, {"sessions": ["x"]}):
+        for extra in ({"since": "2026-10-06T10:00:00Z"}, {"track": ["game"]}, {"compact": True}, {"sessions": ["x"]},
+                      {"out": "x"}):
             with self.subTest(extra), self.assertRaises(Failure) as caught:
                 metrics.main(run_ids=["abc"], dirs=[], history=[], **extra)
             self.assertIn("--run stands alone", str(caught.exception))
