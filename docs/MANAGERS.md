@@ -138,7 +138,9 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
 - **Over about 5% of the week** (one launch; an `issue-task` or `pr-rebase` run is under 1%), the run stops after its
   first phase. A workflow you write returns after its first phase (or takes an arg that runs only it), and the rest
   is a second launch after the check; a saved one you cannot change: stop it once its first phase's agents have
-  answered.
+  answered, and after the check go on by relaunching it with `resumeFromRunId` and the same args
+  ([`orchestrate-stage`](../.claude/skills/orchestrate-stage/SKILL.md) §7: its finished agents return their saved
+  results), never a fresh launch, which pays the first phase again.
 - **The check**: `tools\run.cmd metrics --run <run id>` (the Workflow tool's run id, or its start) prints a run's
   spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
   $ by phase. UI and art run it in prime-game's main checkout (`cd D:\prime-game`); it reads all three checkouts'
