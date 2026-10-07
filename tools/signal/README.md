@@ -50,8 +50,9 @@ node smoke.js "wss://prime-game-signal.<your-subdomain>.workers.dev/"
 It ends with `smoke: passed`. It opens a room, joins it, sees a second joiner refused, passes an offer and an answer,
 and checks that a joiner hears "the host left" before its socket closes. The host closes its socket without a status
 code, as a browser's `close()` does, and waits for the service to answer that close: against the first deploy it
-waited in vain, since the Worker answered with the code it received (1005), which the runtime may not send
-(`SignalService.clientClosed` now answers with 1000; ARCHITECTURE §4.8).
+waited in vain. The likely cause is that the Worker answered with the code it received (1005), which the runtime
+may not send; `SignalService.clientClosed` now answers with 1000 (ARCHITECTURE §4.8). The smoke after the redeploy
+confirms it.
 
 ## Configuration and secrets
 

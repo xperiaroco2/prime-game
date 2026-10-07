@@ -156,8 +156,9 @@ export class SignalService {
   // 6455 §5.5.1 asks, even when its own handling throws, and before what the close sends to others
   // is out (that may wait on a credential). Cloudflare's docs say the runtime answers it itself from
   // compatibility date 2026-04-07, but on the first deploy (#513) a close without a status (1005,
-  // from a browser's or Node's close()) went unanswered: answering with the code received threw, as
-  // the runtime may not send 1005. The client's reason is not echoed; nothing reads it.
+  // from a browser's or Node's close()) went unanswered. The likely cause, from workerd's source: the
+  // handler answered with the code it was handed, and the runtime's close() throws for 1005 (the redeploy
+  // smoke on #513 confirms it). The client's reason is not echoed; nothing reads it.
   clientClosed(ws, code) {
     let sent;
     try {

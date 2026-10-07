@@ -2525,8 +2525,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   runtime may send it (1000, 3000-4999) and 1000 otherwise (`closeReplyCode`), even when the service's handling of the
   close throws; an answer that fails is logged. Cloudflare's docs say the runtime answers a close itself from
   compatibility date 2026-04-07, but on the first deploy a close without a status (code 1005: a browser's or Node's
-  `close()`; Godot's `WebSocketPeer.close()` sends 1000) was never answered, because the handler answered with the
-  code it was handed, which the runtime's `close()` refuses (workerd allows 1000 and 3000-4999 under its strict rule).
+  `close()`; Godot's `WebSocketPeer.close()` sends 1000) was never answered. The likely cause, from workerd's source: the handler
+  answered with the code it was handed, which the runtime's `close()` refuses (workerd allows 1000 and 3000-4999 under
+  its strict rule). The redeploy smoke on #513 confirms or refutes it.
 - **ICE servers** from `ICE_SERVERS` in `wrangler.toml` (`stun:stun.cloudflare.com:3478`, E58), checked by the
   clients' rules at start.
 - **TURN** (M6-10, #375; D17 (b), E55; `src/turn.js`), on only when the secrets `TURN_KEY_ID` and
