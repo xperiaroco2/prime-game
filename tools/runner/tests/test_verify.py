@@ -791,6 +791,7 @@ class SelftestTest(unittest.TestCase):
                 "test_hostjoin.RealSessionTest",
                 "test_import_freshness.RealStaleCacheTest",
                 "test_launch.RealRunTest",
+                "test_lfs.RealPointerTest",
                 "test_user_dir.RealUserDirTest",
             },
         )

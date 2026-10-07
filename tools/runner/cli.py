@@ -68,9 +68,17 @@ def build_parser() -> argparse.ArgumentParser:
         "check",
         help="import, warnings policy, UID lint, parse and load check",
         description="Headless import, the warnings policy, UID lint, then parse and load of every script and scene "
-        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits).",
+        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits). "
+        "In CI (no LFS content) the LFS pointer files stay out of the import and the project check, in one summary "
+        "line (#515).",
     )
     p.add_argument("files", nargs="*", help="res:// paths to check (default: the whole project)")
+    p.add_argument(
+        "--lfs-content",
+        action="store_true",
+        help="only fail on any Git LFS pointer file (a checkout without LFS content), with no Godot: a build's check "
+        "before its export",
+    )
 
     p = sub.add_parser(
         "test",
@@ -580,7 +588,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check":
             from . import check
 
-            return check.main(files=args.files or None)
+            if args.lfs_content and args.files:
+                raise Failure("--lfs-content checks every LFS file; drop the paths")
+            return check.main(files=args.files or None, lfs_content=args.lfs_content)
         if args.command == "test":
             from . import gdunit
 
