@@ -179,9 +179,21 @@ def load_table(path: Path = TABLE) -> Table:
     return parse_table(data, shown_path(path))
 
 
+def folder_words(category: Category) -> set[str]:
+    """The folder names that give a file `category`: its name and each glob that is a plain word and a trailing `*`
+    (`step*` gives `step`), each also with an `s`. A folder name is a whole word, never a glob match: a `backup/`
+    folder is not `ui` through `back*`, nor `selected/` through `select*`."""
+    words = {category.name}
+    for glob in category.globs:
+        word = glob[:-1] if glob.endswith("*") else glob
+        if word and not any(c in word for c in "*?["):
+            words.add(word)
+    return words | {w + "s" for w in words}
+
+
 def category_of(path: Path, root: Path, table: Table) -> str | None:
     """The first category one of whose globs matches the file name (without its extension), else the nearest folder
-    between the file and `root` (the folder it was found under) that a category's name or globs match."""
+    between the file and `root` (the folder it was found under) named after a category (see `folder_words`)."""
     stem = path.stem.lower()
     for category in table.categories.values():
         if any(fnmatch.fnmatchcase(stem, g) for g in category.globs):
@@ -190,7 +202,7 @@ def category_of(path: Path, root: Path, table: Table) -> str | None:
     while True:
         name = folder.name.lower()
         for category in table.categories.values():
-            if name == category.name or any(fnmatch.fnmatchcase(name, g) for g in category.globs):
+            if name in folder_words(category):
                 return category.name
         if folder == root or folder.parent == folder or root not in folder.parents:
             return None

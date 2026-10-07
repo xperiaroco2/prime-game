@@ -1,5 +1,5 @@
 {
-  "about": "sfx-check's table (#524): what a sound file of each category must measure. Every number is provisional, not a decision, until #525 picks the real sounds and tunes them. A file's category: --category, else the first category, in this order, one of whose globs matches its file name (without the extension), else its nearest folder's name. Levels are dBFS: a full-scale square wave is 0, a full-scale sine -3.01.",
+  "about": "sfx-check's table (#524): what a sound file of each category must measure. Every number is provisional, not a decision, until #525 picks the real sounds and tunes them. A file's category: --category, else the first category, in this order, one of whose globs matches its file name (without the extension), else its nearest folder named after a category or one of its globs' words (step* gives step), with or without a plural s: steps/ is footstep, backup/ is no category. Levels are dBFS: a full-scale square wave is 0, a full-scale sine -3.01.",
   "defaults": {
     "sample_rates": [22050, 44100, 48000],
     "max_peak_dbfs": -1.0,

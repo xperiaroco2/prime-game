@@ -236,6 +236,24 @@ class CategoryTest(Fixtures):
         self.assertEqual(sfx.category_of(by_folder_name, root, self.table), "ui")
         self.assertIsNone(sfx.category_of(outside, root, self.table))
 
+    def test_a_folder_counts_only_as_a_whole_word_never_as_a_glob_match(self) -> None:
+        root = self.dir / "set"
+        real = sfx.load_table()  # the generic globs (back*, select*, drop*) are the real table's
+        cases = {
+            "backup": None,
+            "selected": None,
+            "stepping": None,
+            "footsteps": "footstep",
+            "packages": "item",
+            "drops": "item",
+            "clicks": "ui",
+            "tasks": "task",
+        }
+        for folder, expected in cases.items():
+            with self.subTest(folder=folder):
+                path = write_wav(root / folder / "a.wav")
+                self.assertEqual(sfx.category_of(path, root, real), expected)
+
     def test_a_folder_above_the_one_given_does_not_count(self) -> None:
         inner = write_wav(self.dir / "steps" / "set" / "a.wav")
         self.assertIsNone(sfx.category_of(inner, self.dir / "steps" / "set", self.table))
