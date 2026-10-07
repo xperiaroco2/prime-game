@@ -8,8 +8,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import common, credits, uids
-from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, say, warn
+from . import common, credits, lfs, uids
+from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, say, skip, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
 REQUIRED_WARNINGS = (
@@ -197,18 +197,21 @@ def run_import(label: str = "import") -> list[str]:
 
     Returns the UID problems it printed; raises Failure only when the import itself broke. Records in STAMP when it
     started, or the newest file the import wrote itself (WRITTEN_BY_IMPORT) if that is later, but never a time after
-    the import ended: a stamp in the future would report every real change before that time as `current`.
+    the import ended: a stamp in the future would report every real change before that time as `current`. In CI the
+    import never sees an LFS pointer file (lfs.aside, #515): an import of one fails and rewrites its .import file, so
+    Godot imports a stand-in of its type in its place, or, for a type without one, nothing.
     """
     started = time.time()
-    for attempt in (1, 2):
-        res = godot(["--headless", "--import"], timeout=IMPORT_TIMEOUT, log=label)
-        if res.timed_out:
-            raise Failure(f"godot --import timed out after {IMPORT_TIMEOUT}s (log: tools/out/logs/{label}.log)")
-        if res.rc == 0:
-            break
-        if attempt == 2:
-            raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
-        warn(f"godot --import exited {res.rc}; retrying once")
+    with lfs.aside(lfs.ci_pointers()):  # in CI, no LFS pointer file reaches the import (#515)
+        for attempt in (1, 2):
+            res = godot(["--headless", "--import"], timeout=IMPORT_TIMEOUT, log=label)
+            if res.timed_out:
+                raise Failure(f"godot --import timed out after {IMPORT_TIMEOUT}s (log: tools/out/logs/{label}.log)")
+            if res.rc == 0:
+                break
+            if attempt == 2:
+                raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
+            warn(f"godot --import exited {res.rc}; retrying once")
     record_import(started)
     return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
 
@@ -246,7 +249,9 @@ def ensure_import() -> None:
     say(f"        import: done in {time.monotonic() - started:.1f}s")
 
 
-def main(files: list[str] | None = None) -> int:
+def main(files: list[str] | None = None, lfs_content: bool = False) -> int:
+    if lfs_content:
+        return require_lfs_content()
     say("check")
     ensure_out()
     failed = False
@@ -267,6 +272,10 @@ def main(files: list[str] | None = None) -> int:
     else:
         ok("project.godot keeps the default user://")
 
+    if not (common.IS_CI or common.IS_CLOUD):  # there lfs.ci_pointers() skips them (#515)
+        hint = lfs.local_hint()
+        if hint:
+            warn(hint)
     before = git_status()
     uid_problems = run_import()
     if uid_problems:
@@ -301,11 +310,24 @@ def main(files: list[str] | None = None) -> int:
     else:
         ok(f"credits ({credits.count(credit_report.entries)}; every LFS asset outside addons/ credited)")
 
-    if not project_check(files):
+    if not project_check(files, lfs.ci_pointers()):
         failed = True
 
     say("check: FAILED" if failed else "check: passed")
     return 1 if failed else 0
+
+
+def require_lfs_content() -> int:
+    """`check --lfs-content`: fail on every LFS pointer file, for a build that must ship the real assets (release.yml
+    before its export; #515). No Godot, no import."""
+    say("check --lfs-content")
+    problems = lfs.require_content()
+    for line in problems:
+        bad(line)
+    if not problems:
+        ok("every file .gitattributes routes through Git LFS has its content (no pointer file)")
+    say("check --lfs-content: FAILED" if problems else "check --lfs-content: passed")
+    return 1 if problems else 0
 
 
 def crashed_after_clean_run(res: Result) -> str | None:
@@ -336,8 +358,11 @@ def exit_text(rc: int) -> str:
     return f"signal {-rc}" if rc < 0 else f"exit {rc}, 0x{rc:08X}"
 
 
-def project_check(files: list[str] | None = None) -> bool:
+def project_check(files: list[str] | None = None, pointers: list[str] | None = None) -> bool:
     """Run check_project.gd over the project (or `files`) and report its lines; True when it passed.
+
+    `pointers` (check.main passes lfs.ci_pointers(): in CI the LFS pointer files, locally none): the lines they cause
+    are dropped (lfs.drop_lines), and one line says how many (#515).
 
     Raises Failure on a timeout or a crash, except Godot's access violation at exit after a clean run (#442,
     crashed_after_clean_run): every file was checked and none failed, so it passes with a warning that names the
@@ -351,6 +376,13 @@ def project_check(files: list[str] | None = None) -> bool:
             f"project check timed out after {CHECK_TIMEOUT}s: usually a runtime error in an autoload "
             "or a tool script (log: tools/out/logs/check.log)"
         )
+    output, dropped = res.out, ""
+    if pointers:
+        kept, errors, warnings = lfs.drop_lines(res.lines, pointers, common.ROOT)
+        # Godot exits 1 on any error: with only the dropped ones, the check passed.
+        clean = res.rc == 1 and not any(line.startswith("CHECK error ") for line in kept)
+        res = Result(0 if clean else res.rc, "\n".join(kept) + "\n", res.timed_out, res.seconds, res.restarted)
+        dropped = lfs.summary(pointers, errors, warnings)
     summary = next((line for line in res.lines if line.startswith("CHECK summary")), None)
     exit_crash = crashed_after_clean_run(res)
     if summary is None or (res.rc not in NORMAL_EXIT and exit_crash is None):
@@ -365,12 +397,14 @@ def project_check(files: list[str] | None = None) -> bool:
         global _exit_crashes
         _exit_crashes += 1
         ensure_out()
-        (common.LOGS / f"{EXIT_CRASH_LOG}.log").write_text(res.out, encoding="utf-8")
+        (common.LOGS / f"{EXIT_CRASH_LOG}.log").write_text(output, encoding="utf-8")
         warn(
             f"GODOT CRASHED AT EXIT: access violation ({exit_text(res.rc)}) after the project"
             f" check finished cleanly ({exit_crash.removeprefix('CHECK summary ')}); counted as passed, since every"
             f" file was checked (#442). Log: tools/out/logs/{EXIT_CRASH_LOG}.log"
         )
+    if dropped:
+        skip(dropped)
     if res.rc == 1:
         return False
     ok(summary.removeprefix("CHECK summary "))

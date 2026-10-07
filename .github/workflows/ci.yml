@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      # No LFS content: addons/ is outside LFS, and there are no LFS assets yet (see the pins ADR).
+      # No LFS content: addons/ is outside LFS, and in CI `check` imports a stand-in in place of each LFS pointer
+      # file (the LFS ADR's amendment of 2026-10-07, #515).
       - uses: actions/checkout@v7
         with:
           lfs: false
