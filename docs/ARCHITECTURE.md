@@ -340,10 +340,18 @@ dissidents, no crew present only once every crew member left, End widens nothing
   The library sets itself up when a process makes its first connection, and again after its last one is gone; a
   new connection's offer waits for that (#472, measured on the engineer's PC, 16 logical CPUs): about 30 ms when
   idle, but 9 to 11 s for a GdUnit process's first offer under `tools\run.cmd load --loops 128`, and often 0.5 to
-  1 s there whenever no other connection was open, against under 10 ms while one was. So
-  `webrtc_transport_test.gd` and `webrtc_silence.gd` keep one connection open for their whole run
-  (`tests/integration/net/webrtc_warm_up.gd`); the other WebRTC runs (`webrtc_host_and_two_clients`,
-  `webrtc_freeze`, `webrtc_stall`, the WebRTC bots) do not yet and pay the setup on their first connection.
+  1 s there whenever no other connection was open, against under 10 ms while one was. So every WebRTC run of
+  `verify` keeps one connection open for its whole run (`tests/integration/net/webrtc_warm_up.gd`) and makes no
+  other before it is set up: `webrtc_transport_test.gd` and `webrtc_silence.gd` poll it frame by frame (#472);
+  `webrtc_host_and_two_clients`, `webrtc_freeze`, `webrtc_stall`, each process of the WebRTC bots and the chaos
+  run over WebRTC block in its `wait()` (at most `READY_WITHIN_MS`, 30 s) before they host or join; the twins and
+  the bots print how long the setup and each join took (#510). Before #510 their first join carried the setup:
+  under 128 busy loops `webrtc_host_and_two_clients` failed 3 of 5 runs (both first joins `host_unreachable` after
+  17 to 22 s, so the retries got ids 4 and 5), `webrtc_freeze` lost both first joins the same way in 1 of 4, a
+  `webrtc_stall` join took 9.9 s, and 3 of 4 `bots-webrtc` runs lost a join for good. After it, in 3 runs of each,
+  the setup took 0.5 to 10 s and no join failed or took over 3.1 s; what still fails under that load is not a
+  join: `bots-webrtc` 2 of 3 (an honest bot corrected outside a placement, as in 1 of the 4 runs before) and both
+  chaos runs (`chaos-webrtc` and `chaos` over ENet alike take 90 to 100 s there, past their 60 s).
 - **`WebRtcTransport`** (`net/transport/`, M6-4, #370; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
   §2.1 to §2.3, §2.6; E48, E50, E54, E56), the second network backend: a star, never a mesh. The host holds one
   `WebRTCPeerConnection` per client and reads it directly (no `WebRTCMultiplayerPeer`, E48); the host's own client
@@ -477,7 +485,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected;
   a warm-up connection lives as long as the suite, and only the joins a test expects to give up have the short
   join timeout, since a join under load took up to 1.7 s, #472),
-  `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
+  `tests/integration/net/webrtc_warm_up_test.gd` (`WebRtcWarmUp.wait()`: ready, its bound's timeout named, a
+  failed setup returned at once, #510), `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
   127.0.0.1, which `verify`, and so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet
   runs below (the host and two clients also check each side's own connection), and their WebRTC
   twins with `LanSignalling` on that port, no ICE servers and host candidates only (M6-4, #370):
@@ -488,7 +497,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   after their last packet; a reliable packet 3 s late keeps its peer) and `webrtc_silence.gd` (one process: a dead
   client and a silent Lobby kept for 30 s, keepalives alone, one a second, counted by E56; the room opens only
   once a warm-up connection is set up, so the library's setup no longer counts against the joins'
-  `JOIN_TIMEOUT_MS`: the likely cause of two `host_unreachable` failures at 16.1 s under load, #472):
+  `JOIN_TIMEOUT_MS`: the likely cause of two `host_unreachable` failures at 16.1 s under load, #472; the other
+  three twins set it up the same way in each process before they host or join, #510):
   - a host (with its own client) and two clients:
     `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
   - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
@@ -1607,7 +1617,9 @@ Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and
 `tools\run.cmd bots <scenario> --instances N --transport webrtc` runs `BotsEnet` with every transport a
 `BotWebRtc` (`tests/harness/bots/`): instance 1 serves `LanSignalling` on the port, whose one room is
 `BotWebRtc.CODE`, and only IPv4 host candidates on 127.0.0.1 are signalled (no STUN in a container, the design's
-§2.7). A bot
+§2.7). Each process first sets the WebRTC library up and keeps that warm-up connection until its end (§4,
+`WebRtcWarmUp.wait()`, #510), so the setup is in no join's `JOIN_TIMEOUT_MS`; a remote bot prints how long its join
+took. A bot
 whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later;
 every other end (`host_unreachable`, after 15 s at most: the service answered and the connection never opened;
 `joins_closed`, `full` and the other refusals; `host_lost` before the `Welcome`) fails the bot's step at once,
@@ -1628,9 +1640,10 @@ from them. The host checks both directions of each remote bot (its view file car
 the refused bot; bot 1 is the host's own loopback client. Over WebRTC the relay counters' upload adds no IP and UDP
 bytes per datagram: E56's 108 B per packet already counts them (`RelayReport.window`).
 `tools\run.cmd bots --chaos [--seed N] --transport webrtc` (`--enet` is `--transport enet`) runs `ChaosRun` in one
-process the same way, paced to the real clock (a frame waits until the real clock reached the simulated one: the
-connections and the shim's delays are real time), with the ENet variant's invariants plus the order check, both ways
-for the honest bots and the watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
+process the same way (the library set up first, before the host's transport: `WebRtcWarmUp.wait()`, #510), paced to
+the real clock (a frame waits until the real clock reached the simulated one: the connections and the shim's delays
+are real time), with the ENet variant's invariants plus the order check, both ways for the honest bots and the
+watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
 packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
 `LaneOrder`'s header, as any sender's would (a 0-byte one is refused, and its send counts as not made). `verify`, and
 so CI, runs `bots-webrtc` (`dissident_kills_the_crew --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001,
