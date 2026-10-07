@@ -1788,7 +1788,13 @@ class PlanPhaseTest(unittest.TestCase):
             "The whole plan goes in ONE comment on the issue; the structured result is its short form",
             "to a7/plan.md in your scratchpad, its first line `Plan of #7 (issue-task plan_review, branch core/7-x)`",
             "`gh issue comment 7 --body-file <that file>`",
-            "edit that one instead (`gh api -X PATCH repos/{owner}/{repo}/issues/comments/<its id> -F body=@<that file>`)",
+            "first list your own comments on the issue in the Bash tool",
+            """`gh issue view 7 --json comments --jq '.comments[] | select(.author.login == "<your login>") | .url + " " + """
+            """(.body | split("\\n") | .[0])'`""",
+            "If the last of them starts with that first line, replace it with "
+            "`gh issue comment 7 --edit-last --body-file <that file>`",
+            "if only an earlier one does, post a new comment whose second line is `Supersedes <that comment's URL>`",
+            "Never `gh api -X PATCH` (it asks, and nobody answers).",
             "Return its URL in comment_url.",
             "at most about 8000 characters of JSON in all: summary at most 1500 characters",
             "base_sha: `git rev-parse HEAD` in the worktree",
