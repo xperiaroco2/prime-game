@@ -48,7 +48,8 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
   the week, say so in the chat line and digest only on his word ("що нового?").
 - **Context:** over 150k tokens or 12 hours (placeholders, not a decision), stop re-arming the timer and tell him in
   the chat line to open a fresh plain session with the kickoff of AGENT_WORKFLOW §7.2: the inbox body is all the
-  state a fresh secretary needs.
+  state a fresh secretary needs. Unlike a manager (orchestrate-stage `handover.md`), you start no successor through
+  a scheduled task: its run would be unattended, without his chat or relays (§7.2's Start).
 - **Tools:** in your first digest, load `list_sessions`, `list_events`, `search_session_transcripts` and
   `send_message` (ToolSearch); any that does not load goes into the chat line and the inbox footer, and you digest
   without it.
