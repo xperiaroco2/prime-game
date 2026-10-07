@@ -67,7 +67,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
-  `docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`.
+  `docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`, `docs/MANAGERS.md`.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
@@ -87,7 +87,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 | a room, prop or interactable sub-scene | skill `new-level-piece` |
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
-| "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
+| "оркеструй етап", a manager kickoff for a stage or a list of issues (rules: `docs/MANAGERS.md`) | skill `orchestrate-stage` |
 | "/secretary", "секретар", the engineer's inbox ("що нового?" only inside that session) | skill `secretary` |
 | review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ client/ tests/harness/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |

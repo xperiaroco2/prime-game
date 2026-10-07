@@ -91,24 +91,26 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
   and art managers run their own repos' workflows (P5 ports the levers there).
-- **A handover** (§7) is due once the context is over 300k tokens or the session over 12 hours old, even mid-wave:
+- **The rules every track's manager follows**, UI and art included, are
+  [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
+  keep-alive and the handover; the UI and art repos' `CLAUDE.md` files point there.
+- **A handover** (§7) is due once the context is over 500k tokens or the session over 12 hours old, even mid-wave:
   N6 (b) as changed by the engineer on
   [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287), replacing "still only at a wave
-  boundary" (#329). Also due once the runs in flight end after a merge into `main` changed root `CLAUDE.md`,
-  `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context over 150k and no run in flight
-  (instead of a keep-alive). `wave`'s last line says which (§7's turn-end check). A manager may also hand over
-  earlier, at a natural break, when its cost math says a fresh start is cheaper (#484).
-- **The manager starts its successor itself** (#484, route C; approved by the engineer:
-  [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550), with route
-  C for its route B after [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487);
-  route C and the night rule below are the meta manager's reading of the probe, for the engineer to confirm in #484's
-  PR),
-  on every track: the track's standing kickoff is stored once per stage as the prompt of its ad-hoc Desktop scheduled
-  task `<track>-manager` (handover.md §4), so no handover needs a prompt written by hand. At a handover the manager
-  points that task's `fireAt` 3 minutes ahead, checks that the successor's run started and stops (handover.md §2); the
-  human's paste is left only for a missing or refused tool. The successor starts in `acceptEdits` at medium effort, so
-  while the human is away a manager hands over only when a threshold forces it. A start-up costs about the successor's
-  first 20 calls.
+  boundary" (#329), with 500k for 300k on
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (#511; to be
+  checked with `metrics` after a week). Also due once the runs in flight end after a merge into `main` changed root
+  `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context
+  over 250k (half the threshold, as 150k was of 300k) and no run in flight (instead of a keep-alive). `wave`'s last
+  line says which (§7's turn-end check). A manager may also hand over earlier, at a natural break, when its cost math
+  says a fresh start is cheaper (#484).
+- **The engineer pastes the successor's kickoff** (#511; approved by the engineer:
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), on every
+  track: the handover comment's notes end with the ready kickoff (handover.md §4), the last For-you carries it, so no
+  handover needs a prompt written by hand, and he pastes it into a new session in the track's checkout with bypass and
+  effort high. While he is away no successor starts, so a manager hands over only when a threshold forces it, and lets
+  its runs end first. Route C (#484, a one-time `fireAt` scheduled task, handover.md §3) is a fallback he asks for: its
+  successor always starts in `acceptEdits` at medium effort. A start-up costs about the successor's first 20 calls.
 - **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
   returns a compact result, and the manager writes no large file itself.
 

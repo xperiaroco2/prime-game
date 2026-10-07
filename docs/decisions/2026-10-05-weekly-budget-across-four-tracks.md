@@ -188,6 +188,20 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   orchestrate-stage handover.md, AGENT_WORKFLOW §7.1. The approved comment names route B and says nothing about
   nights: route C and the night rule are the meta manager's reading of the probe, and the engineer confirms them in
   the "Needs the engineer" of the PR that records this amendment (the merge gate holds it until he answers).
+  **Amended 2026-10-07 again** (#511). Approved by the engineer:
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486). The
+  handover goes back to a pasted kickoff by default: the handover comment ends with the ready kickoff, which the
+  engineer pastes into a new session in the track's checkout with the mode and effort he picks (bypass, high). Route C
+  stays as a fallback he asks for, because its successor always runs in `acceptEdits` at medium effort: at night it is
+  limited and has little to do without him, and by day raising its mode and effort by hand is no less work than a
+  paste. The context threshold rises from 300k to **500k**, to be checked with `metrics` after a week (the night of
+  10-06/07 reached about 0.25M in 14 hours); the 12 hours and changed instructions stay. The stop for the engineer
+  keeps its ratio, half the threshold: 250k for 150k (#511's choice, which the PR states). While he is away a due
+  handover waits for the runs in flight to end instead of stopping them, since no successor starts before his paste
+  (#511's reading, for the engineer to confirm in its PR). No "ultracode" in managers' kickoffs: the kickoff says "one
+  task = one issue-task workflow" with the approved agent count; the manager's effort stays high (the effort ADR's
+  amendment, #308). One set of manager rules serves every track, the UI and art repos included:
+  [docs/MANAGERS.md](../MANAGERS.md), to which their `CLAUDE.md` files point.
   **Amended 2026-10-07** (#485). Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550
   - Besides the four managers, one **secretary** session (Opus at medium effort; AGENT_WORKFLOW §7.2, the skill
     `secretary`) reads every session and the three repos, rewrites the pinned "Engineer's inbox" issue every 30 to
