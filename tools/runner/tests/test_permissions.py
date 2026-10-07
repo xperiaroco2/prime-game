@@ -22,8 +22,10 @@ class OwnRepo(guard.NoRepo):
         return "xperiaroco2/prime-game"
 
 
-def verdict(tool: str, command: str, bypass: bool = True, rules: permissions.Rules = RULES) -> tuple[str, str]:
-    return permissions.verdict(rules, guard, tool, command, str(ROOT), MAIN, OwnRepo(), bypass)
+def verdict(
+    tool: str, command: str, mode: str = permissions.BYPASS, rules: permissions.Rules = RULES
+) -> tuple[str, str]:
+    return permissions.verdict(rules, guard, tool, command, str(ROOT), MAIN, OwnRepo(), mode)
 
 
 # Reads of other repositories, from the research of earlier tasks: each runs without a prompt in every mode.
@@ -98,16 +100,16 @@ class OtherRepositoriesTest(unittest.TestCase):
     def test_reads_of_other_repositories_pass_in_every_mode(self) -> None:
         for tool in TOOLS:
             for command in OTHER_READS:
-                for bypass in (True, False):
-                    with self.subTest(tool=tool, command=command, bypass=bypass):
-                        self.assertEqual(verdict(tool, command, bypass)[0], permissions.PASS)
+                for mode in permissions.MODES:
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        self.assertEqual(verdict(tool, command, mode)[0], permissions.PASS)
 
     def test_writes_to_other_repositories_ask_in_every_mode(self) -> None:
         for tool in TOOLS:
             for command in OTHER_WRITES:
-                for bypass in (True, False):
-                    with self.subTest(tool=tool, command=command, bypass=bypass):
-                        self.assertEqual(verdict(tool, command, bypass)[0], permissions.PROMPT)
+                for mode in permissions.MODES:
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        self.assertEqual(verdict(tool, command, mode)[0], permissions.PROMPT)
 
     def test_a_merge_in_another_repository_stays_denied(self) -> None:
         for tool in TOOLS:
@@ -124,15 +126,15 @@ class OtherRepositoriesTest(unittest.TestCase):
     def test_writes_to_this_repository_stay_allowed(self) -> None:
         for tool in TOOLS:
             for command in OWN_WRITES:
-                for bypass in (True, False):
-                    with self.subTest(tool=tool, command=command, bypass=bypass):
-                        self.assertEqual(verdict(tool, command, bypass)[0], permissions.PASS)
+                for mode in permissions.MODES:
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        self.assertEqual(verdict(tool, command, mode)[0], permissions.PASS)
 
     def test_releases_of_this_repository_are_read_freely_and_changed_only_with_an_ok(self) -> None:
         for tool in TOOLS:
             with self.subTest(tool=tool):
-                self.assertEqual(verdict(tool, "gh release view v0.1.0", bypass=False)[0], permissions.PASS)
-                self.assertEqual(verdict(tool, "gh release list", bypass=False)[0], permissions.PASS)
+                self.assertEqual(verdict(tool, "gh release view v0.1.0", permissions.DEFAULT)[0], permissions.PASS)
+                self.assertEqual(verdict(tool, "gh release list", permissions.DEFAULT)[0], permissions.PASS)
                 for command in ("gh release create v1", "gh release delete v1 -y", "gh release delete-asset v1 a",
                                 "gh release edit v1 --draft", "gh release upload v1 a.zip",
                                 "gh release download v1"):  # fmt: skip
@@ -160,8 +162,8 @@ class OwnAccountAndTempTest(unittest.TestCase):
     """Issue #464 through the rules and the guard together: writes to gh's own account's repositories and filtered
     deletes in the temp folder pass; merges, deletion, auth, secrets, other owners and scratchpad roots do not."""
 
-    def judge(self, tool: str, command: str, bypass: bool = True) -> str:
-        return permissions.verdict(RULES, guard, tool, command, str(ROOT), MAIN, AccountRepo(), bypass)[0]
+    def judge(self, tool: str, command: str, mode: str = permissions.BYPASS) -> str:
+        return permissions.verdict(RULES, guard, tool, command, str(ROOT), MAIN, AccountRepo(), mode)[0]
 
     def test_writes_to_the_accounts_repositories_pass_like_writes_here(self) -> None:
         for tool in TOOLS:
@@ -173,9 +175,9 @@ class OwnAccountAndTempTest(unittest.TestCase):
                 "gh issue create -R xperiaroco2/prime-game-ui --title x --label docs --body-file f.md",
                 f"gh api repos/{ART}/issues -f title=x",
             ):
-                for bypass in (True, False):
-                    with self.subTest(tool=tool, command=command, bypass=bypass):
-                        self.assertEqual(self.judge(tool, command, bypass), permissions.PASS)
+                for mode in permissions.MODES:
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        self.assertEqual(self.judge(tool, command, mode), permissions.PASS)
 
     def test_merges_deletion_auth_secrets_and_other_owners_stay_as_they_were(self) -> None:
         for tool in TOOLS:
@@ -223,9 +225,9 @@ class ProtectionsTest(unittest.TestCase):
     def test_the_deny_list_holds(self) -> None:
         for tool in TOOLS:
             for command in self.DENIED:
-                for bypass in (True, False):
-                    with self.subTest(tool=tool, command=command, bypass=bypass):
-                        self.assertEqual(verdict(tool, command, bypass)[0], permissions.DENIED)
+                for mode in permissions.MODES:
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        self.assertEqual(verdict(tool, command, mode)[0], permissions.DENIED)
 
     def test_the_guard_still_asks_beyond_the_own_worktree(self) -> None:
         for tool, command in (
@@ -239,9 +241,9 @@ class ProtectionsTest(unittest.TestCase):
             # #457 lets an interactive rebase pass in the own worktree on its task branch, not in the main checkout.
             ("Bash", f"git -C {MAIN_POSIX} rebase -i --autosquash origin/main"),
         ):  # fmt: skip
-            for bypass in (True, False):
-                with self.subTest(tool=tool, command=command, bypass=bypass):
-                    self.assertEqual(verdict(tool, command, bypass)[0], permissions.PROMPT)
+            for mode in permissions.MODES:
+                with self.subTest(tool=tool, command=command, mode=mode):
+                    self.assertEqual(verdict(tool, command, mode)[0], permissions.PROMPT)
 
     def test_the_engineers_interactive_rebase_passes_in_the_own_worktree(self) -> None:
         # #457: #445's fix agent waited from 21:56 to 07:19 UTC on this prompt in its own worktree, on its task branch.
@@ -347,10 +349,10 @@ class PushTwinsTest(unittest.TestCase):
         for tool in TOOLS:
             for prefix in GIT_PREFIXES:
                 for push in FORBIDDEN_PUSHES:
-                    for bypass in (True, False):
+                    for mode in permissions.MODES:
                         command = f"{prefix} {push}"
-                        with self.subTest(tool=tool, command=command, bypass=bypass):
-                            self.assertEqual(verdict(tool, command, bypass)[0], permissions.DENIED)
+                        with self.subTest(tool=tool, command=command, mode=mode):
+                            self.assertEqual(verdict(tool, command, mode)[0], permissions.DENIED)
 
     def test_task_branch_pushes_and_the_runner_still_pass(self) -> None:
         for tool in TOOLS:
@@ -452,7 +454,7 @@ class MatcherTest(unittest.TestCase):
         rules = self.rules()
         self.assertEqual(permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo())[0], "pass")
         self.assertEqual(
-            permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo(), bypass=False)[0], "prompt"
+            permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo(), permissions.DEFAULT)[0], "prompt"
         )
 
 
@@ -504,15 +506,120 @@ class ReplayFoldersTest(unittest.TestCase):
         )  # fmt: skip
 
 
+SCRATCHPAD = "C:/Users/me/AppData/Local/Temp/claude/D--prime-game/s1/scratchpad"
+OWN = f"{MAIN_POSIX}/.claude/worktrees/312"
+
+
+class AcceptEditsTest(unittest.TestCase):
+    """#312: the acceptEdits model (code.claude.com/docs/en/permission-modes, checked 2026-10-07), the mode a route-C
+    successor manager and its workflows always run in (#484). The session's working directory is the main checkout."""
+
+    def judge(self, tool: str, command: str, mode: str = permissions.ACCEPT_EDITS) -> tuple[str, str]:
+        return permissions.verdict(RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), mode)
+
+    def assert_modes(self, tool: str, command: str, bypass: str, accept: str, default: str) -> None:
+        for mode, expected in zip(permissions.MODES, (bypass, accept, default)):
+            with self.subTest(tool=tool, command=command, mode=mode):
+                self.assertEqual(self.judge(tool, command, mode)[0], expected)
+
+    def test_file_tools_write_in_scope_and_never_on_protected_paths(self) -> None:
+        P, Q = permissions.PASS, permissions.PROMPT
+        for path in (f"{OWN}/tools/runner/x.py", f"{MAIN_POSIX}/docs/x.md", f"{SCRATCHPAD}/a312/msg.txt", "core/x.gd"):
+            self.assert_modes("Write", path, P, P, Q)
+        for path in (
+            f"{OWN}/.claude/skills/x/SKILL.md", f"{MAIN_POSIX}/.claude/agents/x.md", f"{OWN}/.git",
+            f"{OWN}/.gitmodules",
+            f"{MAIN_POSIX}/.vscode/settings.json", "C:/Users/me/.claude/CLAUDE.md", "D:/prime-game-art/x.md",
+        ):  # fmt: skip
+            self.assert_modes("Edit", path, P, Q, Q)
+        self.assertEqual(self.judge("Edit", f"{OWN}/.claude/x.md")[1], "no allow rule: edit (protected path .claude)")
+        for path in (f"{OWN}/.claude/settings.json", f"{MAIN_POSIX}/addons/gdUnit4/x.gd"):
+            self.assert_modes("Edit", path, Q, Q, Q)  # the ask rules, in every mode
+
+    def test_filesystem_commands_run_in_scope(self) -> None:
+        P, Q = permissions.PASS, permissions.PROMPT
+        for command in (
+            f"mkdir -p {OWN}/tests/scratch/x", f"touch {OWN}/tests/scratch/x.gd", f"rm -rf {OWN}/tests/scratch/x",
+            f"cp {OWN}/a.txt {SCRATCHPAD}/a312/a.txt", f"mv {SCRATCHPAD}/a {SCRATCHPAD}/b",
+            f"rmdir {OWN}/tests/scratch/x",
+            f"sed -i 's/a/b/' {OWN}/docs/x.md", f"timeout 5 mkdir {OWN}/x", f"LANG=C touch {OWN}/x",
+            f"cd {OWN} && mkdir -p tests/scratch/y && touch tests/scratch/y/z",
+        ):  # fmt: skip
+            self.assert_modes("Bash", command, P, P, Q)
+        for command in (
+            f"cp {OWN}/a.txt D:/prime-game-art/a.txt", "touch ~/x", 'rm -f "$X/y"', f"touch {OWN}/.claude/x.md",
+            f"mkdir {OWN}/.git/x", "sed -n '1w /d/x' a.txt", f"FOO=1 touch {OWN}/x",
+        ):  # fmt: skip
+            self.assert_modes("Bash", command, P, Q, Q)
+        outside = "no allow rule: cp (outside the working directory)"
+        self.assertEqual(self.judge("Bash", "cp a.txt D:/prime-game-art/a.txt")[1], outside)
+
+    def test_powershell_content_cmdlets_and_their_quote_rule(self) -> None:
+        P, Q, D = permissions.PASS, permissions.PROMPT, permissions.DENIED
+        for command in (
+            f"Set-Content -Path {OWN}/x.txt -Value 'a b'", f"Add-Content {OWN}\\x.txt -Value x",
+            f"Clear-Content -LiteralPath {SCRATCHPAD}/x", f"Remove-Item {OWN}/tests/scratch/x.gd",
+        ):  # fmt: skip
+            self.assert_modes("PowerShell", command, P, P, Q)
+        self.assert_modes("PowerShell", "Set-Content x.txt \"It's done\"", P, Q, Q)
+        self.assert_modes("PowerShell", "Set-Content C:/Users/me/x.txt -Value a", P, Q, Q)
+        # Claude Code's own Remove-Item checks hold in every mode.
+        for command in (f"Remove-Item -Recurse -Force {OWN}\\tests\\scratch\\*", "Remove-Item *", "Remove-Item C:\\"):
+            self.assert_modes("PowerShell", command, D, D, D)
+        # D:/prime-game is a drive's top-level folder: a system path. A session's own working directory asks.
+        self.assert_modes("PowerShell", f"Remove-Item -Recurse -Force {MAIN_POSIX}", D, D, D)
+        here = f"{OWN}/tests/scratch/w"
+        for mode in permissions.MODES:
+            command = f"Remove-Item -Recurse {here}"
+            judged = permissions.verdict(RULES, guard, "PowerShell", command, here, MAIN, None, mode)
+            expected = "Claude Code: Remove-Item -Recurse of the working directory"
+            self.assertEqual(judged, (P, "no rule") if mode == permissions.BYPASS else (Q, expected))
+
+    def test_redirects_and_cd(self) -> None:
+        P, Q = permissions.PASS, permissions.PROMPT
+        log = f"{SCRATCHPAD}/a312/verify-1.log"
+        self.assert_modes("Bash", f'cd {OWN} && tools/run.sh verify > {log} 2>&1; echo "exit=$?" >> {log}', P, P, Q)
+        self.assert_modes("Bash", "git status --short 2>/dev/null | head", P, P, P)
+        self.assert_modes("PowerShell", "git status 2>$null", P, P, P)
+        self.assert_modes("Bash", "ls > D:/other/out.txt", P, Q, Q)
+        self.assert_modes("Bash", f"ls > {OWN}/.claude/x.txt", P, Q, Q)
+        # A cd out of the working directory is not read-only; one into the own worktree is.
+        self.assert_modes("Bash", "cd D:/prime-game-art && ls", P, Q, Q)
+        self.assert_modes("Bash", f"cd {OWN} && ls", P, P, P)
+        outside = "no allow rule: cd (outside the working directory)"
+        self.assertEqual(self.judge("Bash", "cd D:/other && ls")[1], outside)
+
+    def test_rm_of_a_critical_path_asks_even_in_bypass(self) -> None:
+        Q = permissions.PROMPT
+        for command in ("rm -rf /", f"rm -rf {MAIN_POSIX}", "rm -rf /d/", "rm -rf C:/Users", 'rm -rf "$DIR"/*'):
+            self.assert_modes("Bash", command, Q, Q, Q)
+        self.assertEqual(self.judge("Bash", "rm -rf /")[1], "Claude Code: rm of a critical path")
+
+    def test_a_loop_is_judged_by_its_commands(self) -> None:
+        rules = permissions.Rules({"permissions": {"allow": ["Bash(gh pr view *)"]}})
+        loop = "for n in 1 2; do echo $n; gh pr view $n; done"
+        allowed = (permissions.ALLOW, "Bash(gh pr view *)")
+        self.assertEqual(rules.judge("Bash", loop, MAIN, permissions.ACCEPT_EDITS), allowed)
+        self.assertEqual(rules.unallowed("Bash", "for n in 1 2; do npm test; done", MAIN, permissions.DEFAULT), "npm")
+        self.assertEqual(rules.judge("Bash", "if true; then ls; else pwd; fi")[0], permissions.NONE)  # `true`: no rule
+
+    def test_the_command_takes_acceptedits(self) -> None:
+        with mock.patch.object(permissions, "main", return_value=0) as replay:
+            self.assertEqual(cli.main(["permissions", "--mode", "acceptEdits", "--list"]), 0)
+        replay.assert_called_once_with(
+            ["--before", "origin/main", "--projects", "", "--since", "", "--mode", "acceptEdits", "--list"]
+        )
+
+
 class ReplayModeTest(unittest.TestCase):
     def test_default_mode_counts_calls_without_an_allow_rule(self) -> None:
         both = (RULES, guard)
         with tempfile.TemporaryDirectory() as tmp:
             write_transcript(Path(tmp) / "s.jsonl", [tool_use("1", "npm test", "2026-10-01T10:00:00Z")])
             bypass = permissions.replay(both, both, [Path(tmp)])
-            default = permissions.replay(both, both, [Path(tmp)], bypass=False, listing=True)
+            default = permissions.replay(both, both, [Path(tmp)], mode=permissions.DEFAULT, listing=True)
         self.assertIn("after: 0 prompts", bypass)
-        self.assertIn("after: 1 prompts (0 ask rules, 0 guard, 1 no allow rule), 0 denied", default)
+        self.assertIn("after: 1 prompts (0 ask rules, 0 guard, 1 no allow rule, 0 built-in), 0 denied", default)
         self.assertIn("prompt [no allow rule: npm] x1 (session 1)", default)
         self.assertIn("'npm test'", default)
 

@@ -16,14 +16,34 @@ A model of Claude Code's matcher, close enough for selftests and replays, not th
   default-mode counts are therefore an estimate, and auto mode's classifier approves more.
 - In bypass mode (the engineer's) deny rules block, ask rules and the guard prompt, and everything else runs; in the
   modes that prompt, a call that is not allowed prompts as well.
+- acceptEdits (`code.claude.com/docs/en/permission-modes`, "Auto-approve file edits with acceptEdits mode" and
+  "Protected paths", checked 2026-10-07; a route-C successor manager and its workflows always run in it, #484)
+  allows, besides the rules and the read-only set: the file tools (Edit, Write, NotebookEdit) and the filesystem
+  commands `mkdir`, `touch`, `rm`, `rmdir`, `mv`, `cp` and `sed` (after the wrappers and a `LANG=`/`LC_ALL=`/`NO_COLOR=`
+  prefix), and in PowerShell `Set-Content`, `Add-Content`, `Clear-Content` and `Remove-Item` with their aliases, when
+  every path they name is in scope and not protected; and output redirects (`>`, `>>`, `2>`) to such a path. In scope:
+  the session's working directory (the transcript's cwd: a manager's and its workflow agents' is the main checkout;
+  this model counts a session in a worktree as working in the main checkout too)
+  and, this model's assumption from the session prompt's "can be used without permission prompts", the session's
+  scratchpad (`<temp>/claude/<project>/<session>/scratchpad`). Protected (prompts even in scope): `.git`, `.vscode`,
+  `.idea`, `.husky`, `.cargo`, `.devcontainer`, `.yarn`, `.mvn`, `.config/git`, and `.claude` but for Claude's own
+  worktrees `.claude/worktrees/<n>/` (a worktree's own `.claude/` is protected in this model), and files such as
+  `.gitconfig`, `.gitmodules`, `.bashrc`, `.mcp.json` (PROTECTED_FILES). A PowerShell positional argument with a quote
+  in it prompts. A path the model cannot resolve (an unknown variable, `$(...)`, `~`) is out of scope.
+- Default mode prompts for every file write: an Edit or Write and an output redirect to a file (not `/dev/null` or
+  `$null`). In the modes that prompt, a `cd` out of the working directory is not read-only.
+- Built in, whatever the mode: `rm`/`rmdir` of a critical path (`/`, a drive root, a top-level folder, home, the
+  working directory or a parent of it) prompts, even in bypass; `Remove-Item` of a wildcard (`*`, `x/*`, `x\\*`) or a
+  system path is denied; `Remove-Item -Recurse` of the working directory or a parent of it prompts outside bypass.
 
-Replay: `tools/run.sh permissions --before origin/main` (`run.cmd` in PowerShell) replays every Bash and
-PowerShell call in this project's transcripts (`~/.claude/projects/<project>` and `<project>--claude-worktrees-*`) in
-bypass mode, with the settings and the guard of that revision against the ones in this checkout, and prints the
-prompts before and after and every verdict that changed. `--since YYYY-MM-DD` keeps the calls from that day on,
-`--mode default` models a mode that prompts, `--list` names each cause with examples, and `--observed` reports what the
-transcripts record instead: the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections
-(not an ask rule's prompt that the human approved, which leaves no trace: take those from the replay).
+Replay: `tools/run.sh permissions --before origin/main` (`run.cmd` in PowerShell) replays every Bash, PowerShell,
+Edit, Write and NotebookEdit call in this project's transcripts (`~/.claude/projects/<project>` and
+`<project>--claude-worktrees-*`) in bypass mode, with the settings and the guard of that revision against the ones in
+this checkout, and prints the prompts before and after and every verdict that changed. `--since YYYY-MM-DD` keeps the
+calls from that day on, `--mode acceptEdits` or `--mode default` models a mode that prompts, `--list` names each cause
+with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
+Claude Code's own blocks and the human's rejections (not an ask rule's prompt that the human approved, which leaves no
+trace: take those from the replay).
 """
 
 from __future__ import annotations
@@ -48,6 +68,11 @@ SHELLS = {"Bash": guard.BASH, "PowerShell": guard.POWERSHELL}
 # Wrappers Claude Code strips before matching, and the options of theirs that take a value.
 WRAPPERS = {"timeout", "time", "nice", "nohup", "stdbuf", "command", "builtin"}
 WRAPPER_VALUED = {"-n", "-s", "-k", "-i", "-o", "-e"}
+# Bash control flow: Claude Code checks the commands of a loop or a condition ("a control-flow body such as a for
+# loop"), not the keywords. Those before a command are stripped like wrappers; a loop header or a closing word alone
+# runs nothing (a `$(...)` in it is judged on its own).
+CONTROL_PREFIXES = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
+CONTROL_ALONE = {"for", "done", "fi", "esac", "}", "case", "select"}
 # Commands Claude Code runs without a rule: its documented read-only set (code.claude.com/docs/en/permissions,
 # "Read-only commands", checked 2026-10-04) and `sort` and `sed`, which it names as read-only with write-capable
 # flags; the two PowerShell cmdlets are this model's own guess (the docs list no PowerShell set).
@@ -66,6 +91,99 @@ DENY, ASK, ALLOW, NONE = "deny", "ask", "allow", "none"
 # Verdicts: PASS runs without a prompt, PROMPT stops for the human (a rule, the guard or no allow rule), DENIED never
 # runs.
 PASS, PROMPT, DENIED = "pass", "prompt", "denied"
+BYPASS, ACCEPT_EDITS, DEFAULT = "bypass", "acceptEdits", "default"
+MODES = (BYPASS, ACCEPT_EDITS, DEFAULT)
+# The file tools: Edit rules cover all of them; acceptEdits writes with them in scope.
+FILE_TOOLS = {"Edit", "Write", "NotebookEdit", "MultiEdit"}
+# Leading assignments an allow rule matches past ("certain known-safe environment variables": the docs name LANG and
+# NO_COLOR; LC_ALL is this model's guess).
+SAFE_ENV = {"LANG", "LC_ALL", "NO_COLOR"}
+# acceptEdits: the filesystem commands it runs on in-scope paths, in each shell (PowerShell aliases included).
+EDIT_VERBS = {"mkdir", "touch", "rm", "rmdir", "mv", "cp", "sed"}
+PS_EDIT_VERBS = {
+    "set-content", "sc", "add-content", "ac", "clear-content", "clc",
+    "remove-item", "ri", "rm", "rmdir", "del", "erase", "rd",
+}  # fmt: skip
+PS_REMOVE_VERBS = {"remove-item", "ri", "rm", "rmdir", "del", "erase", "rd"}
+PS_PATH_OPTIONS = {"-path", "-literalpath", "-lp", "-pspath"}
+PS_VALUED = {"-value", "-encoding", "-filter", "-include", "-exclude", "-stream", "-delimiter", "-credential"}
+# Protected paths: writes there prompt in acceptEdits and default mode, whatever the rules say.
+PROTECTED_DIRS = {".git", ".vscode", ".idea", ".husky", ".cargo", ".devcontainer", ".yarn", ".mvn", ".claude"}
+PROTECTED_FILES = {
+    ".gitconfig", ".gitmodules", ".bashrc", ".bash_profile", ".bash_login", ".bash_aliases", ".bash_logout", ".zshrc",
+    ".zprofile", ".zshenv", ".zlogin", ".zlogout", ".profile", ".envrc", ".npmrc", ".yarnrc", ".yarnrc.yml",
+    ".pnp.cjs", ".pnp.loader.mjs", ".pnpmfile.cjs", "bunfig.toml", ".bunfig.toml", ".bazelrc", ".bazelversion",
+    ".bazeliskrc", ".pre-commit-config.yaml", "lefthook.yml", "lefthook.yaml", ".lefthook.yml", ".lefthook.yaml",
+    "gradle-wrapper.properties", "maven-wrapper.properties", ".devcontainer.json", ".ripgreprc", "pyrightconfig.json",
+    ".mcp.json", ".claude.json",
+}  # fmt: skip
+# Redirect targets with no file behind them.
+NO_FILE = {"/dev/null", "$null", "nul", "/dev/stdout", "/dev/stderr"}
+SCRATCHPAD_RE = re.compile(r"^[a-z]:/users/[^/]+/appdata/local/temp/claude/[^/]+/[^/]+/scratchpad(?=/|$)")
+HOME = guard.normalize(str(Path.home()))
+
+
+class Scope:
+    """Where a session writes without a prompt in acceptEdits: its working directory and its scratchpad (the module
+    docstring), minus the protected paths."""
+
+    def __init__(self, cwd: str, home: str = HOME) -> None:
+        # This model's simplification: a session in a worktree counts as working in the main checkout, as a manager
+        # and its workflow agents do, so the project's other checkouts are in its scope (Claude Code may ask there).
+        self.root = guard.project_root(guard.normalize(cwd or str(ROOT)))
+        self.home = home
+
+    def base(self, path: str) -> str | None:
+        """The in-scope folder path is in (the working directory or the scratchpad), or None."""
+        if path == self.root or path.startswith(self.root + "/"):
+            return self.root
+        match = SCRATCHPAD_RE.match(path)
+        return match.group(0) if match else None
+
+    def problem(self, path: str | None) -> str:
+        """"" when acceptEdits writes path without a prompt, else why not."""
+        if path is None or path == guard.OUTSIDE or guard.GLOB_RE.search(path.rsplit("/", 1)[0]):
+            return "a path it cannot resolve"
+        base = self.base(path)
+        if base is None:
+            return "outside the working directory"
+        parts = [p for p in path[len(base) :].split("/") if p]
+        if parts[:2] == [".claude", "worktrees"] and len(parts) > 2:
+            parts = parts[3:]  # Claude's own worktrees are not protected; what is inside them may be
+        for index, part in enumerate(parts):
+            if part in PROTECTED_DIRS or (part == ".config" and parts[index + 1 : index + 2] == ["git"]):
+                return f"protected path {part}"
+        if parts and parts[-1] in PROTECTED_FILES:
+            return f"protected path {parts[-1]}"
+        return ""
+
+    def critical(self, path: str | None) -> bool:
+        """An `rm`/`rmdir` target Claude Code always asks for: `/`, a drive root or top-level folder, home, the
+        working directory or one of its parents."""
+        if path is None or path == guard.OUTSIDE:
+            return False
+        if re.fullmatch(r"/[^/]*|[a-z]:(/[^/]+)?", path) or path == self.home:
+            return True
+        return path == self.root or self.root.startswith(path + "/")
+
+    def system(self, path: str | None) -> bool:
+        """A `Remove-Item` target Claude Code denies: `/`, a drive root or top-level folder, home."""
+        return path is not None and (bool(re.fullmatch(r"/[^/]*|[a-z]:(/[^/]+)?", path)) or path == self.home)
+
+
+class Part(NamedTuple):
+    """One simple command of a call, as the rules match it, with what acceptEdits and the built-in checks need."""
+
+    text: str  # its words joined by single spaces (rules match this)
+    redirects: tuple[str | None, ...]  # its output redirect targets that are files, resolved (None: unknown)
+    targets: tuple[str | None, ...]  # for a filesystem command (EDIT_VERBS, PS_EDIT_VERBS): the paths it names
+    raw_targets: tuple[str, ...]  # the same, as written
+    cd: str | None  # for a `cd`: where it goes (None: unknown), else ""
+    quoted: bool  # a PowerShell positional argument with a quote in it
+    recurse: bool  # `Remove-Item -Recurse`
+    cwd: str | None  # where it runs
+    verb: str  # its command, wrappers and safe assignments stripped, lower case
+    edit: bool  # a filesystem command acceptEdits may run (EDIT_VERBS, PS_EDIT_VERBS)
 
 
 class Rules:
@@ -86,31 +204,55 @@ class Rules:
                 return written
         return None
 
-    def judge(self, tool: str, command: str, cwd: str = "") -> tuple[str, str | None]:
+    def judge(self, tool: str, command: str, cwd: str = "", mode: str = "") -> tuple[str, str | None]:
         """(deny, ask, allow or none; the rule that decided) for one Bash or PowerShell call, without the guard. With
-        cwd, a `cd` elsewhere in the same call takes git out of the read-only set."""
-        texts = subcommands(command, SHELLS[tool])
+        cwd, a `cd` elsewhere in the same call takes git out of the read-only set. With a mode that prompts
+        (ACCEPT_EDITS, DEFAULT), what that mode adds: acceptEdits' filesystem commands, and the checks of redirect
+        and `cd` targets; without one, the rules and the read-only set alone."""
+        return self.judge_parts(tool, parts(command, SHELLS[tool], cwd), cwd, mode)
+
+    def judge_parts(self, tool: str, found: list[Part], cwd: str = "", mode: str = "") -> tuple[str, str | None]:
+        texts = [p.text for p in found]
         for kind in (DENY, ASK):
             for text in texts:
                 rule = self.matches(kind, tool, strip(text, assignments=True))
                 if rule:
                     return kind, rule
-        allowed = [self._allows(tool, t, _moves(texts, cwd)) for t in texts]
+        allowed = [self._allows(tool, p, _moves(texts, cwd), Scope(cwd), mode)[0] for p in found]
         if texts and all(allowed):
             return ALLOW, next((r for r in allowed if r != "read-only"), "read-only")
         return NONE, None
 
-    def _allows(self, tool: str, text: str, moved: bool) -> str | None:
-        stripped = strip(text, assignments=False)
-        return self.matches(ALLOW, tool, stripped) or read_only(stripped, git=not moved)
+    def _allows(self, tool: str, part: Part, moved: bool, scope: Scope, mode: str) -> tuple[str | None, str]:
+        """(what lets the subcommand run, or None; why not, when the mode's own checks stopped it)."""
+        stripped = strip(part.text, assignments=False)
+        allowed = self.matches(ALLOW, tool, stripped) or read_only(stripped, git=not moved)
+        if mode not in (ACCEPT_EDITS, DEFAULT):
+            return allowed, ""
+        if allowed == "read-only" and part.cd != "" and (part.cd is None or scope.base(part.cd) != scope.root):
+            return None, "outside the working directory"
+        detail = ""
+        if not allowed and mode == ACCEPT_EDITS and part.edit:
+            problems = [scope.problem(t) for t in part.targets] + ["a quoted argument" if part.quoted else ""]
+            detail = next((p for p in problems if p), "")
+            allowed = None if detail else "acceptEdits"
+        if allowed:
+            for target in part.redirects:
+                why = "a file" if mode == DEFAULT else scope.problem(target)
+                if why:
+                    return None, f"> {why}"
+        return allowed, detail
 
-    def unallowed(self, tool: str, command: str, cwd: str = "") -> str:
+    def unallowed(self, tool: str, command: str, cwd: str = "", mode: str = "") -> str:
         """The command name (`git -C`, `sed`) of the first subcommand that neither an allow rule nor the read-only set
-        lets run: what prompts outside bypass."""
-        texts = subcommands(command, SHELLS[tool])
-        for text in texts:
-            if not self._allows(tool, text, _moves(texts, cwd)):
-                return head(strip(text, assignments=True))
+        (nor, in acceptEdits, its filesystem commands) lets run, with the mode's reason when it has one (`rm (outside
+        the working directory)`): what prompts outside bypass."""
+        found = parts(command, SHELLS[tool], cwd)
+        texts = [p.text for p in found]
+        for part in found:
+            allowed, detail = self._allows(tool, part, _moves(texts, cwd), Scope(cwd), mode)
+            if not allowed:
+                return head(strip(part.text, assignments=True)) + (f" ({detail})" if detail else "")
         return "?"
 
 
@@ -139,9 +281,31 @@ def _parse(rule: str) -> tuple[str, re.Pattern[str] | None, str]:
 
 def subcommands(command: str, shell: str) -> list[str]:
     """The text of each simple command, the ones inside `$(...)` included."""
-    texts = []
+    return [part.text for part in parts(command, shell)]
+
+
+def parts(command: str, shell: str, cwd: str = "") -> list[Part]:
+    """Each simple command of a call, the ones inside `$(...)` included, with its paths resolved against cwd (the
+    working directory, then each `cd`) and the variables the call assigns, as the guard resolves them."""
+    paths = guard.Paths(cwd or str(ROOT), cwd or str(ROOT), HOME, shell)
+    found: list[Part] = []
+    _walk(command, shell, paths, found, 0)
+    return found
+
+
+def _walk(command: str, shell: str, paths: guard.Paths, found: list[Part], depth: int) -> None:
+    scopes: list[tuple] = []
     for segment in guard.split(command, shell):
+        if segment.scope == "(":
+            scopes.append(paths.save())
+            continue
+        if segment.scope == ")":
+            if scopes:
+                paths.restore(scopes.pop())
+            continue
         words = segment.words
+        if words:
+            paths.assign(list(words))
         if shell == guard.POWERSHELL and len(words) > 1 and words[0].startswith("$") and words[1] == "=":
             # `$x = <command>` runs the command; `$x = <a literal>` runs nothing: a quoted string (split drops the
             # quotes, so the command text is asked), a number, a variable, `[type]`, `@(...)`, `@{...}` or `(...)`,
@@ -155,19 +319,103 @@ def subcommands(command: str, shell: str) -> list[str]:
             # A bare assignment runs nothing (a `$(...)` in it is judged on its own), unless it sets PATH or IFS.
             words = words if any(re.match(r"^(PATH|IFS)=", w) for w in words) else [""]
         if words:
-            texts.append(" ".join(words))
+            found.append(_part(" ".join(words), segment, shell, paths))
         for sub in segment.subs:
-            texts += subcommands(sub, shell)
-    return texts
+            if depth < 3:
+                saved = paths.save() if shell == guard.BASH else None  # a bash `$(...)` is a subshell
+                _walk(sub, shell, paths, found, depth + 1)
+                if saved is not None:
+                    paths.restore(saved)
+
+
+def _part(text: str, segment: guard.Segment, shell: str, paths: guard.Paths) -> Part:
+    """One subcommand's Part; a `cd` moves paths for the rest of the call."""
+    redirects = tuple(paths.resolve(t) for t in segment.redirects if t.lower() not in NO_FILE)
+    words = strip(text, assignments=False).split(" ")
+    verb, args = words[0].lower(), words[1:]
+    where = paths.cwd
+    if verb in guard.CD_VERBS or verb in ("popd", "pop-location"):
+        paths.cd(verb, args)
+        return Part(text, redirects, (), (), paths.cwd, False, False, where, verb, False)
+    raw: list[str] = []
+    quoted = recurse = False
+    edit = verb in (EDIT_VERBS if shell == guard.BASH else PS_EDIT_VERBS)
+    if edit and shell == guard.BASH:
+        raw = _bash_paths(verb, args)
+        # sed edits files in place; a script that writes (`w`) or runs (`e`) another file is not a plain edit.
+        edit = verb != "sed" or _sed_read_only([a for a in args if not re.match(r"^(-[^-]*i|--in-place)", a)])
+    elif edit:
+        raw, quoted, recurse = _ps_paths(args)
+    items = [item for token in raw for item in paths.items(token)]
+    targets = tuple(paths.resolve(item) for item in items)
+    return Part(text, redirects, targets, tuple(items), "", quoted, recurse, where, verb, edit)
+
+
+def _bash_paths(verb: str, args: list[str]) -> list[str]:
+    """The paths a Bash filesystem command names: its positional arguments (for sed, after its script) and the value
+    of `-t`/`--target-directory`; the values of `mkdir -m` and of `-S` are none."""
+    found: list[str] = []
+    script = verb != "sed"  # sed's first positional argument is its script, unless -e or -f gave one
+    i, end = 0, False
+    while i < len(args):
+        arg = args[i]
+        if not end and arg == "--":
+            end = True
+        elif not end and arg.startswith("-") and arg != "-":
+            if verb == "sed" and arg in ("-e", "--expression", "-f", "--file"):
+                script, i = True, i + 1
+            elif arg in ("-t", "--target-directory") and verb in ("cp", "mv"):
+                found += args[i + 1 : i + 2]
+                i += 1
+            elif arg.startswith("--target-directory="):
+                found.append(arg.split("=", 1)[1])
+            elif (verb == "mkdir" and arg in ("-m", "--mode")) or (verb in ("cp", "mv") and arg in ("-S", "--suffix")):
+                i += 1
+        elif not script:
+            script = True
+        else:
+            found.append(arg)
+        i += 1
+    return found
+
+
+def _ps_paths(args: list[str]) -> tuple[list[str], bool, bool]:
+    """(the paths a PowerShell content or delete cmdlet names, a positional argument has a quote in it, -Recurse):
+    `-Path`/`-LiteralPath` values, else its first positional argument (Set-Content's second is the value)."""
+    found: list[str] = []
+    positional: list[str] = []
+    recurse = False
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        name, _, attached = arg.lower().partition(":")
+        if name.startswith("-") and len(name) > 1:
+            if name in PS_PATH_OPTIONS:
+                value = attached if attached else (args[i + 1] if i + 1 < len(args) else "")
+                i += 0 if attached else 1
+                found += [v for v in value.split(",") if v]
+            elif "-recurse".startswith(name) and len(name) > 1:
+                recurse = True
+            elif name in PS_VALUED and not attached:
+                i += 1
+        else:
+            positional.append(arg)
+        i += 1
+    if not found and positional:
+        found = [v for v in positional[0].split(",") if v]
+    return found, any("'" in p or '"' in p for p in positional), recurse
 
 
 def strip(text: str, assignments: bool) -> str:
-    """The subcommand without the wrappers Claude Code strips and, for deny and ask rules, leading assignments."""
+    """The subcommand without the wrappers Claude Code strips and leading assignments: for deny and ask rules any,
+    for allow rules those of SAFE_ENV."""
     words = text.split(" ")
     changed = True
     while words and changed:
         changed = False
-        if assignments and re.match(r"^[A-Za-z_]\w*=", words[0]):
+        if re.match(r"^[A-Za-z_]\w*=", words[0]) and (assignments or words[0].split("=", 1)[0] in SAFE_ENV):
+            words, changed = words[1:], True
+        elif words[0] in CONTROL_PREFIXES and len(words) > 1:
             words, changed = words[1:], True
         elif words[0] in WRAPPERS and len(words) > 1 and words[1] != "-v":
             prefix, words, changed = words[0], words[1:], True
@@ -186,6 +434,8 @@ def read_only(text: str, git: bool = True) -> str | None:
         return "read-only"  # a bare assignment (subcommands)
     words = text.split(" ")
     first = words[0].lower()
+    if words[0] in CONTROL_ALONE or (words[0] in CONTROL_PREFIXES and len(words) == 1):
+        return "read-only"
     if first == "git":
         return "read-only" if git and _git_read_only(words[1:]) else None
     if first not in READ_ONLY:
@@ -249,22 +499,64 @@ def _folder(path: str) -> str:
 
 def verdict(
     rules: Rules, guard_module: types.ModuleType, tool: str, command: str, cwd: str, root: str, repo: object,
-    bypass: bool = True, cloud: bool = False,
+    mode: str = BYPASS, cloud: bool = False,
 ) -> tuple[str, str]:  # fmt: skip
-    """(PASS, PROMPT or DENIED; why) for one call: the rules first, then the guard (it asks in every mode)."""
-    kind, rule = rules.judge(tool, command, cwd)
+    """(PASS, PROMPT or DENIED; why) for one call in mode (MODES): deny rules, Claude Code's built-in denials, ask
+    rules, its built-in prompts, the guard (it asks in every mode), then what the mode lets run. A file tool's
+    command is its path."""
+    if tool in FILE_TOOLS:
+        return file_verdict(rules, command, cwd, mode)
+    found = parts(command, SHELLS[tool], cwd)
+    kind, rule = rules.judge_parts(tool, found, cwd, mode)
     if kind == DENY:
         return DENIED, f"deny rule {rule}"
+    built_in = builtin(tool, found, Scope(cwd), mode)
+    if built_in and built_in[0] == DENIED:
+        return built_in
     if kind == ASK:
         return PROMPT, f"ask rule {rule}"
+    if built_in:
+        return built_in
     # A cloud session's main checkout on its task branch is its own (#381); a guard from before that takes no cloud.
     extra = {"cloud": cloud} if "cloud" in inspect.signature(guard_module.check).parameters else {}
     findings = guard_module.check(command, SHELLS[tool], cwd, root, "", repo, **extra)
     if findings:
         return PROMPT, "guard: " + ", ".join(sorted({f.area for f in findings}))
-    if kind == NONE and not bypass:
-        return PROMPT, "no allow rule: " + rules.unallowed(tool, command, cwd)
-    return PASS, "allow rule" if kind == ALLOW else "no rule"
+    if kind == NONE and mode != BYPASS:
+        return PROMPT, "no allow rule: " + rules.unallowed(tool, command, cwd, mode)
+    return PASS, ("acceptEdits" if rule == "acceptEdits" else "allow rule") if kind == ALLOW else "no rule"
+
+
+def file_verdict(rules: Rules, path: str, cwd: str, mode: str) -> tuple[str, str]:
+    """(PASS, PROMPT or DENIED; why) for an Edit, Write or NotebookEdit of path: Edit deny and ask rules in every
+    mode; bypass writes anything else, acceptEdits what is in scope and not protected, default mode nothing."""
+    target = guard.normalize(path) if re.match(r"^([A-Za-z]:)?[\\/]", path) else guard.normalize(f"{cwd}/{path}")
+    for kind, verdict_ in ((DENY, DENIED), (ASK, PROMPT)):
+        if rule := rules.matches(kind, "Edit", target):
+            return verdict_, f"{kind} rule {rule}"
+    if mode == BYPASS:
+        return PASS, "no rule"
+    problem = "a file" if mode == DEFAULT else Scope(cwd).problem(target)
+    return (PROMPT, f"no allow rule: edit ({problem})") if problem else (PASS, "acceptEdits")
+
+
+def builtin(tool: str, found: list[Part], scope: Scope, mode: str) -> tuple[str, str] | None:
+    """Claude Code's own checks of deletes (the module docstring), whatever the rules say: (DENIED or PROMPT; why),
+    or None."""
+    for part in found:
+        if tool == "PowerShell" and part.edit and part.verb in PS_REMOVE_VERBS:
+            for raw, target in zip(part.raw_targets, part.targets):
+                if raw == "*" or raw.endswith(("/*", "\\*")):
+                    return DENIED, "Claude Code: Remove-Item of a wildcard"
+                if scope.system(target):
+                    return DENIED, "Claude Code: Remove-Item of a system path"
+            if part.recurse and mode != BYPASS and any(scope.critical(t) for t in part.targets):
+                return PROMPT, "Claude Code: Remove-Item -Recurse of the working directory"
+        elif tool == "Bash" and part.verb in ("rm", "rmdir"):
+            for raw, target in zip(part.raw_targets, part.targets):
+                if scope.critical(target) or (target is None and re.match(r"^\$\{?\w+\}?/+\*?$", raw)):
+                    return PROMPT, "Claude Code: rm of a critical path"
+    return None
 
 
 # --- replay of local transcripts -------------------------------------------------------------------------------------
@@ -289,7 +581,8 @@ def role(path: Path) -> str:
 
 
 def calls(folders: list[Path], since: str = "") -> list[Call]:
-    """Every Bash and PowerShell call in the transcripts under folders, from the day since (YYYY-MM-DD) on."""
+    """Every Bash, PowerShell and file tool call in the transcripts under folders, from the day since (YYYY-MM-DD)
+    on; a file tool's command is the path it writes."""
     found = []
     for folder in folders:
         for path in sorted(folder.rglob("*.jsonl")):
@@ -306,8 +599,13 @@ def calls(folders: list[Path], since: str = "") -> list[Call]:
                         continue
                     content = (entry.get("message") or {}).get("content")
                     for item in content if isinstance(content, list) else []:
-                        command = (item.get("input") or {}).get("command") if isinstance(item, dict) else None
-                        if item.get("type") == "tool_use" and item.get("name") in SHELLS and isinstance(command, str):
+                        given = (item.get("input") or {}) if isinstance(item, dict) else {}
+                        name = item.get("name") if isinstance(item, dict) else None
+                        key = "command" if name in SHELLS else "file_path"
+                        key = "notebook_path" if name == "NotebookEdit" else key
+                        command = given.get(key) if isinstance(given, dict) else None
+                        tool = item.get("type") == "tool_use" and name in (*SHELLS, *FILE_TOOLS)
+                        if tool and isinstance(command, str):
                             cwd = str(entry.get("cwd") or ROOT)
                             found.append(Call(item["name"], command, cwd, when, role(path), str(path)))
     return found
@@ -348,7 +646,7 @@ class ReplayRepo:
 
 def replay(
     before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.ModuleType], folders: list[Path],
-    since: str = "", bypass: bool = True, listing: bool = False,
+    since: str = "", mode: str = BYPASS, listing: bool = False,
 ) -> str:  # fmt: skip
     """The report: prompts and denials before and after, by cause, and every call whose verdict changed; with listing,
     each cause of the after side that stops a call, with its count by role and up to three example commands."""
@@ -366,7 +664,7 @@ def replay(
         results = {}
         for name, (rules, module) in (("before", before), ("after", after)):
             try:
-                results[name] = verdict(rules, module, call.tool, call.command, call.cwd, main, repo, bypass, cloud)
+                results[name] = verdict(rules, module, call.tool, call.command, call.cwd, main, repo, mode, cloud)
             except Exception as exc:  # noqa: BLE001 - a replay reports crashes instead of stopping
                 crashes += 1
                 results[name] = (PROMPT, f"crash {type(exc).__name__}")
@@ -387,7 +685,8 @@ def replay(
     for name in ("before", "after"):
         t = totals[name]
         lines.append(
-            f"{name}: {t[PROMPT]} prompts ({t['ask']} ask rules, {t['guard']} guard, {t['no allow']} no allow rule),"
+            f"{name}: {t[PROMPT]} prompts ({t['ask']} ask rules, {t['guard']} guard, {t['no allow']} no allow rule,"
+            f" {t['Claude Code']} built-in),"
             f" {t[DENIED]} denied"
         )
     newly = sum(n for (change, _, _), n in changed.items() if change == f"{PASS} -> {PROMPT}")
@@ -568,10 +867,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD, UTC)")
     parser.add_argument(
         "--mode",
-        choices=["bypass", "default"],
-        default="bypass",
-        help="bypass: only deny and ask rules and the guard stop a call (default); default: a call no allow rule"
-        " or read-only command covers prompts as well (a model: an upper bound)",
+        choices=list(MODES),
+        default=BYPASS,
+        help="bypass: only deny and ask rules, the guard and Claude Code's built-in delete checks stop a call"
+        " (default); acceptEdits: also what neither an allow rule, the read-only set nor its in-scope file writes"
+        " cover; default: also every file write (a model: an upper bound)",
     )
     parser.add_argument("--list", action="store_true", help="also list each cause that stops a call, with examples")
     parser.add_argument(
@@ -583,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.since and _day(args.since) != args.since:  # compared as text with the transcripts' ISO timestamps
         parser.error(f"--since {args.since}: not a YYYY-MM-DD day")
-    base =Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
+    base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
     main_root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
     pattern = args.projects or re.sub(r"[^A-Za-z0-9]", "-", main_root) + "{,--claude-worktrees-*}"
     folders = project_folders(base, main_root, args.projects)
@@ -596,7 +896,7 @@ def main(argv: list[str] | None = None) -> int:
     after = (Rules.load(ROOT / ".claude" / "settings.json"), guard)
     since = f" since {args.since}" if args.since else ""
     print(f"replay of {pattern}{since} in {args.mode} mode: {args.before} against this checkout")
-    print(replay(before, after, folders, args.since, args.mode == "bypass", args.list))
+    print(replay(before, after, folders, args.since, args.mode, args.list))
     return 0
 
 

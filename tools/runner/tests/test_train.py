@@ -509,7 +509,10 @@ class TrainCommandTest(unittest.TestCase):
         # The unattended-work ADR: the manager's background train and its polling never ask, outside bypass too.
         for tool, command in self.TYPED:
             with self.subTest(command=command):
-                verdict = permissions.verdict(RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), bypass=False)
+                # Outside bypass: a human's own acceptEdits session (both humans' default mode), where the rules decide.
+                verdict = permissions.verdict(
+                    RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), mode=permissions.ACCEPT_EDITS
+                )
                 self.assertEqual(verdict[0], permissions.PASS, verdict)
 
     def test_the_parser(self) -> None:

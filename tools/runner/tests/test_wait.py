@@ -437,7 +437,10 @@ class NoPromptTest(unittest.TestCase):
         ]
         for tool, command in calls:
             with self.subTest(tool=tool, command=command):
-                got = permissions.verdict(RULES, guard, tool, command, str(ROOT), MAIN, OwnRepo(), bypass=False)
+                # Outside bypass: a human's own acceptEdits session (both humans' default mode), where the rules decide.
+                got = permissions.verdict(
+                    RULES, guard, tool, command, str(ROOT), MAIN, OwnRepo(), mode=permissions.ACCEPT_EDITS
+                )
                 self.assertEqual(got[0], permissions.PASS, got[1])
 
 
