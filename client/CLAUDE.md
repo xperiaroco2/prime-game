@@ -20,10 +20,10 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
   and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
-- The Esc menu (#169): `app/`'s `MousePointer` and `GameWindow` (Alt+Enter, #517); `ui/`'s `EscMenuState` (pure),
+- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure),
   `EscMenu`, its tabs `LobbyPanel` and `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
-  level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
+  level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
   in code, the HUD and the task screen (M4-8), and the shared theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).

@@ -1761,8 +1761,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
   (§3.2: no names, no roles).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
-  and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
@@ -2122,7 +2122,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
-  longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and frees it through `Input.mouse_mode`; headless
+  longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
+  frees it through `Input.mouse_mode`; headless
   Godot keeps no mouse mode (it reads visible whatever was set, probed on 4.7.2), so tests give `Game` one that
   remembers. The input action `ready` (F, a placeholder) is in `project.godot`.
 - Tests: `tests/unit/client/ui/esc_menu_state_test.gd`, `screens_test.gd` (the menu's pages, the host's question, the
