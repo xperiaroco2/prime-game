@@ -24,7 +24,11 @@ extends SceneTree
 ## what could drop it is the silence rule (WebRtcTransport.SILENCE_MS), which must see the backlog
 ## drained first. LaneOrder holds the backlog's poses that wait for their beats, and the beats
 ## release them in the same poll.
+## Each process sets the WebRTC library up (a WebRtcWarmUp, kept for the whole run) before it
+## hosts or joins: under load the setup took seconds, and in a first connection it counted
+## against the join's JOIN_TIMEOUT_MS (#510).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
 const FREEZE_MS := 5200
@@ -54,6 +58,7 @@ var _instance := 0
 var _port := 0
 var _started_ms := 0
 var _done := false
+var _warm_up: WebRtcWarmUp
 var _transport: WebRtcTransport
 var _signalling: LanSignalling
 ## What this side heard from each peer, by peer id.
@@ -75,6 +80,9 @@ var _beat_at_phase: Dictionary[int, int] = {}
 var _left: Array[int] = []
 # Client part.
 var _next_join_ms := 0
+## When this client started its last join, and its first (the join lines print both).
+var _join_started_ms := -1
+var _first_join_ms := -1
 var _freeze_requested := false
 var _told_to_end := false
 var _last_packet_ms := 0
@@ -134,6 +142,15 @@ func _initialize() -> void:
 	if _port < 1 or _port > 65535:
 		_fail("give -- %s<a free UDP port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
+	if _instance not in [1, 2, 3]:
+		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
+		return
+	_warm_up = WebRtcWarmUp.new()
+	if not _warm_up.wait():
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+		return
+	var took := Time.get_ticks_msec() - _started_ms
+	print("NET instance %d: WebRTC set up after %d ms" % [_instance, took])
 	_transport = WebRtcTransport.new(_kinds)
 	_transport.signal_url = "ws://%s:%d" % [ADDRESS, _port]
 	_transport.local_candidates = true
@@ -147,12 +164,10 @@ func _initialize() -> void:
 	_transport.packet_received.connect(_on_packet)
 	if _instance == 1:
 		_start_host()
-	elif _instance in [2, 3]:
+	else:
 		_transport.connected.connect(_on_connected)
 		_transport.connect_failed.connect(_on_connect_failed)
 		_transport.host_lost.connect(_on_host_lost)
-	else:
-		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
 
 
 func _process(_delta: float) -> bool:
@@ -349,6 +364,9 @@ func _client_step() -> void:
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
+			_join_started_ms = Time.get_ticks_msec()
+			if _first_join_ms < 0:
+				_first_join_ms = _join_started_ms
 	_poll()
 	if _done or NetTransport.HOST_ID not in _transport.peers():
 		return
@@ -374,7 +392,13 @@ func _thawing_reported() -> bool:
 
 
 func _on_connected(own_id: int) -> void:
-	print("NET client %d connected as peer %d" % [_instance, own_id])
+	var now := Time.get_ticks_msec()
+	print(
+		(
+			"NET client %d connected as peer %d: its join took %d ms, %d ms after its first"
+			% [_instance, own_id, now - _join_started_ms, now - _first_join_ms]
+		)
+	)
 	var hello := PackedByteArray()
 	hello.resize(4)
 	hello.encode_u32(0, _instance)
@@ -389,7 +413,8 @@ func _on_host_lost() -> void:
 func _on_connect_failed(reason: StringName) -> void:
 	# The clients start with the host: until its service listens and its room is open, a join
 	# fails and is tried again.
-	print("NET client %d join failed (%s); retrying" % [_instance, reason])
+	var took := Time.get_ticks_msec() - _join_started_ms
+	print("NET client %d join failed (%s) after %d ms; retrying" % [_instance, reason, took])
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 
@@ -407,6 +432,7 @@ func _finish_client() -> void:
 
 
 func _pass() -> void:
+	_warm_up.close()
 	_done = true
 	quit(0)
 

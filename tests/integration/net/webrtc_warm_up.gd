@@ -7,9 +7,15 @@ extends RefCounted
 ## stayed open and often 0.5 to 1 s when none did. A suite or a run whose waits time the
 ## transport makes one first, waits until is_ready() (or error is not OK: the library or the
 ## addon failed, so no offer will come), and closes it only at its end. Its offer is never sent
-## anywhere.
+## anywhere. A run that does nothing else meanwhile calls wait() once instead (#510): the WebRTC
+## twins, the WebRTC bots and the chaos run over WebRTC, each before its first host or join. Those
+## scripts in tests/harness/ preload this file too: move it only with their preloads.
 
-## The first call that failed, or OK; set in _init(), so a caller can fail at once with its name.
+## How long wait() waits at most: about 3 times the 9 to 11 s measured under load (#472).
+const READY_WITHIN_MS := 30000
+
+## The first call that failed, or OK; set in _init() (by wait() on its timeout), so a caller can
+## fail at once with its name.
 var error := OK
 var error_text := ""
 
@@ -36,6 +42,19 @@ func _init() -> void:
 func is_ready() -> bool:
 	_pc.poll()
 	return _made_offer
+
+
+## Polls until is_ready(), a failed call or `within_ms`, sleeping 2 ms between polls; true when
+## ready. After `within_ms` it sets error and error_text, so the caller fails with the cause.
+func wait(within_ms := READY_WITHIN_MS) -> bool:
+	var until := Time.get_ticks_msec() + within_ms
+	while error == OK and not is_ready():
+		if Time.get_ticks_msec() >= until:
+			error = ERR_TIMEOUT
+			error_text = "no offer in %d ms" % within_ms
+			break
+		OS.delay_msec(2)
+	return error == OK
 
 
 func close() -> void:
