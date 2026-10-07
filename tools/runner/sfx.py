@@ -608,7 +608,8 @@ def render_page(sounds: list[Sound], table: Table, name: str, generated: str) ->
         "download": VERDICTS_FILE,
         "files": [{"path": s.shown, "category": s.category, "status": s.status} for s in sounds],
     }
-    data = json.dumps(page, ensure_ascii=True).replace("</", "<\\/")
+    # Every "<" as <: no "</script>" and no "<!--" can reach the HTML parser from a path (#524).
+    data = json.dumps(page, ensure_ascii=True).replace("<", "\\u003c")
     parts.append(f"<script>\nconst PAGE = {data};\n{SCRIPT}</script>")
     parts.append("</body></html>")
     return "\n".join(parts) + "\n"

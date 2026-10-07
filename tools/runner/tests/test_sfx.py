@@ -446,6 +446,15 @@ class PageTest(Fixtures):
         self.assertIn("a&lt;/script&gt;&lt;b x=&quot;1&quot;&gt;.wav", text)
         self.assertIn("<h2>no category (1)</h2>", text)
 
+    def test_a_comment_opener_in_a_path_cannot_reach_the_script(self) -> None:
+        shown = "a<!--<script>b.wav"
+        sound = sfx.Sound(path=self.dir / "missing.wav", shown=shown, kind="wav")
+        text = sfx.render_page([sound], self.table, "s", "now")
+        script = text[text.index("<script>") + len("<script>") : text.rindex("</script>")]
+        self.assertNotIn("<", script.split(";\n", 1)[0], "the embedded data holds no raw <")
+        data = re.search(r"const PAGE = (\{.*?\});\n", script).group(1)
+        self.assertEqual(json.loads(data)["files"][0]["path"], shown)
+
     def test_the_set_name_comes_from_the_one_path(self) -> None:
         self.assertEqual(sfx.set_name(["content/sfx/foot steps"]), "foot-steps")
         self.assertEqual(sfx.set_name(["a/click.wav"]), "click")
