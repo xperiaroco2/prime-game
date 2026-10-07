@@ -127,10 +127,10 @@ given in advance; the last-day rule prevents ending the week with unused budget 
 estimate before its launch. So, on every track:
 - every workflow launch states its estimate first (agents, list $, % of the week), from `metrics`' per-task medians
   or the workflow's own agents x calls x $ per call;
-- a launch over about 5% of the week stops after its first phase (the script returns there, or the manager stops
-  it and afterwards resumes it with `resumeFromRunId` and the same args, so the first phase is not paid twice), and
-  the manager checks the spend so far (`tools\run.cmd metrics --run <run id>`, added for this) against the
-  estimate before the rest; a first phase well over its share (over 1.5 times, #534's reading) re-estimates the rest,
+- a launch over about 5% of the week, which also states its first phase's share, stops after its first phase (the
+  script returns there, or the manager stops it and afterwards resumes it with `resumeFromRunId` and the same args,
+  so the first phase is not paid twice), and the manager checks the spend so far (`tools\run.cmd metrics --run
+  <run id>`, added for this) against the estimate before the rest; a first phase well over its share (over 1.5 times, #534's reading) re-estimates the rest,
   and a rest past the track's budget left goes to the engineer in "For you:".
 The rule lives in [docs/MANAGERS.md](../MANAGERS.md) §9, which the UI and art repos' `CLAUDE.md` files point to;
 the `orchestrate-stage` skill (§3, `budget.md`) points there.

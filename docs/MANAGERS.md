@@ -135,7 +135,8 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
   [`budget.md`](../.claude/skills/orchestrate-stage/budget.md) (every track's, re-measured at each reset), times the
   tasks; else from the workflow's own numbers: agents x tool calls each x about $0.10 a call (the 2026-10-07 audit:
   $1,877 in about 17,000 calls; an agent past 200k of context costs more a call). A loop over N items is N times its
-  agents.
+  agents. A launch over about 5% also states its first phase's share: that phase's agents x calls x about $0.10, and
+  its %.
 - **Over about 5% of the week** (one launch; an `issue-task` or `pr-rebase` run is under 1%), the run stops after its
   first phase. A workflow you write returns after its first phase (or takes an arg that runs only it), and the rest
   is a second launch after the check; a saved one you cannot change: stop it once its first phase's agents have
