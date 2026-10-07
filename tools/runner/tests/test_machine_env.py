@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import doctor, machine_env
+from runner import common, doctor, machine_env
 from runner.common import IS_WINDOWS, ROOT
 from runner.machine_env import LOCAL_SETTINGS, PROCESS, USER_SETTINGS
 
@@ -30,6 +30,31 @@ def write_settings(path: Path, env: object | None = None, text: str | None = Non
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"language": "English", "env": env} if env is not None else {"language": "English"}
     path.write_text(text if text is not None else json.dumps(data, indent=2), encoding="utf-8")
+
+
+def short_path(path: str | Path) -> str | None:
+    """The Windows 8.3 short form of an existing path (`C:\\Users\\XPERIA~1\\...`, GetShortPathNameW), or None where
+    the OS gives none: not Windows, or a volume that makes no 8.3 names (issue #542)."""
+    if not IS_WINDOWS:
+        return None
+    import ctypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    buffer = ctypes.create_unicode_buffer(32768)
+    written = kernel32.GetShortPathNameW(str(path), buffer, len(buffer))
+    return buffer.value if 0 < written < len(buffer) and "~" in buffer.value else None
+
+
+def short_temp(case: unittest.TestCase) -> tuple[str, str]:
+    """A fresh folder with a long name in the temp folder, removed after the test: (its long path, its 8.3 short
+    path); the test is skipped where the OS gives no short name."""
+    tmp = tempfile.TemporaryDirectory(prefix="prime-game-long-name-")
+    case.addCleanup(tmp.cleanup)
+    full = os.path.realpath(tmp.name)
+    short = short_path(full)
+    if short is None:
+        case.skipTest("no 8.3 short names here (not Windows, or a volume with 8.3 name creation off)")
+    return full, short
 
 
 class LoadTest(unittest.TestCase):
@@ -250,6 +275,75 @@ class RunPyTest(unittest.TestCase):
         )
         self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
         self.assertIn(f"GODOT_BIN points to a missing file: {godot}", res.stdout + res.stderr)
+
+
+class LongTempTest(unittest.TestCase):
+    """An 8.3 short TEMP (`C:\\Users\\XPERIA~1\\AppData\\Local\\Temp`, issue #542) is put in its long form once, so
+    the runner and its tests compare one name of the temp folder with the long one git and Path.resolve give."""
+
+    def same(self, a: str, b: str) -> None:
+        self.assertEqual(os.path.normcase(a), os.path.normcase(b))
+
+    def test_long_path_expands_each_short_name_and_leaves_the_rest(self) -> None:
+        full, short = short_temp(self)
+        self.assertNotEqual(os.path.normcase(short), os.path.normcase(full))
+        self.same(common.long_path(short), full)
+        missing = os.path.join(short, "missing-file.txt")
+        self.assertEqual(common.long_path(missing), missing)
+        self.assertEqual(common.long_path(full), full)
+
+    def test_long_temp_changes_only_the_temp_variables_that_are_short(self) -> None:
+        full, short = short_temp(self)
+        environ = {"TEMP": short, "TMP": full, "TMPDIR": "", "OTHER": short}
+        changed = common.long_temp(environ)
+        self.assertEqual(list(changed), ["TEMP"])
+        self.assertEqual(changed["TEMP"][0], short)
+        self.same(environ["TEMP"], full)
+        self.assertEqual((environ["TMP"], environ["TMPDIR"], environ["OTHER"]), (full, "", short))
+        self.assertEqual(common.long_temp(environ), {})
+
+    def test_the_runner_puts_a_short_temp_in_long_form_and_doctor_warns(self) -> None:
+        full, short = short_temp(self)
+        buffer = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"TEMP": short, "TMP": short}),
+            mock.patch.object(tempfile, "tempdir", short),
+            mock.patch.object(machine_env, "_applied", None),
+            mock.patch.object(doctor, "IS_CI", False),
+            mock.patch.object(doctor, "IS_CLOUD", False),
+            contextlib.redirect_stdout(buffer),
+        ):
+            report = machine_env.apply()
+            self.same(os.environ["TEMP"], full)
+            self.same(os.environ["TMP"], full)
+            self.same(tempfile.gettempdir(), full)
+            doctor.Doctor().machine_paths()
+        self.assertEqual(sorted(report.long_temp), ["TEMP", "TMP"])
+        out = buffer.getvalue()
+        self.assertIn(f"warn  TEMP is the 8.3 short path {short}: the runner uses its long form ", out)
+        self.assertIn(f"set TMP to the long path in the env of {USER_SETTINGS}", out)
+
+    def test_the_tests_that_compare_temp_paths_pass_with_a_short_temp(self) -> None:
+        # Tests #542 saw red with a short TEMP, run the way its report ran them: `python -m unittest` in tools/.
+        _full, short = short_temp(self)
+        tests = [
+            "runner.tests.test_gdunit_shards.PlanTest.test_the_scan_finds_the_suites_a_one_process_run_finds",
+            "runner.tests.test_train.TrainTest.test_prs_merge_in_series_each_after_main_moved",
+            "runner.tests.test_hooks.GitFilesTest.test_temp_matches_list_the_temp_folder_and_find_worktrees",
+        ]
+        env = {**os.environ, "TEMP": short, "TMP": short, "PYTHONIOENCODING": "utf-8"}
+        res = subprocess.run(
+            [sys.executable, "-m", "unittest", *tests],
+            cwd=ROOT / "tools",
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=180,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn("Ran 3 tests", res.stderr)
 
 
 @unittest.skipUnless(IS_WINDOWS, "tools\\run.cmd is the Windows wrapper")

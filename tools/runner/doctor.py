@@ -88,6 +88,11 @@ class Doctor:
         report = machine_env.apply()
         for problem in report.problems:
             warn(problem)
+        for var, (short, full) in report.long_temp.items():
+            warn(
+                f"{var} is the 8.3 short path {short}: the runner uses its long form {full}, a program started "
+                f"outside it does not (#542); set {var} to the long path in the env of {USER_SETTINGS}"
+            )
         for var in machine_env.MACHINE_VARS:
             source = report.sources.get(var)
             if source:
