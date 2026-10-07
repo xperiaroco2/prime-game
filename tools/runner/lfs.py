@@ -4,16 +4,24 @@ CI checks out without LFS content (`lfs: false`, the LFS ADR), so each file `.gi
 pointer file there: a few lines of text that start with the spec's version line. Godot imports it by its extension and
 fails (`Not a PNG file`, `Not a WAV file`, a glTF parse error), and rewrites its `.import` file as it does; every
 resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI only
-(common.IS_CI), the import never sees a pointer file (aside() moves it and its `.import` file behind tools/out's
-`.gdignore` and puts both back), and the project check drops the lines that name one (drop_lines()). Locally, with
-LFS content, ci_pointers() is empty and nothing changes. The credits check needs only the paths, so it still covers
-pointer files. A build (release.yml, with LFS content) runs `check --lfs-content`, which fails on any pointer file.
+(common.IS_CI), the import never sees a pointer file. aside()
+puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, an empty glTF scene: STAND_INS) under its
+committed `.import` file, so Godot writes the imported file every resource that uses it loads, with its uid; a type
+without a stand-in (a font, Ogg or MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with its `.import`
+file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).
+Locally, with LFS content, ci_pointers() is empty and nothing changes. The credits check needs only the paths, so it
+still covers pointer files. A build (release.yml, with LFS content) runs `check --lfs-content`, which fails on any
+pointer file.
 """
 
 from __future__ import annotations
 
+import base64
 import os
 import re
+import shutil
+import struct
+import zlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,6 +33,65 @@ from .common import Failure
 # pointer files under 1024 bytes, so a larger file is content even if it starts the same way.
 HEADER = b"version https://git-lfs.github.com/spec/v1\n"
 MAX_SIZE = 1024
+
+
+def _png() -> bytes:
+    """A 4x4 grey RGB PNG (4x4: a block for any VRAM compression a committed .import may ask for)."""
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    rows = (b"\x00" + b"\x80" * 12) * 4
+    header = struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b"")
+
+
+def _bmp() -> bytes:
+    """A 4x4 grey 24-bit BMP (rows of 12 bytes need no padding)."""
+    pixels = b"\x80" * 48
+    info = struct.pack("<IiiHHIIiiII", 40, 4, 4, 1, 24, 0, len(pixels), 2835, 2835, 0, 0)
+    return b"BM" + struct.pack("<IHHI", 14 + len(info) + len(pixels), 0, 0, 14 + len(info)) + info + pixels
+
+
+def _tga() -> bytes:
+    """A 4x4 grey uncompressed 24-bit TGA."""
+    return struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, 4, 4, 24, 0) + b"\x80" * 48
+
+
+def _wav() -> bytes:
+    """A 16-bit mono WAV of four silent samples."""
+    data = b"\x00" * 8
+    fmt = struct.pack("<HHIIHH", 1, 1, 44100, 88200, 2, 16)
+    body = b"WAVE" + b"fmt " + struct.pack("<I", len(fmt)) + fmt + b"data" + struct.pack("<I", len(data)) + data
+    return b"RIFF" + struct.pack("<I", len(body)) + body
+
+
+GLTF = b'{"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"StandIn"}]}'
+
+
+def _glb() -> bytes:
+    """GLTF in the binary container: a JSON chunk padded with spaces to 4 bytes."""
+    json = GLTF + b" " * (-len(GLTF) % 4)
+    return b"glTF" + struct.pack("<II", 2, 12 + 8 + len(json)) + struct.pack("<I", len(json)) + b"JSON" + json
+
+
+# A stand-in of each type Godot imports from a few bytes, by extension (aside()). The JPEG and the WebP are a 4x4 grey
+# image that Godot 4.7.2 wrote (Image.save_jpg_to_buffer, save_webp_to_buffer, probed for #515): Python has no
+# encoder for them. The other LFS types keep no stand-in (a font, Ogg or MP3 audio, a video, an FBX that needs the
+# FBX2glTF importer, a .blend that needs Blender, files Godot does not import).
+JPEG = base64.b64decode("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAEAAQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBKKKKAP//Z")
+STAND_INS = {
+    ".png": _png(),
+    ".jpg": JPEG,
+    ".jpeg": JPEG,
+    ".webp": base64.b64decode("UklGRh4AAABXRUJQVlA4TBEAAAAvA8AAAAfQv/71r/+BiOh/AAA="),
+    ".bmp": _bmp(),
+    ".tga": _tga(),
+    ".wav": _wav(),
+    ".gltf": GLTF,
+    ".glb": _glb(),
+    ".obj": b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+}
 # Where aside() keeps the pointer files during an import: a .gdignore in it makes Godot's scan skip it (as tools/out's
 # own does, common.ensure_out), and tools/out is gitignored, so `git status` sees nothing once the files are back.
 ASIDE = "tools/out/lfs-aside"
@@ -68,26 +135,43 @@ def ci_pointers(root: Path | None = None) -> list[str]:
     return pointers(root) if common.IS_CI else []
 
 
+def stand_in(name: str) -> bytes | None:
+    """The stand-in aside() imports in place of the pointer file `name`, or None for a type without one."""
+    return STAND_INS.get(Path(name).suffix.lower())
+
+
 @contextmanager
 def aside(names: list[str], root: Path | None = None) -> Iterator[None]:
-    """Keep the pointer files `names` (repo-relative) and their `.import` files out of Godot's sight for an import:
-    moved under ASIDE, and back afterwards, even when the import failed. A file that cannot go back is a Failure
-    that names it (the checkout would otherwise lose it)."""
+    """Keep the pointer files `names` (repo-relative) out of Godot's sight for an import, and put them back
+    afterwards, even when the import failed. Each is moved under ASIDE; one with a stand-in (stand_in()) gets it in
+    its place under a copy of its committed `.import` file, so the import writes the imported file that file names,
+    with its uid and params (a new asset's `.import`, which the import writes, is removed again); one without has its
+    `.import` file moved too. The moved files go back as they were (their bytes and times: the import stays
+    current). A file that cannot go back is a Failure that names it (the checkout would otherwise lose it)."""
     root = root or common.ROOT
     moved: list[tuple[Path, Path]] = []
+    made: list[Path] = []
     try:
         if names:
             (root / ASIDE).mkdir(parents=True, exist_ok=True)
             (root / ASIDE / ".gdignore").touch()  # Godot's scan skips the folder, whoever made tools/out
         for name in names:
+            data = stand_in(name)
             for rel in (name, name + ".import"):
                 source = root / rel
                 if not source.is_file():
+                    if data is not None and rel != name:
+                        made.append(source)
                     continue
                 target = root / ASIDE / rel
                 target.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(source, target)
+                if data is not None and rel != name:
+                    shutil.copy2(source, target)  # the import reads it: its uid and params
+                else:
+                    os.replace(source, target)
                 moved.append((source, target))
+            if data is not None:
+                (root / name).write_bytes(data)
         yield
     finally:
         lost = []
@@ -96,6 +180,11 @@ def aside(names: list[str], root: Path | None = None) -> Iterator[None]:
                 os.replace(target, source)
             except OSError as exc:
                 lost.append(f"{source.relative_to(root).as_posix()} ({exc})")
+        for path in made:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                lost.append(f"{path.relative_to(root).as_posix()} (the import wrote it; {exc})")
         if lost:
             raise Failure(f"could not put the LFS pointer files back from {ASIDE}/: " + ", ".join(lost))
 
@@ -125,8 +214,8 @@ def drop_lines(lines: list[str], names: list[str], root: Path | None = None) -> 
     using text path instead: res://a.png`, `Unable to open file: res://.godot/imported/a.png-<hash>.ctex`) or a file
     such a line was about (a script that preloads one fails to compile: `res://p.gd:3: Parse Error: Could not preload
     resource file "res://a.png"`, then `Failed to load script "res://p.gd"`). So in CI, a problem in a file that uses
-    an LFS asset is left to the local check, which has the content. The summary line gets the counts of the lines
-    kept; with no pointer files the output is unchanged.
+    an LFS asset is left to the local check, which has the content. A pointer file with a stand-in (aside()) causes no
+    lines. The summary line gets the counts of the lines kept; with no pointer files the output is unchanged.
     """
     if not names:
         return lines, 0, 0
@@ -165,10 +254,13 @@ def _names(line: str, paths: set[str]) -> bool:
 def summary(names: list[str], errors: int, warnings: int) -> str:
     """check's one line in CI about the pointer files it skipped."""
     files = f"{len(names)} LFS pointer file{'' if len(names) == 1 else 's'}"
+    standing = sum(stand_in(name) is not None for name in names)
     return (
-        f"{files} skipped (CI checks out without LFS content): kept out of the import; {errors} error and {warnings}"
-        " warning lines of the project check about them dropped; credits still checked"
+        f"{files} skipped (this checkout has no LFS content): {standing} imported from a stand-in,"
+        f" {len(names) - standing} kept out of the import; {errors} error and {warnings} warning lines of the project"
+        " check about them dropped; credits still checked"
     )
+
 
 
 def require_content(root: Path | None = None) -> list[str]:

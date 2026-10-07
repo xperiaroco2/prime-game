@@ -5,6 +5,7 @@ fails on one. RealPointerTest proves it with the pinned Godot in a throwaway pro
 LFS, then checked out as a pointer file as CI does."""
 
 import io
+import os
 import shutil
 import struct
 import subprocess
@@ -121,28 +122,73 @@ class PointerTest(unittest.TestCase):
 
 
 class AsideTest(unittest.TestCase):
-    def test_the_files_are_out_of_sight_inside_and_back_after(self) -> None:
+    def test_a_type_without_a_stand_in_is_out_of_sight_inside_and_back_after(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root, "art/a.png", POINTER)
-            write(root, "art/a.png.import", "[remap]\n")
-            write(root, "art/b.wav", POINTER)  # no .import yet: a new asset
-            with lfs.aside(["art/a.png", "art/b.wav"], root):
-                for name in ("art/a.png", "art/a.png.import", "art/b.wav"):
+            write(root, "art/a.ogg", POINTER)
+            write(root, "art/a.ogg.import", "[remap]\n")
+            write(root, "art/b.ttf", POINTER)  # no .import yet: a new asset
+            with lfs.aside(["art/a.ogg", "art/b.ttf"], root):
+                for name in ("art/a.ogg", "art/a.ogg.import", "art/b.ttf"):
                     self.assertFalse((root / name).exists(), name)
                     self.assertTrue((root / lfs.ASIDE / name).is_file(), name)
                 self.assertTrue((root / lfs.ASIDE / ".gdignore").is_file())
+            self.assertEqual((root / "art/a.ogg").read_bytes(), POINTER)
+            self.assertEqual((root / "art/a.ogg.import").read_text(encoding="utf-8"), "[remap]\n")
+            self.assertEqual((root / "art/b.ttf").read_bytes(), POINTER)
+
+    def test_a_stand_in_is_imported_under_the_committed_import_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "art/a.png", POINTER)
+            committed = write(root, "art/a.png.import", '[remap]\n\nuid="uid://cy2bb7ynws6wi"\n')
+            old = committed.stat().st_mtime_ns - 10**10  # committed long before the import
+            os.utime(committed, ns=(old, old))
+            write(root, "art/b.wav", POINTER)  # no .import yet: a new asset
+            with lfs.aside(["art/a.png", "art/b.wav"], root):
+                self.assertEqual((root / "art/a.png").read_bytes(), lfs.STAND_INS[".png"])
+                self.assertEqual((root / "art/b.wav").read_bytes(), lfs.STAND_INS[".wav"])
+                self.assertEqual(committed.read_text(encoding="utf-8"), '[remap]\n\nuid="uid://cy2bb7ynws6wi"\n')
+                self.assertEqual((root / lfs.ASIDE / "art/a.png").read_bytes(), POINTER)
+                # What the import writes: a rewritten .import file, and a new asset's first one.
+                write(root, "art/a.png.import", "[remap]\nrewritten\n")
+                write(root, "art/b.wav.import", "[remap]\n")
             self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
-            self.assertEqual((root / "art/a.png.import").read_text(encoding="utf-8"), "[remap]\n")
             self.assertEqual((root / "art/b.wav").read_bytes(), POINTER)
+            self.assertEqual(committed.read_text(encoding="utf-8"), '[remap]\n\nuid="uid://cy2bb7ynws6wi"\n')
+            self.assertEqual(committed.stat().st_mtime_ns, old)  # the import stays current (check.freshness)
+            self.assertFalse((root / "art/b.wav.import").exists())
+
+    def test_every_stand_in_is_its_format(self) -> None:
+        signatures = {
+            ".png": b"\x89PNG\r\n\x1a\n",
+            ".jpg": b"\xff\xd8\xff",
+            ".jpeg": b"\xff\xd8\xff",
+            ".webp": b"RIFF",
+            ".bmp": b"BM",
+            ".wav": b"RIFF",
+            ".gltf": b'{"asset"',
+            ".glb": b"glTF",
+            ".obj": b"v ",
+            ".tga": b"\x00\x00\x02",
+        }
+        self.assertEqual(set(lfs.STAND_INS), set(signatures))
+        for suffix, data in lfs.STAND_INS.items():
+            self.assertTrue(data.startswith(signatures[suffix]), suffix)
+            self.assertEqual(lfs.stand_in("art/x" + suffix.upper()), data)
+        self.assertIsNone(lfs.stand_in("art/x.ogg"))
+        self.assertEqual(len(lfs.STAND_INS[".glb"]) % 4, 0)
 
     def test_the_files_come_back_when_the_import_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             write(root, "art/a.png", POINTER)
-            with self.assertRaises(Failure), lfs.aside(["art/a.png"], root):
+            write(root, "art/b.ogg", POINTER)
+            with self.assertRaises(Failure), lfs.aside(["art/a.png", "art/b.ogg"], root):
                 raise Failure("godot --import exited 1 twice")
             self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
+            self.assertEqual((root / "art/b.ogg").read_bytes(), POINTER)
+            self.assertFalse((root / "art/a.png.import").exists())
 
     def test_no_pointer_files_touch_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -220,8 +266,9 @@ class CheckTest(unittest.TestCase):
         self.assertEqual(
             summary,
             [
-                "  skip  1 LFS pointer file skipped (CI checks out without LFS content): kept out of the import; 6 error"
-                " and 1 warning lines of the project check about them dropped; credits still checked"
+                "  skip  1 LFS pointer file skipped (this checkout has no LFS content): 1 imported from a stand-in, 0"
+                " kept out of the import; 6 error and 1 warning lines of the project check about them dropped; credits"
+                " still checked"
             ],
         )
         self.assertIn("  ok    files=6 errors=0 warnings=0", said)
@@ -244,10 +291,11 @@ class CheckTest(unittest.TestCase):
             root = repo(Path(tmp))
             write(root, "art/a.png", POINTER)
             write(root, "art/a.png.import", "[remap]\n")
-            seen: list[bool] = []
+            seen: list[bytes] = []
 
             def fake_godot(*_args: object, **_kwargs: object) -> Result:
-                seen.append((root / "art/a.png").exists() or (root / "art/a.png.import").exists())
+                self.assertTrue((root / "art/a.png.import").is_file())
+                seen.append((root / "art/a.png").read_bytes())
                 return Result(0, "", False, 1.0)
 
             for ci in (True, False):
@@ -256,7 +304,7 @@ class CheckTest(unittest.TestCase):
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     check.run_import()
                 self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
-            self.assertEqual(seen, [False, True])
+            self.assertEqual(seen, [lfs.STAND_INS[".png"], POINTER])
 
     def test_the_import_in_ci_runs_in_a_folder_that_is_not_a_git_work_tree(self) -> None:
         # Runner tests import throwaway projects in plain temp folders; in CI (CI=true) git cannot list their files,
@@ -299,7 +347,10 @@ SCENE = (
     '[gd_scene load_steps=2 format=3]\n\n[ext_resource type="Texture2D" uid="{uid}" path="res://art/a.png" id="1"]\n\n'
     '[node name="S" type="Sprite3D"]\ntexture = ExtResource("1")\n'
 )
-PRELOAD = 'extends Node\n\nconst TEX: Texture2D = preload("res://art/a.png")\n'
+PRELOAD = 'class_name Pre\nextends Node\n\nconst TEX: Texture2D = preload("res://art/a.png")\n'
+# A script that reads the texture through the class name: with the pointer file hidden from the import it fails with
+# a line that names neither file (the review of #515); with a stand-in it loads.
+USER = "extends Node\n\nvar tex: Texture2D = Pre.TEX\n"
 PROJECT = 'config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n'
 UID = "uid://cy2bb7ynws6wi"
 IMPORTED_HASH = "0180b64844aadf81c6b18dd2c9268d2e"  # Godot's for res://art/a.png
@@ -351,8 +402,9 @@ detect_3d/compress_to=1
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealPointerTest(unittest.TestCase):
     """A texture imported on a PC with LFS (its .import file committed), then a fresh checkout without LFS content:
-    in CI mode the import leaves the .import file as it was and prints no import error, and check passes with the
-    summary line; in local mode the same checkout fails as it always did."""
+    in CI mode the import takes a stand-in, leaves the .import file as it was and prints no import error, and check
+    passes with nothing to drop (the scene, the script that preloads it and the one that uses that script's class all
+    load); in local mode the same checkout fails as it always did. Then every stand-in, as a new asset."""
 
     def test_ci_mode_skips_the_pointer_file_and_local_mode_does_not(self) -> None:
         # A killed engine may still hold files of the temp project for a moment on Windows.
@@ -371,6 +423,7 @@ class RealPointerTest(unittest.TestCase):
             write(root, "art/a.png.import", committed)
             write(root, "s.tscn", SCENE.format(uid=UID))
             write(root, "pre.gd", PRELOAD)
+            write(root, "user.gd", USER)
             write(root, "art/a.png", POINTER)
 
             def run(ci: bool, step: object) -> tuple[object, str]:
@@ -387,7 +440,8 @@ class RealPointerTest(unittest.TestCase):
             self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
             passed, said = run(True, lambda: check.project_check(None, lfs.ci_pointers()))
             self.assertTrue(passed, said)
-            self.assertIn("1 LFS pointer file skipped", said)
+            self.assertIn("1 LFS pointer file skipped (this checkout has no LFS content): 1 imported from a stand-in, 0"
+                          " kept out of the import; 0 error and 0 warning lines", said)  # fmt: skip
 
             # The same checkout in local mode: Godot imports the pointer file, fails and rewrites its .import file.
             shutil.rmtree(root / ".godot")
@@ -399,6 +453,51 @@ class RealPointerTest(unittest.TestCase):
             self.assertIn("Failed loading resource: res://art/a.png", said)
             self.assertNotIn("LFS pointer", said)
 
+    def test_every_stand_in_imports_under_its_committed_import_file(self) -> None:
+        # The PC with LFS: each stand-in is the real asset, imported and its .import file committed. The checkout in
+        # CI: pointer files, no .godot/. Nothing fails, nothing is dropped, every .import file stays as committed.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            root = repo(Path(tmp))
+            logs = Path(tmp) / "logs"
+            logs.mkdir()
+            write(root, ".gitattributes", "".join(f"*{suffix} filter=lfs diff=lfs merge=lfs -text\n"
+                                                  for suffix in lfs.STAND_INS))  # fmt: skip
+            write(root, "project.godot", PROJECT)
+            check_script = root / "tools/check/check_project.gd"
+            check_script.parent.mkdir(parents=True)
+            shutil.copyfile(common.ROOT / "tools/check/check_project.gd", check_script)
+            names = sorted(f"art/a{suffix}" for suffix in lfs.STAND_INS)
+            for name in names:
+                write(root, name, lfs.stand_in(name) or b"")
+            # A script that preloads each: it compiles only if each loads.
+            write(root, "uses.gd", "extends Node\n\n" + "".join(
+                f'const A{i} = preload("res://{name}")\n' for i, name in enumerate(names)))  # fmt: skip
+
+            def run(ci: bool, step: object) -> tuple[object, str]:
+                printed = io.StringIO()
+                with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "OUT", logs.parent), \
+                        mock.patch.object(common, "LOGS", logs), mock.patch.object(common, "IS_CI", ci), \
+                        mock.patch("sys.stdout", printed):  # fmt: skip
+                    value = step()  # type: ignore[operator]
+                return value, printed.getvalue()
+
+            run(False, check.run_import)
+            committed = {name: (root / (name + ".import")).read_bytes() for name in names}
+            for name in names:
+                write(root, name, POINTER)
+            shutil.rmtree(root / ".godot")
+            pointers, _ = run(True, lfs.ci_pointers)
+            self.assertEqual(pointers, names)
+            run(True, check.run_import)
+            log = (logs / "import.log").read_text(encoding="utf-8")
+            self.assertNotIn("Error importing", log)
+            self.assertNotIn("ERROR", log)
+            passed, said = run(True, lambda: check.project_check(None, lfs.ci_pointers()))
+            self.assertTrue(passed, said)
+            self.assertIn(f"{len(names)} imported from a stand-in, 0 kept out of the import; 0 error and 0 warning", said)
+            for name in names:
+                self.assertEqual((root / name).read_bytes(), POINTER, name)
+                self.assertEqual((root / (name + ".import")).read_bytes(), committed[name], name)
 
 if __name__ == "__main__":
     unittest.main()

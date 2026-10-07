@@ -198,11 +198,11 @@ def run_import(label: str = "import") -> list[str]:
     Returns the UID problems it printed; raises Failure only when the import itself broke. Records in STAMP when it
     started, or the newest file the import wrote itself (WRITTEN_BY_IMPORT) if that is later, but never a time after
     the import ended: a stamp in the future would report every real change before that time as `current`. In CI the
-    LFS pointer files and their .import files are moved out of Godot's sight while it imports (lfs.aside, #515): an
-    import of one fails and rewrites its .import file.
+    import never sees an LFS pointer file (lfs.aside, #515): an import of one fails and rewrites its .import file, so
+    Godot imports a stand-in of its type in its place, or, for a type without one, nothing.
     """
     started = time.time()
-    with lfs.aside(lfs.ci_pointers()):  # in CI, the LFS pointer files stay out of the import (#515)
+    with lfs.aside(lfs.ci_pointers()):  # in CI, no LFS pointer file reaches the import (#515)
         for attempt in (1, 2):
             res = godot(["--headless", "--import"], timeout=IMPORT_TIMEOUT, log=label)
             if res.timed_out:
