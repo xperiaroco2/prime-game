@@ -952,19 +952,21 @@ organization the account belongs to) asks as before.
   `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
   today's gh account.
 - Unattended `acceptEdits` (#312), replayed on 2026-10-07 with `tools\run.cmd permissions --since 2026-10-04 --mode
-  acceptEdits --list` (`origin/main` against the branch; 13,979 calls in 1,337 transcripts, file tools included):
-  before #312's guard 6,117 prompts (6,111 with no allow rule), after it 310, 5 denied in both, no crash, and no call
+  acceptEdits --list` (`origin/main` against the branch; 14,115 calls in 1,339 transcripts, file tools included):
+  before #312's guard 6,177 prompts (6,171 with no allow rule), after it 348, 5 denied in both, no crash, and no call
   that was silent before asks now. Before, the causes were the shell long tail: `$PYTHON_BIN` 1,316, git reads after
   a `cd` into a worktree (`diff` 675, `status` 405, `show` 237), a `cd` into the scratchpad 592, `cut` 367, `for`
   loops (judged by their body since #312), `awk` 238, `git fetch` 200, `printf` 148, `git -C` 140, PowerShell
-  filters. What still prompts: 179 Edit and Write calls and about 120 shell writes of workflow agents to a worktree's
-  own `.claude/` (skills, agents, workflows: Claude Code protects them in every mode but bypass, §8.2.10), 3
-  `Edit(**/.claude/settings.json)` asks, 2 guard asks and one `rm` of `D:\tmp_unused` (a critical path). Allow rules
-  alone (a model run of 136 rules, Bash and PowerShell: git reads and writes, text and process tools, PowerShell
-  filters, `$PYTHON_BIN`) leave 1,976: a `cd` into the scratchpad 606, `git -C` 162 (no allow rule may put a `*`
-  before the subcommand), `sed` on a variable's path 148, `GIT_SEQUENCE_EDITOR=: git rebase` 73 (an allow rule never
-  matches past such an assignment), `bash -c` 60 and the rest. Bypass and default mode are unchanged (6 and 8,532
-  prompts).
+  filters. What still prompts: about 300 writes of workflow agents to a worktree's own `.claude/` (179 Edit and Write
+  calls, the rest `sed -i`, `cp`, `git checkout` and inline Python; Claude Code protects them in every mode but
+  bypass, §8.2.10); 37 shell writes beyond the own worktree, the temp folder and the disposable folders, or to a
+  path the guard cannot resolve (`$S/x.log` with `S` set in an earlier call, `$TEMP/../x`, and the
+  `cat > ../../../../tmp_unused` that left a stray file on `D:\`); 3 `Edit(**/.claude/settings.json)` asks, 2 guard
+  asks and one `rm` of that stray file (a critical path). Allow rules alone (a model run of 136 rules, Bash and
+  PowerShell: git reads and writes, text and process tools, PowerShell filters, `$PYTHON_BIN`) leave 1,976: a `cd`
+  into the scratchpad 606, `git -C` 162 (no allow rule may put a `*` before the subcommand), `sed` on a variable's
+  path 148, `GIT_SEQUENCE_EDITOR=: git rebase` 73 (an allow rule never matches past such an assignment), `bash -c` 60
+  and the rest. Bypass and default mode are unchanged (6 and 8,532 prompts).
 
 #### 8.2.10 Unattended `acceptEdits` sessions (#312)
 A route-C successor manager and its workflow agents always run in `acceptEdits` and cannot leave it (#484). There
@@ -972,20 +974,35 @@ Claude Code runs, besides the allow rules and its read-only commands, the file t
 `rmdir`, `mv`, `cp`, `sed` (and `Set-Content`, `Add-Content`, `Clear-Content`, `Remove-Item`) on paths in the working
 directory, and prompts for everything else (`code.claude.com/docs/en/permission-modes`, checked 2026-10-07). So in an
 **unattended** session in `acceptEdits` the guard's hook answers `allow` for a Bash or PowerShell call it finds
-nothing to ask for (`hooks.pre_tool_use`, `guard.allows`): the call runs as it would in bypass. Unattended means the
-session is not marked attended (`CLAUDE_CODE_SESSION_ATTENDED=1`, which the desktop app sets in a session a human
-opened, seen on 2026-10-07): a human's own `acceptEdits` session, both humans' default mode (§2), keeps its prompts.
+nothing to ask for (`hooks.pre_tool_use`, `guard.allows`): the call runs as it would in bypass.
+
+Unattended needs a positive sign (`hooks.unattended`, fails closed): `CLAUDE_CODE_SESSION_ATTENDED` set to `0` or
+`false`, or a session the desktop app started (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) without the variable. The app
+sets it to `1` in a session a human opened (seen on 2026-10-07). A human's own `acceptEdits` session, both humans'
+default mode (§2), keeps its prompts: a desktop session the app marks attended, and a CLI or IDE session (a terminal,
+Rider), which never counts as unattended.
+
 What still holds over the hook's `allow`: every deny rule, every ask rule, the guard's own asks, and Claude Code's
 built-in checks (`rm` of a critical path such as a drive's top-level folder asks even in bypass; `Remove-Item` of a
-wildcard or a system path is denied in every mode). The hook does not allow a shell write to a path Claude Code
-protects (`.claude` but its worktrees `.claude/worktrees/<n>/`, `.git`, `.vscode`, `.gitmodules` and the others in
-`guard.CLAUDE_PROTECTED_DIRS` and `_FILES`, by the guard's targets and by inline code that writes and names one), and
-no hook can allow an Edit or Write there: so a task that edits `.claude/` (a skill, an agent, a workflow, a hook)
-stops at its first such edit in an unattended `acceptEdits` session, and a manager in that mode launches none
-(orchestrate-stage `handover.md` §3, "Mode and effort"; the app counts such a session as unattended). `tools\run.cmd permissions --mode acceptEdits` models the mode (the scratchpad counts
-as in scope, the model's assumption) and judges every session as unattended. Unverified until a route-C run shows
-it: that the hook's `allow` reaches a scheduled session's workflow agents, and that a scheduled session lacks
-`CLAUDE_CODE_SESSION_ATTENDED=1`.
+wildcard or a system path is denied in every mode). The hook allows no shell write or delete
+- to a path Claude Code protects (`.claude` but its worktrees `.claude/worktrees/<n>/`, `.git`, `.vscode`,
+  `.gitmodules` and the others in `guard.CLAUDE_PROTECTED_DIRS` and `_FILES`, by the guard's targets and by inline
+  code that writes and names one: `Analysis.protected`);
+- beyond the session's own worktree, the temp folder (the scratchpad) and the disposable folders (`tests/scratch/`,
+  `tools/out/`, `.godot/`), or to a path it cannot resolve (`Paths.free`, `Analysis.beyond`): the main checkout from
+  a worktree, another worktree, a sibling repository, home. A `rm D:/prime-game/core/x.gd` from a worktree keeps
+  Claude Code's own prompt, as deletes outside the agent's worktree must. A loop variable after a known folder
+  (`$S/p$n.md`) counts as a file in it; one that starts the path (`rm $f`) does not.
+
+Those keep Claude Code's own verdict. No hook can allow an Edit or Write under `.claude/`: so a task that edits
+`.claude/` (a skill, an agent, a workflow, a hook) stops at its first such edit in an unattended `acceptEdits`
+session, and a manager in that mode launches none (orchestrate-stage `handover.md` §3, "Mode and effort").
+`tools\run.cmd permissions --mode acceptEdits` models the mode (the scratchpad counts as in scope, the model's
+assumption; a session in a worktree, or in a folder inside one, as working in the main checkout) and judges every
+session as unattended. Unverified until a route-C run shows it: that the hook's `allow` reaches a scheduled
+session's workflow agents, and that a scheduled session carries one of the two signs above (if it sets
+`CLAUDE_CODE_SESSION_ATTENDED=1` or runs outside the desktop app, the hook allows nothing and the run prompts as
+before #312).
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own

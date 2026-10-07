@@ -33,7 +33,8 @@ A model of Claude Code's matcher, close enough for selftests and replays, not th
 - Default mode prompts for every file write: an Edit or Write and an output redirect to a file (not `/dev/null` or
   `$null`). In the modes that prompt, a `cd` out of the working directory is not read-only.
 - The guard's hook (hooks.pre_tool_use, since #312) allows in an unattended acceptEdits session a shell call it finds
-  nothing in and that writes to no protected path: such a call passes there as in bypass (a guard from before #312
+  nothing in and that writes to no protected path and nothing beyond the own worktree, the temp folder and the
+  disposable folders (guard.allows): such a call passes there as in bypass (a guard from before #312
   does not). The replay judges every session as unattended, the route-C successor's case: a human's own acceptEdits
   session keeps the prompts the replay counts for a guard from before #312.
 - Built in, whatever the mode: `rm`/`rmdir` of a critical path (`/`, a drive root, a top-level folder, home, the
