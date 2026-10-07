@@ -1,5 +1,6 @@
 """`bots` (#102): its arguments, the folder it empties, and the run it starts in one process or over ENet."""
 
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -118,6 +119,29 @@ class ChaosTest(unittest.TestCase):
                 ["--seed=3", "--runs=1", "--port=23998"],
             ],
         )
+
+    def test_the_kill_per_seed_is_60_s_over_the_loopback_and_120_s_over_a_network(self) -> None:
+        # #508: over WebRTC a seed is paced to the real clock, and ChaosScenario's 90 s time limit must report first.
+        with (
+            mock.patch.object(bots.launch, "main", return_value=0) as run,
+            mock.patch.object(verify, "free_udp_port", return_value=23997),
+        ):
+            for options in ({}, {"enet": True}, {"transport": "enet"}, {"transport": "webrtc"}):
+                bots.chaos(seed=3, **options)
+                bots.chaos(seed=3, runs=3, **options)
+                bots.chaos(seed=3, seconds=45, **options)
+        self.assertEqual(
+            [call.kwargs["seconds"] for call in run.call_args_list],
+            [60, 180, 45, 120, 360, 45, 120, 360, 45, 120, 360, 45],
+        )
+
+    def test_the_network_kill_leaves_the_scenario_time_limit_room_to_report(self) -> None:
+        source = (ROOT / "tests/harness/chaos/chaos_scenario.gd").read_text(encoding="utf-8")
+        found = re.search(r"^const TIME_LIMIT_S := ([0-9.]+)$", source, re.MULTILINE)
+        assert found is not None, "chaos_scenario.gd has no `const TIME_LIMIT_S := <seconds>`"
+        time_limit = float(found.group(1))
+        # Godot's start before the first frame and the report after the limit: about 10 s; a margin of 20 s.
+        self.assertGreaterEqual(bots.CHAOS_NETWORK_SECONDS_PER_SEED, time_limit + 20)
 
     def test_enet_and_another_transport_are_refused(self) -> None:
         for transport in ("webrtc", "steam"):

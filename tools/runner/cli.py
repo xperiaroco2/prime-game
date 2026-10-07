@@ -166,7 +166,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("enet", "webrtc"),
         help="the network of --instances or --chaos: enet (the default of --instances) or webrtc (M6-6)",
     )
-    p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over the network)")
+    p.add_argument(
+        "--seconds",
+        type=int,
+        help="hard timeout of the run (default 300 in one process, 180 over the network; --chaos: 60 per seed, "
+        "120 per seed over the network)",
+    )
     p.add_argument("--chaos", action="store_true", help="the chaos bots: a hostile and a malformed peer against the host")
     p.add_argument("--seed", type=int, help="--chaos: the first seed (default: random, printed)")
     p.add_argument("--runs", type=int, default=1, help="--chaos: seeds to run, from --seed up (default 1)")

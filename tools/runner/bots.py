@@ -13,7 +13,8 @@ scenario its command log.
 "Chaos"): tests/harness/chaos/chaos_main.gd, a hostile and a malformed peer against the host beside honest bots, one
 process over the loopback on the simulated clock (with `--enet` or `--transport enet`, over ENet on 127.0.0.1 on a free
 port; with `--transport webrtc`, over WebRTC there, paced to the real clock, the fault shim on). Without `--seed` the
-seed is random and printed first, so a night run that fails names the seed that replays it.
+seed is random and printed first, so a night run that fails names the seed that replays it. The runner kills a run
+after 60 s per seed over the loopback, 120 s over a network (#508: above the scenario's 90 s time limit).
 """
 
 from __future__ import annotations
@@ -38,9 +39,12 @@ NAME_RE = re.compile(r"[a-z0-9_]+")
 # `run` writes instance i's output to tools/out/logs/run/bots_main-<i>.log.
 RUN_LOGS = LOGS / "run"
 CHAOS_TARGET = "tests/harness/chaos/chaos_main.gd"
-# Per seed: three loopback runs of about 2 s each (the long match about 3 s), or one run over ENet (or WebRTC, paced to
-# the real clock: about 16 s).
+# Per seed over the loopback: three runs of about 2 s each (the long match about 3 s).
 CHAOS_SECONDS_PER_SEED = 60
+# Per seed over ENet or WebRTC: one run, over WebRTC paced to the real clock (about 16 s). Above ChaosScenario's 90 s
+# time limit (with Godot's start and the report after it), so a seed that stalls fails with the scenario's reason, not
+# at the kill with none (#508).
+CHAOS_NETWORK_SECONDS_PER_SEED = 120
 CHAOS_MAX_RUNS = 100
 # The night job's random seed (printed before the run): positive, and far from int overflow when runs add to it.
 CHAOS_SEEDS = range(1, 2**31)
@@ -122,6 +126,11 @@ def chaos_args(
     return args
 
 
+def chaos_seconds_per_seed(transport: str | None) -> int:
+    """The runner's kill per chaos seed: 60 s over the loopback (`transport` None), 120 s over a network."""
+    return CHAOS_SECONDS_PER_SEED if transport is None else CHAOS_NETWORK_SECONDS_PER_SEED
+
+
 def chaos(
     seed: int | None = None,
     runs: int = 1,
@@ -153,7 +162,7 @@ def chaos(
     return launch.main(
         CHAOS_TARGET,
         headless=True,
-        seconds=seconds or CHAOS_SECONDS_PER_SEED * runs,
+        seconds=seconds or chaos_seconds_per_seed(transport) * runs,
         user_args=chaos_args(seed, runs, long, port, transport or "enet"),
     )
 

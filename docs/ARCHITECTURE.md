@@ -1539,7 +1539,11 @@ and `host_lost` before the `Welcome`) fails its bot's step in `play_frame` befor
 those of the bot's earlier joins (`NetPlay._lost_join`, #483: `its join was lost for good (host_unreachable)`); a
 join that waits for its retry does not start play. Over the network a bot joins at most `ChaosRun.MAX_JOINS` (3)
 times, so a join retried without end fails too. Until #483 such a run played on without the bot, and over WebRTC,
-paced to the real clock, the runner killed it at 60 s, before its 90 s time limit, with no reason printed. The
+paced to the real clock, the runner killed it at 60 s, before its 90 s time limit, with no reason printed. Since
+#508 the runner's kill is 120 s per seed over ENet or WebRTC (`bots.CHAOS_NETWORK_SECONDS_PER_SEED`; 60 s over the
+loopback), so a seed that stalls for any other reason fails at `ChaosScenario.TIME_LIMIT_S` with the scenario's
+reason (`not done within the time limit (90.0 s)`; 2026-10-07, a planted stall, bot 3 waiting 200 s in End,
+failed so at 90.6 s over WebRTC, and with `--seconds 60` was killed with no reason). The
 malformed peer sends its `ForceRole` naming bot 2 only once bot 2's peer id is known, so none names peer 0 (which
 the encoder refuses with an error line).
 
