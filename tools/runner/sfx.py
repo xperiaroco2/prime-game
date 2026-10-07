@@ -450,8 +450,10 @@ def shown_path(path: Path) -> str:
 
 def collect(paths: list[str]) -> list[tuple[Path, Path]]:
     """Each file to check with the folder it was found under: a folder gives its .wav and .ogg files (all depths,
-    sorted), a file itself. A relative path is looked up under the current folder first, then the repository."""
+    sorted), a file itself, each file once (the first path that gives it wins). A relative path is looked up under the
+    current folder first, then the repository."""
     found: list[tuple[Path, Path]] = []
+    seen: set[Path] = set()
     for arg in paths:
         path = Path(arg)
         if not path.is_absolute() and not path.exists() and (ROOT / path).exists():
@@ -465,7 +467,13 @@ def collect(paths: list[str]) -> list[tuple[Path, Path]]:
             found.append((path, path.parent))
         else:
             raise Failure(f"{arg}: no such file or folder")
-    return found
+    unique: list[tuple[Path, Path]] = []
+    for file, root in found:
+        key = file.resolve()
+        if key not in seen:
+            seen.add(key)
+            unique.append((file, root))
+    return unique
 
 
 # --- the report and the page -------------------------------------------------------------------------------------

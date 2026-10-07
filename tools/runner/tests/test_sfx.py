@@ -375,6 +375,17 @@ class CommandTest(Fixtures):
             self.run_main(self.dir / "a", category="door")
         self.assertIn("--category door", str(caught.exception))
 
+    def test_a_file_given_twice_or_inside_a_folder_given_is_checked_once(self) -> None:
+        root = self.make_set()
+        good = root / "good.wav"
+        found = sfx.collect([str(root), str(good), str(good)])
+        self.assertEqual(len(found), 5)
+        self.assertEqual([f for f, _ in found].count(good), 1)
+        self.assertEqual(dict(found)[good], root)  # the first path that gives it wins
+        _code, _printed = self.run_main(root, good)
+        report = json.loads((self.dir / "out" / "sfx.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(report["files"]), 5)
+
     def test_the_cli_passes_its_options(self) -> None:
         args = cli.build_parser().parse_args(["sfx-check", "a", "b", "--page", "--category", "ui", "--out", "o"])
         self.assertEqual((args.paths, args.page, args.category, args.out), (["a", "b"], True, "ui", Path("o")))
