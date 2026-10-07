@@ -272,6 +272,10 @@ def main(files: list[str] | None = None, lfs_content: bool = False) -> int:
     else:
         ok("project.godot keeps the default user://")
 
+    if not (common.IS_CI or common.IS_CLOUD):  # there lfs.ci_pointers() skips them (#515)
+        hint = lfs.local_hint()
+        if hint:
+            warn(hint)
     before = git_status()
     uid_problems = run_import()
     if uid_problems:

@@ -3,8 +3,8 @@
 CI checks out without LFS content (`lfs: false`, the LFS ADR), so each file `.gitattributes` routes through LFS is a
 pointer file there: a few lines of text that start with the spec's version line. Godot imports it by its extension and
 fails (`Not a PNG file`, `Not a WAV file`, a glTF parse error), and rewrites its `.import` file as it does; every
-resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI only
-(common.IS_CI), the import never sees a pointer file. aside()
+resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI (and a
+Claude Code cloud session, also a checkout that may lack LFS content), the import never sees a pointer file. aside()
 puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, an empty glTF scene: STAND_INS) under its
 committed `.import` file, so Godot writes the imported file every resource that uses it loads, with its uid; a type
 without a stand-in (a font, Ogg or MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with its `.import`
@@ -133,8 +133,9 @@ def pointers(root: Path | None = None) -> list[str]:
 
 
 def ci_pointers(root: Path | None = None) -> list[str]:
-    """pointers() in CI, where the checkout has no LFS content; locally none, so nothing changes there."""
-    return pointers(root) if common.IS_CI else []
+    """pointers() in CI and in a Claude Code cloud session (common.IS_CLOUD), checkouts that may have no LFS content;
+    locally none, so nothing changes there (check.main names them instead: lfs.local_hint)."""
+    return pointers(root) if common.IS_CI or common.IS_CLOUD else []
 
 
 def stand_in(name: str) -> bytes | None:
@@ -263,6 +264,17 @@ def summary(names: list[str], errors: int, warnings: int) -> str:
         " check about them dropped; credits still checked"
     )
 
+
+def local_hint(root: Path | None = None) -> str:
+    """check's warning on a PC whose checkout has pointer files ('' when none): the import fails on each."""
+    names = pointers(root)
+    if not names:
+        return ""
+    shown = ", ".join(names[:3]) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+    return (
+        f"{len(names)} LFS pointer file{'' if len(names) == 1 else 's'} instead of the content ({shown}): Godot cannot"
+        " import them; get the content with `git lfs pull` (CI skips them)"
+    )
 
 
 def require_content(root: Path | None = None) -> list[str]:

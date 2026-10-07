@@ -103,10 +103,26 @@ class PointerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = repo(Path(tmp))
             write(root, "art/a.png", POINTER)
-            with mock.patch.object(common, "IS_CI", True):
+            with mock.patch.multiple(common, IS_CI=True, IS_CLOUD=False):
                 self.assertEqual(lfs.ci_pointers(root), ["art/a.png"])
-            with mock.patch.object(common, "IS_CI", False):
+            # A Claude Code cloud session is another checkout that may have no LFS content.
+            with mock.patch.multiple(common, IS_CI=False, IS_CLOUD=True):
+                self.assertEqual(lfs.ci_pointers(root), ["art/a.png"])
+            with mock.patch.multiple(common, IS_CI=False, IS_CLOUD=False):
                 self.assertEqual(lfs.ci_pointers(root), [])
+
+    def test_a_pc_without_lfs_content_gets_a_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = repo(Path(tmp))
+            write(root, "art/real.png", png())
+            self.assertEqual(lfs.local_hint(root), "")
+            for name in ("a.png", "b.png", "c.png", "d.wav"):
+                write(root, f"art/{name}", POINTER)
+            self.assertEqual(
+                lfs.local_hint(root),
+                "4 LFS pointer files instead of the content (art/a.png, art/b.png, art/c.png and 1 more): Godot cannot"
+                " import them; get the content with `git lfs pull` (CI skips them)",
+            )
 
     def test_the_credits_check_still_covers_a_pointer_file_in_ci(self) -> None:
         # It needs only the path: an uncredited pointer file fails in CI as the real file does locally.
@@ -317,7 +333,7 @@ class CheckTest(unittest.TestCase):
                 return Result(0, "", False, 1.0)
 
             for ci in (True, False):
-                with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "IS_CI", ci), \
+                with mock.patch.object(common, "ROOT", root), mock.patch.multiple(common, IS_CI=ci, IS_CLOUD=False), \
                         mock.patch.object(check, "godot", fake_godot), \
                         mock.patch.object(check, "record_import"):  # fmt: skip
                     check.run_import()
@@ -447,7 +463,7 @@ class RealPointerTest(unittest.TestCase):
             def run(ci: bool, step: object) -> tuple[object, str]:
                 printed = io.StringIO()
                 with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "OUT", logs.parent), \
-                        mock.patch.object(common, "LOGS", logs), mock.patch.object(common, "IS_CI", ci), \
+                        mock.patch.object(common, "LOGS", logs), mock.patch.multiple(common, IS_CI=ci, IS_CLOUD=False), \
                         mock.patch("sys.stdout", printed):  # fmt: skip
                     value = step()  # type: ignore[operator]
                 return value, printed.getvalue()
@@ -494,7 +510,7 @@ class RealPointerTest(unittest.TestCase):
             def run(ci: bool, step: object) -> tuple[object, str]:
                 printed = io.StringIO()
                 with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "OUT", logs.parent), \
-                        mock.patch.object(common, "LOGS", logs), mock.patch.object(common, "IS_CI", ci), \
+                        mock.patch.object(common, "LOGS", logs), mock.patch.multiple(common, IS_CI=ci, IS_CLOUD=False), \
                         mock.patch("sys.stdout", printed):  # fmt: skip
                     value = step()  # type: ignore[operator]
                 return value, printed.getvalue()
