@@ -64,7 +64,9 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     silent otherwise, except in an unattended session in acceptEdits (issue #312): there allow the call unless it
     writes to a path Claude Code protects (guard.allows), so a route-C successor manager and its workflows (#484) run
     routine shell work as a bypass session would. The deny and ask rules and Claude Code's own delete checks still
-    hold over an allow. A human's own acceptEdits session (the humans' default mode) keeps its prompts."""
+    hold over an allow. A human's own acceptEdits session (the humans' default mode) keeps its prompts: unattended
+    needs a positive sign (a desktop-app session the app does not mark attended), so a CLI or IDE session never gets
+    the allow."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if tool not in ("Bash", "PowerShell") or not isinstance(tool_input, dict):
@@ -87,10 +89,16 @@ def pre_tool_use(payload: dict[str, object]) -> int:
 
 
 def unattended() -> bool:
-    """No human answers this session's prompts: Claude Code does not mark it attended. The desktop app sets
-    CLAUDE_CODE_SESSION_ATTENDED=1 in a session a human opened (seen 2026-10-07, app 2.19675.1); a scheduled-task run
-    is unattended (its tools say so, #484), and a session without the variable counts as one too."""
-    return os.environ.get("CLAUDE_CODE_SESSION_ATTENDED", "") != "1"
+    """No human answers this session's prompts, by a positive sign only (fails closed). The desktop app sets
+    CLAUDE_CODE_SESSION_ATTENDED=1 in a session a human opened (seen 2026-10-07, app 2.19675.1), and knows a
+    scheduled-task run is unattended (its tools say so, #484). So a session counts as unattended when the variable says
+    so (0 or false), or when the desktop app started it (CLAUDE_CODE_ENTRYPOINT claude-desktop) without setting it.
+    A CLI, IDE or SDK session without the variable (a human's terminal or Rider) is attended: it keeps its prompts.
+    Which of the two a scheduled run sets is unverified until the route-C probe (#312)."""
+    attended = os.environ.get("CLAUDE_CODE_SESSION_ATTENDED", "").strip().lower()
+    if attended:
+        return attended in ("0", "false", "no")
+    return os.environ.get("CLAUDE_CODE_ENTRYPOINT", "") == "claude-desktop"
 
 
 def cloud_session() -> bool:
