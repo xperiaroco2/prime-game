@@ -24,6 +24,7 @@ class FakeSocket {
     this.attachment = null;
     this.sent = [];
     this.closedWith = null;
+    this.closeCalls = 0;
     this.strictCodes = strictCodes;
   }
 
@@ -43,6 +44,7 @@ class FakeSocket {
   }
 
   close(code, reason) {
+    this.closeCalls++;
     if (this.strictCodes) {
       if (code !== undefined && code !== 1000 && !(code >= 3000 && code <= 4999)) {
         throw new TypeError(`Invalid WebSocket close code: ${code}.`);
@@ -321,10 +323,13 @@ test("closeReplyCode keeps 1000 and 3000-4999 and turns every other code into 10
 });
 
 test("a close the runtime answered already is no error, and the joiner hears it once", async () => {
-  const { state, service, host, joiner } = hostAndJoiner({ strictCodes: true });
+  const lines = [];
+  const { state, service, host, joiner } = hostAndJoiner({ strictCodes: true }, (text) => lines.push(text));
   host.close(1000, "");
   state.drop(host);
   await service.clientClosed(host, 1000);
+  assert.equal(host.closeCalls, 2);
+  assert.deepEqual(lines, []);
   assert.deepEqual(host.closedWith, { code: 1000, reason: "" });
   assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT]);
 });
