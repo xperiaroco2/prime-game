@@ -535,7 +535,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
     p.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD)")
-    p.add_argument("--mode", choices=["bypass", "default"], default="bypass", help="the permission mode to model")
+    p.add_argument(
+        "--mode", choices=["bypass", "acceptEdits", "default"], default="bypass", help="the permission mode to model"
+    )
     p.add_argument("--list", action="store_true", help="list each cause that stops a call, with examples")
     p.add_argument("--observed", action="store_true", help="the prompts, denials and blocks the transcripts record")
 
