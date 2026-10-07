@@ -323,6 +323,17 @@ func _joining() -> NetTransport:
 
 
 func _peer_known(bot: ScenarioBot) -> void:
+	if not is_host():
+		# How long the join took: the WebRTC library's setup was once part of it (#510).
+		var started: int = _join_started.get(bot.number, 0)
+		@warning_ignore("integer_division")
+		var took_ms := (Time.get_ticks_usec() - started) / 1000
+		print(
+			(
+				"%s: bot %d connected as peer %d; its join took %d ms"
+				% [_log_label(), bot.number, bot.peer, took_ms]
+			)
+		)
 	if DirAccess.make_dir_recursive_absolute(dir) != OK:
 		failures.append("cannot create %s" % dir)
 		return
