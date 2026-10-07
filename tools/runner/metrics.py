@@ -122,6 +122,14 @@ The plan phase (#469, its before and after numbers): per `issue-task` run with a
 list $ of the planner and of the plan's critique, the repository files the planner read (a Read of any file, a code
 read as above, a shell read of a doc), how many of them the implementer read too, and the critique's findings (all,
 and blockers plus majors). The JSON record's "plans" holds the same rows.
+
+One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
+alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
+UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
+once) and answered, those working now (a started key with no result), the newest write to its journal or agent
+transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
+the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
+no file.
 """
 
 from __future__ import annotations
@@ -2851,6 +2859,107 @@ def track_table(spend: dict) -> list[str]:
     return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
 
 
+# --- one run's spend so far (#534) --------------------------------------------------------------------------------
+
+
+def find_runs(dirs: list[Path], ids: list[str]) -> list[Path]:
+    """The run folders (<folder>/<session>/subagents/workflows/wf_*) whose name starts with one of `ids` (the `wf_`
+    optional), in the order of `dirs`, each once."""
+    wanted = [i if i.startswith("wf_") else f"wf_{i}" for i in (x.strip() for x in ids) if i]
+    found: list[Path] = []
+    for folder in dirs:
+        for run_dir in sorted(folder.glob("*/subagents/workflows/wf_*")):
+            if run_dir.is_dir() and run_dir not in found and any(run_dir.name.startswith(w) for w in wanted):
+                found.append(run_dir)
+    return found
+
+
+def run_spend(run_dir: Path, now: float) -> dict:
+    """One workflow run so far, finished or in flight: its agents (the journal's, else an agent file's .meta.json),
+    who works now, its API list $ and cache-read $ (each message id once, every call whatever its time) by phase, and
+    the newest write to its journal or agent transcripts."""
+    entries = read_json_lines(run_dir / "journal.jsonl")
+    started = [e for e in entries if e.get("type") == "started" and "key" in e]
+    answered = {e["key"] for e in entries if e.get("type") == "result" and "key" in e}
+    last = {e["key"]: e for e in started}  # a key started twice: a retried agent, the last attempt is the live one
+    agents: dict[str, tuple[str, str]] = {}
+    for e in started:
+        agents[str(e.get("agentId", ""))] = (str(e.get("label", "")), str(e.get("phase") or "no phase"))
+    for p in sorted(run_dir.glob("agent-*.jsonl")):
+        if p.name[6:-6] not in agents:  # a journal cut short
+            meta = read_meta(p)
+            agents[p.name[6:-6]] = (str(meta.get("description", "")), str(meta.get("workflowPhase") or "no phase"))
+    seen: set[str] = set()
+    phases: dict[str, dict] = {}
+    spent = read = 0.0
+    calls = 0
+    for aid, (_label, phase) in agents.items():
+        row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
+        row["agents"] += 1
+        path = run_dir / f"agent-{aid}.jsonl"
+        if path.is_file():
+            s, r, c = spend_of(path, None, float("inf"), seen)
+            row["usd"] += s
+            spent, read, calls = spent + s, read + r, calls + c
+    files = [run_dir / "journal.jsonl", *run_dir.glob("agent-*.jsonl")]
+    writes = [p.stat().st_mtime for p in files if p.is_file()]
+    return {
+        "run": run_dir.name,
+        "session": run_dir.parents[2].name,
+        "folder": run_dir.parents[3].name,
+        "finished": bool(entries) and entries[-1].get("type") == "result" and set(last) <= answered,
+        "started": len(last),
+        "answered": len(set(last) & answered),
+        "working": [f"{e.get('label', '')} ({e.get('phase')})" if e.get("phase") else str(e.get("label", ""))
+                    for k, e in last.items() if k not in answered],  # fmt: skip
+        "usd": spent,
+        "read_usd": read,
+        "api_calls": calls,
+        "phases": phases,
+        "idle_minutes": (now - max(writes)) / 60 if writes else None,
+    }
+
+
+def run_lines(r: dict) -> list[str]:
+    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase."""
+    state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
+    head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} agents started, "
+            f"{r['answered']} answered")  # fmt: skip
+    if r["working"]:
+        head += "; working now: " + ", ".join(r["working"])
+    if r["idle_minutes"] is not None:
+        head += f"; last write {r['idle_minutes']:.0f} min ago"
+    phases = ", ".join(f"{name} {fmt_usd(p['usd'])} ({p['agents']} {'agent' if p['agents'] == 1 else 'agents'})"
+                       for name, p in r["phases"].items()) or "no agent yet"  # fmt: skip
+    return [head,
+            f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
+            f"in {r['api_calls']} API calls",
+            f"by phase: {phases}"]  # fmt: skip
+
+
+def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
+              now: float | None = None) -> int:  # fmt: skip
+    """`metrics --run ID ...`: each named workflow run's spend so far, in flight or finished (#534: the manager's
+    check after a large launch's first phase), from the transcripts of the three track checkouts and their
+    worktrees."""
+    dirs = [d for d, _default in track_dirs(checkout or main_checkout(), base)]
+    found = find_runs(dirs, ids)
+    if not found:
+        raise Failure(f"metrics: no workflow run named {' '.join(ids)} in the {len(dirs)} transcript folders of the "
+                      f"three track checkouts and their worktrees (a run id from the Workflow tool's result or `wave`, "
+                      f"such as wf_45e2297a-4a6, or its start)")  # fmt: skip
+    moment = time.time() if now is None else now
+    runs = [run_spend(d, moment) for d in found]
+    lines: list[str] = []
+    for r in runs:
+        lines += run_lines(r)
+    if len(runs) > 1:
+        spent, read = sum(r["usd"] for r in runs), sum(r["read_usd"] for r in runs)
+        lines.append(f"{len(runs)} runs: {fmt_week(week_percent(spent, read))} of the week, list {fmt_usd(spent)}")
+    say("\n".join(lines))
+    return 0
+
+
 def tracks_main(
     labels: list[str], names: list[str], budgets: list[float], since: str | None, until: str | None, out: str | None,
     compact: bool, *, checkout: Path | None = None, base: Path | None = None,
@@ -2904,7 +3013,12 @@ def main(
     no_gh: bool = False,
     track: list[str] | None = None,
     budget: list[float] | None = None,
+    run_ids: list[str] | None = None,
 ) -> int:
+    if run_ids:
+        if track or budget or sessions or since or until or ci or compact:
+            raise Failure("--run stands alone: it reads each named run whole, in flight or finished")
+        return runs_main(run_ids)
     if track:  # --session labels the tracks' sessions instead of choosing the report's
         return tracks_main(sessions or [], track, budget or [], since, until, out, compact)
     if budget:
