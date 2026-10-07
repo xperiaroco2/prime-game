@@ -3,7 +3,7 @@
 - **Status:** Accepted; amended 2026-10-02 by amendment A (the engineer's answer N1 (b), #183); amended 2026-10-04
   (#308: `godot-api-checker`'s effort, the publisher trial under amendment A); amended 2026-10-05 (the Sonnet
   publisher on clean runs a standing rule, the weekly budget ADR's N5 (a)); amended 2026-10-07 (#469: the Sonnet
-  planner, a manager habit like N5, pending the engineer's choice of the habit or a script default)
+  planner, a manager habit like N5, the engineer's option (a))
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -54,11 +54,10 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
   - **2026-10-07** (#469, the engineer's yes to a Sonnet planner in `issue-task`'s plan phase, [issue comment
     6014949187](https://github.com/xperiaroco2/prime-game/issues/469#issuecomment-6014949187)): the manager passes
     `models.plan: "sonnet"` on every `issue-task` launch with `plan_review`, as N5's publisher; the plan's critique
-    stays on the review model (Opus). The habit, not a default in the script, is option (a) of the choice the
-    engineer has yet to make in the "Needs the engineer" of #469's PR (the yes covers a Sonnet planner, not how it is
-    set): no script default names a model, and the workflow tests still assert it. His answer, with its link,
-    replaces this sentence. It holds while `metrics`' plan phase table shows the critique's findings not
-    rising against the Opus planners before it.
+    stays on the review model (Opus). The habit, not a default in the script, is option (a), which the
+    engineer chose ([PR #504 comment 6033798426](https://github.com/xperiaroco2/prime-game/pull/504#issuecomment-6033798426)):
+    no script default names a model, and the workflow tests still assert it. It holds while `metrics`' plan phase
+    table shows the critique's findings not rising against the Opus planners before it.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.
