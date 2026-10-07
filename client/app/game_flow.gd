@@ -21,6 +21,13 @@ enum Screen {
 	END,  ## "The <side> won"; the host's Back to lobby
 }
 
+## What showing a screen asks of the mouse (#169, #517).
+enum Pointer {
+	CAPTURE,  ## the lobby and the round: the player looks around
+	KEEP,  ## Loading: nothing to click, and a mouse captured in the lobby must reach the round
+	FREE,  ## the menu, Connecting and the end screen: their buttons
+}
+
 
 ## The screen for `session` and `model` (the model is read only once welcomed).
 static func screen(session: Session, model: ClientModel) -> Screen:
@@ -55,11 +62,18 @@ static func frozen(screen_now: Screen) -> bool:
 	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
 
 
-## Whether showing `screen_now` frees a captured mouse: every screen but the lobby and the round
-## has buttons (the end screen's Back to lobby). In the lobby and the round the player looks around:
-## a click captures the mouse, Esc's menu frees it and closing the menu captures it again (#169).
-static func frees_pointer(screen_now: Screen) -> bool:
-	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
+## What showing `screen_now` does to the mouse. In the lobby and the round the player looks around:
+## the screen captures the mouse, Esc's menu frees it and closing the menu captures it again (#169).
+## Loading, between the countdown and the round, keeps it as it was: freeing it there left the
+## round with the cursor showing until a click (#517). Every other screen has buttons (the menu,
+## Connecting's Cancel, the end screen's Back to lobby) and frees it.
+static func pointer_on(screen_now: Screen) -> Pointer:
+	match screen_now:
+		Screen.LOBBY, Screen.ROUND:
+			return Pointer.CAPTURE
+		Screen.LOADING:
+			return Pointer.KEEP
+	return Pointer.FREE
 
 
 ## Seconds left until `end_tick` (a countdown's or the match clock's end), from the newest host
