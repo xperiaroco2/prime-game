@@ -283,12 +283,14 @@ class LongTempTest(unittest.TestCase):
         buffer = io.StringIO()
         with (
             mock.patch.dict(os.environ, {"TEMP": short, "TMP": short}),
+            mock.patch.dict(os.environ),  # restores a TMPDIR popped below, whatever the parent set
             mock.patch.object(tempfile, "tempdir", short),
             mock.patch.object(machine_env, "_applied", None),
             mock.patch.object(doctor, "IS_CI", False),
             mock.patch.object(doctor, "IS_CLOUD", False),
             contextlib.redirect_stdout(buffer),
         ):
+            os.environ.pop("TMPDIR", None)  # tempfile reads it before TEMP: a short one would join the report
             report = machine_env.apply()
             self.same(os.environ["TEMP"], full)
             self.same(os.environ["TMP"], full)
@@ -307,7 +309,9 @@ class LongTempTest(unittest.TestCase):
             "runner.tests.test_train.TrainTest.test_prs_merge_in_series_each_after_main_moved",
             "runner.tests.test_hooks.GitFilesTest.test_temp_matches_list_the_temp_folder_and_find_worktrees",
         ]
-        env = {**os.environ, "TEMP": short, "TMP": short, "PYTHONIOENCODING": "utf-8"}
+        # Without the parent's TMPDIR, which tempfile reads before TEMP: with it the child would not use the short TEMP.
+        env = {k: v for k, v in os.environ.items() if k != "TMPDIR"}
+        env |= {"TEMP": short, "TMP": short, "PYTHONIOENCODING": "utf-8"}
         res = subprocess.run(
             [sys.executable, "-m", "unittest", *tests],
             cwd=ROOT / "tools",
@@ -318,7 +322,9 @@ class LongTempTest(unittest.TestCase):
             timeout=180,
             check=False,
         )
-        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        # A rename of one of the three tests above shows as "no such test": this is the list to update.
+        message = "one of the tests named above failed or was renamed:\n" + res.stdout + res.stderr
+        self.assertEqual(res.returncode, 0, message)
         self.assertIn("Ran 3 tests", res.stderr)
 
 
