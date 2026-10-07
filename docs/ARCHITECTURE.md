@@ -340,8 +340,10 @@ dissidents, no crew present only once every crew member left, End widens nothing
   The library sets itself up when a process makes its first connection, and again after its last one is gone; a
   new connection's offer waits for that (#472, measured on the engineer's PC, 16 logical CPUs): about 30 ms when
   idle, but 9 to 11 s for a GdUnit process's first offer under `tools\run.cmd load --loops 128`, and often 0.5 to
-  1 s there whenever no other connection was open, against under 10 ms while one was. So the tests whose waits
-  time the transport keep one connection open for their whole run (`tests/integration/net/webrtc_warm_up.gd`).
+  1 s there whenever no other connection was open, against under 10 ms while one was. So
+  `webrtc_transport_test.gd` and `webrtc_silence.gd` keep one connection open for their whole run
+  (`tests/integration/net/webrtc_warm_up.gd`); the other WebRTC runs (`webrtc_host_and_two_clients`,
+  `webrtc_freeze`, `webrtc_stall`, the WebRTC bots) do not yet and pay the setup on their first connection.
 - **`WebRtcTransport`** (`net/transport/`, M6-4, #370; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
   §2.1 to §2.3, §2.6; E48, E50, E54, E56), the second network backend: a star, never a mesh. The host holds one
   `WebRTCPeerConnection` per client and reads it directly (no `WebRTCMultiplayerPeer`, E48); the host's own client
