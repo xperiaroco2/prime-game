@@ -140,8 +140,8 @@ an index out of range or one already paired is ignored. A run where neither revi
 zeros; one whose judge returned nothing is listed but left out of the totals. Per (trial, control) pair of models, the
 totals and the stop rule (ab_verdict): stop once the trial missed AB_STOP_MISSES more valid blockers or majors than
 the control did; after AB_RUNS judged runs keep the trial model when it missed at most AB_KEEP_MISSES more, found at
-least AB_RECALL of the control's valid findings, and its invalid share is at most AB_INVALID_MARGIN over the control's;
-else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
+least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
+AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
 """
 
 from __future__ import annotations
@@ -265,7 +265,7 @@ SERIOUS_FROM = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", 
 AB_RUNS = 10
 AB_STOP_MISSES = 2
 AB_KEEP_MISSES = 1
-AB_RECALL = 0.8
+AB_VALID_RATIO = 0.8
 AB_INVALID_MARGIN = 0.15
 AB_SIDES = ("trial", "control")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
@@ -1814,7 +1814,7 @@ def ab_verdict(runs: int, trial: dict, control: dict) -> str:
     if runs < AB_RUNS:
         return f"continue: {runs} of {AB_RUNS} judged runs"
     share = {k: s["invalid"] / s["findings"] if s["findings"] else 0.0 for k, s in (("t", trial), ("c", control))}
-    kept = (missed - found <= AB_KEEP_MISSES and trial["valid"] >= AB_RECALL * control["valid"]
+    kept = (missed - found <= AB_KEEP_MISSES and trial["valid"] >= AB_VALID_RATIO * control["valid"]
             and share["t"] <= share["c"] + AB_INVALID_MARGIN)  # fmt: skip
     return "keep the trial model (the engineer decides)" if kept else "drop the trial model"
 
@@ -1885,7 +1885,7 @@ def ab_section(record: dict) -> list[str]:
         "",
         f"Per pair of models, over the judged runs. Stop once the trial missed {AB_STOP_MISSES} more valid blockers or "
         f"majors than the control; after {AB_RUNS} judged runs keep it when it missed at most {AB_KEEP_MISSES} more, "
-        f"found at least {AB_RECALL:.0%} of the control's valid findings and its invalid share is at most "
+        f"found at least {AB_VALID_RATIO:.0%} as many valid findings as the control and its invalid share is at most "
         f"{AB_INVALID_MARGIN:.0%} over the control's (the A/B ADR; the engineer decides).",
         "",
         table(total_head, totals),
