@@ -5,7 +5,11 @@ beyond the session's own worktree and task branch (docs/AGENT_WORKFLOW.md §8.2)
 Claude Code checks a redirect or `tee` target only against Edit allow and deny rules, and cannot see where
 `Copy-Item` or `cp` writes. The PreToolUse hook (`run hook guard`) passes Bash and PowerShell commands here and asks
 the human when one writes to `.claude/settings*.json` or `addons/`. Everything else passes silently, so the agent
-can work alone.
+can work alone. In an unattended session in acceptEdits (issue #312: a route-C successor manager and its workflows
+always run in it, #484; hooks.unattended) the hook allows such a call instead (`allows`), so it runs as in bypass,
+unless it writes to a path Claude Code
+protects (CLAUDE_PROTECTED_DIRS and _FILES: `.claude` but Claude's own worktrees, `.git`, ...; Analysis.protected),
+which keeps Claude Code's prompt. The deny and ask rules and Claude Code's own delete checks hold over a hook's allow.
 
 Text ask rules cannot tell a delete of the agent's scratch folder from a delete of the repo, so the guard also judges
 two commands by their target (issue #47):
@@ -205,6 +209,20 @@ PROTECTED_TEXT_RE = re.compile(
     re.IGNORECASE,
 )
 SETTINGS_NAMES = ("settings.json", "settings.local.json")
+# The paths Claude Code protects from writes in every mode but bypass (code.claude.com/docs/en/permission-modes,
+# "Protected paths", checked 2026-10-07): no allow rule or hook approves an Edit there. `.claude` has exceptions, of
+# which only Claude's own worktrees `.claude/worktrees/<n>/` matter here (claude_protected).
+CLAUDE_PROTECTED_DIRS = {".git", ".vscode", ".idea", ".husky", ".cargo", ".devcontainer", ".yarn", ".mvn", ".claude"}
+CLAUDE_PROTECTED_FILES = {
+    ".gitconfig", ".gitmodules", ".bashrc", ".bash_profile", ".bash_login", ".bash_aliases", ".bash_logout", ".zshrc",
+    ".zprofile", ".zshenv", ".zlogin", ".zlogout", ".profile", ".envrc", ".npmrc", ".yarnrc", ".yarnrc.yml",
+    ".pnp.cjs", ".pnp.loader.mjs", ".pnpmfile.cjs", "bunfig.toml", ".bunfig.toml", ".bazelrc", ".bazelversion",
+    ".bazeliskrc", ".pre-commit-config.yaml", "lefthook.yml", "lefthook.yaml", ".lefthook.yml", ".lefthook.yaml",
+    "gradle-wrapper.properties", "maven-wrapper.properties", ".devcontainer.json", ".ripgreprc", "pyrightconfig.json",
+    ".mcp.json", ".claude.json",
+}  # fmt: skip
+# A path-like word of inline code (text_protected).
+CODE_WORD_RE = re.compile(r"[^\s'\"`()\[\]{},;=<>|&+]+")
 
 # Finding areas of the target-judged commands (the others are the protected paths above, or "piped").
 DELETE, GIT = "recursive delete", "git"
@@ -503,6 +521,32 @@ def text_area(text: str) -> str | None:
     if not match:
         return None
     return "addons/" if "addons" in match.group(0).lower() else ".claude/settings*.json"
+
+
+def claude_protected(path: str) -> str | None:
+    """The part of a normalized path that Claude Code protects (CLAUDE_PROTECTED_DIRS, CLAUDE_PROTECTED_FILES), or
+    None. Claude's own worktrees (`.claude/worktrees/<n>/`) are not protected, though a protected path inside one is
+    (`.claude/worktrees/5/.claude/skills`)."""
+    parts = [p for p in path.split("/") if p not in ("", ".")]
+    index = 0
+    while index < len(parts):
+        part = parts[index]
+        if part == ".claude" and parts[index + 1 : index + 2] == ["worktrees"] and len(parts) > index + 2:
+            index += 3
+            continue
+        if part in CLAUDE_PROTECTED_DIRS or (part == ".config" and parts[index + 1 : index + 2] == ["git"]):
+            return part
+        index += 1
+    return parts[-1] if parts and parts[-1] in CLAUDE_PROTECTED_FILES else None
+
+
+def text_protected(text: str) -> bool:
+    """Free text (inline code) names a path Claude Code protects in one of its path-like words."""
+    return any(
+        claude_protected(re.sub(r"/+", "/", word.replace("\\", "/").lower()))
+        for word in CODE_WORD_RE.findall(text)
+        if "." in word
+    )
 
 
 def normalize(path: str) -> str:
@@ -858,6 +902,15 @@ class Paths:
         """The protected area token writes to: inside this project only; by its text when it cannot be resolved. A
         PowerShell array or a bash brace expansion is judged item by item."""
         return next((a for a in (self._area(item, cwd) for item in self.items(token)) if a), None)
+
+    def claude_protected(self, token: str, cwd: str | None = "") -> bool:
+        """token writes to a path Claude Code protects (claude_protected), item by item; by its text when it cannot
+        be resolved or is outside every project (`~/.claude/x` without a known home)."""
+        for item in self.items(token):
+            path = self.resolve(item, cwd)
+            if claude_protected(normalize(item) if path in (None, OUTSIDE) else str(path)):
+                return True
+        return False
 
     def _area(self, token: str, cwd: str | None) -> str | None:
         path = self.resolve(token, cwd)
@@ -1438,6 +1491,9 @@ class Analysis:
         if main and TASK_BRANCH_RE.match(main):
             paths.own, paths.claim, paths.task = paths.root, False, main.lower()
         self.findings: list[Finding] = []
+        # Writes to a path Claude Code protects that are no finding here (`.claude/skills/x`, `.git/x`): in
+        # acceptEdits the hook then leaves the call to Claude Code (hooks.pre_tool_use, issue #312).
+        self.protected: list[str] = []
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
         self.prefix_env: dict[str, str] = {}
@@ -1448,12 +1504,17 @@ class Analysis:
         area = self.paths.area(path, cwd)
         if area:
             self.findings.append(Finding(path, area, verb))
+        elif self.paths.claude_protected(path, cwd):
+            self.protected.append(path)
 
     def code(self, text: str, verb: str) -> None:
-        """Inline interpreter code: a line that uses a file-writing API and names a protected path."""
+        """Inline interpreter code: a line that uses a file-writing API and names a protected path. Code that writes
+        and names a path Claude Code protects anywhere in it counts as such a write (Analysis.protected)."""
         for line in text.splitlines():
             if WRITE_API_RE.search(line) and (area := text_area(line)):
                 self.findings.append(Finding(line.strip()[:80], area, verb))
+        if WRITE_API_RE.search(text) and text_protected(text):
+            self.protected.append(f"({verb} code)")
 
     def command(self, command: str, shell: str, depth: int = 0) -> None:
         self.paths.shell = shell
@@ -2147,6 +2208,7 @@ class Analysis:
                 inner = Analysis(self.paths.child(NESTED_SHELLS[verb], self.prefix_env), self.repo)
                 inner.command(code, NESTED_SHELLS[verb], depth + 1)
                 self.findings += inner.findings
+                self.protected += inner.protected
                 self.paths.adopt(inner.paths)
         return []
 
@@ -2190,9 +2252,22 @@ def check(
     branch, or outside the project. home is the user's home folder, when known: `~` and `$HOME` resolve to it. repo
     tells branch and stash names (hooks.GitFiles); without it no branch is the session's own. cloud: the command
     runs in a cloud session (common.cloud_session), whose main checkout on a task branch is its own (issue #381)."""
+    return judge(command, shell, cwd, root, home, repo, cloud).findings
+
+
+def judge(
+    command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None, cloud: bool = False
+) -> Analysis:
+    """check's analysis: its findings, and the writes to paths Claude Code protects (Analysis.protected)."""
     analysis = Analysis(Paths(root, cwd, home, shell), repo, cloud)
     analysis.command(command, shell)
-    return analysis.findings
+    return analysis
+
+
+def allows(analysis: Analysis) -> bool:
+    """In acceptEdits the hook allows the call (issue #312): no finding and no write to a path Claude Code protects,
+    so it runs as it would in bypass, and the deny and ask rules and Claude Code's own delete checks still hold."""
+    return not analysis.findings and not analysis.protected
 
 
 def reason(findings: list[Finding]) -> str:

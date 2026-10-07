@@ -87,6 +87,31 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
 
 
+    def test_in_accept_edits_the_guard_allows_what_it_finds_nothing_in(self) -> None:
+        # Issue #312: a route-C successor manager runs in acceptEdits (#484); its routine shell work must not prompt.
+        def call(command: str, mode: str, tool: str = "Bash") -> str:
+            payload = {"tool_name": tool, "tool_input": {"command": command}, "cwd": MAIN, "permission_mode": mode}
+            return json.dumps(payload)
+
+        alone: dict[str, str | None] = {"CLAUDE_CODE_SESSION_ATTENDED": None}  # a scheduled-task run: no human
+        command = "cd .claude/worktrees/99 && git status && awk '{print}' x"
+        res = self.run_hook("guard", call(command, "acceptEdits"), **alone)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        output = json.loads(res.stdout)["hookSpecificOutput"]
+        decision = (output["permissionDecision"], output["permissionDecisionReason"])
+        self.assertEqual(decision, ("allow", hooks.ALLOW_REASON))
+        for mode in ("default", "bypassPermissions", "auto", "plan"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self.run_hook("guard", call("git status", mode), **alone).stdout, "")
+        # A human's own acceptEdits session (the humans' default mode) keeps its prompts.
+        res = self.run_hook("guard", call(command, "acceptEdits"), CLAUDE_CODE_SESSION_ATTENDED="1")
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        # A guard ask stays an ask, and a write to a path Claude Code protects is left to Claude Code (its prompt).
+        res = self.run_hook("guard", call("Copy-Item x .claude\\settings.json", "acceptEdits", "PowerShell"), **alone)
+        self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+        res = self.run_hook("guard", call("cp x .claude/worktrees/99/.claude/skills/y.md", "acceptEdits"), **alone)
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+
     def test_crash_fails_closed(self) -> None:
         res = self.run_hook("guard", "this is not JSON")
         self.assertEqual(res.returncode, 2)

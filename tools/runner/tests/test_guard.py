@@ -1426,5 +1426,77 @@ class TempFilteredDeleteTest(unittest.TestCase):
         self.assertIn("scratchpad", guard.reason(findings))
 
 
+OWN = "D:/prime-game/.claude/worktrees/312"
+
+
+class AcceptEditsAllowTest(unittest.TestCase):
+    """Issue #312: in acceptEdits the hook allows a call the guard finds nothing in, unless it writes to a path Claude
+    Code protects (.claude but its worktrees, .git, ...), which keeps Claude Code's prompt."""
+
+    def allows(self, shell: str, command: str, cwd: str = ROOT) -> bool:
+        return guard.allows(guard.judge(command, shell, cwd, ROOT))
+
+    def test_routine_work_is_allowed(self) -> None:
+        for shell, command in (
+            (B, f"cd {OWN} && git status && git diff --stat origin/main...HEAD"),
+            (B, f'cd {OWN} && "$PYTHON_BIN" - <<\'EOF\'\nfrom pathlib import Path\np = Path(r"{OWN}/core/x.gd")\n'
+             'p.write_text("x", encoding="utf-8")\nEOF'),
+            (B, f"cat > {SCRATCH}/a312/msg.txt <<'EOF'\nfeat: x\nEOF"),
+            (B, f"cd {OWN} && sed -i 's/a/b/' docs/AGENT_WORKFLOW.md && rm -rf tests/scratch/x"),
+            (B, "for n in 1 2; do gh pr view $n --json title | cut -c1-80; done"),
+            (P, f"Set-Location {OWN}; tools\\run.cmd test 2>&1 | Select-Object -Last 5"),
+            (P, f"Set-Content -Path {OWN}\\tests\\scratch\\x.txt -Value 'a'"),
+        ):  # fmt: skip
+            with self.subTest(command=command):
+                self.assertTrue(self.allows(shell, command))
+
+    def test_writes_to_claude_protected_paths_keep_the_prompt(self) -> None:
+        for shell, command in (
+            (B, f"cp x.md {OWN}/.claude/skills/x/SKILL.md"),
+            (B, f"cd {OWN} && sed -i 's/a/b/' .claude/skills/orchestrate-stage/SKILL.md"),
+            (B, f"cd {OWN} && git show origin/main:.claude/workflows/x.js > .claude/workflows/x.js"),
+            (B, "echo x >> .git/info/exclude"),
+            (B, "cp x ~/.claude/CLAUDE.md"),
+            (B, f'"$PYTHON_BIN" -c "open(r\'{OWN}/.claude/agents/x.md\', \'w\').write(\'x\')"'),
+            (B, f"cat > {OWN}/.gitmodules <<'EOF'\nx\nEOF"),
+            (P, f"Set-Content -Path {OWN}\\.claude\\agents\\x.md -Value y"),
+            (P, "Copy-Item x.md .vscode\\settings.json"),
+            (B, f"bash -c 'cp x.md {OWN}/.claude/agents/x.md'"),
+            (P, f'powershell -Command "Set-Content {OWN}/.git/x -Value y"'),
+        ):
+            with self.subTest(command=command):
+                analysis = guard.judge(command, shell, ROOT, ROOT)
+                self.assertEqual(analysis.findings, [])
+                self.assertNotEqual(analysis.protected, [])
+                self.assertFalse(guard.allows(analysis))
+
+    def test_a_guard_ask_is_never_allowed(self) -> None:
+        for shell, command in (
+            (B, "cp x .claude/settings.json"),
+            (B, "rm -rf D:/prime-game/core"),
+            (B, "gh issue create -R godotengine/godot --title x"),
+            (P, "Remove-Item -Recurse core"),
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(self.allows(shell, command))
+
+    def test_which_paths_claude_code_protects(self) -> None:
+        for path, part in (
+            ("d:/prime-game/.claude/worktrees/312/core/x.gd", None),
+            ("d:/prime-game/.claude/worktrees/312/.claude/skills/x.md", ".claude"),
+            ("d:/prime-game/.claude/agents/x.md", ".claude"),
+            ("d:/prime-game/.claude/worktrees", ".claude"),
+            ("d:/prime-game/.git/config", ".git"),
+            ("c:/users/me/.config/git/config", ".config"),
+            ("d:/prime-game/.github/workflows/ci.yml", None),
+            ("d:/prime-game/x/.mcp.json", ".mcp.json"),
+            ("c:/users/me/appdata/local/temp/claude/d--prime-game/s/scratchpad/x", None),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(guard.claude_protected(path), part)
+        self.assertTrue(guard.text_protected('p = Path(".claude/skills/x")'))
+        self.assertFalse(guard.text_protected(f'p = Path(r"{OWN}\\core\\x.gd")'))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -32,6 +32,10 @@ A model of Claude Code's matcher, close enough for selftests and replays, not th
   in it prompts. A path the model cannot resolve (an unknown variable, `$(...)`, `~`) is out of scope.
 - Default mode prompts for every file write: an Edit or Write and an output redirect to a file (not `/dev/null` or
   `$null`). In the modes that prompt, a `cd` out of the working directory is not read-only.
+- The guard's hook (hooks.pre_tool_use, since #312) allows in an unattended acceptEdits session a shell call it finds
+  nothing in and that writes to no protected path: such a call passes there as in bypass (a guard from before #312
+  does not). The replay judges every session as unattended, the route-C successor's case: a human's own acceptEdits
+  session keeps the prompts the replay counts for a guard from before #312.
 - Built in, whatever the mode: `rm`/`rmdir` of a critical path (`/`, a drive root, a top-level folder, home, the
   working directory or a parent of it) prompts, even in bypass; `Remove-Item` of a wildcard (`*`, `x/*`, `x\\*`) or a
   system path is denied; `Remove-Item -Recurse` of the working directory or a parent of it prompts outside bypass.
@@ -107,16 +111,6 @@ PS_EDIT_VERBS = {
 PS_REMOVE_VERBS = {"remove-item", "ri", "rm", "rmdir", "del", "erase", "rd"}
 PS_PATH_OPTIONS = {"-path", "-literalpath", "-lp", "-pspath"}
 PS_VALUED = {"-value", "-encoding", "-filter", "-include", "-exclude", "-stream", "-delimiter", "-credential"}
-# Protected paths: writes there prompt in acceptEdits and default mode, whatever the rules say.
-PROTECTED_DIRS = {".git", ".vscode", ".idea", ".husky", ".cargo", ".devcontainer", ".yarn", ".mvn", ".claude"}
-PROTECTED_FILES = {
-    ".gitconfig", ".gitmodules", ".bashrc", ".bash_profile", ".bash_login", ".bash_aliases", ".bash_logout", ".zshrc",
-    ".zprofile", ".zshenv", ".zlogin", ".zlogout", ".profile", ".envrc", ".npmrc", ".yarnrc", ".yarnrc.yml",
-    ".pnp.cjs", ".pnp.loader.mjs", ".pnpmfile.cjs", "bunfig.toml", ".bunfig.toml", ".bazelrc", ".bazelversion",
-    ".bazeliskrc", ".pre-commit-config.yaml", "lefthook.yml", "lefthook.yaml", ".lefthook.yml", ".lefthook.yaml",
-    "gradle-wrapper.properties", "maven-wrapper.properties", ".devcontainer.json", ".ripgreprc", "pyrightconfig.json",
-    ".mcp.json", ".claude.json",
-}  # fmt: skip
 # Redirect targets with no file behind them.
 NO_FILE = {"/dev/null", "$null", "nul", "/dev/stdout", "/dev/stderr"}
 SCRATCHPAD_RE = re.compile(r"^[a-z]:/users/[^/]+/appdata/local/temp/claude/[^/]+/[^/]+/scratchpad(?=/|$)")
@@ -147,15 +141,8 @@ class Scope:
         base = self.base(path)
         if base is None:
             return "outside the working directory"
-        parts = [p for p in path[len(base) :].split("/") if p]
-        if parts[:2] == [".claude", "worktrees"] and len(parts) > 2:
-            parts = parts[3:]  # Claude's own worktrees are not protected; what is inside them may be
-        for index, part in enumerate(parts):
-            if part in PROTECTED_DIRS or (part == ".config" and parts[index + 1 : index + 2] == ["git"]):
-                return f"protected path {part}"
-        if parts and parts[-1] in PROTECTED_FILES:
-            return f"protected path {parts[-1]}"
-        return ""
+        part = guard.claude_protected(path[len(base) :])  # the guard's list (guard.CLAUDE_PROTECTED_DIRS, _FILES)
+        return f"protected path {part}" if part else ""
 
     def critical(self, path: str | None) -> bool:
         """An `rm`/`rmdir` target Claude Code always asks for: `/`, a drive root or top-level folder, home, the
@@ -499,11 +486,12 @@ def _folder(path: str) -> str:
 
 def verdict(
     rules: Rules, guard_module: types.ModuleType, tool: str, command: str, cwd: str, root: str, repo: object,
-    mode: str = BYPASS, cloud: bool = False,
+    mode: str = BYPASS, cloud: bool = False, attended: bool = False,
 ) -> tuple[str, str]:  # fmt: skip
     """(PASS, PROMPT or DENIED; why) for one call in mode (MODES): deny rules, Claude Code's built-in denials, ask
     rules, its built-in prompts, the guard (it asks in every mode), then what the mode lets run. A file tool's
-    command is its path."""
+    command is its path. attended: a human's own session, where the guard's hook allows nothing (hooks.unattended).
+    """
     if tool in FILE_TOOLS:
         return file_verdict(rules, command, cwd, mode)
     found = parts(command, SHELLS[tool], cwd)
@@ -519,9 +507,15 @@ def verdict(
         return built_in
     # A cloud session's main checkout on its task branch is its own (#381); a guard from before that takes no cloud.
     extra = {"cloud": cloud} if "cloud" in inspect.signature(guard_module.check).parameters else {}
-    findings = guard_module.check(command, SHELLS[tool], cwd, root, "", repo, **extra)
+    if hasattr(guard_module, "allows"):  # since #312 the hook allows what the guard passes in acceptEdits
+        analysis = guard_module.judge(command, SHELLS[tool], cwd, root, "", repo, **extra)
+        findings, allows = analysis.findings, guard_module.allows(analysis)
+    else:
+        findings, allows = guard_module.check(command, SHELLS[tool], cwd, root, "", repo, **extra), False
     if findings:
         return PROMPT, "guard: " + ", ".join(sorted({f.area for f in findings}))
+    if kind == NONE and mode == ACCEPT_EDITS and allows and not attended:
+        return PASS, "guard allows"
     if kind == NONE and mode != BYPASS:
         return PROMPT, "no allow rule: " + rules.unallowed(tool, command, cwd, mode)
     return PASS, ("acceptEdits" if rule == "acceptEdits" else "allow rule") if kind == ALLOW else "no rule"

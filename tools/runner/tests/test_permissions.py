@@ -4,6 +4,7 @@ repositories pass in every mode, writes there ask (issue #68); and the model of 
 import json
 import re
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -510,12 +511,17 @@ SCRATCHPAD = "C:/Users/me/AppData/Local/Temp/claude/D--prime-game/s1/scratchpad"
 OWN = f"{MAIN_POSIX}/.claude/worktrees/312"
 
 
+# The guard as it was before #312: its hook never allows, so the verdicts are Claude Code's own.
+SILENT_GUARD = types.SimpleNamespace(check=guard.check)
+
+
 class AcceptEditsTest(unittest.TestCase):
     """#312: the acceptEdits model (code.claude.com/docs/en/permission-modes, checked 2026-10-07), the mode a route-C
-    successor manager and its workflows always run in (#484). The session's working directory is the main checkout."""
+    successor manager and its workflows always run in (#484), with a guard whose hook never allows (SILENT_GUARD).
+    The session's working directory is the main checkout."""
 
     def judge(self, tool: str, command: str, mode: str = permissions.ACCEPT_EDITS) -> tuple[str, str]:
-        return permissions.verdict(RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), mode)
+        return permissions.verdict(RULES, SILENT_GUARD, tool, command, MAIN, MAIN, OwnRepo(), mode)
 
     def assert_modes(self, tool: str, command: str, bypass: str, accept: str, default: str) -> None:
         for mode, expected in zip(permissions.MODES, (bypass, accept, default)):
@@ -571,7 +577,7 @@ class AcceptEditsTest(unittest.TestCase):
         here = f"{OWN}/tests/scratch/w"
         for mode in permissions.MODES:
             command = f"Remove-Item -Recurse {here}"
-            judged = permissions.verdict(RULES, guard, "PowerShell", command, here, MAIN, None, mode)
+            judged = permissions.verdict(RULES, SILENT_GUARD, "PowerShell", command, here, MAIN, None, mode)
             expected = "Claude Code: Remove-Item -Recurse of the working directory"
             self.assertEqual(judged, (P, "no rule") if mode == permissions.BYPASS else (Q, expected))
 
@@ -609,6 +615,76 @@ class AcceptEditsTest(unittest.TestCase):
         replay.assert_called_once_with(
             ["--before", "origin/main", "--projects", "", "--since", "", "--mode", "acceptEdits", "--list"]
         )
+
+
+SP = "/c/Users/xperi/AppData/Local/Temp/claude/D--prime-game/117bb1c4/scratchpad"
+# The routine patterns that prompted most in the replay of 2026-10-04..07 in acceptEdits (#312), one per cause.
+ROUTINE = [
+    ("Bash", f'cd {OWN} && "$PYTHON_BIN" - <<\'EOF\'\nprint(1)\nEOF'),
+    ("Bash", f"cd {OWN} && git log --oneline origin/main..HEAD && git diff --stat origin/main...HEAD"),
+    ("Bash", f'cd "{SP}/manager/prs"; grep -c x *.md'),
+    ("Bash", f"cd {OWN} && git status && git rev-parse HEAD && git fetch --prune origin"),
+    ("Bash", "gh api repos/xperiaroco2/prime-game/issues/comments/1 --jq .body | cut -c1-700"),
+    ("Bash", "for n in 384 392; do gh pr view $n --json body --jq .body | tr -d '\r' | head -3; done"),
+    ("Bash", f"cd {OWN} && tools/run.sh section docs/AGENT_WORKFLOW.md 2>&1 | awk '{{print}}' | head -40"),
+    ("Bash", f"cd {OWN} && git show origin/main:docs/x.md | head; git merge-base HEAD origin/main"),
+    ("Bash", f"cd {OWN} && printf '%s\\n' 'feat: x' > {SP}/a312/m.txt && git commit -q -F {SP}/a312/m.txt"),
+    ("Bash", f"cd {OWN} && GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
+    ("Bash", f"cd {OWN} && git reset --soft HEAD~1 && git checkout HEAD -- docs/x.md"),
+    ("Bash", f"S={SP}/a312; timeout 200 bash -c \"until grep -q exit= $S/v.log; do sleep 5; done\""),
+    ("Bash", "date -u +%H:%M:%S; tools/run.sh slots --status | tail -6"),
+    ("PowerShell", f"Set-Location {OWN}; tools\\run.cmd test 2>&1 | Select-Object -Last 20"),
+    ("PowerShell", "gh issue view 313 --json title,body,comments | Out-String -Width 400"),
+    ("PowerShell", "Get-Process godot*, python* -ErrorAction SilentlyContinue | Select-Object Name, Id"),
+]
+
+
+class GuardAllowsTest(unittest.TestCase):
+    """#312: in acceptEdits the guard's hook allows what it finds nothing in (hooks.pre_tool_use), so a route-C
+    successor and its workflows run routine shell work without a prompt; every protection still holds."""
+
+    @staticmethod
+    def judge(module: object, tool: str, command: str, mode: str = permissions.ACCEPT_EDITS) -> tuple[str, str]:
+        return permissions.verdict(RULES, module, tool, command, MAIN, MAIN, TaskRepo(), mode)
+
+    def test_the_old_prompts_are_gone(self) -> None:
+        for tool, command in ROUTINE:
+            with self.subTest(command=command):
+                self.assertEqual(self.judge(SILENT_GUARD, tool, command)[0], permissions.PROMPT)
+                self.assertEqual(self.judge(guard, tool, command)[0], permissions.PASS)
+                # Default mode does not change: the hook allows only in acceptEdits.
+                self.assertEqual(self.judge(guard, tool, command, permissions.DEFAULT)[0], permissions.PROMPT)
+
+    def test_every_protection_still_holds_in_accept_edits(self) -> None:
+        for command in ProtectionsTest.DENIED:
+            for tool in TOOLS:
+                with self.subTest(tool=tool, command=command):
+                    self.assertEqual(self.judge(guard, tool, command)[0], permissions.DENIED)
+        for tool, command, expected in (
+            ("Bash", f"git -C {MAIN_POSIX} reset --hard", "guard: git"),
+            ("Bash", f"rm -rf {MAIN_POSIX}/core", "guard: recursive delete"),
+            ("Bash", f"rm -rf {OWN}/../313", "guard: recursive delete"),
+            ("PowerShell", f"Remove-Item -Recurse -Force {MAIN_POSIX}\\.claude\\worktrees\\313", "guard: recursive delete"),
+            ("Bash", "gh pr create -R xperiaroco2/prime-game-art --title x", "guard: gh"),
+            ("Bash", "gh workflow run ci.yml", "ask rule Bash(gh workflow run*)"),
+            ("Bash", "rm -rf /", "Claude Code: rm of a critical path"),
+            ("Bash", f"cp x {OWN}/.claude/skills/x/SKILL.md", "no allow rule: cp (protected path .claude)"),
+            ("Bash", f"echo x > {MAIN_POSIX}/.git/info/exclude", "no allow rule: echo (> protected path .git)"),
+            ("Edit", f"{OWN}/.claude/agents/x.md", "no allow rule: edit (protected path .claude)"),
+            ("Write", f"{OWN}/.claude/settings.json", "ask rule Edit(**/.claude/settings.json)"),
+        ):  # fmt: skip
+            with self.subTest(command=command):
+                verdict_, why = self.judge(guard, tool, command)
+                self.assertEqual(verdict_, permissions.PROMPT)
+                self.assertEqual(why.split(":")[0], expected.split(":")[0])
+                self.assertEqual(why, expected)
+
+
+class TaskRepo(OwnRepo):
+    """The own worktree 312 is on its task branch."""
+
+    def branch(self, checkout: str) -> str | None:
+        return "tooling/312-x" if checkout == guard.normalize(OWN) else "main"
 
 
 class ReplayModeTest(unittest.TestCase):
