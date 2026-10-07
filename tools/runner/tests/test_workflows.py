@@ -1813,6 +1813,7 @@ class PlanPhaseTest(unittest.TestCase):
             implement,
         )
         self.assertIn("A path it lists changed since the plan: read it as usual.", implement)
+        self.assertIn("A file whose facts the critique disputes: read it as usual too.", implement)
         self.assertIn("If the command fails (the sha unknown), the map does not hold", implement)
         self.assertEqual(plan_in(implement)["file_map"], MAPPED)
         critique = calls(result, "review:plan")[0]["prompt"]
