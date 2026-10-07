@@ -298,8 +298,9 @@ class LongTempTest(unittest.TestCase):
             doctor.Doctor().machine_paths()
         self.assertEqual(sorted(report.long_temp), ["TEMP", "TMP"])
         out = buffer.getvalue()
-        self.assertIn(f"warn  TEMP is the 8.3 short path {short}: the runner uses its long form ", out)
-        self.assertIn(f"set TMP to the long path in the env of {USER_SETTINGS}", out)
+        self.assertEqual(out.count("8.3 short path"), 1, out)  # TEMP and TMP hold one path: one warning
+        self.assertIn(f"warn  TEMP, TMP are the 8.3 short path {short}: the runner uses its long form ", out)
+        self.assertIn(f"set TEMP and TMP to the long path in the env of {USER_SETTINGS}", out)
 
     def test_the_tests_that_compare_temp_paths_pass_with_a_short_temp(self) -> None:
         # Tests #542 saw red with a short TEMP, run the way its report ran them: `python -m unittest` in tools/.
