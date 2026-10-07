@@ -120,7 +120,8 @@ A manager session of this repo follows `D:\prime-game\docs\MANAGERS.md` (prime-g
 missing or unreadable: https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md). Read it whole at the
 session's start, before anything else, and again after a change to it reaches prime-game's `main`. It holds the mode
 and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-alive, when to hand over and the handover
-comment with the ready kickoff the engineer pastes; where this file differs on those, it wins.
+comment with the ready kickoff the engineer pastes, and every launch's estimate with the check after a large
+launch's first phase (§9); where this file differs on those, it wins.
 Track: <track>. <UI: Plan issue: xperiaroco2/prime-game#150; the context: `node tools/manager/context.js`. | Art: Plan
 issue: the current stage's `plan:` issue in this repo; the context: the app's context usage.>
 ```
