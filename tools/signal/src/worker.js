@@ -26,8 +26,9 @@ export class Signalling extends DurableObject {
     await this.service.message(ws, message);
   }
 
-  async webSocketClose(ws, code, reason) {
-    await this.service.clientClosed(ws, code, reason);
+  // The service answers the close frame (service.js says why the runtime's own answer is not enough).
+  async webSocketClose(ws, code) {
+    await this.service.clientClosed(ws, code);
   }
 
   async webSocketError(ws) {

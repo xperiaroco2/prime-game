@@ -2,7 +2,9 @@
 # Cloudflare dashboard (the README's "Secrets"). Deployed by the engineer with `npx wrangler deploy`.
 name = "prime-game-signal"
 main = "src/worker.js"
-# On or after 2026-04-07 the runtime answers a client's close frame itself (web_socket_auto_reply_to_close).
+# The docs say the runtime answers a client's close frame itself on or after 2026-04-07
+# (web_socket_auto_reply_to_close), but it did not answer a close without a status on the first deploy
+# (#513): SignalService.clientClosed answers every client's close.
 compatibility_date = "2026-09-01"
 workers_dev = true
 

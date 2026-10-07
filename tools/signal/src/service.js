@@ -35,6 +35,17 @@ export const CLOSE_GRACE_MS = 1000;
 const CLOSE_NORMAL = 1000;
 const CLOSE_ERROR = 1011;
 
+// The code the service answers a client's close frame with: the client's own when the runtime may
+// send it (1000, or 3000-4999, the codes its strict rule allows), else 1000. The runtime's close()
+// throws for 1004, 1005 (no status), 1006 and 1015 and anything outside 1000-4999 under either
+// rule, and for every other code from 1001 to 2999 under the strict one (workerd's WebSocket::close).
+export function closeReplyCode(code) {
+  if (Number.isInteger(code) && (code === CLOSE_NORMAL || (code >= 3000 && code <= 4999))) {
+    return code;
+  }
+  return CLOSE_NORMAL;
+}
+
 // The ICE servers of the configuration (`ICE_SERVERS` in wrangler.toml's [vars], a list or its
 // JSON text), checked by the codec's rules for "room", or the default. A bad list throws, so a
 // misconfigured deploy fails at its first connection instead of sending what clients drop.
@@ -141,14 +152,22 @@ export class SignalService {
     return this.deliver(out);
   }
 
-  // `ws`'s client closed it with `code` and `reason` (webSocketClose): the service answers the close
-  // frame, and what the close sends may still wait on a credential.
-  clientClosed(ws, code, reason) {
-    const sent = this.closed(ws);
+  // `ws`'s client sent a close frame with `code` (webSocketClose): the service answers it, as RFC
+  // 6455 §5.5.1 asks, even when its own handling throws, and before what the close sends to others
+  // is out (that may wait on a credential). Cloudflare's docs say the runtime answers it itself from
+  // compatibility date 2026-04-07, but on the first deploy (#513) a close without a status (1005,
+  // from a browser's or Node's close()) went unanswered: answering with the code received threw, as
+  // the runtime may not send 1005. The client's reason is not echoed; nothing reads it.
+  clientClosed(ws, code) {
+    let sent;
     try {
-      ws.close(code, reason);
-    } catch {
-      // Answered already, or a code that may not be sent (1005, 1006).
+      sent = this.closed(ws);
+    } finally {
+      try {
+        ws.close(closeReplyCode(code), "");
+      } catch (error) {
+        this.log(`signal: answering a close (${code}) failed: ${error}`);
+      }
     }
     return sent;
   }
