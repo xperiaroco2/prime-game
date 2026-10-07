@@ -613,21 +613,24 @@ edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for t
 alone overnight?" Replay the latest unattended run's transcripts against the new rule
 (`tools\run.cmd permissions --before origin/main` replays this project's transcripts, the main checkout's and its
 worktrees', through the rules and the guard of `origin/main` and of the checkout, in bypass mode; `--since
-YYYY-MM-DD` keeps the calls from that day on, `--mode default` models a mode that prompts, `--list` names each cause
-with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
-Claude Code's own blocks and the human's rejections, with roles and waits, but not an ask rule's prompt that the human
-approved, which leaves no trace: the replay's "ask rules" count holds those); a rule that would have stopped routine
-work is judged by its target in the guard (§8.2) instead of by its text
+YYYY-MM-DD` keeps the calls from that day on, `--mode acceptEdits` or `--mode default` models a mode that prompts
+(§8.2.10), `--list` names each cause with examples, and `--observed` reports what the transcripts record instead:
+the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections, with roles and waits, but
+not an ask rule's prompt that the human approved, which leaves no trace: the replay's "ask rules" count holds those;
+the replay reads the file tools' calls too, and every mode applies Claude Code's built-in delete checks); a rule that
+would have stopped routine work is judged by its target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
-a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away), and its selftests
+a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away; `acceptEdits`' file writes and
+protected paths, §8.2.10), and its selftests
 (`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
 there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
 stops only for design and other human-reserved decisions and for what reaches beyond them
 ([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
 - Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
-  prompt (the designer's `acceptEdits`).
+  prompt (`acceptEdits`, both humans' default mode and a route-C successor's only one: there the guard allows routine
+  shell work in an unattended session, §8.2.10).
 - **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
   `git push [-u] origin <branch>`; `gh` issue and PR create/view/list/comment/edit/close/ready, run
   list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `release view|list`, `search`, `repo view`,
@@ -922,7 +925,8 @@ organization the account belongs to) asks as before.
   (`diff`, `status`, `show`) about 2,200, nearly all after a `cd` into a worktree (Claude Code prompts for git after a
   `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
   for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
-  1,500 of them, so unattended work stays in bypass mode.
+  1,500 of them, so unattended work stays in bypass mode; a route-C successor cannot (#484), so the guard allows its
+  routine shell work instead (§8.2.10).
 - Git in the own worktree (#457), from `tools\run.cmd permissions --observed --since 2026-09-28` on 2026-10-06 (1,183
   transcripts): 66 guard asks, of them 22 git. 6 protected nothing and pass now: 5 interactive rebases with an
   editor setting in the agent's own worktree on its task branch (2026-10-01 to 10-06, about 9.8 hours of waiting,
@@ -947,6 +951,41 @@ organization the account belongs to) asks as before.
   `Get-ChildItem $env:TEMP -Filter 'rmtree-*' | Remove-Item -Recurse` of 2026-10-05. The one `gh` ask left is
   `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
   today's gh account.
+- Unattended `acceptEdits` (#312), replayed on 2026-10-07 with `tools\run.cmd permissions --since 2026-10-04 --mode
+  acceptEdits --list` (`origin/main` against the branch; 13,979 calls in 1,337 transcripts, file tools included):
+  before #312's guard 6,117 prompts (6,111 with no allow rule), after it 310, 5 denied in both, no crash, and no call
+  that was silent before asks now. Before, the causes were the shell long tail: `$PYTHON_BIN` 1,316, git reads after
+  a `cd` into a worktree (`diff` 675, `status` 405, `show` 237), a `cd` into the scratchpad 592, `cut` 367, `for`
+  loops (judged by their body since #312), `awk` 238, `git fetch` 200, `printf` 148, `git -C` 140, PowerShell
+  filters. What still prompts: 179 Edit and Write calls and about 120 shell writes of workflow agents to a worktree's
+  own `.claude/` (skills, agents, workflows: Claude Code protects them in every mode but bypass, §8.2.10), 3
+  `Edit(**/.claude/settings.json)` asks, 2 guard asks and one `rm` of `D:\tmp_unused` (a critical path). Allow rules
+  alone (a model run of 136 rules, Bash and PowerShell: git reads and writes, text and process tools, PowerShell
+  filters, `$PYTHON_BIN`) leave 1,976: a `cd` into the scratchpad 606, `git -C` 162 (no allow rule may put a `*`
+  before the subcommand), `sed` on a variable's path 148, `GIT_SEQUENCE_EDITOR=: git rebase` 73 (an allow rule never
+  matches past such an assignment), `bash -c` 60 and the rest. Bypass and default mode are unchanged (6 and 8,532
+  prompts).
+
+#### 8.2.10 Unattended `acceptEdits` sessions (#312)
+A route-C successor manager and its workflow agents always run in `acceptEdits` and cannot leave it (#484). There
+Claude Code runs, besides the allow rules and its read-only commands, the file tools and `mkdir`, `touch`, `rm`,
+`rmdir`, `mv`, `cp`, `sed` (and `Set-Content`, `Add-Content`, `Clear-Content`, `Remove-Item`) on paths in the working
+directory, and prompts for everything else (`code.claude.com/docs/en/permission-modes`, checked 2026-10-07). So in an
+**unattended** session in `acceptEdits` the guard's hook answers `allow` for a Bash or PowerShell call it finds
+nothing to ask for (`hooks.pre_tool_use`, `guard.allows`): the call runs as it would in bypass. Unattended means the
+session is not marked attended (`CLAUDE_CODE_SESSION_ATTENDED=1`, which the desktop app sets in a session a human
+opened, seen on 2026-10-07): a human's own `acceptEdits` session, both humans' default mode (§2), keeps its prompts.
+What still holds over the hook's `allow`: every deny rule, every ask rule, the guard's own asks, and Claude Code's
+built-in checks (`rm` of a critical path such as a drive's top-level folder asks even in bypass; `Remove-Item` of a
+wildcard or a system path is denied in every mode). The hook does not allow a shell write to a path Claude Code
+protects (`.claude` but its worktrees `.claude/worktrees/<n>/`, `.git`, `.vscode`, `.gitmodules` and the others in
+`guard.CLAUDE_PROTECTED_DIRS` and `_FILES`, by the guard's targets and by inline code that writes and names one), and
+no hook can allow an Edit or Write there: so a task that edits `.claude/` (a skill, an agent, a workflow, a hook)
+stops at its first such edit in an unattended `acceptEdits` session, and a manager in that mode launches none
+(orchestrate-stage `handover.md` §3, "Mode and effort"; the app counts such a session as unattended). `tools\run.cmd permissions --mode acceptEdits` models the mode (the scratchpad counts
+as in scope, the model's assumption) and judges every session as unattended. Unverified until a route-C run shows
+it: that the hook's `allow` reaches a scheduled session's workflow agents, and that a scheduled session lacks
+`CLAUDE_CODE_SESSION_ATTENDED=1`.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
