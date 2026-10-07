@@ -9,6 +9,8 @@
   the default of `issue-task` and `pr-rebase`, with no clean week first.
   Amended 2026-10-07 (#485): a secretary session gathers what needs the engineer from every track, inside his own
   5% (Q5).
+  Amended 2026-10-07 (#534): every workflow launch is estimated before it starts, and a launch over about 5% of the
+  week stops after its first phase for a check of its spend (Q2).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -118,6 +120,19 @@ last budgets.
 **Recommended (a), with the last-day rule.** (a) keeps the engineer's word on every point above a budget (tier (c):
 "money and budget above the set budget") except in the last 24 hours, where choosing the last-day rule is that word
 given in advance; the last-day rule prevents ending the week with unused budget while a queue waits.
+
+**Amended 2026-10-07** (#534). Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6038401263
+(item 2). The budgets above bound a week, not a launch: the token audit of 2026-10-07 found one art workflow
+(`wf_45e2297a`) that cost $693, 27% of the week and more than the art track's whole 20%, with 48 agents and no
+estimate before its launch. So, on every track:
+- every workflow launch states its estimate first (agents, list $, % of the week), from `metrics`' per-task medians
+  or the workflow's own agents x calls x $ per call;
+- a launch over about 5% of the week stops after its first phase (the script returns there, or the manager stops
+  it), and the manager checks the spend so far (`tools\run.cmd metrics --run <run id>`, added for this) against the
+  estimate before the rest; a first phase well over its share (over 1.5 times, #534's reading) re-estimates the rest,
+  and a rest past the track's budget left goes to the engineer in "For you:".
+The rule lives in [docs/MANAGERS.md](../MANAGERS.md) §9, which the UI and art repos' `CLAUDE.md` files point to;
+the `orchestrate-stage` skill (§3, `budget.md`) points there.
 
 ### Q3. The PC as a limit (N3)
 Two `verify` runs at once are what this PC sustains with nothing else heavy on it: with three at once the median run
