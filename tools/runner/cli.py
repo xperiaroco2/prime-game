@@ -487,6 +487,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="with --track: each named track's budget in %% of the week, in their order, and its plan to date "
         "(budget x days since --since / 7)",
     )
+    p.add_argument(
+        "--run",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="ID",
+        help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
+        "who works now, its %% of the week and its list $ by phase, over the three track checkouts (the check after a large "
+        "launch's first phase, docs/MANAGERS.md §9)",
+    )
 
     p = sub.add_parser(
         "wave",
@@ -742,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh, track=args.track, budget=args.budget,
+                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
             )
         if args.command == "wave":
             from . import wave

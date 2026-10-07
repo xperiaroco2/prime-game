@@ -608,8 +608,8 @@ Rules for every workflow run:
   checks that no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own
   repos (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`; their `CLAUDE.md` files point to
   [`docs/MANAGERS.md`](MANAGERS.md), the one place for the rules every track's manager follows (the mode and effort,
-  the kickoff, the "For you:" block, the keep-alive, the handover and its thresholds), instead of copying them
-  (#511).
+  the kickoff, the "For you:" block, the keep-alive, the handover and its thresholds, and every launch's estimate
+  with the check after a large launch's first phase, #534), instead of copying them (#511).
 
 ### 7.2 The secretary session
 
@@ -1486,7 +1486,7 @@ fetch` (with any PR head it fetches) is its only write, to the shared git dir. T
 manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
 `args-<n>.json` files, in #279.
 
-### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]]` [applied]
+### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
 baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
 reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -1568,7 +1568,15 @@ or translated shows there). That total covers only the three checkouts: the coun
 sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
 `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
-labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
+labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%. **`--run ID ...`** (#534),
+alone: one workflow run's spend so far, finished or in flight, for the manager's check after a large launch's first
+phase ([`docs/MANAGERS.md`](MANAGERS.md) §9). Each run whose folder name starts with an ID (`wf_` optional) in the
+folders of `TRACK_CHECKOUTS` (so a UI or art run too, from this repo's main checkout): the agents started (a retried
+one once) and answered, who works now (a started agent with no result), the minutes since the newest write to its
+journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
+message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
+phase; several runs end with their total. It writes no file; an ID that names no run fails. On art's `wf_45e2297a`
+it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen

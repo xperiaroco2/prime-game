@@ -128,7 +128,8 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object. Before
-   each launch: [budget.md](budget.md)'s PC cap, its 93% stop and its args on every launch.
+   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args and **the estimate** (#534) of
+   [MANAGERS.md §9](../../../docs/MANAGERS.md): any other workflow too, and over about 5% a check after its first phase.
 
 | arg | what |
 |---|---|
