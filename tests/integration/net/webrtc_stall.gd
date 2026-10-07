@@ -192,6 +192,7 @@ func _join(pair: Pair, now: int) -> void:
 			var err := pair.client.join(pair.host.room_code(), 0)
 			if err != OK:
 				_fail("%s: join failed to start: %s" % [pair.name, error_string(err)])
+				return
 			pair.join_started_ms = now
 			if pair.first_join_ms < 0:
 				pair.first_join_ms = now
