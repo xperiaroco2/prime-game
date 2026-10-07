@@ -432,7 +432,8 @@ const REPORT = 'The implementer\'s report, as a digest (its summary, whether it 
 
 // #469: a plan over PLAN_MAX characters of JSON is cut before the critique and the implementer read it (the whole plan
 // is the agent's comment on the issue): the summary to its cap, each list item and each file_map fact to a line, then
-// the last item of the longest list (a file_map entry included: its file is then read as usual) until it fits.
+// the last item of the longest plan list, and only then file_map entries (a dropped one's file is read as usual),
+// until it fits.
 const size = o => JSON.stringify(o).length
 const capPlan = p => {
   if (size(p) <= PLAN_MAX) return p
@@ -441,8 +442,11 @@ const capPlan = p => {
   const map = p.file_map && Array.isArray(p.file_map.files) ? p.file_map : null
   if (map) out.file_map = { ...map, files: map.files.map(f => ({ ...f, facts: lines(f && f.facts, 240) })) }
   out.clipped = `cut from ${size(p)} characters of JSON; the whole plan: ${p.comment_url || 'the plan agent\'s comment on the issue'}`
+  // The plan's lists go first (the comment has them whole); file_map entries only when no list is left, since a
+  // dropped entry is a file the implementer reads again.
   for (;;) {
-    const lists = [...PLAN_LISTS.map(k => out[k]), map ? out.file_map.files : null].filter(a => Array.isArray(a) && a.length)
+    const lists = PLAN_LISTS.map(k => out[k]).filter(a => Array.isArray(a) && a.length)
+    if (!lists.length && map && out.file_map.files.length) lists.push(out.file_map.files)
     if (size(out) <= PLAN_MAX || !lists.length) return out
     lists.reduce((a, b) => (size(b) > size(a) ? b : a)).pop()
   }

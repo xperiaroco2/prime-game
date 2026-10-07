@@ -1847,7 +1847,19 @@ class PlanPhaseTest(unittest.TestCase):
                 self.assertEqual(short["file_map"]["base_sha"], SHA)
                 self.assertTrue(all(len(x) <= 240 for k in ("criteria", "files", "steps") for x in short[k]))
                 self.assertTrue(all(x.endswith("…") for x in short["criteria"]))
+                # The plan's lists are cut before the file map loses an entry.
+                self.assertLess(sum(len(short[k]) for k in ("criteria", "files", "steps")), 30)
+                self.assertEqual([f["path"] for f in short["file_map"]["files"]], [f"core/f{i}.gd" for i in range(5)])
         self.assertIs(result["returned"]["plan"]["clipped"], True)
+        # A map too big on its own loses its last entries once no plan list is left.
+        huge = mapped_plan(criteria=[], files=[], tests=[])
+        huge["file_map"] = {"base_sha": SHA, "files": [{"path": f"core/f{i}.gd", "facts": [long] * 3} for i in range(40)]}
+        short = plan_in(calls(self.run_plan(huge), "implement")[0]["prompt"])
+        self.assertLessEqual(size(short), 8000)
+        kept = [f["path"] for f in short["file_map"]["files"]]
+        self.assertTrue(kept, short)
+        self.assertEqual(kept, [f"core/f{i}.gd" for i in range(len(kept))])
+        self.assertLess(len(kept), 40)
         # A plan under the cap reaches them as the agent sent it, with no clipped field.
         small = self.run_plan(mapped_plan())
         self.assertNotIn("clipped", plan_in(calls(small, "implement")[0]["prompt"]))
