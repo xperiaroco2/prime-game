@@ -508,12 +508,13 @@ class TrainCommandTest(unittest.TestCase):
     def test_the_typed_commands_run_without_a_prompt_from_the_main_checkout(self) -> None:
         # The unattended-work ADR: the manager's background train and its polling never ask, outside bypass too.
         for tool, command in self.TYPED:
-            with self.subTest(command=command):
-                # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone.
-                verdict = permissions.verdict(
-                    RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), mode=permissions.ACCEPT_EDITS, attended=True
-                )
-                self.assertEqual(verdict[0], permissions.PASS, verdict)
+            # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone; and default
+            # mode, which since #312 prompts for every file write, for the calls that redirect none.
+            modes = [permissions.ACCEPT_EDITS] + ([permissions.DEFAULT] if ">" not in command else [])
+            for mode in modes:
+                with self.subTest(command=command, mode=mode):
+                    verdict = permissions.verdict(RULES, guard, tool, command, MAIN, MAIN, OwnRepo(), mode=mode, attended=True)
+                    self.assertEqual(verdict[0], permissions.PASS, verdict)
 
     def test_the_parser(self) -> None:
         parser = cli.build_parser()

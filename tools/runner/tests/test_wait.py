@@ -437,12 +437,15 @@ class NoPromptTest(unittest.TestCase):
             ("PowerShell", f"Set-Location {wt}; tools\\run.cmd wait --verified"),
         ]
         for tool, command in calls:
-            with self.subTest(tool=tool, command=command):
-                # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone.
-                got = permissions.verdict(
-                    RULES, guard, tool, command, str(ROOT), MAIN, OwnRepo(), mode=permissions.ACCEPT_EDITS, attended=True
-                )
-                self.assertEqual(got[0], permissions.PASS, got[1])
+            # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone; and default
+            # mode, which since #312 prompts for every file write, for the calls that redirect none.
+            modes = [permissions.ACCEPT_EDITS] + ([permissions.DEFAULT] if ">" not in command else [])
+            for mode in modes:
+                with self.subTest(tool=tool, command=command, mode=mode):
+                    got = permissions.verdict(
+                        RULES, guard, tool, command, str(ROOT), MAIN, OwnRepo(), mode=mode, attended=True
+                    )
+                    self.assertEqual(got[0], permissions.PASS, got[1])
 
 
 if __name__ == "__main__":

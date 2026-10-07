@@ -1385,23 +1385,25 @@ class TypedCommandsTest(unittest.TestCase):
     def test_from_the_main_checkout_and_from_a_worktree(self) -> None:
         for cwd in (MAIN, f"{MAIN}/.claude/worktrees/release-m5", f"{MAIN}/.claude/worktrees/181"):
             for tool, command in self.TYPED:
-                with self.subTest(cwd=cwd, command=command):
-                    # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone.
-                    verdict = permissions.verdict(
-                        RULES, guard, tool, command, cwd, MAIN, guard.NoRepo(), mode=permissions.ACCEPT_EDITS, attended=True
-                    )
-                    self.assertEqual(verdict[0], permissions.PASS, verdict)
+                # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone, and
+                # default mode (none of these redirects a file).
+                for mode in (permissions.ACCEPT_EDITS, permissions.DEFAULT):
+                    with self.subTest(cwd=cwd, command=command, mode=mode):
+                        verdict = permissions.verdict(
+                            RULES, guard, tool, command, cwd, MAIN, guard.NoRepo(), mode=mode, attended=True
+                        )
+                        self.assertEqual(verdict[0], permissions.PASS, verdict)
 
     def test_a_typed_gh_pr_merge_stays_denied(self) -> None:
         # Only the runner's own subprocess merges through GitHub, after the gate (#300).
         for tool in ("PowerShell", "Bash"):
             for command in ("gh pr merge 154 --merge --match-head-commit abc", "gh pr merge 154 --admin"):
-                with self.subTest(tool=tool, command=command):
-                    # Outside bypass: a human's own acceptEdits session (both humans' default mode), rules alone.
-                    verdict = permissions.verdict(
-                        RULES, guard, tool, command, MAIN, MAIN, guard.NoRepo(), mode=permissions.ACCEPT_EDITS, attended=True
-                    )
-                    self.assertEqual(verdict[0], permissions.DENIED, verdict)
+                for mode in permissions.MODES:  # a deny rule holds in every mode
+                    with self.subTest(tool=tool, command=command, mode=mode):
+                        verdict = permissions.verdict(
+                            RULES, guard, tool, command, MAIN, MAIN, guard.NoRepo(), mode=mode, attended=True
+                        )
+                        self.assertEqual(verdict[0], permissions.DENIED, verdict)
 
     def test_the_parser(self) -> None:
         parser = cli.build_parser()
