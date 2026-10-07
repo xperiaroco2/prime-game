@@ -90,16 +90,17 @@ class RunsTest(unittest.TestCase):
 
     def test_a_run_in_flight_so_far(self) -> None:
         self.assertEqual(self.run_main("abc12345").splitlines(), [
-            "run wf_abc12345-111 (session s-main, D--prime-game): unfinished (in flight, or stopped); 3 agents started, "
-            "1 answered; working now: review:code:#5 (Review), review:godot-api:#5 (Review); last write 10 min ago",
+            "run wf_abc12345-111 (session s-main, D--prime-game): unfinished (in flight, or stopped); 3 agents started (4 "
+            "agent runs: a retry, or one the journal does not list), 1 answered; working now: review:code:#5 (Review), "
+            "review:godot-api:#5 (Review); last write 10 min ago",
             "spent so far: 4.0% (4.3 to 3.6%) of the week, list $92 in 4 API calls",
             "by phase: Implement $69 (2 agents), Review $23 (2 agents)",
         ])
 
     def test_a_finished_run_of_another_checkout_with_a_journal_cut_short(self) -> None:
         self.assertEqual(self.run_main("wf_abc99999-222").splitlines(), [
-            "run wf_abc99999-222 (session s-art, D--prime-game-art): finished; 1 agents started, 1 answered; last "
-            "write 10 min ago",
+            "run wf_abc99999-222 (session s-art, D--prime-game-art): finished; 1 agent started (2 agent runs: a retry, "
+            "or one the journal does not list), 1 answered; last write 10 min ago",
             "spent so far: 2.0% (2.1 to 1.8%) of the week, list $46 in 2 API calls",
             "by phase: Prototypes $23 (1 agent), Synthesis $23 (1 agent)",
         ])

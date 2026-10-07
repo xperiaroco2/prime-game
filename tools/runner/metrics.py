@@ -2909,6 +2909,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "folder": run_dir.parents[3].name,
         "finished": bool(entries) and entries[-1].get("type") == "result" and set(last) <= answered,
         "started": len(last),
+        "agent_runs": len(agents),
         "answered": len(set(last) & answered),
         "working": [f"{e.get('label', '')} ({e.get('phase')})" if e.get("phase") else str(e.get("label", ""))
                     for k, e in last.items() if k not in answered],  # fmt: skip
@@ -2923,8 +2924,11 @@ def run_spend(run_dir: Path, now: float) -> dict:
 def run_lines(r: dict) -> list[str]:
     """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase."""
     state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
-    head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} agents started, "
-            f"{r['answered']} answered")  # fmt: skip
+    head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
+            f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
+    if r["agent_runs"] > r["started"]:  # the phases count every agent id: a retry, or one the journal does not list
+        head += f" ({r['agent_runs']} agent runs: a retry, or one the journal does not list)"
+    head += f", {r['answered']} answered"
     if r["working"]:
         head += "; working now: " + ", ".join(r["working"])
     if r["idle_minutes"] is not None:
