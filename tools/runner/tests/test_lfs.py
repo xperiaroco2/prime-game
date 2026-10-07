@@ -124,14 +124,14 @@ class PointerTest(unittest.TestCase):
                 " import them; get the content with `git lfs pull` (CI skips them)",
             )
 
-    def test_the_credits_check_still_covers_a_pointer_file_in_ci(self) -> None:
-        # It needs only the path: an uncredited pointer file fails in CI as the real file does locally.
+    def test_the_credits_check_covers_a_pointer_file(self) -> None:
+        # It needs only the path (credits.check never asks whether this is CI): an uncredited pointer file fails in CI
+        # as the real file does locally.
         with tempfile.TemporaryDirectory() as tmp:
             root = repo(Path(tmp))
             write(root, "art/a.png", POINTER)
             write(root, credits.OUTPUT, credits.render([]))
-            with mock.patch.object(common, "IS_CI", True):
-                report = credits.check(root)
+            report = credits.check(root)
             self.assertEqual(report.assets, 1)
             self.assertTrue(any(line.startswith("art/a.png: an LFS asset without a credits entry")
                                 for line in report.errors), report.errors)  # fmt: skip
