@@ -1807,7 +1807,7 @@ class PlanPhaseTest(unittest.TestCase):
         result = self.run_plan(mapped_plan())
         implement = calls(result, "implement")[0]["prompt"]
         self.assertIn(
-            f"the plan agent read these files at {SHA}. Trust it while a file is unchanged since that sha: first run "
+            f"the plan agent read these files at {SHA}. Trust it while a file is unchanged since that sha: first run in the Bash tool "
             f"`cd /d/prime-game/.claude/worktrees/7 && git diff --name-only {SHA} -- 'core/match/vote.gd' "
             "'tests/unit/match/vote_test.gd'` once (again after a rebase)",
             implement,
