@@ -15,7 +15,7 @@ from pathlib import Path
 
 from runner import guard, hooks
 from runner.common import ROOT, Result, git_bash
-from runner.tests.test_machine_env import short_path, short_temp
+from runner.tests.tempnames import short_path, short_temp
 
 WRAPPER = str(ROOT / ".claude" / "hooks" / "run-hook.sh")
 # The main checkout, also when the selftest runs in a worktree: there the session's own worktree is free (issue #51).
