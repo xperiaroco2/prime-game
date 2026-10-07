@@ -572,8 +572,10 @@ class AcceptEditsTest(unittest.TestCase):
         # Claude Code's own Remove-Item checks hold in every mode.
         for command in (f"Remove-Item -Recurse -Force {OWN}\\tests\\scratch\\*", "Remove-Item *", "Remove-Item C:\\"):
             self.assert_modes("PowerShell", command, D, D, D)
-        # D:/prime-game is a drive's top-level folder: a system path. A session's own working directory asks.
-        self.assert_modes("PowerShell", f"Remove-Item -Recurse -Force {MAIN_POSIX}", D, D, D)
+        # A drive's top-level folder is a system path, wherever this checkout lives. A session's own working directory
+        # asks.
+        for top in ("D:/prime-game", "C:\\Users"):
+            self.assert_modes("PowerShell", f"Remove-Item -Recurse -Force {top}", D, D, D)
         here = f"{OWN}/tests/scratch/w"
         for mode in permissions.MODES:
             command = f"Remove-Item -Recurse {here}"

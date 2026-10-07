@@ -1373,9 +1373,11 @@ class TypedCommandsTest(unittest.TestCase):
         ("PowerShell", r"tools\run.cmd merge --sync-main --base release/m5"),
         ("Bash", "tools/run.sh merge-check --base main"),
         ("Bash", "tools/run.sh merge 154 --base release/m4"),
-        ("Bash", "cd /d/prime-game/.claude/worktrees/release-m5 && tools/run.sh merge --sync-main --base release/m5"),
+        # The `cd` targets are this checkout, wherever it lives (CI: /home/runner/...): a `cd` out of the working
+        # directory is not read-only in acceptEdits.
+        ("Bash", f"cd {MAIN}/.claude/worktrees/release-m5 && tools/run.sh merge --sync-main --base release/m5"),
         ("PowerShell", r"tools\run.cmd merge 154 --base main"),
-        ("PowerShell", r"cd D:\prime-game; tools\run.cmd merge 154 --base main"),
+        ("PowerShell", f"cd {MAIN.replace('/', chr(92))}; tools\\run.cmd merge 154 --base main"),
         ("PowerShell", r"tools\run.cmd merge 154 --base main --dry-run"),
         ("Bash", "tools/run.sh merge 154 --base main --dry-run"),
     ]

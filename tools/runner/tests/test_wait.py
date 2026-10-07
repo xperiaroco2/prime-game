@@ -423,17 +423,18 @@ class OwnRepo(guard.NoRepo):
 class NoPromptTest(unittest.TestCase):
     def test_the_bounded_wait_commands_run_without_a_prompt(self) -> None:
         # The unattended-work ADR: a background verify and its polling must not ask, outside bypass too.
-        wt = "/d/prime-game/.claude/worktrees/7"
+        # From this checkout, wherever it lives (CI: /home/runner/...): a `cd` out of it would prompt in acceptEdits.
+        wt = f"{MAIN}/.claude/worktrees/7".replace("\\", "/")
         log = "/c/Users/u/AppData/Local/Temp/claude/D--prime-game/x/scratchpad/a7/verify-1.log"
         calls = [("Bash", f'cd {wt} && tools/run.sh {job} > {log} 2>&1; echo "exit=$?" >> {log}')
                  for job in ("verify", "publish", "publish --base release/m5", "mutants a.json")]  # fmt: skip
         calls += [
             ("Bash", f"cd {wt} && tools/run.sh wait {log}"),
             ("Bash", f"cd {wt} && tools/run.sh wait {log} --max 200"),
-            ("PowerShell", f"Set-Location D:/prime-game/.claude/worktrees/7; tools\\run.cmd wait {log}"),
+            ("PowerShell", f"Set-Location {wt}; tools\\run.cmd wait {log}"),
             ("Bash", f"cd {wt} && timeout 240 gh pr checks 12 --watch --interval 30; echo rc=$?"),
             ("Bash", f"cd {wt} && tools/run.sh wait --verified"),
-            ("PowerShell", "Set-Location D:/prime-game/.claude/worktrees/7; tools\\run.cmd wait --verified"),
+            ("PowerShell", f"Set-Location {wt}; tools\\run.cmd wait --verified"),
         ]
         for tool, command in calls:
             with self.subTest(tool=tool, command=command):
