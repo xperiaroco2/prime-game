@@ -430,12 +430,19 @@ Rules for every workflow run:
   agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
   scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the
   rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
-  review, netcode, second_review, godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back
-  to `effort`, a reviewer gets an effort or a model only when one is set, and no default names a model (the model-guard
-  ADR); a model beyond the shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A,
+  review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean; `code` is the diff's code
+  reviewer alone and falls back to `review`, which also covers the plan critique, the netcode reviews and the skeptics,
+  #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
+  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
+  where the kickoff allows it (its amendment A,
   §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
   publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
-  design task; the result's `publish_clean` says whether it applied. A missing `mutants` or `playcheck` on the task's
+  design task; the result's `publish_clean` says whether it applied. `ab_review: true` (#535, needs `models.code`
+  other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
+  with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
+  one, both reviews going on as usual, then a read-only
+  judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
+  the runs (+2; +1 when neither reviewer found anything). A missing `mutants` or `playcheck` on the task's
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
@@ -1500,7 +1507,8 @@ with a past `--until` gives the same tables while sessions keep working. A sessi
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
 `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
-issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
+issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
+`review:code-control` and `ab-judge`; any other is "other"),
 local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
 the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
 writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
@@ -1509,6 +1517,9 @@ passed although Godot crashed at exit, #449: records without the `exit_crash` fi
 findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the plan
 phase per run with a planner (#469: the planner's model, the plan's and its critique's API list $, the files the
 planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
+code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
+valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
+`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
 prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the

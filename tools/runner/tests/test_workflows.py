@@ -10,7 +10,8 @@ resume replays an agent only while its prompt and options are unchanged. So with
 `lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
 `workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
 origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
-of #308 and `plan-review-main` #469's plan phase, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
+of #308, `plan-review-main` #469's plan phase and `ab-review-main` #535's A/B of the code reviewer's model, so the
+byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
@@ -69,6 +70,7 @@ for (const job of jobs) {
     if (label.startsWith('review')) return { reviewer: 'r', verdict: 'ok', findings: stub.findings || [] }
     if (label.startsWith('test-review')) return { available: true, exit_2: false, findings: [], mutants: [] }
     if (label.startsWith('skeptic')) return { refuted: false, reason: 'it stands' }
+    if (label.startsWith('ab-judge')) return { verdicts: [], matches: [] }
     if (label.startsWith('fix')) return { fixed: [], verify_green: true, published: true, ci_green: true }
     return { published: true, handoff_posted: true }
   }
@@ -154,6 +156,16 @@ SNAPSHOT_CASES = {
                 "file_map": {"base_sha": "0123456789abcdef0123456789abcdef01234567", "files": [{"path": "core/x.gd", "lines": "1-40", "facts": ["func f() -> int"]}]},
                 "comment_url": "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1",
             }]}},
+        ),
+        # #535's A/B of the code reviewer's model: a control code reviewer and a blind judge (a case with a v2 arg).
+        (
+            "ab-review-main",
+            {"branch": "tooling/7-x", "ab_review": True, "models": {"code": "sonnet", "publish_clean": "sonnet"}},
+            {"paths": ["tools/runner/x.py"], "findings": [MINOR], "queues": {"ab-judge": [{
+                "verdicts": [{"reviewer": 1, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"},
+                             {"reviewer": 2, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"}],
+                "matches": [{"first": 0, "second": 0}],
+            }] * 2}},
         ),
         (
             "every-arg-release",
@@ -583,7 +595,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
+        # case but publish-clean-main, plan-review-main and ab-review-main passes no v2 arg besides the bounded_waits
+        # and lean false of its unbounded/ run).
         # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
         # and with both false (`unbounded/<case>.txt`, the text and options before #411).
         jobs, files = [], []
@@ -614,6 +627,8 @@ class WorkflowTest(unittest.TestCase):
 
 
 AVAILABLE = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["availableModels"]
+# #535's A/B of the code reviewer's model, with every other v2 option.
+AB = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "ab_review": True, "models": {"code": "sonnet"}}
 V2 = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "visual": ["spectate"]}
 GODOT_LINE = "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen)."
 PLAYCHECK_LINE = (
@@ -739,6 +754,92 @@ class PipelineV2Test(unittest.TestCase):
         got = {e["label"]: options(e).get("model") for e in agents(rebase)}
         self.assertEqual({k: v for k, v in got.items() if v}, {"review:netcode-second:#8": a, "fix:#8": b}, got)
 
+    def test_the_code_role_is_the_code_reviewer_alone(self) -> None:
+        # #535: models.review also moves the plan critique, the netcode reviews and the skeptics; code moves only the
+        # diff's code reviewer, and falls back to review.
+        a, b = AVAILABLE[0], AVAILABLE[1]
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a}, efforts={"code": "medium"}, **V2), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a, "review": b}, efforts={"review": "low"}, **V2), core),
+        ]
+        only_code, with_review = ({e["label"]: options(e) for e in agents(r)} for r in run_jobs(jobs))
+        self.assertEqual({k: o["model"] for k, o in only_code.items() if "model" in o}, {"review:code:#7": a})
+        reviewers = ("review:plan:#7", "review:netcode:#7", "review:netcode-second:#7", "review:godot-api:#7", "skeptic:#7")
+        self.assertEqual(only_code["review:code:#7"].get("effort"), "medium")
+        for label in reviewers:
+            self.assertNotIn("effort", only_code[label], label)
+        self.assertEqual((with_review["review:code:#7"]["model"], with_review["review:code:#7"]["effort"]), (a, "low"))
+        for label in set(reviewers) - {"review:godot-api:#7"}:
+            self.assertEqual(with_review[label]["model"], b, label)
+        self.assertNotIn("model", with_review["review:godot-api:#7"])
+
+    def test_ab_review_adds_a_control_reviewer_and_a_blind_judge(self) -> None:
+        # #535: the control is the code reviewer's prompt on the review model; both reviews go on as usual. The judge,
+        # on the review model and told neither model, sees reviewer 1 (the trial) and reviewer 2 (the control).
+        a, b = AVAILABLE[1], AVAILABLE[0]
+        tooling = {"paths": ["tools/runner/x.py"], "findings": [MAJOR, MINOR]}
+        judged = {
+            "verdicts": [
+                {"reviewer": 1, "index": 0, "verdict": "valid", "severity": "major"},
+                {"reviewer": 2, "index": 1, "verdict": "invalid", "severity": "nit"},
+            ],
+            "matches": [{"first": 0, "second": 0}],
+        }
+        plain = dict(ARGS, branch="tooling/7-x", models={"code": a})
+        ab = dict(plain, ab_review=True)
+        jobs = [
+            ("issue-task.js", plain, tooling),  # 0: the same launch without the A/B
+            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [judged]})),
+            ("issue-task.js", dict(ab, models={"code": a, "review": b}), tooling),
+            ("issue-task.js", ab, {"paths": ["tools/runner/x.py"]}),  # 3: nothing to judge
+            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [None]})),  # 4: the judge died
+            ("issue-task.js", dict(ab, branch="core/7-x"), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        plain_run, run, on_review, empty, died, core = results = run_jobs(jobs)
+        for result in results:
+            self.assertIsNone(result["error"])
+        self.assertFalse(calls(plain_run, "review:code-control") or calls(plain_run, "ab-judge"))
+        self.assertNotIn("ab_review", plain_run["returned"])
+        self.assertNotIn("ab_review", calls(plain_run, "publish")[0]["prompt"])
+        # Both code reviewers in the parallel review, then the publisher; the judge runs beside the publisher (it is off the
+        # critical path: the publisher never sees it), so only the set of agents is fixed.
+        labels = [e["label"] for e in agents(run)]
+        self.assertEqual(labels[:3], ["implement:#7", "review:code:#7", "review:code-control:#7"])
+        self.assertEqual(set(labels[3:]), {"ab-judge:#7", "publish:#7"})
+        trial, control, judge = (calls(run, p)[0] for p in ("review:code:#", "review:code-control", "ab-judge"))
+        self.assertEqual(trial["prompt"], control["prompt"])
+        self.assertEqual(options(trial)["model"], a)
+        self.assertNotIn("model", options(control))
+        self.assertEqual(options(calls(on_review, "review:code-control")[0])["model"], b)
+        self.assertEqual(options(calls(on_review, "ab-judge")[0])["model"], b)
+        self.assertEqual({k: options(judge).get(k) for k in ("phase", "agentType", "model")}, {"phase": "Review", "agentType": "code-reviewer", "model": None})
+        self.assertEqual(set(options(judge)["schema"]["required"]), {"verdicts", "matches"})
+        self.assertIn(f"Reviewer 1 found: {json.dumps([MAJOR, MINOR], separators=(',', ':'))}", judge["prompt"])
+        self.assertIn("Reviewer 2 found: ", judge["prompt"])
+        for model in AVAILABLE:
+            self.assertNotIn(model, judge["prompt"].lower())
+        # Blind: nothing in the prompt points to the A/B's issue or arg, whose texts say which reviewer is the trial.
+        for hint in ("#535", "ab_review", "trial", "control"):
+            self.assertNotIn(hint, judge["prompt"].lower().replace("#7", ""))
+        self.assertIn("ab_review, #535", calls(run, "publish")[0]["prompt"])
+        self.assertEqual([r["by"] for r in run["returned"]["reviews"]], ["code-reviewer", "code-reviewer (control)"])
+        self.assertEqual(
+            run["returned"]["ab_review"],
+            {"model": a, "control_model": None, "judge": {"verdicts": {"valid": 1, "invalid": 1}, "matches": 1}},
+        )
+        self.assertEqual(on_review["returned"]["ab_review"]["control_model"], b)
+        # Nothing to judge: no judge. A judge that died: the run goes on, unjudged.
+        self.assertFalse(calls(empty, "ab-judge"))
+        self.assertEqual(empty["returned"]["ab_review"]["judge"], "neither code reviewer found anything")
+        self.assertEqual(died["returned"]["ab_review"]["judge"], "returned nothing")
+        self.assertTrue(died["returned"]["published"])
+        # The control's findings count like any reviewer's: with the netcode and godot reviews routed too.
+        self.assertEqual(
+            [e["label"] for e in agents(core)][1:5], ["review:code:#7", "review:code-control:#7", "review:netcode:#7", "review:godot-api:#7"]
+        )
+        self.assertEqual(calls(core, "publish")[0]["label"], "publish:#7")
+
     def test_efforts_fall_back_per_role(self) -> None:
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         jobs = [
@@ -802,6 +903,18 @@ class PipelineV2Test(unittest.TestCase):
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
+        # ab_review (#535): an A/B needs a model on trial for the code reviewer, other than the control's.
+        jobs += [
+            ("issue-task.js", dict(ARGS, **args), {})
+            for args in (
+                {"ab_review": True},
+                {"ab_review": True, "models": {"review": "opus"}},
+                {"ab_review": True, "models": {"code": "sonnet", "review": "sonnet"}},
+                {"ab_review": "yes", "models": {"code": "sonnet"}},
+                {"ab_review": True, "design": True, "models": {"code": "sonnet"}},
+                {"models": {"code": ""}},
+            )
+        ]
         for (name, args, _), result in zip(jobs, run_jobs(jobs)):
             with self.subTest(workflow=name, args={k: v for k, v in args.items() if k not in ARGS}):
                 self.assertIsNotNone(result["error"])
@@ -822,6 +935,7 @@ class PipelineV2Test(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
@@ -872,6 +986,7 @@ class PipelineV2Test(unittest.TestCase):
     def test_every_v2_agent_gets_the_rules_or_is_a_read_only_reviewer(self) -> None:
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         # With lean (the default since #458) the implementing and publishing agents get a lean writer type (#332) and
@@ -894,6 +1009,7 @@ class PipelineV2Test(unittest.TestCase):
         # agent() throws on a schema whose root is not an object or whose required names a missing property.
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         for result in run_jobs(jobs):
@@ -1342,7 +1458,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "ab_review"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean")),
         ):

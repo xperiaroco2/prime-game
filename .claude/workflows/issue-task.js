@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -62,15 +62,17 @@ export const meta = {
 //                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground.
 //                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
-//                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
-//                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
-//                 publish_clean (falls back to publish). review covers the code reviewer and is the fallback of
-//                 plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer gets an effort
-//                 only when one is set; otherwise its agent file's applies, as before v2. +0 agents
+//                 falls back to today's default), plan (falls back to implement's), plan_review, review, code,
+//                 netcode, second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
+//                 publish_clean (falls back to publish). review is the fallback of code (the diff's code reviewer
+//                 alone, #535), plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer
+//                 gets an effort only when one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 (plan falls back to implement, publish_clean to publish, none to a default). No default names a
-//                 model (the model-guard ADR and its amendment A: the manager passes one per launch where the kickoff
-//                 allows it). +0 agents
+//                 (plan falls back to implement, publish_clean to publish, code to review, none to a default). No
+//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
+//                 where the kickoff allows it). +0 agents
+//                 The role code is the diff's code-reviewer only: models.code changes no other reviewer, where
+//                 models.review also changes the plan critique, the netcode reviews and the skeptics (#535's A/B).
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
 //                 skeptics left with no blocker or major open (a skeptic-refuted finding is closed, one over the
 //                 skeptic limit is open; the plan critique's findings do not count), never of a design task or of a
@@ -84,10 +86,18 @@ export const meta = {
 //                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
 //                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
 //                 the manager's checkout must have both files. +0 agents
+//   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
+//                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
+//                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
+//                 prompt on the review model, and both reviews go on as usual (the publisher fixes the union, so the run
+//                 is reviewed at least as an all-Opus run is). Then a read-only judge on the review model, told neither
+//                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
+//                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
+//                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean); `full` points to the run's journal.jsonl,
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's journal.jsonl,
 // which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
@@ -111,7 +121,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'ab_review']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -139,11 +149,11 @@ const SCENES = V === true
   : null
 if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
 const VISUAL = SCENES !== null
-const ROLES = ['implement', 'plan', 'plan_review', 'review', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
   implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
-  netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
+  code: ['code', 'review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
   test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
   publish_clean: ['publish_clean', 'publish'],
 }
@@ -160,6 +170,11 @@ const perRole = (k, values) => {
 const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
+// ab_review (#535): an A/B needs a model on trial that differs from the control's (the review model).
+const AB_REVIEW = flag('ab_review')
+if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
+if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
+if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
@@ -355,6 +370,30 @@ const SKEPTIC_SCHEMA = {
   properties: { refuted: { type: 'boolean' }, reason: { type: 'string' }, evidence: { type: 'string' } },
   required: ['refuted', 'reason'],
 }
+// ab_review (#535): the judge's verdict on each finding of reviewer 1 (the trial) and 2 (the control), and the pairs.
+const AB_JUDGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdicts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          reviewer: { type: 'number', enum: [1, 2] }, index: { type: 'number' },
+          verdict: { type: 'string', enum: ['valid', 'invalid', 'unsure'] },
+          severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, reason: { type: 'string' },
+        },
+        required: ['reviewer', 'index', 'verdict', 'severity'],
+      },
+    },
+    matches: {
+      type: 'array',
+      items: { type: 'object', properties: { first: { type: 'number' }, second: { type: 'number' } }, required: ['first', 'second'] },
+    },
+    notes: { type: 'string' },
+  },
+  required: ['verdicts', 'matches'],
+}
 
 // The default test expectations follow the task branch's area (`<area>/<n>-<slug>`, from `start`); args.testing
 // overrides them.
@@ -520,6 +559,8 @@ let labels = []
 let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
+let judge = null
+let judging = null
 // The blocker and major findings still open before the publisher (publish_clean): a skeptic's refutation closes one.
 let openSerious = 0
 if (impl.verify_green) {
@@ -547,7 +588,12 @@ if (impl.verify_green) {
       ? `\n\nVisual check (visual): the implementer's \`tools\\run.cmd playcheck\` screenshots: ${shots.pngs.join(', ')}. Read each PNG (Read shows images) and compare it with what the issue asks for: the wrong camera or player, a HUD or menu that is missing, misplaced or shows another player's state, text cut off or overlapping. Each such problem is a finding, with the PNG's path as its file.`
       : `\n\nVisual check (visual): no playcheck screenshots (${shots.notes || 'none returned'}). That is not a finding of yours: the publisher reports it.`
   labels = ['code-reviewer']
-  const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
+  const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'code'))]
+  // ab_review (#535): the control, the same prompt on the review model, second in the list (the judge reads 0 and 1).
+  if (AB_REVIEW) {
+    labels.push('code-reviewer (control)')
+    thunks.push(() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code-control:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review')))
+  }
   if (netcode) {
     labels.push('netcode-security-reviewer')
     thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
@@ -568,6 +614,27 @@ if (impl.verify_green) {
   if (missing.length) throw new Error(`#${N}: reviewer(s) ${missing.join(', ')} returned nothing; resume this run with the same args`)
   reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
+
+  // ab_review (#535): a blind judge of both code reviews. It changes nothing in the run: the publisher never sees it, so
+  // it runs beside the rest of the review and the publisher and is awaited only before the result is written.
+  if (AB_REVIEW) {
+    const [trial, control] = [reviews[0].findings || [], reviews[1].findings || []]
+    if (!trial.length && !control.length) {
+      judge = { skipped: 'neither code reviewer found anything' }
+    } else {
+      judging = agent([
+        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+        READ_RULE,
+        'A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
+        `Read \`git -C ${WTB} diff origin/${BASE}...HEAD\`, the issue and its comments (\`gh issue view ${N} --comments\`), and the code, tests and docs each finding names.`,
+        `Reviewer 1 found: ${JSON.stringify(trial)}`,
+        `Reviewer 2 found: ${JSON.stringify(control)}`,
+        'Both reviewers had the same prompt; judge each finding on its own, whoever raised it. valid: the defect or gap is real in this diff and the change should fix it (an acceptance criterion missed, an invariant broken, a wrong behaviour, a missing or weak test, a doc the change makes stale). invalid: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer\'s answers, or it asks for something outside the issue. unsure: you cannot settle it within the budget. Give each the severity you would give it on the reviewers\' scale (blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test; major: building on it as written would need rework; minor; nit), whatever the reviewer said.',
+        'Then match the two lists: a finding of reviewer 1 and one of reviewer 2 match when they name the same defect (the same root cause), whatever their wording, line or severity; a finding matches at most one of the other list.',
+        'Return verdicts, one per finding of both lists (reviewer 1 or 2, its 0-based index in that reviewer\'s list, the verdict, your severity and a one-line reason), and matches, the pairs {first: an index in reviewer 1\'s list, second: an index in reviewer 2\'s}.',
+      ].join('\n\n'), asReviewer({ label: `ab-judge:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: AB_JUDGE_SCHEMA }, 'review'))
+    }
+  }
 
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
@@ -665,6 +732,13 @@ const brief = (stopped, pub, extra) => {
     out.test_review = { available: testReview.available, exit_2: testReview.exit_2, mutants: tally(testReview.mutants, 'result', ['killed', 'survived', 'error', 'equivalent']), findings: tally(testReview.findings, 'severity', SEVERITIES), ...(testReview.notes ? { notes: line(testReview.notes) } : {}) }
   }
   if (SKEPTICS && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
+  // ab_review (#535): the two models and the judge's counts; `metrics` scores the runs from the journal.
+  if (AB_REVIEW && reviews.length) {
+    out.ab_review = {
+      model: set(MODELS, 'code'), control_model: set(MODELS, 'review') || null,
+      judge: !judge ? 'returned nothing' : judge.skipped || { verdicts: tally(judge.verdicts, 'verdict', ['valid', 'invalid', 'unsure']), matches: (judge.matches || []).length },
+    }
+  }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
   out.full = FULL
@@ -708,6 +782,7 @@ const pub = stoppedByMutants
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
+    AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
     planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
       : !testReview ? ''
@@ -737,6 +812,12 @@ const pub = stoppedByMutants
   ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: FULL_PUB_EFFORT, schema: PUB_SCHEMA }, PUB_ROLE))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
+// ab_review (#535): the judge ran beside the publisher; a measurement, not a gate: one that died leaves the run unjudged.
+if (judging) {
+  judge = await judging.catch(() => null)
+  if (!judge) log(`#${N}: the ab_review judge returned nothing; the run goes on unjudged`)
+}
+if (AB_REVIEW && reviews.length) log(`#${N}: ab_review ${judge ? (judge.skipped || `judged ${(judge.verdicts || []).length} finding(s), ${(judge.matches || []).length} pair(s)`) : 'unjudged'}`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 return brief(stoppedByMutants || pub.stopped_by_mutants === true
