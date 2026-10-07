@@ -2076,6 +2076,20 @@ Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway fo
 before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
 `class_name` script added after the import: the game fails without the import and `run` imports first and passes).
 
+Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), amendment of 2026-10-07): in CI
+(`common.IS_CI`; its checkout has no LFS content) every `check.run_import` moves the LFS pointer files and their
+`.import` files into `tools/out/lfs-aside/` (behind a `.gdignore`) and back (`lfs.aside`): Godot's import of a
+pointer file fails and rewrites its `.import` file. `check`'s project check then drops the lines that name a pointer
+file, its imported file or a file such a line was about (`lfs.drop_lines`), in one `skip` line with the counts; the
+credits check still covers pointer files. `check --lfs-content` fails on any pointer file, with no Godot (a build's
+step before its export). Locally nothing is detected and nothing changes. Not covered yet: the `test`, `bots` and
+`game` steps load a scene that uses an LFS asset with the resource missing, and Godot prints errors for it.
+Tests: `tools/runner/tests/test_lfs.py` (detection over a throwaway git repository in CI and local mode, the move
+and its way back after a failed import, the dropped lines of a probed run, the credits check on a pointer file,
+`--lfs-content`, and, with the pinned Godot, a committed texture checked out as a pointer file: in CI mode the import
+prints no error and leaves its `.import` file as it was and `check` passes with the `skip` line; in local mode both
+fail as before).
+
 #### 4.7.22 `playcheck`: scripted windows with screenshots (#186), the AI productivity design's P9
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
