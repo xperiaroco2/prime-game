@@ -18,7 +18,11 @@ extends SceneTree
 ##   delay (the ones behind the late beat wait for it, in order), and no pose sent after it either:
 ##   LaneOrder holds them, its full hold drops the older ones (latest_superseded grows). The peer
 ##   stays, every beat arrives once and in order, and the poses come again after the late beat.
+## The process sets the WebRTC library up (a WebRtcWarmUp, kept for the whole run) before the
+## hosts open their rooms: under load the setup took seconds, and in a first connection it
+## counted against the join's JOIN_TIMEOUT_MS (#510).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
 ## The rooms' codes, handed out in the order the hosts' `open` messages arrive.
@@ -44,6 +48,7 @@ const POSE := 2  # client -> host, latest: a sequence number
 var _kinds := NetKindTable.new()
 var _started_ms := 0
 var _done := false
+var _warm_up: WebRtcWarmUp
 var _signalling: LanSignalling
 var _pairs: Array[Pair] = []
 var _codes_given := 0
@@ -102,6 +107,11 @@ func _initialize() -> void:
 	if port < 1 or port > 65535:
 		_fail("give -- %s<a free port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
+	_warm_up = WebRtcWarmUp.new()
+	if not _warm_up.wait():
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+		return
+	print("NET stall WebRTC set up after %d ms" % (Time.get_ticks_msec() - _started_ms))
 	_signalling = LanSignalling.new([], _next_code)
 	var err := _signalling.listen(port, ADDRESS)
 	if err != OK:
@@ -326,6 +336,7 @@ func _finish() -> void:
 		pair.client.close()
 		pair.host.close()
 	_signalling.stop()
+	_warm_up.close()
 	print(
 		"NET stall each stalled side dropped by the silence rule; the late beat kept its peer; PASS"
 	)

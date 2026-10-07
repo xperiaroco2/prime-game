@@ -18,7 +18,11 @@ extends SceneTree
 ## and proves it with a fourth client in its own process, which the service turns away with
 ## joins_closed. Client 3 leaves when told to. The host closes; client 2 and the host's own client
 ## see host_lost. No packet may be rejected anywhere.
+## Each process sets the WebRTC library up (a WebRtcWarmUp, kept for the whole run) before it
+## hosts or joins: under load the setup took seconds, and in a first connection it counted
+## against the join's JOIN_TIMEOUT_MS (#510).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
 const CODE := "TWNRTC"
@@ -37,6 +41,7 @@ var _instance := 0
 var _port := 0
 var _started_ms := 0
 var _done := false
+var _warm_up: WebRtcWarmUp
 # Host part.
 var _signalling: LanSignalling
 var _host: WebRtcTransport
@@ -118,14 +123,27 @@ func _initialize() -> void:
 	_port = port_text.to_int() if port_text.is_valid_int() else 0
 	if _port < 1 or _port > 65535:
 		_fail("give -- %s<a free port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
+	elif _instance not in [1, 2, 3]:
+		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
+	elif not _warmed_up():
+		return
 	elif _instance == 1:
 		_start_host()
-	elif _instance in [2, 3]:
+	else:
 		_client = EchoClient.new(_new_transport(), _instance)
 		_client.transport.connect_failed.connect(_on_client_connect_failed)
 		_client.transport.connected.connect(_on_client_connected.unbind(1))
-	else:
-		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
+
+
+## Sets the WebRTC library up before any connection of the run; false after a failure.
+func _warmed_up() -> bool:
+	_warm_up = WebRtcWarmUp.new()
+	if not _warm_up.wait():
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+		return false
+	var took := Time.get_ticks_msec() - _started_ms
+	print("NET instance %d: WebRTC set up after %d ms" % [_instance, took])
+	return true
 
 
 func _process(_delta: float) -> bool:
@@ -438,6 +456,7 @@ func _check_client_rejects() -> void:
 
 
 func _pass() -> void:
+	_warm_up.close()
 	_done = true
 	quit(0)
 

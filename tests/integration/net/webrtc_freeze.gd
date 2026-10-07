@@ -24,7 +24,11 @@ extends SceneTree
 ## what could drop it is the silence rule (WebRtcTransport.SILENCE_MS), which must see the backlog
 ## drained first. LaneOrder holds the backlog's poses that wait for their beats, and the beats
 ## release them in the same poll.
+## Each process sets the WebRTC library up (a WebRtcWarmUp, kept for the whole run) before it
+## hosts or joins: under load the setup took seconds, and in a first connection it counted
+## against the join's JOIN_TIMEOUT_MS (#510).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
 const FREEZE_MS := 5200
@@ -54,6 +58,7 @@ var _instance := 0
 var _port := 0
 var _started_ms := 0
 var _done := false
+var _warm_up: WebRtcWarmUp
 var _transport: WebRtcTransport
 var _signalling: LanSignalling
 ## What this side heard from each peer, by peer id.
@@ -137,6 +142,15 @@ func _initialize() -> void:
 	if _port < 1 or _port > 65535:
 		_fail("give -- %s<a free UDP port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
+	if _instance not in [1, 2, 3]:
+		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
+		return
+	_warm_up = WebRtcWarmUp.new()
+	if not _warm_up.wait():
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+		return
+	var took := Time.get_ticks_msec() - _started_ms
+	print("NET instance %d: WebRTC set up after %d ms" % [_instance, took])
 	_transport = WebRtcTransport.new(_kinds)
 	_transport.signal_url = "ws://%s:%d" % [ADDRESS, _port]
 	_transport.local_candidates = true
@@ -150,12 +164,10 @@ func _initialize() -> void:
 	_transport.packet_received.connect(_on_packet)
 	if _instance == 1:
 		_start_host()
-	elif _instance in [2, 3]:
+	else:
 		_transport.connected.connect(_on_connected)
 		_transport.connect_failed.connect(_on_connect_failed)
 		_transport.host_lost.connect(_on_host_lost)
-	else:
-		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
 
 
 func _process(_delta: float) -> bool:
@@ -420,6 +432,7 @@ func _finish_client() -> void:
 
 
 func _pass() -> void:
+	_warm_up.close()
 	_done = true
 	quit(0)
 
