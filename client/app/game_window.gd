@@ -7,12 +7,12 @@ extends RefCounted
 ## so a test gives Game a subclass that remembers what was asked.
 
 
-## The mode Alt+Enter turns `mode` into: a fullscreen window back to a window, any other into the
-## fullscreen the game starts in (borderless, not exclusive: ARCHITECTURE §4.7, "The window").
-static func toggled(mode: DisplayServer.WindowMode) -> DisplayServer.WindowMode:
+## The mode Alt+Enter turns `current` into: a fullscreen window back to a window, any other into the
+## fullscreen the game starts in (borderless, not exclusive: ARCHITECTURE §4.7.4, "The window").
+static func toggled(current: DisplayServer.WindowMode) -> DisplayServer.WindowMode:
 	if (
-		mode == DisplayServer.WINDOW_MODE_FULLSCREEN
-		or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+		current == DisplayServer.WINDOW_MODE_FULLSCREEN
+		or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
 	):
 		return DisplayServer.WINDOW_MODE_WINDOWED
 	return DisplayServer.WINDOW_MODE_FULLSCREEN
