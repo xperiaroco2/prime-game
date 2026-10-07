@@ -234,19 +234,22 @@ class GitFiles:
         """What a glob pattern relative to the temp folder matches now (hidden names too), with whether each match is
         or holds a worktree: a `.git` file in it, or a worktree of this repository (`.git/worktrees/*/gitdir`) at or
         below it (issue #464). A match that is or lies in a symbolic link or junction counts as one too: a recursive
-        delete may follow it out of the temp folder. None when the temp folder is unknown."""
+        delete may follow it out of the temp folder. None when the temp folder is unknown. Paths compare in their
+        final form (os.path.realpath): a temp folder named by an 8.3 short path (`XPERIA~1`, issue #542) holds
+        worktrees git records by their long names."""
         import glob
         import tempfile
 
         temp = self.temp or tempfile.gettempdir()
         if not temp or not os.path.isdir(temp):
             return None
+        temp = os.path.realpath(temp)
         worktrees = []
         admin = os.path.join(self.common, "worktrees")
         for name in os.listdir(admin) if os.path.isdir(admin) else []:
             gitdir = self._read(admin, name, "gitdir").strip()
             if gitdir:
-                worktrees.append(os.path.normcase(os.path.abspath(os.path.dirname(gitdir))))
+                worktrees.append(os.path.normcase(os.path.realpath(os.path.dirname(gitdir))))
         found = []
         for path in glob.glob(os.path.join(glob.escape(temp), pattern), include_hidden=True):
             full = os.path.normcase(os.path.abspath(path))
