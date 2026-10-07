@@ -666,9 +666,9 @@ No `Track:` line: `metrics --track` counts a main-checkout session without one a
 share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
 `send_message` load (ToolSearch) and names any that does not in its chat line.
 
-**Open (not a decision):** when the timer stops. (a) After 3 hours without a word from the engineer in its chat
-(the skill's default, recommended: it costs nothing while he is away and one word restarts it); (b) outside a fixed
-day window; (c) only on "пауза".
+**The timer stops** after 3 hours without a word from the engineer in its chat (his answer (a) on
+[#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361), not a fixed day window or
+"пауза" alone): it costs nothing while he is away, one word restarts it, and "пауза" still stops it at once.
 
 ## 8. Permissions, guards and hooks
 
