@@ -337,6 +337,11 @@ dissidents, no crew present only once every crew member left, End widens nothing
   the addon, and is the only code that reaches WebRTC; nothing outside `net/` does. Without the extension those
   calls return nothing usable (`create_data_channel` gives null): the smoke test
   `tests/unit/net/transport/webrtc_native_addon_test.gd` fails then, so `verify` catches a lost or unloadable addon.
+  The library sets itself up when a process makes its first connection, and again after its last one is gone; a
+  new connection's offer waits for that (#472, measured on the engineer's PC, 16 logical CPUs): about 30 ms when
+  idle, but 9 to 11 s for a GdUnit process's first offer under `tools\run.cmd load --loops 128`, and often 0.5 to
+  1 s there whenever no other connection was open, against under 10 ms while one was. So the tests whose waits
+  time the transport keep one connection open for their whole run (`tests/integration/net/webrtc_warm_up.gd`).
 - **`WebRtcTransport`** (`net/transport/`, M6-4, #370; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
   §2.1 to §2.3, §2.6; E48, E50, E54, E56), the second network backend: a star, never a mesh. The host holds one
   `WebRTCPeerConnection` per client and reads it directly (no `WebRTCMultiplayerPeer`, E48); the host's own client
@@ -467,7 +472,9 @@ dissidents, no crew present only once every crew member left, End widens nothing
   keepalives and other kind-0 packets, the join's reasons (a closed service port and a service that never answers
   the handshake: `service_unreachable` on every OS, with the shipped timeouts too, #461), a peer's last message
   before its leave, a kick's reason read with the closed channel, ids not reused, a channel closed under a live
-  connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected),
+  connection; the round trip's pings only while measuring, one answer per poll, probes the wrong way rejected;
+  a warm-up connection lives as long as the suite, and only the joins a test expects to give up have the short
+  join timeout, since a join under load took up to 1.7 s, #472),
   `tests/unit/net/transport/webrtc_route_test.gd` (the kind from the ICE servers) and seven headless runs on
   127.0.0.1, which `verify`, and so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet
   runs below (the host and two clients also check each side's own connection), and their WebRTC
@@ -477,7 +484,9 @@ dissidents, no crew present only once every crew member left, End widens nothing
   the upload by E56, a join while refusing answered `joins_closed`), `webrtc_freeze.gd` (`--instances 3`, the fault
   shim on), `webrtc_stall.gd` (one process: a stalled host and a stalled client dropped by the silence rule, 20 s
   after their last packet; a reliable packet 3 s late keeps its peer) and `webrtc_silence.gd` (one process: a dead
-  client and a silent Lobby kept for 30 s, keepalives alone, one a second, counted by E56):
+  client and a silent Lobby kept for 30 s, keepalives alone, one a second, counted by E56; the room opens only
+  once a warm-up connection is set up, so the library's setup no longer counts against the joins'
+  `JOIN_TIMEOUT_MS`: the likely cause of two `host_unreachable` failures at 16.1 s under load, #472):
   - a host (with its own client) and two clients:
     `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
   - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
