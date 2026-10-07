@@ -1,6 +1,6 @@
 ### phase Implement
 ### agent implement:#7
-opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string","maxLength":1200},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]}}
+opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string","maxLength":1200},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]},"agentType":"task-implementer"}
 You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
 - Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
@@ -34,24 +34,60 @@ Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work com
 
 `tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.
 
+Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell's `timeout` or `wait --max`, never only with the tool's timeout.
+- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under a7/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>` (<command>: `verify`, `publish` with the arguments given above, or `mutants <spec.json>`).
+- Then wait in separate calls of `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in the Bash tool (in PowerShell `tools\run.cmd wait <log>`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a `wait: still running` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a `wait: ... finished: exit=<n>` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a `wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.
+- CI: `cd /d/prime-game/.claude/worktrees/7 && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout set to 300000 (in PowerShell `timeout` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.
+- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.
+
 Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
 
 Return the structured result. changed_paths: `git diff --name-only origin/main...HEAD`. verify_tail: the lines from "verify summary" to the end. summary: at most 1200 characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.
 ### phase Review
 ### agent review:code:#7
-opts {"label":"review:code:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
+opts {"label":"review:code:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]},"model":"sonnet"}
 Issue #7 (t). Branch tooling/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
 
 - Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main's copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.
 
 Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["tools/runner/start.py","docs/AGENT_WORKFLOW.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["tools/runner/x.py"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+### agent review:code-control:#7
+opts {"label":"review:code-control:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
+Issue #7 (t). Branch tooling/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+
+- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main's copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.
+
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["tools/runner/x.py"]}
+
+Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+### agent ab-judge:#7
+opts {"label":"ab-judge:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"verdicts":{"type":"array","items":{"type":"object","properties":{"reviewer":{"type":"number","enum":[1,2]},"index":{"type":"number"},"verdict":{"type":"string","enum":["valid","invalid","unsure"]},"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"reason":{"type":"string"}},"required":["reviewer","index","verdict","severity"]}},"matches":{"type":"array","items":{"type":"object","properties":{"first":{"type":"number"},"second":{"type":"number"}},"required":["first","second"]}},"notes":{"type":"string"}},"required":["verdicts","matches"]}}
+Issue #7 (t). Branch tooling/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+
+- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main's copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.
+
+A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\run.cmd test <path>` in the worktree.
+
+Read `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD`, the issue and its comments (`gh issue view 7 --comments`), and the code, tests and docs each finding names.
+
+Reviewer 1 found: [{"severity":"minor","file":"core/match/vote.gd","line":30,"problem":"p2","fix":"f2"}]
+
+Reviewer 2 found: [{"severity":"minor","file":"core/match/vote.gd","line":30,"problem":"p2","fix":"f2"}]
+
+Both reviewers had the same prompt; judge each finding on its own, whoever raised it. valid: the defect or gap is real in this diff and the change should fix it (an acceptance criterion missed, an invariant broken, a wrong behaviour, a missing or weak test, a doc the change makes stale). invalid: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer's answers, or it asks for something outside the issue. unsure: you cannot settle it within the budget. Give each the severity you would give it on the reviewers' scale (blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test; major: building on it as written would need rework; minor; nit), whatever the reviewer said.
+
+Then match the two lists: a finding of reviewer 1 and one of reviewer 2 match when they name the same defect (the same root cause), whatever their wording, line or severity; a finding matches at most one of the other list.
+
+Return verdicts, one per finding of both lists (reviewer 1 or 2, its 0-based index in that reviewer's list, the verdict, your severity and a one-line reason), and matches, the pairs {first: an index in reviewer 1's list, second: an index in reviewer 2's}.
 ### phase Publish
 ### agent publish:#7
-opts {"label":"publish:#7","phase":"Publish","effort":"high","schema":{"type":"object","properties":{"published":{"type":"boolean"},"pr_number":{"type":"number"},"pr_url":{"type":"string"},"ci_green":{"type":"boolean"},"handoff_posted":{"type":"boolean"},"board_in_review":{"type":"boolean"},"closes_issue":{"type":"boolean"},"fixed":{"type":"array","items":{"type":"string"}},"not_fixed":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"merge_notes":{"type":"string"},"human_steps":{"type":"array","items":{"type":"object","properties":{"why":{"type":"string"},"command":{"type":"string"}},"required":["why","command"]}}},"required":["published","handoff_posted"]}}
+opts {"label":"publish:#7","phase":"Publish","effort":"high","schema":{"type":"object","properties":{"published":{"type":"boolean"},"pr_number":{"type":"number"},"pr_url":{"type":"string"},"ci_green":{"type":"boolean"},"handoff_posted":{"type":"boolean"},"board_in_review":{"type":"boolean"},"closes_issue":{"type":"boolean"},"fixed":{"type":"array","items":{"type":"string"}},"not_fixed":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"merge_notes":{"type":"string"},"human_steps":{"type":"array","items":{"type":"object","properties":{"why":{"type":"string"},"command":{"type":"string"}},"required":["why","command"]}}},"required":["published","handoff_posted"]},"model":"sonnet","agentType":"task-publisher"}
 You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
 - Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
@@ -74,11 +110,13 @@ Task: publish issue #7 (t) from the worktree D:/prime-game/.claude/worktrees/7, 
 
 An earlier attempt may have got part of the way (a resumed run): check `gh pr list --head tooling/7-x --state all`, the issue's latest comments and `git status` before doing anything twice.
 
-The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["tools/runner/start.py","docs/AGENT_WORKFLOW.md"]}
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["tools/runner/x.py"]}
 
-Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]}]
+Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[{"severity":"minor","file":"core/match/vote.gd","line":30,"problem":"p2","fix":"f2"}]},{"reviewer":"r","verdict":"ok","findings":[{"severity":"minor","file":"core/match/vote.gd","line":30,"problem":"p2","fix":"f2"}]}]
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and `tools\run.cmd check`, then publish (below) with no standalone `verify` before it: `publish` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
+
+Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR's findings table.
 
 Then, in this order (the definition of done; the reviews above were its review step):
 - Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human's correction of how the agents work that the notes or the issue's comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\run.cmd credits`. Commit these too.
@@ -87,6 +125,13 @@ Then, in this order (the definition of done; the reviews above were its review s
 - `gh pr checks <pr> --watch`. Red: fix, run the touched tests and `check`, publish again (it verifies); at most two rounds, then report what is still red.
 - The handoff comment on #7 (`gh issue comment 7 --body-file <file>`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer.
 - `tools\run.cmd board move 7 in-review`.
+
+Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell's `timeout` or `wait --max`, never only with the tool's timeout.
+- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under a7/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>` (<command>: `verify`, `publish` with the arguments given above, or `mutants <spec.json>`).
+- Then wait in separate calls of `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in the Bash tool (in PowerShell `tools\run.cmd wait <log>`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a `wait: still running` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a `wait: ... finished: exit=<n>` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a `wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.
+- CI: `cd /d/prime-game/.claude/worktrees/7 && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout set to 300000 (in PowerShell `timeout` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.
+- No standalone `verify` before `publish`: after fixes, run the tests they touch and `check`, then `publish`. It verifies, unless the newest verify passed on this identical tree under 2 hours ago (it says so and pushes on that), and a red verify inside it pushes nothing.
+- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.
 
 Task notes from the manager (for the PR's merge order and the handoff):
 n
@@ -107,9 +152,31 @@ Return the structured result.
  "fixed": 0,
  "reviews": [
   {
-   "by": "code-reviewer"
+   "by": "code-reviewer",
+   "minor": 1
+  },
+  {
+   "by": "code-reviewer (control)",
+   "minor": 1
   }
  ],
+ "ab_review": {
+  "model": "sonnet",
+  "control_model": null,
+  "judge": {
+   "verdicts": {
+    "valid": 2
+   },
+   "matches": 1
+  }
+ },
+ "publish_clean": {
+  "applied": true,
+  "why": "no blocker or major open",
+  "open": 0,
+  "model": "sonnet",
+  "effort": "high"
+ },
  "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

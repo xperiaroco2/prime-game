@@ -304,8 +304,9 @@ and wait for the designer's review.
 | `new-level-piece` | designer | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
-| `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
+| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
 | `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
+| `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -329,7 +330,8 @@ and wait for the designer's review.
 | Foundation stages with no mid-task human input: M0 execution, core architecture and content-API design before M2, project-wide audits | xhigh + `ultracode` in that one prompt; one workflow per stage; human review between stages |
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
-| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it in the session settings) |
+| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it, with bypass, when he pastes the kickoff: `docs/MANAGERS.md` §1) |
+| The secretary session (§7.2) | medium, on Opus (the engineer's answer on #170, #485) |
 
 Rules for every workflow run:
 - **Size guideline `small` (fewer than 5 agents)** [applied: `workflowSizeGuideline` in shared settings].
@@ -359,7 +361,8 @@ Rules for every workflow run:
 ([ADR](decisions/2026-09-30-orchestrator-session.md); skill `orchestrate-stage`)
 - **When:** a whole stage or a list of issues that can run in parallel, with the engineer around to answer. One
   issue alone stays a normal task session (§4).
-- **How:** one session in ultracode, the **manager**, runs the skill. For each task it runs `start` itself, then the
+- **How:** one session, the **manager**, started from a kickoff the engineer pastes (no "ultracode": the
+  [manager rules](MANAGERS.md) every track follows, #511), runs the skill. For each task it runs `start` itself, then the
   saved workflow `issue-task` (`.claude/workflows/issue-task.js`: implementer → fresh reviewers chosen from the
   changed paths → publisher; `design: true` for a docs-only design task) with `args` (issue, worktree, branch, base,
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
@@ -395,16 +398,33 @@ Rules for every workflow run:
   agent's whole result: a `result` line has the `key` of its agent's `started` line, which names the label (after a
   resume, the last counts). A stop keeps what its relaunch needs in full (a red implementer's verify tail and what it
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
-  shrank from 89k to 11k characters (about 1,250 a run).
+  shrank from 89k to 11k characters (about 1,250 a run). What `issue-task`'s agents get of each other's results is cut
+  too (#470, the token audit of 2026-10-06): the reviewers and the test reviewer get a digest of the implementer's
+  report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
+  left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
+  cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
+  publisher gets the whole report but of a `plan_review` run only the plan's summary, its comment's link and the
+  critique (the whole plan is that comment on the issue, #469, and stays in the journal); and
+  the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
+  itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
   launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
   byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
+  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
+  #468's reading line, #471's publish steps, #470's digests).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
-  agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
+  agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
+  most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
+  is cut before the critique and the implementer read it, and the result's `plan.clipped` says so), with a `file_map`:
+  the paths, line ranges and facts the plan rests on, read at its `base_sha`. The implementer runs one `git diff
+  --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
+  the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
+  planner on Sonnet with `models.plan` (orchestrate-stage §3); the critique stays on the review model. `metrics`'
+  plan phase table (§11.12) gives the before and after.
+  `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
   publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
@@ -414,12 +434,19 @@ Rules for every workflow run:
   agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
   scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the
   rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
-  review, netcode, second_review, godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back
-  to `effort`, a reviewer gets an effort or a model only when one is set, and no default names a model (the model-guard
-  ADR); a model beyond the shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A,
+  review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean; `code` is the diff's code
+  reviewer alone and falls back to `review`, which also covers the plan critique, the netcode reviews and the skeptics,
+  #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
+  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
+  where the kickoff allows it (its amendment A,
   §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
   publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
-  design task; the result's `publish_clean` says whether it applied. A missing `mutants` or `playcheck` on the task's
+  design task; the result's `publish_clean` says whether it applied. `ab_review: true` (#535, needs `models.code`
+  other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
+  with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
+  one, both reviews going on as usual, then a read-only
+  judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
+  the runs (+2; +1 when neither reviewer found anything). A missing `mutants` or `playcheck` on the task's
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
@@ -550,29 +577,117 @@ Rules for every workflow run:
   own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
   rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
   manager says so on each running manager's plan issue.
-- **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
-  answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges the gate's
-  exceptions. The manager closes issues whose work is on `main` (a comment linking the PRs and merge commits) and runs
-  `worktree-done` for its merged tasks when no live session sits there. Every message from the manager ends with one
-  short "For you:" block in the human's language, numbered, listing only what needs the human now (a refused merge, a
-  decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
-  session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
-  The manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human. While a run of its own is in flight it keeps its 1-hour prompt cache warm with one background `sleep 3000`
-  re-armed on each cheap wake, for at most about 12 hours of the human's absence (the skill's §7, #305, #467). Each
-  command the human must run (a workflow's `human_steps`, housekeeping) goes into the chat itself, one runnable
-  PowerShell block per command ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan
-  issue may list it too. The publishing agents return `human_steps` as `{why, command}` pairs, each command one
-  PowerShell line that starts with `cd` to its absolute folder.
+- **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the weekly
+  limit; each handover comment's notes end with it as the ready kickoff he pastes, the manager's last For-you carrying
+  it too, Recovery below), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest)
+  and merges the gate's exceptions. The manager closes issues whose work is on `main` (a comment linking the PRs and
+  merge commits) and runs `worktree-done` for its merged tasks when no live session sits there. Every message from the
+  manager ends with one short "For you:" block in the human's language, numbered, listing only what needs the human now
+  (a refused merge, a decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a
+  worktree a live session holds) is batched there once per wave
+  ([intervention](interventions/2026-10-04-engineer-for-you-block.md)). The manager reports on the plan issue after each
+  wave and stops with a comment when nothing more can run without the human. While a run of its own is in flight it
+  keeps its 1-hour prompt cache warm with one background `sleep 3000` re-armed on each cheap wake, for at most about 12
+  hours of the human's absence (the skill's §7, #305, #467). Each command the human must run (a workflow's
+  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
+  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
+  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts with
+  `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
   The handover is mechanical (#279, #467): at each turn end the manager runs `wave`, whose last line is the verdict.
-  It hands over once its context is over 300k tokens or its session over 12 hours old, even mid-wave (the engineer
-  on #467, replacing #329's "never mid-wave"): it stops its runs, posts a handover wave comment with their args and
-  gives the human the kickoff to paste into a new session, which relaunches them fresh. It also hands over once its
-  runs end after a merge into `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get
-  its cached copy), and at a stop for the human with the context over 150k (the skill's §7).
+  It hands over once its context is over 500k tokens (#511; 300k before) or its session over 12 hours old, even
+  mid-wave (the engineer on #467, replacing #329's "never mid-wave"): it stops its runs and posts a handover wave
+  comment with their args; the successor relaunches them fresh. It also hands over once its runs end after a merge
+  into `main` changed root `CLAUDE.md`, [`docs/MANAGERS.md`](MANAGERS.md), `.claude/rules/` or `.claude/agents/` (its
+  agents get its cached copy), at a stop for the human with the context over 250k (half the threshold, as 150k was of
+  300k), and earlier at a natural break when its cost math says a fresh start is cheaper (the skill's §7); while the
+  human is away, only when a threshold (500k, 12 hours, changed instructions) forces it, and then once its runs end
+  rather than stopping them. **The successor** (#511; the engineer's rule for every track's manager, game, UI, art
+  and meta, [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)):
+  the handover comment's notes end with the ready kickoff, the human's stage kickoff with its start lines replaced by a
+  "Continue from the latest handover comment on #<plan>" line, and the manager's last "For you:" asks the human to
+  paste it into a new session in the track's checkout, with bypass and effort high; it then stops, launching nothing
+  more. Route C (#484, [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)) is
+  a fallback only when the human asks for it: the track's one-time Desktop scheduled task `<track>-manager`, its
+  `fireAt` set 3 minutes ahead (`run_scheduled_task` is refused in a session a scheduled task started, so it would not
+  chain). Its known limit, why the paste is the default: that successor starts in `acceptEdits` at medium effort
+  whatever its predecessor's mode and cannot raise either itself (the human switches them by hand; until then it
+  launches nothing that prompts there), has no AskUserQuestion (read-backs go to plain chat) and takes no other
+  session's `send_message` (the app counts it as unattended; the human types into it as usual); before any launch it
+  checks that no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own
+  repos (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`; their `CLAUDE.md` files point to
+  [`docs/MANAGERS.md`](MANAGERS.md), the one place for the rules every track's manager follows (the mode and effort,
+  the kickoff, the "For you:" block, the keep-alive, the handover and its thresholds, and every launch's estimate
+  with the check after a large launch's first phase, #534), instead of copying them (#511).
+
+### 7.2 The secretary session
+
+(#485; the engineer's answers on [#170](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
+recorded in the [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), Q5, amended
+2026-10-07.) With four tracks' managers and his own sessions, the engineer went from session to session to find
+what waited for him. One more session, the **secretary**, does that and is no manager: it runs nothing.
+
+- **Who:** one session of the engineer's, Opus at medium effort, in `D:\prime-game` (it only reads the checkout), on
+  the skill `secretary` (`.claude/skills/secretary/SKILL.md`). Its cost counts in the engineer's own 5% of the week
+  (the skill's `budget.md`) until he says otherwise.
+- **Powers:** it reads every session and the three repos, digests, and relays the engineer's answers to the session
+  that asked, which records them on GitHub as usual. It never merges, launches, closes, creates or decides; it never
+  answers a permission card (they are the human's by design). Its only writes: the inbox issue's body, relay
+  comments and `send_message`.
+- **Where and when:** the pinned issue "Engineer's inbox", whose body it rewrites every 30 to 60 minutes while the
+  engineer is at the PC (a background `sleep 3000` timer, re-armed while he wrote in its chat in the last 3 hours):
+  what to approve or decide and what to look at, numbered, each item with a link or a ready command. In its chat,
+  one short line on what changed. "що нового?" digests at once.
+- **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
+  `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news.
+- **Relays:** `send_message` to the session that asked; a session a scheduled task started is unattended and refuses
+  it ("messages can't be delivered there", probed on
+  [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
+  comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
+- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
+  on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
+  it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
+
+**Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
+pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
+result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
+then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 240 s
+(§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
+minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
+known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
+the engineer's screen.
+
+**Set up** (the engineer, once): the issue and its pin.
+```powershell
+cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The secretary session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
+```
+```powershell
+cd D:\prime-game; gh issue pin <the new issue's number>
+```
+**Start** (the engineer, when he sits down): a plain new Desktop session (not a scheduled task) in `D:\prime-game`,
+no worktree, model Opus, effort medium, the permission mode he uses for his own sessions, with the kickoff below
+pasted. A plain session, because the secretary lives on his chat and its relays, and a scheduled-task run is the
+wrong shape for both (#484's probes): the app wraps its prompt in a frame that says the user is not present and
+allows only the writes the task file names; no other session can `send_message` to it; it starts in `acceptEdits`
+at medium whatever its creator ran in; and an unattended session cannot `run_scheduled_task`, so a scheduled-task
+manager could not start it anyway. Whether the engineer can type into a scheduled-task run is still unprobed.
+A scheduled task `secretary` stays an option only once those are probed; its kickoff would then have to name the
+writes (the inbox body, relay comments, `send_message`) and say the engineer is present.
+
+The kickoff:
+```text
+/secretary
+Digest now, then every 30 to 60 minutes while I am at the PC. I am here and answer in this chat.
+```
+No `Track:` line: `metrics --track` counts a main-checkout session without one as the engineer's own (untracked)
+share, where the secretary's cost belongs. Its first digest also checks that `list_sessions`, `list_events` and
+`send_message` load (ToolSearch) and names any that does not in its chat line.
+
+**The timer stops** after 3 hours without a word from the engineer in its chat (his answer (a) on
+[#502](https://github.com/xperiaroco2/prime-game/pull/502#issuecomment-6026981361), not a fixed day window or
+"пауза" alone): it costs nothing while he is away, one word restarts it, and "пауза" still stops it at once.
 
 ## 8. Permissions, guards and hooks
 
@@ -586,21 +701,24 @@ edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for t
 alone overnight?" Replay the latest unattended run's transcripts against the new rule
 (`tools\run.cmd permissions --before origin/main` replays this project's transcripts, the main checkout's and its
 worktrees', through the rules and the guard of `origin/main` and of the checkout, in bypass mode; `--since
-YYYY-MM-DD` keeps the calls from that day on, `--mode default` models a mode that prompts, `--list` names each cause
-with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
-Claude Code's own blocks and the human's rejections, with roles and waits, but not an ask rule's prompt that the human
-approved, which leaves no trace: the replay's "ask rules" count holds those); a rule that would have stopped routine
-work is judged by its target in the guard (§8.2) instead of by its text
+YYYY-MM-DD` keeps the calls from that day on, `--mode acceptEdits` or `--mode default` models a mode that prompts
+(§8.2.10), `--list` names each cause with examples, and `--observed` reports what the transcripts record instead:
+the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections, with roles and waits, but
+not an ask rule's prompt that the human approved, which leaves no trace: the replay's "ask rules" count holds those;
+the replay reads the file tools' calls too, and every mode applies Claude Code's built-in delete checks); a rule that
+would have stopped routine work is judged by its target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
-a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away), and its selftests
+a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away; `acceptEdits`' file writes and
+protected paths, §8.2.10), and its selftests
 (`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
 there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
 stops only for design and other human-reserved decisions and for what reaches beyond them
 ([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
 - Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
-  prompt (the designer's `acceptEdits`).
+  prompt (`acceptEdits`, both humans' default mode and a route-C successor's only one: there the guard allows routine
+  shell work in an unattended session, §8.2.10).
 - **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
   `git push [-u] origin <branch>`; `gh` issue and PR create/view/list/comment/edit/close/ready, run
   list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `release view|list`, `search`, `repo view`,
@@ -895,7 +1013,8 @@ organization the account belongs to) asks as before.
   (`diff`, `status`, `show`) about 2,200, nearly all after a `cd` into a worktree (Claude Code prompts for git after a
   `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
   for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
-  1,500 of them, so unattended work stays in bypass mode.
+  1,500 of them, so unattended work stays in bypass mode; a route-C successor cannot (#484), so the guard allows its
+  routine shell work instead (§8.2.10).
 - Git in the own worktree (#457), from `tools\run.cmd permissions --observed --since 2026-09-28` on 2026-10-06 (1,183
   transcripts): 66 guard asks, of them 22 git. 6 protected nothing and pass now: 5 interactive rebases with an
   editor setting in the agent's own worktree on its task branch (2026-10-01 to 10-06, about 9.8 hours of waiting,
@@ -920,6 +1039,58 @@ organization the account belongs to) asks as before.
   `Get-ChildItem $env:TEMP -Filter 'rmtree-*' | Remove-Item -Recurse` of 2026-10-05. The one `gh` ask left is
   `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
   today's gh account.
+- Unattended `acceptEdits` (#312), replayed on 2026-10-07 with `tools\run.cmd permissions --since 2026-10-04 --mode
+  acceptEdits --list` (`origin/main` against the branch; 14,115 calls in 1,339 transcripts, file tools included):
+  before #312's guard 6,177 prompts (6,171 with no allow rule), after it 348, 5 denied in both, no crash, and no call
+  that was silent before asks now. Before, the causes were the shell long tail: `$PYTHON_BIN` 1,316, git reads after
+  a `cd` into a worktree (`diff` 675, `status` 405, `show` 237), a `cd` into the scratchpad 592, `cut` 367, `for`
+  loops (judged by their body since #312), `awk` 238, `git fetch` 200, `printf` 148, `git -C` 140, PowerShell
+  filters. What still prompts: about 300 writes of workflow agents to a worktree's own `.claude/` (179 Edit and Write
+  calls, the rest `sed -i`, `cp`, `git checkout` and inline Python; Claude Code protects them in every mode but
+  bypass, §8.2.10); 37 shell writes beyond the own worktree, the temp folder and the disposable folders, or to a
+  path the guard cannot resolve (`$S/x.log` with `S` set in an earlier call, `$TEMP/../x`, and the
+  `cat > ../../../../tmp_unused` that left a stray file on `D:\`); 3 `Edit(**/.claude/settings.json)` asks, 2 guard
+  asks and one `rm` of that stray file (a critical path). Allow rules alone (a model run of 136 rules, Bash and
+  PowerShell: git reads and writes, text and process tools, PowerShell filters, `$PYTHON_BIN`) leave 1,976: a `cd`
+  into the scratchpad 606, `git -C` 162 (no allow rule may put a `*` before the subcommand), `sed` on a variable's
+  path 148, `GIT_SEQUENCE_EDITOR=: git rebase` 73 (an allow rule never matches past such an assignment), `bash -c` 60
+  and the rest. Bypass and default mode are unchanged (6 and 8,532 prompts).
+
+#### 8.2.10 Unattended `acceptEdits` sessions (#312)
+A route-C successor manager and its workflow agents always run in `acceptEdits` and cannot leave it (#484). There
+Claude Code runs, besides the allow rules and its read-only commands, the file tools and `mkdir`, `touch`, `rm`,
+`rmdir`, `mv`, `cp`, `sed` (and `Set-Content`, `Add-Content`, `Clear-Content`, `Remove-Item`) on paths in the working
+directory, and prompts for everything else (`code.claude.com/docs/en/permission-modes`, checked 2026-10-07). So in an
+**unattended** session in `acceptEdits` the guard's hook answers `allow` for a Bash or PowerShell call it finds
+nothing to ask for (`hooks.pre_tool_use`, `guard.allows`): the call runs as it would in bypass.
+
+Unattended needs a positive sign (`hooks.unattended`, fails closed): `CLAUDE_CODE_SESSION_ATTENDED` set to `0` or
+`false`, or a session the desktop app started (`CLAUDE_CODE_ENTRYPOINT=claude-desktop`) without the variable. The app
+sets it to `1` in a session a human opened (seen on 2026-10-07). A human's own `acceptEdits` session, both humans'
+default mode (§2), keeps its prompts: a desktop session the app marks attended, and a CLI or IDE session (a terminal,
+Rider), which never counts as unattended.
+
+What still holds over the hook's `allow`: every deny rule, every ask rule, the guard's own asks, and Claude Code's
+built-in checks (`rm` of a critical path such as a drive's top-level folder asks even in bypass; `Remove-Item` of a
+wildcard or a system path is denied in every mode). The hook allows no shell write or delete
+- to a path Claude Code protects (`.claude` but its worktrees `.claude/worktrees/<n>/`, `.git`, `.vscode`,
+  `.gitmodules` and the others in `guard.CLAUDE_PROTECTED_DIRS` and `_FILES`, by the guard's targets and by inline
+  code that writes and names one: `Analysis.protected`);
+- beyond the session's own worktree, the temp folder (the scratchpad) and the disposable folders (`tests/scratch/`,
+  `tools/out/`, `.godot/`), or to a path it cannot resolve (`Paths.free`, `Analysis.beyond`): the main checkout from
+  a worktree, another worktree, a sibling repository, home. A `rm D:/prime-game/core/x.gd` from a worktree keeps
+  Claude Code's own prompt, as deletes outside the agent's worktree must. A loop variable after a known folder
+  (`$S/p$n.md`) counts as a file in it; one that starts the path (`rm $f`) does not.
+
+Those keep Claude Code's own verdict. No hook can allow an Edit or Write under `.claude/`: so a task that edits
+`.claude/` (a skill, an agent, a workflow, a hook) stops at its first such edit in an unattended `acceptEdits`
+session, and a manager in that mode launches none (orchestrate-stage `handover.md` §3, "Mode and effort").
+`tools\run.cmd permissions --mode acceptEdits` models the mode (the scratchpad counts as in scope, the model's
+assumption; a session in a worktree, or in a folder inside one, as working in the main checkout) and judges every
+session as unattended. Unverified until a route-C run shows it: that the hook's `allow` reaches a scheduled
+session's workflow agents, and that a scheduled session carries one of the two signs above (if it sets
+`CLAUDE_CODE_SESSION_ATTENDED=1` or runs outside the desktop app, the hook allows nothing and the run prompts as
+before #312).
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -987,7 +1158,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING}.md` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md` |
 | Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1064,6 +1235,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
   date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
   addon still gets an entry.
+- **LFS in CI [applied]:** CI checks out without LFS content, so each LFS file is a pointer file there. `check`
+  imports a stand-in of its type in its place (an image, a WAV, a glTF, GLB or OBJ; other types are kept out of the
+  import) and drops the project check's lines about the rest, in one `skip` line; the credits check still covers
+  them; locally nothing changes. A build runs `check --lfs-content`, which fails on any pointer file
+  ([ADR amendment](decisions/2026-09-29-git-lfs-for-binary-assets.md), #515).
 
 ## 11. Godot specifics
 
@@ -1284,8 +1460,13 @@ that no later launch of its issue and workflow has replaced (the args exactly as
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
 context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
 also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
-orchestrate-stage skill's §7 turn-end check). It reads two more sources: one `gh pr list --base main --json files` for
-the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
+orchestrate-stage skill's §7 turn-end check; thresholds 500k and, at a stop for the human, 250k, #511). A due verdict
+ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment's notes end with the ready kickoff the human
+pastes; route C (`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead) only if he asked for it, the
+track read from the `Track:` line of the session's kickoff (as `metrics --track` reads it, inside a scheduled task's
+frame too). With runs in flight it adds the rule while the human is away: launch nothing new and post the handover
+once they end. It reads two more sources: one `gh pr list --base main --json files` for the PRs merged into main
+since the session's first record that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or
 `.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
 HEAD...origin/main` on those paths in the main checkout; the rule is in `wave.py`'s docstring. A section says
 "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
@@ -1316,7 +1497,7 @@ fetch` (with any PR head it fetches) is its only write, to the shared git dir. T
 manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
 `args-<n>.json` files, in #279.
 
-### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]]` [applied]
+### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
 baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
 reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -1330,14 +1511,20 @@ with a past `--until` gives the same tables while sessions keep working. A sessi
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
 `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
-issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
+issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
+`review:code-control` and `ab-judge`; any other is "other"),
 local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
 the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
 writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
 as N, and the `test` shards that did not end with exit 0, #273, and how many of the window's recorded `check` steps
 passed although Godot crashed at exit, #449: records without the `exit_crash` field are not counted), review
-findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the prompt
-cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the plan
+phase per run with a planner (#469: the planner's model, the plan's and its critique's API list $, the files the
+planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
+code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
+valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
+`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
+prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
@@ -1396,7 +1583,15 @@ or translated shows there). That total covers only the three checkouts: the coun
 sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
 `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
-labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
+labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%. **`--run ID ...`** (#534),
+alone: one workflow run's spend so far, finished or in flight, for the manager's check after a large launch's first
+phase ([`docs/MANAGERS.md`](MANAGERS.md) §9). Each run whose folder name starts with an ID (`wf_` optional) in the
+folders of `TRACK_CHECKOUTS` (so a UI or art run too, from this repo's main checkout): the agents started (a retried
+one once) and answered, who works now (a started agent with no result), the minutes since the newest write to its
+journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
+message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
+phase; several runs end with their total. It writes no file; an ID that names no run fails. On art's `wf_45e2297a`
+it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
@@ -1711,7 +1906,20 @@ Before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API fac
 from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
 `docs.godotengine.org/en/4.7/`.
 
-### 11.23 Exported builds: `export [--version V] [--rev R]` [applied] (#369; the M6 ADR's E59 and D20)
+### 11.23 `inbox [--since T] [--repo OWNER/NAME ...]` [applied] (#485)
+The secretary's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
+(`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
+repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
+500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items
+without "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's
+exceptions of each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list:
+the merges only he makes; for a PR with a rename, one `gh api repos/<repo>/pulls/<n>/files` adds each old path as
+a delete, as the gate's `--no-renames` diff sees it); and the "For you:" blocks of each thread's latest comment by
+his account that has one (all its blocks together; a "- " item is read too), with the count of later comments in
+the window. `--since` defaults to 72 hours ago. A source that fails prints "Unavailable: <error>" and exits 1; the
+rest is still printed.
+
+### 11.24 Exported builds: `export [--version V] [--rev R]` [applied] (#369; the M6 ADR's E59 and D20)
 The friends'
 Windows x86_64 builds from the two presets of `export_presets.cfg` (`Windows Release`, `Windows Debug`; the pack
 beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
@@ -1773,8 +1981,9 @@ folder of `export.BUNDLED` counts, and a folder there not in `BUNDLED` fails `No
 - Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
-- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7), or, naming a stage or
-  a list of issues, the orchestrator session (§7.1); "just do it" → small, obvious changes only.
+- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff naming a
+  stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" →
+  small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
   real misrecognitions.
@@ -1798,12 +2007,11 @@ folder of `export.BUNDLED` counts, and a folder there not in `BUNDLED` fails `No
 | Auto permission mode | After the M0 guard tests pass |
 | `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
-| Git LFS in CI (uses LFS bandwidth quota), or `check` skipping pointer files ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)) | Before the first LFS asset outside `addons/`; ask the humans |
 
 **Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
-version, and the PATH `claude` are done, checked live 2026-09-29): usage credits off on both accounts; invite the
-designer to the repo and to project 1 (the designer's handle is in CODEOWNERS since #85);
-decide LFS in CI before the first LFS asset outside `addons/`.
+version, and the PATH `claude` are done, checked live 2026-09-29; LFS in CI decided 2026-10-07, §10): usage
+credits off on both accounts; invite the designer to the repo and to project 1 (the designer's handle is in
+CODEOWNERS since #85).
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
 agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.

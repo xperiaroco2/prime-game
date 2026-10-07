@@ -7,6 +7,10 @@
   Amended 2026-10-06: N4 moved to (b), the default flipped now ([#302 comment
   6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870)); P3b (#458) made `lean`
   the default of `issue-task` and `pr-rebase`, with no clean week first.
+  Amended 2026-10-07 (#485): a secretary session gathers what needs the engineer from every track, inside his own
+  5% (Q5).
+  Amended 2026-10-07 (#534): every workflow launch is estimated before it starts, and a launch over about 5% of the
+  week stops after its first phase for a check of its spend (Q2).
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
@@ -117,6 +121,20 @@ last budgets.
 "money and budget above the set budget") except in the last 24 hours, where choosing the last-day rule is that word
 given in advance; the last-day rule prevents ending the week with unused budget while a queue waits.
 
+**Amended 2026-10-07** (#534). Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6038401263
+(item 2). The budgets above bound a week, not a launch: the token audit of 2026-10-07 found one art workflow
+(`wf_45e2297a`) that cost $693, 27% of the week and more than the art track's whole 20%, with 48 agents and no
+estimate before its launch. So, on every track:
+- every workflow launch states its estimate first (agents, list $, % of the week), from `metrics`' per-task medians
+  or the workflow's own agents x calls x $ per call;
+- a launch over about 5% of the week, which also states its first phase's share, stops after its first phase (the
+  script returns there, or the manager stops it and afterwards resumes it with `resumeFromRunId` and the same args,
+  so the first phase is not paid twice), and the manager checks the spend so far (`tools\run.cmd metrics --run
+  <run id>`, added for this) against the estimate before the rest; a first phase well over its share (over 1.5 times, #534's reading) re-estimates the rest,
+  and a rest past the track's budget left goes to the engineer in "For you:".
+The rule lives in [docs/MANAGERS.md](../MANAGERS.md) §9, which the UI and art repos' `CLAUDE.md` files point to;
+the `orchestrate-stage` skill (§3, `budget.md`) points there.
+
 ### Q3. The PC as a limit (N3)
 Two `verify` runs at once are what this PC sustains with nothing else heavy on it: with three at once the median run
 took 38% longer than a lone one (26% longer than with two), and the timeouts came at two or three (rows 15 and 17). A
@@ -169,6 +187,45 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   **Amended 2026-10-06** (#467; approved by the engineer:
   [#467 comment 6014950287](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287)): the
   handover may come mid-wave; the successor relaunches the runs in flight fresh from their commits.
+  **Amended 2026-10-07** (#484). Approved by the engineer:
+  [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550). The
+  thresholds stay mandatory (300k, 12 hours, changed instructions); a manager may also hand over earlier, at a natural
+  break (no run in flight, or a stop for the engineer), when its cost math says a fresh start is cheaper. The manager
+  starts its successor itself and the engineer pastes nothing: an ad-hoc Desktop scheduled task holds the track's
+  standing kickoff, and the manager sets its `fireAt` a few minutes ahead (route C), checks that the successor
+  started, sets its effort and closes itself where the app allows. The approved comment's route B
+  (`run_scheduled_task`) was probed first
+  ([#484 comment 6025319228](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025319228),
+  [6025434392](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025434392)) and does not chain:
+  a session a scheduled task started is refused it, while a `fireAt` task fires by itself
+  ([6025677487](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)). The successor starts
+  in `acceptEdits` at medium effort whatever its predecessor's mode, so while the engineer is away a manager hands
+  over only when a threshold forces it. It applies to every track's manager: game, UI, art and meta. How:
+  orchestrate-stage handover.md, AGENT_WORKFLOW §7.1. The approved comment names route B and says nothing about
+  nights: route C and the night rule are the meta manager's reading of the probe, and the engineer confirms them in
+  the "Needs the engineer" of the PR that records this amendment (the merge gate holds it until he answers).
+  **Amended 2026-10-07 again** (#511). Approved by the engineer:
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486). The
+  handover goes back to a pasted kickoff by default: the handover comment ends with the ready kickoff, which the
+  engineer pastes into a new session in the track's checkout with the mode and effort he picks (bypass, high). Route C
+  stays as a fallback he asks for, because its successor always runs in `acceptEdits` at medium effort: at night it is
+  limited and has little to do without him, and by day raising its mode and effort by hand is no less work than a
+  paste. The context threshold rises from 300k to **500k**, to be checked with `metrics` after a week (the night of
+  10-06/07 reached about 0.25M in 14 hours); the 12 hours and changed instructions stay. The stop for the engineer
+  keeps its ratio, half the threshold: 250k for 150k (#511's choice, which the PR states). While he is away a due
+  handover waits for the runs in flight to end instead of stopping them, since no successor starts before his paste
+  (#511's reading, for the engineer to confirm in its PR). No "ultracode" in managers' kickoffs: the kickoff says "one
+  task = one issue-task workflow" with the approved agent count; the manager's effort stays high (the effort ADR's
+  amendment, #308). One set of manager rules serves every track, the UI and art repos included:
+  [docs/MANAGERS.md](../MANAGERS.md), to which their `CLAUDE.md` files point.
+  **Amended 2026-10-07** (#485). Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550
+  - Besides the four managers, one **secretary** session (Opus at medium effort; AGENT_WORKFLOW §7.2, the skill
+    `secretary`) reads every session and the three repos, rewrites the pinned "Engineer's inbox" issue every 30 to
+    60 minutes while the engineer is at the PC (what to approve or decide and what to look at, each item with a link
+    or a ready command) and says in its chat what changed.
+  - It relays his answers to the session that asked, which records them on GitHub; it never merges, launches,
+    closes or decides.
+  - Its cost counts in the engineer's own 5% (N1), until he says otherwise: no budget of its own, no track.
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

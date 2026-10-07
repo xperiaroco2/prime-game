@@ -68,9 +68,17 @@ def build_parser() -> argparse.ArgumentParser:
         "check",
         help="import, warnings policy, UID lint, parse and load check",
         description="Headless import, the warnings policy, UID lint, then parse and load of every script and scene "
-        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits).",
+        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits). "
+        "In CI (no LFS content) the LFS pointer files stay out of the import and the project check, in one summary "
+        "line (#515).",
     )
     p.add_argument("files", nargs="*", help="res:// paths to check (default: the whole project)")
+    p.add_argument(
+        "--lfs-content",
+        action="store_true",
+        help="only fail on any Git LFS pointer file (a checkout without LFS content), with no Godot: a build's check "
+        "before its export",
+    )
 
     p = sub.add_parser(
         "test",
@@ -518,6 +526,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="with --track: each named track's budget in %% of the week, in their order, and its plan to date "
         "(budget x days since --since / 7)",
     )
+    p.add_argument(
+        "--run",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="ID",
+        help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
+        "who works now, its %% of the week and its list $ by phase, over the three track checkouts (the check after a large "
+        "launch's first phase, docs/MANAGERS.md §9)",
+    )
 
     p = sub.add_parser(
         "wave",
@@ -546,6 +564,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p = sub.add_parser(
+        "inbox",
+        help="the GitHub half of the secretary's digest across the game, UI and art repos (read-only)",
+        description="The GitHub half of the secretary's digest (#485), across the game, UI and art repos in one call: "
+        "open PRs' unanswered 'Needs the engineer' items, the gate's exceptions (merges only the engineer makes) and "
+        "each thread's latest 'For you:' block by the engineer's account since --since. Posts and writes nothing; "
+        "exit 1 when a source could not be read (the rest is still printed).",
+    )
+    p.add_argument(
+        "--since", help="ISO 8601 time: comments updated at or after it (default 72 hours ago); PRs: all open ones"
+    )
+    p.add_argument(
+        "--repo", nargs="+", action="extend", default=[], metavar="OWNER/NAME", help="only these repos (default all three)"
+    )
+
+    p = sub.add_parser(
         "pins", help="print pinned tool versions as JSON", description="Print the pinned tool versions as JSON."
     )
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -559,7 +592,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
     p.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD)")
-    p.add_argument("--mode", choices=["bypass", "default"], default="bypass", help="the permission mode to model")
+    p.add_argument(
+        "--mode", choices=["bypass", "acceptEdits", "default"], default="bypass", help="the permission mode to model"
+    )
     p.add_argument("--list", action="store_true", help="list each cause that stops a call, with examples")
     p.add_argument("--observed", action="store_true", help="the prompts, denials and blocks the transcripts record")
 
@@ -602,7 +637,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check":
             from . import check
 
-            return check.main(files=args.files or None)
+            if args.lfs_content and args.files:
+                raise Failure("--lfs-content checks every LFS file; drop the paths")
+            return check.main(files=args.files or None, lfs_content=args.lfs_content)
         if args.command == "test":
             from . import gdunit
 
@@ -777,7 +814,7 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh, track=args.track, budget=args.budget,
+                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
             )
         if args.command == "wave":
             from . import wave
@@ -787,6 +824,10 @@ def main(argv: list[str] | None = None) -> int:
                 base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
                 merge_check=args.merge_check,
             )  # fmt: skip
+        if args.command == "inbox":
+            from . import inbox
+
+            return inbox.main(since=args.since, repos=args.repo)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0

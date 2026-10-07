@@ -9,6 +9,12 @@
 - **Amended 2026-10-04 (#300):** the manager also merges into `main` through the gate of
   [trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md), closes issues and runs the
   housekeeping; the human answers, gives each milestone's go and merges the gate's exceptions.
+- **Amended 2026-10-07 (#511):** the manager session runs from a kickoff the engineer pastes, without "ultracode",
+  which is only the opt-in for workflows and whose "token cost is not a constraint" guidance works against the token
+  efficiency track; the kickoff says "one task = one issue-task workflow" with the approved agent count, and the
+  manager's effort stays high. "In ultracode" below is history. Approved by the engineer:
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486); the rules
+  every track's manager follows: [docs/MANAGERS.md](../MANAGERS.md).
 
 ## Context
 On 2026-09-30 one Claude Code session in ultracode ran M2's stage 2 as a manager: from a single kickoff message it

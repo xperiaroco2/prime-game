@@ -9,6 +9,7 @@ fresh relaunch. Sources (metrics' module docstring says where the transcripts ar
   - task notifications (<task-notification> in a queue-operation enqueue record or a user record), paired by their
     <tool-use-id> (else <task-id>): the run's end (the earliest of them) and its status (completed, failed, killed);
   - the API calls (deduplicated by message id as metrics.read_agent does) and the session's title for the footer;
+  - its first user message's `Track:` line (metrics.kickoff_track, a second short read), for the handover's successor;
 - each run's <sid>/subagents/workflows/<runId>/journal.jsonl through metrics.read_run: the agents, their labels,
   phases and structured results.
 A notification's <result> is cut at about 8 kB, so a finished run's PR, CI, published, not_fixed, needs_engineer and
@@ -49,15 +50,20 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
   "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
   ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since;
 - for the handover verdict (#467): the PRs merged into main since the session's first record (not --since) whose
-  files include root CLAUDE.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list --base main --json
-  files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call when nothing merged
-  into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main checkout (no fetch).
+  files include root CLAUDE.md, docs/MANAGERS.md or a file under .claude/rules/ or .claude/agents/ (one `gh pr list
+  --base main --json files`, and `gh pr view <n> --json files` for a merge the search has not caught up with; no call
+  when nothing merged into main since then), and `git diff --name-only HEAD...origin/main` on those paths in the main
+  checkout (no fetch).
 The handover verdict ends the footer and is stdout's last line (orchestrate-stage §7 runs it at each turn end):
-"handover due: <why>" when the last call's context is over 300k or the session over 12 h old, even with runs in
-flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent),
-or, once no run is in flight, when such a merge changed the instructions (until then "launch nothing new"); else
-"handover not due", with "at a stop for the human: due" when no run is in flight and the context is over 150k. A run
-with no line for over STALE_MINUTES is named as stale, not counted in flight. A failed read says so in the line.
+"handover due: <why>" when the last call's context is over 500k or the session over 12 h old, even with runs in
+flight (then: stop them, then post the handover; a run whose agent publishes, rebases or fixes only after that agent;
+while the human is away, let them end instead), or, once no run is in flight, when such a merge changed the
+instructions (until then "launch nothing new"); else "handover not due", with "at a stop for the human: due" when no
+run is in flight and the context is over 250k. A due line ends with the successor (#511, docs/MANAGERS.md §6): the
+handover comment's notes end with the ready kickoff, which the last For you carries too, for the human to paste into a
+new session; route C (#484, update_scheduled_task on the track's task, named after the kickoff's `Track:` line,
+metrics.kickoff_track) only if he asked for it. A run with no line for over STALE_MINUTES is named as stale, not
+counted in flight. A failed read says so in the line.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -118,13 +124,17 @@ COST_EXTRAS: list[Callable[[dict], list[str]]] = []
 RELEASE_WORKTREE = re.compile(r"^release-m(\d+)$")
 CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
-# The handover verdict (#467; orchestrate-stage §7): due when strictly over a threshold.
-HANDOVER_CONTEXT = 300_000
+# The handover verdict (#467; orchestrate-stage §7; docs/MANAGERS.md §5): due when strictly over a threshold. 500k
+# is the engineer's (#511); the stop for the human keeps its old ratio to it, half (150k of 300k before #511).
+HANDOVER_CONTEXT = 500_000
 HANDOVER_HOURS = 12.0
-STOP_CONTEXT = 150_000
+STOP_CONTEXT = HANDOVER_CONTEXT // 2
+# The central rules every track's manager follows (#511); the UI and art repos' CLAUDE.md files point to it.
+MANAGER_RULES = "docs/MANAGERS.md"
 # The agents' instructions a manager hands its workflow agents from its own cache: root CLAUDE.md only (core/CLAUDE.md
-# and the like load from disk in the agent's own folder), the rules and the agent types.
-INSTRUCTION_FILES = ("CLAUDE.md",)
+# and the like load from disk in the agent's own folder), the rules and the agent types; and the managers' own rules,
+# which a manager reads once at its start.
+INSTRUCTION_FILES = ("CLAUDE.md", MANAGER_RULES)
 INSTRUCTION_DIRS = (".claude/rules/", ".claude/agents/")
 FILES_FIELDS = "number,baseRefName,mergedAt,files"
 FILES_LIMIT = 200
@@ -173,6 +183,7 @@ class Session:
     last_ctx: int = 0
     launches: list[Launch] = field(default_factory=list)
     skipped: Counter = field(default_factory=Counter)
+    track: str | None = None
 
 
 @dataclass
@@ -225,7 +236,7 @@ class OpenPR:
 
 @dataclass
 class InstructionChange:
-    """A PR merged into main since the session start that changed the agents' instructions."""
+    """A PR merged into main since the session start that changed the instructions (the agents' or the managers')."""
 
     number: int
     merged_at: float
@@ -474,6 +485,7 @@ def read_session(path: Path, sid: str) -> Session:
         if launch.notice is None or note.time < launch.notice.time:
             launch.notice = note  # the enqueue comes first; the user record repeats it later
     resolve_args(s.launches)
+    s.track = metrics.kickoff_track(path)
     return s
 
 
@@ -763,8 +775,8 @@ def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
 
 
 def instruction_paths(paths: Iterable[str]) -> list[str]:
-    """The paths among these that are the agents' instructions (INSTRUCTION_FILES at the root, files under
-    INSTRUCTION_DIRS), in their order."""
+    """The paths among these that are the instructions, the agents' or the managers' (INSTRUCTION_FILES at the root,
+    files under INSTRUCTION_DIRS), in their order."""
     return [p for p in paths
             if p in INSTRUCTION_FILES or (p.startswith(INSTRUCTION_DIRS) and p not in INSTRUCTION_DIRS)]  # fmt: skip
 
@@ -1311,14 +1323,31 @@ def is_stale(r: Run, now: float) -> bool:
 
 def in_flight_text(runs: list[Run], now: float) -> str:
     """'2 runs in flight (#466 implement:#466, 3 min since its last line; ...): stop each (...), then post the
-    handover; the new session relaunches them fresh'."""
+    handover; the successor relaunches them fresh'."""
     pushing = [r for r in runs if any(metrics.role_of(label) in PUSHING_ROLES for label, _ in r.working)]
     wait = ""
     if pushing:
         wait = f" ({', '.join(run_name(r) for r in pushing)} only once its publish, rebase or fix agent ends)"
     n = len(runs)
+    away = f"the human away: launch nothing new and post it once {plural(n, 'it ends', 'they end')} instead"
     return (f"{n} {plural(n, 'run', 'runs')} in flight ({runs_text(runs, now)}): stop {plural(n, 'it', 'each')}{wait}, "
-            f"then post the handover; the new session relaunches {plural(n, 'it', 'them')} fresh")  # fmt: skip
+            f"then post the handover ({away}, {MANAGER_RULES} §5); the successor relaunches {plural(n, 'it', 'them')} "
+            "fresh")  # fmt: skip
+
+
+def successor_text(track: str | None) -> str:
+    """The handover's last step (#511; docs/MANAGERS.md §6): the handover comment's notes end with the ready kickoff,
+    and the last For you carries it in a fenced text block (the wave sections follow the notes), which the human
+    pastes into a new session in the track's checkout with the mode and effort he picks. Route C (#484, the track's
+    one-time scheduled task fired a few minutes ahead) is the fallback he asks for: its successor always starts in
+    acceptEdits at medium effort."""
+    task = f"{track or '<track>'}-manager"
+    unknown = " (no Track: line in this session's kickoff)" if not track else ""
+    return (f"the successor ({MANAGER_RULES} §6): the handover comment's notes end with the ready kickoff, and your "
+            "For you carries it in a fenced text block with the comment's link and asks the human to paste it into a "
+            "new session in the track's checkout (bypass, effort high); then stop and launch nothing more; "
+            f"route C (update_scheduled_task {task}{unknown}, fireAt 3 min ahead; "
+            "orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
 
 
 def handover_verdict(w: Wave) -> str:
@@ -1326,7 +1355,8 @@ def handover_verdict(w: Wave) -> str:
     Due, even with runs in flight: the last call's context over HANDOVER_CONTEXT or the session over HANDOVER_HOURS
     old. Due once no run of this session is in flight: a merge into main since the session start changed the agents'
     instructions (until then: launch nothing new). Not due, no run in flight and the context over STOP_CONTEXT: a
-    stop for the human hands over instead of arming a keep-alive. A stale run (is_stale) is named but not in flight."""
+    stop for the human hands over instead of arming a keep-alive. Each due line ends with successor_text. A stale run
+    (is_stale) is named but not in flight."""
     s = w.session
     ctx = s.last_ctx
     age = (w.now - s.first) / 3600 if s.first is not None else 0.0
@@ -1339,14 +1369,14 @@ def handover_verdict(w: Wave) -> str:
     if age > HANDOVER_HOURS:
         reasons.append(f"the session is {age:.1f} h old, over {HANDOVER_HOURS:g} h")
     if changes and (reasons or not running):
-        reasons.append(f"merges into main since the session start changed the agents' instructions: "
-                       f"{changes_text(changes)}")  # fmt: skip
+        reasons.append(f"merges into main since the session start changed the instructions (the agents' or the "
+                       f"managers'): {changes_text(changes)}")  # fmt: skip
+    due = bool(reasons)
     if reasons:
         line = "handover due: " + "; ".join(reasons)
-        if running:
-            line += "; " + in_flight_text(running, w.now)
+        line += "; " + (in_flight_text(running, w.now) if running else "post the handover")
         if changes:
-            line += "; pull the main checkout before the new session starts"
+            line += "; pull the main checkout before the successor starts"
     else:
         line = "handover not due"
         if changes:
@@ -1354,8 +1384,9 @@ def handover_verdict(w: Wave) -> str:
             line += (f"; instruction change pending: launch nothing new; due once the {n} "
                      f"{plural(n, 'run in flight ends', 'runs in flight end')}: {changes_text(changes)}")  # fmt: skip
         if not running and ctx > STOP_CONTEXT:
+            due = True
             line += (f"; at a stop for the human: due (the context {metrics.fmt_tok(ctx)} is over "
-                     f"{STOP_CONTEXT // 1000}k and no run is in flight)")  # fmt: skip
+                     f"{STOP_CONTEXT // 1000}k and no run is in flight): post the handover")  # fmt: skip
     if stale:
         n = len(stale)
         line += (f"; {n} stale {plural(n, 'run', 'runs')}, no line for over {STALE_MINUTES} min, not counted in flight "
@@ -1370,7 +1401,9 @@ def handover_verdict(w: Wave) -> str:
         line += f"; the main checkout's instruction files unavailable: {cell(w.behind)}"
     elif w.behind:
         line += (f"; the main checkout's instruction files are behind origin/main ({', '.join(w.behind)}): the human "
-                 "pulls it before a new session starts")  # fmt: skip
+                 "pulls it before the successor starts")  # fmt: skip
+    if due:  # last, after every clause that must hold before the successor starts (stale runs, a pull)
+        line += "; then " + successor_text(s.track)
     return line.rstrip(".") + "."
 
 

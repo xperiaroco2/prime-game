@@ -9,19 +9,22 @@ resume replays an agent only while its prompt and options are unchanged. So with
 (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), `bounded_waits: false` and
 `lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
 `workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
-origin/main before v2 changed them. The one exception is `publish-clean-main`: it passes a v2 arg and pins the
-publish_clean trial of #308, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
+origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
+of #308, `plan-review-main` #469's plan phase and `ab-review-main` #535's A/B of the code reviewer's model, so the
+byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
 resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
 run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
-wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
-and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
-root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list), #471's publish steps (no
-standalone verify before `publish`), and #468's reading line (every agent's, reviewers too); they landed between waves, when no run could resume. Each snapshot ends with the
-run's return value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and
-changed only that part of every snapshot.
+wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote
+unbounded/ too: #413's and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan
+critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading
+list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
+too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
+summary cap, the publisher's plan summary and inline finish-task steps); they landed between waves, when no run could
+resume. #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
+the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib
@@ -67,6 +70,7 @@ for (const job of jobs) {
     if (label.startsWith('review')) return { reviewer: 'r', verdict: 'ok', findings: stub.findings || [] }
     if (label.startsWith('test-review')) return { available: true, exit_2: false, findings: [], mutants: [] }
     if (label.startsWith('skeptic')) return { refuted: false, reason: 'it stands' }
+    if (label.startsWith('ab-judge')) return { verdicts: [], matches: [] }
     if (label.startsWith('fix')) return { fixed: [], verify_green: true, published: true, ci_green: true }
     return { published: true, handoff_posted: true }
   }
@@ -141,8 +145,28 @@ SNAPSHOT_CASES = {
         ("content-release", {"branch": "content/7-x", "base": "release/m5"}, {"paths": ["content/roles/x.tres", "levels/rooms/x.tscn"]}),
         ("design-main", {"branch": "docs/7-x", "design": True}, {"paths": ["docs/ARCHITECTURE.md", "docs/decisions/x.md"]}),
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
-        # #308's one-wave trial: a clean run's publisher with a cheaper model (the only case with a v2 arg).
+        # #308's one-wave trial: a clean run's publisher with a cheaper model (a case with a v2 arg).
         ("publish-clean-main", {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MINOR]}),
+        # #469's plan phase: the planner on the model the manager passes, a plan with a file map and its comment.
+        (
+            "plan-review-main",
+            {"branch": "core/7-x", "plan_review": True, "models": {"plan": "sonnet", "publish_clean": "sonnet"}},
+            {"paths": ["core/x.gd"], "queues": {"plan": [{
+                "summary": "p", "criteria": ["c"], "files": ["core/x.gd: f"], "tests": ["t"],
+                "file_map": {"base_sha": "0123456789abcdef0123456789abcdef01234567", "files": [{"path": "core/x.gd", "lines": "1-40", "facts": ["func f() -> int"]}]},
+                "comment_url": "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1",
+            }]}},
+        ),
+        # #535's A/B of the code reviewer's model: a control code reviewer and a blind judge (a case with a v2 arg).
+        (
+            "ab-review-main",
+            {"branch": "tooling/7-x", "ab_review": True, "models": {"code": "sonnet", "publish_clean": "sonnet"}},
+            {"paths": ["tools/runner/x.py"], "findings": [MINOR], "queues": {"ab-judge": [{
+                "verdicts": [{"reviewer": 1, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"},
+                             {"reviewer": 2, "index": 0, "verdict": "valid", "severity": "minor", "reason": "r"}],
+                "matches": [{"first": 0, "second": 0}],
+            }] * 2}},
+        ),
         (
             "every-arg-release",
             {
@@ -571,7 +595,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
+        # case but publish-clean-main, plan-review-main and ab-review-main passes no v2 arg besides the bounded_waits
+        # and lean false of its unbounded/ run).
         # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
         # and with both false (`unbounded/<case>.txt`, the text and options before #411).
         jobs, files = [], []
@@ -602,6 +627,8 @@ class WorkflowTest(unittest.TestCase):
 
 
 AVAILABLE = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["availableModels"]
+# #535's A/B of the code reviewer's model, with every other v2 option.
+AB = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "ab_review": True, "models": {"code": "sonnet"}}
 V2 = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "visual": ["spectate"]}
 GODOT_LINE = "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen)."
 PLAYCHECK_LINE = (
@@ -727,6 +754,92 @@ class PipelineV2Test(unittest.TestCase):
         got = {e["label"]: options(e).get("model") for e in agents(rebase)}
         self.assertEqual({k: v for k, v in got.items() if v}, {"review:netcode-second:#8": a, "fix:#8": b}, got)
 
+    def test_the_code_role_is_the_code_reviewer_alone(self) -> None:
+        # #535: models.review also moves the plan critique, the netcode reviews and the skeptics; code moves only the
+        # diff's code reviewer, and falls back to review.
+        a, b = AVAILABLE[0], AVAILABLE[1]
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a}, efforts={"code": "medium"}, **V2), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", models={"code": a, "review": b}, efforts={"review": "low"}, **V2), core),
+        ]
+        only_code, with_review = ({e["label"]: options(e) for e in agents(r)} for r in run_jobs(jobs))
+        self.assertEqual({k: o["model"] for k, o in only_code.items() if "model" in o}, {"review:code:#7": a})
+        reviewers = ("review:plan:#7", "review:netcode:#7", "review:netcode-second:#7", "review:godot-api:#7", "skeptic:#7")
+        self.assertEqual(only_code["review:code:#7"].get("effort"), "medium")
+        for label in reviewers:
+            self.assertNotIn("effort", only_code[label], label)
+        self.assertEqual((with_review["review:code:#7"]["model"], with_review["review:code:#7"]["effort"]), (a, "low"))
+        for label in set(reviewers) - {"review:godot-api:#7"}:
+            self.assertEqual(with_review[label]["model"], b, label)
+        self.assertNotIn("model", with_review["review:godot-api:#7"])
+
+    def test_ab_review_adds_a_control_reviewer_and_a_blind_judge(self) -> None:
+        # #535: the control is the code reviewer's prompt on the review model; both reviews go on as usual. The judge,
+        # on the review model and told neither model, sees reviewer 1 (the trial) and reviewer 2 (the control).
+        a, b = AVAILABLE[1], AVAILABLE[0]
+        tooling = {"paths": ["tools/runner/x.py"], "findings": [MAJOR, MINOR]}
+        judged = {
+            "verdicts": [
+                {"reviewer": 1, "index": 0, "verdict": "valid", "severity": "major"},
+                {"reviewer": 2, "index": 1, "verdict": "invalid", "severity": "nit"},
+            ],
+            "matches": [{"first": 0, "second": 0}],
+        }
+        plain = dict(ARGS, branch="tooling/7-x", models={"code": a})
+        ab = dict(plain, ab_review=True)
+        jobs = [
+            ("issue-task.js", plain, tooling),  # 0: the same launch without the A/B
+            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [judged]})),
+            ("issue-task.js", dict(ab, models={"code": a, "review": b}), tooling),
+            ("issue-task.js", ab, {"paths": ["tools/runner/x.py"]}),  # 3: nothing to judge
+            ("issue-task.js", ab, dict(tooling, queues={"ab-judge": [None]})),  # 4: the judge died
+            ("issue-task.js", dict(ab, branch="core/7-x"), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        plain_run, run, on_review, empty, died, core = results = run_jobs(jobs)
+        for result in results:
+            self.assertIsNone(result["error"])
+        self.assertFalse(calls(plain_run, "review:code-control") or calls(plain_run, "ab-judge"))
+        self.assertNotIn("ab_review", plain_run["returned"])
+        self.assertNotIn("ab_review", calls(plain_run, "publish")[0]["prompt"])
+        # Both code reviewers in the parallel review, then the publisher; the judge runs beside the publisher (it is off the
+        # critical path: the publisher never sees it), so only the set of agents is fixed.
+        labels = [e["label"] for e in agents(run)]
+        self.assertEqual(labels[:3], ["implement:#7", "review:code:#7", "review:code-control:#7"])
+        self.assertEqual(set(labels[3:]), {"ab-judge:#7", "publish:#7"})
+        trial, control, judge = (calls(run, p)[0] for p in ("review:code:#", "review:code-control", "ab-judge"))
+        self.assertEqual(trial["prompt"], control["prompt"])
+        self.assertEqual(options(trial)["model"], a)
+        self.assertNotIn("model", options(control))
+        self.assertEqual(options(calls(on_review, "review:code-control")[0])["model"], b)
+        self.assertEqual(options(calls(on_review, "ab-judge")[0])["model"], b)
+        self.assertEqual({k: options(judge).get(k) for k in ("phase", "agentType", "model")}, {"phase": "Review", "agentType": "code-reviewer", "model": None})
+        self.assertEqual(set(options(judge)["schema"]["required"]), {"verdicts", "matches"})
+        self.assertIn(f"Reviewer 1 found: {json.dumps([MAJOR, MINOR], separators=(',', ':'))}", judge["prompt"])
+        self.assertIn("Reviewer 2 found: ", judge["prompt"])
+        for model in AVAILABLE:
+            self.assertNotIn(model, judge["prompt"].lower())
+        # Blind: nothing in the prompt points to the A/B's issue or arg, whose texts say which reviewer is the trial.
+        for hint in ("#535", "ab_review", "trial", "control"):
+            self.assertNotIn(hint, judge["prompt"].lower().replace("#7", ""))
+        self.assertIn("ab_review, #535", calls(run, "publish")[0]["prompt"])
+        self.assertEqual([r["by"] for r in run["returned"]["reviews"]], ["code-reviewer", "code-reviewer (control)"])
+        self.assertEqual(
+            run["returned"]["ab_review"],
+            {"model": a, "control_model": None, "judge": {"verdicts": {"valid": 1, "invalid": 1}, "matches": 1}},
+        )
+        self.assertEqual(on_review["returned"]["ab_review"]["control_model"], b)
+        # Nothing to judge: no judge. A judge that died: the run goes on, unjudged.
+        self.assertFalse(calls(empty, "ab-judge"))
+        self.assertEqual(empty["returned"]["ab_review"]["judge"], "neither code reviewer found anything")
+        self.assertEqual(died["returned"]["ab_review"]["judge"], "returned nothing")
+        self.assertTrue(died["returned"]["published"])
+        # The control's findings count like any reviewer's: with the netcode and godot reviews routed too.
+        self.assertEqual(
+            [e["label"] for e in agents(core)][1:5], ["review:code:#7", "review:code-control:#7", "review:netcode:#7", "review:godot-api:#7"]
+        )
+        self.assertEqual(calls(core, "publish")[0]["label"], "publish:#7")
+
     def test_efforts_fall_back_per_role(self) -> None:
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         jobs = [
@@ -790,6 +903,18 @@ class PipelineV2Test(unittest.TestCase):
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
+        # ab_review (#535): an A/B needs a model on trial for the code reviewer, other than the control's.
+        jobs += [
+            ("issue-task.js", dict(ARGS, **args), {})
+            for args in (
+                {"ab_review": True},
+                {"ab_review": True, "models": {"review": "opus"}},
+                {"ab_review": True, "models": {"code": "sonnet", "review": "sonnet"}},
+                {"ab_review": "yes", "models": {"code": "sonnet"}},
+                {"ab_review": True, "design": True, "models": {"code": "sonnet"}},
+                {"models": {"code": ""}},
+            )
+        ]
         for (name, args, _), result in zip(jobs, run_jobs(jobs)):
             with self.subTest(workflow=name, args={k: v for k, v in args.items() if k not in ARGS}):
                 self.assertIsNotNone(result["error"])
@@ -810,6 +935,7 @@ class PipelineV2Test(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
@@ -860,6 +986,7 @@ class PipelineV2Test(unittest.TestCase):
     def test_every_v2_agent_gets_the_rules_or_is_a_read_only_reviewer(self) -> None:
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         # With lean (the default since #458) the implementing and publishing agents get a lean writer type (#332) and
@@ -882,6 +1009,7 @@ class PipelineV2Test(unittest.TestCase):
         # agent() throws on a schema whose root is not an object or whose required names a missing property.
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         for result in run_jobs(jobs):
@@ -910,8 +1038,9 @@ class PipelineV2Test(unittest.TestCase):
         plan, critique, implement = calls(ok, "plan")[0], calls(ok, "review:plan")[0], calls(ok, "implement")[0]
         self.assertIn("Plan only: create, edit or commit nothing", plan["prompt"])
         self.assertEqual(options(critique)["agentType"], "code-reviewer")
-        self.assertIn('The plan: {"summary":"p"', critique["prompt"])
-        self.assertIn('The plan: {"summary":"p"', implement["prompt"])
+        self.assertIn(f'{SHORT_PLAN} comment_url; its file_map', critique["prompt"])
+        self.assertIn('): {"summary":"p"', critique["prompt"])
+        self.assertIn(f"{SHORT_PLAN} comment_url, which `gh issue view 7 --comments` shows): " '{"summary":"p"', implement["prompt"])
         self.assertIn('The critique: {"reviewer":"r"', implement["prompt"])
         self.assertIn('under "Plan review"', calls(ok, "publish")[0]["prompt"])
         self.assertEqual(ok["returned"]["plan"], {"summary": "p", "critique": {}})
@@ -1329,7 +1458,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "ab_review"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean")),
         ):
@@ -1603,6 +1732,267 @@ class CompactResultTest(unittest.TestCase):
             blocks.append(text[start : text.index("\n\n", start)])
         self.assertEqual(blocks[0], blocks[1])
         self.assertIn("const FULL = ", blocks[0])
+
+
+# #470: what the later agents get of the implementer's report and the plan (the token audit of 2026-10-06).
+REPORT = (
+    "The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed "
+    "paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff "
+    "is the change): "
+)
+PLAN_MARKS = {"criteria": ["CRITERION-MARK"], "files": ["FILE-MARK"], "tests": ["TEST-MARK"], "steps": ["STEP-MARK"]}
+
+
+def report_of(prompt: str) -> dict:
+    """The digest a reviewer's prompt carries, parsed."""
+    start = prompt.index(REPORT) + len(REPORT)
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class DigestTest(unittest.TestCase):
+    def test_reviewers_get_a_digest_of_the_implementers_report(self) -> None:
+        # Every reviewer and the test reviewer: the summary, complete, the changed paths, the provisional content, the
+        # decisions, needs_engineer and left (each cut to a line), and nothing else of the report (no verify tail,
+        # commits or proposed issues). A reviewer must see what was left on purpose, or it reports each deferred
+        # acceptance criterion as a blocker.
+        args = dict(ARGS, branch="core/7-x", second_review=True, test_review=True)
+        stub = {"paths": FULL_IMPL["changed_paths"], "queues": {"implement": [FULL_IMPL]}}
+        bare = {"paths": ["core/x.gd"], "queues": {"implement": [implemented(["core/x.gd"], needs_engineer=["None"])]}}
+        result, plain = run_jobs([("issue-task.js", args, stub), ("issue-task.js", args, bare)])
+        readers = calls(result, "review:") + calls(result, "test-review")
+        self.assertEqual(len(readers), 5)
+        for event in readers:
+            with self.subTest(agent=event["label"]):
+                prompt = event["prompt"]
+                self.assertNotIn("The implementer reported", prompt)
+                self.assertEqual(prompt.count(REPORT), 1)
+                digest = report_of(prompt)
+                self.assertEqual(
+                    list(digest),
+                    ["summary", "complete", "changed_paths", "provisional_content", "decisions", "needs_engineer", "left"],
+                )
+                self.assertIs(digest["complete"], False)
+                self.assertEqual(digest["provisional_content"], FULL_IMPL["provisional_content"])
+                self.assertEqual(len(digest["left"]), 1)
+                self.assertTrue(len(digest["left"][0]) <= 160 and digest["left"][0].endswith("…"), digest["left"])
+                self.assertLessEqual(len(digest["summary"]), 1200)
+                self.assertTrue(FULL_IMPL["summary"].startswith(digest["summary"].removesuffix("…")))
+                self.assertEqual(digest["changed_paths"], FULL_IMPL["changed_paths"])
+                self.assertEqual(len(digest["decisions"]), 4)
+                self.assertTrue(all(len(d) <= 160 and d.endswith("…") for d in digest["decisions"]), digest["decisions"])
+                self.assertEqual(digest["needs_engineer"], FULL_IMPL["needs_engineer"])
+                self.assertLessEqual(size(digest), 2500)
+                for text in ("step ok", "abc1234 feat(core)", "verify_tail", "proposed_issues"):
+                    self.assertNotIn(text, prompt)
+        # Lists with nothing in them stay out; the summary, complete and the paths are always there.
+        for event in calls(plain, "review:") + calls(plain, "test-review"):
+            self.assertEqual(report_of(event["prompt"]), {"summary": "s", "complete": True, "changed_paths": ["core/x.gd"]})
+        # The publisher still gets the whole report: the PR and the handoff carry its rationale, what is left and the
+        # verify tail.
+        publish = calls(result, "publish")[0]["prompt"]
+        self.assertIn(f"The implementer reported: {json.dumps(FULL_IMPL, ensure_ascii=False, separators=(',', ':'))}", publish)
+        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+
+    def test_the_implementers_summary_is_capped(self) -> None:
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", visual="spectate"), {"paths": ["client/hud/hud.gd"]}),
+        ]
+        for result in run_jobs(jobs):
+            implement = calls(result, "implement")[0]
+            self.assertEqual(options(implement)["schema"]["properties"]["summary"], {"type": "string", "maxLength": 1200})
+            self.assertIn("summary: at most 1200 characters, a few lines on what changed and why", implement["prompt"])
+            self.assertIn("the why of each choice goes in decisions", implement["prompt"])
+
+    def test_the_publisher_gets_the_plans_summary_and_the_critique(self) -> None:
+        plan = dict({"summary": "the plan in a line"}, **PLAN_MARKS)
+        critique = {"reviewer": "r", "verdict": "ok", "findings": [MAJOR]}
+        stub = {"paths": ["core/x.gd"], "queues": {"plan": [plan], "review:plan": [critique]}}
+        result = run_one("issue-task.js", {"branch": "core/7-x", "plan_review": True}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        given = json.dumps({"plan_summary": plan["summary"], "critique": critique}, separators=(",", ":"))
+        self.assertIn(
+            "The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, "
+            f"plan_comment, and stays in the run's journal): {given}",
+            publish,
+        )
+        self.assertIn('under "Plan review": the plan in a few lines (from its summary) with a link to its comment', publish)
+        # The implementer builds from the whole plan; the publisher needs only what the PR says about it.
+        implement = calls(result, "implement")[0]["prompt"]
+        for marks in PLAN_MARKS.values():
+            self.assertIn(marks[0], implement)
+            self.assertNotIn(marks[0], publish)
+
+    def test_the_publisher_carries_finish_tasks_steps_inline(self) -> None:
+        # The publisher read finish-task/SKILL.md (7.3k characters) for steps its prompt lists itself; the docs,
+        # intervention and credits steps, the one part it lacked, are inline now, and no agent is pointed at the skill.
+        jobs = [
+            ("issue-task.js", dict(ARGS, **args), stub)
+            for args, stub in (
+                ({"branch": "core/7-x"}, {"paths": ["core/x.gd"]}),
+                ({"branch": "core/7-x", "base": "release/m5", **V2}, {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+                ({"branch": "docs/7-x", "design": True}, {"paths": ["docs/x.md"]}),
+            )
+        ]
+        for result in run_jobs(jobs):
+            for event in agents(result):
+                self.assertNotIn("finish-task", event["prompt"], event["label"])
+            publish = calls(result, "publish")[0]["prompt"]
+            steps = publish[publish.index("Then, in this order (the definition of done; the reviews above were its review step):") :]
+            for text in (
+                "- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it",
+                "a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then)",
+                "A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.",
+                "the other owner's paths (.github/CODEOWNERS) also get `--reviewer <their handle>`",
+                "already finds a PR for the branch, update its body with `gh pr edit <pr> --body-file <file>` instead of creating a second one",
+                'or with "cannot confirm that the parent … was merged", push nothing by hand',
+            ):
+                self.assertIn(text, steps)
+            # In the definition of done's order: docs, publish, the PR, CI, the handoff, the board.
+            marks = ["- Docs:", "- `tools\\run.cmd publish", "- PR: `gh pr create", "- `gh pr checks", "- The handoff comment", "- `tools\\run.cmd board move"]
+            self.assertEqual([steps.index(m) for m in marks], sorted(steps.index(m) for m in marks))
+
+
+SHA = "0123456789abcdef0123456789abcdef01234567"
+SHORT_PLAN = "The plan, in short (the whole plan is the plan agent's comment on the issue,"
+COMMENT = "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1"
+MAPPED = {
+    "base_sha": SHA,
+    "files": [
+        {"path": "core/match/vote.gd", "lines": "10-60", "facts": ["func cast(voter: int, target: int) -> void"]},
+        {"path": "tests/unit/match/vote_test.gd", "lines": "1-30", "facts": ["helper _match(seed)"]},
+    ],
+}
+
+
+def mapped_plan(**extra) -> dict:
+    return dict({"summary": "p", "criteria": ["c"], "files": ["f"], "tests": ["t"], "file_map": MAPPED, "comment_url": COMMENT}, **extra)
+
+
+def plan_in(prompt: str) -> dict:
+    """The plan JSON a critique's or an implementer's prompt carries, parsed."""
+    start = prompt.index("): ", prompt.index(SHORT_PLAN)) + 3
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class PlanPhaseTest(unittest.TestCase):
+    """#469: the plan's comment on the issue, its short and capped result, and the file map the implementer trusts."""
+
+    def run_plan(self, plan: dict | None, **args) -> dict:
+        queues = {"plan": [plan]} if plan is not None else {}
+        result = run_one("issue-task.js", dict({"branch": "core/7-x", "plan_review": True}, **args), {"paths": ["core/x.gd"], "queues": queues})
+        self.assertIsNone(result["error"])
+        return result
+
+    def test_the_plan_schema_asks_for_a_file_map_and_caps_the_summary(self) -> None:
+        schema = options(calls(self.run_plan(None), "plan:")[0])["schema"]
+        props = schema["properties"]
+        self.assertEqual(props["summary"], {"type": "string", "maxLength": 1500})
+        self.assertIn("file_map", schema["required"])
+        self.assertEqual(props["file_map"]["required"], ["base_sha", "files"])
+        self.assertEqual(props["file_map"]["properties"]["files"]["items"]["required"], ["path", "facts"])
+        self.assertEqual(props["comment_url"], {"type": "string"})
+        # Every field the plan had before #469 is still there.
+        for key in ("criteria", "files", "interfaces", "tests", "docs", "risks", "questions", "steps"):
+            self.assertEqual(props[key], {"type": "array", "items": {"type": "string"}}, key)
+
+    def test_the_planner_posts_the_whole_plan_and_returns_its_short_form(self) -> None:
+        prompt = calls(self.run_plan(None), "plan:")[0]["prompt"]
+        for text in (
+            "The whole plan goes in ONE comment on the issue; the structured result is its short form",
+            "to a7/plan.md in your scratchpad, its first line `Plan of #7 (issue-task plan_review, branch core/7-x)`",
+            "`gh issue comment 7 --body-file <that file>`",
+            "first list your own comments on the issue in the Bash tool",
+            """`gh issue view 7 --json comments --jq '.comments[] | select(.author.login == "<your login>") | .url + " " + """
+            """(.body | split("\\n") | .[0])'`""",
+            "If the last of them starts with that first line, replace it with "
+            "`gh issue comment 7 --edit-last --body-file <that file>`",
+            "if only an earlier one does, post a new comment whose second line is `Supersedes <that comment's URL>`",
+            "Never `gh api -X PATCH` (it asks, and nobody answers).",
+            "Return its URL in comment_url.",
+            "at most about 8000 characters of JSON in all: summary at most 1500 characters",
+            "base_sha: `git rev-parse HEAD` in the worktree",
+            "Only what you read in that file; a fact you inferred is not in the map.",
+            "Plan only: create, edit or commit nothing",
+        ):
+            self.assertIn(text, prompt)
+
+    def test_the_implementer_trusts_the_map_for_files_unchanged_since_its_sha(self) -> None:
+        result = self.run_plan(mapped_plan())
+        implement = calls(result, "implement")[0]["prompt"]
+        self.assertIn(
+            f"the plan agent read these files at {SHA}. Trust it while a file is unchanged since that sha: first run in the Bash tool "
+            f"`cd /d/prime-game/.claude/worktrees/7 && git diff --name-only {SHA} -- 'core/match/vote.gd' "
+            "'tests/unit/match/vote_test.gd'` once (again after a rebase)",
+            implement,
+        )
+        self.assertIn("A path it lists changed since the plan: read it as usual.", implement)
+        self.assertIn("A file whose facts the critique disputes: read it as usual too.", implement)
+        self.assertIn("If the command fails (the sha unknown), the map does not hold", implement)
+        self.assertEqual(plan_in(implement)["file_map"], MAPPED)
+        critique = calls(result, "review:plan")[0]["prompt"]
+        self.assertIn("a file_map fact that the file at base_sha does not bear out (the implementer trusts it)", critique)
+        self.assertEqual(plan_in(critique), mapped_plan())
+        # A quote in a path stays one word of the shell command.
+        quoted = mapped_plan(file_map={"base_sha": SHA, "files": [{"path": "levels/it's.tscn", "facts": ["f"]}]})
+        implement = calls(self.run_plan(quoted), "implement")[0]["prompt"]
+        self.assertIn(f"git diff --name-only {SHA} -- 'levels/it'\\''s.tscn'` once", implement)
+        # No map, an empty one or a sha that is not one: the implementer reads as usual.
+        for plan in ({"summary": "p", "criteria": [], "files": [], "tests": []}, mapped_plan(file_map={"base_sha": SHA, "files": []}),
+                     mapped_plan(file_map=dict(MAPPED, base_sha="HEAD; rm -rf x"))):
+            implement = calls(self.run_plan(plan), "implement")[0]["prompt"]
+            self.assertIn("The plan has no usable file map (file_map): read the files as usual.", implement)
+            self.assertNotIn("Trust it while a file is unchanged", implement)
+
+    def test_a_plan_over_the_cap_is_cut_before_the_critique_and_the_implementer(self) -> None:
+        long = "x" * 900
+        big = mapped_plan(summary="s" * 1500, criteria=[long] * 10, files=[long] * 10, steps=[f"{long}\nsecond line"] * 10)
+        big["file_map"] = {"base_sha": SHA, "files": [{"path": f"core/f{i}.gd", "lines": "1-9", "facts": [long] * 3} for i in range(5)]}
+        self.assertGreater(size(big), 30000)
+        result = self.run_plan(big)
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any(m.startswith(f"#7: the plan's result was {size(big)} characters of JSON; cut to ") for m in logs), logs)
+        for label in ("review:plan", "implement"):
+            short = plan_in(calls(result, label)[0]["prompt"])
+            with self.subTest(agent=label):
+                self.assertLessEqual(size(short), 8000)
+                self.assertEqual(short["clipped"], f"cut from {size(big)} characters of JSON; the whole plan: {COMMENT}")
+                self.assertEqual(short["comment_url"], COMMENT)
+                self.assertEqual(short["file_map"]["base_sha"], SHA)
+                self.assertTrue(all(len(x) <= 240 for k in ("criteria", "files", "steps") for x in short[k]))
+                self.assertTrue(all(x.endswith("…") for x in short["criteria"]))
+                # The plan's lists are cut before the file map loses an entry.
+                self.assertLess(sum(len(short[k]) for k in ("criteria", "files", "steps")), 30)
+                self.assertEqual([f["path"] for f in short["file_map"]["files"]], [f"core/f{i}.gd" for i in range(5)])
+        self.assertIs(result["returned"]["plan"]["clipped"], True)
+        # A map too big on its own loses its last entries once no plan list is left.
+        huge = mapped_plan(criteria=[], files=[], tests=[])
+        huge["file_map"] = {"base_sha": SHA, "files": [{"path": f"core/f{i}.gd", "facts": [long] * 3} for i in range(40)]}
+        short = plan_in(calls(self.run_plan(huge), "implement")[0]["prompt"])
+        self.assertLessEqual(size(short), 8000)
+        kept = [f["path"] for f in short["file_map"]["files"]]
+        self.assertTrue(kept, short)
+        self.assertEqual(kept, [f"core/f{i}.gd" for i in range(len(kept))])
+        self.assertLess(len(kept), 40)
+        # A plan under the cap reaches them as the agent sent it, with no clipped field.
+        small = self.run_plan(mapped_plan())
+        self.assertNotIn("clipped", plan_in(calls(small, "implement")[0]["prompt"]))
+        self.assertFalse([e for e in small["events"] if e["kind"] == "log" and "cut to" in e["message"]])
+
+    def test_the_result_and_the_publisher_carry_the_plans_comment_and_model(self) -> None:
+        model = AVAILABLE[1]
+        result = self.run_plan(mapped_plan(), models={"plan": model})
+        self.assertEqual(result["returned"]["plan"], {"summary": "p", "critique": {}, "comment": COMMENT, "model": model})
+        got = {e["label"]: options(e).get("model") for e in agents(result)}
+        self.assertEqual({k: v for k, v in got.items() if v}, {"plan:#7": model}, got)
+        publish = calls(result, "publish")[0]["prompt"]
+        self.assertIn('{"plan_summary":"p","plan_comment":"' + COMMENT + '","critique":', publish)
+        # models.implement still reaches the planner when models.plan is unset (the fallback), and the result says so.
+        result = self.run_plan(mapped_plan(), models={"implement": model})
+        self.assertEqual(options(calls(result, "plan:")[0])["model"], model)
+        self.assertEqual(result["returned"]["plan"]["model"], model)
 
 
 class NodeOnCiTest(unittest.TestCase):

@@ -19,7 +19,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `release/m<k>`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
-  `main`). The engineer's 5% is his own sessions'. The buffer lies below the 93% stop (below).
+  `main`). The engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until
+  he says otherwise. The buffer lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
 - What a budget buys is planned at row 8's all-in cost per task, re-measured at each reset: game 0.73% a task, meta
@@ -46,6 +47,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   plan to date <p>%; weekly counter <n>% (get_usage)`. When the counter and the line for every session differ by more
   than 3 points, the wave comment says so (the counter also counts the account's sessions outside the three
   checkouts).
+- **One run so far**: `tools\run.cmd metrics --run <run id>` (#534) prints a run's agents started and answered, who
+  works now, its % of the week and its list $ by phase, finished or in flight: the check after a large launch's first
+  phase ([MANAGERS.md §9](../../../docs/MANAGERS.md)).
 
 ## When a track's budget runs out (N2 (a))
 - **At 80%** of its budget: plan no wave larger than what is left at row 8's cost per task; merges and handovers go
@@ -79,6 +83,10 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
+- **`models: {plan: "sonnet"}`** on every `issue-task` launch with `plan_review` (#469, the engineer's yes on the
+  issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
+  non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
+  the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
 - `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
   launched before #458 without `lean`, add `lean: false` (§3's row), or the lean agent types change its agents and the
   resume replays nothing past the reviews.
@@ -86,12 +94,26 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
   and art managers run their own repos' workflows (P5 ports the levers there).
-- **A handover** (§7) is due once the context is over 300k tokens or the session over 12 hours old, even mid-wave:
+- **The rules every track's manager follows**, UI and art included, are
+  [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
+  keep-alive and the handover; the UI and art repos' `CLAUDE.md` files point there.
+- **A handover** (§7) is due once the context is over 500k tokens or the session over 12 hours old, even mid-wave:
   N6 (b) as changed by the engineer on
   [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287), replacing "still only at a wave
-  boundary" (#329). Also due once the runs in flight end after a merge into `main` changed root `CLAUDE.md`,
-  `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context over 150k and no run in flight
-  (instead of a keep-alive). `wave`'s last line says which (§7's turn-end check).
+  boundary" (#329), with 500k for 300k on
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (#511; to be
+  checked with `metrics` after a week). Also due once the runs in flight end after a merge into `main` changed root
+  `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`, and at a stop for the human with the context
+  over 250k (half the threshold, as 150k was of 300k) and no run in flight (instead of a keep-alive). `wave`'s last
+  line says which (§7's turn-end check). A manager may also hand over earlier, at a natural break, when its cost math
+  says a fresh start is cheaper (#484).
+- **The engineer pastes the successor's kickoff** (#511; approved by the engineer:
+  [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), on every
+  track: the handover comment's notes end with the ready kickoff (handover.md §4), the last For-you carries it, so no
+  handover needs a prompt written by hand, and he pastes it into a new session in the track's checkout with bypass and
+  effort high. While he is away no successor starts, so a manager hands over only when a threshold forces it, and lets
+  its runs end first. Route C (#484, a one-time `fireAt` scheduled task, handover.md §3) is a fallback he asks for: its
+  successor always starts in `acceptEdits` at medium effort. A start-up costs about the successor's first 20 calls.
 - **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
   returns a compact result, and the manager writes no large file itself.
 

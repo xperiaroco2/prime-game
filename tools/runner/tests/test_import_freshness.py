@@ -190,6 +190,8 @@ class EnsureImportTest(unittest.TestCase):
     def test_stale_names_the_file_and_imports_first(self) -> None:
         root = project(self.parent)
         imported(root, at=time.time() - 30)
+        for path in (root / "project.godot", root / "alpha.gd"):
+            age(path, 60)  # older than the stamp: only beta.gd is stale, whatever the walk order
         (root / "beta.gd").write_text(BETA, encoding="utf-8")
         run_import = mock.MagicMock()
         said = self.ensure(root, run_import)

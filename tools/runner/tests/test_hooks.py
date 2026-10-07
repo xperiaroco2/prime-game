@@ -87,6 +87,39 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
 
 
+    def test_in_accept_edits_the_guard_allows_what_it_finds_nothing_in(self) -> None:
+        # Issue #312: a route-C successor manager runs in acceptEdits (#484); its routine shell work must not prompt.
+        def call(command: str, mode: str, tool: str = "Bash") -> str:
+            payload = {"tool_name": tool, "tool_input": {"command": command}, "cwd": MAIN, "permission_mode": mode}
+            return json.dumps(payload)
+
+        # A scheduled-task run of the desktop app: no human (hooks.unattended).
+        alone: dict[str, str | None] = {"CLAUDE_CODE_SESSION_ATTENDED": None, "CLAUDE_CODE_ENTRYPOINT": "claude-desktop"}
+        command = "cd .claude/worktrees/99 && git status && awk '{print}' x"
+        res = self.run_hook("guard", call(command, "acceptEdits"), **alone)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        output = json.loads(res.stdout)["hookSpecificOutput"]
+        decision = (output["permissionDecision"], output["permissionDecisionReason"])
+        self.assertEqual(decision, ("allow", hooks.ALLOW_REASON))
+        for mode in ("default", "bypassPermissions", "auto", "plan"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self.run_hook("guard", call("git status", mode), **alone).stdout, "")
+        # A human's own acceptEdits session (the humans' default mode) keeps its prompts: a desktop session the app
+        # marks attended, and a CLI or IDE session (a terminal, Rider) without the variable.
+        for env in (
+            {"CLAUDE_CODE_SESSION_ATTENDED": "1", "CLAUDE_CODE_ENTRYPOINT": "claude-desktop"},
+            {"CLAUDE_CODE_SESSION_ATTENDED": None, "CLAUDE_CODE_ENTRYPOINT": "cli"},
+            {"CLAUDE_CODE_SESSION_ATTENDED": None, "CLAUDE_CODE_ENTRYPOINT": None},
+        ):
+            with self.subTest(env=env):
+                res = self.run_hook("guard", call(command, "acceptEdits"), **env)
+                self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        # A guard ask stays an ask, and a write to a path Claude Code protects is left to Claude Code (its prompt).
+        res = self.run_hook("guard", call("Copy-Item x .claude\\settings.json", "acceptEdits", "PowerShell"), **alone)
+        self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+        res = self.run_hook("guard", call("cp x .claude/worktrees/99/.claude/skills/y.md", "acceptEdits"), **alone)
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+
     def test_crash_fails_closed(self) -> None:
         res = self.run_hook("guard", "this is not JSON")
         self.assertEqual(res.returncode, 2)
@@ -183,6 +216,23 @@ class PostEditTest(unittest.TestCase):
             assert stamp is not None
             self.assertGreaterEqual(stamp, started)
             self.assertEqual(check.freshness(root).why, "")
+
+
+class UnattendedTest(unittest.TestCase):
+    """Issue #312: the hook's acceptEdits allow needs a positive sign that no human answers (fails closed)."""
+
+    def test_only_a_positive_sign_counts(self) -> None:
+        for attended, entrypoint, expected in (
+            ("0", "cli", True), ("false", None, True), (None, "claude-desktop", True), ("", "claude-desktop", True),
+            ("1", "claude-desktop", False), ("true", "claude-desktop", False), ("1", None, False),
+            (None, "cli", False), (None, "claude-vscode", False), (None, "sdk-ts", False), (None, None, False),
+        ):  # fmt: skip
+            names = ("CLAUDE_CODE_SESSION_ATTENDED", "CLAUDE_CODE_ENTRYPOINT")
+            env = {k: v for k, v in os.environ.items() if k not in names}
+            env.update({k: v for k, v in zip(names, (attended, entrypoint)) if v is not None})
+            with self.subTest(attended=attended, entrypoint=entrypoint):
+                with unittest.mock.patch.dict(os.environ, env, clear=True):
+                    self.assertEqual(hooks.unattended(), expected)
 
 
 class CloudSessionTest(unittest.TestCase):
