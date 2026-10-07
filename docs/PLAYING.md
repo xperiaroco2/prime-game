@@ -3,9 +3,9 @@
 How to get PrimeGame, host a game and get your friends into it. This page is for players. Words in quotes are
 exactly what the game shows.
 
-**Not live yet.** The first release is still coming: until it is published, there is no zip to download. The code
-service that "Join with a code" and Host use is up, but no real game has used it yet: if a code does not work for
-you, play with **Direct (LAN or VPN)** (below).
+**Early releases.** The first zips are release candidates (`v0.6.0-rc...`). The code service that "Join with a
+code" and Host use is up, but no full match over the internet has been played on it yet: if a code does not work
+for you, play with **Direct (LAN or VPN)** (below).
 
 ## 1. Get the game (Windows)
 
