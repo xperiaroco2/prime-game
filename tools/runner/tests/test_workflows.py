@@ -16,12 +16,14 @@ bounded-waits paragraph) and `lean` on by default since #458 (the implementing a
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
 resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
 run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
-wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
-and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
-root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list), #471's publish steps (no
-standalone verify before `publish`), and #468's reading line (every agent's, reviewers too); they landed between waves, when no run could resume. Each snapshot ends with the
-run's return value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and
-changed only that part of every snapshot.
+wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote
+unbounded/ too: #413's and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan
+critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading
+list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
+too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
+summary cap, the publisher's plan summary and inline finish-task steps); they landed between waves, when no run could
+resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
+the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib
@@ -1603,6 +1605,122 @@ class CompactResultTest(unittest.TestCase):
             blocks.append(text[start : text.index("\n\n", start)])
         self.assertEqual(blocks[0], blocks[1])
         self.assertIn("const FULL = ", blocks[0])
+
+
+# #470: what the later agents get of the implementer's report and the plan (the token audit of 2026-10-06).
+REPORT = (
+    "The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed "
+    "paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff "
+    "is the change): "
+)
+PLAN_MARKS = {"criteria": ["CRITERION-MARK"], "files": ["FILE-MARK"], "tests": ["TEST-MARK"], "steps": ["STEP-MARK"]}
+
+
+def report_of(prompt: str) -> dict:
+    """The digest a reviewer's prompt carries, parsed."""
+    start = prompt.index(REPORT) + len(REPORT)
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class DigestTest(unittest.TestCase):
+    def test_reviewers_get_a_digest_of_the_implementers_report(self) -> None:
+        # Every reviewer and the test reviewer: the summary, complete, the changed paths, the provisional content, the
+        # decisions, needs_engineer and left (each cut to a line), and nothing else of the report (no verify tail,
+        # commits or proposed issues). A reviewer must see what was left on purpose, or it reports each deferred
+        # acceptance criterion as a blocker.
+        args = dict(ARGS, branch="core/7-x", second_review=True, test_review=True)
+        stub = {"paths": FULL_IMPL["changed_paths"], "queues": {"implement": [FULL_IMPL]}}
+        bare = {"paths": ["core/x.gd"], "queues": {"implement": [implemented(["core/x.gd"], needs_engineer=["None"])]}}
+        result, plain = run_jobs([("issue-task.js", args, stub), ("issue-task.js", args, bare)])
+        readers = calls(result, "review:") + calls(result, "test-review")
+        self.assertEqual(len(readers), 5)
+        for event in readers:
+            with self.subTest(agent=event["label"]):
+                prompt = event["prompt"]
+                self.assertNotIn("The implementer reported", prompt)
+                self.assertEqual(prompt.count(REPORT), 1)
+                digest = report_of(prompt)
+                self.assertEqual(
+                    list(digest),
+                    ["summary", "complete", "changed_paths", "provisional_content", "decisions", "needs_engineer", "left"],
+                )
+                self.assertIs(digest["complete"], False)
+                self.assertEqual(digest["provisional_content"], FULL_IMPL["provisional_content"])
+                self.assertEqual(len(digest["left"]), 1)
+                self.assertTrue(len(digest["left"][0]) <= 160 and digest["left"][0].endswith("…"), digest["left"])
+                self.assertLessEqual(len(digest["summary"]), 1200)
+                self.assertTrue(FULL_IMPL["summary"].startswith(digest["summary"].removesuffix("…")))
+                self.assertEqual(digest["changed_paths"], FULL_IMPL["changed_paths"])
+                self.assertEqual(len(digest["decisions"]), 4)
+                self.assertTrue(all(len(d) <= 160 and d.endswith("…") for d in digest["decisions"]), digest["decisions"])
+                self.assertEqual(digest["needs_engineer"], FULL_IMPL["needs_engineer"])
+                self.assertLessEqual(size(digest), 2500)
+                for text in ("step ok", "abc1234 feat(core)", "verify_tail", "proposed_issues"):
+                    self.assertNotIn(text, prompt)
+        # Lists with nothing in them stay out; the summary, complete and the paths are always there.
+        for event in calls(plain, "review:") + calls(plain, "test-review"):
+            self.assertEqual(report_of(event["prompt"]), {"summary": "s", "complete": True, "changed_paths": ["core/x.gd"]})
+        # The publisher still gets the whole report: the PR and the handoff carry its rationale, what is left and the
+        # verify tail.
+        publish = calls(result, "publish")[0]["prompt"]
+        self.assertIn(f"The implementer reported: {json.dumps(FULL_IMPL, ensure_ascii=False, separators=(',', ':'))}", publish)
+        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+
+    def test_the_implementers_summary_is_capped(self) -> None:
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", visual="spectate"), {"paths": ["client/hud/hud.gd"]}),
+        ]
+        for result in run_jobs(jobs):
+            implement = calls(result, "implement")[0]
+            self.assertEqual(options(implement)["schema"]["properties"]["summary"], {"type": "string", "maxLength": 1200})
+            self.assertIn("summary: at most 1200 characters, a few lines on what changed and why", implement["prompt"])
+            self.assertIn("the why of each choice goes in decisions", implement["prompt"])
+
+    def test_the_publisher_gets_the_plans_summary_and_the_critique(self) -> None:
+        plan = dict({"summary": "the plan in a line"}, **PLAN_MARKS)
+        critique = {"reviewer": "r", "verdict": "ok", "findings": [MAJOR]}
+        stub = {"paths": ["core/x.gd"], "queues": {"plan": [plan], "review:plan": [critique]}}
+        result = run_one("issue-task.js", {"branch": "core/7-x", "plan_review": True}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        given = json.dumps({"plan_summary": plan["summary"], "critique": critique}, separators=(",", ":"))
+        self.assertIn(f"The plan's summary and its critique (plan_review; the whole plan stays in the run's journal): {given}", publish)
+        self.assertIn('under "Plan review": the plan in a few lines (from its summary)', publish)
+        # The implementer builds from the whole plan; the publisher needs only what the PR says about it.
+        implement = calls(result, "implement")[0]["prompt"]
+        for marks in PLAN_MARKS.values():
+            self.assertIn(marks[0], implement)
+            self.assertNotIn(marks[0], publish)
+
+    def test_the_publisher_carries_finish_tasks_steps_inline(self) -> None:
+        # The publisher read finish-task/SKILL.md (7.3k characters) for steps its prompt lists itself; the docs,
+        # intervention and credits steps, the one part it lacked, are inline now, and no agent is pointed at the skill.
+        jobs = [
+            ("issue-task.js", dict(ARGS, **args), stub)
+            for args, stub in (
+                ({"branch": "core/7-x"}, {"paths": ["core/x.gd"]}),
+                ({"branch": "core/7-x", "base": "release/m5", **V2}, {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+                ({"branch": "docs/7-x", "design": True}, {"paths": ["docs/x.md"]}),
+            )
+        ]
+        for result in run_jobs(jobs):
+            for event in agents(result):
+                self.assertNotIn("finish-task", event["prompt"], event["label"])
+            publish = calls(result, "publish")[0]["prompt"]
+            steps = publish[publish.index("Then, in this order (the definition of done; the reviews above were its review step):") :]
+            for text in (
+                "- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it",
+                "a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then)",
+                "A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.",
+                "the other owner's paths (.github/CODEOWNERS) also get `--reviewer <their handle>`",
+                "already finds a PR for the branch, update its body with `gh pr edit <pr> --body-file <file>` instead of creating a second one",
+                'or with "cannot confirm that the parent … was merged", push nothing by hand',
+            ):
+                self.assertIn(text, steps)
+            # In the definition of done's order: docs, publish, the PR, CI, the handoff, the board.
+            marks = ["- Docs:", "- `tools\\run.cmd publish", "- PR: `gh pr create", "- `gh pr checks", "- The handoff comment", "- `tools\\run.cmd board move"]
+            self.assertEqual([steps.index(m) for m in marks], sorted(steps.index(m) for m in marks))
 
 
 class NodeOnCiTest(unittest.TestCase):

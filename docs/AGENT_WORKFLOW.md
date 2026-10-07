@@ -391,14 +391,22 @@ Rules for every workflow run:
   agent's whole result: a `result` line has the `key` of its agent's `started` line, which names the label (after a
   resume, the last counts). A stop keeps what its relaunch needs in full (a red implementer's verify tail and what it
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
-  shrank from 89k to 11k characters (about 1,250 a run).
+  shrank from 89k to 11k characters (about 1,250 a run). What `issue-task`'s agents get of each other's results is cut
+  too (#470, the token audit of 2026-10-06): the reviewers and the test reviewer get a digest of the implementer's
+  report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
+  left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
+  cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
+  publisher gets the whole report but of a `plan_review` run only the plan's summary and the critique (the whole plan
+  stays in the journal); and the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
+  itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
   launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
   byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
+  prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
+  #468's reading line, #471's publish steps, #470's digests).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
   agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
