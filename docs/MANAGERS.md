@@ -131,10 +131,11 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
 `wf_45e2297a` went out with no estimate and cost $693, 27% of the week, with 48 agents.
 - **Before every workflow launch**, the message that launches it states the estimate: the agents, the rough list $
   and its % of the week (about list $ / 25: cache reads count at 0.75). From `metrics`' task medians (`tools\run.cmd
-  metrics --since <the reset> --compact`, its "task medians" line) or the cost per task (game and meta: an
-  `issue-task` run about 0.3 to 0.7%; art about 1.1% an issue, UI about 1.2% a run), times the tasks; else from the
-  workflow's own numbers: agents x tool calls each x about $0.10 a call (the 2026-10-07 audit: $1,877 in about 17,000
-  calls; an agent past 200k of context costs more a call). A loop over N items is N times its agents.
+  metrics --since <the reset> --compact`, its "task medians" line) or the all-in cost per task of row 8 in
+  [`budget.md`](../.claude/skills/orchestrate-stage/budget.md) (every track's, re-measured at each reset), times the
+  tasks; else from the workflow's own numbers: agents x tool calls each x about $0.10 a call (the 2026-10-07 audit:
+  $1,877 in about 17,000 calls; an agent past 200k of context costs more a call). A loop over N items is N times its
+  agents.
 - **Over about 5% of the week** (one launch; an `issue-task` or `pr-rebase` run is under 1%), the run stops after its
   first phase. A workflow you write returns after its first phase (or takes an arg that runs only it), and the rest
   is a second launch after the check; a saved one you cannot change: stop it once its first phase's agents have
