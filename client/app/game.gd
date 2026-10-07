@@ -171,7 +171,7 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
 	if service.is_empty():
 		_cannot_host(
-			"this build has no code service yet: use Host Direct under Direct (LAN or VPN)"
+			"no code service is set (--signal=): use Host Direct under Direct (LAN or VPN)"
 		)
 		return false
 	var lan_code := options.room if options != null else ""

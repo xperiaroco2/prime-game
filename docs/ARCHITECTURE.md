@@ -2521,6 +2521,13 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Closing after an error** as `LanSignalling` does: a socket the service ends (the host left) is marked closing in its
   attachment and closed 1 s later; it gets nothing more, and its messages and close are no events. A close whose timer
   was lost with the object's memory happens when the object wakes.
+- **A client's close is answered by the service** (`SignalService.clientClosed`, #513), with the client's code when the
+  runtime may send it (1000, 3000-4999) and 1000 otherwise (`closeReplyCode`), even when the service's handling of the
+  close throws; an answer that fails is logged. Cloudflare's docs say the runtime answers a close itself from
+  compatibility date 2026-04-07, but on the first deploy a close without a status (code 1005: a browser's or Node's
+  `close()`; Godot's `WebSocketPeer.close()` sends 1000) was never answered. The likely cause, from workerd's source: the handler
+  answered with the code it was handed, which the runtime's `close()` refuses (workerd allows 1000 and 3000-4999 under
+  its strict rule). The redeploy smoke on #513 confirms or refutes it.
 - **ICE servers** from `ICE_SERVERS` in `wrangler.toml` (`stun:stun.cloudflare.com:3478`, E58), checked by the
   clients' rules at start.
 - **TURN** (M6-10, #375; D17 (b), E55; `src/turn.js`), on only when the secrets `TURN_KEY_ID` and
@@ -2543,9 +2550,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   through the router and through the service over fake sockets and state, each also with the router or the object
   rebuilt after every step (as after hibernation) and with the object rebuilt as a close wakes it, the close grace,
   the configuration, and the decoding cases; TURN over a fake `fetch` of Cloudflare's API (the requests and their
-  TTL, a slow mint holding back only its own socket, the API failing or timing out, the cap, the configuration). The
-  glue in `worker.js` is first tried at deploy, and `tools/signal/smoke.js` checks a running service (it passes
-  against a headless `LanSignalling`). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
+  TTL, a slow mint holding back only its own socket, the API failing or timing out, the cap, the configuration), and
+  the answer to a client's close against a fake socket that refuses the codes the runtime refuses. Only the calls in
+  `worker.js` are left to the deploy, and `tools/signal/smoke.js` checks a running service (it passes against a
+  headless `LanSignalling`; against the first deploy it failed at the host's close, #513). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
   joiner, failed `forged_offer` in both suites, then was reverted. M6-10's plants, the credential also on `found` and
   one credential reused for every joiner, each failed `turn_per_joiner`, then were reverted.
 
@@ -2554,8 +2562,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   spaces and dashes dropped) or a host's `address[:port]` (IPv4, IPv6 in brackets with a port, or a host name, so a
   playit.gg address works). `transport(kinds)` makes the join's backend (a code: `WebRtcTransport` at the service
   URL; an address: `EnetTransport`) and `join(join_address(), port)` starts it. `JoinTarget.SERVICE_URL` is the
-  engineer's Worker (`tools/signal/README.md`), empty until it is deployed: a code join then ends as
-  `service_unreachable` (use Direct). `--signal=<url>` overrides it.
+  engineer's Worker (`tools/signal/README.md`), `wss://prime-game-signal.xperiaroco-36a.workers.dev/` since 2026-10-07
+  (#513). `--signal=<url>` overrides it; an empty one (`--signal=`) makes a code join end as `service_unreachable`
+  (use Direct) and a code host refuse to start.
 - **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
   `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
   one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
@@ -2582,9 +2591,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   joiner's line over real WebRTC and that the host's overlay shows nothing of the joiner's;
   `client/dev/debug_overlay_joiner_preview.tscn` shows a joiner's view for `shot`.
 - **The command line and the runner:** `--host --code [--signal=lan --room=<CODE>]` hosts a room (`lan`: this process
-  serves `LanSignalling` on TCP of its port); `--join=<code>` with `--signal=ws://<host>:<port>` joins one.
-  `tools\run.cmd host --code [--clients N] [--local]` picks a random code and starts the clients with it;
-  `tools\run.cmd join <code> --signal ws://<address>:<port>` joins from another machine. The headless session (`--headless`)
+  serves `LanSignalling` on TCP of its port); `--join=<code>` joins one through `JoinTarget.SERVICE_URL`, or through
+  `--signal=ws://<host>:<port>`. `tools\run.cmd host --code [--clients N] [--local]` picks a random code and starts the
+  clients with it; `tools\run.cmd join <code> --signal ws://<address>:<port>` joins from another machine (without
+  `--signal`, through the deployed Worker). The headless session (`--headless`)
   does the same through `CodeRoom` and prints `session: room code <CODE>`.
 
 ## 5. Per-peer information filtering

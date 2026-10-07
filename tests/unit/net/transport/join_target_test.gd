@@ -78,3 +78,18 @@ func test_each_target_makes_its_transport() -> void:
 	code.close()
 	remote.close()
 	direct.close()
+
+
+func test_a_code_without_a_service_goes_to_the_deployed_worker() -> void:
+	# The engineer's Worker on Cloudflare (#513), over TLS: no candidates limited to this machine.
+	assert_str(JoinTarget.SERVICE_URL).starts_with("wss://")
+	assert_str(JoinTarget.SERVICE_URL).ends_with(".workers.dev/")
+	var kinds := NetKindTable.game()
+	for target: JoinTarget in [JoinTarget.of_code("K7M2QX"), JoinTarget.parse("k7m2qx", 24600)]:
+		assert_bool(target.is_code()).is_true()
+		assert_str(target.service_url).is_equal(JoinTarget.SERVICE_URL)
+		var transport := target.transport(kinds)
+		assert_object(transport).is_instanceof(WebRtcTransport)
+		assert_str((transport as WebRtcTransport).signal_url).is_equal(JoinTarget.SERVICE_URL)
+		assert_bool((transport as WebRtcTransport).local_candidates).is_false()
+		transport.close()

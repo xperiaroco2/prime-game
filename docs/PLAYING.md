@@ -3,10 +3,9 @@
 How to get PrimeGame, host a game and get your friends into it. This page is for players. Words in quotes are
 exactly what the game shows.
 
-**Not live yet.** Two parts are still coming:
-- **The first release.** Until it is published, there is no zip to download.
-- **The code service.** The game's "Join with a code" and Host need it, and this build has none yet. Until it is
-  live, play with **Direct (LAN or VPN)** (below).
+**Not live yet.** The first release is still coming: until it is published, there is no zip to download. The code
+service that "Join with a code" and Host use is up, but no real game has used it yet: if a code does not work for
+you, play with **Direct (LAN or VPN)** (below).
 
 ## 1. Get the game (Windows)
 
@@ -21,8 +20,6 @@ Everyone in a game must use the **same release**. When a new one comes out, all 
 
 ## 2. Host a game with a code
 
-Coming: needs the code service.
-
 1. In the main menu, click **Host**.
 2. You are now in the lobby. The code shows in the top-left corner as "Code: ABCDEF" (your own 6 characters).
 3. To copy it: press **Esc**, open the **Lobby** tab and click **Copy**.
@@ -31,8 +28,6 @@ Coming: needs the code service.
 Only people who have the code can join. Keep the game running: when you leave, the game ends for everyone.
 
 ## 3. Join with a code
-
-Coming: needs the code service.
 
 1. In the main menu, under "Join with a code", type or paste the code into **Code**. Spaces, dashes and
    upper or lower case do not matter.
@@ -65,7 +60,7 @@ ended:" followed by the reason. Find the reason here (match the whole quote: two
 | The reason starts with | What to do |
 |---|---|
 | "no game has that code" | Check the code with the host, letter by letter. The host may also have left: ask for the new code. |
-| "the code service could not be reached (or this build has none)" | The code service is down, or not live yet. Use Direct (LAN or VPN), or the fallback in section 6. |
+| "the code service could not be reached (or this build has none)" | The code service is down, or your network blocks it. Use Direct (LAN or VPN), or the fallback in section 6. |
 | "the code service refused the join" | Your game may be older than the code service. Download the newest release (the host too). |
 | "the host's lobby is full, or this machine could not reach the host directly" | If the lobby has room, your networks do not let you connect directly. Use the fallback in section 6. |
 | "the host's lobby is full" (nothing after it) | Wait for a free place, or ask someone to leave. |
@@ -75,7 +70,7 @@ ended:" followed by the reason. Find the reason here (match the whole quote: two
 | "the host closed, or the connection was lost" | The host left or the network dropped. Ask the host to host again, then rejoin. |
 | "the map took too long to load here" | The match went on without you. Join again when the host is back in the lobby. |
 | "the map did not load on this machine" | Download and unzip the release again, then retry. |
-| "the session could not start (see the log): this build has no code service yet" | You clicked **Host** while the code service is not live. Use **Host Direct** instead. |
+| "the session could not start (see the log): no code service is set" | The game was started with an empty `--signal=` (a test setting). Start it without that, or use **Host Direct**. |
 | "the session could not start (see the log)" followed by something else | After **Host Direct**: the port may be in use. Close any other copy of the game, or pick another **Port** (your friends then use it too). |
 
 When you click Join, the line may instead name a problem with what you typed (without "The last session ended:"):

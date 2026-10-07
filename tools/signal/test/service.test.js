@@ -8,17 +8,24 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import * as codec from "../src/codec.js";
-import { CLOSE_GRACE_MS, DEFAULT_ICE_SERVERS, SignalService, iceServersFrom } from "../src/service.js";
+import { CLOSE_GRACE_MS, DEFAULT_ICE_SERVERS, SignalService, closeReplyCode, iceServersFrom } from "../src/service.js";
 import * as turn from "../src/turn.js";
 import * as transcripts from "./transcripts.js";
 
 // A hibernatable server-side WebSocket: attachments are structured clones, as the runtime keeps
 // them; send after close throws, as the runtime's does.
+// `strictCodes`: close() checks its code as the Workers runtime's does (workerd's WebSocket::close,
+// read for #513): before anything else, and it throws for a code it may not send. Its strict rule
+// allows only 1000 and 3000-4999; its legacy rule also refuses 1004, 1005, 1006, 1015 and anything
+// outside 1000-4999, so a code the strict rule allows passes both. A close after the first is a
+// no-op, as the runtime's is once its close frame is out.
 class FakeSocket {
-  constructor() {
+  constructor({ strictCodes = false } = {}) {
     this.attachment = null;
     this.sent = [];
     this.closedWith = null;
+    this.closeCalls = 0;
+    this.strictCodes = strictCodes;
   }
 
   serializeAttachment(value) {
@@ -37,6 +44,15 @@ class FakeSocket {
   }
 
   close(code, reason) {
+    this.closeCalls++;
+    if (this.strictCodes) {
+      if (code !== undefined && code !== 1000 && !(code >= 3000 && code <= 4999)) {
+        throw new TypeError(`Invalid WebSocket close code: ${code}.`);
+      }
+      if (this.closedWith !== null) {
+        return;
+      }
+    }
     this.closedWith = { code, reason };
   }
 
@@ -260,10 +276,10 @@ test("a socket that closed keeps no role after a wake, even while the runtime st
   assert.deepEqual([...host.take(), ...joiner.take()], []);
 });
 
-test("a failed socket is gone and closed", () => {
-  const { state, timers, service, host, joiner, env } = hostAndJoiner();
+test("a failed socket is gone and closed, with a code the runtime sends", () => {
+  const { state, timers, service, host, joiner, env } = hostAndJoiner({ strictCodes: true });
   service.failed(joiner);
-  assert.equal(joiner.closedWith.code, 1011);
+  assert.equal(joiner.closedWith.code, 1000);
   assert.deepEqual(joiner.deserializeAttachment(), { id: 2, gone: true });
   new SignalService(state, env, { setTimer: timers.set }).message(
     host,
@@ -271,6 +287,73 @@ test("a failed socket is gone and closed", () => {
   );
   assert.deepEqual(host.take().map((text) => JSON.parse(text).why), [codec.WHY_NO_JOINER]);
   assert.deepEqual(joiner.take(), []);
+});
+
+// #513: the deployed Worker never answered a host's close without a status (Node's and a browser's
+// close() with no code; the handler gets 1005), so the client waited for its close for ever.
+test("a client's close without a status is answered, and the joiner hears the host left", async () => {
+  const { state, timers, service, host, joiner } = hostAndJoiner({ strictCodes: true });
+  state.drop(host);
+  await service.clientClosed(host, 1005);
+  assert.deepEqual(host.closedWith, { code: 1000, reason: "" });
+  assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT]);
+  assert.deepEqual(timers.pending.map((each) => each.ms), [CLOSE_GRACE_MS]);
+  timers.runAll();
+  assert.equal(joiner.closedWith.code, 1000);
+});
+
+test("every close a client may send is answered with a code the runtime sends", async () => {
+  const answers = { 1000: 1000, 1001: 1000, 1005: 1000, 1006: 1000, 1011: 1000, 3000: 3000, 4999: 4999 };
+  for (const [code, answer] of Object.entries(answers)) {
+    const { state, service, host, joiner } = hostAndJoiner({ strictCodes: true });
+    state.drop(host);
+    await service.clientClosed(host, Number(code));
+    assert.deepEqual(host.closedWith, { code: answer, reason: "" }, `a close with ${code}`);
+    assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT], `a close with ${code}`);
+  }
+});
+
+test("closeReplyCode keeps 1000 and 3000-4999 and turns every other code into 1000", () => {
+  for (const code of [1000, 3000, 4000, 4999]) {
+    assert.equal(closeReplyCode(code), code);
+  }
+  for (const code of [1001, 1004, 1005, 1006, 1011, 1015, 2999, 5000, 0, -1, undefined, null, NaN, 3000.5, "3000"]) {
+    assert.equal(closeReplyCode(code), 1000, String(code));
+  }
+});
+
+test("a close the runtime answered already is no error, and the joiner hears it once", async () => {
+  const lines = [];
+  const { state, service, host, joiner } = hostAndJoiner({ strictCodes: true }, (text) => lines.push(text));
+  host.close(1000, "");
+  state.drop(host);
+  await service.clientClosed(host, 1000);
+  assert.equal(host.closeCalls, 2);
+  assert.deepEqual(lines, []);
+  assert.deepEqual(host.closedWith, { code: 1000, reason: "" });
+  assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT]);
+});
+
+test("a close is answered even when the service's handling of it throws", () => {
+  const { state, service, host } = hostAndJoiner({ strictCodes: true });
+  state.drop(host);
+  host.deserializeAttachment = () => {
+    throw new Error("a broken attachment");
+  };
+  assert.throws(() => service.clientClosed(host, 1005), /a broken attachment/);
+  assert.deepEqual(host.closedWith, { code: 1000, reason: "" });
+});
+
+test("an answer to a close that fails is logged, and the close still goes through", async () => {
+  const lines = [];
+  const { state, service, host, joiner } = hostAndJoiner({}, (text) => lines.push(text));
+  state.drop(host);
+  host.close = () => {
+    throw new Error("the socket is gone");
+  };
+  await service.clientClosed(host, 1005);
+  assert.deepEqual(lines, ["signal: answering a close (1005) failed: Error: the socket is gone"]);
+  assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT]);
 });
 
 test("joiners whose host went away while the object was out of memory hear it at the next event", () => {
@@ -377,14 +460,15 @@ test("the ICE servers come from the configuration, checked", () => {
   assert.throws(() => iceServersFrom({ ICE_SERVERS: "[" }));
 });
 
-// A host with a room "ABCDEF" and one joiner in it, through a SignalService over fakes.
-function hostAndJoiner() {
+// A host with a room "ABCDEF" and one joiner in it, through a SignalService over fakes. `sockets`:
+// FakeSocket's options for both; `log`: the service's log.
+function hostAndJoiner(sockets = {}, log = () => {}) {
   const state = new FakeState();
   const timers = new FakeTimers();
   const env = { ICE_SERVERS: [] };
-  const service = new SignalService(state, env, { nextCode: () => "ABCDEF", setTimer: timers.set, now: () => 5000 });
-  const host = new FakeSocket();
-  const joiner = new FakeSocket();
+  const service = new SignalService(state, env, { nextCode: () => "ABCDEF", setTimer: timers.set, now: () => 5000, log });
+  const host = new FakeSocket(sockets);
+  const joiner = new FakeSocket(sockets);
   service.accept(host);
   service.accept(joiner);
   service.message(host, codec.encode(codec.Side.UNSET, "open", { protocol: 7, content: "0123456789abcdef", max: 2 }));

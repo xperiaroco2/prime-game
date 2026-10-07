@@ -81,6 +81,11 @@ func test_code_arguments() -> void:
 	assert_str(joiner.problem).is_empty()
 	assert_bool(joiner.target.is_code()).is_true()
 	assert_str(joiner.target.service_url).is_equal("ws://127.0.0.1:24600")
+	# No --signal: the deployed Worker (#513).
+	var deployed := LaunchOptions.parse(PackedStringArray(["--join=K7M2QX"]))
+	assert_str(deployed.problem).is_empty()
+	assert_str(deployed.target.service_url).starts_with("wss://")
+	assert_str(deployed.target.service_url).is_equal(JoinTarget.SERVICE_URL)
 	var direct := LaunchOptions.parse(PackedStringArray(["--join=example.playit.gg:41234"]))
 	assert_str(direct.problem).is_empty()
 	assert_bool(direct.target.is_code()).is_false()

@@ -11,9 +11,10 @@ extends RefCounted
 
 enum Kind { CODE, DIRECT }
 
-## The signalling service the game uses for codes: the engineer's Worker (tools/signal/README.md),
-## empty until it is deployed. Empty, a code join fails as service_unreachable (use Direct).
-const SERVICE_URL := ""
+## The signalling service the game uses for codes: the engineer's Worker on Cloudflare
+## (tools/signal/README.md), deployed on 2026-10-07 (#513). An empty service (`--signal=`) fails a
+## code join as service_unreachable (use Direct).
+const SERVICE_URL := "wss://prime-game-signal.xperiaroco-36a.workers.dev/"
 
 var kind := Kind.DIRECT
 ## The room's code, upper case (Kind.CODE).
