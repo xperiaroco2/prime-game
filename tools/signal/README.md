@@ -12,7 +12,7 @@ engineer deploys it. Agents never run `wrangler`.
 |---|---|
 | `src/codec.js` | The messages and their checks: `SignalCodec`'s rules, with a JSON reader that accepts and refuses exactly what Godot's does |
 | `src/router.js` | Rooms and routing with no sockets: `SignalRouter`'s rules, its state kept as one record per socket |
-| `src/service.js` | The Durable Object's work: hibernatable sockets, the records in socket attachments, the 1 s close grace, `ICE_SERVERS`, deliveries in order per socket while a TURN credential is minted |
+| `src/service.js` | The Durable Object's work: hibernatable sockets, the records in socket attachments, the answer to a client's close, the 1 s close grace, `ICE_SERVERS`, deliveries in order per socket while a TURN credential is minted |
 | `src/turn.js` | TURN credentials for the host's `room` and each host offer from Cloudflare's TURN key API (M6-10), only when the TURN secrets are set |
 | `src/worker.js` | The Worker and the Durable Object class `Signalling`: the only file that needs the Cloudflare runtime |
 | `test/*.test.js` | `node --test`, no npm package: the shared transcripts and decoding cases (`tests/fixtures/signal/`) through the router and the service over fakes, Cloudflare's TURN API a fake `fetch` |
@@ -25,7 +25,9 @@ engineer deploys it. Agents never run `wrangler`.
 
 You need Node.js 24 (`node --version` prints `v24.…`; `winget install OpenJS.NodeJS.LTS --version 24.21.0`, the pin in
 `tools/runner/pins.py`) and a Cloudflare account. The first `npx wrangler` asks to
-download Wrangler: answer `y`. `wrangler login` opens the browser to allow Wrangler on your account.
+download Wrangler: answer `y`. `wrangler login` opens the browser to allow Wrangler on your account. If an older Node
+comes first on PATH, put Node 24 first (`$env:Path = "C:\Program Files\nodejs;" + $env:Path`); if PowerShell refuses
+`npx.ps1` (its execution policy), type `npx.cmd` instead of `npx`.
 
 ```powershell
 cd C:\path\to\prime-game\tools\signal
@@ -34,8 +36,10 @@ npx wrangler deploy
 ```
 
 The deploy prints the service's address, `https://prime-game-signal.<your-subdomain>.workers.dev`. The game connects
-to it as `wss://prime-game-signal.<your-subdomain>.workers.dev/` (put that address in `JoinTarget.SERVICE_URL`, `net/transport/join_target.gd`; until then a code join says to use Direct). On the first
-deploy Cloudflare may ask you to pick the `workers.dev` subdomain in the dashboard first.
+to it as `wss://prime-game-signal.<your-subdomain>.workers.dev/`, the address in `JoinTarget.SERVICE_URL`
+(`net/transport/join_target.gd`): `wss://prime-game-signal.xperiaroco-36a.workers.dev/` since the first deploy on
+2026-10-07 (#513). On the first deploy Cloudflare may ask you to pick the `workers.dev` subdomain in the dashboard
+first.
 
 Then check the deployed service from the same folder:
 
@@ -44,7 +48,10 @@ node smoke.js "wss://prime-game-signal.<your-subdomain>.workers.dev/"
 ```
 
 It ends with `smoke: passed`. It opens a room, joins it, sees a second joiner refused, passes an offer and an answer,
-and checks that a joiner hears "the host left" before its socket closes.
+and checks that a joiner hears "the host left" before its socket closes. The host closes its socket without a status
+code, as a browser's `close()` does, and waits for the service to answer that close: against the first deploy it
+waited in vain, since the Worker answered with the code it received (1005), which the runtime may not send
+(`SignalService.clientClosed` now answers with 1000; ARCHITECTURE §4.8).
 
 ## Configuration and secrets
 
