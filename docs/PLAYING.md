@@ -5,7 +5,7 @@ exactly what the game shows.
 
 **Early releases.** The first zips are release candidates (`v0.6.0-rc...`). The code service that "Join with a
 code" and Host use is up, but no full match over the internet has been played on it yet: if a code does not work
-for you, play with **Direct (LAN or VPN)** (below).
+for you, play with **Direct (LAN or VPN)** (below). Take the newest release (marked **Latest**).
 
 ## 1. Get the game (Windows)
 
