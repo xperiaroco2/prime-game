@@ -3,7 +3,8 @@
 - **Status:** Accepted; amended 2026-10-02 by amendment A (the engineer's answer N1 (b), #183); amended 2026-10-04
   (#308: `godot-api-checker`'s effort, the publisher trial under amendment A); amended 2026-10-05 (the Sonnet
   publisher on clean runs a standing rule, the weekly budget ADR's N5 (a)); amended 2026-10-07 (#469: the Sonnet
-  planner, a manager habit like N5, the engineer's option (a))
+  planner, a manager habit like N5, the engineer's option (a)); amended 2026-10-07 (#535: the A/B of a Sonnet code
+  reviewer)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -58,6 +59,15 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     engineer chose ([PR #504 comment 6033798426](https://github.com/xperiaroco2/prime-game/pull/504#issuecomment-6033798426)):
     no script default names a model, and the workflow tests still assert it. It holds while `metrics`' plan phase
     table shows the critique's findings not rising against the Opus planners before it.
+  - **2026-10-07** (#535, the A/B of the [code reviewer's model ADR](2026-10-07-code-reviewer-model-ab.md)). Approved
+    by the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6038401263 (item 3). `issue-task`
+    gains the role `code` (the diff's code reviewer alone; it falls back to `review`) and the arg `ab_review`. The
+    manager passes `models: {code: "sonnet", publish_clean: "sonnet"}` and `ab_review: true` on every non-design
+    `issue-task` launch until `metrics`' A/B table gives a verdict other than "continue"; the control code reviewer
+    and the judge stay on the review model (Opus). It is a trial, not a habit: a keep becomes a standing
+    `models.code` only by a further amendment, after the engineer's yes on the verdict. Sonnet is in the shared list,
+    so it needs no allowance under amendment A; no script, default or agent file names the model, and the workflow
+    tests still assert it.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.
