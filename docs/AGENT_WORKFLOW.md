@@ -1224,9 +1224,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
   date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
   addon still gets an entry.
-- **LFS in CI [applied]:** CI checks out without LFS content, so each LFS file is a pointer file there. `check` keeps
-  them out of the import and drops the project check's lines about them, in one `skip` line; the credits check still
-  covers them; locally nothing changes. A build runs `check --lfs-content`, which fails on any pointer file
+- **LFS in CI [applied]:** CI checks out without LFS content, so each LFS file is a pointer file there. `check`
+  imports a stand-in of its type in its place (an image, a WAV, a glTF, GLB or OBJ; other types are kept out of the
+  import) and drops the project check's lines about the rest, in one `skip` line; the credits check still covers
+  them; locally nothing changes. A build runs `check --lfs-content`, which fails on any pointer file
   ([ADR amendment](decisions/2026-09-29-git-lfs-for-binary-assets.md), #515).
 
 ## 11. Godot specifics
