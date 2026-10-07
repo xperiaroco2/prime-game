@@ -3,12 +3,18 @@ extends GdUnitTestSuite
 ## §5; #370): what the headless twins cannot make an honest peer do. A FakePeer is a raw Signaller
 ## and WebRTCPeerConnection with the transport's three channels, playing a joiner or a host by
 ## hand. LanSignalling listens on a free port (0), so shards never clash. Waits are bounded: a
-## condition polled frame by frame, never a sleep.
+## condition polled frame by frame, never a sleep. A WebRtcWarmUp lives as long as the suite, so
+## the WebRTC library's setup (seconds under load) is in no test's wait (#472).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 ## The longest wait for one condition, unless a test names its own; a pass takes well under a
 ## second.
 const MAX_WAIT_MS := 5000
-## The joins these tests expect to give up do so after this long, not JOIN_TIMEOUT_MS.
+## The longest wait for the WebRTC library's setup: 9 to 11 s were measured under load (#472).
+const WARM_UP_MS := 30000
+## The joins these tests expect to give up do so after this long, not JOIN_TIMEOUT_MS. Every
+## other client keeps JOIN_TIMEOUT_MS unless its test names its own: under load a join took up
+## to 1.7 s (#472).
 const SHORT_JOIN_MS := 1500
 const TALK := 1
 const STATE := 2
@@ -18,6 +24,7 @@ var _server: LanSignalling
 var _transports: Array[WebRtcTransport] = []
 var _fakes: Array[FakePeer] = []
 var _events := PackedStringArray()
+var _warm_up: WebRtcWarmUp
 
 
 ## A raw peer that speaks the signalling protocol and opens the transport's channels, forging
@@ -122,6 +129,22 @@ class FakePeer:
 func before() -> void:
 	_kinds.add(TALK, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.BOTH, 64)
 	_kinds.add(STATE, NetKindTable.Lane.LATEST, NetKindTable.Direction.BOTH, 64)
+	_warm_up = WebRtcWarmUp.new()
+	var deadline := Time.get_ticks_msec() + WARM_UP_MS
+	while not _warm_up.is_ready() and _warm_up.error == OK and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	var why := _warm_up.error_text
+	if why.is_empty():
+		why = "no offer in %d ms" % WARM_UP_MS
+	(
+		assert_bool(_warm_up.is_ready())
+		. override_failure_message("the WebRTC warm-up is not ready: %s (#472)" % why)
+		. is_true()
+	)
+
+
+func after() -> void:
+	_warm_up.close()
 
 
 func before_test() -> void:
@@ -142,6 +165,7 @@ func after_test() -> void:
 
 func test_a_join_with_an_unknown_code_fails_with_no_room() -> void:
 	var client := _client()
+	client.join_timeout_ms = SHORT_JOIN_MS
 	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
 	assert_bool(await _until(_has.bind("client failed no_room"))).is_true()
 
@@ -157,6 +181,7 @@ func test_a_join_with_no_service_fails_as_unreachable() -> void:
 	closed.stop()
 	var client := _client()
 	client.signal_url = "ws://127.0.0.1:%d" % port
+	client.join_timeout_ms = SHORT_JOIN_MS
 	# Under the shortened join timeout: on Windows a refused connect stays connecting (#431).
 	client.signal_connect_timeout_ms = SHORT_JOIN_MS >> 1
 	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
@@ -217,6 +242,7 @@ func test_a_half_made_connection_counts_against_the_maximum() -> void:
 	assert_bool(await _until(func() -> bool: return half.offers == 1)).is_true()
 	assert_int(host.connection_count()).is_equal(1)
 	var late := _client()
+	late.join_timeout_ms = SHORT_JOIN_MS
 	assert_int(late.join(host.room_code(), 0)).is_equal(OK)
 	assert_bool(await _until(_has.bind("client failed host_unreachable"))).is_true()
 	assert_int(late.connection_count()).is_equal(0)
@@ -339,11 +365,13 @@ func test_a_client_not_measuring_sends_no_ping() -> void:
 	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
 	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
 	var heard: Array[PackedByteArray] = []
-	await _poll_for(
-		WebRtcTransport.PING_INTERVAL_MS + 300,
-		func() -> void: heard.append_array(fake_host.take(NetKindTable.Lane.VOICE))
-	)
-	assert_array(heard).is_not_empty()
+	var take_voice := func() -> void: heard.append_array(fake_host.take(NetKindTable.Lane.VOICE))
+	await _poll_for(WebRtcTransport.PING_INTERVAL_MS + 300, take_voice)
+	# Under load the first keepalive came up to 1.7 s after the admit (#472): listen on for it.
+	var heard_one := func() -> bool:
+		take_voice.call()
+		return not heard.is_empty()
+	assert_bool(await _until(heard_one)).is_true()
 	for bytes: PackedByteArray in heard:
 		assert_bool(bytes == PackedByteArray(WebRtcTransport.KEEPALIVE)).is_true()
 
@@ -533,7 +561,6 @@ func _idle(ms: int) -> void:
 
 func _client() -> WebRtcTransport:
 	var client := _transport()
-	client.join_timeout_ms = SHORT_JOIN_MS
 	client.connected.connect(func(id: int) -> void: _events.append("client connected %d" % id))
 	client.connect_failed.connect(
 		func(reason: StringName) -> void: _events.append("client failed %s" % reason)

@@ -16,7 +16,11 @@ extends SceneTree
 ##   PACKET_OVERHEAD_BYTES each (take_upload, E56);
 ## - the host's upload is the snapshots plus keepalives to client 3 alone: client 2 hears
 ##   snapshots, so it needs none.
+## The host opens its room only once a WebRtcWarmUp is ready: the WebRTC library's setup takes
+## seconds under load, and in the host's first offer it counted against the joins'
+## JOIN_TIMEOUT_MS (the likely cause of two host_unreachable failures at 16.1 s, #472).
 
+const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
 const CODE := "QWTRTC"
@@ -29,6 +33,8 @@ const SNAPSHOT_BYTES := 16
 var _kinds := NetKindTable.new()
 var _started_ms := 0
 var _done := false
+var _port := 0
+var _warm_up: WebRtcWarmUp
 var _signalling: LanSignalling
 var _host: WebRtcTransport
 ## Instance number (2, 3) -> its client.
@@ -39,6 +45,7 @@ var _last_snapshot_ms := 0
 var _snapshots := 0
 var _snapshots_heard := 0
 var _host_heard := 0
+var _joined_ms := 0
 
 
 func _initialize() -> void:
@@ -48,16 +55,23 @@ func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(PORT_ARG):
 			port_text = arg.trim_prefix(PORT_ARG)
-	var port := port_text.to_int() if port_text.is_valid_int() else 0
-	if port < 1 or port > 65535:
+	_port = port_text.to_int() if port_text.is_valid_int() else 0
+	if _port < 1 or _port > 65535:
 		_fail("give -- %s<a free port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
+	_warm_up = WebRtcWarmUp.new()
+	if _warm_up.error != OK:
+		_fail("the WebRTC warm-up failed: %s" % _warm_up.error_text)
+
+
+func _start() -> void:
+	print("NET silence WebRTC set up after %d ms" % (Time.get_ticks_msec() - _started_ms))
 	_signalling = LanSignalling.new([], func() -> String: return CODE)
-	var err := _signalling.listen(port, ADDRESS)
+	var err := _signalling.listen(_port, ADDRESS)
 	if err != OK:
-		_fail("signalling on %s:%d failed: %s" % [ADDRESS, port, error_string(err)])
+		_fail("signalling on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
 		return
-	_host = _new_transport(port)
+	_host = _new_transport(_port)
 	err = _host.host(0, 4)
 	if err != OK:
 		_fail("host failed: %s" % error_string(err))
@@ -69,7 +83,7 @@ func _initialize() -> void:
 		func(_from: int, _kind: int, _payload: PackedByteArray) -> void: _host_heard += 1
 	)
 	for instance: int in [2, 3]:
-		var client := _new_transport(port)
+		var client := _new_transport(_port)
 		client.connected.connect(_on_connected.bind(instance))
 		client.connect_failed.connect(
 			func(reason: StringName) -> void: _fail("client %d failed: %s" % [instance, reason])
@@ -93,7 +107,12 @@ func _process(_delta: float) -> bool:
 		return false
 	var now := Time.get_ticks_msec()
 	if now - _started_ms > DEADLINE_MS:
-		_fail("deadline: still %s" % ("joining" if _silent_since_ms < 0 else "silent"))
+		var stage := "joining" if _silent_since_ms < 0 else "silent"
+		_fail("deadline: still %s" % (stage if _host != null else "setting WebRTC up"))
+		return false
+	if _host == null:
+		if _warm_up.is_ready():
+			_start()
 		return false
 	_signalling.poll()
 	_host.poll()
@@ -103,6 +122,7 @@ func _process(_delta: float) -> bool:
 			if client.join(CODE, 0) != OK:
 				_fail("client %d could not start its join" % instance)
 				return false
+			_joined_ms = now
 		client.poll()
 	if _done:
 		return false
@@ -122,7 +142,8 @@ func _process(_delta: float) -> bool:
 
 
 func _on_connected(own_id: int, instance: int) -> void:
-	print("NET silence client %d connected as peer %d" % [instance, own_id])
+	var took := Time.get_ticks_msec() - _joined_ms
+	print("NET silence client %d connected as peer %d in %d ms" % [instance, own_id, took])
 	_peer_of[instance] = own_id
 
 
@@ -192,6 +213,7 @@ func _finish() -> void:
 		client.close()
 	_host.close()
 	_signalling.stop()
+	_warm_up.close()
 	print("NET silence nobody was dropped in %d ms of silence; PASS" % SILENT_MS)
 	_done = true
 	quit(0)
