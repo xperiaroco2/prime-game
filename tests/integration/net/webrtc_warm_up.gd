@@ -8,7 +8,8 @@ extends RefCounted
 ## transport makes one first, waits until is_ready() (or error is not OK: the library or the
 ## addon failed, so no offer will come), and closes it only at its end. Its offer is never sent
 ## anywhere. A run that does nothing else meanwhile calls wait() once instead (#510): the WebRTC
-## twins, the WebRTC bots and the chaos run over WebRTC, each before its first host or join.
+## twins, the WebRTC bots and the chaos run over WebRTC, each before its first host or join. Those
+## scripts in tests/harness/ preload this file too: move it only with their preloads.
 
 ## How long wait() waits at most: about 3 times the 9 to 11 s measured under load (#472).
 const READY_WITHIN_MS := 30000
