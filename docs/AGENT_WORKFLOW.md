@@ -300,7 +300,7 @@ and wait for the designer's review.
 | `new-level-piece` | designer | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
-| `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
+| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
 | `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
@@ -326,7 +326,7 @@ and wait for the designer's review.
 | Foundation stages with no mid-task human input: M0 execution, core architecture and content-API design before M2, project-wide audits | xhigh + `ultracode` in that one prompt; one workflow per stage; human review between stages |
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
-| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it in the session settings) |
+| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it, with bypass, when he pastes the kickoff: `docs/MANAGERS.md` §1) |
 | The secretary session (§7.2) | medium, on Opus (the engineer's answer on #170, #485) |
 
 Rules for every workflow run:
@@ -357,7 +357,8 @@ Rules for every workflow run:
 ([ADR](decisions/2026-09-30-orchestrator-session.md); skill `orchestrate-stage`)
 - **When:** a whole stage or a list of issues that can run in parallel, with the engineer around to answer. One
   issue alone stays a normal task session (§4).
-- **How:** one session in ultracode, the **manager**, runs the skill. For each task it runs `start` itself, then the
+- **How:** one session, the **manager**, started from a kickoff the engineer pastes (no "ultracode": the
+  [manager rules](MANAGERS.md) every track follows, #511), runs the skill. For each task it runs `start` itself, then the
   saved workflow `issue-task` (`.claude/workflows/issue-task.js`: implementer → fresh reviewers chosen from the
   changed paths → publisher; `design: true` for a docs-only design task) with `args` (issue, worktree, branch, base,
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
@@ -566,8 +567,8 @@ Rules for every workflow run:
   rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
   manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
-  weekly limit; the manager stores it as the track's standing kickoff, Recovery below), answers the numbered "Needs
-  the engineer" questions, gives each milestone's go (a playtest) and merges the gate's exceptions. The manager closes
+  weekly limit; each handover comment ends with it as the ready kickoff he pastes, Recovery below), answers the
+  numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges the gate's exceptions. The manager closes
   issues whose work is on `main` (a comment linking the PRs and merge commits) and runs `worktree-done` for its merged
   tasks when no live session sits there. Every message from the manager ends with one
   short "For you:" block in the human's language, numbered, listing only what needs the human now (a refused merge, a
@@ -584,33 +585,30 @@ Rules for every workflow run:
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
   The handover is mechanical (#279, #467): at each turn end the manager runs `wave`, whose last line is the verdict.
-  It hands over once its context is over 300k tokens or its session over 12 hours old, even mid-wave (the engineer
-  on #467, replacing #329's "never mid-wave"): it stops its runs, posts a handover wave comment with their args and
-  starts its successor itself, which relaunches them fresh. It also hands over once its runs end after a merge into
-  `main` changed root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (its agents get its cached copy), at a stop
-  for the human with the context over 150k, and earlier at a natural break when its cost math says a fresh start is
-  cheaper (the skill's §7); while the human is away, only when a threshold (300k, 12 hours, changed instructions)
-  forces it. **The successor's start** (#484, route C; the engineer's rule for every track's manager, game, UI, art
-  and meta, [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
-  with route C in place of its route B after
-  [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487); route C and the night
-  rule are the meta manager's reading of the probe, for the engineer to confirm in #484's PR): each track's standing
-  kickoff is stored once per stage as the prompt of one ad-hoc Desktop scheduled task, `<track>-manager`: the human's
-  stage kickoff with its start lines replaced by a "Continue from the latest handover comment on #<plan>" line and a
-  line that names the manager's writes against the app's scheduled-task frame (the skill's `handover.md`). At a
-  handover the manager sets that task's `fireAt` 3 minutes ahead (`update_scheduled_task`, `notifyOnCompletion:
-  false`; a one-time task fires by itself), checks with `list_task_runs` that the successor's run started, sets its
-  effort and archives itself where the app allows, and stops, launching nothing more. `run_scheduled_task` is refused
-  in a session a scheduled task started, so it would not chain; no kickoff is pasted, and the human's paste is left
-  only for a missing or refused tool. The successor starts in `acceptEdits` at medium effort whatever its
-  predecessor's mode and cannot raise either itself (the human switches them by hand; until then it launches nothing
-  that prompts there), has no AskUserQuestion (read-backs go to plain chat) and takes no other session's
-  `send_message` (the app counts it as unattended; the human types into it as usual); before any launch it checks that
-  no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own repos
-  (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`, and need the same there: their task created
-  from a session in their checkout, holding their kickoff (the UI repo's `CLAUDE.md` keeps one under "Starting a new
-  manager session") with these two lines and a `Track:` line, their own thresholds in place of `wave`'s verdict and
-  a hand-written handover comment, all in their `CLAUDE.md` (the list in `handover.md` §4).
+  It hands over once its context is over 500k tokens (#511; 300k before) or its session over 12 hours old, even
+  mid-wave (the engineer on #467, replacing #329's "never mid-wave"): it stops its runs and posts a handover wave
+  comment with their args; the successor relaunches them fresh. It also hands over once its runs end after a merge
+  into `main` changed root `CLAUDE.md`, [`docs/MANAGERS.md`](MANAGERS.md), `.claude/rules/` or `.claude/agents/` (its
+  agents get its cached copy), at a stop for the human with the context over 250k (half the threshold, as 150k was of
+  300k), and earlier at a natural break when its cost math says a fresh start is cheaper (the skill's §7); while the
+  human is away, only when a threshold (500k, 12 hours, changed instructions) forces it, and then once its runs end
+  rather than stopping them. **The successor** (#511; the engineer's rule for every track's manager, game, UI, art
+  and meta, [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)):
+  the handover comment ends with the ready kickoff, the human's stage kickoff with its start lines replaced by a
+  "Continue from the latest handover comment on #<plan>" line, and the manager's last "For you:" asks the human to
+  paste it into a new session in the track's checkout, with bypass and effort high; it then stops, launching nothing
+  more. Route C (#484, [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)) is
+  a fallback only when the human asks for it: the track's one-time Desktop scheduled task `<track>-manager`, its
+  `fireAt` set 3 minutes ahead (`run_scheduled_task` is refused in a session a scheduled task started, so it would not
+  chain). Its known limit, why the paste is the default: that successor starts in `acceptEdits` at medium effort
+  whatever its predecessor's mode and cannot raise either itself (the human switches them by hand; until then it
+  launches nothing that prompts there), has no AskUserQuestion (read-backs go to plain chat) and takes no other
+  session's `send_message` (the app counts it as unattended; the human types into it as usual); before any launch it
+  checks that no other manager of its track is live (`handover.md` §3). The UI and art managers work in their own
+  repos (`D:\prime-game-ui`, `D:\prime-game-art`), without this skill or `wave`; their `CLAUDE.md` files point to
+  [`docs/MANAGERS.md`](MANAGERS.md), the one place for the rules every track's manager follows (the mode and effort,
+  the kickoff, the "For you:" block, the keep-alive, the handover and its thresholds), instead of copying them
+  (#511).
 
 ### 7.2 The secretary session
 
@@ -1148,7 +1146,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot CLAUDE.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP}.md` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot CLAUDE.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,MANAGERS}.md` |
 | Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1445,9 +1443,12 @@ that no later launch of its issue and workflow has replaced (the args exactly as
 `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
 context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
 also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
-orchestrate-stage skill's §7 turn-end check). A due verdict ends with the successor's start (#484, route C):
-`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead, the track read from the `Track:` line of the
-session's kickoff (as `metrics --track` reads it, inside a scheduled task's frame too). It reads two more sources: one
+orchestrate-stage skill's §7 turn-end check; thresholds 500k and, at a stop for the human, 250k, #511). A due verdict
+ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment ends with the ready kickoff the human
+pastes; route C (`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead) only if he asked for it, the
+track read from the `Track:` line of the session's kickoff (as `metrics --track` reads it, inside a scheduled task's
+frame too). With runs in flight it adds the rule while the human is away: launch nothing new and post the handover
+once they end. It reads two more sources: one
 `gh pr list --base main --json files` for
 the PRs merged into main since the session's first record that changed root `CLAUDE.md`, `.claude/rules/` or
 `.claude/agents/` (`gh pr view <n> --json files` for one the search lags on), and `git diff --name-only
@@ -1895,8 +1896,8 @@ rest is still printed.
 - Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
-- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7), or, naming a stage or
-  a list of issues, the orchestrator session (§7.1); "just do it" → small, obvious changes only.
+- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff
+  naming a stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" → small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
   real misrecognitions.
