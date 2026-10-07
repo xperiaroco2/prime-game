@@ -23,13 +23,14 @@ SID = "5ef6e325-aaaa-bbbb-cccc-000000000001"
 SINCE = "2026-10-03T08:00:00Z"
 # The verdict's last step at a handover (#511: the paste by default, route C a fallback), for a session whose kickoff
 # has no Track: line and for meta.
-START = ("the successor (docs/MANAGERS.md §6): the handover comment ends with the ready kickoff and your For you asks "
-         "the human to paste it into a new session in the track's checkout (bypass, effort high); then stop and "
-         "launch nothing more; route C (update_scheduled_task <track>-manager (no Track: line in this session's "
-         "kickoff), fireAt 3 min ahead; orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
-START_META = ("the successor (docs/MANAGERS.md §6): the handover comment ends with the ready kickoff and your For you "
-              "asks the human to paste it into a new session in the track's checkout (bypass, effort high); then stop "
-              "and launch nothing more; route C (update_scheduled_task meta-manager, fireAt 3 min ahead; "
+START = ("the successor (docs/MANAGERS.md §6): the handover comment's notes end with the ready kickoff, and your "
+         "For you carries it in a fenced text block with the comment's link and asks the human to paste it into a new "
+         "session in the track's checkout (bypass, effort high); then stop and launch nothing more; route C "
+         "(update_scheduled_task <track>-manager (no Track: line in this session's kickoff), fireAt 3 min ahead; orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
+START_META = ("the successor (docs/MANAGERS.md §6): the handover comment's notes end with the ready kickoff, and "
+              "your For you carries it in a fenced text block with the comment's link and asks the human to paste it "
+              "into a new session in the track's checkout (bypass, effort high); then stop and launch nothing more; "
+              "route C (update_scheduled_task meta-manager, fireAt 3 min ahead; "
               "orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
 # The in-flight clause's rule while the human is away (#511): no successor starts before his paste.
 AWAY = "(the human away: launch nothing new and post it once they end instead, docs/MANAGERS.md §5)"

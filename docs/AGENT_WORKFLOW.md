@@ -566,21 +566,22 @@ Rules for every workflow run:
   own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
   rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
   manager says so on each running manager's plan issue.
-- **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the
-  weekly limit; each handover comment ends with it as the ready kickoff he pastes, Recovery below), answers the
-  numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges the gate's exceptions. The manager closes
-  issues whose work is on `main` (a comment linking the PRs and merge commits) and runs `worktree-done` for its merged
-  tasks when no live session sits there. Every message from the manager ends with one
-  short "For you:" block in the human's language, numbered, listing only what needs the human now (a refused merge, a
-  decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
-  session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
-  The manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human. While a run of its own is in flight it keeps its 1-hour prompt cache warm with one background `sleep 3000`
-  re-armed on each cheap wake, for at most about 12 hours of the human's absence (the skill's §7, #305, #467). Each
-  command the human must run (a workflow's `human_steps`, housekeeping) goes into the chat itself, one runnable
-  PowerShell block per command ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan
-  issue may list it too. The publishing agents return `human_steps` as `{why, command}` pairs, each command one
-  PowerShell line that starts with `cd` to its absolute folder.
+- **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the weekly
+  limit; each handover comment's notes end with it as the ready kickoff he pastes, the manager's last For-you carrying
+  it too, Recovery below), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest)
+  and merges the gate's exceptions. The manager closes issues whose work is on `main` (a comment linking the PRs and
+  merge commits) and runs `worktree-done` for its merged tasks when no live session sits there. Every message from the
+  manager ends with one short "For you:" block in the human's language, numbered, listing only what needs the human now
+  (a refused merge, a decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a
+  worktree a live session holds) is batched there once per wave
+  ([intervention](interventions/2026-10-04-engineer-for-you-block.md)). The manager reports on the plan issue after each
+  wave and stops with a comment when nothing more can run without the human. While a run of its own is in flight it
+  keeps its 1-hour prompt cache warm with one background `sleep 3000` re-armed on each cheap wake, for at most about 12
+  hours of the human's absence (the skill's §7, #305, #467). Each command the human must run (a workflow's
+  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
+  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
+  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts with
+  `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -594,7 +595,7 @@ Rules for every workflow run:
   human is away, only when a threshold (500k, 12 hours, changed instructions) forces it, and then once its runs end
   rather than stopping them. **The successor** (#511; the engineer's rule for every track's manager, game, UI, art
   and meta, [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)):
-  the handover comment ends with the ready kickoff, the human's stage kickoff with its start lines replaced by a
+  the handover comment's notes end with the ready kickoff, the human's stage kickoff with its start lines replaced by a
   "Continue from the latest handover comment on #<plan>" line, and the manager's last "For you:" asks the human to
   paste it into a new session in the track's checkout, with bypass and effort high; it then stops, launching nothing
   more. Route C (#484, [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)) is
@@ -1444,7 +1445,7 @@ that no later launch of its issue and workflow has replaced (the args exactly as
 context, the mean API list $ per call of its first and last 20 calls, and any records it skipped), whose last line,
 also stdout's last, is the handover verdict: `handover due: <why>` or `handover not due` with its clauses (#467; the
 orchestrate-stage skill's §7 turn-end check; thresholds 500k and, at a stop for the human, 250k, #511). A due verdict
-ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment ends with the ready kickoff the human
+ends with the successor (#511, `docs/MANAGERS.md` §6): the handover comment's notes end with the ready kickoff the human
 pastes; route C (`update_scheduled_task <track>-manager` with a `fireAt` 3 minutes ahead) only if he asked for it, the
 track read from the `Track:` line of the session's kickoff (as `metrics --track` reads it, inside a scheduled task's
 frame too). With runs in flight it adds the rule while the human is away: launch nothing new and post the handover
@@ -1895,8 +1896,9 @@ rest is still printed.
 - Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
-- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff
-  naming a stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" → small, obvious changes only.
+- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff naming a
+  stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" →
+  small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
   real misrecognitions.

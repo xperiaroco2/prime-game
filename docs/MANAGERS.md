@@ -75,8 +75,9 @@ plan issue, its workflows) stays in its own repo: for game and meta, the `orches
 - **The comment**, on your plan issue, titled exactly "Handover to a fresh manager session": the order from here, the
   open questions, the human steps still due, the stage's start, the runs you stopped (relaunch fresh, with their
   args), every standing instruction he gave in chat since the kickoff (a pause, a changed budget), the UTC time of his
-  last chat message, your app session id, and last, in a `text` block, **the ready kickoff** (below). Game and meta
-  write it with `wave --title "Handover to a fresh manager session" --notes <file>`; UI and art by hand.
+  last chat message, your app session id, and, last in your notes, in a `text` block, **the ready kickoff** (below).
+  Game and meta write it with `wave --title "Handover to a fresh manager session" --notes <file>` (wave's own sections
+  follow the notes); UI and art by hand.
 - **The ready kickoff** is the stage's kickoff as he wrote it (his language, its `Track:` line), with its "Start from",
   "If from a design" and "After a handover" lines replaced by:
 
@@ -89,8 +90,9 @@ plan issue, its workflows) stays in its own repo: for game and meta, the `orches
 
   A kickoff that still says "ultracode" loses the word (§2); every other word stays his.
 - **Then** your message ends with one "For you:" item: close this session, open a new one in the track's checkout
-  (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), set bypass and effort high, and paste the kickoff from
-  the comment (its link). Send a PushNotification, arm no timer, launch nothing more, and stop.
+  (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), set bypass and effort high, and paste the kickoff. The
+  item carries the kickoff itself, in a fenced `text` block, and the comment's link, so he copies it from the chat.
+  Send a PushNotification, arm no timer, launch nothing more, and stop.
 - The successor takes the comment as its starting state, relaunches the stopped runs fresh and takes the stage's yes
   as given: it restates the order and goes on. Before any launch or merge it checks that no other manager of its
   track is live.
@@ -117,7 +119,7 @@ A manager session of this repo follows `D:\prime-game\docs\MANAGERS.md` (prime-g
 missing or unreadable: https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md). Read it whole at the
 session's start, before anything else, and again after a change to it reaches prime-game's `main`. It holds the mode
 and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-alive, when to hand over and the handover
-comment that ends with the ready kickoff the engineer pastes; where this file differs on those, it wins.
+comment with the ready kickoff the engineer pastes; where this file differs on those, it wins.
 Track: <track>. <UI: Plan issue: xperiaroco2/prime-game#150; the context: `node tools/manager/context.js`. | Art: Plan
 issue: the current stage's `plan:` issue in this repo; the context: the app's context usage.>
 ```

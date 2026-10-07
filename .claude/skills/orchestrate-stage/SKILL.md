@@ -354,8 +354,9 @@ taken in a `main` that has them.
   own; otherwise they fail and you resume after the reset. While you wait, the keep-alive below is your only timer.
 - **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
-  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order says, one at a time (its task id and arm time in the
-  state file); it fires before the cache your latest call refreshed expires.
+  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order
+  says, one at a time (its task id and arm time in the state file); it fires before the cache your latest call refreshed
+  expires.
 - **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
   this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking
   you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json number,mergedAt`). Then follow the turn-end
@@ -366,8 +367,8 @@ taken in a `main` that has them.
   `handover due: <why>` or `handover not due` with clauses. Due: the context over 500k or the session over 12 hours old,
   even mid-wave (while the human is away: once your runs end, MANAGERS.md §5); or, once your runs end, a merge into
   `main` since your start that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`
-  (agents get your cached copy); until then it says "launch nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
-  over once it is pulled.
+  (agents get your cached copy); until then it says "launch nothing new": obey it. "Behind origin/main": this turn's
+  For-you carries `cd D:\prime-game; git pull --ff-only`; hand over once it is pulled.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
@@ -491,7 +492,7 @@ Start from: <my review of the design PR #<pr> and its handoff on #<design issue>
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
 order.>
 
-<After a handover: the handover comment ends with this kickoff, these lines replaced by its "Continue from" line
+<After a handover: the handover comment's notes end with this kickoff, these lines replaced by its "Continue from" line
 (docs/MANAGERS.md §6); I paste it as it is.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
@@ -505,8 +506,8 @@ Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; 
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
-each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment ends with the ready kickoff,
-which I paste into a new session (handover.md); route C only if I ask for it.
+each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment's notes end with the ready
+kickoff, which your last For-you carries too and I paste into a new session (handover.md); route C only if I ask for it.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness

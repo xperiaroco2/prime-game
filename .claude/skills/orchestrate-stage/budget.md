@@ -106,11 +106,11 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   says a fresh start is cheaper (#484).
 - **The engineer pastes the successor's kickoff** (#511; approved by the engineer:
   [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486)), on every
-  track: the handover comment ends with the ready kickoff (handover.md §4), so no handover needs a prompt written by
-  hand, and he pastes it into a new session in the track's checkout with bypass and effort high. While he is away no
-  successor starts, so a manager hands over only when a threshold forces it, and lets its runs end first. Route C (#484,
-  a one-time `fireAt` scheduled task, handover.md §3) is a fallback he asks for: its successor always starts in
-  `acceptEdits` at medium effort. A start-up costs about the successor's first 20 calls.
+  track: the handover comment's notes end with the ready kickoff (handover.md §4), the last For-you carries it, so no
+  handover needs a prompt written by hand, and he pastes it into a new session in the track's checkout with bypass and
+  effort high. While he is away no successor starts, so a manager hands over only when a threshold forces it, and lets
+  its runs end first. Route C (#484, a one-time `fireAt` scheduled task, handover.md §3) is a fallback he asks for: its
+  successor always starts in `acceptEdits` at medium effort. A start-up costs about the successor's first 20 calls.
 - **Long reading and drafting go to a subagent** (#467): planning reads, ADR and doc drafts and metrics tables; it
   returns a compact result, and the manager writes no large file itself.
 

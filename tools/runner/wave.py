@@ -60,9 +60,10 @@ flight (then: stop them, then post the handover; a run whose agent publishes, re
 while the human is away, let them end instead), or, once no run is in flight, when such a merge changed the
 instructions (until then "launch nothing new"); else "handover not due", with "at a stop for the human: due" when no
 run is in flight and the context is over 250k. A due line ends with the successor (#511, docs/MANAGERS.md §6): the
-handover comment ends with the ready kickoff the human pastes into a new session; route C (#484, update_scheduled_task
-on the track's task, named after the kickoff's `Track:` line, metrics.kickoff_track) only if he asked for it. A run
-with no line for over STALE_MINUTES is named as stale, not counted in flight. A failed read says so in the line.
+handover comment's notes end with the ready kickoff, which the last For you carries too, for the human to paste into a
+new session; route C (#484, update_scheduled_task on the track's task, named after the kickoff's `Track:` line,
+metrics.kickoff_track) only if he asked for it. A run with no line for over STALE_MINUTES is named as stale, not
+counted in flight. A failed read says so in the line.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -1335,15 +1336,17 @@ def in_flight_text(runs: list[Run], now: float) -> str:
 
 
 def successor_text(track: str | None) -> str:
-    """The handover's last step (#511; docs/MANAGERS.md §6): the handover comment ends with the ready kickoff, which
-    the human pastes into a new session in the track's checkout with the mode and effort he picks. Route C (#484, the
-    track's one-time scheduled task fired a few minutes ahead) is the fallback he asks for: its successor always starts
-    in acceptEdits at medium effort."""
+    """The handover's last step (#511; docs/MANAGERS.md §6): the handover comment's notes end with the ready kickoff,
+    and the last For you carries it in a fenced text block (the wave sections follow the notes), which the human
+    pastes into a new session in the track's checkout with the mode and effort he picks. Route C (#484, the track's
+    one-time scheduled task fired a few minutes ahead) is the fallback he asks for: its successor always starts in
+    acceptEdits at medium effort."""
     task = f"{track or '<track>'}-manager"
     unknown = " (no Track: line in this session's kickoff)" if not track else ""
-    return (f"the successor ({MANAGER_RULES} §6): the handover comment ends with the ready kickoff and your For you "
-            "asks the human to paste it into a new session in the track's checkout (bypass, effort high); then stop "
-            f"and launch nothing more; route C (update_scheduled_task {task}{unknown}, fireAt 3 min ahead; "
+    return (f"the successor ({MANAGER_RULES} §6): the handover comment's notes end with the ready kickoff, and your "
+            "For you carries it in a fenced text block with the comment's link and asks the human to paste it into a "
+            "new session in the track's checkout (bypass, effort high); then stop and launch nothing more; "
+            f"route C (update_scheduled_task {task}{unknown}, fireAt 3 min ahead; "
             "orchestrate-stage handover.md §3) only if the human asked for it")  # fmt: skip
 
 

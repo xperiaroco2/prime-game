@@ -35,9 +35,9 @@ becomes a fallback: its successor always runs in `acceptEdits` at medium effort.
   (`get_session("self")`, where the tool exists) and the handover data; the notes end with **the ready kickoff** (§4)
   in a `text` block.
 - **(c) The paste** (the default): your last message's "For you:" has one item: close this session, open a new one in
-  `D:\prime-game` (the track's checkout), set bypass and effort high, and paste the kickoff from the handover comment
-  (its link). A verdict that says to pull the main checkout puts the pull before it, in the same block. Send a
-  PushNotification, arm no timer, launch nothing more, and stop.
+  `D:\prime-game` (the track's checkout), set bypass and effort high, and paste the kickoff, which the item carries
+  itself in a fenced `text` block, with the handover comment's link. A verdict that says to pull the main checkout puts
+  the pull before it, in the same block. Send a PushNotification, arm no timer, launch nothing more, and stop.
 - **(d) Route C**, only when the human asked for it in the kickoff or in chat: §3's steps in place of (c).
 - The successor takes the handover comment as the skill's §2.2 answer, relaunches the stopped runs fresh and takes the
   stage's yes as given: it restates the order and goes on (the skill's §1 wait does not apply).
@@ -89,10 +89,10 @@ mode, and cannot raise either itself.
 - **Your own handover** is the paste again (§2 (c)), unless the human asks for route C once more.
 
 ## 4. The ready kickoff
-What the handover comment ends with, so no handover needs a prompt written by hand: the human's kickoff of the stage
-(the skill's §10) as he wrote it (his language kept, its `Track:` line included, "ultracode" dropped if an older one
-has it: MANAGERS.md §2), with its "Start from", "If from a design" and "After a handover" lines replaced by the
-"Continue from" line of MANAGERS.md §6:
+What the handover comment's notes end with and the last For-you carries, so no handover needs a prompt written by
+hand: the human's kickoff of the stage (the skill's §10) as he wrote it (his language kept, its `Track:` line included,
+"ultracode" dropped if an older one has it: MANAGERS.md §2), with its "Start from", "If from a design" and "After a
+handover" lines replaced by the "Continue from" line of MANAGERS.md §6:
 
 ```text
 Continue from the latest comment titled "Handover to a fresh manager session" on #<plan issue> and every note after
