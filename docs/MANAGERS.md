@@ -12,9 +12,9 @@ plus judgment) and [#467](https://github.com/xperiaroco2/prime-game/issues/467#i
 **Read this file whole at your session's start**, from the main checkout (`D:\prime-game\docs\MANAGERS.md`; missing
 or unreadable: the copy on GitHub, https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md), and again
 after a change to it reaches `main` (§5). Where your repo's own files differ from it on the handover, its thresholds,
-the "For you:" block, the kickoff or the effort, this file wins. How each track carries a rule out (its tools, its
-plan issue, its workflows) stays in its own repo: for game and meta, the `orchestrate-stage` skill and its
-`handover.md`.
+the "For you:" block, the kickoff, the effort or a launch's estimate (§9), this file wins. How each track carries a
+rule out (its tools, its plan issue, its workflows) stays in its own repo: for game and meta, the `orchestrate-stage`
+skill and its `handover.md`.
 
 ## 1. The session: mode and effort
 - A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, with
@@ -124,3 +124,24 @@ comment with the ready kickoff the engineer pastes; where this file differs on t
 Track: <track>. <UI: Plan issue: xperiaroco2/prime-game#150; the context: `node tools/manager/context.js`. | Art: Plan
 issue: the current stage's `plan:` issue in this repo; the context: the app's context usage.>
 ```
+
+## 9. Every launch: the estimate, and a check after the first phase
+(#534) Approved by the engineer:
+[#302 comment 6038401263](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6038401263), item 2. Art's
+`wf_45e2297a` went out with no estimate and cost $693, 27% of the week, with 48 agents.
+- **Before every workflow launch**, the message that launches it states the estimate: the agents, the rough list $
+  and its % of the week (about list $ / 25: cache reads count at 0.75). From `metrics`' task medians (`tools\run.cmd
+  metrics --since <the reset> --compact`, its "task medians" line) or the cost per task (game and meta: an
+  `issue-task` run about 0.3 to 0.7%; art about 1.1% an issue, UI about 1.2% a run), times the tasks; else from the
+  workflow's own numbers: agents x tool calls each x about $0.10 a call (the 2026-10-07 audit: $1,877 in about 17,000
+  calls; an agent past 200k of context costs more a call). A loop over N items is N times its agents.
+- **Over about 5% of the week** (one launch; an `issue-task` or `pr-rebase` run is under 1%), the run stops after its
+  first phase. A workflow you write returns after its first phase (or takes an arg that runs only it), and the rest
+  is a second launch after the check; a saved one you cannot change: stop it once its first phase's agents have
+  answered.
+- **The check**: `tools\run.cmd metrics --run <run id>` (the Workflow tool's run id, or its start) prints a run's
+  spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
+  $ by phase. UI and art run it in prime-game's main checkout (`cd D:\prime-game`); it reads all three checkouts'
+  transcripts. The first phase within 1.5 times its share of the estimate: go on, and the plan-issue comment gives
+  both numbers. Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left,
+  go on and report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.

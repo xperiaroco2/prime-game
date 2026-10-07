@@ -47,6 +47,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   plan to date <p>%; weekly counter <n>% (get_usage)`. When the counter and the line for every session differ by more
   than 3 points, the wave comment says so (the counter also counts the account's sessions outside the three
   checkouts).
+- **One run so far**: `tools\run.cmd metrics --run <run id>` (#534) prints a run's agents started and answered, who
+  works now, its % of the week and its list $ by phase, finished or in flight: the check after a large launch's first
+  phase ([MANAGERS.md §9](../../../docs/MANAGERS.md)).
 
 ## When a track's budget runs out (N2 (a))
 - **At 80%** of its budget: plan no wave larger than what is left at row 8's cost per task; merges and handovers go
