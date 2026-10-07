@@ -274,10 +274,10 @@ test("a socket that closed keeps no role after a wake, even while the runtime st
   assert.deepEqual([...host.take(), ...joiner.take()], []);
 });
 
-test("a failed socket is gone and closed", () => {
-  const { state, timers, service, host, joiner, env } = hostAndJoiner();
+test("a failed socket is gone and closed, with a code the runtime sends", () => {
+  const { state, timers, service, host, joiner, env } = hostAndJoiner({ strictCodes: true });
   service.failed(joiner);
-  assert.equal(joiner.closedWith.code, 1011);
+  assert.equal(joiner.closedWith.code, 1000);
   assert.deepEqual(joiner.deserializeAttachment(), { id: 2, gone: true });
   new SignalService(state, env, { setTimer: timers.set }).message(
     host,

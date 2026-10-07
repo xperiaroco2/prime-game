@@ -172,13 +172,15 @@ export class SignalService {
     return sent;
   }
 
-  // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
+  // `ws` failed (webSocketError): the service closes it on a best effort, and it is gone as if its client
+  // closed it. The close goes out with a code the runtime can send (CLOSE_ERROR, 1011, it refuses), and a
+  // socket that has failed owes its client no handshake, so a close that throws is no error.
   failed(ws) {
     const sent = this.closed(ws);
     try {
-      ws.close(CLOSE_ERROR, "");
+      ws.close(closeReplyCode(CLOSE_ERROR), "");
     } catch {
-      // Already closed.
+      // The socket is gone already, or the runtime refused the close: nothing more to send.
     }
     return sent;
   }
