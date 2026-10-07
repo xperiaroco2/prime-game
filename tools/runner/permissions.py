@@ -122,9 +122,11 @@ class Scope:
     docstring), minus the protected paths."""
 
     def __init__(self, cwd: str, home: str = HOME) -> None:
-        # This model's simplification: a session in a worktree counts as working in the main checkout, as a manager
-        # and its workflow agents do, so the project's other checkouts are in its scope (Claude Code may ask there).
-        self.root = guard.project_root(guard.normalize(cwd or str(ROOT)))
+        # This model's simplification: a session in a worktree, or in any folder inside one, counts as working in the
+        # main checkout, as a manager and its workflow agents do, so the project's other checkouts are in its scope
+        # (Claude Code may ask there). Claude Code's critical-path check uses the real working directory (critical).
+        self.cwd = guard.normalize(cwd or str(ROOT))
+        self.root = re.sub(r"/\.claude/worktrees/[^/]+(/.*)?$", "", self.cwd)
         self.home = home
 
     def base(self, path: str) -> str | None:
@@ -151,7 +153,7 @@ class Scope:
             return False
         if re.fullmatch(r"/[^/]*|[a-z]:(/[^/]+)?", path) or path == self.home:
             return True
-        return path == self.root or self.root.startswith(path + "/")
+        return path == self.cwd or self.cwd.startswith(path + "/")
 
     def system(self, path: str | None) -> bool:
         """A `Remove-Item` target Claude Code denies: `/`, a drive root or top-level folder, home."""

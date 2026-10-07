@@ -597,6 +597,18 @@ class AcceptEditsTest(unittest.TestCase):
         outside = "no allow rule: cd (outside the working directory)"
         self.assertEqual(self.judge("Bash", "cd D:/other && ls")[1], outside)
 
+    def test_a_folder_inside_a_worktree_works_in_the_main_checkout(self) -> None:
+        # The model's simplification holds below a worktree's root too; the critical-path check keeps the real cwd.
+        here = f"{OWN}/tests/scratch/w"
+        scope = permissions.Scope(here)
+        self.assertEqual(scope.root, guard.normalize(MAIN))
+        self.assertEqual(scope.problem(guard.normalize(f"{MAIN}/.claude/worktrees/313/core/x.gd")), "")
+        self.assertTrue(scope.critical(guard.normalize(f"{OWN}/tests")))
+        self.assertFalse(scope.critical(guard.normalize(f"{OWN}/core")))
+        command, mode = f"cd {MAIN_POSIX}/docs && ls", permissions.ACCEPT_EDITS
+        judged = permissions.verdict(RULES, SILENT_GUARD, "Bash", command, here, MAIN, None, mode)
+        self.assertEqual(judged[0], permissions.PASS, judged[1])
+
     def test_rm_of_a_critical_path_asks_even_in_bypass(self) -> None:
         Q = permissions.PROMPT
         for command in ("rm -rf /", f"rm -rf {MAIN_POSIX}", "rm -rf /d/", "rm -rf C:/Users", 'rm -rf "$DIR"/*'):
