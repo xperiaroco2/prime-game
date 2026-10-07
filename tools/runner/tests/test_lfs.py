@@ -258,6 +258,23 @@ class CheckTest(unittest.TestCase):
                 self.assertEqual((root / "art/a.png").read_bytes(), POINTER)
             self.assertEqual(seen, [False, True])
 
+    def test_the_import_in_ci_runs_in_a_folder_that_is_not_a_git_work_tree(self) -> None:
+        # Runner tests import throwaway projects in plain temp folders; in CI (CI=true) git cannot list their files,
+        # and the import must still run (the review of #515).
+        for attributes in (None, ATTRIBUTES):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                if attributes:
+                    write(root, ".gitattributes", attributes)
+                write(root, "art/a.png", POINTER)
+                calls: list[object] = []
+                with mock.patch.object(common, "ROOT", root), mock.patch.object(common, "IS_CI", True), \
+                        mock.patch.object(check, "godot", lambda *a, **k: calls.append(a) or Result(0, "", False, 1.0)), \
+                        mock.patch.object(check, "record_import"):  # fmt: skip
+                    self.assertEqual(check.run_import(), [])
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(lfs.pointers(root), [])
+
     def test_lfs_content_fails_on_a_pointer_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = repo(Path(tmp))

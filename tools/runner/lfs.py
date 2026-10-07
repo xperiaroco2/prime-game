@@ -48,9 +48,19 @@ def is_pointer(path: Path) -> bool:
 
 def pointers(root: Path | None = None) -> list[str]:
     """The repo-relative paths of the files .gitattributes routes through LFS that are pointer files here (addons/
-    is outside LFS)."""
+    is outside LFS). None in a folder whose .gitattributes routes nothing through LFS, or that is not a git work tree
+    (a runner test's temp project): git cannot list its files, and it has no LFS files."""
     root = root or common.ROOT
-    return [name for name in credits.lfs_assets(root, credits.repo_files(root)) if is_pointer(root / name)]
+    try:
+        if "filter=lfs" not in (root / ".gitattributes").read_text(encoding="utf-8"):
+            return []
+    except (OSError, UnicodeDecodeError):
+        return []
+    try:
+        assets = credits.lfs_assets(root, credits.repo_files(root))
+    except Failure:
+        return []
+    return [name for name in assets if is_pointer(root / name)]
 
 
 def ci_pointers(root: Path | None = None) -> list[str]:
