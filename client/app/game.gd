@@ -62,6 +62,9 @@ var device_input := true
 ## The mouse pointer the game captures and frees: Input's unless a test sets one (headless keeps no
 ## mouse mode).
 var pointer := MousePointer.new()
+## The window Alt+Enter turns fullscreen and back: the real one unless a test sets one (headless
+## keeps no window mode).
+var window := GameWindow.new()
 ## The voice codec: TwoVoIP's (unavailable without the addon, then no voice plays) unless a test
 ## sets one before _ready.
 var voice_codec: VoiceCodec
@@ -281,10 +284,11 @@ func open_esc() -> void:
 	pointer.capture(false)
 
 
-## Esc again, or Resume: the menu closes; in the lobby and the round the mouse is captured again.
+## Esc again, or Resume: the menu closes; in the lobby, Loading and the round the mouse is captured
+## again.
 func close_esc() -> void:
 	ui.close_esc()
-	if not GameFlow.frees_pointer(screen()):
+	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
 		pointer.capture(true)
 
 
@@ -374,9 +378,7 @@ func _process(_delta: float) -> void:
 	var now := screen()
 	if now != _screen:
 		_screen = now
-		# A mouse captured in the round would stay captured on the end screen's button.
-		if GameFlow.frees_pointer(now):
-			pointer.capture(false)
+		_point_for(now)
 	ui.show_screen(now)
 	ui.reads_device_input = device_input
 	if _client != null:
@@ -391,6 +393,11 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Alt+Enter on every screen, before Enter reaches a focused button (#517).
+	if event.is_action_pressed(&"toggle_fullscreen"):
+		window.toggle_fullscreen()
+		get_viewport().set_input_as_handled()
+		return
 	if _overlay != null and event.is_action_pressed(&"debug_overlay"):
 		_overlay.visible = not _overlay.visible
 		get_viewport().set_input_as_handled()
@@ -444,6 +451,19 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 		_player.move_input = Vector2.ZERO
 		_player.sprint_held = false
 		_player.jump_requested = false
+
+
+## The mouse for the screen just shown (GameFlow.pointer_on): a mouse captured in the round would
+## stay captured on the end screen's button; the lobby and the round capture it (#517), but never
+## from under the Esc menu, and only while the window has the focus (MousePointer.focused): a
+## window in the background a click captures later.
+func _point_for(now: GameFlow.Screen) -> void:
+	match GameFlow.pointer_on(now):
+		GameFlow.Pointer.FREE:
+			pointer.capture(false)
+		GameFlow.Pointer.CAPTURE:
+			if not ui.esc_open() and pointer.focused():
+				pointer.capture(true)
 
 
 func _player_dead() -> bool:
