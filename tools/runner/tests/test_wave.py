@@ -1217,9 +1217,9 @@ class WaveTest(unittest.TestCase):
         self.p.add(enqueue(100, note_text("t466", "wt466")))
         _, out, _ = self.main(since=late, out=str(target), merge_check=False,
                               sources=FakeSources(merged=merged, files=self.files_rows(merged)))  # fmt: skip
-        verdict = ("handover due: merges into main since the session start changed the agents' instructions: "
-                   f"{names}; post the handover; pull the main checkout before the successor starts; then "
-                   f"{START}.")  # fmt: skip
+        verdict = ("handover due: merges into main since the session start changed the instructions (the agents' or "
+                   f"the managers'): {names}; post the handover; pull the main checkout before the successor starts; "
+                   f"then {START}.")  # fmt: skip
         self.assertEqual(out.strip().splitlines()[-1], verdict)
         self.assertEqual(target.read_text(encoding="utf-8").strip().splitlines()[-1], verdict)
         for decoy in ("#480", "#481", "#482", "#483", "#484"):

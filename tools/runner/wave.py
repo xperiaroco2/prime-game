@@ -236,7 +236,7 @@ class OpenPR:
 
 @dataclass
 class InstructionChange:
-    """A PR merged into main since the session start that changed the agents' instructions."""
+    """A PR merged into main since the session start that changed the instructions (the agents' or the managers')."""
 
     number: int
     merged_at: float
@@ -775,8 +775,8 @@ def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
 
 
 def instruction_paths(paths: Iterable[str]) -> list[str]:
-    """The paths among these that are the agents' instructions (INSTRUCTION_FILES at the root, files under
-    INSTRUCTION_DIRS), in their order."""
+    """The paths among these that are the instructions, the agents' or the managers' (INSTRUCTION_FILES at the root,
+    files under INSTRUCTION_DIRS), in their order."""
     return [p for p in paths
             if p in INSTRUCTION_FILES or (p.startswith(INSTRUCTION_DIRS) and p not in INSTRUCTION_DIRS)]  # fmt: skip
 
@@ -1369,8 +1369,8 @@ def handover_verdict(w: Wave) -> str:
     if age > HANDOVER_HOURS:
         reasons.append(f"the session is {age:.1f} h old, over {HANDOVER_HOURS:g} h")
     if changes and (reasons or not running):
-        reasons.append(f"merges into main since the session start changed the agents' instructions: "
-                       f"{changes_text(changes)}")  # fmt: skip
+        reasons.append(f"merges into main since the session start changed the instructions (the agents' or the "
+                       f"managers'): {changes_text(changes)}")  # fmt: skip
     due = bool(reasons)
     if reasons:
         line = "handover due: " + "; ".join(reasons)
