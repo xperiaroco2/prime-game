@@ -27,16 +27,7 @@ export class Signalling extends DurableObject {
   }
 
   async webSocketClose(ws, code, reason) {
-    // What the close sends may wait on a credential: the close frame is answered first.
-    const sent = this.service.closed(ws);
-    // The runtime answers the close frame itself from compatibility date 2026-04-07; answering it
-    // here too is harmless, and keeps the client from waiting if that flag is not on.
-    try {
-      ws.close(code, reason);
-    } catch {
-      // Answered already, or a code that may not be sent (1005, 1006).
-    }
-    await sent;
+    await this.service.clientClosed(ws, code, reason);
   }
 
   async webSocketError(ws) {

@@ -141,6 +141,18 @@ export class SignalService {
     return this.deliver(out);
   }
 
+  // `ws`'s client closed it with `code` and `reason` (webSocketClose): the service answers the close
+  // frame, and what the close sends may still wait on a credential.
+  clientClosed(ws, code, reason) {
+    const sent = this.closed(ws);
+    try {
+      ws.close(code, reason);
+    } catch {
+      // Answered already, or a code that may not be sent (1005, 1006).
+    }
+    return sent;
+  }
+
   // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
   failed(ws) {
     const sent = this.closed(ws);
