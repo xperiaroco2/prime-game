@@ -117,6 +117,11 @@ file, no `git rebase/checkout/switch/reset/pull/merge/restore/cherry-pick/am/app
 included as the audit counted them; a re-read's tokens are those of its repeated lines (a shell result's characters
 split evenly over its lines). The table gives per role the agents, tool calls and API list $ per agent and those
 counts. Docs stay #337's tables above.
+
+The plan phase (#469, its before and after numbers): per `issue-task` run with a planner, the planner's model, the API
+list $ of the planner and of the plan's critique, the repository files the planner read (a Read of any file, a code
+read as above, a shell read of a doc), how many of them the implementer read too, and the critique's findings (all,
+and blockers plus majors). The JSON record's "plans" holds the same rows.
 """
 
 from __future__ import annotations
@@ -816,6 +821,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     merge_outputs, merge_pairs = 0, []
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
+    files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -900,6 +906,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "docs": doc_targets(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
                         }
+                        files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
                 for b in m["content"]:
                     if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in uses:
@@ -973,7 +980,18 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         # merge-check outputs among its tool results, and the PR pairs whose rows name an ARCHITECTURE conflict
         "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
         "code_reads": code_reads,
+        "files_read": sorted(files_read),
     }
+
+
+def files_of(name: str, inp: dict, call: dict) -> list[str]:
+    """The repository files one tool call reads (#469): a Read's file, whatever its kind, a code read's and a shell
+    read's docs; never a search."""
+    out = [rel for rel, _whole, _ranges in call["code"]]
+    out += [rel for rel, how, _mode in call["docs"] if rel and how in ("Read", "shell read")]
+    if name == "Read" and repo_path(inp.get("file_path")):
+        out.append(str(repo_path(inp.get("file_path"))))
+    return out
 
 
 def count_code_read(reads: list[tuple], text: str, seen: dict[str, set[int]], counts: dict) -> None:
@@ -1449,6 +1467,8 @@ def build(
     md += stage_section(stages)
     md += role_section(counted)
     md += code_read_section(counted)
+    plans = plan_rows(counted)
+    md += plan_section(plans)
     instructions = instruction_record(counted, data["sessions"], docs_root)
     md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
@@ -1482,6 +1502,7 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "quality": quality,
+        "plans": plans,
         "instructions": instructions,
         "compact": compact,
     }
@@ -1622,6 +1643,64 @@ def code_read_section(counted: list[dict]) -> list[str]:
         "partial).",
         "",
         table(head, rows),
+        "",
+    ]
+
+
+def plan_rows(counted: list[dict]) -> list[dict]:
+    """#469's numbers per `issue-task` run with a planner: its model, the $ of the plan and of its critique, the files
+    the planner read and how many the implementer read again, and the critique's findings."""
+    rows = []
+    for r in counted:
+        # A retried agent has two attempts: both spent, both read; the result is the last one's.
+        of = {role: [x for x in r["agents"] if x["role"] == role and x["data"]] for role in ("planner", "plan-reviewer", "implementer")}
+        if not of["planner"]:
+            continue
+        files = {role: set().union(*(x["data"].get("files_read") or [] for x in xs)) for role, xs in of.items()}
+        result = next((x["result"] for x in reversed(of["plan-reviewer"]) if x["result"]), None)
+        found = [f for f in ((result or {}).get("findings") or []) if isinstance(f, dict)]
+        spent = {role: sum(usd(x["data"]["tokens"]) for x in xs) for role, xs in of.items()}
+        rows.append({
+            "session": r["session"],
+            "issue": r["issue"],
+            "wf": r["wf"],
+            "model": of["planner"][-1]["data"].get("model"),
+            "plan_usd": spent["planner"],
+            "critique_usd": spent["plan-reviewer"],
+            "planner_files": len(files["planner"]),
+            "reread": len(files["planner"] & files["implementer"]) if of["implementer"] else None,
+            "findings": len(found) if result is not None else None,
+            "serious": sum(f.get("severity") in ("blocker", "major") for f in found),
+        })
+    return rows
+
+
+def plan_section(rows: list[dict]) -> list[str]:
+    """The plan phase table (#469); nothing when no run had a planner."""
+    if not rows:
+        return []
+    body = []
+    for x in rows:
+        reread = "-" if x["reread"] is None else f"{x['reread']} ({x['reread'] / max(1, x['planner_files']):.0%})"
+        found = "-" if x["findings"] is None else f"{x['findings']} / {x['serious']}"
+        body.append([f"#{x['issue']}" if x["issue"] else x["wf"], x["model"] or "-", fmt_usd(x["plan_usd"]),
+                     fmt_usd(x["critique_usd"]), fmt_usd(x["plan_usd"] + x["critique_usd"]), x["planner_files"], reread,
+                     found])
+    files = sum(x["planner_files"] for x in rows if x["reread"] is not None)
+    again = sum(x["reread"] for x in rows if x["reread"] is not None)
+    both = [x["plan_usd"] + x["critique_usd"] for x in rows]
+    head = ["run", "planner model", "plan $", "critique $", "plan + critique $", "planner files",
+            "re-read by the implementer", "critique findings (all / blocker+major)"]
+    return [
+        "## Plan phase (#469)",
+        "",
+        "Per run with a planner: the API list $ of the plan and of its critique, the repository files the planner read "
+        "and how many of them the implementer read too, and the critique's findings.",
+        "",
+        table(head, body),
+        "",
+        f"Plan + critique: mean {fmt_usd(sum(both) / len(both))} over {len(both)} runs; the implementers re-read "
+        f"{again} of {files} planner files ({again / max(1, files):.0%}).",
         "",
     ]
 

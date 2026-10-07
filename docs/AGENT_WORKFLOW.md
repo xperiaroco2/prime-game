@@ -398,8 +398,9 @@ Rules for every workflow run:
   report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
   left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
   cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
-  publisher gets the whole report but of a `plan_review` run only the plan's summary and the critique (the whole plan
-  stays in the journal); and the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
+  publisher gets the whole report but of a `plan_review` run only the plan's summary, its comment's link and the
+  critique (the whole plan is that comment on the issue, #469, and stays in the journal); and
+  the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
   itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
@@ -410,7 +411,15 @@ Rules for every workflow run:
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
   #468's reading line, #471's publish steps, #470's digests).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
-  agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
+  agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
+  most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
+  is cut before the critique and the implementer read it, and the result's `plan.clipped` says so), with a `file_map`:
+  the paths, line ranges and facts the plan rests on, read at its `base_sha`. The implementer runs one `git diff
+  --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
+  the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
+  planner on Sonnet with `models.plan` (orchestrate-stage §3); the critique stays on the review model. `metrics`'
+  plan phase table (§11.12) gives the before and after.
+  `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
   publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
@@ -1491,8 +1500,10 @@ the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main che
 writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
 as N, and the `test` shards that did not end with exit 0, #273, and how many of the window's recorded `check` steps
 passed although Godot crashed at exit, #449: records without the `exit_crash` field are not counted), review
-findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the prompt
-cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the baseline), the plan
+phase per run with a planner (#469: the planner's model, the plan's and its critique's API list $, the files the
+planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
+prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11

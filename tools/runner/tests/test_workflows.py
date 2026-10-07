@@ -9,8 +9,8 @@ resume replays an agent only while its prompt and options are unchanged. So with
 (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), `bounded_waits: false` and
 `lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
 `workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
-origin/main before v2 changed them. The one exception is `publish-clean-main`: it passes a v2 arg and pins the
-publish_clean trial of #308, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
+origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
+of #308 and `plan-review-main` #469's plan phase, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
@@ -22,7 +22,7 @@ critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5,
 list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
 too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
 summary cap, the publisher's plan summary and inline finish-task steps); they landed between waves, when no run could
-resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
+resume. #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
 the return): #386 made it compact and changed only that part of every snapshot.
 """
 
@@ -143,8 +143,18 @@ SNAPSHOT_CASES = {
         ("content-release", {"branch": "content/7-x", "base": "release/m5"}, {"paths": ["content/roles/x.tres", "levels/rooms/x.tscn"]}),
         ("design-main", {"branch": "docs/7-x", "design": True}, {"paths": ["docs/ARCHITECTURE.md", "docs/decisions/x.md"]}),
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
-        # #308's one-wave trial: a clean run's publisher with a cheaper model (the only case with a v2 arg).
+        # #308's one-wave trial: a clean run's publisher with a cheaper model (a case with a v2 arg).
         ("publish-clean-main", {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MINOR]}),
+        # #469's plan phase: the planner on the model the manager passes, a plan with a file map and its comment.
+        (
+            "plan-review-main",
+            {"branch": "core/7-x", "plan_review": True, "models": {"plan": "sonnet", "publish_clean": "sonnet"}},
+            {"paths": ["core/x.gd"], "queues": {"plan": [{
+                "summary": "p", "criteria": ["c"], "files": ["core/x.gd: f"], "tests": ["t"],
+                "file_map": {"base_sha": "0123456789abcdef0123456789abcdef01234567", "files": [{"path": "core/x.gd", "lines": "1-40", "facts": ["func f() -> int"]}]},
+                "comment_url": "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1",
+            }]}},
+        ),
         (
             "every-arg-release",
             {
@@ -912,8 +922,9 @@ class PipelineV2Test(unittest.TestCase):
         plan, critique, implement = calls(ok, "plan")[0], calls(ok, "review:plan")[0], calls(ok, "implement")[0]
         self.assertIn("Plan only: create, edit or commit nothing", plan["prompt"])
         self.assertEqual(options(critique)["agentType"], "code-reviewer")
-        self.assertIn('The plan: {"summary":"p"', critique["prompt"])
-        self.assertIn('The plan: {"summary":"p"', implement["prompt"])
+        self.assertIn(f'{SHORT_PLAN} comment_url; its file_map', critique["prompt"])
+        self.assertIn('): {"summary":"p"', critique["prompt"])
+        self.assertIn(f"{SHORT_PLAN} comment_url, which `gh issue view 7 --comments` shows): " '{"summary":"p"', implement["prompt"])
         self.assertIn('The critique: {"reviewer":"r"', implement["prompt"])
         self.assertIn('under "Plan review"', calls(ok, "publish")[0]["prompt"])
         self.assertEqual(ok["returned"]["plan"], {"summary": "p", "critique": {}})
@@ -1685,8 +1696,12 @@ class DigestTest(unittest.TestCase):
         result = run_one("issue-task.js", {"branch": "core/7-x", "plan_review": True}, stub)
         publish = calls(result, "publish")[0]["prompt"]
         given = json.dumps({"plan_summary": plan["summary"], "critique": critique}, separators=(",", ":"))
-        self.assertIn(f"The plan's summary and its critique (plan_review; the whole plan stays in the run's journal): {given}", publish)
-        self.assertIn('under "Plan review": the plan in a few lines (from its summary)', publish)
+        self.assertIn(
+            "The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, "
+            f"plan_comment, and stays in the run's journal): {given}",
+            publish,
+        )
+        self.assertIn('under "Plan review": the plan in a few lines (from its summary) with a link to its comment', publish)
         # The implementer builds from the whole plan; the publisher needs only what the PR says about it.
         implement = calls(result, "implement")[0]["prompt"]
         for marks in PLAN_MARKS.values():
@@ -1721,6 +1736,147 @@ class DigestTest(unittest.TestCase):
             # In the definition of done's order: docs, publish, the PR, CI, the handoff, the board.
             marks = ["- Docs:", "- `tools\\run.cmd publish", "- PR: `gh pr create", "- `gh pr checks", "- The handoff comment", "- `tools\\run.cmd board move"]
             self.assertEqual([steps.index(m) for m in marks], sorted(steps.index(m) for m in marks))
+
+
+SHA = "0123456789abcdef0123456789abcdef01234567"
+SHORT_PLAN = "The plan, in short (the whole plan is the plan agent's comment on the issue,"
+COMMENT = "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1"
+MAPPED = {
+    "base_sha": SHA,
+    "files": [
+        {"path": "core/match/vote.gd", "lines": "10-60", "facts": ["func cast(voter: int, target: int) -> void"]},
+        {"path": "tests/unit/match/vote_test.gd", "lines": "1-30", "facts": ["helper _match(seed)"]},
+    ],
+}
+
+
+def mapped_plan(**extra) -> dict:
+    return dict({"summary": "p", "criteria": ["c"], "files": ["f"], "tests": ["t"], "file_map": MAPPED, "comment_url": COMMENT}, **extra)
+
+
+def plan_in(prompt: str) -> dict:
+    """The plan JSON a critique's or an implementer's prompt carries, parsed."""
+    start = prompt.index("): ", prompt.index(SHORT_PLAN)) + 3
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class PlanPhaseTest(unittest.TestCase):
+    """#469: the plan's comment on the issue, its short and capped result, and the file map the implementer trusts."""
+
+    def run_plan(self, plan: dict | None, **args) -> dict:
+        queues = {"plan": [plan]} if plan is not None else {}
+        result = run_one("issue-task.js", dict({"branch": "core/7-x", "plan_review": True}, **args), {"paths": ["core/x.gd"], "queues": queues})
+        self.assertIsNone(result["error"])
+        return result
+
+    def test_the_plan_schema_asks_for_a_file_map_and_caps_the_summary(self) -> None:
+        schema = options(calls(self.run_plan(None), "plan:")[0])["schema"]
+        props = schema["properties"]
+        self.assertEqual(props["summary"], {"type": "string", "maxLength": 1500})
+        self.assertIn("file_map", schema["required"])
+        self.assertEqual(props["file_map"]["required"], ["base_sha", "files"])
+        self.assertEqual(props["file_map"]["properties"]["files"]["items"]["required"], ["path", "facts"])
+        self.assertEqual(props["comment_url"], {"type": "string"})
+        # Every field the plan had before #469 is still there.
+        for key in ("criteria", "files", "interfaces", "tests", "docs", "risks", "questions", "steps"):
+            self.assertEqual(props[key], {"type": "array", "items": {"type": "string"}}, key)
+
+    def test_the_planner_posts_the_whole_plan_and_returns_its_short_form(self) -> None:
+        prompt = calls(self.run_plan(None), "plan:")[0]["prompt"]
+        for text in (
+            "The whole plan goes in ONE comment on the issue; the structured result is its short form",
+            "to a7/plan.md in your scratchpad, its first line `Plan of #7 (issue-task plan_review, branch core/7-x)`",
+            "`gh issue comment 7 --body-file <that file>`",
+            "first list your own comments on the issue in the Bash tool",
+            """`gh issue view 7 --json comments --jq '.comments[] | select(.author.login == "<your login>") | .url + " " + """
+            """(.body | split("\\n") | .[0])'`""",
+            "If the last of them starts with that first line, replace it with "
+            "`gh issue comment 7 --edit-last --body-file <that file>`",
+            "if only an earlier one does, post a new comment whose second line is `Supersedes <that comment's URL>`",
+            "Never `gh api -X PATCH` (it asks, and nobody answers).",
+            "Return its URL in comment_url.",
+            "at most about 8000 characters of JSON in all: summary at most 1500 characters",
+            "base_sha: `git rev-parse HEAD` in the worktree",
+            "Only what you read in that file; a fact you inferred is not in the map.",
+            "Plan only: create, edit or commit nothing",
+        ):
+            self.assertIn(text, prompt)
+
+    def test_the_implementer_trusts_the_map_for_files_unchanged_since_its_sha(self) -> None:
+        result = self.run_plan(mapped_plan())
+        implement = calls(result, "implement")[0]["prompt"]
+        self.assertIn(
+            f"the plan agent read these files at {SHA}. Trust it while a file is unchanged since that sha: first run in the Bash tool "
+            f"`cd /d/prime-game/.claude/worktrees/7 && git diff --name-only {SHA} -- 'core/match/vote.gd' "
+            "'tests/unit/match/vote_test.gd'` once (again after a rebase)",
+            implement,
+        )
+        self.assertIn("A path it lists changed since the plan: read it as usual.", implement)
+        self.assertIn("A file whose facts the critique disputes: read it as usual too.", implement)
+        self.assertIn("If the command fails (the sha unknown), the map does not hold", implement)
+        self.assertEqual(plan_in(implement)["file_map"], MAPPED)
+        critique = calls(result, "review:plan")[0]["prompt"]
+        self.assertIn("a file_map fact that the file at base_sha does not bear out (the implementer trusts it)", critique)
+        self.assertEqual(plan_in(critique), mapped_plan())
+        # A quote in a path stays one word of the shell command.
+        quoted = mapped_plan(file_map={"base_sha": SHA, "files": [{"path": "levels/it's.tscn", "facts": ["f"]}]})
+        implement = calls(self.run_plan(quoted), "implement")[0]["prompt"]
+        self.assertIn(f"git diff --name-only {SHA} -- 'levels/it'\\''s.tscn'` once", implement)
+        # No map, an empty one or a sha that is not one: the implementer reads as usual.
+        for plan in ({"summary": "p", "criteria": [], "files": [], "tests": []}, mapped_plan(file_map={"base_sha": SHA, "files": []}),
+                     mapped_plan(file_map=dict(MAPPED, base_sha="HEAD; rm -rf x"))):
+            implement = calls(self.run_plan(plan), "implement")[0]["prompt"]
+            self.assertIn("The plan has no usable file map (file_map): read the files as usual.", implement)
+            self.assertNotIn("Trust it while a file is unchanged", implement)
+
+    def test_a_plan_over_the_cap_is_cut_before_the_critique_and_the_implementer(self) -> None:
+        long = "x" * 900
+        big = mapped_plan(summary="s" * 1500, criteria=[long] * 10, files=[long] * 10, steps=[f"{long}\nsecond line"] * 10)
+        big["file_map"] = {"base_sha": SHA, "files": [{"path": f"core/f{i}.gd", "lines": "1-9", "facts": [long] * 3} for i in range(5)]}
+        self.assertGreater(size(big), 30000)
+        result = self.run_plan(big)
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any(m.startswith(f"#7: the plan's result was {size(big)} characters of JSON; cut to ") for m in logs), logs)
+        for label in ("review:plan", "implement"):
+            short = plan_in(calls(result, label)[0]["prompt"])
+            with self.subTest(agent=label):
+                self.assertLessEqual(size(short), 8000)
+                self.assertEqual(short["clipped"], f"cut from {size(big)} characters of JSON; the whole plan: {COMMENT}")
+                self.assertEqual(short["comment_url"], COMMENT)
+                self.assertEqual(short["file_map"]["base_sha"], SHA)
+                self.assertTrue(all(len(x) <= 240 for k in ("criteria", "files", "steps") for x in short[k]))
+                self.assertTrue(all(x.endswith("…") for x in short["criteria"]))
+                # The plan's lists are cut before the file map loses an entry.
+                self.assertLess(sum(len(short[k]) for k in ("criteria", "files", "steps")), 30)
+                self.assertEqual([f["path"] for f in short["file_map"]["files"]], [f"core/f{i}.gd" for i in range(5)])
+        self.assertIs(result["returned"]["plan"]["clipped"], True)
+        # A map too big on its own loses its last entries once no plan list is left.
+        huge = mapped_plan(criteria=[], files=[], tests=[])
+        huge["file_map"] = {"base_sha": SHA, "files": [{"path": f"core/f{i}.gd", "facts": [long] * 3} for i in range(40)]}
+        short = plan_in(calls(self.run_plan(huge), "implement")[0]["prompt"])
+        self.assertLessEqual(size(short), 8000)
+        kept = [f["path"] for f in short["file_map"]["files"]]
+        self.assertTrue(kept, short)
+        self.assertEqual(kept, [f"core/f{i}.gd" for i in range(len(kept))])
+        self.assertLess(len(kept), 40)
+        # A plan under the cap reaches them as the agent sent it, with no clipped field.
+        small = self.run_plan(mapped_plan())
+        self.assertNotIn("clipped", plan_in(calls(small, "implement")[0]["prompt"]))
+        self.assertFalse([e for e in small["events"] if e["kind"] == "log" and "cut to" in e["message"]])
+
+    def test_the_result_and_the_publisher_carry_the_plans_comment_and_model(self) -> None:
+        model = AVAILABLE[1]
+        result = self.run_plan(mapped_plan(), models={"plan": model})
+        self.assertEqual(result["returned"]["plan"], {"summary": "p", "critique": {}, "comment": COMMENT, "model": model})
+        got = {e["label"]: options(e).get("model") for e in agents(result)}
+        self.assertEqual({k: v for k, v in got.items() if v}, {"plan:#7": model}, got)
+        publish = calls(result, "publish")[0]["prompt"]
+        self.assertIn('{"plan_summary":"p","plan_comment":"' + COMMENT + '","critique":', publish)
+        # models.implement still reaches the planner when models.plan is unset (the fallback), and the result says so.
+        result = self.run_plan(mapped_plan(), models={"implement": model})
+        self.assertEqual(options(calls(result, "plan:")[0])["model"], model)
+        self.assertEqual(result["returned"]["plan"]["model"], model)
 
 
 class NodeOnCiTest(unittest.TestCase):

@@ -154,15 +154,15 @@ toward the number per workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role) | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469) | 0 |
 | `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: a run's `agent-*.meta.json` shows the `agentType`): pass nothing; `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) or to resume a run launched before #458 without the arg | 0 |
 
-- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or `publish_clean`,
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean` or `plan`,
   never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
-  covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
-  too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
-  publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
-  leave `efforts.publish_clean` unset, so only the model varies. Other models never as a habit or for yourself.
+  covers `second_review`). `plan` follows `implement` when unset: every `plan_review` launch sets `models.plan:
+  "sonnet"` (#469). `publish_clean` falls back to `publish` and applies only to the full publisher of a run with no
+  blocker or major left open (a skeptic-refuted one is closed), never to a design task; leave `efforts.publish_clean`
+  unset, so only the model varies. Other models never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -183,11 +183,12 @@ in the data); name a task's merge order relative to the other open PRs; name eve
 
 ## 4. On each completion
 Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `needs_engineer` and `human_steps` in
-full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2
-args also `plan`, `test_review` (mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the
-engineer drags into the PR) and `publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where;
-a `result` line has the `key` of its agent's `started` line): read it only when a field you act on points there.
-`handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it into
+full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2 args
+also `plan` (with its comment's link, `clipped` when its result was cut, and the planner's `model`), `test_review`
+(mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the engineer drags into the PR) and
+`publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where; a `result` line has the `key` of
+its agent's `started` line): read it only when a field you act on points there. `handoff_posted` or `board_in_review`
+false: post the handoff or `board move <n> in-review` yourself. Merge it into
 its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and in which
 order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
 what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
@@ -212,7 +213,7 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
-- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean`).
+- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean` and `.plan`).
 
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
