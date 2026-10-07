@@ -20,8 +20,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
   and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
-- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure), `EscMenu`, its tabs `LobbyPanel` and
-  `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
+- The Esc menu (#169): `app/`'s `MousePointer` and `GameWindow` (Alt+Enter, #517); `ui/`'s `EscMenuState` (pure),
+  `EscMenu`, its tabs `LobbyPanel` and `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
@@ -63,7 +63,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
   Wording and looks stay greybox placeholders until the UI milestone (#150).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
-  closing it in the lobby or the round captures the mouse again (#169).
+  closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,

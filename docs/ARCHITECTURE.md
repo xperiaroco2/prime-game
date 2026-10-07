@@ -1767,6 +1767,28 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
+- **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
+  when they show (no click first; also after Back to lobby), Loading keeps it as it was, and the menu, Connecting
+  and the end screen free it for their buttons. A screen never captures it from under the Esc menu, nor while the
+  window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
+  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
+  menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
+  runs on the lobby's screen, every round started with the cursor showing until a click.
+- **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
+  `project.godot`. Only an export template has the `template` feature, so everything the editor's binary runs (the
+  runner's `shot`, `playcheck`, `host` and `join` windows, the tests, the editor's runs) starts in a window: in
+  Godot 4.7.2 neither `--position` and `--resolution` nor `--windowed` undo a project's fullscreen mode (`main.cpp`
+  creates the window in the setting's mode; `--windowed` only skips a later `window_set_mode`). Not exclusive
+  fullscreen: the docs say it allows one window per screen and turns alt-tab into a fullscreen transition (on
+  Windows driver dependent, with black screens); the borderless window alt-tabs at once and leaves the other
+  monitors usable. Godot binds nothing to Alt+Enter: the action `toggle_fullscreen` (Alt+Enter) flips fullscreen
+  and a window through `GameWindow` (`client/app/game_window.gd`), handled first in `Game._input` on every screen.
+  Resolution options are M6.2's settings screen. Tests: `tests/unit/client/app/game_window_test.gd` (the setting
+  with an export's features and without, the toggle), `input_actions_test.gd`,
+  `tests/integration/client/app/game_window_input_test.gd` (Alt+Enter through `Input` events) and
+  `pointer_flow_test.gd` (a host and a joined client through Ready, the countdown, Loading, the round, the end and
+  back, the mouse captured all the way to the end screen; an open Esc menu and an unfocused window stay free). Not
+  headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
@@ -1800,7 +1822,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   player stands still (no physics step) outside the lobby and the round.
 - The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
   read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
-  player through `PlayerController.teleport()`. Since #169 the lobby keeps the mouse too.
+  player through `PlayerController.teleport()`. Since #169 the lobby keeps the mouse too; since #517 Loading keeps
+  it and the lobby and the round capture it (`GameFlow.pointer_on`, "The mouse" in §4.7.4).
 - Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
   level, the views and the player are freed, and the menu says "The last session ended: <words>". The host's Leave
   and Quit, and closing the host's window, ask first (`EscMenu`); a client's Leave does not.
@@ -2099,7 +2122,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
-  longer frees the mouse in the lobby. `MousePointer` captures and frees it through `Input.mouse_mode`; headless
+  longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and frees it through `Input.mouse_mode`; headless
   Godot keeps no mouse mode (it reads visible whatever was set, probed on 4.7.2), so tests give `Game` one that
   remembers. The input action `ready` (F, a placeholder) is in `project.godot`.
 - Tests: `tests/unit/client/ui/esc_menu_state_test.gd`, `screens_test.gd` (the menu's pages, the host's question, the
