@@ -341,7 +341,7 @@ func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
 func play_frame(at_tick: int) -> void:
 	if over_network:
 		# A join lost for good fails its bot at once, before any bot acts (#483): over WebRTC the
-		# run is paced to the real clock, and its time limit comes after the runner's kill.
+		# run is paced to the real clock, and its time limit would report it 90 s later.
 		for bot: ScenarioBot in bots:
 			_join_again(bot)
 			_fail_lost_join(bot)
