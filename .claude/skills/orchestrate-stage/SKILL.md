@@ -1,6 +1,6 @@
 ---
 name: orchestrate-stage
-description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for an "ultracode" kickoff that names a stage or a list of issues, "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
+description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for a manager kickoff that names a stage or a list of issues (one task = one issue-task workflow), "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -36,15 +36,16 @@ what you tell at once and what you ask: the tiers of the
 [trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md).
 
 ## 1. The kickoff
-One message from the human with `ultracode` in it (template in §10). It must state:
+One message the human pastes into a new session (template in §10), no "ultracode" in it. Read the rules every track's
+manager follows, [docs/MANAGERS.md](../../../docs/MANAGERS.md), whole now. The kickoff must state:
 - the scope (issue numbers, or the design handoff to open them from, and fillers) and the plan issue to report on.
   A new milestone gets its own plan issue (`M<k>: plan and order`, opened by you after the yes, its body written
   once and never edited); if the kickoff names none, recommend that;
 - the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
   and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
 - the concurrency cap (default three tasks at once, fewer where budget.md's PC share is lower: meta by day 1)
-  and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls, reviewers about 60,
-  publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
+  and "one task = one issue-task workflow" with per-agent bounds (implementer about 250 tool calls, reviewers
+  about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
   about 60, each skeptic about 30, a publisher that only reports a stop about 30);
 - explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
   3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and the `Track:` line,
@@ -76,8 +77,7 @@ in the main checkout's runner (`tools\run.cmd merge-check --help`, #181; merges 
 `tools\run.cmd merge --help`, #300: without it, the engineer merges those). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
 
-**Your effort is high, not xhigh** (the effort ADR's amendment of 2026-10-04, #308), as for the art and UI sessions:
-the human sets it in the session settings; `effortLevel` never goes into shared settings.
+**Your effort is high, not xhigh, in bypass** (MANAGERS.md §1, #308); `effortLevel` never goes into shared settings.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -363,20 +363,20 @@ taken in a `main` that has them.
   (about 12 hours; a human message resets the count) arm no more.
 - **The turn-end check**, at each turn end, wake and launch: `tools\run.cmd wave --since <session start>
   --no-merge-check --out <scratchpad>\manager\turn-end.md` (about 10 s; never the default `--out`). Its last line:
-  `handover due: <why>` or `handover not due` with clauses. Due: the context over 300k or the session over 12 hours old,
-  even mid-wave; or, once your runs end, a merge into `main` since your start that changed root
-  `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (agents get your cached copy); until then it says "launch
-  nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
+  `handover due: <why>` or `handover not due` with clauses. Due: the context over 500k or the session over 12 hours old,
+  even mid-wave (while the human is away: once your runs end, MANAGERS.md §5); or, once your runs end, a merge into
+  `main` since your start that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`
+  (agents get your cached copy); until then it says "launch nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
   over once it is pulled.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
-  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k),
+  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 250k),
   work is left and the human is present, else arm nothing. (4) Otherwise arm nothing. Earlier by judgment, and never
   so while the human is away: [handover.md](handover.md) §1.
-- **A handover** (#467, #484): follow [handover.md](handover.md) §2: (a) stop the runs, (b) post the handover
-  comment, (c) start your successor yourself through the track's scheduled task (route C); nothing is pasted. A
-  session a scheduled task started reads its §3 first (no AskUserQuestion, `acceptEdits` at medium effort).
+- **A handover** (#467, #511): [handover.md](handover.md) §2: stop the runs, post the handover comment ending with
+  the ready kickoff, ask the human in your For-you to paste it into a new session (bypass, high), stop. Route C
+  (handover.md §3, its successor in `acceptEdits` at medium) only when he asks; a session it started reads §3 first.
 - **Keep your context small**: planning reads, ADR, doc and issue-body drafts, metrics tables and audits go to a
   subagent (Agent tool, Sonnet) that returns at most about 2k characters with links and numbers, or a scratchpad file
   you pass to `gh --body-file` unread. Write no large file yourself.
@@ -484,16 +484,15 @@ The human copies it, fills the placeholders and sends it, in English or in their
 English (`metrics --track` reads it). Moving state (which issues, which PRs) goes only in the message, never here.
 
 ```text
-ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most <n> at once (your track's PC share in budget.md).
+Orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one task = one
+issue-task workflow, up to <A> agents each, at most <n> at once (your track's PC share in budget.md).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
 order.>
 
-<After a handover by the paste (handover.md): Continue from the handover comment <link>; the previous session stopped
-its runs (relaunch them fresh) and launches nothing more, and my yes to the stage's restatement stands: restate the
-order from there and go on.>
+<After a handover: the handover comment ends with this kickoff, these lines replaced by its "Continue from" line
+(docs/MANAGERS.md §6); I paste it as it is.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
@@ -506,7 +505,8 @@ Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; 
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
-each workflow. Hand over at §7's turn-end verdict, even mid-wave, and start your successor yourself (handover.md).
+each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment ends with the ready kickoff,
+which I paste into a new session (handover.md); route C only if I ask for it.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
