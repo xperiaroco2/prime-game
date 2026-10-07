@@ -2362,6 +2362,26 @@ Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway fo
 before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
 `class_name` script added after the import: the game fails without the import and `run` imports first and passes).
 
+Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), amendment of 2026-10-07): in CI
+(`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
+`check.run_import` keeps the LFS pointer files from Godot's import (`lfs.aside`), whose import of one fails and
+rewrites its `.import` file. Each pointer file goes into `tools/out/lfs-aside/` (behind a `.gdignore`); a type with a
+stand-in (`lfs.STAND_INS`: PNG, JPEG, WebP, BMP, TGA, WAV, glTF, GLB, OBJ) gets a minimal valid file of its type in
+its place under its committed `.import` file, so Godot writes the imported file every use of the asset loads (later
+steps too); a type without one has its `.import` moved too. All of it goes back afterwards as it was, even when the
+import fails. `check`'s project check then drops the lines that name a hidden pointer file, its imported file or a
+script that failed to load because of one (`lfs.drop_lines`), in one `skip` line with the counts; the credits check
+still covers pointer files. `check --lfs-content` fails on any pointer file, with no Godot (a build's step before its
+export). Locally nothing is detected and nothing changes, but `check` warns when the checkout has pointer files
+(`lfs.local_hint`, with `git lfs pull`). Not covered: for a type without a stand-in, a `class_name` that preloads one
+breaks its users in CI, and the `test`, `bots` and `game` steps print Godot's errors for it.
+Tests: `tools/runner/tests/test_lfs.py` (detection over a throwaway git repository in CI, cloud and local mode and
+in a folder that is not a git work tree, the stand-ins and the move and their way back after a failed import, the
+dropped lines of a probed run, the credits check on a pointer file, `--lfs-content`, and, with the pinned Godot, a
+committed texture checked out as a pointer file: in CI mode the import prints no error and leaves its `.import` file
+as it was and `check` passes with nothing dropped, a script that uses a preloading `class_name` included; in local
+mode both fail as before; and every stand-in imported under the `.import` file a real import of it wrote).
+
 #### 4.7.22 `playcheck`: scripted windows with screenshots (#186), the AI productivity design's P9
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of

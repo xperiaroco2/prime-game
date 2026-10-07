@@ -117,6 +117,31 @@ file, no `git rebase/checkout/switch/reset/pull/merge/restore/cherry-pick/am/app
 included as the audit counted them; a re-read's tokens are those of its repeated lines (a shell result's characters
 split evenly over its lines). The table gives per role the agents, tool calls and API list $ per agent and those
 counts. Docs stay #337's tables above.
+
+The plan phase (#469, its before and after numbers): per `issue-task` run with a planner, the planner's model, the API
+list $ of the planner and of the plan's critique, the repository files the planner read (a Read of any file, a code
+read as above, a shell read of a doc), how many of them the implementer read too, and the critique's findings (all,
+and blockers plus majors). The JSON record's "plans" holds the same rows.
+
+One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
+alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
+UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
+once) and answered, those working now (a started key with no result), the newest write to its journal or agent
+transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
+the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
+no file.
+
+The code reviewer's A/B (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md): per run with a control code
+reviewer (`issue-task`'s ab_review), the trial's and the control's model (from their transcripts), their findings, and
+the blind judge's verdicts: valid findings per side (blockers plus majors by the judge's severity), the control's valid
+findings the trial missed (no pair with a trial finding) and the trial's the control missed, the invalid ones, and the
+API list $ of each reviewer and of the judge. A finding the judge gave no verdict counts as unsure; a pair that names
+an index out of range or one already paired is ignored. A run where neither reviewer found anything is judged with
+zeros; one whose judge returned nothing is listed but left out of the totals. Per (trial, control) pair of models, the
+totals and the stop rule (ab_verdict): stop once the trial missed AB_STOP_MISSES more valid blockers or majors than
+the control did; after AB_RUNS judged runs keep the trial model when it missed at most AB_KEEP_MISSES more, found at
+least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
+AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
 """
 
 from __future__ import annotations
@@ -181,11 +206,14 @@ ROLES = {
     "review:netcode-second": "netcode-second-reviewer",
     "test-review": "test-reviewer",
     "skeptic": "skeptic",
+    # #535's A/B of the code reviewer's model (issue-task's ab_review)
+    "review:code-control": "code-reviewer-control",
+    "ab-judge": "ab-judge",
 }
 # The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
 REVIEWERS = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 # Every agent that reports findings: the review table shows them all.
-FINDERS = (*REVIEWERS, "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
+FINDERS = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
 SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
@@ -231,7 +259,15 @@ BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
 # and the agents whose findings it counts (#315's open blockers and majors).
 SERIOUS = re.compile(r"blocker|major", re.IGNORECASE)
-SERIOUS_FROM = (*REVIEWERS, "netcode-second-reviewer", "test-reviewer")
+SERIOUS_FROM = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "test-reviewer")
+# The code reviewer's A/B (#535, the module docstring): the judged runs per pair of models before the verdict, the
+# early stop, and the bar the trial model must clear to be kept. Proposals the engineer may change (the A/B ADR).
+AB_RUNS = 10
+AB_STOP_MISSES = 2
+AB_KEEP_MISSES = 1
+AB_VALID_RATIO = 0.8
+AB_INVALID_MARGIN = 0.15
+AB_SIDES = ("trial", "control")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
 CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
 PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
@@ -816,6 +852,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     merge_outputs, merge_pairs = 0, []
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
+    files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -900,6 +937,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "docs": doc_targets(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
                         }
+                        files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
                 for b in m["content"]:
                     if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in uses:
@@ -973,7 +1011,18 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         # merge-check outputs among its tool results, and the PR pairs whose rows name an ARCHITECTURE conflict
         "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
         "code_reads": code_reads,
+        "files_read": sorted(files_read),
     }
+
+
+def files_of(name: str, inp: dict, call: dict) -> list[str]:
+    """The repository files one tool call reads (#469): a Read's file, whatever its kind, a code read's and a shell
+    read's docs; never a search."""
+    out = [rel for rel, _whole, _ranges in call["code"]]
+    out += [rel for rel, how, _mode in call["docs"] if rel and how in ("Read", "shell read")]
+    if name == "Read" and repo_path(inp.get("file_path")):
+        out.append(str(repo_path(inp.get("file_path"))))
+    return out
 
 
 def count_code_read(reads: list[tuple], text: str, seen: dict[str, set[int]], counts: dict) -> None:
@@ -1449,6 +1498,11 @@ def build(
     md += stage_section(stages)
     md += role_section(counted)
     md += code_read_section(counted)
+    plans = plan_rows(counted)
+    md += plan_section(plans)
+    judged = ab_rows(counted)
+    ab = {"rows": judged, "totals": ab_totals(judged)}
+    md += ab_section(ab)
     instructions = instruction_record(counted, data["sessions"], docs_root)
     md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
@@ -1482,6 +1536,8 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "quality": quality,
+        "plans": plans,
+        "ab_review": ab,
         "instructions": instructions,
         "compact": compact,
     }
@@ -1622,6 +1678,217 @@ def code_read_section(counted: list[dict]) -> list[str]:
         "partial).",
         "",
         table(head, rows),
+        "",
+    ]
+
+
+def plan_rows(counted: list[dict]) -> list[dict]:
+    """#469's numbers per `issue-task` run with a planner: its model, the $ of the plan and of its critique, the files
+    the planner read and how many the implementer read again, and the critique's findings."""
+    rows = []
+    for r in counted:
+        # A retried agent has two attempts: both spent, both read; the result is the last one's.
+        of = {role: [x for x in r["agents"] if x["role"] == role and x["data"]] for role in ("planner", "plan-reviewer", "implementer")}
+        if not of["planner"]:
+            continue
+        files = {role: set().union(*(x["data"].get("files_read") or [] for x in xs)) for role, xs in of.items()}
+        result = next((x["result"] for x in reversed(of["plan-reviewer"]) if x["result"]), None)
+        found = [f for f in ((result or {}).get("findings") or []) if isinstance(f, dict)]
+        spent = {role: sum(usd(x["data"]["tokens"]) for x in xs) for role, xs in of.items()}
+        rows.append({
+            "session": r["session"],
+            "issue": r["issue"],
+            "wf": r["wf"],
+            "model": of["planner"][-1]["data"].get("model"),
+            "plan_usd": spent["planner"],
+            "critique_usd": spent["plan-reviewer"],
+            "planner_files": len(files["planner"]),
+            "reread": len(files["planner"] & files["implementer"]) if of["implementer"] else None,
+            "findings": len(found) if result is not None else None,
+            "serious": sum(f.get("severity") in ("blocker", "major") for f in found),
+        })
+    return rows
+
+
+def plan_section(rows: list[dict]) -> list[str]:
+    """The plan phase table (#469); nothing when no run had a planner."""
+    if not rows:
+        return []
+    body = []
+    for x in rows:
+        reread = "-" if x["reread"] is None else f"{x['reread']} ({x['reread'] / max(1, x['planner_files']):.0%})"
+        found = "-" if x["findings"] is None else f"{x['findings']} / {x['serious']}"
+        body.append([f"#{x['issue']}" if x["issue"] else x["wf"], x["model"] or "-", fmt_usd(x["plan_usd"]),
+                     fmt_usd(x["critique_usd"]), fmt_usd(x["plan_usd"] + x["critique_usd"]), x["planner_files"], reread,
+                     found])
+    files = sum(x["planner_files"] for x in rows if x["reread"] is not None)
+    again = sum(x["reread"] for x in rows if x["reread"] is not None)
+    both = [x["plan_usd"] + x["critique_usd"] for x in rows]
+    head = ["run", "planner model", "plan $", "critique $", "plan + critique $", "planner files",
+            "re-read by the implementer", "critique findings (all / blocker+major)"]
+    return [
+        "## Plan phase (#469)",
+        "",
+        "Per run with a planner: the API list $ of the plan and of its critique, the repository files the planner read "
+        "and how many of them the implementer read too, and the critique's findings.",
+        "",
+        table(head, body),
+        "",
+        f"Plan + critique: mean {fmt_usd(sum(both) / len(both))} over {len(both)} runs; the implementers re-read "
+        f"{again} of {files} planner files ({again / max(1, files):.0%}).",
+        "",
+    ]
+
+
+def ab_side(found: list, verdicts: dict, paired: set) -> dict:
+    """One code reviewer's findings in a judged A/B run: valid (and serious by the judge), invalid, unsure, and its
+    valid ones the other reviewer missed (unique: all and serious)."""
+    out = {"findings": len(found), "valid": 0, "serious": 0, "invalid": 0, "unsure": 0, "unique": 0, "unique_serious": 0}
+    for i in range(len(found)):
+        verdict, severity = verdicts.get(i, ("unsure", ""))
+        if verdict not in ("valid", "invalid"):
+            verdict = "unsure"
+        out[verdict] += 1
+        if verdict == "valid":
+            serious = severity in ("blocker", "major")
+            out["serious"] += serious
+            if i not in paired:
+                out["unique"] += 1
+                out["unique_serious"] += serious
+    return out
+
+
+def ab_judgement(judge: dict, sizes: tuple[int, int]) -> tuple[dict, dict]:
+    """The judge's verdicts ({1: {index: (verdict, severity)}, 2: ...}, the first per finding) and its pairs ({1: the
+    paired indices of reviewer 1, 2: of reviewer 2}), each index paired at most once and within its list."""
+    verdicts: dict[int, dict] = {1: {}, 2: {}}
+    paired: dict[int, set] = {1: set(), 2: set()}
+    for v in judge.get("verdicts") or []:
+        if isinstance(v, dict) and v.get("reviewer") in (1, 2) and isinstance(v.get("index"), (int, float)):
+            verdicts[int(v["reviewer"])].setdefault(int(v["index"]), (v.get("verdict"), v.get("severity")))
+    for m in judge.get("matches") or []:
+        if not isinstance(m, dict) or not all(isinstance(m.get(k), (int, float)) for k in ("first", "second")):
+            continue
+        a, b = int(m["first"]), int(m["second"])
+        if 0 <= a < sizes[0] and 0 <= b < sizes[1] and a not in paired[1] and b not in paired[2]:
+            paired[1].add(a)
+            paired[2].add(b)
+    return verdicts, paired
+
+
+def ab_rows(counted: list[dict]) -> list[dict]:
+    """#535's A/B per run with a control code reviewer: both models, the judged findings per side and the $."""
+    rows = []
+    for r in counted:
+        roles = ("code-reviewer", "code-reviewer-control", "ab-judge")
+        of = {role: [x for x in r["agents"] if x["role"] == role] for role in roles}
+        if not of["code-reviewer-control"]:
+            continue
+        last = {role: next((x["result"] for x in reversed(xs) if x["result"] is not None), None) for role, xs in of.items()}
+        model = {role: next((x["data"]["model"] for x in reversed(xs) if x["data"]), None) for role, xs in of.items()}
+        trial, control = (
+            [f for f in ((last[role] or {}).get("findings") or []) if isinstance(f, dict)] for role in roles[:2]
+        )
+        judge = last["ab-judge"]
+        judged = (not trial and not control) or judge is not None
+        verdicts, paired = ab_judgement(judge or {}, (len(trial), len(control)))
+        spent = {role: sum(usd(x["data"]["tokens"]) for x in xs if x["data"]) for role, xs in of.items()}
+        rows.append({
+            "session": r["session"], "issue": r["issue"], "wf": r["wf"],
+            "trial_model": model["code-reviewer"], "control_model": model["code-reviewer-control"],
+            "judged": judged, "pairs": len(paired[1]),
+            "trial": ab_side(trial, verdicts[1], paired[1]) if judged else {"findings": len(trial)},
+            "control": ab_side(control, verdicts[2], paired[2]) if judged else {"findings": len(control)},
+            "trial_usd": spent["code-reviewer"], "control_usd": spent["code-reviewer-control"],
+            "judge_usd": spent["ab-judge"],
+        })  # fmt: skip
+    return rows
+
+
+def ab_verdict(runs: int, trial: dict, control: dict) -> str:
+    """The stop rule (the module docstring) over one pair of models' judged runs."""
+    missed, found = trial["missed_serious"], control["missed_serious"]
+    if missed - found >= AB_STOP_MISSES:
+        return (f"stop: drop the trial model (it missed {missed} valid blockers or majors that the control found; the "
+                f"control missed {found} of the trial's)")  # fmt: skip
+    if runs < AB_RUNS:
+        return f"continue: {runs} of {AB_RUNS} judged runs"
+    share = {k: s["invalid"] / s["findings"] if s["findings"] else 0.0 for k, s in (("t", trial), ("c", control))}
+    kept = (missed - found <= AB_KEEP_MISSES and trial["valid"] >= AB_VALID_RATIO * control["valid"]
+            and share["t"] <= share["c"] + AB_INVALID_MARGIN)  # fmt: skip
+    return "keep the trial model (the engineer decides)" if kept else "drop the trial model"
+
+
+def ab_totals(rows: list[dict]) -> list[dict]:
+    """Per (trial, control) pair of models: the judged runs' sums, the $ medians and the verdict."""
+    groups: dict[tuple[str, str], list[dict]] = {}
+    for x in rows:
+        groups.setdefault((str(x["trial_model"]), str(x["control_model"])), []).append(x)
+    out = []
+    for (trial_model, control_model), xs in sorted(groups.items()):
+        judged = [x for x in xs if x["judged"]]
+        sums = {}
+        for side, other in (("trial", "control"), ("control", "trial")):
+            sums[side] = {k: sum(x[side][k] for x in judged) for k in ("findings", "valid", "serious", "invalid", "unsure")}
+            # What this side missed: the other side's valid findings without a pair.
+            sums[side]["missed"] = sum(x[other]["unique"] for x in judged)
+            sums[side]["missed_serious"] = sum(x[other]["unique_serious"] for x in judged)
+        out.append({
+            "trial_model": trial_model, "control_model": control_model, "runs": len(xs), "judged": len(judged),
+            "trial": sums["trial"], "control": sums["control"],
+            "trial_usd": med([x["trial_usd"] for x in xs]), "control_usd": med([x["control_usd"] for x in xs]),
+            "judge_usd": med([x["judge_usd"] for x in xs]),
+            "verdict": ab_verdict(len(judged), sums["trial"], sums["control"]),
+        })  # fmt: skip
+    return out
+
+
+def ab_cell(s: dict) -> str:
+    """A side of an A/B run: findings / valid (blockers+majors) / invalid; "?" for an unjudged run."""
+    return f"{s['findings']} / {s['valid']} ({s['serious']}) / {s['invalid']}" if "valid" in s else f"{s['findings']} / ?"
+
+
+def ab_section(record: dict) -> list[str]:
+    """The code reviewer's A/B tables (#535); nothing when no run had a control code reviewer."""
+    rows = record["rows"]
+    if not rows:
+        return []
+    body = []
+    for x in rows:
+        missed = [f"{x[k]['unique']} ({x[k]['unique_serious']})" if x["judged"] else "?" for k in ("control", "trial")]
+        body.append([f"#{x['issue']}" if x["issue"] else x["wf"], x["trial_model"] or "?", x["control_model"] or "?",
+                     "yes" if x["judged"] else "no (the judge returned nothing)", ab_cell(x["trial"]),
+                     ab_cell(x["control"]), *missed, fmt_usd(x["trial_usd"]), fmt_usd(x["control_usd"]),
+                     fmt_usd(x["judge_usd"])])  # fmt: skip
+    head = ["run", "trial model", "control model", "judged", "trial: findings / valid (blocker+major) / invalid",
+            "control: findings / valid (blocker+major) / invalid", "the trial missed (blocker+major)",
+            "the control missed (blocker+major)", "trial $", "control $", "judge $"]  # fmt: skip
+    totals = [
+        [t["trial_model"], t["control_model"], f"{t['judged']} of {t['runs']}",
+         *(f"{t[k]['valid']} ({t[k]['serious']})" for k in AB_SIDES),
+         *(f"{t[k]['missed']} ({t[k]['missed_serious']})" for k in AB_SIDES),
+         *(f"{t[k]['invalid']} of {t[k]['findings']}" for k in AB_SIDES),
+         fmt_usd(t["trial_usd"]), fmt_usd(t["control_usd"]), fmt_usd(t["judge_usd"]), t["verdict"]]
+        for t in record["totals"]
+    ]  # fmt: skip
+    total_head = ["trial model", "control model", "judged runs", "trial valid (blocker+major)",
+                  "control valid (blocker+major)", "trial missed (blocker+major)", "control missed (blocker+major)",
+                  "trial invalid", "control invalid", "trial $ (median)", "control $ (median)", "judge $ (median)",
+                  "verdict"]  # fmt: skip
+    return [
+        "## The code reviewer's A/B (#535)",
+        "",
+        "Per run with a control code reviewer (ab_review): each side's findings, how many the blind judge held valid "
+        "(blockers and majors by its severity) and invalid, and the valid findings of one side that the other missed.",
+        "",
+        table(head, body),
+        "",
+        f"Per pair of models, over the judged runs. Stop once the trial missed {AB_STOP_MISSES} more valid blockers or "
+        f"majors than the control; after {AB_RUNS} judged runs keep it when it missed at most {AB_KEEP_MISSES} more, "
+        f"found at least {AB_VALID_RATIO:.0%} as many valid findings as the control and its invalid share is at most "
+        f"{AB_INVALID_MARGIN:.0%} over the control's (the A/B ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
         "",
     ]
 
@@ -2772,6 +3039,111 @@ def track_table(spend: dict) -> list[str]:
     return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
 
 
+# --- one run's spend so far (#534) --------------------------------------------------------------------------------
+
+
+def find_runs(dirs: list[Path], ids: list[str]) -> list[Path]:
+    """The run folders (<folder>/<session>/subagents/workflows/wf_*) whose name starts with one of `ids` (the `wf_`
+    optional), in the order of `dirs`, each once."""
+    wanted = [i if i.startswith("wf_") else f"wf_{i}" for i in (x.strip() for x in ids) if i]
+    found: list[Path] = []
+    for folder in dirs:
+        for run_dir in sorted(folder.glob("*/subagents/workflows/wf_*")):
+            if run_dir.is_dir() and run_dir not in found and any(run_dir.name.startswith(w) for w in wanted):
+                found.append(run_dir)
+    return found
+
+
+def run_spend(run_dir: Path, now: float) -> dict:
+    """One workflow run so far, finished or in flight: its agents (the journal's, else an agent file's .meta.json),
+    who works now, its API list $ and cache-read $ (each message id once, every call whatever its time) by phase, and
+    the newest write to its journal or agent transcripts."""
+    entries = read_json_lines(run_dir / "journal.jsonl")
+    started = [e for e in entries if e.get("type") == "started" and "key" in e]
+    answered = {e["key"] for e in entries if e.get("type") == "result" and "key" in e}
+    last = {e["key"]: e for e in started}  # a key started twice: a retried agent, the last attempt is the live one
+    agents: dict[str, tuple[str, str]] = {}
+    for e in started:
+        agents[str(e.get("agentId", ""))] = (str(e.get("label", "")), str(e.get("phase") or "no phase"))
+    for p in sorted(run_dir.glob("agent-*.jsonl")):
+        if p.name[6:-6] not in agents:  # a journal cut short
+            meta = read_meta(p)
+            agents[p.name[6:-6]] = (str(meta.get("description", "")), str(meta.get("workflowPhase") or "no phase"))
+    seen: set[str] = set()
+    phases: dict[str, dict] = {}
+    spent = read = 0.0
+    calls = 0
+    for aid, (_label, phase) in agents.items():
+        row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
+        row["agents"] += 1
+        path = run_dir / f"agent-{aid}.jsonl"
+        if path.is_file():
+            s, r, c = spend_of(path, None, float("inf"), seen)
+            row["usd"] += s
+            spent, read, calls = spent + s, read + r, calls + c
+    files = [run_dir / "journal.jsonl", *run_dir.glob("agent-*.jsonl")]
+    writes = [p.stat().st_mtime for p in files if p.is_file()]
+    return {
+        "run": run_dir.name,
+        "session": run_dir.parents[2].name,
+        "folder": run_dir.parents[3].name,
+        "finished": bool(entries) and entries[-1].get("type") == "result" and set(last) <= answered,
+        "started": len(last),
+        "agent_runs": len(agents),
+        "answered": len(set(last) & answered),
+        "working": [f"{e.get('label', '')} ({e.get('phase')})" if e.get("phase") else str(e.get("label", ""))
+                    for k, e in last.items() if k not in answered],  # fmt: skip
+        "usd": spent,
+        "read_usd": read,
+        "api_calls": calls,
+        "phases": phases,
+        "idle_minutes": (now - max(writes)) / 60 if writes else None,
+    }
+
+
+def run_lines(r: dict) -> list[str]:
+    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase."""
+    state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
+    head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
+            f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
+    if r["agent_runs"] > r["started"]:  # the phases count every agent id: a retry, or one the journal does not list
+        head += f" ({r['agent_runs']} agent runs: a retry, or one the journal does not list)"
+    head += f", {r['answered']} answered"
+    if r["working"]:
+        head += "; working now: " + ", ".join(r["working"])
+    if r["idle_minutes"] is not None:
+        head += f"; last write {r['idle_minutes']:.0f} min ago"
+    phases = ", ".join(f"{name} {fmt_usd(p['usd'])} ({p['agents']} {'agent' if p['agents'] == 1 else 'agents'})"
+                       for name, p in r["phases"].items()) or "no agent yet"  # fmt: skip
+    return [head,
+            f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
+            f"in {r['api_calls']} API calls",
+            f"by phase: {phases}"]  # fmt: skip
+
+
+def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
+              now: float | None = None) -> int:  # fmt: skip
+    """`metrics --run ID ...`: each named workflow run's spend so far, in flight or finished (#534: the manager's
+    check after a large launch's first phase), from the transcripts of the three track checkouts and their
+    worktrees."""
+    dirs = [d for d, _default in track_dirs(checkout or main_checkout(), base)]
+    found = find_runs(dirs, ids)
+    if not found:
+        raise Failure(f"metrics: no workflow run named {' '.join(ids)} in the {len(dirs)} transcript folders of the "
+                      f"three track checkouts and their worktrees (a run id from the Workflow tool's result or `wave`, "
+                      f"such as wf_45e2297a-4a6, or its start)")  # fmt: skip
+    moment = time.time() if now is None else now
+    runs = [run_spend(d, moment) for d in found]
+    lines: list[str] = []
+    for r in runs:
+        lines += run_lines(r)
+    if len(runs) > 1:
+        spent, read = sum(r["usd"] for r in runs), sum(r["read_usd"] for r in runs)
+        lines.append(f"{len(runs)} runs: {fmt_week(week_percent(spent, read))} of the week, list {fmt_usd(spent)}")
+    say("\n".join(lines))
+    return 0
+
+
 def tracks_main(
     labels: list[str], names: list[str], budgets: list[float], since: str | None, until: str | None, out: str | None,
     compact: bool, *, checkout: Path | None = None, base: Path | None = None,
@@ -2825,7 +3197,12 @@ def main(
     no_gh: bool = False,
     track: list[str] | None = None,
     budget: list[float] | None = None,
+    run_ids: list[str] | None = None,
 ) -> int:
+    if run_ids:
+        if track or budget or sessions or since or until or ci or compact or out:
+            raise Failure("--run stands alone: it reads each named run whole, in flight or finished")
+        return runs_main(run_ids)
     if track:  # --session labels the tracks' sessions instead of choosing the report's
         return tracks_main(sessions or [], track, budget or [], since, until, out, compact)
     if budget:

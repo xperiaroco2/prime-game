@@ -1426,5 +1426,121 @@ class TempFilteredDeleteTest(unittest.TestCase):
         self.assertIn("scratchpad", guard.reason(findings))
 
 
+OWN = "D:/prime-game/.claude/worktrees/312"
+
+
+class AcceptEditsAllowTest(unittest.TestCase):
+    """Issue #312: in acceptEdits the hook allows a call the guard finds nothing in, unless it writes to a path Claude
+    Code protects (.claude but its worktrees, .git, ...), which keeps Claude Code's prompt."""
+
+    def allows(self, shell: str, command: str, cwd: str = ROOT) -> bool:
+        return guard.allows(guard.judge(command, shell, cwd, ROOT))
+
+    def test_routine_work_is_allowed(self) -> None:
+        for shell, command in (
+            (B, f"cd {OWN} && git status && git diff --stat origin/main...HEAD"),
+            (B, f'cd {OWN} && "$PYTHON_BIN" - <<\'EOF\'\nfrom pathlib import Path\np = Path(r"{OWN}/core/x.gd")\n'
+             'p.write_text("x", encoding="utf-8")\nEOF'),
+            (B, f"cat > {SCRATCH}/a312/msg.txt <<'EOF'\nfeat: x\nEOF"),
+            (B, f"cd {OWN} && sed -i 's/a/b/' docs/AGENT_WORKFLOW.md && rm -rf tests/scratch/x"),
+            (B, "for n in 1 2; do gh pr view $n --json title | cut -c1-80; done"),
+            (P, f"Set-Location {OWN}; tools\\run.cmd test 2>&1 | Select-Object -Last 5"),
+            (P, f"Set-Content -Path {OWN}\\tests\\scratch\\x.txt -Value 'a'"),
+        ):  # fmt: skip
+            with self.subTest(command=command):
+                self.assertTrue(self.allows(shell, command))
+
+    def test_writes_to_claude_protected_paths_keep_the_prompt(self) -> None:
+        for shell, command in (
+            (B, f"cp x.md {OWN}/.claude/skills/x/SKILL.md"),
+            (B, f"cd {OWN} && sed -i 's/a/b/' .claude/skills/orchestrate-stage/SKILL.md"),
+            (B, f"cd {OWN} && git show origin/main:.claude/workflows/x.js > .claude/workflows/x.js"),
+            (B, "echo x >> .git/info/exclude"),
+            (B, "cp x ~/.claude/CLAUDE.md"),
+            (B, f'"$PYTHON_BIN" -c "open(r\'{OWN}/.claude/agents/x.md\', \'w\').write(\'x\')"'),
+            (B, f"cat > {OWN}/.gitmodules <<'EOF'\nx\nEOF"),
+            (P, f"Set-Content -Path {OWN}\\.claude\\agents\\x.md -Value y"),
+            (P, "Copy-Item x.md .vscode\\settings.json"),
+            (B, f"bash -c 'cp x.md {OWN}/.claude/agents/x.md'"),
+            (P, f'powershell -Command "Set-Content {OWN}/.git/x -Value y"'),
+        ):
+            with self.subTest(command=command):
+                analysis = guard.judge(command, shell, ROOT, ROOT)
+                self.assertEqual(analysis.findings, [])
+                self.assertNotEqual(analysis.protected, [])
+                self.assertFalse(guard.allows(analysis))
+
+    def test_writes_and_deletes_beyond_the_own_worktree_keep_the_prompt(self) -> None:
+        # The issue's criterion: deletes outside the agent's worktree stay as they are. A single-file delete is no
+        # guard finding, so without this the allow would run it unasked in the main checkout or a sibling repository.
+        for shell, command in (
+            (B, f"cd {OWN} && rm D:/prime-game/core/match/vote.gd"),
+            (B, f"cd {OWN} && rm ../313/core/x.gd"),
+            (B, "rm core/match/vote.gd"),  # a session in the main checkout that entered no worktree
+            (B, f"cd {OWN} && cp x.md D:/prime-game-art/x.md"),
+            (B, f"cd {OWN} && echo x > D:/prime-game/docs/x.md"),
+            (B, f"cd {OWN} && mv core/x.gd ~/x.gd"),
+            (B, f'cd {OWN} && rm "$UNKNOWN/x"'),
+            (B, f"cd {OWN} && rm $TEMP/../x"),
+            (B, f"TEMP=$APPDATA; cd {OWN} && rm $TEMP/x"),
+            (B, f"cd {OWN} && bash -c 'rm D:/prime-game/core/x.gd'"),
+            (P, f"Set-Location {OWN}; Remove-Item D:\\prime-game\\core\\x.gd"),
+            (P, f"Set-Location {OWN}; Set-Content -Path C:\\Users\\me\\x.txt -Value a"),
+            # The stray file of #340's night (`cat > ../../../../tmp_unused` from a worktree reached D:\).
+            (B, f"cd {OWN} && cat > ../../../../tmp_unused 2>/dev/null; rm -f ../../../../tmp_unused"),
+            (B, f"cd {OWN} && for f in a b; do rm $f; done"),  # an unknown variable may be an absolute path
+            (B, f"cd {OWN} && sed -i 's/a/b/' D:/prime-game/docs/x.md"),
+            (B, f"cd {OWN} && chmod +x D:/prime-game/tools/x.sh"),
+        ):
+            with self.subTest(command=command):
+                analysis = guard.judge(command, shell, ROOT, ROOT)
+                self.assertEqual((analysis.findings, analysis.protected), ([], []))
+                self.assertNotEqual(analysis.beyond, [])
+                self.assertFalse(guard.allows(analysis))
+        # What the allow covers: the own worktree, the temp folder (the scratchpad), no file, the disposable folders.
+        for shell, command in (
+            (B, f"cd {OWN} && rm core/x.gd && mv a.txt b.txt && touch tests/x.gd 2>/dev/null"),
+            (B, f"cd {OWN} && tools/run.sh verify > {SCRATCH}/a312/v.log 2>&1"),
+            (B, "echo x > $TEMP/a.txt; rm /tmp/b.txt"),
+            (B, "rm D:/prime-game/tests/scratch/x.gd; echo x > D:/prime-game/tools/out/x.log"),
+            (P, f"Set-Location {OWN}; git status 2>$null; Remove-Item core\\x.gd"),
+            (P, "Set-Content -Path $env:TEMP\\x.txt -Value a"),
+            # A loop variable names a file in a known folder; a sed script or a chmod mode names no file.
+            (B, f"S={SCRATCH}/a312; for n in 1 2; do gh pr view $n > $S/p$n.md; done"),
+            (B, f"cd {OWN} && for f in a b; do cp x tests/$f.gd; done"),
+            (B, f"F={SCRATCH}/a312/x.md; sed -i 's/a/b/' $F && sed -i -e '/^=====$/d' -e '1d' $F"),
+            (B, f"cd {OWN} && chmod +x tools/x.sh"),
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(self.allows(shell, command))
+
+    def test_a_guard_ask_is_never_allowed(self) -> None:
+        for shell, command in (
+            (B, "cp x .claude/settings.json"),
+            (B, "rm -rf D:/prime-game/core"),
+            (B, "gh issue create -R godotengine/godot --title x"),
+            (P, "Remove-Item -Recurse core"),
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(self.allows(shell, command))
+
+    def test_which_paths_claude_code_protects(self) -> None:
+        for path, part in (
+            ("d:/prime-game/.claude/worktrees/312/core/x.gd", None),
+            ("d:/prime-game/.claude/worktrees/312/.claude/skills/x.md", ".claude"),
+            ("d:/prime-game/.claude/agents/x.md", ".claude"),
+            ("d:/prime-game/.claude/worktrees", ".claude"),
+            ("d:/prime-game/.git/config", ".git"),
+            ("c:/users/me/.config/git/config", ".config"),
+            ("d:/prime-game/.github/workflows/ci.yml", None),
+            ("d:/prime-game/x/.mcp.json", ".mcp.json"),
+            ("c:/users/me/appdata/local/temp/claude/d--prime-game/s/scratchpad/x", None),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(guard.claude_protected(path), part)
+        self.assertTrue(guard.text_protected('p = Path(".claude/skills/x")'))
+        self.assertFalse(guard.text_protected(f'p = Path(r"{OWN}\\core\\x.gd")'))
+
+
 if __name__ == "__main__":
     unittest.main()

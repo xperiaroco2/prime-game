@@ -127,6 +127,18 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(got["lower"], ("ui", "Track: line"))
         self.assertEqual(got["name"], ("untracked", "none"))  # a translated name: no track
 
+    def test_a_kickoff_in_a_scheduled_tasks_frame_keeps_its_track(self) -> None:
+        """#484: a manager started by a scheduled task gets its kickoff wrapped in the app's frame, as one string."""
+        frame = ('<scheduled-task name="meta-manager" file="C:\\Users\\x\\.claude\\scheduled-tasks\\meta-manager\\'
+                 'SKILL.md">\nThis is an automated run of a scheduled task. The user is not present to answer '
+                 'questions.\n\nultracode: continue the meta track. Continue from the latest comment titled "Handover '
+                 'to a fresh manager session" on #302.\nTrack: meta\nBounds: ...\n</scheduled-task>')  # fmt: skip
+        write_lines(self.root / "projects" / "D--prime-game" / "sched.jsonl", [
+            kickoff(100, frame), assistant(101, "sched1", ONE),
+        ])
+        got = {s["id"]: (s["track"], s["source"]) for s in self.spend()["sessions"]}
+        self.assertEqual(got["sched"], ("meta", "Track: line"))
+
     def test_the_templates_unfilled_placeholder_names_no_track(self) -> None:
         line = 'Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.'
         skill = Path(__file__).resolve().parents[3] / ".claude" / "skills" / "orchestrate-stage" / "SKILL.md"

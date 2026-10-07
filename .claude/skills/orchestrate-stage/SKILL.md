@@ -1,6 +1,6 @@
 ---
 name: orchestrate-stage
-description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for an "ultracode" kickoff that names a stage or a list of issues, "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
+description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for a manager kickoff that names a stage or a list of issues (one task = one issue-task workflow), "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -36,15 +36,16 @@ what you tell at once and what you ask: the tiers of the
 [trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md).
 
 ## 1. The kickoff
-One message from the human with `ultracode` in it (template in §10). It must state:
+One message the human pastes into a new session (template in §10), no "ultracode" in it. Read the rules every track's
+manager follows, [docs/MANAGERS.md](../../../docs/MANAGERS.md), whole now. The kickoff must state:
 - the scope (issue numbers, or the design handoff to open them from, and fillers) and the plan issue to report on.
   A new milestone gets its own plan issue (`M<k>: plan and order`, opened by you after the yes, its body written
   once and never edited); if the kickoff names none, recommend that;
 - the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
   and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
 - the concurrency cap (default three tasks at once, fewer where budget.md's PC share is lower: meta by day 1)
-  and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls, reviewers about 60,
-  publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
+  and "one task = one issue-task workflow" with per-agent bounds (implementer about 250 tool calls, reviewers
+  about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
   about 60, each skeptic about 30, a publisher that only reports a stop about 30);
 - explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
   3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and the `Track:` line,
@@ -76,8 +77,7 @@ in the main checkout's runner (`tools\run.cmd merge-check --help`, #181; merges 
 `tools\run.cmd merge --help`, #300: without it, the engineer merges those). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
 
-**Your effort is high, not xhigh** (the effort ADR's amendment of 2026-10-04, #308), as for the art and UI sessions:
-the human sets it in the session settings; `effortLevel` never goes into shared settings.
+**Your effort is high, not xhigh, in bypass** (MANAGERS.md §1, #308); `effortLevel` never goes into shared settings.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -87,7 +87,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
    worktree with a commit in the last hour (`git -C <wt> log -1 --format=%cr`), a rebase in progress (`git -C <wt>
    status`), and every run listed as running in the plan issue's latest wave comment. List them in your batched question
    and never `start`, launch or rebase them before the answer: `start` on such an issue succeeds silently (it resumes
-   the branch and worktree as they are), and a second implementer then works beside the first.
+   the branch and worktree as they are), and a second implementer then works beside the first. A second live
+   manager of your track (#484; [handover.md](handover.md) §3): stop before any launch or merge and ask.
 3. **The design gate.** Code tasks wait until the stage's design PR has the engineer's review. If the design task
    has no PR yet: when another session runs it, your first wave is empty (post a plan-issue comment saying you wait
    for it, and stop); otherwise the first wave is that design task alone (`design: true`). Offer fillers that do not
@@ -127,7 +128,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
    the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object. Before
-   each launch: [budget.md](budget.md)'s PC cap, its 93% stop and its args on every launch.
+   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args and **the estimate** (#534) of
+   [MANAGERS.md §9](../../../docs/MANAGERS.md): any other workflow too, and over about 5% a check after its first phase.
 
 | arg | what |
 |---|---|
@@ -153,15 +155,16 @@ toward the number per workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role) | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
+| `ab_review: true` | #535's A/B ([ADR](../../../docs/decisions/2026-10-07-code-reviewer-model-ab.md)): on every non-design `issue-task` launch, with `models.code: "sonnet"` (the diff's code reviewer alone; other than `code-reviewer.md`'s `model:`, the control's) beside `publish_clean`, until `metrics`' A/B table gives a verdict other than "continue"; then report it on #302 and stop passing both (`issue-task` only) | 2: a control code reviewer (60) and a judge (40); 1 when neither reviewer found anything |
 | `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: a run's `agent-*.meta.json` shows the `agentType`): pass nothing; `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) or to resume a run launched before #458 without the arg | 0 |
 
-- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or `publish_clean`,
-  never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
-  covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
-  too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
-  publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
-  leave `efforts.publish_clean` unset, so only the model varies. Other models never as a habit or for yourself.
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or
+  `code` (only with `ab_review`, next row), never `review` or `netcode` (`review` also covers `code`, `plan_review`,
+  `netcode`, `skeptic`, `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset:
+  every `plan_review` launch sets `models.plan: "sonnet"` (#469). `publish_clean` falls back to `publish` and applies
+  only to the full publisher of a run with no blocker or major left open (a refuted one is closed), never a design
+  task; leave `efforts.publish_clean` unset, so only the model varies. Other models never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -182,11 +185,12 @@ in the data); name a task's merge order relative to the other open PRs; name eve
 
 ## 4. On each completion
 Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `needs_engineer` and `human_steps` in
-full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2
-args also `plan`, `test_review` (mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the
-engineer drags into the PR) and `publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where;
-a `result` line has the `key` of its agent's `started` line): read it only when a field you act on points there.
-`handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it into
+full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2 args
+also `plan` (with its comment's link, `clipped` when its result was cut, and the planner's `model`), `test_review`
+(mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the engineer drags into the PR) and
+`publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where; a `result` line has the `key` of
+its agent's `started` line): read it only when a field you act on points there. `handoff_posted` or `board_in_review`
+false: post the handoff or `board move <n> in-review` yourself. Merge it into
 its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and in which
 order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
 what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
@@ -211,13 +215,14 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
-- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean`).
+- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean` and `.plan`).
 
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
 that changes shared design. An answer with two readings that build different things is read back in one sentence
-(AskUserQuestion) before it is recorded; if the human dismisses the question and explains, read back again. An
-answer that changes a published PR: a trivial one inline in its worktree, in a subshell (§9), then
+(AskUserQuestion; a session a scheduled task started has none: plain chat, §7) before it is recorded; if the human
+dismisses the question and explains, read back again. An answer that changes a published PR: a trivial one inline in
+its worktree, in a subshell (§9), then
 `publish --base release/m<k>` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
@@ -351,8 +356,9 @@ taken in a `main` that has them.
   own; otherwise they fail and you resume after the reset. While you wait, the keep-alive below is your only timer.
 - **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
-  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order says, one at a time (its task id and arm time in the
-  state file); it fires before the cache your latest call refreshed expires.
+  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order
+  says, one at a time (its task id and arm time in the state file); it fires before the cache your latest call refreshed
+  expires.
 - **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
   this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking
   you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json number,mergedAt`). Then follow the turn-end
@@ -360,24 +366,20 @@ taken in a `main` that has them.
   (about 12 hours; a human message resets the count) arm no more.
 - **The turn-end check**, at each turn end, wake and launch: `tools\run.cmd wave --since <session start>
   --no-merge-check --out <scratchpad>\manager\turn-end.md` (about 10 s; never the default `--out`). Its last line:
-  `handover due: <why>` or `handover not due` with clauses. Due: the context over 300k or the session over 12 hours old,
-  even mid-wave; or, once your runs end, a merge into `main` since your start that changed root
-  `CLAUDE.md`, `.claude/rules/` or `.claude/agents/` (agents get your cached copy); until then it says "launch
-  nothing new": obey it. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`; hand
-  over once it is pulled.
+  `handover due: <why>` or `handover not due` with clauses. Due: the context over 500k or the session over 12 hours old,
+  even mid-wave (while the human is away: once your runs end, MANAGERS.md §5); or, once your runs end, a merge into
+  `main` since your start that changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`
+  (agents get your cached copy); until then it says "launch nothing new": obey it. "Behind origin/main": this turn's
+  For-you carries `cd D:\prime-game; git pull --ff-only`; hand over once it is pulled.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for
-  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 150k) and
-  work is left, else arm nothing. (4) Otherwise arm nothing.
-- **A handover** (#467): (a) TaskStop each run the verdict names (a publish, rebase or fix agent at
-  work: after it, the timer armed), until the check shows none in flight. (b) One plan-issue comment, `wave --since
-  <session start> --title "Handover to a fresh manager session" --notes <file>`: the order from here, open questions,
-  `human_steps` still due, the stage's start, the runs you stopped (relaunch fresh) and the handover data. (c) "For
-  you:": close this session, paste the §10 kickoff with "Continue from" and `Track:` into a new session in
-  `D:\prime-game`. Then a PushNotification; stop, no timer, launch nothing more. The successor takes that comment as
-  §2.2's answer, relaunches the stopped runs fresh and takes the stage's yes as given: it restates the order and goes
-  on (§1's wait does not apply).
+  the human, no run in flight: hand over when the verdict says "at a stop for the human: due" (context over 250k),
+  work is left and the human is present, else arm nothing. (4) Otherwise arm nothing. Earlier by judgment, and never
+  so while the human is away: [handover.md](handover.md) §1.
+- **A handover** (#467, #511): [handover.md](handover.md) §2: stop the runs, post the handover comment ending with
+  the ready kickoff, ask the human in your For-you to paste it into a new session (bypass, high), stop. Route C
+  (handover.md §3, its successor in `acceptEdits` at medium) only when he asks; a session it started reads §3 first.
 - **Keep your context small**: planning reads, ADR, doc and issue-body drafts, metrics tables and audits go to a
   subagent (Agent tool, Sonnet) that returns at most about 2k characters with links and numbers, or a scratchpad file
   you pass to `gh --body-file` unread. Write no large file yourself.
@@ -388,6 +390,7 @@ taken in a `main` that has them.
 - When the human is needed (a refused merge, questions, a stop), end your turn with a short summary, the "For you:"
   block, and send a PushNotification. It is suppressed while the human is active in the session, and the desktop app
   only flashes its icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
+- The secretary reads your "For you:" block (AGENT_WORKFLOW §7.2): label alone, numbered, an English copy in wave notes.
 - Merged tasks' worktrees: once the task's work is on `main` (`release/m<k>` merged into `main`, or the task's PR
   on the tooling track), run `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) yourself when no live session
   sits in that worktree (no workflow of yours running there; a solo session's worktree is its owner's); a worktree
@@ -436,8 +439,7 @@ taken in a `main` that has them.
 - **The information-leak test gets a netcode review.** A PR that touches only `tests/` and `tools/` once had no
   `netcode-security-reviewer` (#115); a pass run by hand found a major blind spot. The workflows now route it for
   `tests/harness/`; for a leak-test change elsewhere (a new runner in `tools/`), run one by hand before the merge.
-- **No `staging`.** A second integration branch was tried and dropped the same night: one `release/m<k>` per
-  milestone.
+- **No `staging`.** A second integration branch was tried and dropped the same night: one `release/m<k>` per milestone.
 
 ### 2026-10-01 (M4)
 - **The netcode review covers `client/`** (#158). What the client renders can leak (a sound through walls, a camera
@@ -484,16 +486,15 @@ The human copies it, fills the placeholders and sends it, in English or in their
 English (`metrics --track` reads it). Moving state (which issues, which PRs) goes only in the message, never here.
 
 ```text
-ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most <n> at once (your track's PC share in budget.md).
+Orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one task = one
+issue-task workflow, up to <A> agents each, at most <n> at once (your track's PC share in budget.md).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
 order.>
 
-<After a handover (§7): Continue from the handover comment <link>; the previous session stopped its runs (relaunch
-them fresh) and launches nothing more, and my yes to the stage's restatement stands: restate the order from there
-and go on.>
+<After a handover: the handover comment's notes end with this kickoff, these lines replaced by its "Continue from" line
+(docs/MANAGERS.md §6); I paste it as it is.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
@@ -506,7 +507,8 @@ Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; 
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow); do not ask before
-each workflow. Hand over at §7's turn-end verdict, even mid-wave.
+each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover comment's notes end with the ready
+kickoff, which your last For-you carries too and I paste into a new session (handover.md); route C only if I ask for it.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop, the PC cap and the args apply.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness

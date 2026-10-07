@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -32,10 +32,15 @@ export const meta = {
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), so a launch or resume with the earlier
 // args, bounded_waits false and lean false is unchanged, but for
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
-// section reads, #468's reading line). The agents each one adds count toward the agent number the kickoff approves
-// (3 to 5 without them):
+// section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
+// implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
+// steps). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
-//                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
+//                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
+//                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
+//                 about 8,000 characters of JSON; capPlan cuts a longer one), with a file_map (paths, line ranges
+//                 and facts, read at base_sha) the implementer trusts for each file unchanged since that sha. The
+//                 manager passes models.plan (Sonnet, orchestrate-stage §3); the critique stays on the review model
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
 //                 `tools\run.cmd mutants` (P7, #184), each in a scratch worktree; a survived mutant is a finding, and
 //                 the publisher stops and reports when `mutants` exits 2. Missing on the task's branch: reported in
@@ -57,15 +62,17 @@ export const meta = {
 //                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground.
 //                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
-//                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
-//                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
-//                 publish_clean (falls back to publish). review covers the code reviewer and is the fallback of
-//                 plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer gets an effort
-//                 only when one is set; otherwise its agent file's applies, as before v2. +0 agents
+//                 falls back to today's default), plan (falls back to implement's), plan_review, review, code,
+//                 netcode, second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
+//                 publish_clean (falls back to publish). review is the fallback of code (the diff's code reviewer
+//                 alone, #535), plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer
+//                 gets an effort only when one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 (plan falls back to implement, publish_clean to publish, none to a default). No default names a
-//                 model (the model-guard ADR and its amendment A: the manager passes one per launch where the kickoff
-//                 allows it). +0 agents
+//                 (plan falls back to implement, publish_clean to publish, code to review, none to a default). No
+//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
+//                 where the kickoff allows it). +0 agents
+//                 The role code is the diff's code-reviewer only: models.code changes no other reviewer, where
+//                 models.review also changes the plan critique, the netcode reviews and the skeptics (#535's A/B).
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
 //                 skeptics left with no blocker or major open (a skeptic-refuted finding is closed, one over the
 //                 skeptic limit is open; the plan critique's findings do not count), never of a design task or of a
@@ -79,10 +86,18 @@ export const meta = {
 //                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
 //                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
 //                 the manager's checkout must have both files. +0 agents
+//   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
+//                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
+//                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
+//                 prompt on the review model, and both reviews go on as usual (the publisher fixes the union, so the run
+//                 is reviewed at least as an all-Opus run is). Then a read-only judge on the review model, told neither
+//                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
+//                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
+//                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean); `full` points to the run's journal.jsonl,
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's journal.jsonl,
 // which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
@@ -106,7 +121,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'ab_review']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -134,11 +149,11 @@ const SCENES = V === true
   : null
 if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
 const VISUAL = SCENES !== null
-const ROLES = ['implement', 'plan', 'plan_review', 'review', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
   implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
-  netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
+  code: ['code', 'review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
   test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
   publish_clean: ['publish_clean', 'publish'],
 }
@@ -155,6 +170,11 @@ const perRole = (k, values) => {
 const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
+// ab_review (#535): an A/B needs a model on trial that differs from the control's (the review model).
+const AB_REVIEW = flag('ab_review')
+if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
+if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
+if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
@@ -205,6 +225,9 @@ const RULES = [
   A.decisions ? `- The engineer's standing decisions for this work:\n${A.decisions}` : '',
 ].filter(Boolean).join('\n')
 
+// #470: the implementer's summary is capped (3,552 characters on average in the token audit of 2026-10-06, written
+// once and read by every later agent): a few lines on what changed and why; the why of each choice goes in decisions.
+const SUMMARY_MAX = 1200
 const IMPL = {
   type: 'object',
   properties: {
@@ -214,7 +237,7 @@ const IMPL = {
     commits: { type: 'array', items: { type: 'string' } },
     complete: { type: 'boolean' },
     left: { type: 'array', items: { type: 'string' } },
-    summary: { type: 'string' },
+    summary: { type: 'string', maxLength: SUMMARY_MAX },
     decisions: { type: 'array', items: { type: 'string' } },
     needs_engineer: { type: 'array', items: { type: 'string' } },
     provisional_content: { type: 'array', items: { type: 'string' } },
@@ -283,13 +306,33 @@ const MUTANTS_RERUN = BOUNDED
   : 'then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed'
 // The pipeline v2 schemas.
 const STRINGS = { type: 'array', items: { type: 'string' } }
+// #469 (the token audit of 2026-10-06): 3 plan agents sent 23 to 28 KB of StructuredOutput JSON that did not parse
+// and had to emit it again, and the implementer re-read 105 of the 168 files its planner had read. So the whole plan
+// goes in one comment on the issue and the result is its short form, capped at PLAN_MAX characters of JSON (capPlan
+// cuts a longer one before the critique and the implementer get it); its file_map holds the paths, line ranges and
+// facts the plan rests on, read at base_sha, which the implementer trusts for each file unchanged since that sha.
+const PLAN_MAX = 8000
+const PLAN_SUMMARY_MAX = 1500
+const PLAN_LISTS = ['criteria', 'files', 'interfaces', 'tests', 'docs', 'risks', 'questions', 'steps']
+const FILE_MAP = {
+  type: 'object',
+  properties: {
+    base_sha: { type: 'string' },
+    files: {
+      type: 'array',
+      items: { type: 'object', properties: { path: { type: 'string' }, lines: { type: 'string' }, facts: STRINGS }, required: ['path', 'facts'] },
+    },
+  },
+  required: ['base_sha', 'files'],
+}
 const PLAN_SCHEMA = {
   type: 'object',
   properties: {
-    summary: { type: 'string' }, criteria: STRINGS, files: STRINGS, interfaces: STRINGS, tests: STRINGS, docs: STRINGS,
-    risks: STRINGS, questions: STRINGS, steps: STRINGS,
+    summary: { type: 'string', maxLength: PLAN_SUMMARY_MAX }, criteria: STRINGS, files: STRINGS, interfaces: STRINGS,
+    tests: STRINGS, docs: STRINGS, risks: STRINGS, questions: STRINGS, steps: STRINGS, file_map: FILE_MAP,
+    comment_url: { type: 'string' },
   },
-  required: ['summary', 'criteria', 'files', 'tests'],
+  required: ['summary', 'criteria', 'files', 'tests', 'file_map'],
 }
 const PLAYCHECK = {
   type: 'object',
@@ -327,6 +370,30 @@ const SKEPTIC_SCHEMA = {
   properties: { refuted: { type: 'boolean' }, reason: { type: 'string' }, evidence: { type: 'string' } },
   required: ['refuted', 'reason'],
 }
+// ab_review (#535): the judge's verdict on each finding of reviewer 1 (the trial) and 2 (the control), and the pairs.
+const AB_JUDGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdicts: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          reviewer: { type: 'number', enum: [1, 2] }, index: { type: 'number' },
+          verdict: { type: 'string', enum: ['valid', 'invalid', 'unsure'] },
+          severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, reason: { type: 'string' },
+        },
+        required: ['reviewer', 'index', 'verdict', 'severity'],
+      },
+    },
+    matches: {
+      type: 'array',
+      items: { type: 'object', properties: { first: { type: 'number' }, second: { type: 'number' } }, required: ['first', 'second'] },
+    },
+    notes: { type: 'string' },
+  },
+  required: ['verdicts', 'matches'],
+}
 
 // The default test expectations follow the task branch's area (`<area>/<n>-<slug>`, from `start`); args.testing
 // overrides them.
@@ -359,32 +426,109 @@ const WORK = DESIGN
   ].join('\n\n')
   : `Plan, then implement every acceptance criterion. ${TESTS} If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish \`git fetch\` and check whether it reached origin/${BASE}; if it did, rebase on it inside your worktree and use it.`
 
+// The compact result's helpers come before the agents: the reviewers' digest (#470) uses them too.
+// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
+// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
+const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
+const line = (s, max = 160) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  const first = t.split('\n')[0].trim()
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
+}
+const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
+const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
+const tally = (list, key, order) => {
+  const c = {}
+  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
+  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
+}
+const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
+const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
+// A list's "None" or empty entries say nothing.
+const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
+
+// #470: the reviewers and the test reviewer get a digest of the implementer's report, not the whole of it (6.9k
+// characters at the median of 26 reviewers since 2026-10-05, 7.9k to 9.3k a run in the token audit of 2026-10-06):
+// its summary, whether it is complete and what it left on purpose (else a reviewer reports each deferred acceptance
+// criterion as a blocker), the changed paths, the content it marked provisional, and each decision and item for the
+// engineer cut to a line. They review the diff; the publisher still gets the whole report (the PR and the handoff
+// carry its rationale, what is left, the verify tail).
+const clip = (s, max) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
+}
+const digest = r => ({
+  summary: clip(r.summary, SUMMARY_MAX),
+  complete: r.complete,
+  changed_paths: r.changed_paths || [],
+  ...(items(r.provisional_content).length ? { provisional_content: items(r.provisional_content) } : {}),
+  ...(items(r.decisions).length ? { decisions: lines(items(r.decisions)) } : {}),
+  ...(items(r.needs_engineer).length ? { needs_engineer: lines(items(r.needs_engineer)) } : {}),
+  ...(items(r.left).length ? { left: lines(items(r.left)) } : {}),
+})
+const REPORT = 'The implementer\'s report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change):'
+
+// #469: a plan over PLAN_MAX characters of JSON is cut before the critique and the implementer read it (the whole plan
+// is the agent's comment on the issue): the summary to its cap, each list item and each file_map fact to a line, then
+// the last item of the longest plan list, and only then file_map entries (a dropped one's file is read as usual),
+// until it fits.
+const size = o => JSON.stringify(o).length
+const capPlan = p => {
+  if (size(p) <= PLAN_MAX) return p
+  const out = { ...p, summary: clip(p.summary, PLAN_SUMMARY_MAX) }
+  for (const k of PLAN_LISTS) if (Array.isArray(out[k])) out[k] = lines(out[k], 240)
+  const map = p.file_map && Array.isArray(p.file_map.files) ? p.file_map : null
+  if (map) out.file_map = { ...map, files: map.files.map(f => ({ ...f, facts: lines(f && f.facts, 240) })) }
+  out.clipped = `cut from ${size(p)} characters of JSON; the whole plan: ${p.comment_url || 'the plan agent\'s comment on the issue'}`
+  // The plan's lists go first (the comment has them whole); file_map entries only when no list is left, since a
+  // dropped entry is a file the implementer reads again.
+  for (;;) {
+    const lists = PLAN_LISTS.map(k => out[k]).filter(a => Array.isArray(a) && a.length)
+    if (!lists.length && map && out.file_map.files.length) lists.push(out.file_map.files)
+    if (size(out) <= PLAN_MAX || !lists.length) return out
+    lists.reduce((a, b) => (size(b) > size(a) ? b : a)).pop()
+  }
+}
+// #469: the implementer trusts the file map for each file unchanged since its base_sha (a rebase, or an earlier
+// attempt's commit, since the plan can change a file the map describes): one `git diff --name-only` tells which.
+const mapRule = m => {
+  const sha = m && typeof m.base_sha === 'string' && /^[0-9a-f]{7,40}$/i.test(m.base_sha.trim()) ? m.base_sha.trim() : null
+  const paths = m && Array.isArray(m.files) ? m.files.filter(f => f && typeof f.path === 'string' && f.path).map(f => f.path) : []
+  if (!sha || !paths.length) return '\n\nThe plan has no usable file map (file_map): read the files as usual.'
+  return `\n\nThe file map (file_map): the plan agent read these files at ${sha}. Trust it while a file is unchanged since that sha: first run in the Bash tool \`cd ${WTB} && git diff --name-only ${sha} -- ${paths.map(p => `'${p.replace(/'/g, `'\\''`)}'`).join(' ')}\` once (again after a rebase). For each path it does not list, take the map's line ranges and facts instead of reading the file again for them: read only what the map lacks, and before an Edit only the range you change (the Edit tool needs a Read of the file first). A path it lists changed since the plan: read it as usual. A file whose facts the critique disputes: read it as usual too. If the command fails (the sha unknown), the map does not hold: read every file as usual.`
+}
+
 phase('Implement')
 // plan_review: a plan agent, then a fresh critique of its plan; the implementer builds with both.
 let planned = null
 if (PLAN_REVIEW) {
   const plan = await agent([
     RULES,
-    `Task: plan GitHub issue #${N} (${A.title}) before it is built (plan_review). Effort: ${PLAN_EFFORT}. Budget: at most about 80 tool calls. Plan only: create, edit or commit nothing (no plan file in the repo: the plan is your structured result) and run no verify. A fresh reviewer critiques your plan next, then an implementer builds from both.`,
+    `Task: plan GitHub issue #${N} (${A.title}) before it is built (plan_review). Effort: ${PLAN_EFFORT}. Budget: at most about 80 tool calls. Plan only: create, edit or commit nothing (no plan file in the repo: the plan is one comment on the issue and your structured result) and run no verify. A fresh reviewer critiques your plan next, then an implementer builds from both.`,
     `An earlier attempt may have got part of the way: run \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and plan from that state.`,
     `Read: \`gh issue view ${N} --comments\`; ${READING}.`,
     `Task notes from the manager:\n${A.notes}`,
     A.coord ? `Parallel work:\n${A.coord}` : '',
     DESIGN ? 'This is a DESIGN task (documents only): plan the documents, their sections, the options each choice needs and the proposed issue split if the issue asks for one.' : `The tests the task needs: ${TESTS}`,
     'The plan: how the change meets each acceptance criterion (criteria); each file to create or change and what changes in it (files); the classes, functions, signals, wire rows and args it adds or changes (interfaces); each test, what it asserts and which one fails first (tests); the docs and ARCHITECTURE rows to update (docs); what could go wrong and what the change must not break (risks); open questions, each with the recommended answer (questions); the commits in order (steps).',
+    `The whole plan goes in ONE comment on the issue; the structured result is its short form (#469: plan results of 23 to 28 KB did not parse and were sent again). Write the full plan (each file's change in detail, each test's assertions, the reasoning) to ${SCRATCH}/plan.md in your scratchpad, its first line \`Plan of #${N} (issue-task plan_review, branch ${A.branch})\`, and post it with \`gh issue comment ${N} --body-file <that file>\`. An earlier attempt may have posted one: first list your own comments on the issue in the Bash tool (\`gh api user --jq .login\` gives your login) with \`gh issue view ${N} --json comments --jq '.comments[] | select(.author.login == "<your login>") | .url + " " + (.body | split("\\n") | .[0])'\`. If the last of them starts with that first line, replace it with \`gh issue comment ${N} --edit-last --body-file <that file>\` (it edits your last comment on the issue) and return its URL; if only an earlier one does, post a new comment whose second line is \`Supersedes <that comment's URL>\`. Never \`gh api -X PATCH\` (it asks, and nobody answers). Return its URL in comment_url. The structured result is at most about ${PLAN_MAX} characters of JSON in all: summary at most ${PLAN_SUMMARY_MAX} characters, each list item one line, and the details stay in the comment.`,
+    'file_map: what the implementer may trust instead of reading the files again (it re-read most of what planners had read). base_sha: `git rev-parse HEAD` in the worktree, the commit whose files you read. files: one entry per file the plan rests on, with its path (relative to the worktree), the line ranges that matter (lines, e.g. "120-180, 300-340") and the facts read there that the build needs (signatures, field and signal names, call sites, the test helpers to use), each fact one line. Only what you read in that file; a fact you inferred is not in the map.',
     'Return the structured result.',
   ].filter(Boolean).join('\n\n'), withModel({ label: `plan:#${N}`, phase: 'Implement', effort: PLAN_EFFORT, schema: PLAN_SCHEMA }, 'plan'))
   if (!plan) throw new Error(`#${N}: the plan agent returned nothing; resume this run with the same args`)
+  const short = capPlan(plan)
+  if (short !== plan) log(`#${N}: the plan's result was ${size(plan)} characters of JSON; cut to ${size(short)} for the critique and the implementer`)
   const critique = await agent([
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
     READ_RULE,
     `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, the area CLAUDE.md files, the code the plan names and ${arch('the plan')}. Budget: at most about 40 tool calls. Edit nothing.`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
-    `The plan: ${JSON.stringify(plan)}`,
-    'Find what would make the built change wrong or need rework: an acceptance criterion missed or misread; an invariant broken (host authority, per-peer filtering, pure core/, mechanics as data); information reaching a peer that is not entitled to it (events, snapshots, view_of, what a client renders); an interface that clashes with the code on the base or with the parallel work; tests that would pass whatever the code does, or no test that fails first; a doc, ARCHITECTURE row or ADR the change needs; a choice reserved for the engineer that the plan makes. Report findings with severity (blocker, major, minor, nit), the file or plan item, the problem and a concrete change to the plan. Blocker or major: building the plan as written would be wrong or need rework. No findings is a valid answer.',
+    `The plan, in short (the whole plan is the plan agent's comment on the issue, comment_url; its file_map holds the facts the implementer will trust without reading the files again): ${JSON.stringify(short)}`,
+    'Find what would make the built change wrong or need rework: a file_map fact that the file at base_sha does not bear out (the implementer trusts it); an acceptance criterion missed or misread; an invariant broken (host authority, per-peer filtering, pure core/, mechanics as data); information reaching a peer that is not entitled to it (events, snapshots, view_of, what a client renders); an interface that clashes with the code on the base or with the parallel work; tests that would pass whatever the code does, or no test that fails first; a doc, ARCHITECTURE row or ADR the change needs; a choice reserved for the engineer that the plan makes. Report findings with severity (blocker, major, minor, nit), the file or plan item, the problem and a concrete change to the plan. Blocker or major: building the plan as written would be wrong or need rework. No findings is a valid answer.',
   ].filter(Boolean).join('\n\n'), asReviewer({ label: `review:plan:#${N}`, phase: 'Implement', agentType: 'code-reviewer', schema: REVIEW }, 'plan_review'))
   if (!critique) throw new Error(`#${N}: the plan's reviewer returned nothing; resume this run with the same args`)
-  planned = { plan, critique }
+  planned = { plan: short, critique }
   log(`#${N}: planned; the critique found ${(critique.findings || []).length} finding(s)`)
 }
 
@@ -396,13 +540,13 @@ const impl = await agent([
   `Task notes from the manager:\n${A.notes}`,
   A.coord ? `Parallel work:\n${A.coord}` : '',
   WORK,
-  planned ? `Plan review (plan_review): a plan agent planned this task and a fresh reviewer critiqued the plan; neither changed the worktree. Build from the plan, changed where the critique is right: settle each blocker and major point before you build, and say in decisions how you settled each critique finding, or why it is wrong.\n\nThe plan: ${JSON.stringify(planned.plan)}\n\nThe critique: ${JSON.stringify(planned.critique)}` : '',
+  planned ? `Plan review (plan_review): a plan agent planned this task and a fresh reviewer critiqued the plan; neither changed the worktree. Build from the plan, changed where the critique is right: settle each blocker and major point before you build, and say in decisions how you settled each critique finding, or why it is wrong.\n\nThe plan, in short (the whole plan is the plan agent's comment on the issue, comment_url, which \`gh issue view ${N} --comments\` shows): ${JSON.stringify(planned.plan)}\n\nThe critique: ${JSON.stringify(planned.critique)}${mapRule(planned.plan.file_map)}` : '',
   'Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.',
   '`tools\\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree\'s run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.',
   BOUNDED ? waits(false) : '',
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
-  `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end.`,
+  `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end. summary: at most ${SUMMARY_MAX} characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.`,
 ].filter(Boolean).join('\n\n'), withModel({ label: `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: IMPL_SCHEMA }, 'implement'))
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
@@ -415,6 +559,8 @@ let labels = []
 let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
+let judge = null
+let judging = null
 // The blocker and major findings still open before the publisher (publish_clean): a skeptic's refutation closes one.
 let openSerious = 0
 if (impl.verify_green) {
@@ -431,7 +577,7 @@ if (impl.verify_green) {
     READ_RULE,
     `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs the issue links, the area CLAUDE.md files and ${arch(DESIGN ? 'the design' : 'the change')}. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
-    `The implementer reported: ${JSON.stringify(impl)}`,
+    `${REPORT} ${JSON.stringify(digest(impl))}`,
     `Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. ${DESIGN ? 'A design that would let information reach a peer that is not entitled to it, trust a client field, leave an intent unvalidated, or contradict an accepted ADR or the code on main is a blocker or major.' : 'Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test.'} No findings is a valid answer.`,
   ].filter(Boolean).join('\n\n')
   const codeFocus = DESIGN
@@ -442,7 +588,12 @@ if (impl.verify_green) {
       ? `\n\nVisual check (visual): the implementer's \`tools\\run.cmd playcheck\` screenshots: ${shots.pngs.join(', ')}. Read each PNG (Read shows images) and compare it with what the issue asks for: the wrong camera or player, a HUD or menu that is missing, misplaced or shows another player's state, text cut off or overlapping. Each such problem is a finding, with the PNG's path as its file.`
       : `\n\nVisual check (visual): no playcheck screenshots (${shots.notes || 'none returned'}). That is not a finding of yours: the publisher reports it.`
   labels = ['code-reviewer']
-  const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
+  const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'code'))]
+  // ab_review (#535): the control, the same prompt on the review model, second in the list (the judge reads 0 and 1).
+  if (AB_REVIEW) {
+    labels.push('code-reviewer (control)')
+    thunks.push(() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code-control:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review')))
+  }
   if (netcode) {
     labels.push('netcode-security-reviewer')
     thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
@@ -464,6 +615,27 @@ if (impl.verify_green) {
   reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
 
+  // ab_review (#535): a blind judge of both code reviews. It changes nothing in the run: the publisher never sees it, so
+  // it runs beside the rest of the review and the publisher and is awaited only before the result is written.
+  if (AB_REVIEW) {
+    const [trial, control] = [reviews[0].findings || [], reviews[1].findings || []]
+    if (!trial.length && !control.length) {
+      judge = { skipped: 'neither code reviewer found anything' }
+    } else {
+      judging = agent([
+        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+        READ_RULE,
+        'A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
+        `Read \`git -C ${WTB} diff origin/${BASE}...HEAD\`, the issue and its comments (\`gh issue view ${N} --comments\`), and the code, tests and docs each finding names.`,
+        `Reviewer 1 found: ${JSON.stringify(trial)}`,
+        `Reviewer 2 found: ${JSON.stringify(control)}`,
+        'Both reviewers had the same prompt; judge each finding on its own, whoever raised it. valid: the defect or gap is real in this diff and the change should fix it (an acceptance criterion missed, an invariant broken, a wrong behaviour, a missing or weak test, a doc the change makes stale). invalid: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer\'s answers, or it asks for something outside the issue. unsure: you cannot settle it within the budget. Give each the severity you would give it on the reviewers\' scale (blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test; major: building on it as written would need rework; minor; nit), whatever the reviewer said.',
+        'Then match the two lists: a finding of reviewer 1 and one of reviewer 2 match when they name the same defect (the same root cause), whatever their wording, line or severity; a finding matches at most one of the other list.',
+        'Return verdicts, one per finding of both lists (reviewer 1 or 2, its 0-based index in that reviewer\'s list, the verdict, your severity and a one-line reason), and matches, the pairs {first: an index in reviewer 1\'s list, second: an index in reviewer 2\'s}.',
+      ].join('\n\n'), asReviewer({ label: `ab-judge:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: AB_JUDGE_SCHEMA }, 'review'))
+    }
+  }
+
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
   if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
@@ -481,7 +653,7 @@ if (impl.verify_green) {
         '4. Each survived mutant is a finding: major when the fault breaks an acceptance criterion or an invariant (a leak, an unvalidated intent, a wrong rule) and no test caught it, else minor; the file and line of the mutant, the problem, and as the fix the test that would kill it. A mutant that changes no behaviour is equivalent, not a finding. At the end confirm that `git status` in the worktree is unchanged.',
       ].join('\n'),
       ...(BOUNDED ? [waits(false)] : []),
-      `The implementer reported: ${JSON.stringify(impl)}`,
+      `${REPORT} ${JSON.stringify(digest(impl))}`,
       `Fresh reviewers found: ${JSON.stringify(reviews)}`,
       'Return the structured result: every mutant you ran in mutants, each with its result (killed, survived, error or equivalent) and exit code. A mutant that a stopped run lists as `not run` is reported as error, with why in notes.',
     ].join('\n\n'), withModel({ label: `test-review:#${N}`, phase: 'Review', effort: TEST_EFFORT, schema: TEST_REVIEW_SCHEMA }, 'test_review'))
@@ -513,27 +685,6 @@ if (impl.verify_green) {
   }
   openSerious = SKEPTICS ? skeptic.stood.length + skeptic.unchecked.length : serious.length
 }
-
-// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
-// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
-// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
-const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
-const line = (s, max = 160) => {
-  const t = s === undefined || s === null ? '' : String(s).trim()
-  const first = t.split('\n')[0].trim()
-  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
-}
-const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
-const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
-const tally = (list, key, order) => {
-  const c = {}
-  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
-  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
-}
-const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
-const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
-// A list's "None" or empty entries say nothing.
-const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
 
 // issue-task's own result: the implementer's verdict, the reviews' counts, the publisher's fields and each v2 option's.
 const brief = (stopped, pub, extra) => {
@@ -568,12 +719,26 @@ const brief = (stopped, pub, extra) => {
   if (items(impl.proposed_issues).length) out.proposed_issues = lines(items(impl.proposed_issues), 100)
   if (items(impl.provisional_content).length) out.provisional_content = lines(items(impl.provisional_content), 120)
   out.reviews = briefReviews(labels, reviews)
-  if (planned) out.plan = { summary: line(planned.plan.summary), critique: tally(planned.critique.findings, 'severity', SEVERITIES) }
+  // #469: the plan's comment, whether its result was cut, and the planner's model when the launch set one (the
+  // manager's models.plan, orchestrate-stage §3), so the before and after of #469 read from the results.
+  if (planned) {
+    out.plan = { summary: line(planned.plan.summary), critique: tally(planned.critique.findings, 'severity', SEVERITIES) }
+    if (typeof planned.plan.comment_url === 'string' && planned.plan.comment_url) out.plan.comment = planned.plan.comment_url
+    if (planned.plan.clipped) out.plan.clipped = true
+    if (set(MODELS, 'plan') !== undefined) out.plan.model = set(MODELS, 'plan')
+  }
   if (testReviewSkipped) out.test_review = { skipped: testReviewSkipped }
   else if (testReview) {
     out.test_review = { available: testReview.available, exit_2: testReview.exit_2, mutants: tally(testReview.mutants, 'result', ['killed', 'survived', 'error', 'equivalent']), findings: tally(testReview.findings, 'severity', SEVERITIES), ...(testReview.notes ? { notes: line(testReview.notes) } : {}) }
   }
   if (SKEPTICS && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
+  // ab_review (#535): the two models and the judge's counts; `metrics` scores the runs from the journal.
+  if (AB_REVIEW && reviews.length) {
+    out.ab_review = {
+      model: set(MODELS, 'code'), control_model: set(MODELS, 'review') || null,
+      judge: !judge ? 'returned nothing' : judge.skipped || { verdicts: tally(judge.verdicts, 'verdict', ['valid', 'invalid', 'unsure']), matches: (judge.matches || []).length },
+    }
+  }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
   out.full = FULL
@@ -617,7 +782,8 @@ const pub = stoppedByMutants
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
-    planned ? `The plan and its critique (plan_review): ${JSON.stringify(planned)}\n\nIn the PR, under "Plan review": the plan in a few lines, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
+    AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
+    planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
       : !testReview ? ''
       : testReview.available
@@ -631,9 +797,10 @@ const pub = stoppedByMutants
         ? `Visual check (visual): the implementer's playcheck run: ${JSON.stringify(shots)}\n\nIf a fix changes what a scenario shows, run \`tools\\run.cmd playcheck <scenario>\` again. In the PR's Screenshots section list each PNG's path for the engineer to drag in (gh cannot upload images), and add that under human_steps.`
         : `Visual check (visual): no screenshots: ${shots.notes || 'the implementer returned none'} (\`tools\\run.cmd playcheck\` is P9, #186). Say so in the PR's Screenshots and verification sections.`,
     [
-      'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
-      `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}.`,
-      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+      'Then, in this order (the definition of done; the reviews above were its review step):',
+      '- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human\'s correction of how the agents work that the notes or the issue\'s comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.',
+      `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}. If it stops on remote commits the branch never had, or with "cannot confirm that the parent … was merged", push nothing by hand: return published false with what it said, and the engineer's check under human_steps.`,
+      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md (if \`gh pr view ${A.branch}\` already finds a PR for the branch, update its body with \`gh pr edit <pr> --body-file <file>\` instead of creating a second one): \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
       `- \`gh pr checks <pr> --watch\`. Red: fix, run the touched tests and \`check\`, publish again (it verifies); at most two rounds, then report what is still red.`,
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
@@ -645,6 +812,12 @@ const pub = stoppedByMutants
   ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: FULL_PUB_EFFORT, schema: PUB_SCHEMA }, PUB_ROLE))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
+// ab_review (#535): the judge ran beside the publisher; a measurement, not a gate: one that died leaves the run unjudged.
+if (judging) {
+  judge = await judging.catch(() => null)
+  if (!judge) log(`#${N}: the ab_review judge returned nothing; the run goes on unjudged`)
+}
+if (AB_REVIEW && reviews.length) log(`#${N}: ab_review ${judge ? (judge.skipped || `judged ${(judge.verdicts || []).length} finding(s), ${(judge.matches || []).length} pair(s)`) : 'unjudged'}`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 return brief(stoppedByMutants || pub.stopped_by_mutants === true

@@ -2,7 +2,7 @@
 
 License texts of software a release build carries that is not an addon of its own (#422). `export` copies every file
 of a folder here into both zips as `licenses/<folder>/<file>`, and its release check holds them against
-`export.NOTICES` (docs/AGENT_WORKFLOW.md §11.23). Each text is the primary source's file, byte for byte: never
+`export.NOTICES` (docs/AGENT_WORKFLOW.md §11.24). Each text is the primary source's file, byte for byte: never
 edit one; fetch the new file when the version changes, and update its row.
 
 | File | Why a build carries it | Source (verbatim) | SHA-256 |

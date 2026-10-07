@@ -26,6 +26,10 @@ MAX_LINES = 40
 SKIPPED_DIRS = ("addons/", "tools/out/", ".godot/", ".claude/")
 GDTOOLKIT_PARSE_RE = re.compile(r"^(Unexpected (?:token|character).*?) at line (\d+), column (\d+)")
 CHECK_LINE_RE = re.compile(r"^CHECK (error|warning) (.*?)(?: \[[^\]]*\])?$")
+# The permission mode in which the guard allows what it finds nothing in, in an unattended session (pre_tool_use),
+# and what it says then.
+ACCEPT_EDITS = "acceptEdits"
+ALLOW_REASON = "guard: nothing to ask for in acceptEdits, so it runs as in bypass (docs/AGENT_WORKFLOW.md §8.2, #312)"
 
 
 def main(name: str) -> int:
@@ -57,7 +61,12 @@ def _emit(event: str, **fields: str) -> None:
 def pre_tool_use(payload: dict[str, object]) -> int:
     """Ask before a shell write to an ask-protected path, a recursive delete or git that discards work beyond the
     session's own worktree and task branch, or a gh command that may write to another repository (guard.py); stay
-    silent otherwise."""
+    silent otherwise, except in an unattended session in acceptEdits (issue #312): there allow the call unless it
+    writes to a path Claude Code protects (guard.allows), so a route-C successor manager and its workflows (#484) run
+    routine shell work as a bypass session would. The deny and ask rules and Claude Code's own delete checks still
+    hold over an allow. A human's own acceptEdits session (the humans' default mode) keeps its prompts: unattended
+    needs a positive sign (a desktop-app session the app does not mark attended), so a CLI or IDE session never gets
+    the allow."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if tool not in ("Bash", "PowerShell") or not isinstance(tool_input, dict):
@@ -71,10 +80,25 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     home = os.path.expanduser("~")  # so that `~/<project>` stays protected when the checkout is under home
     cwd = str(payload.get("cwd") or "")
     # A cloud session works in the main checkout on its task branch: there it is the session's own (#381).
-    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud_session())
-    if findings:
-        _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(findings))
+    analysis = guard.judge(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud_session())
+    if analysis.findings:
+        _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(analysis.findings))
+    elif payload.get("permission_mode") == ACCEPT_EDITS and unattended() and guard.allows(analysis):
+        _emit("PreToolUse", permissionDecision="allow", permissionDecisionReason=ALLOW_REASON)
     return 0
+
+
+def unattended() -> bool:
+    """No human answers this session's prompts, by a positive sign only (fails closed). The desktop app sets
+    CLAUDE_CODE_SESSION_ATTENDED=1 in a session a human opened (seen 2026-10-07, app 2.19675.1), and knows a
+    scheduled-task run is unattended (its tools say so, #484). So a session counts as unattended when the variable says
+    so (0 or false), or when the desktop app started it (CLAUDE_CODE_ENTRYPOINT claude-desktop) without setting it.
+    A CLI, IDE or SDK session without the variable (a human's terminal or Rider) is attended: it keeps its prompts.
+    Which of the two a scheduled run sets is unverified until the route-C probe (#312)."""
+    attended = os.environ.get("CLAUDE_CODE_SESSION_ATTENDED", "").strip().lower()
+    if attended:
+        return attended in ("0", "false", "no")
+    return os.environ.get("CLAUDE_CODE_ENTRYPOINT", "") == "claude-desktop"
 
 
 def cloud_session() -> bool:
