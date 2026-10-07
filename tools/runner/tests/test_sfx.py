@@ -451,6 +451,13 @@ class PageTest(Fixtures):
         self.assertEqual(sfx.set_name(["a/click.wav"]), "click")
         self.assertEqual(sfx.set_name(["a", "b"]), "sfx")
 
+    def test_a_dotted_folder_keeps_its_whole_name(self) -> None:
+        dotted = self.dir / "kenney_impact-sounds.v1"
+        dotted.mkdir()
+        self.assertEqual(sfx.set_name([str(dotted)]), "kenney_impact-sounds.v1")
+        self.assertEqual(sfx.set_name(["a/audio.wav-set"]), "audio.wav-set")
+        self.assertEqual(sfx.set_name(["a/Step.OGG"]), "Step")
+
 
 if __name__ == "__main__":
     unittest.main()

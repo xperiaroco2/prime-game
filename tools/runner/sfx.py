@@ -643,10 +643,13 @@ def _card(sound: Sound, index: int) -> str:
 
 
 def set_name(paths: list[str]) -> str:
-    """The set's name for the report and the page: the one folder's or file's name, else `sfx`."""
+    """The set's name for the report and the page: the one folder's whole name or sound file's stem, else `sfx`."""
     if len(paths) == 1:
-        name = Path(paths[0]).resolve().name
-        name = Path(name).stem if Path(paths[0]).suffix else name
+        path = Path(paths[0])
+        if not path.is_absolute() and not path.exists() and (ROOT / path).exists():
+            path = ROOT / path
+        name = path.resolve().name
+        name = Path(name).stem if path.suffix.lower() in EXTENSIONS and not path.is_dir() else name
         cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", name).strip("-.")
         if cleaned:
             return cleaned
