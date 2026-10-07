@@ -83,9 +83,10 @@ plan issue, its workflows) stays in its own repo: for game and meta, the `orches
 
   ```text
   Continue from the latest comment titled "Handover to a fresh manager session" on #<plan issue> and every note after
-  it: its order from here wins over this kickoff's Scope and Order; the previous session stopped its runs (relaunch
-  them fresh) and launches nothing more; my yes to the stage's restatement stands: restate the order from there and go
-  on. A standing instruction of mine (a pause, a changed budget) is in that comment: obey it.
+  it: its order from here wins over this kickoff's Scope and Order; the previous session stopped its runs or let them
+  end (relaunch fresh the ones that comment lists as stopped) and launches nothing more; my yes to the stage's
+  restatement stands: restate the order from there and go on. A standing instruction of mine (a pause, a changed
+  budget) is in that comment: obey it.
   ```
 
   A kickoff that still says "ultracode" loses the word (§2); every other word stays his.
