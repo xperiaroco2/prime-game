@@ -323,12 +323,13 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
   For skills: strict YAML subset, `name` = folder, no unknown field (Claude Code ignores one silently), the rules
   above, `description` + `when_to_use` within the 1,536-character listing cap, and a PowerShell twin for every Bash
   rule. `claude plugin validate .claude/skills` is no substitute: it passed a description YAML cannot parse.
-- The listing keeps our skills and workflows only, plus the bundled `workflow-authoring` a manager loads to write a
-  workflow script (#562, [ADR](decisions/2026-10-08-skill-listing-and-account-connectors.md)): `skillOverrides` in
-  `.claude/settings.json` sets each other bundled skill to `"user-invocable-only"` (out of the model's listing, still
-  `/name` for a human). A Claude Code update that brings a new bundled skill needs a new entry. The lint fails an
-  entry that hides ours or `workflow-authoring`, and `disableBundledSkills`. The desktop app's `anthropic-skills`
-  plugin and the account's connectors are beyond project settings (the ADR).
+- Of the bundled skills, the listing keeps only `workflow-authoring` (a manager loads it to write a workflow script)
+  and `code-review` (step 2 of §4.2 routes docs-only diffs to it) (#562,
+  [ADR](decisions/2026-10-08-skill-listing-and-account-connectors.md)): `skillOverrides` in `.claude/settings.json`
+  sets each other bundled skill to `"user-invocable-only"` (out of the model's listing, still `/name` for a human).
+  A Claude Code update that brings a new bundled skill needs a new entry. The lint fails an entry that hides ours or
+  those two, and `disableBundledSkills`. The desktop app's `anthropic-skills` plugin stays listed and the account's
+  connectors stay loaded: both are beyond project settings (the ADR).
 - `allowed-tools` only pre-approves tools for the turn that invokes the skill; ask and deny rules still win, so a
   skill never bypasses the guard or the settings prompts.
 - A running session sees edits to existing skills at once, but a `.claude/skills/` folder created after it started
