@@ -2114,7 +2114,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   and hint under it. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
-  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25). The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25). The input actions
+  `swap` (X) and `task_screen` (Tab) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2469,14 +2470,14 @@ ADR's §6 check the rest.
   `expand`; the 3D view renders at the window's size), and `window_width_override` and `_height_override` keep the
   start window at 1152x648 (`shot`, `playcheck`, `host` and `join` size theirs with `--resolution`). Mouse look reads
   `screen_relative`, which the stretch does not scale.
-- Until the generated theme (#288) and the Toy components (#289) replace the greybox look, its sizes are those of
-  the old 1152x648 base times 5/3, rounded, so the screens keep their apparent size: the theme's font sizes,
-  container margins and separations and its style boxes' content margins (not the corner radii); the layout widths
-  in `client/ui/` code (the menu's fields, `UiParts`' buttons and labels, `EscMenu.PAGE_SIZE`,
-  `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset, the dev test room's overlay box); and Godot's default theme, which draws
-  the controls the greybox theme leaves alone (buttons, fields, sliders, scroll bars), through
-  `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover those controls sets it back
-  to 1.
+- Until the Toy components (#289) replace the greybox look, its sizes are those of the old 1152x648 base times 5/3,
+  rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so the screens keep
+  their apparent size: the theme's font sizes, container margins and separations and its style boxes' content margins
+  (not the corner radii); the layout widths in `client/ui/` code (the menu's fields, `UiParts`' buttons and labels,
+  `EscMenu.PAGE_SIZE`, `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset, the dev test room's
+  overlay box); and Godot's default theme, which draws the controls the greybox theme leaves alone (buttons, fields,
+  sliders, scroll bars), through `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover
+  those controls sets it back to 1.
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
   start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
   `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
@@ -2501,33 +2502,33 @@ ADR's §6 check the rest.
   state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion stop the
   build) and builds the `Theme` in memory; each StyleBox has the sub-resource id `<Variation>_<item>`, so a
   regenerated file differs only where a value did. `build_theme.gd` also stops when the pack differs from its lock
-  or the project's UI base is not the pack's `reference` (1920x1080, #287); `-- --skip-base-check` turns that into
-  a warning, for a branch built before #287 lands.
+  or the project's UI base is not the pack's `reference` (1920x1080, #287), which the tests also hold.
 - What it writes: type variations only, the pack's live ones (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped), no base-type item and no default font or size, so Godot's default
   theme (scaled by #287's `gui/theme/default_theme_scale`) still draws a plain control until #289 styles the base
   controls and sets that scale back to 1. The large-text theme is a whole theme that differs only in font sizes
   and the keycaps' `min_width` (42, from `modes.textSize.large`): #289 swaps `GameUi`'s theme to it.
 - Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
-  HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudTitle, Title, EndTitle,
-  LifeTitle → ToyTitleOnDark; TaskDescription → ToyTextMutedOnDark; EscShade → ToyBackdrop; EndBackdrop,
-  LoadingBackdrop → ToyBackdropNight; LifeBar → ToyBarProgress with its own `background` (left and right content
-  margins 267, the bar's width; `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the
-  issue's ToyTab, whose ink text is unreadable on the Esc menu's dark panel. The names the issue does not map
-  (the containers' margins and separations, DebugText, HudCrosshair, HudHint, Shortfalls) keep their greybox values
-  at #287's sizes in the mapping's `keep`.
+  HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudHint → ToyHudCaption (not
+  in the issue's list: a hint reads below HudText); HudTitle, Title, EndTitle, LifeTitle → ToyTitleOnDark;
+  TaskDescription → ToyTextMutedOnDark; EscShade → ToyBackdrop; EndBackdrop, LoadingBackdrop → ToyBackdropNight;
+  LifeBar → ToyBarProgress with its own `background` (left and right content margins 267, the bar's width;
+  `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the issue's ToyTab, whose ink text is
+  unreadable on the Esc menu's dark panel. The names the issue does not map (the containers' margins and separations,
+  DebugText, HudCrosshair, Shortfalls) keep their greybox values at #287's sizes in the mapping's `keep`.
 - Deferred to #520: the Comfortaa font (the mapping's `font.file` is the hook: a FontVariation per label weight and
   `line_spacing` from its metrics), the theme icons from the pack's `textures` (the SVGs under the `.gdignore` need
   an imported copy under the same lock; until then the builder only checks each key against the class's icons) and
   the Delivery card art (the lock's `deferred`).
-- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob,
-  the binaries deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned
-  not fetched, each problem the offline verify names on a mutated copy, and the committed copy against its lock);
-  `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted gap named; every mapped engine
-  item in the class reference, with a planted typo and a custom item that shadows an engine one; names letters only;
-  the committed themes equal a fresh build, which is deterministic, seen failing on a planted stale value; the
-  uids; spot values, the press motion and the ramp; the large-text theme; the legacy and kept names; the base
-  check). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
+- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, the
+  binaries deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
+  fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the
+  committed copy against its lock); `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted
+  gap named, a StyleBox state missing a field too; every mapped engine item and icon name in the class reference, with
+  a planted typo and a custom item that shadows an engine one; names letters only; the committed themes equal a fresh
+  build, which is deterministic, seen failing on a planted stale value; the uids; spot values, the press motion and
+  the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
+  failing on a probe at 1152). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

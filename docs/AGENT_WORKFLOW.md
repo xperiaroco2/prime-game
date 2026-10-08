@@ -1640,7 +1640,8 @@ Python core `tools/run.py` with
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
 `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
 tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
-`ui-sync` (§11.26), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+`ui-sync` (§11.26), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
+lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
 runner takes the machine paths from the Claude settings (§2).
@@ -1981,7 +1982,8 @@ a temporary folder). It clones the tag with `--no-checkout` and reads the blobs 
 no line-ending conversion, no credentials: the repository is public; `--source` takes a local clone or another URL).
 The pack is checked in memory before anything is written (`format`, a known `schema`, `version` = the tag, each
 asset's sha256 against the pack's `assets` record), so a bad tag leaves the pinned copy as it was. Its JSON and SVG
-files land byte for byte in `client/ui/theme/pack/` under a `.gdignore` (Godot imports none of it; nothing at run
+files land byte for byte in `client/ui/theme/pack/` (`-text` in `.gitattributes`: git converts no line ending)
+under a `.gdignore` (Godot imports none of it; nothing at run
 time may read it, and exports leave it out), stale ones are removed, and `client/ui/theme/pack.lock.json` records
 `{repo, tag, commit, files: {path: sha256}, deferred: {path: sha256}}`. Binaries (the card art PNGs, later a font)
 are not landed: they are listed under `deferred` with the pack's sha256 for #520, which imports them into a folder
