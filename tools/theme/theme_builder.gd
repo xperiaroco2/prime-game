@@ -83,7 +83,11 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 	if variations.is_empty():
 		problems.append("pack: no variations")
 	var members: Dictionary = _dict(mapping, "variation_members")
-	var known_members: Array = _array(members, "used") + _array(members, "ignored")
+	var known_members: Array = (
+		_array(members, "used")
+		+ _array(members, "ignored")
+		+ _array(_dict(mapping, "hints"), "members")
+	)
 	var classes: Dictionary = _dict(mapping, "classes")
 	var regex := RegEx.create_from_string(NAME_PATTERN)
 	var reserved: Array = _dict(mapping, "legacy").keys() + _dict(mapping, "keep").keys()
@@ -129,6 +133,8 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 		for key: String in textures:
 			if not _array(spec, "icons").has(key.replace("-", "_")):
 				problems.append("%s: texture %s is not an icon of %s" % [where, key, cls])
+		if not variation.has("deprecated"):
+			problems.append_array(_hint_problems(variations, variation, where))
 	var owned := tokens_by_variation(pack)
 	for name: String in owned:
 		var variation: Dictionary = _dict(variations, name)
@@ -194,7 +200,33 @@ static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> T
 			_apply_token(theme, pack, mapping, name, spec, key, text_size)
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
+	var meta := str(_dict(mapping, "hints").get("meta", ""))
+	if not meta.is_empty():
+		theme.set_meta(StringName(meta), hints(pack))
 	return theme
+
+
+## The pack's hints a theme item cannot hold, for the Toy components (#289): `bases`, the toy
+## base Panel's variation under each raised variation by context ("dark", "light" or "any"), and
+## `toggles`, each toggle's selected partner. Live variations only, in name order.
+static func hints(pack: Dictionary) -> Dictionary:
+	var bases := {}
+	var toggles := {}
+	var variations: Dictionary = _dict(pack, "variations")
+	for name in generated_names(pack):
+		var variation: Dictionary = _dict(variations, name)
+		var base: Dictionary = _dict(variation, "base")
+		if not base.is_empty():
+			var by_context := {}
+			var contexts: Array = base.keys()
+			contexts.sort()
+			for context: String in contexts:
+				by_context[context] = str(base[context])
+			bases[name] = by_context
+		var toggle: Dictionary = _dict(variation, "toggle")
+		if not toggle.is_empty():
+			toggles[name] = str(toggle.get("selected", ""))
+	return {"bases": bases, "toggles": toggles}
 
 
 ## Saves the theme at path and gives the file its fixed uid (a headless save writes none).
@@ -500,6 +532,38 @@ static func _colour(record: Dictionary) -> Color:
 	if rgba.size() != 4:
 		return Color(0, 0, 0, 0)
 	return Color(_float(rgba[0]), _float(rgba[1]), _float(rgba[2]), _float(rgba[3]))
+
+
+## A live variation's `base` must name live Panel variations by context, and its `toggle` a live
+## variation of its own class.
+static func _hint_problems(
+	variations: Dictionary, variation: Dictionary, where: String
+) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var base: Variant = variation.get("base")
+	if base != null and not base is Dictionary:
+		problems.append("%s: base is not an object" % where)
+	for context: String in _dict(variation, "base"):
+		var target := str(_dict(variation, "base")[context])
+		if not ["dark", "light", "any"].has(context):
+			problems.append("%s: base context %s is not dark, light or any" % [where, context])
+		if not _is_live(variations, target, "Panel"):
+			problems.append("%s: base %s is not a live Panel variation" % [where, target])
+	var toggle: Variant = variation.get("toggle")
+	if toggle != null and not toggle is Dictionary:
+		problems.append("%s: toggle is not an object" % where)
+	if toggle is Dictionary:
+		var selected := str((toggle as Dictionary).get("selected", ""))
+		if not _is_live(variations, selected, str(variation.get("class", ""))):
+			problems.append(
+				"%s: toggle %s is not a live variation of its class" % [where, selected]
+			)
+	return problems
+
+
+static func _is_live(variations: Dictionary, name: String, cls: String) -> bool:
+	var variation: Dictionary = _dict(variations, name)
+	return variation.get("class") == cls and not variation.has("deprecated")
 
 
 static func _number(record: Dictionary) -> int:

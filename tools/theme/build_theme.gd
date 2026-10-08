@@ -1,6 +1,7 @@
 extends SceneTree
 ## Writes the game's themes from the pinned UI pack (#288): client/ui/theme/game_theme.tres (its uid
-## kept) and game_theme_large.tres (the large-text mode), through tools/theme/mapping.json.
+## kept) and game_theme_large.tres (the large-text mode), through tools/theme/mapping.json. Each
+## theme also carries the pack's toy base and toggle hints as its metadata `toy_hints` (#289).
 ##   tools\run.cmd ui-sync ui-<version>
 ##   tools\run.cmd run tools/theme/build_theme.gd --headless
 ## It stops with an error when the pinned pack does not match its lock, when the mapping does not

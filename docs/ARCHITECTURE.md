@@ -2116,8 +2116,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   and hint under it. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
-  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25). The input actions
-  `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
+  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2474,14 +2474,14 @@ ADR's §6 check the rest.
   `expand`; the 3D view renders at the window's size), and `window_width_override` and `_height_override` keep the
   start window at 1152x648 (`shot`, `playcheck`, `host` and `join` size theirs with `--resolution`). Mouse look reads
   `screen_relative`, which the stretch does not scale.
-- Until the Toy components (#289) replace the greybox look, its sizes are those of the old 1152x648 base times 5/3,
-  rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so the screens keep
-  their apparent size: the theme's font sizes, container margins and separations and its style boxes' content margins
-  (not the corner radii); the layout widths in `client/ui/` code (the menu's fields, `UiParts`' buttons and labels,
-  `EscMenu.PAGE_SIZE`, `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset, the dev test room's
-  overlay box); and Godot's default theme, which draws the controls the greybox theme leaves alone (buttons, fields,
-  sliders, scroll bars), through `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover
-  those controls sets it back to 1.
+- Until the screen issues (#489-#498) move each screen to Toy variations, its sizes are those of the old 1152x648
+  base times 5/3, rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so
+  the screens keep their apparent size: the theme's font sizes, container margins and separations and its style
+  boxes' content margins (not the corner radii); the layout widths in `client/ui/` code (the menu's fields,
+  `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug
+  overlay's inset, the dev test room's overlay box); and Godot's default theme, which draws the controls no
+  variation styles yet (fields, spin boxes, sliders, scroll bars; the buttons are Toy ones since #289), through
+  `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover those controls sets it back to 1.
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
   start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
   `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
@@ -2499,9 +2499,9 @@ ADR's §6 check the rest.
   `height`, `min_width`, `wide_min_width`, `wide_width`, `press_duration_ms`, `press_duration_reduced_ms` from the
   reduced-motion mode, `press_trans`, `press_ease`), the health ramp to the colours `ramp_stop_00` … `ramp_stop_20`
   (ToyBarHealth), ToyMic's `icon_on` and `icon_off`, and the `empty` list to one `StyleBoxEmpty`. ToySlider's
-  `focus` StyleBox is written though Slider draws none: #289 draws that ring. Custom items are what the Toy
-  components' code reads; the mapping names which items are custom and which bound items Godot's default theme
-  leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
+  `focus` StyleBox is written though Slider draws none: `ToySlider` draws that ring (§4.7.27). Custom items are what
+  the Toy components' code reads; the mapping names which items are custom and which bound items Godot's default
+  theme leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
 - `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
   state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion stop the
   build) and builds the `Theme` in memory; each StyleBox has the sub-resource id `<Variation>_<item>`, so a
@@ -2509,9 +2509,11 @@ ADR's §6 check the rest.
   or the project's UI base is not the pack's `reference` (1920x1080, #287), which the tests also hold.
 - What it writes: type variations only, the pack's live ones (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped), no base-type item and no default font or size, so Godot's default
-  theme (scaled by #287's `gui/theme/default_theme_scale`) still draws a plain control until #289 styles the base
-  controls and sets that scale back to 1. The large-text theme is a whole theme that differs only in font sizes
-  and the keycaps' `min_width` (42, from `modes.textSize.large`): #289 swaps `GameUi`'s theme to it.
+  theme (scaled by #287's `gui/theme/default_theme_scale`) still draws a plain control. #289 styles through
+  variations only: a later issue makes the generated theme cover the base controls and sets that scale back to 1
+  (a `project.godot` hunk, so after #208 and #211). Each theme also carries the pack's `base` and `toggle` hints as
+  its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme is a whole theme that differs only in
+  font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`): `GameUi.set_large_text` swaps to it.
 - Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
   HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudHint → ToyHudCaption (not
   in the issue's list: a hint reads below HudText); HudTitle, Title, EndTitle, LifeTitle → ToyTitleOnDark;
@@ -2562,6 +2564,75 @@ languages, Ukrainian plurals for 1, 2, 5, 11 and 21 directly and through `tr_n`,
 outlives a restart, an unknown language), `user_settings_test.gd` (the language's round trip and fallback),
 `tests/integration/client/app/game_language_test.gd` (a saved choice is the locale at the start; seen failing
 without `Languages.apply`), and `tools/runner/tests/test_ui_copy.py`.
+
+#### 4.7.27 Built in #289 (M6.2), the Toy components
+The Toy look's behaviour that a theme cannot hold (prime-game-ui `ui-0.4.0`: its spec's sections 5, 6 and 19 and
+the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated theme only (no override, no
+`Color(...)`, no font size: `theme_test.gd`).
+- **Hints.** The pack's `base` (the toy base under a raised face, per screen context `dark`, `light` or `any`) and
+  `toggle` (the selected partner) are not theme items: the generator writes them into each theme's metadata
+  `toy_hints`, which `ToyHints.base_for(variation, context)` and `selected_for(variation)` read. `check_pack` stops
+  on a base that is not a live Panel variation, a context outside the three, or a partner that is not a live
+  variation of the same class. A legacy name (EscTab) has no hints, as its ToyMenuItem has none.
+- **`ToyRaised`** (a `MarginContainer`): the base `Panel` first (its variation from the hints, `mouse_filter`
+  IGNORE, hidden while there is none or while a button face is disabled), then the face. The base StyleBox draws
+  the face's shape moved down by its depth through expand margins, so layout and the hit area are the face's. The
+  wrapper takes placement, size flags, minimum size and visibility; the face keeps its variation, text and signals;
+  the base follows the face's variation on its theme change. The wrapper reserves no room for what the base's and
+  the face's StyleBoxes draw outside its rect (expand margins: ToyTitlePlate's base reaches 36 px out): the caller
+  leaves that gap, read from the theme (the showcase's `_room_for_base`).
+- **`ToyPress`** (an internal child of every Toy button): `offset_transform_enabled`, and the face's visual-only
+  `offset_transform_position:y` moves to `press_disabled` if disabled, else `press_held` while held (`button_down`
+  to `button_up`: mouse, touch and `ui_accept`) or while a toggle is on, else `press_hover` while the pointer is
+  over it, else 0. It re-evaluates on `draw`, `button_down`, `button_up`, `mouse_entered`, `mouse_exited` and
+  `toggled`, and tweens only when the target changes (`TRANS_SINE`, `EASE_OUT`, `press_duration_ms` 70, or
+  `press_duration_reduced_ms` 0 under `UiPrefs.reduced_motion`). A container's sort sets position and size, never
+  the offset transform, so a press survives a re-layout or a theme swap. A face disabled while held drops the hold
+  (Godot sends no `button_up` then and drops the release on a disabled button), so it is not sunk once enabled. A
+  raised toggle that stays on (the Esc
+  menu's Ready, a selected preset card) rests at `press_held`: #289's choice, to judge in the interactive showcase.
+- **`ToyToggle`** (an internal child): on `toggled(true)` the variation becomes the partner (ToyTab, both
+  ToyChipToggle, ToyRadio, ToyPresetCard), and back on `toggled(false)`; companions (a card's note) swap with it;
+  `sync()` after `set_pressed_no_signal`. ToyMenuItem and ToyKeyButton have no partner and draw their own pressed
+  look.
+- **`ToyBar`**: a ToyBarTrack holding a fill-only `ProgressBar` (ToyBarHealth or ToyBarStamina, no percentage). The
+  health fill's `self_modulate` is `ramp_stop_NN` of `step = clampi(floori(hp * 20 + 0.5), 0, 20)` (the downed
+  bleed-out bar too); the stamina fill keeps its colour. **`ToySlider`** draws the theme's ToySlider `focus` box over
+  itself while it has visible (keyboard or gamepad) focus, `has_focus(true)`.
+- **`UiParts`**, the one way to build them: `button()` returns the `ToyRaised` (its `face` is the Button; by default
+  ToyButtonSecondary on a dark screen; `BUTTON_SIZE`, the M4 width, on the wrapper), `raised()` (ToyPanelMenu,
+  ToyPanelDialog, ToyPanelHowto, ToyMapBoard, the ToyTitlePlate Label), `toggle()` (a flat toggle with ToyPress and
+  ToyToggle: tabs, chips, radios, menu items, keycaps), `sized()` (`width`, `height`, `min_width`, `wide_width`,
+  `wide_min_width` into `custom_minimum_size`, keeping a dimension the variation lacks, again after each theme
+  change; deferred, as during `theme_changed` `get_theme_constant` still answers from the old theme's cache,
+  observed on 4.7.2) and `scroll()` (a ToyScroll with the ToyScrollBar). Today's screens changed only where
+  `button()` now wraps: the menu, connecting and Esc buttons are Toy buttons, and the Esc menu's tabs are `toggle()`s
+  of EscTab (`tab_buttons` still maps the Buttons). The screens' own Toy layouts are #489-#498.
+- **Large text and reduced motion.** `GameUi.set_large_text(on)` gives every screen that holds the shared theme
+  `THEME_LARGE` (or back) live; a screen with its own theme keeps it, a later one gets `shared_theme()`.
+  `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
+  it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
+  read it for the connecting spinner and the fades. Neither is stored yet: Settings > Accessibility (#491) sets and
+  saves both.
+- **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
+  1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
+  `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
+  that draws the hover StyleBox (Godot cannot force a hover) plus the hover offset, held, disabled, focus drawn over
+  the face, selected and selected + hover; then a live cell. `showcase_interactive.tscn` (page chips, large text,
+  reduced motion, a live health slider) is for a human, in a window:
+  `tools\run.cmd run tools/theme/showcase_interactive.tscn --seconds 3600`. Feedback goes to the UI track as token
+  changes, never as edits in the game.
+- Tests: `tests/unit/client/ui/toy_press_test.gd` (the targets per variation from the theme; the base unplugged,
+  seen failing without its line; one tween per changed target; reduced motion; the raised toggle on; the offset
+  after a sort and a theme swap; a face disabled while held, seen failing), `ui_prefs_test.gd` (only 1 is on; a
+  bool after `reset()`), `toy_raised_test.gd`, `toy_toggle_test.gd` (every pair, a ButtonGroup, no
+  partner, a companion, `sync()`), `toy_bar_test.gd` (step(0.22) = 4, (0.8) = 16, (1.0) = 20, (0.23) = 5 against a
+  floor, the clamps; all 21 stops in both themes; the fill's colour), `toy_slider_test.gd`, `ui_parts_test.gd`
+  (the large keycap's 42 after a theme swap), `large_text_test.gd`; `theme_test.gd` also reads the builders'
+  variation names (seen failing on a planted `EscTabb`); `tests/unit/tools/theme_builder_test.gd` (the hints, three
+  planted hint problems, a changed hint seen by the stale test); `theme_showcase_test.gd` (the pages show every live
+  variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
+  large text, the page). The look: the four shots in the PR.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

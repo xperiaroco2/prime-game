@@ -45,9 +45,8 @@ func _init() -> void:
 	tabs.theme_type_variation = &"EscTabs"
 	body.add_child(tabs)
 	for tab: EscMenuState.Tab in TAB_NAMES:
-		var button := UiParts.button(TAB_NAMES[tab], press.bind(tab))
-		button.theme_type_variation = &"EscTab"
-		button.toggle_mode = true
+		var button := UiParts.toggle(TAB_NAMES[tab], press.bind(tab), &"EscTab")
+		button.custom_minimum_size = UiParts.BUTTON_SIZE
 		button.name = TAB_NAMES[tab]
 		tab_buttons[tab] = button
 		tabs.add_child(button)
