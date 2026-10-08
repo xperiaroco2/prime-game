@@ -513,6 +513,12 @@ def build_parser() -> argparse.ArgumentParser:
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")
+    scope.add_argument(
+        "--launch",
+        action="store_true",
+        help="judge no transcript: check this checkout before an issue-task or pr-rebase launch (the lean agent "
+        "files exist and pass, the scripts exist, both match origin/main after a fetch; #557)",
+    )
 
     p = sub.add_parser(
         "metrics",
@@ -850,7 +856,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "agents-check":
             from . import agents_check
 
-            return agents_check.main(session=args.session, all_sessions=args.all)
+            return agents_check.main(session=args.session, all_sessions=args.all, launch=args.launch)
         if args.command == "metrics":
             from . import metrics
 
