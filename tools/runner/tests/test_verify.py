@@ -1,14 +1,16 @@
-"""`verify`: doctor, then the Python and the Godot lane at once (#179) with the headless ENet (#45), freeze (#70),
-stall (#95), bots (#102), chaos (#188) and game (#149) runs in the Godot lane: their place, arguments and port (the game step's
-command lines: test_hostjoin.GameCheckTest); each step's output whole, the summary, the history record; and
-`selftest` in worker processes, counted against a serial discovery. Lanes here are stubs: a real lane would run
-verify inside this test run."""
+"""`verify`: doctor, then the Python, the Godot and the selftest-godot lane at once (#179, #556) with the headless ENet
+(#45), freeze (#70), stall (#95), bots (#102), chaos (#188) and game (#149) runs in the Godot lane: their place,
+arguments and port (the game step's command lines: test_hostjoin.GameCheckTest); the steps that wait for other lanes'
+steps (AFTER) and `--fail-fast` (#556); each step's output whole, the summary, the history record; and `selftest` in
+worker processes, counted against a serial discovery. Lanes here are stubs: a real lane would run verify inside this
+test run."""
 
 import ast
 import contextlib
 import io
 import json
 import os
+import re
 import socket
 import sys
 import tempfile
@@ -24,7 +26,6 @@ from runner.common import ROOT, Failure
 
 GODOT_STEPS = [
     "check",
-    "selftest-godot",
     "test",
     "enet",
     "freeze",
@@ -40,6 +41,12 @@ GODOT_STEPS = [
     "chaos-webrtc",
     "game",
 ]
+# The Godot lane's network runs: they start only after every other Godot run has ended (AFTER, #556).
+NETWORK_STEPS = GODOT_STEPS[GODOT_STEPS.index("test") + 1 :]
+
+
+def no_wait(_needed: tuple[str, ...]) -> None:
+    """lane_main's wait in this process: its stdin is no parent's Gate."""
 
 
 def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib.ExitStack:
@@ -93,7 +100,7 @@ def inline_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
     """A lane in this process: lane_main's printed output through the LaneReader, as run_lane_process reads it."""
     with _INLINE:  # one lane at a time: redirect_stdout swaps sys.stdout for every thread
         with contextlib.redirect_stdout(io.StringIO()) as out:
-            verify.lane_main(lane)
+            verify.lane_main(lane, wait=no_wait)
         reader = verify.LaneReader(lane, names, emit)
         for line in out.getvalue().splitlines(keepends=True):
             reader.feed(line)
@@ -129,6 +136,7 @@ class Verify:
         status: object = None,
         counted: tuple[list[str], str] = ([], "runner tests: 2 run and 0 skipped of 2; a serial run: 2 run of 2"),
         pool: slots.Pool | None = None,
+        fail_fast: bool = False,
     ) -> tuple[int, str, dict[str, object]]:
         out = io.StringIO()
         with (
@@ -137,7 +145,7 @@ class Verify:
             mock.patch.object(verify, "git_status", side_effect=status if status is not None else [set(), set()]),
             mock.patch.object(
                 verify, "count_after_lanes", return_value=(*counted, {"run": 2, "skipped": 0})
-            ),
+            ) as self.count,
             mock.patch.object(
                 verify, "git_facts", return_value={"branch": "b", "head": "h", "tree": "t", "runner": "r"}
             ),
@@ -145,7 +153,7 @@ class Verify:
             mock.patch.dict(os.environ),
             contextlib.redirect_stdout(out),
         ):
-            rc = verify.main(run_lane=run_lane)
+            rc = verify.main(run_lane=run_lane, fail_fast=fail_fast)
         lines = self.history.read_text(encoding="utf-8").splitlines()
         self.test.assertEqual(len(lines), 1, lines)
         return rc, out.getvalue(), json.loads(lines[0])
@@ -157,19 +165,40 @@ def summary_rows(text: str) -> list[tuple[str, str]]:
 
 
 class LaneTest(unittest.TestCase):
-    def test_every_step_has_one_lane_and_the_godot_steps_stay_serial_in_one(self) -> None:
+    def test_every_step_has_one_lane_and_the_network_runs_stay_serial_in_one(self) -> None:
         self.assertEqual(verify.LANES["python"], ("lint", "signal", "selftest"))
         self.assertEqual(list(verify.LANES["godot"]), GODOT_STEPS)
+        self.assertEqual(verify.LANES["selftest-godot"], ("selftest-godot",))
         in_lanes = [name for names in verify.LANES.values() for name in names]
         self.assertEqual(sorted(["doctor", *in_lanes]), sorted(verify.STEP_ORDER))
         self.assertEqual(set(verify.steps()), set(verify.STEP_ORDER))
 
-    def test_each_lane_runs_its_steps_in_order(self) -> None:
+    def test_no_other_godot_run_overlaps_a_network_run(self) -> None:
+        # #556: the runner tests that start Godot run beside `test`, after `check`'s import; the first network run
+        # waits for them, and every network run follows it in the one Godot lane, after check and test.
+        self.assertEqual(verify.AFTER["selftest-godot"], ("check",))
+        self.assertEqual(verify.AFTER[NETWORK_STEPS[0]], ("selftest-godot",))
+        self.assertEqual(set(verify.AFTER), {"selftest-godot", NETWORK_STEPS[0]})
+        godot = verify.LANES["godot"]
+        self.assertEqual(godot[: godot.index(NETWORK_STEPS[0])], ("check", "test"))
+        lane_of = {name: lane for lane, names in verify.LANES.items() for name in names}
+        for step, needed in verify.AFTER.items():
+            for name in needed:
+                self.assertNotEqual(lane_of[name], lane_of[step], "a step of its own lane has ended anyway")
+
+    def test_each_lane_runs_its_steps_in_order_each_after_its_steps_of_other_lanes(self) -> None:
         for lane, names in verify.LANES.items():
             ran: list[str] = []
+
+            def wait(needed: tuple[str, ...]) -> None:
+                ran.append(f"wait {','.join(needed)}")
+
             with self.subTest(lane=lane), stub_steps(ran), contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(verify.lane_main(lane), 0)
-            self.assertEqual(ran, list(names))
+                self.assertEqual(verify.lane_main(lane, wait=wait), 0)
+            expected = []
+            for name in names:
+                expected += [f"wait {','.join(verify.AFTER.get(name, ()))}", name]
+            self.assertEqual(ran, expected)
             marks = [
                 json.loads(line[len(verify.MARK) :])
                 for line in out.getvalue().splitlines()
@@ -178,7 +207,7 @@ class LaneTest(unittest.TestCase):
             self.assertEqual([m["step"] for m in marks], list(names))
 
     def test_the_lanes_run_at_once(self) -> None:
-        started = threading.Barrier(2, timeout=10)
+        started = threading.Barrier(len(verify.LANES), timeout=10)
 
         def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
             started.wait()  # breaks after 10 s unless the other lane runs at the same time
@@ -188,7 +217,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_a_failed_step_of_either_lane_fails_verify_and_the_others_still_run(self) -> None:
-        for failing in ("lint", "signal", "selftest", *GODOT_STEPS):
+        for failing in ("lint", "signal", "selftest", "selftest-godot", *GODOT_STEPS):
             ran: list[str] = []
             with self.subTest(failing=failing), stub_steps(ran, failing):
                 rc, text, record = Verify(self).run(inline_lane)
@@ -212,10 +241,13 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual([name for _status, name in summary_rows(text)], list(verify.STEP_ORDER))
         lanes = next(line for line in text.splitlines() if line.strip().startswith("lanes:"))
-        self.assertRegex(lanes, r"lanes: python [\d.]+s, godot [\d.]+s; \d+ CPUs, selftest on \d+ worker processes")
+        self.assertRegex(
+            lanes,
+            r"lanes: python [\d.]+s, godot [\d.]+s, selftest-godot [\d.]+s; \d+ CPUs, selftest on \d+ worker processes",
+        )
         self.assertIn("runner tests: 2 run and 0 skipped of 2", text)
         self.assertRegex(text.splitlines()[-1], r"^verify: passed in [\d.]+s$")
-        self.assertEqual(set(record["lanes"]), {"python", "godot"})  # type: ignore[arg-type]
+        self.assertEqual(list(record["lanes"]), list(verify.LANES))  # type: ignore[arg-type]
 
     def test_each_steps_output_is_printed_whole(self) -> None:
         delays = {name: 0.01 for name in verify.STEP_ORDER}
@@ -239,7 +271,7 @@ class LaneTest(unittest.TestCase):
 
         calls: list[list[str]] = []
         rc, text, record = Verify(self).run(run_lane, status=status)
-        self.assertEqual(calls, [[], ["godot", "python"]])
+        self.assertEqual(calls, [[], sorted(verify.LANES)])
         self.assertEqual(rc, 1)
         self.assertIn(("FAILED", "clean"), summary_rows(text))
         self.assertIsNotNone(record)
@@ -283,9 +315,10 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(
             set(record),
             {"start", "worktree", "branch", "head", "tree", "runner", "status", "seconds", "steps", "lanes", "cpus",
-             "workers", "selftest", "slot"},  # fmt: skip
+             "workers", "selftest", "slot", "stopped"},  # fmt: skip
         )
         self.assertIsNone(record["slot"])  # no slot pool: CI, or a verify inside a verify
+        self.assertIsNone(record["stopped"])  # every step ran
         self.assertRegex(str(record["start"]), r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertEqual(record["worktree"], ROOT.as_posix())
         self.assertEqual((record["branch"], record["tree"], record["runner"]), ("b", "t", "r"))
@@ -316,7 +349,7 @@ class LaneTest(unittest.TestCase):
             mock.patch.object(verify, "enet", side_effect=RuntimeError("bug")),
             contextlib.redirect_stdout(io.StringIO()) as out,
         ):
-            verify.lane_main("godot")
+            verify.lane_main("godot", wait=no_wait)
         marks = {
             m["step"]: m["rc"]
             for m in (
@@ -379,7 +412,7 @@ class HistoryDetailTest(unittest.TestCase):
             mock.patch.object(verify.gdunit, "take_last_run", return_value={"shards": []}) as taken,
             contextlib.redirect_stdout(io.StringIO()) as out,
         ):
-            verify.lane_main("godot")
+            verify.lane_main("godot", wait=no_wait)
         marks = [json.loads(line[len(verify.MARK) :]) for line in out.getvalue().splitlines()
                  if line.startswith(verify.MARK)]  # fmt: skip
         # `check` carries its `exit_crash` flag (#449), `test` its shards; no other step has a detail
@@ -518,7 +551,7 @@ class SlotTest(unittest.TestCase):
             fake_lane()(lane, names, emit)
 
         rc, text, record = Verify(self).run(run_lane, pool=self.pool())
-        self.assertEqual((rc, held), (0, [True, True]))
+        self.assertEqual((rc, held), (0, [True] * len(verify.LANES)))
         self.assertEqual(record["slot"], {"slot": 1, "of": 1, "waited": 0.0, "over": False, "reclaimed": 0})
         self.assertIn("  slot: 1 of 1, waited 0.0s for a verify slot", text.splitlines())
         end = r"^verify: passed in [\d.]+s \(after [\d.]+s waiting for a verify slot\)$"
@@ -645,6 +678,188 @@ class LaneProcessTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {verify.INSIDE_VAR: "1"}), self.assertRaises(Failure) as caught:
             verify.run_lane_process("python", ("lint",), lambda _step: None)
         self.assertIn("no verify lanes inside", str(caught.exception))
+
+
+def stoppable_lane(statuses: dict[str, str] | None = None, delays: dict[str, float] | None = None) -> verify.RunLane:
+    """fake_lane that reports nothing more once verify --fail-fast has stopped the lanes, as a killed lane process."""
+
+    def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+        for name in names:
+            time.sleep((delays or {}).get(name, 0.0))
+            if verify._STOP.is_set():
+                return
+            emit(verify.StepRun(name, lane, (statuses or {}).get(name, "passed"), 1.0, f"{name} out\n"))
+
+    return run_lane
+
+
+def summary_statuses(text: str) -> dict[str, str]:
+    """Each summary row's step and status, `not run` included."""
+    rows = text[text.rindex("verify summary") :].splitlines()[1:]
+    found = {}
+    for row in rows:
+        m = re.match(r"^  (passed|FAILED|not run) +(\S+(?: tree)?) +[\d.]+s", row)
+        if m:
+            found[m.group(2)] = m.group(1)
+    return found
+
+
+class AfterTest(unittest.TestCase):
+    """AFTER (#556): a lane process starts such a step once the parent has told it that its steps ended."""
+
+    def test_wait_for_steps_reads_step_names_until_every_needed_one_ended(self) -> None:
+        with mock.patch.object(verify, "_ENDED", set()):
+            stream = io.StringIO("lint\ncheck\nlater\n")
+            verify.wait_for_steps(("check",), stream)
+            self.assertEqual(stream.readline(), "later\n", "it reads no further than it needs")
+            verify.wait_for_steps(("lint",), io.StringIO(""))  # told before: nothing to read
+            verify.wait_for_steps((), io.StringIO(""))
+            verify.wait_for_steps(("game",), io.StringIO(""))  # the end of stdin: no parent to wait for
+            self.assertEqual(verify._ENDED, {"lint", "check"})
+
+    def test_the_gate_tells_each_lane_every_ended_step_once_the_earlier_ones_first(self) -> None:
+        gate = verify.Gate()
+        first, second, ended = io.BytesIO(), io.BytesIO(), io.BytesIO()
+        gate.attach(first)
+        gate.end("check")
+        gate.end("check")
+        gate.attach(second)
+        gate.end("test")
+        ended.close()  # a lane process that has ended: nothing to tell, and no error
+        gate.attach(ended)
+        gate.end("enet")
+        gate.detach(first)
+        gate.end("game")
+        self.assertEqual(first.getvalue(), b"check\ntest\nenet\n")
+        self.assertEqual(second.getvalue(), b"check\ntest\nenet\ngame\n")
+
+    def test_a_step_starts_only_after_the_step_it_waits_for_ended_in_another_lane(self) -> None:
+        # A real lane process running lane_main: its step `two` waits for lane a's `one`, told over its stdin.
+        tools = str(ROOT / "tools")
+        code = (
+            f"import sys, time; sys.path.insert(0, {tools!r}); sys.dont_write_bytecode = True; "
+            "from runner import verify; verify.LANES = {'b': ('two',)}; verify.AFTER = {'two': ('one',)}; "
+            "verify.steps = lambda: {'two': lambda: (print('two at', time.time()), 0)[1]}; "
+            "sys.exit(verify.lane_main('b'))"
+        )
+        ended: list[float] = []
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "a":
+                time.sleep(1.5)
+                ended.append(time.time())
+                emit(verify.StepRun("one", lane, "passed", 1.5))
+            else:
+                verify.run_lane_process(lane, names, emit, cmd=[sys.executable, "-u", "-c", code], timeout=60)
+
+        steps: list[verify.StepRun] = []
+        with mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}):
+            verify.run_lanes(run_lane, steps.append)
+        two = next(step for step in steps if step.name == "two")
+        self.assertEqual(two.status, "passed", two.output)
+        started = re.search(r"two at ([\d.]+)", two.output)
+        assert started is not None, two.output
+        self.assertGreaterEqual(float(started.group(1)), ended[0])
+
+    def test_a_lane_that_crashes_still_tells_its_steps_as_ended(self) -> None:
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "a":
+                raise OSError("no such file")
+            emit(verify.StepRun("two", lane, "passed", 1.0))
+
+        with mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}), mock.patch.object(verify, "bad"):
+            verify.run_lanes(run_lane, lambda _step: None)
+        self.assertEqual(sorted(verify._GATE.ended), ["one", "two"])
+
+
+class FailFastTest(unittest.TestCase):
+    """verify --fail-fast (#556): the first red step stops every lane; the rest is not run, never a pass."""
+
+    def tearDown(self) -> None:
+        verify._STOP.clear()
+
+    def test_the_first_red_step_stops_every_lane_and_the_rest_is_not_run(self) -> None:
+        delays = {name: 0.5 for name in verify.STEP_ORDER} | {"lint": 0.0}
+        rc, text, record = Verify(self).run(stoppable_lane({"lint": "FAILED"}, delays), fail_fast=True)
+        self.assertEqual(rc, 1)
+        rest = [name for name in verify.STEP_ORDER if name not in ("doctor", "lint")]
+        statuses = summary_statuses(text)
+        self.assertEqual(statuses, {"doctor": "passed", "lint": "FAILED"} | {name: "not run" for name in rest})
+        self.assertEqual(list(statuses), list(verify.STEP_ORDER), "the summary keeps every step, in order")
+        self.assertIn(f"  stopped early (--fail-fast): lint was red; {len(rest)} steps not run: {', '.join(rest)}", text)
+        self.assertRegex(text.splitlines()[-1], r"^verify: FAILED in [\d.]+s, stopped early at lint \(--fail-fast\)$")
+        self.assertNotIn("== signal", text, "a step that never ran prints no block")
+        self.assertEqual(record["status"], "FAILED")
+        self.assertEqual(record["stopped"], {"at": "lint", "not_run": rest})
+        steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
+        self.assertEqual({name: steps[name]["status"] for name in rest}, {name: "not run" for name in rest})
+        self.assertNotIn("failure", steps["selftest"])
+        self.assertEqual(record["selftest"], {}, "no count of a partial selftest")
+
+    def test_no_count_check_after_a_stop(self) -> None:
+        run = Verify(self)
+        run.run(stoppable_lane({"check": "FAILED"}, {name: 0.5 for name in verify.STEP_ORDER} | {"check": 0.0}),
+                fail_fast=True)  # fmt: skip
+        run.count.assert_not_called()
+
+    def test_a_red_step_reported_after_the_stop_is_not_run_and_a_passed_one_stays_passed(self) -> None:
+        # A killed lane's step may still report (its process ended under it) while the stop goes on: not a red of
+        # its own. A step that passed before the stop reached its lane did pass.
+        stopped = threading.Event()
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "python":
+                emit(verify.StepRun("lint", lane, "FAILED", 1.0, "  FAIL  lint\n"))
+                stopped.set()
+            elif lane == "godot":
+                stopped.wait(10)
+                emit(verify.StepRun("check", lane, "passed", 1.0))
+                emit(verify.StepRun("test", lane, "FAILED", 0.0, "the godot lane ended before test did\n"))
+
+        rc, text, record = Verify(self).run(run_lane, fail_fast=True)
+        self.assertEqual(rc, 1)
+        statuses = summary_statuses(text)
+        self.assertEqual((statuses["lint"], statuses["check"], statuses["test"]), ("FAILED", "passed", "not run"))
+        self.assertNotIn("the godot lane ended before test did", text)
+        self.assertEqual(record["stopped"]["at"], "lint")  # type: ignore[index]
+        self.assertNotIn("check", record["stopped"]["not_run"])  # type: ignore[index]
+
+    def test_without_the_flag_a_red_step_stops_nothing(self) -> None:
+        delays = {name: 0.05 for name in verify.STEP_ORDER} | {"lint": 0.0}
+        rc, text, record = Verify(self).run(stoppable_lane({"lint": "FAILED"}, delays))
+        self.assertEqual(rc, 1)
+        self.assertEqual([n for n, status in summary_statuses(text).items() if status != "passed"], ["lint"])
+        self.assertIsNone(record["stopped"])
+
+    def test_stop_lanes_ends_a_running_lane_process_and_one_that_starts_after_it(self) -> None:
+        sleeper = [sys.executable, "-c", "import time; print('started', flush=True); time.sleep(60)"]
+        steps: list[verify.StepRun] = []
+        timer = threading.Timer(1.0, verify.stop_lanes)
+        timer.start()
+        started = time.monotonic()
+        verify.run_lane_process("python", ("lint",), steps.append, cmd=sleeper, timeout=60)
+        timer.join()
+        self.assertLess(time.monotonic() - started, 30)
+        late: list[verify.StepRun] = []
+        started = time.monotonic()
+        verify.run_lane_process("godot", ("check",), late.append, cmd=sleeper, timeout=60)  # _STOP is still set
+        self.assertLess(time.monotonic() - started, 30)
+        # Unended: the lane reader fails them, and verify --fail-fast's emit reports them as not run.
+        self.assertEqual([(s.name, s.status) for s in steps + late], [("lint", "FAILED"), ("check", "FAILED")])
+
+    def test_the_flag_reaches_verify_and_is_off_by_default(self) -> None:
+        with mock.patch.object(verify, "main", return_value=0) as run:
+            self.assertEqual(cli.main(["verify"]), 0)
+            self.assertEqual(cli.main(["verify", "--fail-fast"]), 0)
+        self.assertEqual(run.call_args_list, [mock.call(fail_fast=False), mock.call(fail_fast=True)])
+
+    def test_metrics_reads_a_stopped_summary_without_its_not_run_rows(self) -> None:
+        delays = {name: 0.5 for name in verify.STEP_ORDER} | {"lint": 0.0}
+        _rc, text, _record = Verify(self).run(stoppable_lane({"lint": "FAILED"}, delays), fail_fast=True)
+        parsed = metrics.parse_verify(text)
+        assert parsed is not None
+        self.assertEqual(parsed["steps"], {"doctor": ("passed", parsed["steps"]["doctor"][1]), "lint": ("FAILED", 1.0)})
+        self.assertEqual((parsed["status"], parsed["stopped"]), ("FAILED", True))
 
 
 FIXTURE = '''
