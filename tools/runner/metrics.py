@@ -70,8 +70,9 @@ Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the count
 the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
 background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
 Python) and the shell's own spawn; a foreground shell call adds its command's run; Read, Grep and Glob run no hook and
-start no shell (the baseline); Edit and Write run the gd-edit PostToolUse hook before their output; a `wait` call that ran to its deadline minus its own clock ("still running after N s") is
-its start-up and its end. Compare windows before and after a change of the hook or of verify's load.
+start no shell (the baseline); Edit and Write run the gd-edit PostToolUse hook before their output; a `wait` call
+is in no shell class (its deadline would dwarf theirs): one that ran to its deadline, minus its own clock ("still
+running after N s"), is its start-up and its end. Compare windows before and after a change of the hook or of verify's load.
 
 Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
 (`gh pr checks --watch`, `gh run watch`), and the agent's next API call. Per API call that made one (its longest, with a
@@ -1155,7 +1156,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
 
 
 def latency_class(call: dict) -> str | None:
-    """A tool call's key in LATENCY_CLASSES (#568), None for a call of any other tool."""
+    """A tool call's key in LATENCY_CLASSES (#568), None for a call of any other tool and for a `wait` call, whose
+    deadline would dwarf the foreground shell calls' times (the "wait" class counts it, minus wait's own clock)."""
+    if call["kind"] == "wait":
+        return None
     if call["name"] in ("Bash", "PowerShell"):
         return "shell-background" if call["background"] else "shell"
     if call["name"] in READ_TOOLS:

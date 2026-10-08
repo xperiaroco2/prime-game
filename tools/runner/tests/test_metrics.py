@@ -704,7 +704,8 @@ class BoundedWaitTest(unittest.TestCase):
         self.assertEqual(metrics.bounded_wait_section(record), [])
 
     def test_tool_call_start_up_per_class(self) -> None:
-        """#568: from a tool call's tool_use line to its tool_result line, per class; a Monitor is in none."""
+        """#568: from a tool call's tool_use line to its tool_result line, per class; a Monitor is in none, a `wait`
+        call only in its own."""
         folder = Path(self.tmp.name) / "projects" / "E--prime-game"
         background = {"id": "g-1", "name": "Bash", "input": {"command": "tools/run.sh verify", "run_in_background": True}}
         Fixture.run(folder / SESSION / "subagents" / "workflows" / "wf_l", [
@@ -731,11 +732,11 @@ class BoundedWaitTest(unittest.TestCase):
         latency = record["tool_latency"]
         self.assertEqual(list(latency), [key for key, _name in metrics.LATENCY_CLASSES])
         rounded = {k: (v["calls"], round(v["median_s"], 1), round(v["p95_s"], 1)) for k, v in latency.items()}
-        self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (3, 60.0, 246.0), "read": (1, 3.0, 3.0),
+        self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (2, 33.0, 60.0), "read": (1, 3.0, 3.0),
                                    "edit": (1, 2.0, 2.0), "wait": (1, 6.0, 6.0)})
         self.assertIn("Tool-call start-up (#568), from a call's start to its output: shell calls started in the "
                       "background (start-up only): 1 calls, 3.0 s median, 3.0 s p95; foreground shell calls (start-up "
-                      "and the command's run): 3 calls, 60.0 s median, 246.0 s p95; Read, Grep and Glob (no hook): 1 "
+                      "and the command's run): 2 calls, 33.0 s median, 60.0 s p95; Read, Grep and Glob (no hook): 1 "
                       "calls, 3.0 s median, 3.0 s p95; Edit and Write (with the gd-edit hook): 1 calls, 2.0 s median, "
                       "2.0 s p95; `wait` calls stopped by their deadline, minus wait's own clock: "
                       "1 calls, 6.0 s median, 6.0 s p95.", "\n".join(md))  # fmt: skip
