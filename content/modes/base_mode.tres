@@ -313,6 +313,9 @@ script = ExtResource("32_silent")
 script = ExtResource("5_phase")
 id = &"end"
 phase_class = ExtResource("13_end")
+settings = Dictionary[StringName, float]({
+&"seconds": 3.0
+})
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_end_return")])
 voice_rule = SubResource("Voice_end")
 level = 2

@@ -41,8 +41,11 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	_check_ticks(game, 1, seen)
 	game.state.set_counter(0, &"crew_win", 0)
 	assert_str(game.phase_id()).is_equal("end")
-	_check_ticks(game, 3, seen)
-	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	# End routes nobody on every tick of its 3 s, until it returns everyone by itself (#212; the
+	# silent post game of #213 relies on it).
+	_check_ticks(game, 3 * Ticks.RATE - 1, seen)
+	assert_str(game.phase_id()).is_equal("end")
+	_check_ticks(game, 1, seen)
 	assert_str(game.phase_id()).is_equal("lobby")
 	_check_ticks(game, 3, seen)
 	# Every phase was checked, and the phases with voice routed some pair.

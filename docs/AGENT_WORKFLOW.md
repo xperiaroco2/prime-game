@@ -1626,8 +1626,8 @@ driver when every core is busy, #354; the bots after 10 s). Under a full-PC load
 are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
 debugging it. Desktop only: CI and `verify` never run it; an agent
 may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
-up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
-second round, #276).
+up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, the end screen's countdown
+and the return to the lobby with no button, #212, and a second round, #276).
 
 ### 11.14 Warnings [applied]
 `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,

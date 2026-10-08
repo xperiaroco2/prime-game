@@ -98,7 +98,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   downed (32). Bit 8 was the ghosts' and is never reused; a mode still written for ghosts would silently refuse the
   downed's claims, so the mode check refuses a sender bit that names nobody. The dead send no intents as players:
   `Match` accepts none from them under PLAYER, LIVING or DOWNED (M4-2), so an intent in flight at a death reaches no
-  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby` on the end screen,
+  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby`, the shortcut out of End,
   where whoever died in the round is dead until `ResetMatch`), never for a player's action (`MoveClaim`, `PickUp`,
   `PutDown`, `Use`: `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
 
@@ -113,7 +113,7 @@ hello deadline.
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
-| End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
+| End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
 |---|---|---|---|
@@ -123,7 +123,7 @@ hello deadline.
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
-| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
+| End | `back`: the end tick is reached, with no intent (#212: everyone returns after 3 s; no button), or the host's `ReturnToLobby` before it | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
 
 The lobby shows why `all_ready` cannot fire (for example more packages than spawn points): every `SettingsChanged`
 carries the demands against the map's markers and each shortfall (`FitCheck`, 2b). The host leaving ends the
@@ -572,7 +572,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
-| `ReturnToLobby()` | the host only; End | |
+| `ReturnToLobby()` | the host only; End | none: End reports `back` at once, before its end tick; since #212 no screen sends it (the tests and the bots' `ReturnToLobby` step do) |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
@@ -1497,7 +1497,8 @@ sections named:
    a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
    item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
    field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
-   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold, read after the last call in the round or End: End's
+   return to the lobby 3 s later, which a slow network run outlasts, resets every role, #212);
 2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
    (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
 3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
@@ -1751,7 +1752,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
-| End | end screen: black, "The <side's display name> won"; the host's Back to lobby | the map, not drawn | frozen |
+| End | end screen: black, "The <side's display name> won"; "Back to the lobby in 3" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | main menu with the reason in words | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
@@ -1772,8 +1773,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
-- **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
-  (§3.2: no names, no roles).
+- **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and the seconds left
+  until End's `end_tick` (`EndScreen.countdown_text`, hidden when End has none), and nothing else (§3.2: no names, no
+  roles, no button since #212: End returns everyone by itself).
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
   `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
@@ -1781,8 +1783,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
-  when they show (no click first; also after Back to lobby), Loading keeps it as it was, and the menu, Connecting
-  and the end screen free it for their buttons. A screen never captures it from under the Esc menu, nor while the
+  when they show (no click first; also after End's return), Loading keeps it as it was, and the menu, Connecting
+  and the end screen free it (the first two for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
   menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
@@ -1848,7 +1850,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   each in a `SubViewport` with its own `World3D` as `net_pair.gd`'s are (in one physics space each player stood
   inside the body another game drew of it and was pushed off its spot, #225 and #238), over a `LoopbackHub` on a
   simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the round (which holds the
-  players still for half a second), time up, the end screen and back, a client's Leave and the host's close (about
+  players still for half a second), time up, the end screen and back with no intent after 3 s (#212), a client's Leave and the host's close (about
   5 s), and the same loop with no `Game._process` from the lobby on (#241, above).
   The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
@@ -2446,8 +2448,9 @@ one visible, enabled button or its failure; `aim` as an action step, the nearest
 turn that makes a real `PlayerController` face a target). The scenarios `esc_menu` (#169), `spectate` (#168),
 `items` and `end` (#276) are its own checks, run on a desktop; since #275 they assert the Esc tabs, the lobby
 roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
-and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner and its
-host-only Back to lobby, the lobby's cleared ready flags after End and a second round.
+and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner, its
+countdown (`end.countdown`) and the return with no button press, the lobby's
+cleared ready flags after End and a second round.
 
 #### 4.7.23 Tests
 The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
@@ -3849,7 +3852,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
-| `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
+| `End` | phase class | `back` on its end tick, `seconds` after entry, or earlier on `ReturnToLobby` from the host; with no `seconds` it has no end tick and waits for `ReturnToLobby`, which no screen offers (a dead end for the host: a mode sets `seconds`); a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | `seconds` (0 to 60; absent: no end tick) | `PlayerLeft` (everyone); `DisconnectPeer` (server); its end tick goes out in `PhaseChanged` | 2b (#58); the end tick #212 |
 | `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | 2i (#65, `SilentVoice`); the radius M5-1 (#215) |
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6.3, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
 | `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137); the radius M5-1 (#215) |
@@ -3909,7 +3912,7 @@ Settings:
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise`,
   `StopRaise` and `Swap` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
-  `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End
+  `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
@@ -3935,9 +3938,10 @@ scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`,
 greybox of §9.6.
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
 `Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
-match from this data to the end and back to the lobby, twice, and a round
-with 0 dissidents set in its lobby.
-Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
+match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
+on any of its ticks, #212), and a round with 0 dissidents set in its lobby.
+Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd` (End silent on every tick until its return).
+End's end tick: `tests/unit/match/phases/end_phase_test.gd`.
 
 #### 9.5.2 Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
@@ -4235,7 +4239,7 @@ told. One format runs in two runners.
 | `LoadAck(skip)` | answers the next `LoadMatch`: with `skip`, never, so the loading deadline drops it | the ack is sent, or skipped |
 | `Ready(ready)` | sends `SetReady` | its `ReadyChanged` arrives |
 | `Setting(id, value)` | (the host's bot) sends `ChangeSettings` | `SettingsChanged` arrives |
-| `ReturnToLobby` | (the host's bot) sends `ReturnToLobby` | `PhaseChanged` to the lobby arrives |
+| `ReturnToLobby` | (the host's bot) sends `ReturnToLobby`, the shortcut: End returns everyone by itself after 3 s (#212), which `WaitFor(PhaseChanged, lobby)` waits for | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
 | `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (at the crawl speed with no sprint while downed, M4-2; a dead bot cannot walk and fails the step), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
@@ -4337,7 +4341,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `tools/run.sh bots crew_revives_the_downed --instances 3`, not a `verify` step), `raise_stopped_then_given_up`
   (M4-4: a raise let go after 1 s, a second raise, the downed bot gives up during it (`RaiseStopped`, `Died`), a late
   `StopRaise` gets `not_channeling`, and the bot respawns 30 s later; time up on a 55 s clock),
-  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
+  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina; End's
+  return to the lobby with no intent, #212),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).

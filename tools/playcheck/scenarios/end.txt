@@ -1,9 +1,10 @@
 # The end of a match and the next one (#276) in the game's real windows. Window 1 hosts and is
 # forced to be the dissident; the match clock is forced to 20 s, and the time_up rule gives the
-# dissidents the win when it ends with a task left. Both windows see the end screen; only the host
-# has Back to lobby (its button, pressed with keys). In the lobby again nobody is ready
-# (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced clock
-# is session state, so the second round ends after 20 s too: its shots come well before that.
+# dissidents the win when it ends with a task left. Both windows see the end screen count down,
+# with no button, and End's own seconds later everyone is back in the lobby by itself (#212): the
+# shots of the end screen come right after its texts, before that. In the lobby again nobody is
+# ready (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced
+# clock is session state, so the second round ends after 20 s too: its shots come well before that.
 # lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show.
 # The text waits read short parts of the greybox wording (#150), never whole sentences.
 players 2
@@ -21,10 +22,9 @@ shot round_clock
 wait screen end timeout=60
 wait phase end
 wait text end.winner is The Dissidents won
-wait shown end.back on
-wait pointer free
+wait text end.countdown has lobby in
 shot end_host
-button Back to lobby
+wait pointer free
 wait screen lobby timeout=30
 wait ready off
 wait ready 2 off
@@ -42,7 +42,7 @@ press ready
 wait screen round timeout=60
 wait screen end timeout=60
 wait text end.winner is The Dissidents won
-wait shown end.back off
+wait text end.countdown has lobby in
 shot end_guest
 wait screen lobby timeout=60
 wait ready off

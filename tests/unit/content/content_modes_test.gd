@@ -7,7 +7,8 @@ extends GdUnitTestSuite
 ## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
 ## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
 ## rules (2i); its win conditions in order, StartClock ending the deal's row, EndMatch on
-## `Round, won -> End`, and a whole match from the lobby to the end and back, twice (2h). One of
+## `Round, won -> End`, and a whole match from the lobby to the end and back, twice (2h), the
+## second time with no intent: the End's 3 s in silence (#212). One of
 ## the two tests that load `content/` (§9.6).
 
 const MODES_DIR := "res://content/modes/"
@@ -133,6 +134,7 @@ func test_the_base_mode_writes_its_numbers() -> void:
 	assert_int(mode.min_players).is_equal(1)
 	assert_int(mode.max_players).is_equal(10)
 	assert_float(mode.find_phase(&"countdown").settings[&"seconds"]).is_equal(5.0)
+	assert_float(mode.find_phase(&"end").settings[&"seconds"]).is_equal(3.0)
 	assert_float(mode.find_phase(&"loading").settings[&"deadline_seconds"]).is_equal(60.0)
 	var defaults := GameMode.new()
 	assert_int(defaults.min_players).is_equal(0)
@@ -541,8 +543,7 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(2)
 		assert_dict(ended[1].to_dict()).is_equal({"side": &"dissidents"})
-	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
-	assert_str(game.phase_id()).is_equal("lobby")
+	_end_in_silence_then_lobby(game, peers)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
@@ -570,6 +571,30 @@ func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() ->
 		assert_int(ended.size()).is_equal(1)
 		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
 	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## With no intent the End's 3 s pass, nobody heard on any of its ticks (#213 relies on it), and on
+## its announced end tick everyone is back in the lobby (#212).
+func _end_in_silence_then_lobby(game: Match, peers: Array[int]) -> void:
+	assert_str(game.phase_id()).is_equal("end")
+	var ends_on := game.current_phase().entered_tick + 3 * Ticks.RATE
+	for peer: int in peers:
+		var changed := game.view_of(peer).events_named(&"PhaseChanged")[-1] as PhaseChangedEvent
+		assert_dict(changed.to_dict()).is_equal({"phase": &"end", "end_tick": ends_on})
+	while game.phase_id() == &"end":
+		FixtureModes.run_ticks(game, 1)
+		if game.phase_id() != &"end":
+			break
+		for peer: int in peers:
+			var heard := Array(game.view_of(peer).speakers[game.ticked_through()])
+			(
+				assert_array(heard)
+				. override_failure_message("tick %d" % game.ticked_through())
+				. is_empty()
+			)
+	assert_int(game.ticked_through()).is_equal(ends_on)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_str(game.state.winner).is_empty()
 
 
 ## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.

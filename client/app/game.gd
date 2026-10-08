@@ -119,7 +119,6 @@ func _ready() -> void:
 	ui.connecting.cancel_requested.connect(leave)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
-	ui.end.back_requested.connect(return_to_lobby)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
@@ -257,7 +256,8 @@ func change_setting(id: StringName, value: Variant) -> void:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
 
 
-## The host's Back to lobby on the end screen.
+## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it
+## since #212 (End returns by itself); the tests use it.
 func return_to_lobby() -> void:
 	if _client != null:
 		_client.send_intent(Intents.RETURN_TO_LOBBY)

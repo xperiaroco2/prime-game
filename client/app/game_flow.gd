@@ -18,7 +18,7 @@ enum Screen {
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded
 	ROUND,  ## the round (M4-8's HUD)
-	END,  ## "The <side> won"; the host's Back to lobby
+	END,  ## "The <side> won"; "Back to the lobby in 3" (#212)
 }
 
 ## What showing a screen asks of the mouse (#169, #517).
@@ -65,8 +65,8 @@ static func frozen(screen_now: Screen) -> bool:
 ## What showing `screen_now` does to the mouse. In the lobby and the round the player looks around:
 ## the screen captures the mouse, Esc's menu frees it and closing the menu captures it again (#169).
 ## Loading, between the countdown and the round, keeps it as it was: freeing it there left the
-## round with the cursor showing until a click (#517). Every other screen has buttons (the menu,
-## Connecting's Cancel, the end screen's Back to lobby) and frees it.
+## round with the cursor showing until a click (#517). Every other screen frees it: the menu and
+## Connecting's Cancel are buttons, and the end screen (no button since #212) only counts down.
 static func pointer_on(screen_now: Screen) -> Pointer:
 	match screen_now:
 		Screen.LOBBY, Screen.ROUND:

@@ -17,7 +17,7 @@ const CIRCLE := 2
 const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 
 @export var preview := Preview.MENU
-## The preview shows the host's view (its settings, Back to lobby, Esc's confirmation).
+## The preview shows the host's view (its settings, Esc's confirmation).
 @export var hosting := true
 ## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, or the host's Leave or Quit.
 @export var esc_tab := EscMenuState.Tab.LOBBY
@@ -57,7 +57,7 @@ func _ready() -> void:
 			model.fold(&"PlayerLoaded", {"peer": 2})
 			ui.show_screen(GameFlow.Screen.LOADING)
 		Preview.END:
-			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": -1})
+			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
 			model.fold(&"MatchEnded", {"side": &"dissidents"})
 			ui.show_screen(GameFlow.Screen.END)
 		Preview.ESC:

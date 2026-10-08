@@ -151,7 +151,7 @@ FIELDS = (
     "lobby.roster",
     "lobby.countdown",
     "end.winner",
-    "end.back",
+    "end.countdown",
     "esc.tabs",
     "hand.item",
 )

@@ -84,6 +84,9 @@ var _chaos_sent: Dictionary[int, Dictionary] = {}
 ## Host tick -> the hostile's life and the phase after that tick.
 var _life_at: Dictionary[int, int] = {}
 var _phase_at: Dictionary[int, StringName] = {}
+## Peer -> its role after the last call in the round or End: End's return to the lobby (3 s after
+## the end, #212; a slow network run outlasts it) resets every role, so the role check reads these.
+var _role_of: Dictionary[int, StringName] = {}
 ## Over WebRTC: the host's signalling service and transport, the transports made, and when the run
 ## started on the real clock (the pace).
 var _signalling: LanSignalling
@@ -464,6 +467,9 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 	if command == null and hostile_player != null:
 		_life_at[at_tick] = hostile_player.life
 		_phase_at[at_tick] = game.phase_id()
+	if game.phase_id() in [&"round", &"end"]:
+		for peer: int in game.state.peers():
+			_role_of[peer] = game.state.player(peer).role
 
 
 ## A command one of the chaos peers sent as chaos (its bot's own commands are not).
@@ -661,15 +667,19 @@ func _check_voice_rule() -> void:
 					)
 
 
-## Class 1: the debug kinds from the chaos peers changed no role: each bot has its forced one.
+## Class 1: the debug kinds from the chaos peers changed no role: each bot has its forced one, up
+## to the match's reset (`_role_of`).
 func _check_roles() -> void:
 	for number: int in scenario.forced_roles:
 		if not peers.has_bot(number):
 			continue
-		var player := game.state.player(peers.peer_of(number))
+		var peer := peers.peer_of(number)
+		if game.state.player(peer) == null and not _role_of.has(peer):
+			continue
+		var role: StringName = _role_of.get(peer, &"")
 		var want: StringName = scenario.forced_roles[number]
-		if player != null and player.role != want:
-			failures.append("bot %d has role %s, forced %s" % [number, player.role, want])
+		if role != want:
+			failures.append("bot %d has role %s, forced %s" % [number, role, want])
 
 
 ## Classes 1 to 3 on the host's counts.
