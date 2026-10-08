@@ -229,6 +229,36 @@ class BudgetTest(unittest.TestCase):
         report = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper.replace(", Skill\n", "\n")})
         self.assertEqual(report.errors, [])
 
+    def test_a_lean_agent_names_only_files_that_exist(self) -> None:
+        # #557: task-implementer.md sent agents to `.claude/skills/<name>/SKILL.md` for workflow-authoring, a skill
+        # bundled with Claude Code that has no file there. A lean body's backticked docs/ or .claude/ path must exist;
+        # a placeholder (`<name>`) or a glob is not a path.
+        writer = WRITER_FILES[".claude/agents/task-implementer.md"]
+        cases = (
+            ("Read `docs/nope.md`.", {}, ["body names docs/nope.md, which does not exist"]),
+            ("Read `.claude/skills/nope/SKILL.md`.", {}, ["body names .claude/skills/nope/SKILL.md, which does not exist"]),
+            ("Read `docs/here.md`.", {"docs/here.md": "x\n"}, []),
+            ("Read `.claude/skills/<name>/SKILL.md`, `docs/*.md` and `tools/run.sh`.", {}, []),
+        )
+        for body, extra, want in cases:
+            with self.subTest(body=body):
+                files = {"CLAUDE.md": "x\n", ".claude/agents/task-implementer.md": writer.replace("Body.", body), **extra}
+                report = self.check(files)
+                self.assertEqual([e.split(": ", 1)[1] for e in report.errors], want)
+        # Only the lean types: another agent's body is its own business (and is read-only anyway).
+        helper = AGENT.replace("Body.", "Read `docs/nope.md`.")
+        self.assertEqual(self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper}).errors, [])
+
+    def test_a_lean_agent_preloads_no_skill(self) -> None:
+        # #557's probe: `skills:` puts each named skill's whole text into the agent's context at start, on every call
+        # (workflow-authoring: +6.2k tokens of a 19.5k first call), for every task of that type.
+        for rel, text in (*WRITER_FILES.items(), *LEAN_FILES.items()):
+            with self.subTest(agent=rel):
+                changed = text.replace("\n---\n\n", "\nskills: workflow-authoring\n---\n\n", 1)
+                report = self.check({"CLAUDE.md": "x\n", rel: changed})
+                self.assertEqual(len(report.errors), 1, report.errors)
+                self.assertIn("skills: a lean type preloads no skill", report.errors[0])
+
     def test_no_agent_sets_permission_mode(self) -> None:
         # Project subagents inherit the session's permission mode; a field that could change it is an error.
         for rel, text in ((".claude/agents/helper.md", AGENT), *WRITER_FILES.items(), *LEAN_FILES.items()):
@@ -300,6 +330,9 @@ class SkillTest(unittest.TestCase):
         self.assertIn("name: must be 'start-task'", " ".join(self.problems(SKILL.replace("name: start-task", "name: begin"))))
         reserved = self.problems(SKILL.replace("name: start-task", "name: doctor"), folder="doctor")
         self.assertTrue(any("bundled /doctor" in p for p in reserved), reserved)
+        # #557: a project skill named like the bundled workflow-authoring would shadow it in the managers' sessions.
+        reserved = self.problems(SKILL.replace("name: start-task", "name: workflow-authoring"), folder="workflow-authoring")
+        self.assertTrue(any("bundled /workflow-authoring" in p for p in reserved), reserved)
 
     def test_a_relative_link_in_a_skill_must_name_a_file(self) -> None:
         # #415: SKILL.md points to a supporting file (orchestrate-stage's budget.md), which links the ADRs.
