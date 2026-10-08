@@ -241,7 +241,8 @@ SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
 CMD_KINDS = [
-    ("wait", re.compile(r"run(\.cmd|\.sh)\s+wait\b")),
+    # `wait --verified` (a quick check) and `wait --help` (the probe) poll no job: they are not a bounded wait (#555).
+    ("wait", re.compile(r"run(\.cmd|\.sh)\s+wait\b(?!\s+(--verified|--help|-h)\b)")),
     ("publish", re.compile(r"run(\.cmd|\.sh)\s+publish\b")),
     ("verify", re.compile(r"run(\.cmd|\.sh)\s+verify\b")),
     ("selftest", re.compile(r"run(\.cmd|\.sh)\s+selftest\b")),

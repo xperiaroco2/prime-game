@@ -631,6 +631,7 @@ class MetricsTest(unittest.TestCase):
 class BoundedWaitTest(unittest.TestCase):
     """#555: the cache re-writes after a `wait` call or a CI wait, and the time around one."""
 
+    # The fixtures are old transcripts, from the 240 s step: their 240 s is data, not the current step (#555).
     STILL = "wait: still running after 240 s (C:/s/a7/verify-1.log: 3 lines, last written 2 s ago); call wait again"
 
     def setUp(self) -> None:
@@ -651,7 +652,11 @@ class BoundedWaitTest(unittest.TestCase):
                 tool_result(7.0, "w-2", SUMMARY + "wait: verify-1.log finished: exit=1 (whole log: x)"),
                 assistant(7.1, "w3", usage(read=10000), tool=bash("c-1", "timeout 240 gh pr checks 9 --watch")),
                 tool_result(11.1, "c-1", "rc=0"),
-                assistant(11.2, "w4", usage(read=10000)),
+                assistant(11.2, "w4", usage(read=10000), tool=bash("v-1", "tools/run.sh wait --verified")),
+                tool_result(11.3, "v-1", "wait: no verify"),
+                assistant(11.4, "w5", usage(read=10000), tool=bash("h-1", "tools/run.sh wait --help")),
+                tool_result(11.5, "h-1", "usage: wait"),
+                assistant(11.6, "w6", usage(read=10000)),
             ]),
         ])
 
@@ -666,7 +671,7 @@ class BoundedWaitTest(unittest.TestCase):
     def test_each_wait_and_the_call_after_it(self) -> None:
         self.build()
         agent = self.data["runs"][0]["agents"][0]["data"]
-        self.assertEqual(agent["kind_counts"]["wait"], 2)
+        self.assertEqual(agent["kind_counts"]["wait"], 2, "`wait --verified` and `wait --help` poll no job")
         self.assertEqual(agent["kind_counts"]["ci-wait"], 1)
         waits = sorted(agent["waits"], key=lambda w: w["gap"])
         self.assertEqual([(w["kind"], round(w["seconds"]), round(w["gap"]), w["polled"]) for w in waits],
