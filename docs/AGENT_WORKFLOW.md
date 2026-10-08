@@ -1595,10 +1595,10 @@ for half the gap or more; after a call that ended the agent's turn, the backgrou
 `verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
 with their share of the agents' cache-write $ and the median gap; `idle` in
 `metrics.json`), the context per API call of every agent, not only #559's implementers (#584: input, cache write and
-cache read of each call; per agent role the
-average over its agents' calls and the peak, then the heavy agents, at 150k average or 300k peak, with run, issue,
-calls, average and peak: an agent that carries a large context through many calls pays for it on each; also at the
-end of the compact summary's first line and as `--run`'s last line; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
+cache read of each call; per agent role the average over its agents' calls and the peak, then the heavy agents, at 150k
+average or 300k peak, with run, issue, calls, average and peak: an agent that carries a large context through many calls
+pays for it on each; also at the end of the compact summary's first line and as `--run`'s last line, which lists the
+heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
 lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
 the % of the week, `verify` medians): the manager pastes
