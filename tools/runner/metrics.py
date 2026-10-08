@@ -248,6 +248,8 @@ CMD_KINDS = [
 STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s(?:\s+\((.*)\))?\s*$")
 EXIT_CRASH_NOTE = "crashed at exit"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
+# The end line of a run that `verify --fail-fast` stopped at its first red step (#556): its total is no run's length.
+STOPPED_EARLY = ", stopped early at "
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
@@ -558,14 +560,15 @@ def union_seconds(intervals: list[tuple[float, float]]) -> float:
 
 def parse_verify(text: str) -> dict | None:
     """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over,
-    exit_crashes}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether it ran
-    without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449)."""
+    exit_crashes, stopped}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether
+    it ran without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449), stopped whether
+    `--fail-fast` stopped it early (#556; its `not run` rows are no steps)."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
     exit_crashes: list[str] = []
-    total_s, status, wait, over = None, None, None, False
+    total_s, status, wait, over, stopped = None, None, None, False, False
     for line in text[i:].splitlines()[1:]:
         m = STEP_LINE.match(line)
         if m:
@@ -579,10 +582,12 @@ def parse_verify(text: str) -> dict | None:
             waited = SLOT_WAIT.search(line)
             wait = float(waited.group(1)) if waited else None
             over = OVER_LIMIT in line
+            stopped = STOPPED_EARLY in line
             break
     if not steps:
         return None
-    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes}
+    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes,
+            "stopped": stopped}
 
 
 def timer_seconds(block: object) -> float | None:
@@ -1340,6 +1345,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             exit_crashes, exit_tracked = [], []
             for name, step in items:
                 if name and isinstance(step, dict):
+                    if str(step.get("status", "")).lower() == "not run":  # a --fail-fast run stopped first (#556)
+                        continue
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
                     if isinstance(step.get("exit_crash"), bool):  # a check step of a runner since #449 has it
@@ -1362,6 +1369,7 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                 seen.add(key)
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
                               "wait": wait, "over": over, "exit_crashes": exit_crashes,
+                              "stopped": bool(rec.get("stopped")),
                               "exit_tracked": exit_tracked, **red})  # fmt: skip
     return found
 
@@ -2021,7 +2029,7 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
         for s in step_names:
             vals = [v["steps"][s][1] for v in lst if s in v["steps"]]
             row.append(f"{med(vals):.0f}" if vals else "")
-        tots = [v["total"] for v in lst if v["total"]]
+        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
         if with_slots:
             waits, over = slot_waits(lst)
@@ -3042,7 +3050,7 @@ def compact_lines(
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
-            tots = [v["total"] for v in lst if v["total"]]
+            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
             names: list[str] = []
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]
