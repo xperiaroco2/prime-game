@@ -2104,7 +2104,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
   sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds are 0.15 s blips generated in
-  code (no asset), until the engineer's CC0 files arrive with their `docs/credits/` entries (#144).
+  code (no asset), until the engineer's CC0 files arrive with their `docs/credits/` entries (#144; M6.2's #525,
+  each file passing `sfx-check` first, AGENT_WORKFLOW §11.25).
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
 - `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
@@ -2125,7 +2126,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   margin) and `item_views_test.gd`. The `shot`s:
   `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
-  ADR's §6), and a human picks the CC0 sounds.
+  ADR's §6), and a human picks the CC0 sounds (by ear on `sfx-check --page`'s listening page, AGENT_WORKFLOW
+  §11.25).
 
 #### 4.7.11 Built in #169 (an M4 follow-up of the one-PC playtest), one Esc menu with tabs
 - `client/ui/`: `EscMenuState` (pure: open or closed, the tabs per screen, the selected tab, the host's questions

@@ -43,7 +43,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 ## Commands
 `tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` says what it does and its options; read docs by section, never whole: `section <doc>` for the outline, then the § you need.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
-Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `export` `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `signal` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
+Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `export` `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `sfx-check` `shot` `signal` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
 
 ## Shell
 PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
