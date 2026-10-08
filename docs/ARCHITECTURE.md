@@ -2548,7 +2548,7 @@ names and the font's glyphs are #549.
   them. A screen sets a Control's text to a key (Godot translates it and retranslates it on a switch) or calls
   `tr(key)` and fills the placeholders with `String.format({...})` after it, rebuilding on
   `NOTIFICATION_TRANSLATION_CHANGED`. A number before a word that changes takes `tr_n(key, key, n)`: Ukrainian has
-  three forms (one for 1 and 21, few for 2 to 4, many for 0, 5 to 20 and 11 to 14), which the deck writes as the
+  three forms (one when the number ends in 1 except 11: 1, 21, 31; few when it ends in 2 to 4 except 12 to 14: 2, 22; many otherwise: 0, 5 to 20, 25), which the deck writes as the
   key's row and two rows without a key.
 - **The language.** `UserSettings.language` (`[interface] language`, "" before any choice, an unknown one reads as
   "") holds the player's choice; key bindings get their own file (#211). `Languages` (`client/app/`) names the two
