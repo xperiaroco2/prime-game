@@ -4742,8 +4742,9 @@ tests/unit/tools/asset_import_test.gd`):
 Each problem is one line that starts with the asset's path and names what is missing, for instance
 `res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
 fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
-compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test names it and skips it,
-the local run checks it, and `check` imports a stand-in in its place (the LFS ADR's amendment).
+compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
+committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
+clips, which the local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
 
 **The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
 `CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to

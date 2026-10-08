@@ -86,15 +86,21 @@ static func import_params(path: String) -> Variant:
 	return params
 
 
-## The problems of one GLB: its .import options, then its scene (loaded and instantiated).
-static func check_glb(path: String, contract: Dictionary) -> PackedStringArray:
-	var problems := PackedStringArray()
-	var character := is_character(path, contract)
+## The problems of one GLB's committed .import file. It is text, so a checkout without LFS
+## content (CI) has it beside the pointer file and it is checked there too.
+static func check_glb_import(path: String, contract: Dictionary) -> PackedStringArray:
 	var params: Variant = import_params(path)
 	if params == null:
-		problems.append("%s: no committed .import file (run the import and commit it)" % path)
-	else:
-		problems.append_array(check_glb_params(path, params as Dictionary, contract, character))
+		return PackedStringArray(
+			["%s: no committed .import file (run the import and commit it)" % path]
+		)
+	return check_glb_params(path, params as Dictionary, contract, is_character(path, contract))
+
+
+## The problems of one GLB: its .import options, then its scene (loaded and instantiated).
+static func check_glb(path: String, contract: Dictionary) -> PackedStringArray:
+	var problems := check_glb_import(path, contract)
+	var character := is_character(path, contract)
 	if not ResourceLoader.exists(path):
 		problems.append("%s: does not load (the import failed or was never run)" % path)
 		return problems
@@ -231,13 +237,15 @@ static func check_texture(path: String, params: Variant, contract: Dictionary) -
 	return PackedStringArray()
 
 
-## Every committed asset under `root`: the problems, and the LFS pointer files it could not check.
+## Every committed asset under `root`: the problems, and the LFS pointer files whose scene it could
+## not load (their .import files are still checked).
 static func check_all(contract: Dictionary, root: String = "res://") -> Dictionary:
 	var problems := PackedStringArray()
 	var pointers := PackedStringArray()
 	for path: String in find_files(root, ["glb", "gltf"]):
 		if is_lfs_pointer(path):
 			pointers.append(path)
+			problems.append_array(check_glb_import(path, contract))
 		else:
 			problems.append_array(check_glb(path, contract))
 	for path: String in find_files(ASSETS, IMAGE_EXTENSIONS):

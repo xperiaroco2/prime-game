@@ -2,19 +2,25 @@ extends GdUnitTestSuite
 ## The import check of the art handoff (#519, docs/ARCHITECTURE.md §11): every committed GLB under
 ## res:// loads and keeps the art repo's glTF options, every image under assets/ keeps its folder's
 ## compression (tools/assets/asset_check.gd over tools/assets/asset_contract.json). A checkout
-## without LFS content (CI) has pointer files there; they are named and skipped, the local run
-## checks them. Each rule also runs on a broken fixture built in memory and must name the asset and
+## without LFS content (CI) has pointer files there; their .import files are checked, their scenes
+## are named and skipped, the local run loads them. Each rule also runs on a broken fixture built in memory and must name the asset and
 ## what is missing.
 
 const Check := preload("res://tools/assets/asset_check.gd")
 const FIXTURE := "res://assets/characters/fixture/fixture.glb"
 const KINDS: Array[String] = ["characters", "environment", "audio", "ui"]
+## A tree of probe files the tests write and remove (pointer files stand in for GLBs).
+const PROBE := "user://asset_check_probe/"
 
 var _contract: Dictionary
 
 
 func before() -> void:
 	_contract = Check.load_contract()
+
+
+func after_test() -> void:
+	_remove_tree(PROBE)
 
 
 func test_the_contract_names_a_folder_per_kind_bones_and_clips() -> void:
@@ -171,6 +177,30 @@ func test_an_lfs_pointer_is_told_from_an_asset() -> void:
 	assert_bool(Check.is_lfs_pointer_bytes(glb, 10756)).is_false()
 
 
+func test_a_pointer_glb_still_has_its_import_checked() -> void:
+	# CI has no LFS content, but the .import beside a pointer file is text and is there.
+	var prop := PROBE + "prop/prop.glb"
+	_write_pointer(prop)
+	var config := ConfigFile.new()
+	config.set_value("params", "nodes/root_type", "")
+	config.set_value("params", "nodes/root_scale", 0.01)
+	config.set_value("params", "nodes/apply_root_scale", true)
+	config.set_value("params", "animation/import", true)
+	assert_int(config.save(prop + ".import")).is_equal(OK)
+	var bare := PROBE + "bare/bare.glb"
+	_write_pointer(bare)
+	var result: Dictionary = Check.check_all(_contract, PROBE)
+	var pointers: PackedStringArray = result["pointers"]
+	assert_array(pointers).contains_exactly([bare, prop])
+	var problems: PackedStringArray = result["problems"]
+	assert_array(problems).contains(
+		[
+			prop + ": .import nodes/root_scale=0.01, want 1",
+			bare + ": no committed .import file (run the import and commit it)",
+		]
+	)
+
+
 ## A character as the contract asks for it, less `drop_bone` and `drop_clip`, with `once` (a loop
 ## of the contract) playing once.
 func _character(drop_bone: String = "", drop_clip: String = "", once: String = "") -> Node3D:
@@ -207,3 +237,24 @@ func _character_params() -> Dictionary:
 		"animation/fps": 30,
 		"_subresources": {"nodes": {"PATH:AnimationPlayer": {"optimizer/enabled": false}}},
 	}
+
+
+## A Git LFS pointer file at `path`, as a checkout without LFS content has it.
+func _write_pointer(path: String) -> void:
+	assert_int(DirAccess.make_dir_recursive_absolute(path.get_base_dir())).is_equal(OK)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(
+		"version https://git-lfs.github.com/spec/v1\noid sha256:%s\nsize 10756\n" % "0".repeat(64)
+	)
+	file.close()
+
+
+func _remove_tree(dir_path: String) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for file: String in dir.get_files():
+		DirAccess.remove_absolute(dir_path + file)
+	for sub: String in dir.get_directories():
+		_remove_tree(dir_path + sub + "/")
+	DirAccess.remove_absolute(dir_path)
