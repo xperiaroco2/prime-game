@@ -2114,7 +2114,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   and hint under it. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
-  screens name variations only. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25). The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2480,6 +2480,54 @@ ADR's §6 check the rest.
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
   start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
   `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
+
+#### 4.7.25 Built in #288 (M6.2), the generated theme
+- The flow: a tag `ui-<semver>` of xperiaroco2/prime-game-ui → `tools\run.cmd ui-sync <tag>` (AGENT_WORKFLOW
+  §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
+  → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
+  `uid://c8behqt7jtcn8` kept with `ResourceSaver.set_uid`, a headless save writes none) and `game_theme_large.tres`.
+  Both are generated, never edited by hand. Pinned at `ui-0.4.0`.
+- `tools/theme/mapping.json` is the engine knowledge, data: pack states to Godot StyleBox names
+  (`hover-pressed` → `hover_pressed`), the 19 fields to `StyleBoxFlat` properties, per-state `font-color` to the
+  `font_*_color` items, `items` (kebab-case to the Godot item), `label` to `font_size`, `press.*`, `size.*` and
+  ToyButton's `motion` to custom constants (`press_depth`, `press_hover`, `press_held`, `press_disabled`, `width`,
+  `height`, `min_width`, `wide_min_width`, `wide_width`, `press_duration_ms`, `press_duration_reduced_ms` from the
+  reduced-motion mode, `press_trans`, `press_ease`), the health ramp to the colours `ramp_stop_00` … `ramp_stop_20`
+  (ToyBarHealth), ToyMic's `icon_on` and `icon_off`, and the `empty` list to one `StyleBoxEmpty`. ToySlider's
+  `focus` StyleBox is written though Slider draws none: #289 draws that ring. Custom items are what the Toy
+  components' code reads; the mapping names which items are custom and which bound items Godot's default theme
+  leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
+- `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
+  state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion stop the
+  build) and builds the `Theme` in memory; each StyleBox has the sub-resource id `<Variation>_<item>`, so a
+  regenerated file differs only where a value did. `build_theme.gd` also stops when the pack differs from its lock
+  or the project's UI base is not the pack's `reference` (1920x1080, #287); `-- --skip-base-check` turns that into
+  a warning, for a branch built before #287 lands.
+- What it writes: type variations only, the pack's live ones (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
+  ToyHowtoCaption are deprecated and skipped), no base-type item and no default font or size, so Godot's default
+  theme (scaled by #287's `gui/theme/default_theme_scale`) still draws a plain control until #289 styles the base
+  controls and sets that scale back to 1. The large-text theme is a whole theme that differs only in font sizes
+  and the keycaps' `min_width` (42, from `modes.textSize.large`): #289 swaps `GameUi`'s theme to it.
+- Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
+  HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudTitle, Title, EndTitle,
+  LifeTitle → ToyTitleOnDark; TaskDescription → ToyTextMutedOnDark; EscShade → ToyBackdrop; EndBackdrop,
+  LoadingBackdrop → ToyBackdropNight; LifeBar → ToyBarProgress with its own `background` (left and right content
+  margins 267, the bar's width; `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the
+  issue's ToyTab, whose ink text is unreadable on the Esc menu's dark panel. The names the issue does not map
+  (the containers' margins and separations, DebugText, HudCrosshair, HudHint, Shortfalls) keep their greybox values
+  at #287's sizes in the mapping's `keep`.
+- Deferred to #520: the Comfortaa font (the mapping's `font.file` is the hook: a FontVariation per label weight and
+  `line_spacing` from its metrics), the theme icons from the pack's `textures` (the SVGs under the `.gdignore` need
+  an imported copy under the same lock; until then the builder only checks each key against the class's icons) and
+  the Delivery card art (the lock's `deferred`).
+- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob,
+  the binaries deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned
+  not fetched, each problem the offline verify names on a mutated copy, and the committed copy against its lock);
+  `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted gap named; every mapped engine
+  item in the class reference, with a planted typo and a custom item that shadows an engine one; names letters only;
+  the committed themes equal a fresh build, which is deterministic, seen failing on a planted stale value; the
+  uids; spot values, the press motion and the ramp; the large-text theme; the legacy and kept names; the base
+  check). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

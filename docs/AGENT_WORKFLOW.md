@@ -1639,8 +1639,8 @@ Python core `tools/run.py` with
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
 `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
-tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25), and
-`hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
+`ui-sync` (§11.26), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
 runner takes the machine paths from the Claude settings (§2).
@@ -1973,6 +1973,23 @@ The JSON report goes to `tools/out/sfx/<set>.json`; exit 1 on any failure, each 
 server, no external script or font; it still plays when moved), an `<audio>` per file grouped by category with its
 numbers and failures, approve or reject and a note (kept in the browser's storage for that page), and "Export
 verdicts", a JSON download that the engineer saves next to the set as `sfx-verdicts.json`.
+
+### 11.26 `ui-sync [tag] [--check] [--force] [--source S]` [applied] (#288)
+Pins the UI track's pack (xperiaroco2/prime-game-ui, `dist/pack/` at a tag `ui-<semver>`) for the generated theme
+(`docs/ARCHITECTURE.md` §4.7.25; `tools/runner/ui_sync.py`, tests: `test_ui_sync.py` on a fixture repository built in
+a temporary folder). It clones the tag with `--no-checkout` and reads the blobs with `git cat-file` (no working tree,
+no line-ending conversion, no credentials: the repository is public; `--source` takes a local clone or another URL).
+The pack is checked in memory before anything is written (`format`, a known `schema`, `version` = the tag, each
+asset's sha256 against the pack's `assets` record), so a bad tag leaves the pinned copy as it was. Its JSON and SVG
+files land byte for byte in `client/ui/theme/pack/` under a `.gdignore` (Godot imports none of it; nothing at run
+time may read it, and exports leave it out), stale ones are removed, and `client/ui/theme/pack.lock.json` records
+`{repo, tag, commit, files: {path: sha256}, deferred: {path: sha256}}`. Binaries (the card art PNGs, later a font)
+are not landed: they are listed under `deferred` with the pack's sha256 for #520, which imports them into a folder
+Godot imports, under the same lock. With no tag, or `--check`, it verifies the pinned copy offline (each file against
+the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
+assets' sha256, nothing deferred on disk); a tag already pinned and intact is not fetched again unless `--force`. A
+runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.
+Then `tools\run.cmd run tools/theme/build_theme.gd --headless` regenerates the themes.
 
 ## 12. The designer's agent
 
