@@ -180,7 +180,7 @@ the control did; after AB_RUNS judged runs keep the trial model when it missed a
 least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
 AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
 
-Implementer context and checkpoint handoffs (#559, issue-task's opt-in `checkpoint`): per `issue-task` run with an
+Implementer context and checkpoint handoffs (#559, issue-task's opt-in `checkpoint`): per run with an
 implementer, its implementer agents (a continuation is labelled `implement:#N#k`, k >= 2, and counts as a handoff),
 their API calls, those whose context (input + cache write + cache read) is over HIGH_CTX and their API list $, and the
 implementers' $; the totals against the issue's target (under 5% of implementer calls over 200k, from 14%). Then the
@@ -2045,7 +2045,7 @@ def plan_section(rows: list[dict]) -> list[str]:
 
 
 def handoff_record(counted: list[dict]) -> dict:
-    """#559's numbers (the module docstring): per `issue-task` run with an implementer its row, the tool-call proxy
+    """#559's numbers (the module docstring): per run with an implementer its row, the tool-call proxy
     over every implementer, and the <total_tokens> check over every agent."""
     rows = []
     series = []
