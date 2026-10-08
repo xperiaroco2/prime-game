@@ -385,6 +385,28 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual([(v["failed_tests"], v["step_failures"], v["shard_exits"]) for v in found], [([], [], [])] * 2)
         self.assertNotIn("Failing tests of red runs", "\n".join(md))
 
+    def test_a_step_a_fail_fast_run_never_ran_is_neither_a_pass_nor_a_red(self) -> None:
+        # #556: verify --fail-fast records the steps it stopped before as "not run"; the run's short total is no
+        # verify's length either.
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 300,
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20},
+                       {"name": "test", "status": "passed", "seconds": 90}], "stopped": None},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "a", "seconds": 30,
+             "steps": [{"name": "lint", "status": "FAILED", "seconds": 25},
+                       {"name": "test", "status": "not run", "seconds": 0}],
+             "stopped": {"at": "lint", "not_run": ["test"]}},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v["steps"] for v in found], [{"lint": ("passed", 20.0), "test": ("passed", 90.0)},
+                                                       {"lint": ("FAILED", 25.0)}])  # fmt: skip
+        self.assertEqual([(v["status"], v["stopped"]) for v in found], [("passed", False), ("FAILED", True)])
+        _md, _record, compact = self.build(history=found)
+        line = next(line for line in compact if line.startswith("local verify (history file)"))
+        self.assertIn("2 runs, 1 red, median 300 s (max 300)", line)
+        self.assertIn("test 90", line)
+
     def test_checks_that_passed_after_godot_crashed_at_exit_are_counted(self) -> None:
         # #449: the history record's `exit_crash` on the check step (#442's loud pass) gives the crash rate over the
         # window's check steps; a run without a check step does not count, and neither does a record older than #449

@@ -118,13 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
         "class, several physics steps in one frame under load, shows only so",
     )
 
-    sub.add_parser(
+    p = sub.add_parser(
         "verify",
         help="everything CI runs, in the same order (definition of done)",
-        description="Everything CI runs, in the same order: doctor, then a Python lane and a Godot lane at once. On "
-        "a PC a run first takes one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots "
-        "--quiet, the one slot). The definition-of-done gate. "
-        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
+        description="Everything CI runs, in the same order: doctor, then a Python lane, a Godot lane and a lane of the "
+        "runner tests that start Godot at once (each step's output whole when it ends). On a PC a run first takes "
+        "one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The "
+        "definition-of-done gate: every step runs and a red one fails it. "
+        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11.16).",
+    )
+    p.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="stop every lane at the first red step: the steps not ended yet are 'not run' in the summary and the "
+        "record, the run is red (an agent's inner loop; publish, merge and CI run every step)",
     )
     p = sub.add_parser(
         "selftest",
@@ -684,7 +691,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main()
+            return verify.main(fail_fast=args.fail_fast)
         if args.command == "selftest":
             from . import verify
 
