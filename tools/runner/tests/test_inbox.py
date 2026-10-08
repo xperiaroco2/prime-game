@@ -10,7 +10,7 @@ from runner import inbox, merge
 from runner.common import Failure
 
 ENGINEER = merge.ENGINEER_LOGIN
-DESIGNER = merge.DESIGNER_LOGIN
+DESIGNER = "SwiftySinister"
 
 # The manager's block in a wave comment's notes, and housekeeping's own line further down (wave.py's shape).
 WAVE = """# Wave 3 of the meta manager
@@ -144,14 +144,15 @@ class PullRequestsTest(unittest.TestCase):
             pr(4, files=settings, author={"login": DESIGNER}),
             pr(5, files=("docs/decisions/2026-10-07-x.md",)),
             pr(6, "Approved by the engineer: https://github.com/o/r/issues/170#c", files=("docs/decisions/x.md",)),
-            pr(7, files=("content/roles/x.tres",), latestReviews=[{"author": {"login": DESIGNER}, "state": "APPROVED"}]),
-            pr(8, files=("content/roles/x.tres",)),
+            pr(7, "Approved by the engineer: https://github.com/o/r/issues/563#c", files=("content/roles/x.tres",)),
+            # #563: the designer's review no longer clears the content area; the engineer's line does (#7).
+            pr(8, files=("content/roles/x.tres",), latestReviews=[{"author": {"login": DESIGNER}, "state": "APPROVED"}]),
         ]
         found = inbox.exceptions_of(prs)
         self.assertEqual([row.split(" ", 2)[1] for row in found], ["#1", "#5", "#8"], found)
         self.assertIn("permission and safety files", found[0])
         self.assertIn("docs/decisions/2026-10-07-x.md (changed)", found[1])
-        self.assertIn("the designer's area", found[2])
+        self.assertIn("the content area (content/roles/x.tres) without an \"Approved by the engineer", found[2])
 
     def test_added_and_deleted_files_keep_their_kind(self) -> None:
         files = [{"path": "docs/decisions/a.md", "changeType": "ADDED"}, {"path": "docs/decisions/b.md", "changeType": "DELETED"}]

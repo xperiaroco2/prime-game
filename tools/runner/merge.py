@@ -42,12 +42,11 @@ removes the worktree. For what no symbol match sees (behaviour, test expectation
 `merge <pr> --base main [--dry-run]` (#300, docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md):
 the engineer's manager merges a PR into `main` through GitHub when a deterministic gate passes. The gate collects
 every refusal (a dry run prints them all): not open into `main`; a draft; not authored by the engineer's account, or
-gh not running as it (the designer's PRs keep their flow); CI not green on its head; GitHub's `mergeable` CONFLICTING;
-`origin/<head>` not at the PR's head; `origin/main` not in the head (behind: CI did not test the tree that lands);
-the exceptions in the paths it changes since its fork (the designer's area without the designer's approving review or
-the relay phrase; `.claude/settings*.json`, `.claude/githooks/` and the guard, always; an ADR added, changed or
-deleted without an "Approved by the engineer: <GitHub link>" line); a milestone's closing PR (head `release/*`)
-without that line, the engineer's go, which then also clears its designer-area and ADR paths; and an item under
+gh not running as it (the designer's PRs go to the engineer); CI not green on its head; GitHub's `mergeable`
+CONFLICTING; `origin/<head>` not at the PR's head; `origin/main` not in the head (behind: CI did not test the tree that
+lands); the exceptions in the paths it changes since its fork (the content area, or an ADR added, changed or deleted,
+without an "Approved by the engineer: <GitHub link>" line (#563); `.claude/settings*.json`, `.claude/githooks/` and
+the guard, always); a milestone's closing PR (head `release/*`) without that line, the engineer's go; and an item under
 "Needs the engineer" without "Answered: <GitHub link>" (an unreadable section refuses too). Markers in HTML comments
 do not count. No local verify: the head contains `main`, so the merged tree is the one `publish` verified and CI
 tested. merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
@@ -123,22 +122,20 @@ USE_SUFFIXES = (".gd", ".py", ".tres", ".tscn", ".godot", ".cfg", ".gdshader")
 # A deleted or renamed file counts as a removed path, unless nothing refers to it by path.
 PATHLESS_SUFFIXES = (".md", ".uid", ".import")
 
-# The gate of a merge into main (#300). The owners' GitHub accounts: the `*` and the designer's lines of
-# .github/CODEOWNERS (test_merge.py compares them).
+# The gate of a merge into main (#300). The engineer's GitHub account: the `*` line of .github/CODEOWNERS
+# (test_merge.py compares it).
 ENGINEER_LOGIN = "xperiaroco2"
-DESIGNER_LOGIN = "SwiftySinister"
-GATE_FIELDS = "body,mergeable,author,latestReviews"
-DESIGNER_PREFIXES = (
+GATE_FIELDS = "body,mergeable,author"
+# The content area, the engineer's since #518 (the designer is optional): its changes merge on the engineer's approval
+# line, like an ADR's (#563, option (b)).
+CONTENT_PREFIXES = (
     "content/", "levels/", "docs/design/", ".claude/skills/new-mechanic/", ".claude/skills/new-level-piece/",
 )  # fmt: skip
-DESIGNER_FILES = ("docs/GDD.md",)
+CONTENT_FILES = ("docs/GDD.md",)
 SAFETY_PREFIXES = (".claude/githooks/",)
 SAFETY_RE = re.compile(r"^\.claude/settings[^/]*\.json$")
 SAFETY_FILES = ("tools/runner/guard.py",)
 ADR_PREFIX = "docs/decisions/"
-RELAY_PHRASE = "agreed with the designer, relayed by the engineer"
-# The relay phrase as a line of its own (list markers, bold and quotes around it are fine), like the approval line.
-RELAY_RE = re.compile(r"(?im)^[^\w\n]*" + re.escape(RELAY_PHRASE))
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 # A line of its own (a list marker or bold around the label is fine), with a link to the engineer's words on GitHub.
 APPROVAL_RE = re.compile(r"(?im)^[^\w\n]*Approved by the engineer\W*https://github\.com/\S+")
@@ -1492,7 +1489,7 @@ def gh_user() -> str:
 
 
 def strip_comments(body: str) -> str:
-    """The PR body without its HTML comments (the template's hints carry the relay phrase)."""
+    """The PR body without its HTML comments (the template's hints are no answers nor approvals)."""
     return COMMENT_RE.sub("", body or "").replace("\r\n", "\n")
 
 
@@ -1507,15 +1504,15 @@ def changed_paths(fork: str, head: str) -> list[tuple[str, str]]:
     return found
 
 
-def exception_reasons(paths: list[tuple[str, str]], body: str, head: str, designer_approved: bool = False) -> list[str]:
-    """The gate's exceptions (the engineer's answer 1 on #300) in the paths a PR changes, given its body (comments
-    stripped). A milestone's closing PR (head `release/*`) needs the engineer's go, the approval line, which also
-    clears its designer-area paths and ADRs (the milestone's provisional content and decisions); nothing clears the
-    permission and safety files."""
+def exception_reasons(paths: list[tuple[str, str]], body: str, head: str) -> list[str]:
+    """The gate's exceptions (the engineer's answer 1 on #300, its content area by #563) in the paths a PR changes,
+    given its body (comments stripped). The engineer's approval line clears the content area and ADRs; a milestone's
+    closing PR (head `release/*`) needs that line as the engineer's go, which clears its provisional content and
+    decisions too; nothing clears the permission and safety files."""
     text = strip_comments(body)
     approved = bool(APPROVAL_RE.search(text))
     closing = head.startswith("release/")
-    designer = [p for _, p in paths if p.startswith(DESIGNER_PREFIXES) or p in DESIGNER_FILES]
+    content = [p for _, p in paths if p.startswith(CONTENT_PREFIXES) or p in CONTENT_FILES]
     safety = [p for _, p in paths if p.startswith(SAFETY_PREFIXES) or SAFETY_RE.match(p) or p in SAFETY_FILES]
     adrs = [(s, p) for s, p in paths if p.startswith(ADR_PREFIX)]
     reasons = []
@@ -1524,10 +1521,10 @@ def exception_reasons(paths: list[tuple[str, str]], body: str, head: str, design
             f"a milestone's closing PR ({head}) merges after the engineer's go: an \"Approved by the engineer: "
             "<GitHub link>\" line in the body"
         )
-    if designer and not (designer_approved or RELAY_RE.search(text) or (closing and approved)):
+    if content and not approved:
         reasons.append(
-            f"the designer's area ({_files_cell(designer, 3)}) without the designer's approving review or "
-            f"\"{RELAY_PHRASE}\" in the body"
+            f"the content area ({_files_cell(content, 3)}) without an \"Approved by the engineer: <GitHub link>\" "
+            "line in the body"
         )
     if safety:
         reasons.append(f"permission and safety files ({_files_cell(safety, 3)}): the engineer merges these")
@@ -1736,7 +1733,7 @@ def _who_refusals(pr: PullRequest, view: dict[str, Any]) -> list[str]:
     author = str((view.get("author") or {}).get("login", ""))
     if author != ENGINEER_LOGIN:
         reasons.append(f"{n} is not authored by the engineer's account {ENGINEER_LOGIN} (author: {author or '?'}): "
-                       "the designer's PRs keep their own flow")  # fmt: skip
+                       "the designer's PRs go to the engineer")  # fmt: skip
     user = gh_user()
     if user != ENGINEER_LOGIN:
         reasons.append(f"gh runs as {user or '?'}, not the engineer's account {ENGINEER_LOGIN}: only the engineer's "
@@ -1746,13 +1743,9 @@ def _who_refusals(pr: PullRequest, view: dict[str, Any]) -> list[str]:
 
 def _content_refusals(pr: PullRequest, view: dict[str, Any], tip: str) -> list[str]:
     """The exceptions in the paths the head changes since its fork from main at tip, and open "Needs the engineer"."""
-    designer_approved = any(
-        (r.get("author") or {}).get("login") == DESIGNER_LOGIN and r.get("state") == "APPROVED"
-        for r in view.get("latestReviews") or []
-    )
     body = str(view.get("body") or "")
     fork = _out("merge-base", tip, pr.oid).strip()
-    reasons = exception_reasons(changed_paths(fork, pr.oid), body, pr.head, designer_approved)
+    reasons = exception_reasons(changed_paths(fork, pr.oid), body, pr.head)
     return reasons + [f"\"Needs the engineer\": {p}" for p in open_needs(body)]
 
 
