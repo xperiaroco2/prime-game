@@ -1,0 +1,229 @@
+{
+  "schema": 1,
+  "notes": {
+    "what": "The engine knowledge that turns the UI pack (client/ui/theme/pack/toy.pack.json, pinned by ui-sync) into the game's Theme (#288). The pack holds complete StyleBox records per type variation; this file names the Godot 4.7.2 theme item each pack field becomes. tools/theme/theme_builder.gd reads both; tools/theme/build_theme.gd writes the themes; tests/unit/tools/theme_builder_test.gd checks this file against the pack and the engine.",
+    "regenerate": "tools\\run.cmd ui-sync ui-<version>, then tools\\run.cmd run tools/theme/build_theme.gd --headless. Never edit game_theme*.tres by hand.",
+    "sources": "Item names: the 4.7.2 class reference (theme_items of each class, godot --doctool) and the pack's tokens/README.md (Classes, Items, Textures) at its tag.",
+    "not_in_default_theme": "Items the 4.7.2 class reference binds but Godot's default theme does not set (so ThemeDB.get_default_theme() does not list them): the keys test accepts them only from this list.",
+    "custom": "Items no engine class binds: the Toy components' code reads them (#289) with get_theme_constant or get_theme_color; the keys test requires that none of them shadows an engine item.",
+    "legacy": "Today's screens' names as thin variations of Toy ones (the issue's list), so the screens restyle with no code change. LifeBar keeps its own background: Theme.get_stylebox does not follow variations, and life_panel_test sizes the bar from LifeBar's own StyleBox. Its content margins left and right are #287's greybox value (160 x 5/3), the bar's width on the 1920x1080 base.",
+    "keep": "Names the issue does not map to a Toy variation (containers' margins and separations, a few labels): their greybox values as #287 scaled them to the 1920x1080 base, until the screens move to Toy variations (#289 and the screen issues). Not a design decision.",
+    "font": "Comfortaa ships with #520 (the font file and its licence). file null: the builder sets only font_size; when #520 lands the font it fills file and the builder sets a FontVariation (weight from each label's fontWeight) and line_spacing from the font's metrics.",
+    "textures": "The pack's textures (slider knobs, the dropdown arrow, the radio icons) are SVGs under the pack's .gdignore, so Godot cannot load them from there: #520 imports them into an imported folder under the same sha256 lock and then the builder sets them as theme icons. Until then the builder only checks each texture key against the class's icons below.",
+    "deprecated": "Variations the pack marks deprecated (ToyChipNew, ToyChipNewText, ToyHowtoCaption) are not written: no screen uses them and they leave the pack at its next major release."
+  },
+  "pack_schemas": [1],
+  "pack": "res://client/ui/theme/pack/toy.pack.json",
+  "lock": "res://client/ui/theme/pack.lock.json",
+  "themes": {
+    "default": {"path": "res://client/ui/theme/game_theme.tres", "uid": "uid://c8behqt7jtcn8", "text_size": "default"},
+    "large": {"path": "res://client/ui/theme/game_theme_large.tres", "uid": "uid://lpbp5ylhsq6r", "text_size": "large"}
+  },
+  "font": {"family": "Comfortaa", "file": null, "issue": 520},
+  "textures": {"status": "deferred", "issue": 520},
+  "deprecated": "skip",
+  "variation_members": {
+    "used": ["class", "parent", "prefix", "styleboxes", "empty", "textures", "deprecated"],
+    "ignored": ["abstract", "context", "base", "toggle", "on", "proposal"]
+  },
+  "stylebox_fields": {
+    "bg-color": "bg_color",
+    "border-color": "border_color",
+    "border-width-left": "border_width_left",
+    "border-width-top": "border_width_top",
+    "border-width-right": "border_width_right",
+    "border-width-bottom": "border_width_bottom",
+    "content-margin-left": "content_margin_left",
+    "content-margin-top": "content_margin_top",
+    "content-margin-right": "content_margin_right",
+    "content-margin-bottom": "content_margin_bottom",
+    "corner-radius-top-left": "corner_radius_top_left",
+    "corner-radius-top-right": "corner_radius_top_right",
+    "corner-radius-bottom-right": "corner_radius_bottom_right",
+    "corner-radius-bottom-left": "corner_radius_bottom_left",
+    "draw-center": "draw_center",
+    "expand-margin-left": "expand_margin_left",
+    "expand-margin-top": "expand_margin_top",
+    "expand-margin-right": "expand_margin_right",
+    "expand-margin-bottom": "expand_margin_bottom"
+  },
+  "button_colors": {
+    "normal": "font_color",
+    "hover": "font_hover_color",
+    "pressed": "font_pressed_color",
+    "hover-pressed": "font_hover_pressed_color",
+    "disabled": "font_disabled_color",
+    "focus": "font_focus_color"
+  },
+  "classes": {
+    "Button": {
+      "states": {"normal": "normal", "hover": "hover", "pressed": "pressed", "hover-pressed": "hover_pressed", "disabled": "disabled", "focus": "focus"},
+      "state_colors": {"font-color": "button_colors"},
+      "items": {
+        "icon-normal-color": {"kind": "color", "name": "icon_normal_color"},
+        "icon-hover-color": {"kind": "color", "name": "icon_hover_color"},
+        "icon-pressed-color": {"kind": "color", "name": "icon_pressed_color"},
+        "icon-hover-pressed-color": {"kind": "color", "name": "icon_hover_pressed_color"},
+        "icon-focus-color": {"kind": "color", "name": "icon_focus_color"},
+        "icon-disabled-color": {"kind": "color", "name": "icon_disabled_color"},
+        "h-separation": {"kind": "constant", "name": "h_separation"}
+      },
+      "label": "font_size",
+      "press": {"depth": "press_depth", "hover": "press_hover", "held": "press_held", "disabled": "press_disabled"},
+      "size": {"width": "width", "height": "height", "min-width": "min_width", "wide-min-width": "wide_min_width", "wide-width": "wide_width"},
+      "motion": {"duration": "press_duration_ms", "reduced": "press_duration_reduced_ms", "trans": "press_trans", "ease": "press_ease"},
+      "icons": []
+    },
+    "OptionButton": {
+      "states": {"normal": "normal", "hover": "hover", "pressed": "pressed", "hover-pressed": "hover_pressed", "disabled": "disabled", "focus": "focus"},
+      "state_colors": {"font-color": "button_colors"},
+      "items": {
+        "icon-normal-color": {"kind": "color", "name": "icon_normal_color"},
+        "icon-hover-color": {"kind": "color", "name": "icon_hover_color"},
+        "icon-pressed-color": {"kind": "color", "name": "icon_pressed_color"},
+        "icon-hover-pressed-color": {"kind": "color", "name": "icon_hover_pressed_color"},
+        "icon-focus-color": {"kind": "color", "name": "icon_focus_color"},
+        "icon-disabled-color": {"kind": "color", "name": "icon_disabled_color"},
+        "h-separation": {"kind": "constant", "name": "h_separation"},
+        "arrow-margin": {"kind": "constant", "name": "arrow_margin"},
+        "modulate-arrow": {"kind": "constant", "name": "modulate_arrow"}
+      },
+      "label": "font_size",
+      "icons": ["arrow"]
+    },
+    "LineEdit": {
+      "states": {"normal": "normal", "focus": "focus", "read-only": "read_only"},
+      "state_colors": {"font-color": {"normal": "font_color", "read-only": "font_uneditable_color"}},
+      "items": {
+        "caret-color": {"kind": "color", "name": "caret_color"},
+        "placeholder-color": {"kind": "color", "name": "font_placeholder_color"},
+        "selection-color": {"kind": "color", "name": "selection_color"},
+        "selected-font-color": {"kind": "color", "name": "font_selected_color"}
+      },
+      "label": "font_size",
+      "icons": []
+    },
+    "Panel": {
+      "states": {"panel": "panel"},
+      "size": {"width": "width", "height": "height", "min-width": "min_width", "wide-min-width": "wide_min_width", "wide-width": "wide_width"},
+      "icons": []
+    },
+    "PanelContainer": {
+      "states": {"panel": "panel"},
+      "items": {
+        "icon-on": {"kind": "color", "name": "icon_on", "custom": true},
+        "icon-off": {"kind": "color", "name": "icon_off", "custom": true}
+      },
+      "size": {"width": "width", "height": "height", "min-width": "min_width", "wide-min-width": "wide_min_width", "wide-width": "wide_width"},
+      "icons": []
+    },
+    "Label": {
+      "states": {"normal": "normal"},
+      "state_colors": {"font-color": {"normal": "font_color"}, "font-shadow-color": {"normal": "font_shadow_color"}},
+      "items": {
+        "shadow-offset-x": {"kind": "constant", "name": "shadow_offset_x"},
+        "shadow-offset-y": {"kind": "constant", "name": "shadow_offset_y"},
+        "shadow-outline-size": {"kind": "constant", "name": "shadow_outline_size"}
+      },
+      "label": "font_size",
+      "icons": []
+    },
+    "ProgressBar": {
+      "states": {"background": "background", "fill": "fill"},
+      "ramp": {"stop": "ramp_stop_", "checked": ["empty", "full", "steps"]},
+      "icons": []
+    },
+    "HSlider": {
+      "states": {"slider": "slider", "grabber-area": "grabber_area", "grabber-area-highlight": "grabber_area_highlight", "focus": "focus"},
+      "custom_states": ["focus"],
+      "items": {
+        "center-grabber": {"kind": "constant", "name": "center_grabber"},
+        "grabber-offset": {"kind": "constant", "name": "grabber_offset"}
+      },
+      "icons": ["grabber", "grabber_highlight", "grabber_disabled", "tick"]
+    },
+    "VScrollBar": {
+      "states": {"scroll": "scroll", "scroll-focus": "scroll_focus", "grabber": "grabber", "grabber-highlight": "grabber_highlight", "grabber-pressed": "grabber_pressed"},
+      "icons": []
+    },
+    "VBoxContainer": {
+      "states": {},
+      "items": {"separation": {"kind": "constant", "name": "separation"}},
+      "icons": []
+    },
+    "HBoxContainer": {
+      "states": {},
+      "items": {"separation": {"kind": "constant", "name": "separation"}},
+      "icons": []
+    },
+    "GridContainer": {
+      "states": {},
+      "items": {
+        "h-separation": {"kind": "constant", "name": "h_separation"},
+        "v-separation": {"kind": "constant", "name": "v_separation"}
+      },
+      "icons": []
+    },
+    "ScrollContainer": {
+      "states": {},
+      "items": {"scrollbar-h-separation": {"kind": "constant", "name": "scrollbar_h_separation"}},
+      "icons": []
+    },
+    "PopupMenu": {
+      "states": {"panel": "panel", "hover": "hover", "separator": "separator"},
+      "items": {
+        "font-color": {"kind": "color", "name": "font_color"},
+        "font-hover-color": {"kind": "color", "name": "font_hover_color"},
+        "font-disabled-color": {"kind": "color", "name": "font_disabled_color"},
+        "v-separation": {"kind": "constant", "name": "v_separation"},
+        "h-separation": {"kind": "constant", "name": "h_separation"},
+        "item-start-padding": {"kind": "constant", "name": "item_start_padding"},
+        "item-end-padding": {"kind": "constant", "name": "item_end_padding"}
+      },
+      "label": "font_size",
+      "icons": ["checked", "checked_disabled", "unchecked", "unchecked_disabled", "radio_checked", "radio_checked_disabled", "radio_unchecked", "radio_unchecked_disabled", "submenu", "submenu_mirrored", "search"]
+    }
+  },
+  "not_in_default_theme": {
+    "Button": {"styles": ["hover_pressed"]},
+    "OptionButton": {"styles": ["hover_pressed"]},
+    "ScrollContainer": {"constants": ["scrollbar_h_separation"]}
+  },
+  "legacy": {
+    "EscTab": {"variation": "ToyTab", "base": "Button"},
+    "HudPanel": {"variation": "ToyPlate", "base": "PanelContainer"},
+    "LifePanel": {"variation": "ToyPlate", "base": "PanelContainer"},
+    "TaskPanel": {"variation": "ToyPlate", "base": "PanelContainer"},
+    "HudText": {"variation": "ToyTextOnDark", "base": "Label"},
+    "TaskRow": {"variation": "ToyTextOnDark", "base": "Label"},
+    "LifeText": {"variation": "ToyTextOnDark", "base": "Label"},
+    "HudTitle": {"variation": "ToyTitleOnDark", "base": "Label"},
+    "Title": {"variation": "ToyTitleOnDark", "base": "Label"},
+    "EndTitle": {"variation": "ToyTitleOnDark", "base": "Label"},
+    "LifeTitle": {"variation": "ToyTitleOnDark", "base": "Label"},
+    "TaskDescription": {"variation": "ToyTextMutedOnDark", "base": "Label"},
+    "EscShade": {"variation": "ToyBackdrop", "base": "Panel"},
+    "EndBackdrop": {"variation": "ToyBackdropNight", "base": "Panel"},
+    "LoadingBackdrop": {"variation": "ToyBackdropNight", "base": "Panel"},
+    "LifeBar": {
+      "variation": "ToyBarProgress",
+      "base": "ProgressBar",
+      "own_styles": {"background": {"from": "background", "set": {"content_margin_left": 267, "content_margin_right": 267}}}
+    }
+  },
+  "keep": {
+    "DebugMargin": {"base": "MarginContainer", "constants": {"margin_bottom": 13, "margin_left": 13, "margin_right": 13, "margin_top": 13}},
+    "DebugText": {"base": "Label", "font_sizes": {"font_size": 27}},
+    "EndColumn": {"base": "VBoxContainer", "constants": {"separation": 40}},
+    "EscBody": {"base": "HBoxContainer", "constants": {"separation": 27}},
+    "EscPage": {"base": "VBoxContainer", "constants": {"separation": 17}},
+    "EscTabs": {"base": "VBoxContainer", "constants": {"separation": 10}},
+    "HudCrosshair": {"base": "Label", "font_sizes": {"font_size": 40}},
+    "HudHint": {"base": "Label", "font_sizes": {"font_size": 30}},
+    "HudMargin": {"base": "MarginContainer", "constants": {"margin_bottom": 27, "margin_left": 27, "margin_right": 27, "margin_top": 27}},
+    "LifeMargin": {"base": "MarginContainer", "constants": {"margin_bottom": 160}},
+    "PanelMargin": {"base": "MarginContainer", "constants": {"margin_bottom": 30, "margin_left": 30, "margin_right": 30, "margin_top": 30}},
+    "ScreenColumn": {"base": "VBoxContainer", "constants": {"separation": 17}},
+    "Shortfalls": {"base": "Label", "colors": {"font_color": [1, 0.75, 0.4, 1]}}
+  }
+}
