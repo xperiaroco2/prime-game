@@ -1594,7 +1594,11 @@ loop); another shell command; Monitor; Read or another tool, each when the previ
 for half the gap or more; after a call that ended the agent's turn, the background task still running: the first of
 `verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
 with their share of the agents' cache-write $ and the median gap; `idle` in
-`metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
+`metrics.json`), the context per API call of every agent, not only #559's implementers (#584: input, cache write and
+cache read of each call; per agent role the
+average over its agents' calls and the peak, then the heavy agents, at 150k average or 300k peak, with run, issue,
+calls, average and peak: an agent that carries a large context through many calls pays for it on each; also at the
+end of the compact summary's first line and as `--run`'s last line; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
 lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
 the % of the week, `verify` medians): the manager pastes
@@ -1663,7 +1667,8 @@ one once) and answered, who works now (a started agent with no result), the minu
 journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
 message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
 phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
-three costliest agents); several runs end with their total. It writes no file; an ID that names no run fails. On
+three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
+several runs end with their total. It writes no file; an ID that names no run fails. On
 art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
