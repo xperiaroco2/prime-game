@@ -396,6 +396,15 @@ class SkillOverridesTest(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("'workflow-authoring'", errors[0])
 
+    def test_code_review_stays_invocable(self) -> None:
+        # #562 review: finish-task step 2 and AGENT_WORKFLOW §4.2 send a docs-only diff to the bundled /code-review.
+        for value in ("name-only", "user-invocable-only", "off"):
+            with self.subTest(value=value):
+                errors = self.errors({"skillOverrides": {"code-review": value}})
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn("'code-review'", errors[0])
+                self.assertIn("finish-task", errors[0])
+
     def test_an_unknown_value_or_shape_fails(self) -> None:
         self.assertIn("'hidden' is not one of", " ".join(self.errors({"skillOverrides": {"simplify": "hidden"}})))
         self.assertIn("skillOverrides must be an object", " ".join(self.errors({"skillOverrides": ["simplify"]})))
@@ -410,8 +419,9 @@ class SkillOverridesTest(unittest.TestCase):
 
         settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
         overrides = settings.get("skillOverrides", {})
-        self.assertIn("code-review", overrides)
-        self.assertNotIn("workflow-authoring", overrides)
+        self.assertIn("simplify", overrides)
+        for kept in ("workflow-authoring", "code-review"):
+            self.assertNotIn(kept, overrides)
         self.assertEqual(set(overrides.values()), {"user-invocable-only"})  # humans can still type /name
         self.assertNotIn("disableBundledSkills", settings)
         errors = [e for e in instructions.check(ROOT).errors if "settings.json" in e]

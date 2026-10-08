@@ -50,11 +50,14 @@ SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to s
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # The skill listing (#562): `skillOverrides` in .claude/settings.json hides the bundled skills no agent of ours uses.
 # Values from code.claude.com/docs/en/skills, "Override skill visibility from settings" (read 2026-10-08, Claude Code
-# 2.1.293). Our skills and workflows stay listed (dictation, the manager's launches), and so does the bundled
-# workflow-authoring, which a manager loads to write a workflow script (#557). `disableBundledSkills` would remove it
-# with the rest, and an "on" entry cannot bring it back (seen in the 2.1.293 binary), so it stays unset.
+# 2.1.293). Our skills and workflows stay listed (dictation, the manager's launches), and so do the bundled skills our
+# instructions send the model to (SKILL_KEPT). `disableBundledSkills` would remove those with the rest, and an "on"
+# entry cannot bring them back (seen in the 2.1.293 binary), so it stays unset.
 SKILL_OVERRIDE_VALUES = ("on", "name-only", "user-invocable-only", "off")
-SKILL_KEPT = ("workflow-authoring",)
+SKILL_KEPT = {
+    "workflow-authoring": "a manager loads it to write a workflow script (#557)",
+    "code-review": "finish-task step 2 and AGENT_WORKFLOW §4.2 route a docs-only or content-data diff to it",
+}
 # A Markdown link's target (inline links only); a scheme (https:, mailto:) or a bare #anchor is not a file.
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
@@ -258,8 +261,8 @@ def skill_override_problems(root: Path, report: Report) -> list[str]:
     problems = []
     if settings.get("disableBundledSkills") is True:
         problems.append(
-            f"{where}: disableBundledSkills removes workflow-authoring with the other bundled skills; hide them one by "
-            "one in skillOverrides (docs/AGENT_WORKFLOW.md §6)"
+            f"{where}: disableBundledSkills removes {' and '.join(SKILL_KEPT)} with the other bundled skills; hide "
+            "them one by one in skillOverrides (docs/AGENT_WORKFLOW.md §6)"
         )
     overrides = settings.get("skillOverrides", {})
     if not isinstance(overrides, dict):
@@ -277,7 +280,7 @@ def skill_override_problems(root: Path, report: Report) -> list[str]:
                 f"{where}: skillOverrides hides the project's own {name!r}; our skills and workflows stay listed (§6)"
             )
         elif value != "on" and name in SKILL_KEPT:
-            problems.append(f"{where}: skillOverrides hides {name!r}; a manager loads it to write a workflow script")
+            problems.append(f"{where}: skillOverrides hides {name!r}; {SKILL_KEPT[name]}")
         elif value != "on":
             hidden += 1
     if hidden:

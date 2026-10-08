@@ -38,7 +38,7 @@ desktop app, which launches `claude.exe` with `--setting-sources=user,project,lo
 | Skill listing | each manager session (two measured, first call 67.7k and 67.4k tokens) and each general workflow agent (`lean: false`, since #557 only with a `lean_reason`); not the lean types, which have no Skill tool | 22,924 and 22,055 characters, 45 and 44 skills |
 | of which: our skills and workflows | | 9 skills 3,204, 2 workflows 1,749 |
 | of which: the desktop app's `anthropic-skills` plugin (17 skills: docx, pdf, chrome-browser, ...) | | 10,211 |
-| of which: bundled skills (`code-review`, `simplify`, `loop`, `dataviz`, `artifact-*`, ...) | | 16 skills 7,508, plus `workflow-authoring` 253 |
+| of which: bundled skills (`code-review`, `simplify`, `loop`, `dataviz`, `artifact-*`, ...) | | 16 skills 7,508 (`code-review` about 1.0k of it), plus `workflow-authoring` 253 |
 | MCP server instructions | every session and subagent | the Claude Docs connector 1,914 characters (every workflow agent and subagent: `task-implementer` first call 24.0-24.2k tokens, `lean-reader` 15.4k, `code-reviewer` 16.1k); a manager also `claude-in-chrome`, 2,936 in all |
 
 The Claude Docs connector reaches the sessions under a UUID name: the desktop app delivers it in-process, so the
@@ -46,13 +46,16 @@ second row of the docs' table applies. The `anthropic-skills` plugin comes from 
 (`%APPDATA%\Claude\local-agent-mode-sessions\skills-plugin\...`, "Anthropic-managed skills for Claude Desktop").
 
 ## Decision
-1. `.claude/settings.json` sets the 16 bundled skills seen in the listing to `"user-invocable-only"`: out of the
-   model's listing in every session of this repository, still typable as `/name` by a human. About 7.5k of the
-   manager's 22.9k listing characters (computed from the measured listing, see below).
-2. Our nine skills, our two workflows and the bundled `workflow-authoring` (a manager loads it to write a workflow
-   script; since #557 a task agent reads `docs/workflow-scripts.md` instead) stay listed; `disableBundledSkills`
-   stays unset. The instruction lint (`lint`, so `verify`) fails an entry that hides one of them, a value outside the
-   four, and `disableBundledSkills: true`.
+1. `.claude/settings.json` sets 15 of the 16 bundled skills seen in the listing to `"user-invocable-only"`: out of
+   the model's listing in every session of this repository, still typable as `/name` by a human. About 6.5k of the
+   manager's 22.9k listing characters (7,508 less `code-review`'s entry, computed from the measured listing, see
+   below).
+2. Our nine skills, our two workflows and two bundled skills our instructions send the model to stay listed:
+   `workflow-authoring` (a manager loads it to write a workflow script; since #557 a task agent reads
+   `docs/workflow-scripts.md` instead) and `code-review` (finish-task step 2 and AGENT_WORKFLOW §4.2 route a
+   docs-only or content-data diff to it; the PR's review kept it). `disableBundledSkills` stays unset. The
+   instruction lint (`lint`, so `verify`) fails an entry that hides one of them, a value outside the four, and
+   `disableBundledSkills: true`.
 3. No connector setting in the project: `disableClaudeAiConnectors` has no effect where our managers and workflow
    agents run (desktop sessions) and would remove the humans' connectors from their terminal sessions.
 4. The `anthropic-skills` plugin stays: plugin skills are out of `skillOverrides`' reach and the desktop app
