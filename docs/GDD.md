@@ -63,7 +63,7 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
   are scattered and players are placed.
-- **Pregame:** 3 s of a black screen with the player's own role; nobody hears anybody, nobody moves. Then the
+- **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
   match clock starts (the engineer, #213).
 - **Round:** everyone works on the shared tasks (Delivery); the dissidents sabotage by hiding packages and run out
   the clock. A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns

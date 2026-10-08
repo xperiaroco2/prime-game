@@ -1,9 +1,9 @@
 class_name PregameScreen
 extends Control
-## The pregame screen (ARCHITECTURE §3.6, §4.7.4, #213): black, "Your role" and the own role's
-## display name from the client's own mode, for the silent seconds before the round; nothing else
-## (no other player, no word about the microphone: the engineer, 2026-10-02). A greybox: the Toy
-## role reveal is #496.
+## The pregame screen (ARCHITECTURE §3.6, §4.7.4, #213): a dark backdrop (EndBackdrop), "Your role"
+## and the own role's display name from the client's own mode, for the silent seconds before
+## the round; nothing else (no other player, no word about the microphone: the engineer,
+## 2026-10-02). A greybox: the Toy role reveal is #496.
 
 ## The copy deck's "Your role" (a key: Godot translates it, §4.7.26).
 const TITLE_KEY := "pregame.your_role"

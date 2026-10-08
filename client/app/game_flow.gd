@@ -17,7 +17,7 @@ enum Screen {
 	CONNECTING,  ## "Connecting to <address>", Cancel
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded
-	PREGAME,  ## black, the own role (#213): silent, frozen, before the round's clock runs
+	PREGAME,  ## dark, the own role (#213): silent, frozen, before the round's clock runs
 	ROUND,  ## the round (M4-8's HUD)
 	END,  ## "The <side> won"; "Back to the lobby in 3" (#212)
 }

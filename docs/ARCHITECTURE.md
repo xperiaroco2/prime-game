@@ -242,9 +242,10 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 ### 3.6 Pregame, the silent intro (#213, M6.2)
 The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
-Round, like a film's titles: a black screen shows each player its own role for about 3 s, nobody hears anybody, there
-is no input and no movement, and the round's clock does not run yet. Neither screen says anything about the
-microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already silent; a test keeps it so.
+Round, like a film's titles: a dark screen (End's `EndBackdrop`, not pure black) shows each player its own role for
+about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
+screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
+silent; a test keeps it so.
 - **The data** (`content/modes/base_mode.tres`): `Phase_pregame`, class `PregamePhase`, `seconds` 3.0 (the
   engineer's "about 3 s"), no accepts (a `MoveClaim` in flight is dropped as in any phase that refuses it, E15;
   every other intent gets `not_accepted`), no tick systems, no win check, the clock stopped, `SilentVoice`, the map
@@ -256,9 +257,9 @@ microphone: it is obvious nobody hears anybody. Post game is End (§3.2), alread
   the round's `PhaseChanged` its clock end. No win condition is checked in the pregame: a leave that empties the
   crew there is seen by the round's entry, in the same step (`Match._finish_step`), before any of its ticks.
 - **The client** (`GameFlow.Screen.PREGAME`, `client/ui/pregame_screen.gd`): chosen by the own copy's `PhaseSpec`,
-  its class `PregamePhase`, never by the phase's name. Black (`EndBackdrop`), the copy deck's `pregame.your_role`
-  and the own role's display name from the own mode; nothing of any other player. Frozen as Loading and End, and
-  the mouse kept as in Loading (#517). A greybox: the Toy role reveal is #496.
+  its class `PregamePhase`, never by the phase's name. A dark backdrop (`EndBackdrop`, the end screen's), the copy
+  deck's `pregame.your_role` and the own role's display name from the own mode; nothing of any other player. Frozen
+  as Loading and End, and the mouse kept as in Loading (#517). A greybox: the Toy role reveal is #496.
 - **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175). None exists yet, so
   none plays; whoever adds them plays them on the pregame screen only, where nobody hears anybody.
 - **Not decided here:** a fade between the screens, the teammates on the screen (the deck's `pregame.teammate`).
@@ -636,7 +637,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
 | `LoadMatch` | match id, map, the whole-number settings | everyone | entering Loading |
 | `PlayerLoaded` | peer | everyone | a valid `LoadAck` |
-| `RoundStarted` | start tick | everyone | the deal |
+| `RoundStarted` | start tick | everyone | entering Round (`StartClock` on `Pregame, pregame_done → Round`, #213) |
 | `RoleAssigned` | your role | that player | the deal |
 | `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
@@ -667,7 +668,7 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
 `KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
-(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
+(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
 
@@ -1557,8 +1558,9 @@ sections named:
    a new baseline, checked as one tick and corrected: either answer passes;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
-7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
-   or End (§6; the leak test's voice checks run too);
+7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading,
+   Pregame or End (the mode's phases that hear within 0 m, checked against a hand-written list; §6; the leak
+   test's voice checks run too);
 8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
    the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
    player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
@@ -1597,7 +1599,7 @@ the encoder refuses with an error line).
 ##### 4.6.5.1 Runs
 `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
-step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 900 frames (the 3 s pregame, #213) in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
 `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
 `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
@@ -1758,7 +1760,7 @@ follow the previous one; nothing is drawn in between. A test that reads those wa
 screen it waited for; game_loop_test checks that wait with `Game._process` off (#225). The local player's physics step
 and input flags (`Game._apply_player_flags`) follow the model at once: `Game._on_event` applies them at every event the
 session folds, in its physics step, and `_process` again every frame (the Esc menu), so after a hitch the player
-neither steps nor claims into Loading or End, nor waits for `_process` to walk again (#241). A step turned off there
+neither steps nor claims into Loading, Pregame or End, nor waits for `_process` to walk again (#241). A step turned off there
 stops the player in that physics frame; one turned on steps it from the next (observed on 4.7.2, not in the docs).
 game_loop_test plays a loop with no `Game._process` from the lobby on and sees no step in Loading, everyone at the
 round's and the lobby's `Correction`s and no `Correction` of a refused claim.
@@ -1787,7 +1789,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
-| Pregame | pregame screen: black, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
+| Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | end screen: black, "The <side's display name> won"; "Back to the lobby in 3" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | main menu with the reason in words | none | none |
@@ -2681,7 +2683,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
   living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
-  buttons dead); `clashes_of()`, the "same key" check per phase (#488's rule 6), under which `give_up` and `ready`
+  buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
+  check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
@@ -3302,7 +3305,7 @@ included), 0 when it routes nobody: the base class and `SilentVoice` 0, `Proximi
 `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
 it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
 (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
-base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading, Pregame (§3.6) and End. The leak test checks the
 routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
 decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
 whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
