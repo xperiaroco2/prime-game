@@ -63,7 +63,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
   fold a fix with `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
 - Every agent runs verify, publish and mutants in the background (a slot wait can reach 600 s): `<cmd> > <log> 2>&1;
-  echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one. Workflow agents and subagents block no call over 240 s (5-minute cache; AGENT_WORKFLOW §11).
+  echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one. Workflow agents and subagents block no call over 180 s (5-minute cache; AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`,
