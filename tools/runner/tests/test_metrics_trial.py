@@ -21,6 +21,8 @@ def member(issue: int | None, wf: str, model: str, *, green: bool = True, pub: d
            pr: int | None = None, ci: int | None = None, usd: float = 5.0, design: bool = False) -> tuple:  # fmt: skip
     """A finished run with its per_task record and its scorecard row."""
     agents = [agent("implementer", {"verify_green": green}, model)]
+    if serious is not None:
+        agents.append(agent("code-reviewer", {"findings": [{"severity": "major"}] * serious}))
     if pub is not None:
         agents.append(agent("publisher", pub, SONNET))
     run = {"session": "s", "issue": issue, "wf": wf, "agents": agents}
@@ -116,6 +118,24 @@ class TrialRecordTest(unittest.TestCase):
 def totals(tasks: int, **kw: float | None) -> dict:
     out: dict = {"tasks": tasks, "red_twice": 0, "usd_median": 5.0}
     return out | dict.fromkeys(metrics.TRIAL_MEASURES, 1.0) | kw
+
+
+class TrialSeriousTest(unittest.TestCase):
+    """One reviewer set on both sides: the A/B's control code reviewer replaces code-reviewer, no test review."""
+
+    def test_one_code_reviewer_counts(self) -> None:
+        def run(*agents: dict) -> dict:
+            return {"agents": [agent("implementer", {"verify_green": True}), *agents]}
+
+        def found(*severities: str) -> dict:
+            return {"findings": [{"severity": s} for s in severities]}
+
+        self.assertIsNone(metrics.trial_serious(run()), "no review ran")
+        self.assertIsNone(metrics.trial_serious(run(agent("test-reviewer", found("major")))), "a test review alone")
+        self.assertEqual(metrics.trial_serious(run(agent("code-reviewer", found("Major", "minor", "blocker")))), 2)
+        both = run(agent("code-reviewer", found("major", "major"), SONNET), agent("code-reviewer-control", found("major")),
+                   agent("godot-api-checker", found("blocker")), agent("test-reviewer", found("major")))  # fmt: skip
+        self.assertEqual(metrics.trial_serious(both), 2, "the control's 1 in place of code-reviewer's 2, plus the checker's")
 
 
 class TrialAdviceTest(unittest.TestCase):

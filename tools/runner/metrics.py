@@ -172,8 +172,8 @@ is of TRIAL_FAMILY; its runs on another model (the manager's relaunch on Opus) c
 whose every implementer is of BASELINE_FAMILY, not a design task, and whose issue's first `Size:` line (from GitHub;
 "S to M" is M) is in TRIAL_SIZES. Per task: its runs and the red ones (a run the manager must relaunch: the
 implementer's verify_green false, published false or ci_green false), verify runs and reds (the summaries its agents
-saw), the review's blockers and majors (the scorecard's serious), publisher fix rounds, CI fix rounds (red CI rounds,
-once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and the stop
+saw), the review's blockers and majors (trial_serious: one reviewer set on both sides), publisher fix rounds, CI
+fix rounds (red CI rounds, once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and the stop
 rule (trial_advice): stop once TRIAL_RED_TWICE trial tasks were red twice; from TRIAL_EARLY_TASKS trial tasks stop when
 their blockers and majors per task are TRIAL_SERIOUS_OVER or more over the baseline's; after TRIAL_TASKS keep it when
 the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its $ per task is lower, else drop it. Without
@@ -2343,6 +2343,24 @@ def run_red(r: dict) -> bool:
             or last["publisher"].get("ci_green") is False)  # fmt: skip
 
 
+def trial_serious(r: dict) -> int | None:
+    """A run's blockers and majors from one reviewer set on both sides of the trial: REVIEWERS, with the A/B's
+    code-reviewer-control (the Opus code reviewer) in place of code-reviewer where the run has one, so a finding both
+    code reviewers raised counts once; no test review (only some launches have one). None when no review ran."""
+    done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
+    roles = [role for role in REVIEWERS if role in done]
+    if "code-reviewer-control" in done:
+        roles = [role for role in roles if role != "code-reviewer"] + ["code-reviewer-control"]
+    if not roles:
+        return None
+    serious = 0
+    for role in roles:
+        listed = done[role].get("findings")
+        for f in listed if isinstance(listed, list) else []:
+            serious += isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
+    return serious
+
+
 def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | None) -> dict:
     """One task's runs (run, per_task, quality row) summed: the trial table's measures; None where no run knows."""
 
@@ -2359,7 +2377,7 @@ def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | 
         "runs": len(members), "red_runs": sum(run_red(r) for r, _p, _q in members),
         "verify_runs": sum(p["summaries"] for _r, p, _q in members),
         "verify_red": sum(p["summaries_failed"] for _r, p, _q in members),
-        "serious": known([q["serious"] for _r, _p, q in members]),
+        "serious": known([trial_serious(r) for r, _p, _q in members]),
         "fix_rounds": known([q["fix_rounds"] for _r, _p, q in members]),
         "ci_fix_rounds": known(list(ci.values())),
         "calls": sum(p["calls"] for _r, p, _q in members), "usd": sum(q["usd"] for _r, _p, q in members),
