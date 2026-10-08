@@ -237,8 +237,11 @@ class WaitTest(unittest.TestCase):
         self.assertIn(f"(default and maximum {wait.DEFAULT_MAX}, #555)", wait.__doc__ or "")
         parser = cli.build_parser()
         self.assertEqual(parser.parse_args(["wait", "x.log"]).max, wait.DEFAULT_MAX)
-        sub = next(a for a in parser._actions if a.dest == "command").choices["wait"]
-        text = " ".join(sub.format_help().split())
+        shown = io.StringIO()
+        with contextlib.redirect_stdout(shown), self.assertRaises(SystemExit) as raised:
+            cli.main(["wait", "--help"])
+        self.assertEqual(raised.exception.code, 0)
+        text = " ".join(shown.getvalue().split())
         self.assertIn(f"Wait at most S s (default {wait.DEFAULT_MAX})", text)
         self.assertIn(f"1 to {wait.MAX_ALLOWED} (default {wait.DEFAULT_MAX})", text)
 
