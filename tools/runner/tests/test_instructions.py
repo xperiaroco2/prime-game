@@ -107,6 +107,13 @@ class LoadedLinesTest(unittest.TestCase):
         ]
         self.assertEqual(instructions.loaded_lines(body), 5)
 
+    def test_bytes_count_only_the_loaded_lines(self) -> None:
+        # #561: the byte budgets measure what Claude Code injects, so an intervention note costs nothing.
+        body = ["# T", "text é"]
+        self.assertEqual(instructions.loaded_bytes(body), len("# T\ntext é\n".encode("utf-8")))
+        noted = [body[0], "<!-- see docs/interventions/x.md -->", "<!--", "note", "-->", body[1]]
+        self.assertEqual(instructions.loaded_bytes(noted), instructions.loaded_bytes(body))
+
 
 class BudgetTest(unittest.TestCase):
     def check(self, files: dict[str, str]) -> instructions.Report:
@@ -127,6 +134,25 @@ class BudgetTest(unittest.TestCase):
         )
         self.assertEqual(report.errors, [])
         self.assertIn("launch-time instructions 120/150 lines (CLAUDE.md 120)", report.notes)
+
+    def test_root_byte_budget_counts_loaded_bytes(self) -> None:
+        # #561: 88 lines of 100 bytes pass the line budget but not the bytes; comments stay free.
+        line = "x" * 99 + "\n"
+        fits = line * (instructions.ROOT_BYTES // len(line))
+        note = "<!-- see docs/interventions/x.md -->\n" * 20
+        report = self.check({"CLAUDE.md": fits + note})
+        self.assertEqual(report.errors, [])
+        size = len(fits)
+        self.assertIn(f"launch-time instructions {size}/{instructions.ROOT_BYTES} bytes (CLAUDE.md {size})", report.notes)
+        report = self.check({"CLAUDE.md": fits + line})
+        self.assertEqual(len(report.errors), 1, report.errors)
+        self.assertIn(f"{size + len(line)} bytes", report.errors[0])
+        self.assertIn(f"budget {instructions.ROOT_BYTES}", report.errors[0])
+
+    def test_an_unscoped_rule_counts_toward_root_bytes(self) -> None:
+        half = ("y" * 99 + "\n") * 44
+        report = self.check({"CLAUDE.md": half, ".claude/rules/style.md": half})
+        self.assertTrue(any("8800 bytes" in e for e in report.errors), report.errors)
 
     def test_unscoped_rule_counts_toward_root_budget(self) -> None:
         report = self.check({"CLAUDE.md": lines(120), ".claude/rules/style.md": lines(31)})
@@ -356,6 +382,22 @@ class SkillTest(unittest.TestCase):
             ".claude/skills/start-task/SKILL.md:13: link budget.md#the-unit names no file",
             ".claude/skills/start-task/SKILL.md:13: link ../../../docs/decisions/x.md names no file",
         ])
+
+    def test_skill_byte_budget_counts_the_loaded_body(self) -> None:
+        # #561: the body an invocation injects, frontmatter and comments left out; detail goes to supporting files.
+        head = "\nBody.\n"  # SKILL's body after its frontmatter
+        line = "z" * 79 + "\n"
+        body = line * ((instructions.SKILL_BYTES - len(head)) // len(line))
+        fits = SKILL + body + "<!-- see docs/interventions/x.md -->\n" * 50
+        self.assertEqual(self.problems(fits), [])
+        size = len(head + body + line)
+        self.assertEqual(
+            self.problems(SKILL + body + line),
+            [
+                f".claude/skills/start-task/SKILL.md: {size} bytes, budget {instructions.SKILL_BYTES}: "
+                "move detail into a supporting file read on demand"
+            ],
+        )
 
     def test_listing_cap_and_missing_file(self) -> None:
         long = SKILL.replace("Use for", "x" * 1600)
