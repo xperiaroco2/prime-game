@@ -66,9 +66,11 @@ func test_each_peer_learns_only_its_own_role() -> void:
 		assert_int(own.peer).is_equal(peer)
 		assert_str(own.role).is_equal(game.state.player(peer).role)
 		# Teammates reaches only the players of a role that knows its own (the dissidents).
-		for event: MatchEvent in view.events_named(&"Teammates"):
+		var teammates := view.events_named(&"Teammates")
+		var is_dissident: bool = game.state.player(peer).role == "dissident"
+		assert_int(teammates.size()).is_equal(1 if is_dissident else 0)
+		for event: MatchEvent in teammates:
 			assert_str((event as TeammatesEvent).role).is_equal(game.state.player(peer).role)
-			assert_str(game.state.player(peer).role).is_equal("dissident")
 
 
 func test_a_move_claim_is_dropped_and_every_other_intent_is_not_accepted() -> void:
