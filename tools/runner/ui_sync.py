@@ -257,6 +257,8 @@ def verify(root: Path = ROOT) -> list[str]:
     for name, digest in sorted(assets.items()):
         if name in files and files[name] != digest:
             problems.append(f"{name}: the lock's sha256 differs from the pack's assets record")
+        if name.lower().endswith(TEXT_SUFFIXES) and name not in files:
+            problems.append(f"{name}: a pack asset missing from the lock")
         if not name.lower().endswith(TEXT_SUFFIXES) and name not in deferred:
             problems.append(f"{name}: a pack asset neither landed nor listed under deferred")
     for name, digest in sorted(deferred.items()):

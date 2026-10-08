@@ -297,6 +297,13 @@ class VerifyTest(unittest.TestCase):
         self.edit_pack({"assets": pack["assets"]})
         self.assertRegex(self.problems(), r"icons/a.svg: the lock's sha256 differs from the pack's assets record")
 
+    def test_a_text_asset_missing_with_its_lock_line(self) -> None:
+        (self.fx.dest / "icons" / "a.svg").unlink()
+        lock = json.loads(self.fx.lock_path.read_text(encoding="utf-8"))
+        del lock["files"]["icons/a.svg"]
+        self.edit_lock({"files": lock["files"]})
+        self.assertRegex(self.problems(), r"icons/a.svg: a pack asset missing from the lock")
+
     def test_a_binary_asset_that_is_not_deferred(self) -> None:
         self.edit_lock({"deferred": {}})
         self.assertRegex(self.problems(), r"cards/a.png: a pack asset neither landed nor listed under deferred")
