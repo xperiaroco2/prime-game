@@ -8,6 +8,7 @@ Frontmatter is checked strictly: when a rule's YAML does not parse, Claude Code 
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from dataclasses import dataclass, field
@@ -41,15 +42,28 @@ SKILL_FIELDS = {
     "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent", "background",
     "hooks", "paths", "shell", "metadata", "license", "compatibility",
 }  # fmt: skip
-SKILL_RESERVED = ("doctor", "verify", "run")  # would replace bundled commands (§6)
+# Would replace bundled commands (§6); workflow-authoring is the bundled skill a manager loads for a script (#557).
+SKILL_RESERVED = ("doctor", "verify", "run", "workflow-authoring")
 SKILL_NO_FORK = ("start-task", "finish-task")  # they need the conversation (§6)
 SKILL_LISTING_CAP = 1536  # description + when_to_use are cut here in the skill listing
 SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to supporting files beyond this
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# The skill listing (#562): `skillOverrides` in .claude/settings.json hides the bundled skills no agent of ours uses.
+# Values from code.claude.com/docs/en/skills, "Override skill visibility from settings" (read 2026-10-08, Claude Code
+# 2.1.293). Our skills and workflows stay listed (dictation, the manager's launches), and so do the bundled skills our
+# instructions send the model to (SKILL_KEPT). `disableBundledSkills` would remove those with the rest, and an "on"
+# entry cannot bring them back (seen in the 2.1.293 binary), so it stays unset.
+SKILL_OVERRIDE_VALUES = ("on", "name-only", "user-invocable-only", "off")
+SKILL_KEPT = {
+    "workflow-authoring": "a manager loads it to write a workflow script (#557)",
+    "code-review": "finish-task step 2 and AGENT_WORKFLOW §4.2 route a docs-only or content-data diff to it",
+}
 # A Markdown link's target (inline links only); a scheme (https:, mailto:) or a bare #anchor is not a file.
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 EXTERNAL_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|#)")
+# A repo path a lean agent's body names in backticks (#557): docs/ or .claude/, no placeholder, glob or space.
+BODY_PATH_RE = re.compile(r"`((?:docs|\.claude)/[^`<>*\s]+)`")
 FALSE = ("false", "no", "off", "0")
 TRUE = ("true", "yes", "on", "1")
 SKIP = {".git", ".godot", "addons", "tools/out", "docs/history", ".claude/worktrees"}
@@ -228,7 +242,50 @@ def check(root: Path) -> Report:
         report.errors += skill_links(root, folder)
     if skills:
         report.notes.append(f"{len(skills)} skills: frontmatter, model-invocable, Bash and PowerShell twins, links")
+    report.errors += skill_override_problems(root, report)
     return report
+
+
+def skill_override_problems(root: Path, report: Report) -> list[str]:
+    """`skillOverrides` and `disableBundledSkills` in .claude/settings.json (#562; SKILL_OVERRIDE_VALUES)."""
+    path = root / ".claude" / "settings.json"
+    if not path.is_file():
+        return []
+    where = ".claude/settings.json"
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        return [f"{where}: not JSON ({exc})"]
+    if not isinstance(settings, dict):
+        return [f"{where}: not a JSON object"]
+    problems = []
+    if settings.get("disableBundledSkills") is True:
+        problems.append(
+            f"{where}: disableBundledSkills removes {' and '.join(SKILL_KEPT)} with the other bundled skills; hide "
+            "them one by one in skillOverrides (docs/AGENT_WORKFLOW.md §6)"
+        )
+    overrides = settings.get("skillOverrides", {})
+    if not isinstance(overrides, dict):
+        return [*problems, f"{where}: skillOverrides must be an object of skill name to value"]
+    skills_dir, workflows_dir = root / ".claude" / "skills", root / ".claude" / "workflows"
+    ours = {p.name for p in skills_dir.iterdir() if p.is_dir()} if skills_dir.is_dir() else set()
+    ours |= {p.stem for p in workflows_dir.glob("*.js")} if workflows_dir.is_dir() else set()
+    hidden = 0
+    for name, value in sorted(overrides.items()):
+        if value not in SKILL_OVERRIDE_VALUES:
+            allowed = ", ".join(SKILL_OVERRIDE_VALUES)
+            problems.append(f"{where}: skillOverrides {name!r}: {value!r} is not one of {allowed}")
+        elif value != "on" and name in ours:
+            problems.append(
+                f"{where}: skillOverrides hides the project's own {name!r}; our skills and workflows stay listed (§6)"
+            )
+        elif value != "on" and name in SKILL_KEPT:
+            problems.append(f"{where}: skillOverrides hides {name!r}; {SKILL_KEPT[name]}")
+        elif value != "on":
+            hidden += 1
+    if hidden:
+        report.notes.append(f"skillOverrides: {hidden} bundled skills kept out of the listing")
+    return problems
 
 
 def skill_links(root: Path, folder: Path) -> list[str]:
@@ -383,6 +440,15 @@ def agent_problems(path: Path) -> list[str]:
             problems.append(f"disallowedTools: must include {', '.join(missing)} (lean agent types ADR)")
         if "effort" in fm.fields:
             problems.append("effort: is set by the workflow per role (lean agent types ADR)")
+        if "skills" in fm.fields:
+            # #557's probe: a preloaded skill's whole text is in every call of every task of the type.
+            problems.append("skills: a lean type preloads no skill (its text is in every call; #557)")
+        # #557: the body sent agents to a SKILL.md that does not exist; a named path must (the root is the agents'
+        # .claude/agents/ two levels up).
+        root = path.resolve().parents[2]
+        for rel in dict.fromkeys(BODY_PATH_RE.findall("\n".join(fm.body))):
+            if not (root / rel).exists():
+                problems.append(f"body names {rel}, which does not exist")
     if "permissionMode" in fm.fields:
         problems.append("permissionMode: project subagents inherit the session's mode (lean agent types ADR)")
     if "memory" in fm.fields:

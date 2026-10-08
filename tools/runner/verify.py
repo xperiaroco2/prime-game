@@ -1,15 +1,19 @@
 """`verify` (the definition of done: exactly what CI runs) and `selftest`.
 
-`doctor --quick` runs first, and a red one stops everything. Then two lanes run at once, each in a process of its
+`doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
-`selftest`: the runner tests that start no Godot, in worker processes) and the Godot lane (`check`, then
-`selftest-godot`: the runner tests that start Godot, then `test`, `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`,
-`webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`, `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc` and
-`game`), so the timing-sensitive network runs never overlap.
-Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. After both
+`selftest`: the runner tests that start no Godot, in worker processes), the Godot lane (`check`, `test`, then the
+network runs `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
+`webrtc-silence`, `bots`, `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc` and `game`) and the selftest-godot lane
+(the runner tests that start Godot). A step of AFTER starts only once its steps of other lanes have ended: the runner
+tests that start Godot after `check` (its import), beside `test`, and the network runs after them, so no other Godot
+run overlaps a timing-sensitive network run, and the network runs never overlap each other (#556).
+Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. With
+`--fail-fast` (#556) the first red step stops the lanes instead: the steps that had not ended are `not run`. After the
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
-would run ran once, skipped where it would be skipped). The summary lists the steps in STEP_ORDER (the order of the
-serial `verify` before #179) with each lane's wall time; each run appends a record to HISTORY.
+would run ran once, skipped where it would be skipped; not after a run stopped early). The summary lists the steps in
+STEP_ORDER (the order of the serial `verify` before #179) with each lane's wall time; each run appends a record to
+HISTORY.
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import IO
 
 from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots
 from .common import (
@@ -112,14 +117,15 @@ STEP_ORDER = (
     "selftest",
     "selftest-godot",
 )
-# After doctor, both lanes at once; each one serial. The Godot lane holds every step that starts Godot, so no two
-# Godot runs (and no two real-time ENet sessions) ever overlap, and its runner tests come after check: a fresh CI
-# checkout has imported the project (.godot/) before RealSessionTest is discovered.
+# After doctor, every lane at once; each one serial. Until #556 the Godot lane also held selftest-godot between check
+# and test, and it was the critical path in every run measured (101 full runs on the PC, 10-06 to 10-08: the Godot lane
+# median 527 s, the Python lane 336 s): so the runner tests that start Godot got a lane of their own, which starts after
+# check (AFTER) and runs beside test. If `test` turns flaky under the extra load (see its red rate in `metrics`),
+# AFTER["selftest-godot"] = ("check", "test") makes the lane wait for test to end, as its old place in the Godot lane did.
 LANES: dict[str, tuple[str, ...]] = {
     "python": ("lint", "signal", "selftest"),
     "godot": (
         "check",
-        "selftest-godot",
         "test",
         "enet",
         "freeze",
@@ -135,7 +141,19 @@ LANES: dict[str, tuple[str, ...]] = {
         "chaos-webrtc",
         "game",
     ),
+    "selftest-godot": ("selftest-godot",),
 }
+# A step that starts only once these steps of other lanes have ended (whatever their status): the runner tests that
+# start Godot after check, so a fresh CI checkout has imported the project (.godot/) before RealSessionTest is
+# discovered and no two Godot imports run at once; the first network run after them, so no other Godot run overlaps
+# the timing-sensitive network runs (test, before it in its own lane, has ended too). The parent tells each lane
+# process every step that ended, one name per line on its stdin (Gate, wait_for_steps).
+AFTER: dict[str, tuple[str, ...]] = {
+    "selftest-godot": ("check",),
+    "enet": ("selftest-godot",),
+}
+# A step that a run stopped early by --fail-fast never ended: neither a pass nor a red (`metrics` counts it as neither).
+NOT_RUN = "not run"
 # A lane process that outlives this is stopped and its unfinished steps fail (CI's whole job has 20 minutes).
 LANE_TIMEOUT = 30 * 60
 # The line a lane process prints after each step, then the step's result as JSON. Printable on purpose: Python's
@@ -305,7 +323,7 @@ def run_step(name: str) -> int:
 class StepRun:
     name: str
     lane: str
-    status: str  # "passed" or "FAILED"
+    status: str  # "passed", "FAILED" or NOT_RUN
     seconds: float
     output: str = ""
     detail: dict[str, object] = field(default_factory=dict)  # the step's own fields of the history record
@@ -313,11 +331,28 @@ class StepRun:
 
 Emit = Callable[[StepRun], None]
 RunLane = Callable[[str, tuple[str, ...], Emit], None]
+WaitFor = Callable[[tuple[str, ...]], None]
+
+# In a lane process: the steps of other lanes that the parent said have ended (wait_for_steps).
+_ENDED: set[str] = set()
 
 
-def lane_main(lane: str) -> int:
-    """The body of a lane process: its steps in order, each followed by a MARK line with its result."""
+def wait_for_steps(needed: tuple[str, ...], stream: IO[str] | None = None) -> None:
+    """In a lane process: return once every step in `needed` has ended, as the parent tells it on stdin (Gate), one
+    step name per line. At the end of stdin (a lane started by hand, or its parent gone) it waits no longer."""
+    source = stream if stream is not None else sys.stdin
+    while not set(needed) <= _ENDED:
+        line = source.readline()
+        if not line:
+            return
+        _ENDED.add(line.strip())
+
+
+def lane_main(lane: str, wait: WaitFor | None = None) -> int:
+    """The body of a lane process: its steps in order, each after its AFTER steps have ended (`wait`, by default
+    wait_for_steps) and followed by a MARK line with its result."""
     for name in LANES[lane]:
+        (wait or wait_for_steps)(AFTER.get(name, ()))
         started = time.monotonic()
         rc = run_step(name)
         seconds = time.monotonic() - started
@@ -393,6 +428,58 @@ def lane_command(lane: str) -> list[str]:
 
 _LIVE: set[subprocess.Popen[bytes]] = set()
 _LIVE_LOCK = threading.Lock()
+# Set by stop_lanes (verify --fail-fast's first red step) until the next run_lanes: a lane process that starts after
+# it is stopped at once.
+_STOP = threading.Event()
+
+
+class Gate:
+    """The parent's side of AFTER: each lane process's stdin, to which it writes every step that ended (one name per
+    line, the ones that ended before the process started first)."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.ended: list[str] = []
+        self.pipes: list[IO[bytes]] = []
+
+    def attach(self, pipe: IO[bytes]) -> None:
+        with self.lock:
+            self.pipes.append(pipe)
+            for name in self.ended:
+                self._tell(pipe, name)
+
+    def detach(self, pipe: IO[bytes]) -> None:
+        with self.lock:
+            if pipe in self.pipes:
+                self.pipes.remove(pipe)
+
+    def end(self, name: str) -> None:
+        with self.lock:
+            if name in self.ended:
+                return
+            self.ended.append(name)
+            for pipe in self.pipes:
+                self._tell(pipe, name)
+
+    @staticmethod
+    def _tell(pipe: IO[bytes], name: str) -> None:
+        try:
+            pipe.write(f"{name}\n".encode())
+            pipe.flush()
+        except (OSError, ValueError):  # the lane process has ended (or was stopped): it waits for nothing more
+            pass
+
+
+_GATE = Gate()
+
+
+def stop_lanes() -> None:
+    """Stop every lane process now (verify --fail-fast): their unended steps are reported as not run."""
+    _STOP.set()
+    with _LIVE_LOCK:
+        live = list(_LIVE)
+    for proc in live:
+        kill_tree(proc)
 
 
 def run_lane_process(
@@ -404,14 +491,16 @@ def run_lane_process(
     timeout: float = LANE_TIMEOUT,
 ) -> None:
     """Run a lane in a process of its own and emit each step as it ends. Its Godot runs and worker processes are its
-    children, so every line they print reaches this lane's output, never the other lane's."""
+    children, so every line they print reaches this lane's output, never another lane's. A lane with an AFTER step gets
+    the steps that ended on its stdin (Gate); any other lane's stdin is the end of input, as it was before #556."""
     if cmd is None and os.environ.get(INSIDE_VAR):
         raise Failure(f"no verify lanes inside a lane or a selftest worker ({INSIDE_VAR} is set): stub run_lane")
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1", INSIDE_VAR: "1"}
+    gated = any(name in AFTER for name in names)
     proc = subprocess.Popen(
         cmd or lane_command(lane),
         cwd=ROOT,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if gated else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
@@ -419,6 +508,11 @@ def run_lane_process(
     )
     with _LIVE_LOCK:
         _LIVE.add(proc)
+    if _STOP.is_set():  # stopped while it started: stop_lanes may have missed it
+        kill_tree(proc)
+    pipe = proc.stdin
+    if pipe is not None:
+        _GATE.attach(pipe)
     reader = LaneReader(lane, names, emit)
     fired = threading.Event()
 
@@ -436,6 +530,10 @@ def run_lane_process(
         proc.wait()
     finally:
         timer.cancel()
+        if pipe is not None:
+            _GATE.detach(pipe)
+            with contextlib.suppress(OSError):
+                pipe.close()
         if proc.stdout is not None:
             proc.stdout.close()
         with _LIVE_LOCK:
@@ -446,17 +544,28 @@ def run_lane_process(
 def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = None) -> dict[str, float]:
     """Every lane at once, one thread each; returns each lane's wall time in seconds. Ctrl+C stops the lanes'
     processes (each runs in a process group of its own, which Ctrl+C does not reach). `printing` is the lock emit
-    prints under: a crashed lane's message takes it too, so it never lands inside another step's block."""
+    prints under: a crashed lane's message takes it too, so it never lands inside another step's block. Each step that
+    ends, and each step of a lane that ended without reporting it, is told to the lane processes (Gate, AFTER)."""
+    global _GATE
     walls: dict[str, float] = {}
     printing = printing or threading.Lock()
+    _GATE = gate = Gate()
+    _STOP.clear()
+
+    def ended(step: StepRun) -> None:
+        emit(step)
+        gate.end(step.name)
 
     def one(lane: str, names: tuple[str, ...]) -> None:
         started = time.monotonic()
         try:
-            run_lane(lane, names, emit)
+            run_lane(lane, names, ended)
         except Exception:  # noqa: BLE001 - its unreported steps fail in the summary
             with printing:
                 bad(f"the {lane} lane crashed:", traceback.format_exc().rstrip())
+        finally:
+            for name in names:  # a step waiting for one of them would otherwise wait for the lane timeout
+                gate.end(name)
         walls[lane] = time.monotonic() - started
 
     threads = [threading.Thread(target=one, args=item, daemon=True) for item in LANES.items()]
@@ -477,17 +586,23 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
 
 # --- selftest ---------------------------------------------------------------------------------------------------
 
-# The Python lane runs beside the Godot lane's timing-sensitive freeze and stall runs, and on the engineer's PC beside
-# another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores, 16 logical CPUs).
-# Its runner tests therefore take at most a quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's
-# 4-vCPU runner), which still ends the lane long before the Godot lane reaches freeze (measured on the PC with four
-# other runs going, 2026-10-02, before the verify slots: the Python lane about 125 to 150 s, the Godot lane's check,
-# selftest-godot and test alone about 370 s).
-WORKER_SHARE = 4
+# The Python lane runs beside the Godot lane's check and test and then its timing-sensitive network runs, and on the
+# engineer's PC beside another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores,
+# 16 logical CPUs). Until #556 its runner tests took a quarter of the logical CPUs, 4 workers there, meant to end the
+# lane long before the network runs (2026-10-02: the Python lane about 125 to 150 s); the suite grew, and from 10-06 to
+# 10-08 the lane took 336 s (median of 68 runs; selftest 264 s), so it ran beside the network runs for most of them.
+# Since #556 a machine with at least BIG_MACHINE logical CPUs gives them half (8 on the PC; over 10 runs on 10-08:
+# selftest 144 s, the lane 212 s, which ends it near the first network run, and `test` beside it no slower, 123 s
+# against 130 s); a smaller one keeps a quarter (1 on CI's 4-vCPU runner, where the Python lane ends about 230 s
+# before the Godot lane anyway).
+WORKER_SHARE = 2
+SMALL_WORKER_SHARE = 4
+BIG_MACHINE = 8
 
 
 def selftest_workers(cpus: int | None = None) -> int:
-    return max(1, (cpus if cpus is not None else os.cpu_count() or 1) // WORKER_SHARE)
+    count = cpus if cpus is not None else os.cpu_count() or 1
+    return max(1, count // (WORKER_SHARE if count >= BIG_MACHINE else SMALL_WORKER_SHARE))
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
@@ -761,8 +876,8 @@ def count_check(reference: dict[str, bool], entries: list[dict[str, object]]) ->
 
 
 def count_after_lanes(run_id: str) -> tuple[list[str], str, dict[str, int]]:
-    """verify's count check: both lanes' runner tests against a serial discovery now, after both lanes, where the
-    serial verify ran selftest (after check had imported the project)."""
+    """verify's count check: both selftest groups' runner tests against a serial discovery now, after the lanes,
+    where the serial verify ran selftest (after check had imported the project)."""
     entries: list[dict[str, object]] = []
     problems = []
     for group in ("python", "godot"):
@@ -912,7 +1027,9 @@ def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
     return slots.for_verify(me, ci=IS_CI, inside=bool(os.environ.get(INSIDE_VAR)), say=say)
 
 
-def main(run_lane: RunLane = run_lane_process) -> int:
+def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> int:
+    """`verify`; with `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
+    are not run, the count check is left out, and the summary and the record say so."""
     started = time.monotonic()
     start_time = datetime.now(UTC)
     before = git_status()
@@ -927,6 +1044,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     runs["doctor"] = StepRun("doctor", "main", "passed" if rc == 0 else "FAILED", time.monotonic() - t0)
     extra: list[StepRun] = []
     count_line, counts = "", {}
+    stopped_at: str | None = None  # the red step a --fail-fast run stopped at
     taken: slots.Taken | None = None
     slot_line = ""
     if rc == 0:  # a wrong environment makes every later step meaningless
@@ -937,24 +1055,35 @@ def main(run_lane: RunLane = run_lane_process) -> int:
                 slot_line = taken.summary()
                 say(f"verify: {slot_line}")
             described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
-            say(f"verify: two lanes at once ({described}); each step's output follows whole when it ends")
+            say(f"verify: {len(LANES)} lanes at once ({described}); each step's output follows whole when it ends")
+            if fail_fast:
+                say("verify: --fail-fast: the first red step stops every lane")
             say()
             printing = threading.Lock()
 
             def emit(step: StepRun) -> None:
+                nonlocal stopped_at
                 with printing:
+                    if stopped_at is not None and step.status != "passed":  # stopped, or red while it was stopped
+                        runs[step.name] = StepRun(step.name, step.lane, NOT_RUN, 0.0)
+                        return
                     runs[step.name] = step
                     _print_step(step)
+                    if fail_fast and step.status != "passed":
+                        stopped_at = step.name
+                        say(f"verify: --fail-fast: {step.name} is red, stopping every lane")
+                        stop_lanes()
 
             walls = run_lanes(run_lane, emit, printing)
         for lane, names in LANES.items():
-            for name in names:
-                runs.setdefault(name, StepRun(name, lane, "FAILED", 0.0))  # its lane never reported it
-        problems, count_line, counts = count_after_lanes(run_id)
-        if problems:
-            for problem in problems:
-                bad(problem)
-            extra.append(StepRun("selftest-count", "main", "FAILED", 0.0))
+            for name in names:  # its lane never reported it: it failed, or the run stopped before it ended
+                runs.setdefault(name, StepRun(name, lane, "FAILED" if stopped_at is None else NOT_RUN, 0.0))
+        if stopped_at is None:  # a stopped run's runner tests are partial: nothing to count
+            problems, count_line, counts = count_after_lanes(run_id)
+            if problems:
+                for problem in problems:
+                    bad(problem)
+                extra.append(StepRun("selftest-count", "main", "FAILED", 0.0))
     leftovers = sorted(git_status() - before)
     if leftovers:
         bad("verify left new or changed files in the working tree:", "\n".join(leftovers))
@@ -963,8 +1092,11 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     say("verify summary")
     for step in ordered:
         say(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s{step_note(step)}")
+    not_run = [step.name for step in ordered if step.status == NOT_RUN]
+    if stopped_at is not None:
+        say(f"  stopped early (--fail-fast): {stopped_at} was red; {len(not_run)} steps not run: {', '.join(not_run)}")
     if walls:
-        say("  lanes: " + ", ".join(f"{lane} {seconds:.1f}s" for lane, seconds in walls.items())
+        say("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in LANES if lane in walls)
             + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip
     if count_line:
         say(f"  {count_line}")
@@ -977,7 +1109,8 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
     after = f" (after {waited:.1f}s waiting for a verify slot)" if taken is not None else ""
     over = "; it ran OVER THE LIMIT of verify slots" if taken is not None and taken.over else ""
-    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{after}{over}")
+    early = f", stopped early at {stopped_at} (--fail-fast)" if stopped_at is not None else ""
+    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{early}{after}{over}")
     append_history(
         {
             "start": start_time.isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -986,11 +1119,12 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             "status": "FAILED" if failed else "passed",
             "seconds": round(seconds, 1),
             "steps": [step_record(s) for s in ordered],
-            "lanes": {lane: round(wall, 1) for lane, wall in walls.items()},
+            "lanes": {lane: round(walls[lane], 1) for lane in LANES if lane in walls},
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
             "selftest": counts,
             "slot": taken.record() if taken is not None else None,
+            "stopped": {"at": stopped_at, "not_run": not_run} if stopped_at is not None else None,
         }
     )
     return 1 if failed else 0

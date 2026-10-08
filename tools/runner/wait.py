@@ -6,12 +6,12 @@ long job in the background with the Bash tool, its output and then an exit marke
 
     cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>
 
-and polls it with `wait`, one tool call of at most S seconds each (default 240). The job is finished only when the
-LAST complete non-empty line of the log is `exit=<n>`: the marker is the job's final write, a half-written line (no
-newline yet) is never read, and a bare `exit=0` line in the job's own output is not mistaken for the end. Then `wait`
-prints the job's summary (from the last "verify summary" line, which publish prints too, or "merge-train summary";
-otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124.
-No log, or one it cannot read: 2.
+and polls it with `wait`, one tool call of at most S seconds each (default and maximum 180, #555). The job is finished
+only when the LAST complete non-empty line of the log is `exit=<n>`: the marker is the job's final write, a half-written
+line (no newline yet) is never read, and a bare `exit=0` line in the job's own output is not mistaken for the end. Then
+`wait` prints the job's summary (from the last "verify summary" line, which publish prints too, or "merge-train
+summary"; otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line
+and 124. No log, or one it cannot read: 2.
 
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
@@ -35,8 +35,14 @@ from pathlib import Path
 
 from .common import say
 
-DEFAULT_MAX = 240  # a poll every 4 minutes keeps a 5-minute cache warm with a margin for the model's own call
-MAX_ALLOWED = 270
+# A poll every 3 minutes keeps a 5-minute cache warm (#555): over 212 calls that ran to their deadline (2026-10-06 to
+# 10-08, `metrics`), the gap to the agent's next API call exceeded wait's own clock by 6 s median, AROUND_P95 at p95
+# (the shell's and Python's start-up and the guard hook on a loaded PC, then the model's turn), so the step plus that
+# stays under CACHE_TTL. A longer --max only brings that edge back: the step is the maximum too.
+DEFAULT_MAX = 180
+MAX_ALLOWED = DEFAULT_MAX
+AROUND_P95 = 94  # measured, #555: the tests hold the step and the prompts' Bash tool timeout against it
+CACHE_TTL = 300  # a workflow agent's prompt cache, in seconds
 STILL_RUNNING = 124  # as coreutils' `timeout`
 MISSING = 2  # no log, an unreadable one, or a bad --max (argparse's own errors are 2 too)
 POLL_SECONDS = 3.0

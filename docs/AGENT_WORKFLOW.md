@@ -29,7 +29,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 |---|---|---|
 | Surface | The Claude desktop app (Code tab), ≥ 2.1.281 on both machines. The `claude` on PATH is updated or removed 👤 so Rider cannot start an old build. `doctor` fails below 2.1.281 | 👤 / [M0] |
 | Shell | PowerShell 5.1 is the agent's primary shell. No `&&`/`||`: chain with `; if ($LASTEXITCODE -eq 0) { … }`. Structured arguments go in files, not inline JSON | [M0] root `CLAUDE.md` |
-| Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it | [applied] engineer |
+| Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it. The runner also puts `TEMP` and `TMP` in their long form when they hold an 8.3 short path (`C:\Users\XPERIA~1\...`, which the desktop app may give a shell while git and `Path.resolve` give `C:\Users\xperiaroco\...`), and so does the runner tests' package for a bare `python -m unittest`; `doctor` warns about the short one, whose fix is the long path in that `env` (#542) | [applied] engineer |
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
 | `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` patterns that the full `doctor` adds (§3 "Which copy loads", #385, #406); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
@@ -94,7 +94,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 |---|---|---|---|
 | Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
-| `content/ levels/` `CLAUDE.md` (designer-owned) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
+| `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
@@ -201,7 +201,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
    matches too (`bots`, `bots-enet` and `bots-webrtc`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
-   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11.17, "Bounded waits").
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -234,8 +234,9 @@ includes `Agent`, no `memory:` field. The three lean writers are the exception: 
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
 `pr-rebase` under `lean` (their default since #458) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
-writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, and sets no
-`effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
+writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, sets no
+`effort:` and no `skills:` preload, and names in its body only `docs/` and `.claude/` paths that exist (#557). No agent
+file sets `permissionMode`, so every subagent runs in the session's mode;
 `tools/runner/instructions.py` (`lint`) enforces all of it. Their shell use is limited by the shared permission
 rules.
 
@@ -246,7 +247,7 @@ rules.
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
-| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
+| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`, and for a workflow script `docs/workflow-scripts.md`, #557) | `opus`, effort from the workflow's role |
 | `task-publisher` | `lean` only (the default): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
@@ -290,18 +291,25 @@ rules.
   read from `model`, as the Agent tool records it, and any other meta key that names a model, at any depth
   (`request.model`), fails until the reader learns it. After a launch that passes `models`, `agents-check` in the
   manager's session checks it. `finish-task` runs it after the reviews.
+- **Launch check [proposed] (#557; applies once the engineer approves the lean ADR amendment of 2026-10-08):**
+  `tools\run.cmd agents-check --launch` judges no transcript: in the manager's
+  checkout, where the Workflow tool reads the scripts and resolves their agent types, it fails on a missing or invalid
+  `task-implementer.md` or `task-publisher.md`, a missing `issue-task.js` or `pr-rebase.js`, or a file under
+  `.claude/workflows/` or `.claude/agents/` that differs from origin/main after `git fetch origin main` (a failed
+  fetch warns and compares with the last fetch). A script cannot read files, so it cannot check this itself; the
+  manager runs it before each launch (orchestrate-stage §3).
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
 
-Committed in `.claude/skills/<name>/SKILL.md` (M0 stage 6); no plugins. The two designer skills are designer-owned
-and wait for the designer's review.
+Committed in `.claude/skills/<name>/SKILL.md` (M0 stage 6); no plugins. The two content skills are the engineer's
+since #518 (§9); they serve whoever brings the idea, the engineer or the optional designer.
 
 | Skill | For | Does |
 |---|---|---|
 | `start-task`, `finish-task` | both | §4.1, §4.2 |
-| `new-mechanic` | designer | Front door for an idea: interview → `mechanic` issue + `engine-request` issues (stop for OK) → `start-task` → GDD section with open questions and **no invented content**; content data only once the content API exists (M2+) |
-| `new-level-piece` | designer | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
+| `new-mechanic` | both | Front door for an idea: interview → `mechanic` issue + `engine-request` issues (stop for OK) → `start-task` → GDD section with open questions and **no invented content**; content data only once the content API exists (M2+) |
+| `new-level-piece` | both | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
@@ -315,6 +323,13 @@ and wait for the designer's review.
   For skills: strict YAML subset, `name` = folder, no unknown field (Claude Code ignores one silently), the rules
   above, `description` + `when_to_use` within the 1,536-character listing cap, and a PowerShell twin for every Bash
   rule. `claude plugin validate .claude/skills` is no substitute: it passed a description YAML cannot parse.
+- Of the bundled skills, the listing keeps only `workflow-authoring` (a manager loads it to write a workflow script)
+  and `code-review` (step 2 of §4.2 routes docs-only diffs to it) (#562,
+  [ADR](decisions/2026-10-08-skill-listing-and-account-connectors.md)): `skillOverrides` in `.claude/settings.json`
+  sets each other bundled skill to `"user-invocable-only"` (out of the model's listing, still `/name` for a human).
+  A Claude Code update that brings a new bundled skill needs a new entry. The lint fails an entry that hides ours or
+  those two, and `disableBundledSkills`. The desktop app's `anthropic-skills` plugin stays listed and the account's
+  connectors stay loaded: both are beyond project settings (the ADR).
 - `allowed-tools` only pre-approves tools for the turn that invokes the skill; ask and deny rules still win, so a
   skill never bypasses the guard or the settings prompts.
 - A running session sees edits to existing skills at once, but a `.claude/skills/` folder created after it started
@@ -409,8 +424,8 @@ Rules for every workflow run:
   itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
-  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
-  byte
+  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` (with a `lean_reason` since
+  #557) gets the earlier agents byte for byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
@@ -446,7 +461,17 @@ Rules for every workflow run:
   with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
   one, both reviews going on as usual, then a read-only
   judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
-  the runs (+2; +1 when neither reviewer found anything). A missing `mutants` or `playcheck` on the task's
+  the runs (+2; +1 when neither reviewer found anything). `checkpoint: true` (#559, `issue-task` only; opt-in, off
+  until the engineer's yes after `metrics` measured it): an implementer whose context passes 150,000 tokens hands over
+  to a fresh one. It reads its context from the harness's `<total_tokens>N tokens left` reminder after each tool
+  result (the budget, 15,000,000, less N is the context of the call before it; `metrics` checks this: exact on 282 of 283 readings, 2026-10-08), or stops after 60 tool
+  calls when it sees none; it commits, writes a note (done, left, decisions, gotchas, verify state) to
+  `a<n>/handoff-<k>.md` in the scratchpad and returns `handoff`, the note's path. The script then launches
+  `implement:#<n>#2` (then `#3`) with the same type, effort, model and schema, at most twice (the third cannot hand
+  over); each continuation's result covers the whole branch, the script joins their decisions, needs_engineer,
+  proposed_issues, provisional_content and commits, and a handoff's own red verify does not stop the run (only the
+  last implementer's does; `wave` waits for the continuation too). +0 agents, up to +2. A label `metrics` reads ends
+  `:#<n>` or `#<n>#<k>`, never `:<k>`. A missing `mutants` or `playcheck` on the task's
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
@@ -464,8 +489,14 @@ Rules for every workflow run:
   median of about 57k for a general implementer's whole first call under a desktop manager; the A/B's real tasks
   started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
   prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
-  manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
-  through the Skill tool passes `lean: false`.
+  manager's checkout must have both agent files (`agentType` resolves there; one with no file throws at `agent()`),
+  which `agents-check --launch` checks (§5). Since #557 (proposed until the engineer approves the lean ADR
+  amendment of 2026-10-08) every task runs lean: one that edits `.claude/workflows/` reads
+  `docs/workflow-scripts.md` (a path-scoped rule points there) instead of loading the bundled
+  `workflow-authoring` skill, which #557's probe priced at 8.1k more tokens on every call for a type with the Skill
+  tool and 6.2k for one preloading it. `lean: false` throws without `lean_reason` (a non-empty string, such as a
+  resume of a run launched before #458), which changes no prompt or option; its result's `lean_off` counts the
+  general agents. In 2026-10-06 to 08, 14 of 37 implementers and 13 of 32 publishers had run general.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
@@ -508,13 +539,12 @@ Rules for every workflow run:
   - **Into `main`** (#300, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)): the
     engineer's manager runs `tools\run.cmd merge <pr> --base main` from the main checkout once the fresh reviews left no
     open blocker or major. Its gate collects every refusal: not open into `main` or a draft; not authored by the
-    engineer's account, or gh not running as it (the designer's PRs keep their flow); CI not green on the head;
+    engineer's account, or gh not running as it (the designer's PRs go to the engineer); CI not green on the head;
     `mergeable` CONFLICTING; `origin/<head>` moved; **behind `main`** (`origin/main` not in the head: `publish` or
-    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the designer's area without the
-    designer's approving review or a line starting "agreed with the designer, relayed by the engineer";
-    `.claude/settings*.json`, `.claude/githooks/` and `tools/runner/guard.py`, always; an ADR added, changed or deleted
-    without "Approved by the engineer: <GitHub link>"); a closing PR (head `release/*`) without that line, the
-    engineer's go, which also clears its designer-area paths and ADRs; and any top-level item, or sub-heading or bold
+    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the content area, §9, or an ADR added,
+    changed or deleted, without "Approved by the engineer: <GitHub link>" (#563); `.claude/settings*.json`,
+    `.claude/githooks/` and `tools/runner/guard.py`, always); a closing PR (head `release/*`) without that line, the
+    engineer's go, which also clears its content-area paths and ADRs; and any top-level item, or sub-heading or bold
     label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
     pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
     inside HTML comments do not count. **No local `verify`:** with `main` in the head, the merged tree is the head's
@@ -653,7 +683,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
 **Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
 result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
-then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 240 s
+then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 180 s
 (§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
 minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
 known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
@@ -758,6 +788,17 @@ Hooks live in `.claude/settings.json` and run in Git Bash through `.claude/hooks
 a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the call. A hook that cannot start, or
 that times out, fails open: `doctor` is red when Git Bash is missing.
 
+**Start-up (#568).** The guard runs before every shell call, so its start-up is kept small: `run-hook.sh` starts
+Python with `-S` for the guard (no `site` module: it needs only the standard library), `tools/run.py` imports `hooks`
+and `guard` from checked-hash pycs in `tools/out/pycache` (PEP 552: checked against the source's hash on every import,
+so an edit is never missed; the standard library keeps its own bytecode, the runner's other modules compile as
+before), and neither module imports `typing` or `common` (`test_hooks.py`'s `HookStartUpTest`). Measured on the
+laptop (16 threads) on 2026-10-08, the hook as Claude Code starts it (`bash -c 'bash run-hook.sh guard'`), median /
+p95 of 20 calls: 249 / 267 ms idle before; beside one other worktree's `verify`, 418 / 884 ms before and 333 / 675 ms
+after, Python's part 243 / 425 ms before and 145 / 357 ms after. The rest is two Git Bash starts (Claude Code's shell
+for the hook's command, then the `bash` the command names; about 70 ms each idle, 100 to 140 ms under load) and
+Python's own start. `metrics` reports the start-up of real calls (§11.12, "Tool-call start-up").
+
 The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It asks before three kinds of shell
 command: those that lose work outside the session's own worktree and task branch, `gh` commands that may write to
 another repository (both below), and **shell commands that write to the ask-protected paths** of this project
@@ -845,7 +886,8 @@ holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/
   session's, the guard does not know which is the caller's) or reach into scratchpads through a wildcard project or
   session (`"$TEMP"/claude/*/*/scratchpad/*`), or a match is or holds a worktree (a `.git` file in it, a worktree of
   this repository at or below it, or a symbolic link or junction at or above it; `hooks.GitFiles.temp_matches` lists
-  the folder when the hook runs). A delete inside one named session's scratchpad
+  the folder when the hook runs, comparing final paths: a TEMP named by its 8.3 short path holds the worktrees git
+  records by their long names, #542). A delete inside one named session's scratchpad
   (`"$TEMP"/claude/<project>/<session>/scratchpad/a1*`) passes. A recursive listing (`Get-ChildItem $env:TEMP
   -Recurse -Filter x`), `-Filter *` and an unfiltered one still delete the temp folder itself and ask; a literal
   path there (`$TEMP/x`) is judged as before. One such delete of `rmtree-*` leftovers waited 8.8 hours on
@@ -1158,35 +1200,34 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md` |
-| Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Designer (optional) | none of his own: he may contribute anywhere, mostly in the content area, through PRs the engineer merges |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
 - Enforced by **`.github/CODEOWNERS` and the rules in `CLAUDE.md` files**, not by a hook.
-- The designer's agent never edits engine code. A missing primitive becomes an `engine-request` issue with a precise
-  spec, and the agent continues with data. This rule is in `content/CLAUDE.md` and `levels/CLAUDE.md`.
-- The engineer's agent does not change the designer's area (rebalance or redesign content, edit `docs/GDD.md`,
-  `docs/design/` or `levels/`) without the designer's approval in the PR, except on a **relayed agreement**
-  (the engineer, 2026-10-01, option (a), permanent;
-  [intervention](interventions/2026-10-01-engineer-relayed-design-agreement.md)):
-  - The engineer's agent works in the designer's area when the engineer says the change was agreed with the
-    designer. Without that word it stops and asks, as before.
-  - The PR says "agreed with the designer, relayed by the engineer" under "Cross-area" and tags @SwiftySinister
-    there for a later look. It is merged without the designer's approval, by the engineer or by the manager, into
-    `release/m<k>` or through the gate into `main` (this replaces "a cross-area PR is approved by the other owner
-    first" in §10 for such a PR).
-  - If the designer objects, a follow-up PR reverts the change.
-  - A scene the designer has an open PR on is still never edited (`gh pr list --state open --json
-    number,author,files`).
-  - The designer keeps his area and his skills (`new-mechanic`, `new-level-piece`); the engineer acts in it on his
-    behalf. The M3 decisions D1 to D3 on #96 were relayed the same way.
-- The gate of `merge <pr> --base main` (§7.1) keeps ownership: it refuses a PR not authored by the engineer's
-  account, or run outside the engineer's sessions, and a PR that changes the designer's area without the designer's
-  approving review or the relay phrase; `.claude/settings*.json`, `.claude/githooks/` and the guard are always the
-  engineer's to merge, and an ADR change needs "Approved by the engineer: <link>"
-  ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
-- MVP exception: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
-  engineer's explicit approval and marked provisional; the designer may replace them
+- **The designer is optional** (the engineer's decision of 2026-10-07,
+  [#170 comment 6037210189](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6037210189) point 3;
+  #518). The engineer owns the content area and its two skills. It replaces the designer's area and the **relayed
+  agreement** of 2026-10-01 ([intervention](interventions/2026-10-01-engineer-relayed-design-agreement.md), kept as
+  history): no "agreed with the designer" line and no tag are needed any more.
+  - Agents change the content area (rebalance or redesign content, edit `docs/GDD.md`, `docs/design/` or `levels/`)
+    on the engineer's word: the issue, his comment or his chat. Without it they stop and ask. They never invent
+    content (names, numbers, rules) nobody decided: options with a recommendation go to the engineer.
+  - Nothing waits on the designer: no step, review or merge needs his approval.
+  - The designer may still contribute: his PRs go to the engineer, who reviews and merges them (§10). His agent never
+    edits engine code: a missing primitive becomes an `engine-request` issue with a precise spec, and the agent
+    continues with data (`content/CLAUDE.md`, `levels/CLAUDE.md`).
+  - A scene with someone else's open PR is still never edited (`gh pr list --state open --json number,author,files`).
+- The gate of `merge <pr> --base main` (§7.1) refuses a PR not authored by the engineer's account, or run outside the
+  engineer's sessions, so the designer's PRs reach the engineer. A PR into `main` that changes the content area merges
+  through it once its body has "Approved by the engineer: <GitHub link>", as an ADR does (the engineer's answer (b) on
+  [#563](https://github.com/xperiaroco2/prime-game/issues/563#issuecomment-6057446276)): the publisher lists the
+  `content/` and `levels/` files as provisional, and the manager adds the line, linking the engineer's approval
+  recorded on GitHub; the designer's review and the old relay phrase clear nothing. A milestone's closing PR clears it
+  with the engineer's go, the same line. `.claude/settings*.json`, `.claude/githooks/` and the guard are always the
+  engineer's to merge ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+- MVP content: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
+  engineer's explicit approval and marked provisional
   ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).
 
 ## 10. GitHub coordination
@@ -1195,10 +1236,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   is published as is.
 - **Merging:** the engineer's manager merges into `main` through the gate of `tools\run.cmd merge <pr> --base main`
   (§7.1, [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)); the gate's exceptions and
-  the designer's PRs are merged by a human, with the Merge button on GitHub or in the Desktop PR pane, after CI is
-  green. A cross-area PR is approved by the other owner first. The designer reviews through `shot` screenshots and a
-  playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
-  PRs into the milestone's `release/m<k>` (§7.1, [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
+  the designer's PRs are merged by the engineer, with the Merge button on GitHub or in the Desktop PR pane, after CI
+  is green: he reviews the designer's PRs, and no PR waits for the designer (§9). Content and levels are judged
+  through `shot` screenshots and a playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a
+  stage the manager merges task PRs into the milestone's `release/m<k>` (§7.1,
+  [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
 - **Board:** a Project owned by the engineer, linked to the repo; the designer is invited to the project and the
   repo. Built-in workflows: keep closed → Done and PR merged → Done; item added → Backlog; disable
   "PR linked → In progress". Agents set only In progress and In review, via `tools\run.cmd board move`.
@@ -1220,7 +1262,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `M7` with the
   roadmap goals.
 - **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. The designer is `@SwiftySinister` (since 2026-09-30,
-  #85); GitHub accepts an owner only once they have write access, so the entries count from the accepted invitation.
+  #85); since #518 he appears only on the shared paths, and the content area falls to the engineer's `*` line. GitHub
+  accepts an owner only once they have write access, so the entries count from the accepted invitation.
 - **ADRs:** `docs/decisions/YYYY-MM-DD-<slug>.md`, never sequential numbers, so two branches cannot collide on
   the same number. Short: status, date, deciders, context, decision, alternatives, consequences.
 - **Append-style logs are one file per entry** ([ADR](decisions/2026-09-28-one-file-per-entry-logs.md)):
@@ -1274,7 +1317,7 @@ body carry it), the step's history record (`exit_crash: true`) and `metrics`' cr
 A real window at `--position -30000,-30000` (off-screen), never headless or minimized
 (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
 one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
-forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the designer
+forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
 gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
@@ -1445,7 +1488,8 @@ the window); the manager's own judgement from `--notes FILE` as written (decisio
 here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default main) since T (number, title,
 branch, merge time and commit, closing issues or the branch's issue); the runs finished since T (a "relaunch fresh,
 never resume" flag when the outcome has published false, a publisher stopped on `mutants` exit 2, issue-task stopped
-on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
+on a red implementer (the last one: one that handed over under `checkpoint` is followed by a continuation, #559), a
+pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
 read-only scouting run, are listed by their name with no issue), the running runs (title, worktree, branch, base, the
 agent working now: each `started` with no `result`, and the minutes since the launch and since the newest write to the
 run's journal or agent transcripts, which tell a live run from one whose session died); the open PRs into the base and
@@ -1523,12 +1567,44 @@ phase per run with a planner (#469: the planner's model, the plan's and its crit
 planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
 code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
 valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
-`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
-prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), implementer context per
+run with an implementer (#559, `issue-task`'s `checkpoint`: implementer agents, handoffs (the `implement:#N#k`
+continuations), API calls, those over 200k of context and their API list $, against the target of under 5% from 14%;
+the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
+`<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
+`metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
+compact "task medians" line), the Sonnet implementer trial (#560: per trial task, against the
+Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
+and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
+[trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
+agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
+list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
+agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s
+phase line; `agent_types` in `metrics.json`), the prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
+(#555, §11.17; `bounded_waits` in `metrics.json`), the tool-call start-up (#568, §8.2: per class of call, shell calls
+started in the background (the start-up alone), foreground shell calls but `wait`, Read, Grep and Glob (no hook: the baseline)
+and Edit and Write (with the gd-edit hook), the median and p95 of the
+time from its tool_use line to its tool_result line, and of a `wait` call stopped by its deadline minus wait's own
+clock; `tool_latency` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
+session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
-call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
+call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
+minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
+how many of them wrote most of the context again (a call that still hit the cache counts, at $0); per
+run and then per agent, with its agent type from the `.meta.json`, API calls, longest gap and final context; split by
+what preceded the gap: the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep` (a keep-alive or a poll
+loop); another shell command; Monitor; Read or another tool, each when the previous call's longest foreground tool ran
+for half the gap or more; after a call that ended the agent's turn, the background task still running: the first of
+`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
+with their share of the agents' cache-write $ and the median gap; `idle` in
+`metrics.json`), the context per API call of every agent, not only #559's implementers (#584: input, cache write and
+cache read of each call; per agent role the average over its agents' calls and the peak, then the heavy agents, at 150k
+average or 300k peak, with run, issue, calls, average and peak: an agent that carries a large context through many calls
+pays for it on each; also at the end of the compact summary's first line and as `--run`'s last line, which lists the
+heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
+lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
+the % of the week, `verify` medians): the manager pastes
 `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
 weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
 0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
@@ -1581,8 +1657,11 @@ engineer's, N1 of the design, so there is no default) `of <budget>% this week; p
 (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
 or translated shows there). That total covers only the three checkouts: the counter also counts the account's
 sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
-Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
-`tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
+Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
+named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
+own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
+`--compact` the budget lines stay as they are). It writes `tracks.json` (`--out`, with `idle` per track), never
+`metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
 labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%. **`--run ID ...`** (#534),
 alone: one workflow run's spend so far, finished or in flight, for the manager's check after a large launch's first
 phase ([`docs/MANAGERS.md`](MANAGERS.md) §9). Each run whose folder name starts with an ID (`wf_` optional) in the
@@ -1590,8 +1669,10 @@ folders of `TRACK_CHECKOUTS` (so a UI or art run too, from this repo's main chec
 one once) and answered, who works now (a started agent with no result), the minutes since the newest write to its
 journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
 message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
-phase; several runs end with their total. It writes no file; an ID that names no run fails. On art's `wf_45e2297a`
-it gives the 2026-10-07 audit's $693 and 27%.
+phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
+three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
+several runs end with their total. It writes no file; an ID that names no run fails. On
+art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
@@ -1662,15 +1743,27 @@ minimum Python (`pins --get python_min`, 3.11), checks it runs that version, com
 public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
 session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
 merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
-first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
-(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner
-tests that start no Godot, each test in one of the worker processes, a quarter of
-the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
-`selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
-imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
-WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`,
-`bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
-output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
+first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python lane
+(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner tests
+that start no Godot, each test in one of the worker processes: half the logical CPUs on a machine with at least 8, so 8
+on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most of them),
+else a quarter and at least one, 1 on CI), the Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and
+`stall` (the headless ENet runs of `net/`, below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
+`webrtc-silence`, `bots`, `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot
+lane (`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
+starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process every
+step that ended, one name per line on its stdin): `selftest-godot` after `check`, so that a fresh checkout has imported
+the project and no two imports run at once, and `enet` after `selftest-godot`, so that no other Godot run overlaps a
+network run and the network runs never overlap each other. Until #556 `selftest-godot` ran in the Godot lane between
+`check` and `test`; that lane was the critical path in every run measured (the 101 full runs on the PC from 10-06 to
+10-08: the Godot lane median 527 s, the Python lane 336 s; CI alike: 490 s against 264 s). Measured over 10 full runs
+after #556 (2026-10-08, one or two runs at once) against those 101 before it (read from the verify logs of the sessions,
+since `verify-history.jsonl` survives only in the live worktrees): `verify` 455 s median (p90 486 s) against 530 s (660
+s), the Godot lane 452 s against 527 s, the Python lane 212 s against 336 s, `selftest` 144 s against 265 s, and `test`
+beside the new lane 123 s against 130 s. If `test` turns flaky under the extra load (see its red rate in `metrics`),
+`AFTER["selftest-godot"] = ("check", "test")` puts the lane after `test` again. Every step runs and any red step fails
+it; each step's output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`).
+After the lanes: the
 clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
 it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
 `selftest --group python|godot` runs one group without it). The
@@ -1678,10 +1771,23 @@ summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `en
 `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
 `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
 test count.
+**`verify --fail-fast` (#556):** the first red step stops every lane (their processes and children are killed on
+Windows; on Linux and macOS a Godot or node child started by the lane survives the kill, as it already does on Ctrl+C
+and a lane timeout): the steps that had not ended are `not run` in the summary (no output block) and the record, a
+`stopped early (--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step>
+(--fail-fast)`, the count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is
+{`at`, `not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
+stopped run's total as no verify length. Use it in an implementer's inner loop, where a red step means another fix
+anyway: a planted `lint` error returned in 60 s and a planted type error (red `check`) in 31 s, against 455 s for a
+whole run. Never for the run that gates: the green verify that the definition of done pastes, `publish` (which runs
+`verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
+stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
+(`AfterTest`, `FailFastTest`).
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
 at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
-`selftest` (run, skipped) and `slot` (below; null without one). Since #273 a red step adds `failure`, its first `FAIL`
+`selftest` (run, skipped; empty after a stop), `slot` (below; null without one) and `stopped` (above). Since #273 a
+red step adds `failure`, its first `FAIL`
 line with the reason under it when a step that runs the game (`check`, `enet` to `game`) printed one (the first engine
 error line, or the first line under a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a
 placement", #284); the `test` step adds `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results:
@@ -1790,9 +1896,19 @@ agent or subagent writes its prompt cache with a 5-minute lifetime (a main or ma
 tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
 that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
 all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
-300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
-session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 180 s, and bounds a call with the
+shell's `timeout` or `wait --max`, never only with the tool's own timeout. The step was 4 minutes until #555: from 10-06
+10:00 to 10-08 there were 390 `wait` calls and 25 of them were followed by a cache re-write (4.19M tokens, about $20 of
+list $); 212 of the calls ran to their deadline, and their gap to the next API call exceeded wait's own clock by 6 s
+median but 94 s p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the
+model's turn, itself 3 s median and 14 s p95), so a 4-minute step plus the p95 crossed 300 s and 180 s + 94 s stays
+under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's
+`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted). #568 measured the guard hook's
+and Git Bash's start-up beside a `verify` at well under a second (§8.2), so that tail is not the hook's; `metrics`'
+"Tool-call start-up" line splits the time: a `wait` call beyond its own clock (the laptop's 8 such calls to 10-08:
+2.6 s median, 3.3 s p95) apart from the turn after it.
+Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with
+`wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
 (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
 the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
@@ -1801,7 +1917,7 @@ the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule
 run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
 the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
 `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
-default 120000 would cut a 240 s wait short. `wait` polls every 3 s for at most S seconds (default 240, 1 to 270;
+default 120000 would cut a 180 s wait short. `wait` polls every 3 s for at most S seconds (default 180, 1 to 180;
 else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
 `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
 bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
@@ -1814,8 +1930,8 @@ locked file): `wait: cannot read <path>: ...` and 2. Every line `wait` writes it
 its own 2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM or none), CRLF, and on Windows the Git
 Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not visible to Windows Python, and the
 missing-log line says so. A log that has not grown for 10 minutes points at a background task that died (no marker is
-ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with
-the tool's timeout at 300000 (its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own
+ever written): check it. CI: `timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with
+the tool's timeout at 300000 (its default 120000 would cut the 180 s short; in PowerShell `timeout` is Windows' own
 program), repeated while rc is 124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not
 registered yet. `wait --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl`
 passed at HEAD with a clean tree (`tree` set), on HEAD's tree and runner, under 2 hours ago, and the tree is still
@@ -2007,6 +2123,9 @@ checkout, and the committed deck against its lock).
 
 ## 12. The designer's agent
 
+Optional since #518 (§9): the designer contributes when he wants, his PRs go to the engineer, and nothing below
+waits on him; the engineer's sessions do the content work otherwise.
+
 - **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
   `onboard` runs `doctor` (which sets `core.hooksPath`), writes her user settings (`env`, `language`, `defaultMode`)
   after she approves the exact content, installs gdtoolkit via a real Python with her OK, and runs
@@ -2026,7 +2145,7 @@ checkout, and the committed deck against its lock).
 
 ## 13. How humans talk to the agent
 
-- Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
+- Existing work: "start task 42". A new idea: "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
 - Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff naming a

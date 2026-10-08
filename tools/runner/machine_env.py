@@ -7,6 +7,9 @@ of precedence: the process environment, then the project's `.claude/settings.loc
 (`$CLAUDE_CONFIG_DIR/settings.json` when that variable is set, else `~/.claude/settings.json`). The values go into
 `os.environ` before any command runs, so Godot, gdtoolkit and every child process inherit them. `doctor` reports
 where each one came from.
+
+It also puts TEMP and TMP in their long form when they hold an 8.3 short path (issue #542: common.long_temp), so
+the runner, its tests and every child compare one name of the temp folder; `doctor` warns about the short one.
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ from collections.abc import MutableMapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import ROOT
+from .common import ROOT, long_temp
 
 MACHINE_VARS = ("GODOT_BIN", "GODOT_GUI_BIN", "PYTHON_BIN", "GDTOOLKIT_DIR", "NODE_BIN")
 # Loaded like the others, but `doctor` does not warn when unset: `node` on PATH is the usual case (#368).
@@ -34,6 +37,8 @@ class Report:
     sources: dict[str, str | None] = field(default_factory=dict)
     problems: list[str] = field(default_factory=list)
     searched: list[str] = field(default_factory=list)
+    # {variable: (short, long)}: the temp folder variables apply() put in their long form (issue #542).
+    long_temp: dict[str, tuple[str, str]] = field(default_factory=dict)
 
 
 def settings_files(root: Path, home: Path, environ: MutableMapping[str, str]) -> list[tuple[str, Path]]:
@@ -98,8 +103,10 @@ _applied: Report | None = None
 
 
 def apply() -> Report:
-    """Fill os.environ once per run (tools/run.py calls it before any command); later calls return the same report."""
+    """Fill os.environ once per run (tools/run.py calls it before any command) and put the temp folder's variables in
+    their long form; later calls return the same report."""
     global _applied
     if _applied is None:
         _applied = load(os.environ, ROOT, Path.home())
+        _applied.long_temp = long_temp()
     return _applied

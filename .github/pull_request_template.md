@@ -14,5 +14,7 @@ Closes #
 
 ## Cross-area
 <!-- If this touches the other owner's paths (.github/CODEOWNERS), request them as reviewer and say why.
-     A change in the designer's area that the engineer says was agreed with the designer: write "agreed with the
-     designer, relayed by the engineer" and tag @SwiftySinister (docs/AGENT_WORKFLOW.md section 9). -->
+     A change in the content area (content/ levels/ docs/GDD.md docs/design/, the skills new-mechanic and
+     new-level-piece): say on whose word it was made (the engineer's, with its link); content/ and levels/ files are provisional for his approval (docs/AGENT_WORKFLOW.md
+     section 9). Into main, the gate merges it once the body has "Approved by the engineer: <GitHub link>", added
+     when that approval is recorded on GitHub. -->

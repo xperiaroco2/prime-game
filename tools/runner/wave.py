@@ -20,14 +20,17 @@ Rules:
   args of the run it resumes. `--args n` prints the args of the newest launch whose args.n is n.
 - a run is finished when its latest launch has a notification, or when its journal reached the script's end:
   issue-task: a publisher result, or an implementer result with verify_green false and no publisher started (the
-  script stops there); pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with no
-  blocker or major finding left to fix (each refuted by a skeptic); another workflow: every started agent answered.
+  script stops there), unless that implementer handed over (a non-empty `handoff` from implement:#N or #N#2: the
+  checkpoint arg's continuation, implement:#N#2 or #3, follows, #559) or a later implementer is still working;
+  pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with no blocker or major finding
+  left to fix (each refuted by a skeptic); another workflow: every started agent answered.
   Any other run is running: its agent now is each unanswered `started` (label and phase), and the minutes since the
   newest write to its journal or agent transcripts tell a live run from a stale one (a session that died never sends
   the notification).
 - a finished run is flagged "relaunch fresh, never resume" when its outcome (the publisher's result, else the
   pr-rebase fix's, else the rebase's) has published false, a publisher has stopped_by_mutants, issue-task stopped on
-  a red implementer, a pr-rebase rebase is red or unpublished, or the notification's result says "stopped".
+  a red implementer (the last one, not one that handed over), a pr-rebase rebase is red or unpublished, or the
+  notification's result says "stopped".
 - Handover data holds the args of each running run, and of each finished run since --since that failed, was killed or
   stopped, unless a later launch took its place: a resume of it, or a later launch of the same issue and workflow under
   another run id (a fresh relaunch; shown as "relaunched as <run>").
@@ -101,6 +104,9 @@ FOOTER_CALLS = 20
 # A workflow's notification says so in its summary ('Dynamic workflow "…" completed'); the other notifications in a
 # manager's queue (background shells, monitors, its subagents' tasks) are not runs and are passed over.
 WORKFLOW_NOTE = re.compile(r"\bworkflow\b", re.I)
+# issue-task's checkpoint (#559): at most this many continuations follow a handoff (implement:#N#2, #N#3).
+HANDOFF_MAX = 2  # a copy of issue-task.js's HANDOFF_MAX: change both together (test_wave pins it)
+CONTINUATION = re.compile(r"#\d+#(\d+)$")
 REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-reviewer", "godot-api-checker")
 # The branch every task's work finally lands in: worktree-done checks against origin/main.
 MAIN = "main"
@@ -140,7 +146,7 @@ FILES_FIELDS = "number,baseRefName,mergedAt,files"
 FILES_LIMIT = 200
 # Agents that push or rebase a branch: a run is stopped for a handover only between them.
 PUSHING_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
-# A running run with no line for longer is stale for the verdict (its agents block no call over 240 s, #303).
+# A running run with no line for longer is stale for the verdict (its agents block no call over 180 s, #303, #555).
 STALE_MINUTES = 60
 
 
@@ -546,6 +552,19 @@ def serious(result: dict) -> int:
     return sum(1 for f in findings if isinstance(f, dict) and re.search(r"blocker|major", str(f.get("severity")), re.I))
 
 
+def red_implementer(agents: list[dict]) -> bool:
+    """Whether issue-task's last implementer ended the run red: it answered verify_green false and handed over to no
+    continuation (checkpoint, #559). One still working (no result yet) has not ended it."""
+    impls = [a for a in agents if a["role"] == "implementer"]
+    if not impls or impls[-1]["result"] is None:
+        return False
+    last = impls[-1]
+    note = last["result"].get("handoff")
+    m = CONTINUATION.search(last["label"])
+    followed = isinstance(note, str) and bool(note.strip()) and (int(m.group(1)) if m else 1) <= HANDOFF_MAX
+    return last["result"].get("verify_green") is False and not followed
+
+
 def journal_done(info: dict) -> bool:
     """Whether the journal reached the script's end (the module docstring's rule per workflow)."""
     agents = info["agents"]
@@ -553,8 +572,7 @@ def journal_done(info: dict) -> bool:
     if info["kind"].startswith("issue-task"):
         if answered(agents, "publisher"):
             return True
-        impl = answered(agents, "implementer")
-        return bool(impl) and impl[-1].get("verify_green") is False and "publisher" not in started
+        return red_implementer(agents) and "publisher" not in started
     if info["kind"] == "pr-rebase":
         if answered(agents, "pr-rebase fix"):
             return True
@@ -576,8 +594,7 @@ def stopped_reason(info: dict, outcome: dict, notice: Notice | None) -> str | No
     agents = info["agents"]
     if any(r.get("stopped_by_mutants") is True for r in answered(agents, "publisher")):
         return "mutants exited 2: nothing published"
-    impl = answered(agents, "implementer")
-    if (info["kind"].startswith("issue-task") and impl and impl[-1].get("verify_green") is False
+    if (info["kind"].startswith("issue-task") and red_implementer(agents)
             and "publisher" not in {a["role"] for a in agents}):  # fmt: skip
         return "verify red after the implementer: nothing reviewed or published"
     reb = answered(agents, "pr-rebase")

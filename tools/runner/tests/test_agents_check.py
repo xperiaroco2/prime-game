@@ -9,9 +9,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import agents_check, metrics
+from runner import agents_check, instructions, metrics
 from runner.agents_check import Transcript
-from runner.common import ROOT, Failure
+from runner.common import ROOT, Failure, force_rmtree
 
 AGENTS = {"code-reviewer": "opus", "test-runner": "haiku", "godot-api-checker": "sonnet"}
 ALLOWED = ["opus", "sonnet", "haiku"]
@@ -402,6 +402,136 @@ class SharedFilesTest(unittest.TestCase):
             text = (ROOT / name).read_bytes().decode("utf-8", errors="replace")
             with self.subTest(file=name):
                 self.assertEqual(names_outside(text, outside), [], f"{name} names a model beyond the shared list")
+
+
+def git(where: Path, *args: str) -> str:
+    res = subprocess.run(
+        ["git", *args], cwd=where, capture_output=True, text=True, encoding="utf-8", timeout=120,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )  # fmt: skip
+    if res.returncode != 0:
+        raise AssertionError(f"git {' '.join(args)} failed: {res.stderr}")
+    return res.stdout.strip()
+
+
+class LaunchTest(unittest.TestCase):
+    """#557: `agents-check --launch`, which the manager runs before each issue-task or pr-rebase launch. The Workflow
+    tool runs the scripts and resolves their agent types from the manager's checkout, and a script cannot read a file:
+    a checkout without the lean agent files, or with scripts older than origin/main's, launched general agents."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="launch-"))
+        self.addCleanup(force_rmtree, str(self.tmp))
+        git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
+        self.work = self.clone("work")
+        for name in agents_check.LAUNCH_AGENTS:
+            body = (ROOT / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8")
+            self.write(f".claude/agents/{name}.md", body)
+            # The paths the lean bodies name, which instructions.agent_problems checks: the real ones, as stubs.
+            for rel in instructions.BODY_PATH_RE.findall(body):
+                if (ROOT / rel).is_file():
+                    self.write(rel, "x\n")
+                elif (ROOT / rel).is_dir():
+                    self.write(f"{rel.rstrip('/')}/x", "x\n")
+        for name in agents_check.LAUNCH_SCRIPTS:
+            self.write(f".claude/workflows/{name}", "export const meta = { name: 'x', description: 'x' }\n")
+        self.commit("c1")
+
+    def clone(self, name: str) -> Path:
+        git(self.tmp, "clone", "-q", str(self.tmp / "remote.git"), name)
+        work = self.tmp / name
+        for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+            git(work, "config", key, value)
+        return work
+
+    def write(self, rel: str, text: str, work: Path | None = None) -> None:
+        path = (work or self.work) / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode("utf-8"))
+
+    def commit(self, message: str, work: Path | None = None) -> None:
+        work = work or self.work
+        git(work, "add", "-A")
+        git(work, "commit", "-q", "-m", message)
+        git(work, "push", "-q", "origin", "HEAD:main")
+
+    def other_pushes(self, rel: str) -> None:
+        other = self.clone("other")
+        self.write(rel, "newer\n", other)
+        self.commit("newer", other)
+
+    def test_a_current_checkout_passes(self) -> None:
+        self.assertEqual(agents_check.launch_problems(self.work), ([], []))
+        with mock.patch.object(agents_check, "say") as said:
+            self.assertEqual(agents_check.main(launch=True, root=self.work), 0)
+        self.assertIn("agents-check --launch: ready", " ".join(str(c.args[0]) for c in said.call_args_list))
+
+    def test_a_missing_or_broken_lean_agent_file_fails(self) -> None:
+        (self.work / ".claude" / "agents" / "task-publisher.md").unlink()
+        implementer = self.work / ".claude" / "agents" / "task-implementer.md"
+        implementer.write_bytes(implementer.read_bytes().replace(b"\n---\n", b"\nskills: x\n---\n", 1))
+        problems, _ = agents_check.launch_problems(self.work, fetch=False)
+        joined = " | ".join(problems)
+        self.assertIn(".claude/agents/task-publisher.md: missing", joined)
+        self.assertIn(".claude/agents/task-implementer.md: skills: a lean type preloads no skill", joined)
+        with mock.patch.object(agents_check, "bad"), mock.patch.object(agents_check, "say"):
+            self.assertEqual(agents_check.main(launch=True, root=self.work), 1)
+
+    def test_a_missing_script_fails(self) -> None:
+        (self.work / ".claude" / "workflows" / "pr-rebase.js").unlink()
+        problems, _ = agents_check.launch_problems(self.work, fetch=False)
+        # Deleted in the working tree, so it also differs from origin/main.
+        self.assertEqual(problems[0], ".claude/workflows/pr-rebase.js: missing")
+        self.assertEqual(len(problems), 2, problems)
+
+    def test_scripts_or_agent_files_behind_origin_main_fail_after_a_fetch(self) -> None:
+        self.other_pushes(".claude/workflows/issue-task.js")
+        # Without a fetch this checkout cannot know; launch_problems fetches first.
+        self.assertEqual(agents_check.launch_problems(self.work, fetch=False), ([], []))
+        problems, _ = agents_check.launch_problems(self.work)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("differ from origin/main", problems[0])
+        self.assertIn(".claude/workflows/issue-task.js", problems[0])
+
+    def test_a_newer_origin_main_elsewhere_passes(self) -> None:
+        self.other_pushes("docs/other.md")
+        self.assertEqual(agents_check.launch_problems(self.work), ([], []))
+
+    def test_an_uncommitted_edit_fails(self) -> None:
+        # The Workflow tool reads the working tree, so an edit not on origin/main would run.
+        self.write(".claude/agents/task-implementer.md", (self.work / ".claude/agents/task-implementer.md").read_text(encoding="utf-8") + "x\n")
+        problems, _ = agents_check.launch_problems(self.work, fetch=False)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn(".claude/agents/task-implementer.md", problems[0])
+
+    def test_a_failed_fetch_warns_and_compares_with_the_last_fetch(self) -> None:
+        git(self.work, "remote", "set-url", "origin", str(self.tmp / "gone.git"))
+        problems, notes = agents_check.launch_problems(self.work)
+        self.assertEqual(problems, [])
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("could not fetch origin main", notes[0])
+
+    def test_a_fetch_that_times_out_warns_instead_of_crashing(self) -> None:
+        real = agents_check._git
+
+        def git_that_hangs_on_fetch(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+            if args[0] == "fetch":
+                raise subprocess.TimeoutExpired(["git", *args], 120)
+            return real(root, *args)
+
+        with mock.patch.object(agents_check, "_git", git_that_hangs_on_fetch):
+            problems, notes = agents_check.launch_problems(self.work)
+        self.assertEqual(problems, [])
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("could not fetch origin main (timed out)", notes[0])
+
+    def test_launch_is_its_own_mode(self) -> None:
+        from runner import cli
+
+        for argv in (["agents-check", "--launch", "--all"], ["agents-check", "--launch", "--session", "s"]):
+            with self.subTest(argv=argv), self.assertRaises(SystemExit), mock.patch("sys.stderr"):
+                cli.build_parser().parse_args(argv)
+        self.assertTrue(cli.build_parser().parse_args(["agents-check", "--launch"]).launch)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,14 @@ inherits the session's model), `description` (the workflow's label, such as revi
 A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
 does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
 `request.model`) fails, so a different key cannot pass silently as an unrequested model.
+
+`--launch` (#557) judges no transcript: it checks, before an issue-task or pr-rebase launch, the checkout the Workflow
+tool reads the scripts and resolves their agent types from (the manager's). A workflow script cannot read a file, so
+it cannot see that its lean agent files are missing or that it is older than origin/main's; such checkouts launched
+general agents at about twice the first-call tokens (2026-10-06 to 08). It fails on a missing or invalid
+task-implementer.md or task-publisher.md (instructions.agent_problems), a missing script, or a script or agent file
+that differs from origin/main after `git fetch origin main` (behind it, or an edit not merged); a failed fetch is a
+warning and the comparison uses the last fetch.
 """
 
 from __future__ import annotations
@@ -35,12 +43,18 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from . import instructions
-from .common import ROOT, Failure, bad, ok, say, skip
+from .common import ROOT, Failure, bad, ok, say, skip, warn
+
+# --launch (#557): the lean agent types of issue-task and pr-rebase, the scripts, and the folders compared with origin/main.
+LAUNCH_AGENTS = ("task-implementer", "task-publisher")
+LAUNCH_SCRIPTS = ("issue-task.js", "pr-rebase.js")
+LAUNCH_PATHS = (".claude/workflows", ".claude/agents")
 
 FAMILY_RE = re.compile(r"^claude-([a-z]+)-")
 FAMILIES = ("opus", "sonnet", "haiku", "fable")
@@ -226,12 +240,70 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Seque
     return "FAIL", f"{source} {expected}, served {served}"
 
 
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+    )  # fmt: skip
+
+
+def launch_problems(root: Path, *, fetch: bool = True) -> tuple[list[str], list[str]]:
+    """(problems, warnings) of `root` as the checkout an issue-task or pr-rebase launch reads (#557)."""
+    problems: list[str] = []
+    warnings: list[str] = []
+    for name in LAUNCH_AGENTS:
+        rel = f".claude/agents/{name}.md"
+        if not (root / rel).is_file():
+            problems.append(f"{rel}: missing (the lean launch throws at its first {name} agent)")
+            continue
+        problems += [f"{rel}: {problem}" for problem in instructions.agent_problems(root / rel)]
+    problems += [f".claude/workflows/{n}: missing" for n in LAUNCH_SCRIPTS if not (root / ".claude" / "workflows" / n).is_file()]
+    if fetch:
+        try:
+            res = _git(root, "fetch", "-q", "origin", "main")
+        except subprocess.TimeoutExpired:
+            warnings.append("could not fetch origin main (timed out): compared with the last fetch")
+        else:
+            if res.returncode != 0:
+                last = (res.stderr.strip().splitlines() or ["?"])[-1]
+                warnings.append(f"could not fetch origin main ({last}): compared with the last fetch")
+    # The working tree against origin/main: the Workflow tool reads the files, committed or not.
+    res = _git(root, "diff", "--name-only", "origin/main", "--", *LAUNCH_PATHS)
+    if res.returncode != 0:
+        warnings.append(f"no origin/main to compare with: {(res.stderr.strip().splitlines() or ['?'])[-1]}")
+    elif res.stdout.strip():
+        files = ", ".join(res.stdout.split())
+        problems.append(f"differ from origin/main (pull main, or merge the change first): {files}")
+    return problems, warnings
+
+
+def launch_main(root: Path) -> int:
+    say(f"agents-check --launch ({root})")
+    problems, warnings = launch_problems(root)
+    for text in warnings:
+        warn(text)
+    for text in problems:
+        bad(text)
+    if problems:
+        say(f"agents-check --launch: FAILED ({len(problems)} problem(s)); fix them before an issue-task or pr-rebase launch")
+        return 1
+    say(f"agents-check --launch: ready ({', '.join(LAUNCH_AGENTS)} valid; {', '.join(LAUNCH_SCRIPTS)} as on origin/main)")
+    return 0
+
+
 def main(
-    session: str | None = None, all_sessions: bool = False, *, root: Path = ROOT, config: Path | None = None
+    session: str | None = None,
+    all_sessions: bool = False,
+    *,
+    launch: bool = False,
+    root: Path = ROOT,
+    config: Path | None = None,
 ) -> int:
     """`root`: the checkout whose agent files and shared settings apply; `config`: the Claude config folder."""
     from . import metrics  # here, not at the top: metrics imports this module
 
+    if launch:
+        return launch_main(root)
     if not session and not all_sessions:
         session = os.environ.get("CLAUDE_CODE_SESSION_ID") or None
     scope = "all sessions" if all_sessions or not session else f"session {session}"

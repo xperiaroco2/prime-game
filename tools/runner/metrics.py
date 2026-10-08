@@ -45,6 +45,49 @@ gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_back
 until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
 run of the session in flight, else a stop.
 
+Subagent cache re-writes after an idle gap (#558): an agent's API call IDLE_GAP (5 minutes) or more after its previous
+one, when the 5-minute prompt cache has lapsed; its $ is that call's cache-write API list $ (most such calls write their
+whole context again: the count of those is beside it). Its cause (IDLE_CAUSES) is what preceded the gap: when the
+previous call made tool calls, the longest foreground one (a shell call without run_in_background, or any tool but
+Monitor; from its line to its result) if it ran for half the gap or more, else an API wait (the model took the time);
+when the previous call made none (it ended its turn to wait for a notification), the first of IDLE_WAKERS among its
+background tasks started by then and still running when the gap began (a background shell call until the notification
+naming its tool-use id, else its timeout; a Monitor until its timeout_ms), else an API wait. A shell call's cause is
+IDLE_SHELL's first match: the runner's `verify`, `publish` or `mutants`, its `wait`, a `sleep N` anywhere (a keep-alive
+or a poll loop), else any other command. Per agent (with its agentType from the .meta.json, API calls, longest gap and
+final context), per run and in total (with the share of the agents' cache-write $ and the median gap). The report covers
+the counted runs' agents, as the cache table above it; `--track` every subagent (workflow and hand-run, never the
+sessions' own lines) of the named tracks' sessions, each call by its time in the window, its $ as a share of the track's
+cache-write $; `--run` the run's agents, with no window.
+
+Agent types (#557): each agent's agentType from its .meta.json (workflow-subagent for the general workflow agent). Per
+role and type over the counted runs: agents, API list $ and the median first-call context (input, cache write and
+cache read of its first API call: the type's system prompt and tools plus the task prompt); how many agents of
+WRITER_ROLES ran as the general type (on the compact summary's first line too; expected 0 after #557), and each run's
+types in the JSON record and on `--run`'s phase line.
+
+Context per API call (#584): each counted run's agent's average and peak of input, cache write and cache read per API
+call (each message id once, output left out), per role (the average over all its agents' calls, the peak of any) and
+the heavy agents (CONTEXT_HEAVY_AVG average or CONTEXT_HEAVY_PEAK peak, by the tokens over all their calls) with their
+run and issue; the compact summary's first line names each role's average/peak and the heaviest agents; `--run` ends
+with each agent's average and peak.
+
+Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
+the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
+background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
+Python) and the shell's own spawn; a foreground shell call adds its command's run; Read, Grep and Glob run no hook and
+start no shell (the baseline); Edit and Write run the gd-edit PostToolUse hook before their output; a `wait` call
+is in no shell class (its deadline would dwarf theirs): one that ran to its deadline, minus its own clock ("still
+running after N s"), is its start-up and its end. Compare windows before and after a change of the hook or of verify's load.
+
+Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
+(`gh pr checks --watch`, `gh run watch`), and the agent's next API call. Per API call that made one (its longest, with a
+result and a next call): the call's seconds, the gap between the two API calls' first lines (as the cache section
+measures it) and the next call's cache write and read. A re-write is a next call after CACHE_TTL or more that wrote
+most of its context, priced as its write's premium over a read. A `wait` that ran to its deadline says so with its own
+clock ("still running after N s"); the gap minus N is the time around wait (the shell's and Python's start-up, the
+guard hook, the model's turn): the step (wait's DEFAULT_MAX) plus that time's p95 must stay under CACHE_TTL.
+
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
   issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
@@ -123,6 +166,21 @@ list $ of the planner and of the plan's critique, the repository files the plann
 read as above, a shell read of a doc), how many of them the implementer read too, and the critique's findings (all,
 and blockers plus majors). The JSON record's "plans" holds the same rows.
 
+The Sonnet implementer trial (#560, docs/decisions/2026-10-08-sonnet-implementer-trial.md): the finished `issue-task`
+runs grouped per task (its issue). A trial task is one with a run whose implementer (its first attempt's transcript) is
+of TRIAL_FAMILY; its runs on another model (the manager's relaunch on Opus) count with it. The baseline: the tasks whose
+every implementer is of BASELINE_FAMILY, not a design task, and whose issue's first `Size:` line (from GitHub; "S to M"
+is M) is in TRIAL_SIZES. Per task: its runs and the red ones (a run the manager must relaunch: the implementer's
+verify_green false, published false or ci_green false), verify runs and reds (the summaries its agents saw), the
+review's blockers and majors (trial_serious: one reviewer set on both sides), publisher fix rounds, CI fix rounds (red
+CI rounds, once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and
+the stop rule (trial_advice): stop once TRIAL_RED_TWICE trial tasks were red twice; from TRIAL_EARLY_TASKS trial tasks
+stop when their blockers and majors per task are TRIAL_SERIOUS_OVER or more over the baseline's; after TRIAL_TASKS keep
+it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its $ per task is lower, else drop it.
+Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
+verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
+tasks, the totals and the advice.
+
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
 UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
@@ -142,6 +200,18 @@ totals and the stop rule (ab_verdict): stop once the trial missed AB_STOP_MISSES
 the control did; after AB_RUNS judged runs keep the trial model when it missed at most AB_KEEP_MISSES more, found at
 least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
 AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
+
+Implementer context and checkpoint handoffs (#559, issue-task's opt-in `checkpoint`): per run with an
+implementer, its implementer agents (a continuation is labelled `implement:#N#k`, k >= 2, and counts as a handoff),
+their API calls, those whose context (input + cache write + cache read) is over HIGH_CTX and their API list $, and the
+implementers' $; the totals against the issue's target (under 5% of implementer calls over 200k, from 14%). Then the
+two triggers the checkpoint rule names, re-measured: the tool-call count as a proxy for context (per PROXY_CALLS k,
+the implementers with at least k tool calls, their median context at the first API call after k of them, the share
+at or over HANDOFF_CTX, and the tool call at which each crossed HANDOFF_CTX), and the `<total_tokens>N tokens left`
+reminder after each tool result (an attachment of type total_tokens_reminder in the transcript): a reading is exact
+when N plus the context of the API call before it (its four token fields, output included) equals the agent's budget
+(the most common such sum), for every agent of the counted runs. The per-task records carry handoffs, impl_calls,
+over200_calls and over200_usd; the JSON record's "handoffs" holds the rows, the proxy and the reminder check.
 """
 
 from __future__ import annotations
@@ -218,6 +288,8 @@ SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
 CMD_KINDS = [
+    # `wait --verified` (a quick check) and `wait --help` (the probe) poll no job: they are not a bounded wait (#555).
+    ("wait", re.compile(r"run(\.cmd|\.sh)\s+wait\b(?!\s+(--verified|--help|-h)\b)")),
     ("publish", re.compile(r"run(\.cmd|\.sh)\s+publish\b")),
     ("verify", re.compile(r"run(\.cmd|\.sh)\s+verify\b")),
     ("selftest", re.compile(r"run(\.cmd|\.sh)\s+selftest\b")),
@@ -233,6 +305,8 @@ CMD_KINDS = [
 STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s(?:\s+\((.*)\))?\s*$")
 EXIT_CRASH_NOTE = "crashed at exit"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
+# The end line of a run that `verify --fail-fast` stopped at its first red step (#556): its total is no run's length.
+STOPPED_EARLY = ", stopped early at "
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
@@ -243,10 +317,54 @@ CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
 CI_WORKFLOW = "ci.yml"
 GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to 10 min"), (600, None, "over 10 min"))
+# A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
+CACHE_TTL = 300
+BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
+# #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
+LATENCY_CLASSES = (
+    ("shell-background", "shell calls started in the background (start-up only)"),
+    ("shell", "foreground shell calls (start-up and the command's run)"),
+    ("read", "Read, Grep and Glob (no hook)"),
+    ("edit", "Edit and Write (with the gd-edit hook)"),
+    ("wait", "`wait` calls stopped by their deadline, minus wait's own clock"),
+)
+# The file tools per class: the read tools run no hook (the baseline); Edit and Write run the gd-edit PostToolUse hook
+# (Git Bash, Python and, for a .gd file, an engine check) before their result.
+READ_TOOLS = ("Read", "Grep", "Glob")
+EDIT_TOOLS = ("Edit", "Write")
+# wait's line when the job is still running at its deadline: its own clock, without the shell's and Python's start-up.
+WAIT_RAN = re.compile(r"^wait: still running after (\d+) s \(", re.MULTILINE)
 # A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
 REWRITE_GAP = 3600
 # What held when such a gap began, in the order the first that holds wins (module docstring).
 REWRITE_KINDS = ("timer", "run", "stop")
+# A subagent's cache re-write after an idle gap (#558): its API call 5 minutes or more after its previous one, when the
+# 5-minute prompt cache has lapsed.
+IDLE_GAP = CACHE_TTL  # one 5-minute cache for #555 and #558
+# What preceded such a gap (module docstring), in the tables' order: the runner's `wait`; `verify`, `publish` or
+# `mutants`; a shell `sleep`; any other Bash or PowerShell command; Monitor; Read or any other tool; none (an API wait).
+IDLE_CAUSES = ("wait", "verify", "sleep", "shell", "Monitor", "tool", "API")
+IDLE_HEADS = ("`wait`", "verify, publish, mutants", "a shell sleep", "other shell", "Monitor", "Read or other tool",
+              "API wait (no tool)")  # fmt: skip
+# A shell command's cause, the first match wins; any other is "shell".
+IDLE_SHELL = (
+    ("verify", re.compile(r"run(\.cmd|\.sh)\"?\s+(verify|publish|mutants)\b")),
+    ("wait", re.compile(r"run(\.cmd|\.sh)\"?\s+wait\b")),
+    ("sleep", re.compile(r"\b(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+\d", re.IGNORECASE)),
+)
+# After a call that ended the agent's turn, the background tasks in flight when the gap began, the first cause here
+# that one of them has wins.
+IDLE_WAKERS = ("verify", "wait", "Monitor", "sleep", "shell")
+# Monitor stops after its timeout_ms, 5 minutes when none is given, at most 1 hour.
+MONITOR_TIMEOUT, MONITOR_MAX = 300, 3600
+# The per-agent table lists at most this many agents (the JSON record has every agent), `--run` names this many.
+IDLE_AGENT_ROWS, IDLE_RUN_NAMES = 40, 3
+# Context per API call (#584): input, cache write and cache read of one call. An agent is heavy when its average per
+# call or its peak reaches these (the issue's; the art track's 17 agents of 150+ calls at 400 to 560k per call were 48%
+# of its spend, #302). The heavy table lists at most CONTEXT_AGENT_ROWS (the JSON record has every agent), the compact
+# line names CONTEXT_NAMES.
+CONTEXT_HEAVY_AVG, CONTEXT_HEAVY_PEAK = 150_000, 300_000
+CONTEXT_AGENT_ROWS, CONTEXT_NAMES, CONTEXT_RUN_AGENTS = 40, 3, 10
 # A keep-alive timer: a background shell call that only sleeps (an `echo` after it allowed), in Bash or PowerShell.
 TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:(?:;|&&)\s*echo\b.*)?",
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
@@ -260,6 +378,19 @@ BACKGROUND_TIMEOUT = 1800
 # and the agents whose findings it counts (#315's open blockers and majors).
 SERIOUS = re.compile(r"blocker|major", re.IGNORECASE)
 SERIOUS_FROM = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "test-reviewer")
+# The Sonnet implementer trial (#560, the module docstring): the trial's and the baseline's implementer model family,
+# the baseline's sizes (an issue's `Size:` line), and the stop rule's numbers (the trial ADR).
+TRIAL_FAMILY, BASELINE_FAMILY = "sonnet", "opus"
+TRIAL_SIZES = frozenset({"XS", "S"})
+SIZE_LINE = re.compile(r"^[\s>*-]*size:[\s*]*(XS|S|M|L|XL)\b(?:\s+to\s+(XS|S|M|L|XL)\b)?", re.IGNORECASE | re.MULTILINE)
+TRIAL_TASKS = 6
+TRIAL_EARLY_TASKS = 4
+TRIAL_RED_TWICE = 2
+TRIAL_SERIOUS_OVER = 1.0
+# The per-task means the table compares, and those the keep rule needs no worse than the baseline's.
+TRIAL_MEASURES = ("red_runs", "verify_runs", "verify_red", "serious", "fix_rounds", "ci_fix_rounds", "calls", "usd")
+TRIAL_NO_WORSE = {"red_runs": "red runs", "verify_red": "verify reds", "fix_rounds": "publisher fix rounds",
+                  "ci_fix_rounds": "CI fix rounds"}  # fmt: skip
 # The code reviewer's A/B (#535, the module docstring): the judged runs per pair of models before the verdict, the
 # early stop, and the bar the trial model must clear to be kept. Proposals the engineer may change (the A/B ADR).
 AB_RUNS = 10
@@ -268,6 +399,13 @@ AB_KEEP_MISSES = 1
 AB_VALID_RATIO = 0.8
 AB_INVALID_MARGIN = 0.15
 AB_SIDES = ("trial", "control")
+# Implementer context (#559, the module docstring): an API call over HIGH_CTX tokens of context, the checkpoint's
+# threshold, a continuation's label, the tool-call counts the proxy table reads, and the harness's context reminder.
+HIGH_CTX = 200_000
+HANDOFF_CTX = 150_000
+HANDOFF_LABEL = re.compile(r"#\d+#\d+$")
+PROXY_CALLS = (40, 60, 80, 100)
+TOKENS_LEFT = re.compile(r"<total_tokens>(\d+) tokens left")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
 CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
 PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
@@ -522,14 +660,15 @@ def union_seconds(intervals: list[tuple[float, float]]) -> float:
 
 def parse_verify(text: str) -> dict | None:
     """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over,
-    exit_crashes}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether it ran
-    without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449)."""
+    exit_crashes, stopped}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether
+    it ran without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449), stopped whether
+    `--fail-fast` stopped it early (#556; its `not run` rows are no steps)."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
     exit_crashes: list[str] = []
-    total_s, status, wait, over = None, None, None, False
+    total_s, status, wait, over, stopped = None, None, None, False, False
     for line in text[i:].splitlines()[1:]:
         m = STEP_LINE.match(line)
         if m:
@@ -543,10 +682,12 @@ def parse_verify(text: str) -> dict | None:
             waited = SLOT_WAIT.search(line)
             wait = float(waited.group(1)) if waited else None
             over = OVER_LIMIT in line
+            stopped = STOPPED_EARLY in line
             break
     if not steps:
         return None
-    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes}
+    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes,
+            "stopped": stopped}
 
 
 def timer_seconds(block: object) -> float | None:
@@ -562,6 +703,40 @@ def timer_seconds(block: object) -> float | None:
     limit = inp.get("timeout")
     limit_s = limit / 1000 if isinstance(limit, (int, float)) and limit > 0 else None
     return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
+
+
+def idle_use(tool_id: str, mid: str, name: str, inp: dict) -> dict:
+    """A tool call's fields for the idle gaps (#558): its id, the API call (message id) that made it, whether it runs in
+    the background (a shell call with run_in_background, a Monitor) and for how long at most, and its cause."""
+    cmd = str(inp.get("command", ""))
+    background = name == "Monitor" or (name in ("Bash", "PowerShell") and inp.get("run_in_background") is True)
+    limit = inp.get("timeout_ms" if name == "Monitor" else "timeout")
+    if isinstance(limit, (int, float)) and not isinstance(limit, bool) and limit > 0:
+        seconds = min(limit / 1000, MONITOR_MAX) if name == "Monitor" else limit / 1000
+    else:
+        seconds = MONITOR_TIMEOUT if name == "Monitor" else BACKGROUND_TIMEOUT
+    if name in ("Bash", "PowerShell"):
+        cause = next((c for c, rx in IDLE_SHELL if rx.search(cmd)), "shell")
+    else:
+        cause = "Monitor" if name == "Monitor" else "tool"
+    return {"id": tool_id, "mid": mid, "background": background, "limit": seconds, "cause": cause}
+
+
+def idle_cause(made: list[dict], calls: list[dict], began: float, ended: float, woken: dict[str, float]) -> str:
+    """What preceded an idle gap from the API call at `began` to the next at `ended` (IDLE_CAUSES): when that call made
+    tool calls, the cause of its longest foreground one if that ran for half the gap or more, else an API wait (the
+    model, not a tool, took the time); when it made none (it ended its turn to wait for a notification), the first of
+    IDLE_WAKERS among the background tasks started by then and still running when the gap began (until their
+    notification, else their timeout), else an API wait."""
+    if made:
+        fore = [c for c in made if not c["background"]]
+        longest = max(((c["t1"] or ended) - c["t0"] for c in fore), default=0.0)
+        if fore and longest >= (ended - began) / 2:
+            return max(fore, key=lambda c: (c["t1"] or ended) - c["t0"])["cause"]
+        return "API"
+    running = {c["cause"] for c in calls
+               if c["background"] and c["t0"] <= began < woken.get(c["id"], c["t0"] + c["limit"])}  # fmt: skip
+    return next((cause for cause in IDLE_WAKERS if cause in running), "API")
 
 
 def repo_path(path: object) -> str | None:
@@ -853,6 +1028,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
     files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
+    left: list[tuple[int, int]] = []  # #559: each <total_tokens> reading, with the context of the API call before it
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -884,7 +1060,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 code_seen.clear()
                 continue
             if d.get("type") == "attachment":
-                found = attachment_items(d.get("attachment"))
+                att = d.get("attachment")
+                if isinstance(att, dict) and att.get("type") == "total_tokens_reminder":
+                    m_left = TOKENS_LEFT.search(str(att.get("text", "")))
+                    if m_left:
+                        left.append((int(m_left.group(1)), last_ctx))
+                found = attachment_items(att)
                 items += found
                 pending += found
                 continue
@@ -931,11 +1112,13 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             code_seen.pop(rel, None)
                         uses[b["id"]] = {
                             "name": b.get("name"),
+                            "mid": mid,
                             "t0": t,
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
                             "docs": doc_targets(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
+                            **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
                         files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
@@ -950,6 +1133,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         found = read_items(call["docs"], text)
                         items += found
                         pending += found
+                        polled = WAIT_RAN.search(text) if call["kind"] == "wait" else None
+                        call["polled"] = float(polled.group(1)) if polled else None
                         if MERGE_HEADER.search(text):
                             merge_outputs += 1
                             merge_pairs += architecture_pairs(text)
@@ -976,6 +1161,19 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     ]
     armed = sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items())
     calls = list(uses.values())
+    made: dict[str, list[dict]] = defaultdict(list)  # an API call's message id: the tool calls it made
+    for c in calls:
+        made[c["mid"]].append(c)
+    # Per call after a gap of IDLE_GAP or more (#558): when, the gap, its cache write and read, the write's API list $,
+    # and what preceded the gap.
+    idle = [
+        {"at": first_seen[b], "gap": first_seen[b] - first_seen[a], "write": usage[b]["cache_creation_input_tokens"],
+         "read": usage[b]["cache_read_input_tokens"], "usd": usd_of(usage[b])["usd_cache_write"],
+         "cause": idle_cause(made.get(a, []), calls, first_seen[a], first_seen[b], woken)}
+        for a, b in zip(order, order[1:])
+        if first_seen[b] - first_seen[a] >= IDLE_GAP
+    ]  # fmt: skip
+    waits = bounded_waits(calls, order, first_seen, usage)
     seen, unique = set(), []
     for v in verifies:
         sig = (v["total"], tuple(sorted((k, x[1]) for k, x in v["steps"].items())))
@@ -986,6 +1184,15 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     for c in calls:
         kinds[c["kind"]] += (c["t1"] or c["t0"]) - c["t0"]
     price_items(items, list(usage.values()), bounds)  # in the order the calls were first seen, as "at" counts them
+    first = next(iter(usage.values()), None)  # #557: what the agent type's system prompt and tools cost up front
+    # #559: each API call's context (its prompt: input, cache write and read) with the tool calls made before it.
+    ctx_series, before = [], 0
+    for mid in order:
+        ctx_series.append((before, sum(usage[mid][f] for f in TOKEN_FIELDS if f != "output_tokens")))
+        before += len(made.get(mid, []))
+    high = [usage[mid] for (_, ctx), mid in zip(ctx_series, order) if ctx > HIGH_CTX]
+    budgets = Counter(n + ctx for n, ctx in left)
+    budget = budgets.most_common(1)[0][0] if budgets else None
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
@@ -997,12 +1204,20 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "tokens": dict(tokens),
         "unpriced": unpriced,
         "last_ctx": last_ctx,
+        "first_ctx": sum(first[f] for f in TOKEN_FIELDS if f != "output_tokens") if first else 0,
+        "ctx_sum": sum(ctx for _, ctx in ctx_series),  # #584, as #559's series counts a call's context
+        "ctx_peak": max((ctx for _, ctx in ctx_series), default=0),
         "gaps": gaps,
+        "idle": idle,
+        "max_gap": max((g[0] for g in gaps), default=0.0),
+        "waits": waits,
         # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
         # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
+        "latency": [(k, c["t1"] - c["t0"]) for c in calls if c["t1"] and (k := latency_class(c))]
+        + [("wait", c["t1"] - c["t0"] - c["polled"]) for c in calls if c["t1"] and c.get("polled") is not None],
         "kinds": dict(kinds),
         "kind_counts": Counter(c["kind"] for c in calls),
         "tool_seconds": union_seconds([(c["t0"], c["t1"]) for c in calls if c["t1"]]),
@@ -1012,7 +1227,45 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
         "code_reads": code_reads,
         "files_read": sorted(files_read),
+        "ctx_series": ctx_series,
+        "high_ctx": {"calls": len(high), "usd": sum(usd(usd_of(u)) for u in high)},
+        "reminders": {"n": len(left), "exact": budgets[budget] if budget is not None else 0, "budget": budget},
     }
+
+
+def latency_class(call: dict) -> str | None:
+    """A tool call's key in LATENCY_CLASSES (#568), None for a call of any other tool and for a `wait` call, whose
+    deadline would dwarf the foreground shell calls' times (the "wait" class counts it, minus wait's own clock)."""
+    if call["kind"] == "wait":
+        return None
+    if call["name"] in ("Bash", "PowerShell"):
+        return "shell-background" if call["background"] else "shell"
+    if call["name"] in READ_TOOLS:
+        return "read"
+    return "edit" if call["name"] in EDIT_TOOLS else None
+
+
+def bounded_waits(
+    calls: list[dict], order: list[str], first_seen: dict[str, float], usage: dict[str, dict]
+) -> list[dict]:
+    """#555: per API call that made a bounded wait (BOUNDED_WAITS) with a result and a next API call, its longest such
+    wait: its kind, the wait's own seconds, the gap to the next call (first line to first line, as `gaps` measures
+    it), and that next call's cache write, read and the write's premium over a read."""
+    after = dict(zip(order, order[1:]))
+    kinds = {kind for kind, _name in BOUNDED_WAITS}
+    longest: dict[str, dict] = {}
+    for c in calls:
+        if c["kind"] not in kinds or not c["t1"] or c["mid"] not in after:
+            continue
+        if c["mid"] not in longest or c["t1"] - c["t0"] > longest[c["mid"]]["seconds"]:
+            nxt = usage[after[c["mid"]]]
+            longest[c["mid"]] = {
+                "kind": c["kind"], "seconds": c["t1"] - c["t0"], "polled": c.get("polled"),
+                "gap": first_seen[after[c["mid"]]] - first_seen[c["mid"]],
+                "write": nxt["cache_creation_input_tokens"], "read": nxt["cache_read_input_tokens"],
+                "premium": write_premium(nxt),
+            }  # fmt: skip
+    return list(longest.values())
 
 
 def files_of(name: str, inp: dict, call: dict) -> list[str]:
@@ -1197,6 +1450,7 @@ def read_run(folder: Path, files: dict[str, Path], cache: dict[str, dict], label
             {
                 "id": aid,
                 "label": agent_label,
+                "type": str(read_meta(files[aid]).get("agentType", "?")) if aid in files else "?",
                 "role": role_of(agent_label),
                 "phase": phase,
                 "result": as_dict(result["result"]) if result else None,
@@ -1254,6 +1508,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             exit_crashes, exit_tracked = [], []
             for name, step in items:
                 if name and isinstance(step, dict):
+                    if str(step.get("status", "")).lower() == "not run":  # a --fail-fast run stopped first (#556)
+                        continue
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
                     if isinstance(step.get("exit_crash"), bool):  # a check step of a runner since #449 has it
@@ -1276,6 +1532,7 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                 seen.add(key)
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
                               "wait": wait, "over": over, "exit_crashes": exit_crashes,
+                              "stopped": bool(rec.get("stopped")),
                               "exit_tracked": exit_tracked, **red})  # fmt: skip
     return found
 
@@ -1437,6 +1694,7 @@ def per_task(r: dict) -> dict:
         if isinstance(f, dict)
     )
     pub = next((x["result"] for x in r["agents"] if x["role"] == "publisher" and x["result"]), None) or {}
+    impl = implementer_context(r)
     return {
         "session": r["session"],
         "issue": r["issue"],
@@ -1458,6 +1716,25 @@ def per_task(r: dict) -> dict:
         "sev": dict(sev),
         "pr": pub.get("pr_number"),
         "ci_green": pub.get("ci_green"),
+        "handoffs": impl["handoffs"],
+        "impl_calls": impl["api_calls"],
+        "over200_calls": impl["over200"],
+        "over200_usd": impl["over200_usd"],
+    }
+
+
+def implementer_context(r: dict) -> dict:
+    """#559: a run's implementers (each attempt), their API calls, those over HIGH_CTX and their $, and its handoffs:
+    the continuations the script launched (distinct `implement:#N#k` labels; a retried agent is one)."""
+    impls = [x for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    labels = {x["label"] for x in r["agents"] if x["role"] == "implementer" and HANDOFF_LABEL.search(x["label"])}
+    return {
+        "implementers": len(impls),
+        "handoffs": len(labels),
+        "api_calls": sum(x["data"].get("api_calls", 0) for x in impls),
+        "over200": sum(x["data"].get("high_ctx", {}).get("calls", 0) for x in impls),
+        "over200_usd": sum(x["data"].get("high_ctx", {}).get("usd", 0.0) for x in impls),
+        "usd": sum(usd(x["data"]["tokens"]) for x in impls),
     }
 
 
@@ -1497,9 +1774,13 @@ def build(
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
+    types = type_record(counted)
+    md += type_section(types)
     md += code_read_section(counted)
     plans = plan_rows(counted)
     md += plan_section(plans)
+    handoffs = handoff_record(counted)
+    md += handoff_section(handoffs)
     judged = ab_rows(counted)
     ab = {"rows": judged, "totals": ab_totals(judged)}
     md += ab_section(ab)
@@ -1510,8 +1791,16 @@ def build(
     md += review_section(counted)
     quality = quality_record(finished, labels, github)
     md += quality_section(quality)
+    md += trial_section(trial := trial_record(finished, tasks, quality["tasks"], github))
     md += time_section(counted)
     md += cache_section(counted)
+    idle = idle_record(idle_agents(counted))
+    md += idle_section(idle)
+    md += context_section(context := context_record(context_agents(counted)))
+    waits = bounded_wait_record(counted)
+    md += bounded_wait_section(waits)
+    latency = latency_record(counted)
+    md += latency_section(latency)
     managers = manager_rows(counted, data["sessions"])
     md += manager_section(managers, data["other_sessions"])
     rewrites = rewrite_rows(data["sessions"], data["runs"])
@@ -1521,7 +1810,7 @@ def build(
         md += ci_section(ci)
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
-                            instructions=instructions)  # fmt: skip
+                            instructions=instructions, idle=idle["totals"], types=types, context=context)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -1529,16 +1818,25 @@ def build(
         "week": week,
         "stages": stages,
         "tasks": tasks,
-        "runs": [{k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r)} for r in counted],
+        "runs": [
+            {k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r), "types": run_types(r)} for r in counted
+        ],
         "verifies": {
             k: [{**v, "steps": {s: list(x) for s, x in v["steps"].items()}} for v in lst] for k, lst in by_row.items()
         },
         "ci": ci,
         "manager_rewrites": rewrites,
+        "idle": idle,
+        "context_per_call": context,
+        "bounded_waits": waits,
+        "tool_latency": latency,
         "quality": quality,
         "plans": plans,
+        "handoffs": handoffs,
         "ab_review": ab,
+        "sonnet_trial": trial,
         "instructions": instructions,
+        "agent_types": types,
         "compact": compact,
     }
     return md, record, compact
@@ -1596,6 +1894,58 @@ def stage_section(stages: list[dict]) -> list[str]:
     return [
         "## Per session (a stage): finished issue-task runs, medians in minutes", "", table(head, rows), "",
         "\"verify runs\" counts the summaries an implementer or publisher printed (`publish` included).", "",
+    ]
+
+
+# #557: the roles a lean writer type serves (task-implementer: implementer, planner, test reviewer; task-publisher:
+# publisher, pr-rebase and its fix agent). On the general type (workflow-subagent) they cost about twice the first-call
+# tokens; after #557 a launch needs lean_reason for that, so the count should read 0.
+WRITER_ROLES = ("implementer", "planner", "test-reviewer", "publisher", "pr-rebase", "pr-rebase fix")
+GENERAL_TYPE = "workflow-subagent"
+
+
+def run_types(r: dict) -> dict[str, int]:
+    """How many of a run's agents ran as each agentType (agent-*.meta.json; '?' without one)."""
+    return dict(Counter(x["type"] for x in r["agents"]))
+
+
+def type_record(counted: list[dict]) -> dict:
+    """Per (role, agentType), over every counted run: agents, API list $ and the median first-call context; and how
+    many agents of WRITER_ROLES ran as the general type (#557)."""
+    groups: dict[tuple[str, str], dict] = defaultdict(lambda: {"n": 0, "tok": Counter(), "first": []})
+    general = writers = 0
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            g = groups[(x["role"], x["type"])]
+            g["n"] += 1
+            g["tok"].update(d["tokens"])
+            g["first"].append(d["first_ctx"])
+            if x["role"] in WRITER_ROLES:
+                writers += 1
+                general += x["type"] == GENERAL_TYPE
+    rows = [
+        {"role": role, "type": t, "agents": g["n"], "usd": usd(g["tok"]), "first_ctx": med(g["first"])}
+        for (role, t), g in sorted(groups.items(), key=lambda kv: -usd(kv[1]["tok"]))
+    ]
+    return {"rows": rows, "writers": {"general": general, "all": writers}}
+
+
+def type_section(rec: dict) -> list[str]:
+    rows = [[r["role"], r["type"], r["agents"], fmt_usd(r["usd"]), fmt_tok(r["first_ctx"])] for r in rec["rows"]]
+    head = ["role", "agent type (meta.json)", "agents", "API list $", "first-call context (median)"]
+    w = rec["writers"]
+    return [
+        "## Per agent type (#557)",
+        "",
+        table(head, rows),
+        "",
+        f"Implementers, planners, test reviewers, publishers and pr-rebase agents on the general type "
+        f"({GENERAL_TYPE}): {w['general']} of {w['all']} (a lean launch gives them task-implementer or task-publisher; "
+        "lean false needs lean_reason).",
+        "",
     ]
 
 
@@ -1736,6 +2086,84 @@ def plan_section(rows: list[dict]) -> list[str]:
         "",
         f"Plan + critique: mean {fmt_usd(sum(both) / len(both))} over {len(both)} runs; the implementers re-read "
         f"{again} of {files} planner files ({again / max(1, files):.0%}).",
+        "",
+    ]
+
+
+def handoff_record(counted: list[dict]) -> dict:
+    """#559's numbers (the module docstring): per run with an implementer its row, the tool-call proxy
+    over every implementer, and the <total_tokens> check over every agent."""
+    rows = []
+    series = []
+    for r in counted:
+        c = implementer_context(r)
+        if not c["implementers"]:
+            continue
+        rows.append({"session": r["session"], "issue": r["issue"], "wf": r["wf"], **c})
+        series += [x["data"].get("ctx_series") or [] for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    proxy = []
+    for k in PROXY_CALLS:
+        at = [next(ctx for before, ctx in s if before >= k) for s in series if any(before >= k for before, _ in s)]
+        proxy.append({"calls": k, "agents": len(at), "median_ctx": med(at) if at else None,
+                      "over": sum(ctx >= HANDOFF_CTX for ctx in at)})  # fmt: skip
+    crossed = [next(before for before, ctx in s if ctx >= HANDOFF_CTX) for s in series if any(c >= HANDOFF_CTX for _, c in s)]
+    reminders = [x["data"].get("reminders") or {} for r in counted for x in r["agents"] if x["data"]]
+    return {
+        "rows": rows,
+        "proxy": proxy,
+        "crossed": {"agents": len(crossed), "of": len(series), "median": med(crossed) if crossed else None,
+                    "min": min(crossed, default=None), "max": max(crossed, default=None)},
+        "reminders": {"n": sum(m.get("n", 0) for m in reminders), "exact": sum(m.get("exact", 0) for m in reminders),
+                      "budgets": sorted({m["budget"] for m in reminders if m.get("budget") is not None})},
+    }  # fmt: skip
+
+
+def handoff_section(rec: dict) -> list[str]:
+    """The implementer context table (#559); nothing when no run had an implementer."""
+    rows = rec["rows"]
+    if not rows:
+        return []
+    body = [[f"#{x['issue']}" if x["issue"] else x["wf"], x["implementers"], x["handoffs"], x["api_calls"],
+             f"{x['over200']} ({x['over200'] / max(1, x['api_calls']):.0%})", fmt_usd(x["over200_usd"]),
+             fmt_usd(x["usd"])] for x in rows]  # fmt: skip
+    calls = sum(x["api_calls"] for x in rows)
+    over = sum(x["over200"] for x in rows)
+    spent = sum(x["usd"] for x in rows)
+    over_usd = sum(x["over200_usd"] for x in rows)
+    proxy = [[p["calls"], p["agents"], "-" if p["median_ctx"] is None else fmt_tok(p["median_ctx"]),
+              "-" if not p["agents"] else f"{p['over']} ({p['over'] / p['agents']:.0%})"] for p in rec["proxy"]]  # fmt: skip
+    c = rec["crossed"]
+    crossed = (f"{c['agents']} of {c['of']} implementers crossed {HANDOFF_CTX // 1000}k, at tool call {c['median']:.0f} "
+               f"at the median ({c['min']} to {c['max']})." if c["agents"] else
+               f"None of {c['of']} implementers crossed {HANDOFF_CTX // 1000}k.")  # fmt: skip
+    m = rec["reminders"]
+    reminder = (f"`<total_tokens>` reminders: {m['exact']} of {m['n']} readings equal the budget less the context of "
+                f"the API call before them (budget {', '.join(str(b) for b in m['budgets'])})." if m["n"] else
+                "`<total_tokens>` reminders: none read: the harness shows none, so a checkpoint agent falls back to "
+                "the tool-call backstop.")  # fmt: skip
+    head = ["run", "implementers", "handoffs", "API calls", f"calls over {HIGH_CTX // 1000}k", "their $",
+            "implementers' $"]  # fmt: skip
+    return [
+        "## Implementer context and checkpoint handoffs (#559)",
+        "",
+        f"Per run with an implementer: its implementer agents (a continuation after a checkpoint handoff counts as a "
+        f"handoff), their API calls, those with a context over {HIGH_CTX // 1000}k and their API list $.",
+        "",
+        table(head, body),
+        "",
+        f"Implementer calls over {HIGH_CTX // 1000}k: {over} of {calls} ({over / max(1, calls):.0%}), "
+        f"{fmt_usd(over_usd)} of the implementers' {fmt_usd(spent)}; #559's target with checkpoint: under 5% (14% "
+        f"before), with the long tasks' $ not up.",
+        "",
+        f"Tool calls as a proxy for context (checkpoint's backstop): per k, the implementers with k or more tool calls, "
+        f"their median context at the first API call after k of them, and how many were at {HANDOFF_CTX // 1000}k or "
+        f"over.",
+        "",
+        table(["tool calls", "implementers", "median context", f"at {HANDOFF_CTX // 1000}k or over"], proxy),
+        "",
+        crossed,
+        "",
+        reminder,
         "",
     ]
 
@@ -1893,6 +2321,176 @@ def ab_section(record: dict) -> list[str]:
     ]
 
 
+def issue_size(body: str) -> str | None:
+    """An issue body's first `Size:` line ("S", "**Size:** M.", "S to M" is the larger); None without one."""
+    found = SIZE_LINE.search(body)
+    return (found.group(2) or found.group(1)).upper() if found else None
+
+
+def implementer_family(r: dict) -> str | None:
+    """The model family of a run's implementer (its first attempt with a transcript)."""
+    d = next((x["data"] for x in r["agents"] if x["role"] == "implementer" and x["data"] and x["data"].get("model")), None)
+    return agents_check.family(str(d["model"])) if d else None
+
+
+def run_red(r: dict) -> bool:
+    """A run the manager must relaunch (orchestrate-stage §4): its implementer ended red, its publisher published
+    nothing, or CI stayed red after the publisher's rounds."""
+    last = {
+        role: next((x["result"] for x in reversed(r["agents"]) if x["role"] == role and x["result"] is not None), {})
+        for role in ("implementer", "publisher")
+    }
+    return (last["implementer"].get("verify_green") is False or last["publisher"].get("published") is False
+            or last["publisher"].get("ci_green") is False)  # fmt: skip
+
+
+def trial_serious(r: dict) -> int | None:
+    """A run's blockers and majors from one reviewer set on both sides of the trial: REVIEWERS, with the A/B's
+    code-reviewer-control (the Opus code reviewer) in place of code-reviewer where the run has one, so a finding both
+    code reviewers raised counts once; no test review (only some launches have one). None when no review ran."""
+    done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
+    roles = [role for role in REVIEWERS if role in done]
+    if "code-reviewer-control" in done:
+        roles = [role for role in roles if role != "code-reviewer"] + ["code-reviewer-control"]
+    if not roles:
+        return None
+    serious = 0
+    for role in roles:
+        listed = done[role].get("findings")
+        for f in listed if isinstance(listed, list) else []:
+            serious += isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
+    return serious
+
+
+def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | None) -> dict:
+    """One task's runs (run, per_task, quality row) summed: the trial table's measures; None where no run knows."""
+
+    def known(values: list) -> int | float | None:
+        values = [v for v in values if v is not None]
+        return sum(values) if values else None
+
+    ci = {q["pr"]: q.get("ci_red_rounds") for _r, _p, q in members if q["pr"] is not None}  # once per PR
+    first = members[0][0]
+    return {
+        "issue": first["issue"], "wf": first["wf"], "key": key, "size": size,
+        "models": sorted({str(implementer_family(r)) for r, _p, _q in members}),
+        "design": any(q["design"] for _r, _p, q in members),
+        "runs": len(members), "red_runs": sum(run_red(r) for r, _p, _q in members),
+        "verify_runs": sum(p["summaries"] for _r, p, _q in members),
+        "verify_red": sum(p["summaries_failed"] for _r, p, _q in members),
+        "serious": known([trial_serious(r) for r, _p, _q in members]),
+        "fix_rounds": known([q["fix_rounds"] for _r, _p, q in members]),
+        "ci_fix_rounds": known(list(ci.values())),
+        "calls": sum(p["calls"] for _r, p, _q in members), "usd": sum(q["usd"] for _r, _p, q in members),
+    }  # fmt: skip
+
+
+def trial_totals(rows: list[dict]) -> dict:
+    """One side's tasks: the tasks red twice, the per-task mean of each measure (over the tasks that know it) and the
+    median $."""
+    out: dict = {"tasks": len(rows), "red_twice": sum(x["red_runs"] >= 2 for x in rows)}
+    for k in TRIAL_MEASURES:
+        values = [x[k] for x in rows if x[k] is not None]
+        out[k] = sum(values) / len(values) if values else None
+    out["usd_median"] = med([x["usd"] for x in rows]) if rows else None
+    return out
+
+
+def trial_advice(trial: dict, base: dict) -> str:
+    """The stop rule (the module docstring) over the trial's and the baseline's totals."""
+    if trial["red_twice"] >= TRIAL_RED_TWICE:
+        return (f"stop: drop Sonnet for the implementer ({trial['red_twice']} trial tasks red twice; the manager "
+                f"relaunches them on Opus)")  # fmt: skip
+    if not base["tasks"]:
+        if trial["tasks"] >= TRIAL_TASKS:
+            return (f"no verdict: {trial['tasks']} trial tasks but no baseline in the window (Opus-implemented Size S "
+                    f"tasks); report on #302, the engineer decides")  # fmt: skip
+        return (f"continue: {trial['tasks']} of {TRIAL_TASKS} trial tasks; no baseline in the window (Opus-implemented "
+                f"Size S tasks: their size comes from GitHub)")  # fmt: skip
+    over = None if trial["serious"] is None or base["serious"] is None else trial["serious"] - base["serious"]
+    if trial["tasks"] >= TRIAL_EARLY_TASKS and over is not None and over >= TRIAL_SERIOUS_OVER:
+        return (f"stop: drop Sonnet for the implementer ({over:.2f} blockers and majors per task over the "
+                f"baseline's)")  # fmt: skip
+    if trial["tasks"] < TRIAL_TASKS:
+        return f"continue: {trial['tasks']} of {TRIAL_TASKS} trial tasks"
+    worse = [name for k, name in TRIAL_NO_WORSE.items()
+             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
+    if trial["usd"] >= base["usd"]:
+        worse.append("$ per task not lower")
+    if worse:
+        return f"drop Sonnet for the implementer (worse or unknown: {', '.join(worse)})"
+    return "keep Sonnet for qualifying tasks (the engineer decides; a habit only by a further amendment)"
+
+
+def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: dict | None) -> dict:
+    """The Sonnet implementer trial (#560) from the finished issue-task runs, their per_task records and their
+    scorecard rows (the three in one order), and the issues' sizes from read_github's list."""
+    issues = (github or {}).get("issues")
+    sizes = {i.get("number"): issue_size(str(i.get("body") or "")) for i in issues} if isinstance(issues, list) else {}
+    groups: dict[object, list[tuple[dict, dict, dict]]] = {}
+    for r, p, q in zip(runs, tasks, rows):
+        groups.setdefault(r["issue"] if r["issue"] is not None else r["wf"], []).append((r, p, q))
+    trial, base = [], []
+    for key, members in groups.items():
+        families = [implementer_family(r) for r, _p, _q in members]
+        row = trial_task(key, members, sizes.get(key))
+        if TRIAL_FAMILY in families:
+            trial.append(row)
+        elif all(f == BASELINE_FAMILY for f in families) and not row["design"] and row["size"] in TRIAL_SIZES:
+            base.append(row)
+    totals = {"trial": trial_totals(trial), "baseline": trial_totals(base)}
+    return {"tasks": trial, "baseline": base, "totals": totals, "sizes_known": isinstance(issues, list),
+            "advice": trial_advice(totals["trial"], totals["baseline"])}  # fmt: skip
+
+
+def trial_section(record: dict) -> list[str]:
+    """The Sonnet implementer trial's tables (#560); nothing when no task had a Sonnet implementer."""
+    if not record["tasks"]:
+        return []
+
+    def n(value: int | float | None, digits: int = 0) -> str:
+        return "?" if value is None else f"{value:.{digits}f}"
+
+    body = [
+        [f"#{x['issue']}" if x["issue"] is not None else x["wf"], x["size"] or "?", ", ".join(x["models"]),
+         f"{x['runs']} ({x['red_runs']})", f"{x['verify_runs']} ({x['verify_red']})", n(x["serious"]),
+         n(x["fix_rounds"]), n(x["ci_fix_rounds"]), x["calls"], fmt_usd(x["usd"])]
+        for x in record["tasks"]
+    ]  # fmt: skip
+    head = ["task", "size", "implementer models", "runs (red)", "verify runs (red)", "blockers+majors",
+            "publisher fix rounds", "CI fix rounds", "tool calls", "API list $"]  # fmt: skip
+    totals = []
+    for side, label in (("trial", "Sonnet trial"), ("baseline", "Opus, Size S")):
+        t = record["totals"][side]
+        totals.append([label, t["tasks"], t["red_twice"], *(n(t[k], 2) for k in TRIAL_MEASURES[:-2]),
+                       n(t["calls"]), "?" if t["usd"] is None else fmt_usd(t["usd"]),
+                       "?" if t["usd_median"] is None else fmt_usd(t["usd_median"])])  # fmt: skip
+    total_head = ["side", "tasks", "red twice", "red runs", "verify runs", "verify reds", "blockers+majors",
+                  "publisher fix rounds", "CI fix rounds", "tool calls", "$ (mean)", "$ (median)"]  # fmt: skip
+    sizes = "" if record["sizes_known"] else (" GitHub's issues were not read (--no-gh or a gh error), so no task has a "
+                                              "size and there is no baseline.")  # fmt: skip
+    return [
+        "## Sonnet implementer trial (#560)",
+        "",
+        "Per trial task (an issue with a Sonnet implementer run; its relaunches on Opus count with it): its runs and the "
+        "red ones, the verify runs its agents saw and the red ones, the review's blockers and majors, the publisher's "
+        f"fix rounds, the PR's red CI rounds, tool calls and API list $.{sizes}",
+        "",
+        table(head, body),
+        "",
+        f"Per task (means), against the baseline: Opus-implemented non-design tasks of the window, Size "
+        f"{' or '.join(sorted(TRIAL_SIZES, reverse=True))}. Stop once {TRIAL_RED_TWICE} trial tasks were red twice; "
+        f"from {TRIAL_EARLY_TASKS} trial tasks stop at {TRIAL_SERIOUS_OVER:g} or more blockers and majors per task "
+        f"over the baseline; after {TRIAL_TASKS} keep Sonnet when the reds and fix rounds are no worse and the $ per "
+        f"task is lower (the trial ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
+        "",
+        f"Advice: {record['advice']}.",
+        "",
+    ]
+
+
 def verify_rows(counted: list[dict], sessions: list[dict], history: list[dict]) -> dict[str, list[dict]]:
     """Verify runs by where they come from: each session's agents, the managers' own runs, the history file."""
     by_row: dict[str, list[dict]] = defaultdict(list)
@@ -1932,7 +2530,7 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
         for s in step_names:
             vals = [v["steps"][s][1] for v in lst if s in v["steps"]]
             row.append(f"{med(vals):.0f}" if vals else "")
-        tots = [v["total"] for v in lst if v["total"]]
+        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
         if with_slots:
             waits, over = slot_waits(lst)
@@ -2022,6 +2620,76 @@ def cache_section(counted: list[dict]) -> list[str]:
         md += [f"Cache writes after a wait of 5 minutes or more: {fmt_tok(long_w)} of {fmt_tok(all_w)} "
                f"({long_w / all_w:.0%}), about {fmt_usd(long_usd)} list more than reading them "
                "(each call at its own model's prices).", ""]
+    return md
+
+
+def p95(values: list[float]) -> float:
+    """The nearest-rank 95th percentile (0.0 for none)."""
+    ranked = sorted(values)
+    return ranked[max(0, -(-len(ranked) * 95 // 100) - 1)] if ranked else 0.0
+
+
+def latency_record(counted: list[dict]) -> dict:
+    """#568, per class of LATENCY_CLASSES over the counted runs' agents: the calls, and the median and p95 seconds from a
+    call's start to its output."""
+    seconds: dict[str, list[float]] = {key: [] for key, _name in LATENCY_CLASSES}
+    for r in counted:
+        for x in r["agents"]:
+            for key, s in (x["data"] or {}).get("latency", []):
+                seconds[key].append(s)
+    return {key: {"calls": len(v), "median_s": med(v), "p95_s": p95(v)} for key, v in seconds.items()}
+
+
+def latency_section(record: dict) -> list[str]:
+    """One line (#568): the time from a tool call's start to its output, per class of call that has any."""
+    parts = [f"{name}: {r['calls']} call{'' if r['calls'] == 1 else 's'}, {r['median_s']:.1f} s median, {r['p95_s']:.1f} s p95"
+             for key, name in LATENCY_CLASSES if (r := record[key])["calls"]]  # fmt: skip
+    if not parts:
+        return []
+    return ["Tool-call start-up (#568), from a call's start to its output: " + "; ".join(parts) + ".", ""]
+
+
+def bounded_wait_record(counted: list[dict]) -> dict:
+    """#555, per kind of BOUNDED_WAITS over the counted runs' agents: the calls; the cache re-writes after one (a next
+    call after CACHE_TTL or more that wrote most of its context: the tokens written and their premium over a read); the
+    tool call's median seconds; the turn after it (the gap to the agent's next API call minus the call's seconds: the
+    model's own call; median, p95, maximum); the longest gap. For `wait` also the calls that ran to their deadline
+    (wait's "still running after N s" line) and the time around wait's own clock (the gap minus its N: the shell's and
+    Python's start-up plus the turn; median, p95, maximum): a step plus that p95 must stay under CACHE_TTL."""
+    waits = [w for r in counted for x in r["agents"] if x["data"] for w in x["data"].get("waits", [])]
+    out = {}
+    for kind, _name in BOUNDED_WAITS:
+        sel = [w for w in waits if w["kind"] == kind]
+        turn = [w["gap"] - w["seconds"] for w in sel]
+        around = [w["gap"] - w["polled"] for w in sel if w.get("polled") is not None]
+        lapsed = [w for w in sel if w["gap"] >= CACHE_TTL and w["write"] > 0.5 * (w["write"] + w["read"])]
+        out[kind] = {
+            "calls": len(sel), "rewrites": len(lapsed), "rewrite_tokens": sum(w["write"] for w in lapsed),
+            "rewrite_usd": sum(w["premium"] for w in lapsed), "call_median_s": med([w["seconds"] for w in sel]),
+            "turn_median_s": med(turn), "turn_p95_s": p95(turn), "turn_max_s": max(turn, default=0.0),
+            "gap_max_s": max((w["gap"] for w in sel), default=0.0), "deadline_calls": len(around),
+            "around_median_s": med(around), "around_p95_s": p95(around), "around_max_s": max(around, default=0.0),
+        }  # fmt: skip
+    return out
+
+
+def bounded_wait_section(record: dict) -> list[str]:
+    """One line per kind of bounded wait (#555): the cache re-writes after one, and the time around it."""
+    md = []
+    for kind, name in BOUNDED_WAITS:
+        r = record[kind]
+        if not r["calls"]:
+            continue
+        line = (f"Cache re-writes after {name} (#555): {r['rewrites']} of {r['calls']} calls "
+                f"({fmt_tok(r['rewrite_tokens'])}, about {fmt_usd(r['rewrite_usd'])} list more than reading them). "
+                f"The call {r['call_median_s']:.0f} s median; the turn after it (the gap to the next API call minus "
+                f"the call) {r['turn_median_s']:.0f} s median, {r['turn_p95_s']:.0f} s p95, {r['turn_max_s']:.0f} s "
+                f"max; the longest gap {r['gap_max_s']:.0f} s.")  # fmt: skip
+        if r["deadline_calls"]:
+            line += (f" {r['deadline_calls']} ran to their deadline: the gap minus wait's own clock (start-up and "
+                     f"turn) {r['around_median_s']:.0f} s median, {r['around_p95_s']:.0f} s p95, "
+                     f"{r['around_max_s']:.0f} s max.")  # fmt: skip
+        md += [line, ""]
     return md
 
 
@@ -2121,6 +2789,233 @@ def rewrite_section(rows: list[dict]) -> list[str]:
             "the first column that held when the gap began: a keep-alive timer armed (a background `sleep`; the "
             "orchestrate-stage skill, §7), which should stay 0; a workflow run of the session in flight; else a stop "
             "for the human.", ""]  # fmt: skip
+
+
+def idle_agents(counted: list[dict]) -> list[dict]:
+    """The counted runs' agents with an API call, as idle_record reads them."""
+    return [{"session": r["session"], "run": r["wf"], "label": x["label"], "type": x.get("type", "?"),
+             "data": x["data"]}
+            for r in counted for x in r["agents"] if x["data"] and x["data"]["api_calls"]]  # fmt: skip
+
+
+def idle_sum(rows: list[dict]) -> dict:
+    """Agent rows (idle_record's) added up: re-writes, those that wrote most of the context again, their cache-write
+    API list $ and its share of the agents' cache-write $, by cause, the median and the longest gap."""
+    gaps = [g for row in rows for g in row["gaps"]]
+    usd_sum = sum(row["usd"] for row in rows)
+    write = sum(row["write_usd"] for row in rows)
+    return {
+        "agents": len(rows),
+        "agents_rewriting": sum(1 for row in rows if row["rewrites"]),
+        "calls": sum(row["calls"] for row in rows),
+        "rewrites": sum(row["rewrites"] for row in rows),
+        "most": sum(row["most"] for row in rows),
+        "usd": usd_sum,
+        "write_usd": write,
+        "share": usd_sum / write if write else 0.0,
+        "causes": {c: {"rewrites": sum(row["causes"][c]["rewrites"] for row in rows),
+                       "usd": sum(row["causes"][c]["usd"] for row in rows)} for c in IDLE_CAUSES},  # fmt: skip
+        "median_gap": med(gaps),
+        "max_gap": max((row["max_gap"] for row in rows), default=0.0),
+    }
+
+
+def idle_record(agents: list[dict]) -> dict:
+    """The cache re-writes after an idle gap (#558) of the given agents ({session, run, label, type, data}): per agent,
+    per run (in the agents' order) and in total."""
+    rows = []
+    for a in agents:
+        d, events = a["data"], a["data"]["idle"]
+        rows.append({
+            "session": a["session"], "run": a["run"], "label": a["label"], "type": a["type"], "calls": d["api_calls"],
+            "rewrites": len(events), "most": sum(e["write"] > 0.5 * (e["write"] + e["read"]) for e in events),
+            "usd": sum(e["usd"] for e in events), "write_usd": d["tokens"].get("usd_cache_write", 0.0),
+            "causes": {c: {"rewrites": sum(e["cause"] == c for e in events),
+                           "usd": sum(e["usd"] for e in events if e["cause"] == c)} for c in IDLE_CAUSES},
+            "gaps": [e["gap"] for e in events], "max_gap": d["max_gap"], "last_ctx": d["last_ctx"],
+        })  # fmt: skip
+    keys = list(dict.fromkeys((row["session"], row["run"]) for row in rows))
+    runs = [{"session": s, "run": r, **idle_sum([row for row in rows if (row["session"], row["run"]) == (s, r)])}
+            for s, r in keys]  # fmt: skip
+    return {"totals": idle_sum(rows), "runs": runs, "agents": rows}
+
+
+def idle_causes_text(causes: dict) -> str:
+    """'wait 25 ($16), API wait 2 ($1.10)': the causes with a re-write, in IDLE_CAUSES' order."""
+    parts = [f"{c if c != 'API' else 'API wait'} {v['rewrites']} ({fmt_usd(v['usd'])})"
+             for c, v in causes.items() if v["rewrites"]]  # fmt: skip
+    return ", ".join(parts) or "none"
+
+
+def idle_line(name: str, totals: dict, write: float | None = None, whose: str = "their") -> str:
+    """One line of a set of agents' re-writes (a report's, a track's or a run's), after `name: ` when a name is given;
+    their $ as a share of `write` (whose cache-write $: default the agents' own)."""
+    t = totals
+    of = t["write_usd"] if write is None else write
+    head = f"{name}: " if name else ""
+    if not t["rewrites"]:
+        return f"{head}no API call after an idle gap of 5 min or more in {t['agents']} agents"
+    return (f"{head}{t['rewrites']} API calls after an idle gap of 5 min or more ({t['most']} wrote most of the "
+            f"context to the cache again) in {t['agents_rewriting']} of {t['agents']} agents, {fmt_usd(t['usd'])} list = "
+            f"{t['usd'] / of if of else 0.0:.0%} of {whose} cache-write $; gap median {t['median_gap'] / 60:.1f} min, "
+            f"max {t['max_gap'] / 60:.0f} min; by cause: {idle_causes_text(t['causes'])}")  # fmt: skip
+
+
+def idle_cells(row: dict) -> list[str]:
+    return [f"{v['rewrites']} ({fmt_usd(v['usd'])})" if v["rewrites"] else "" for v in row["causes"].values()]
+
+
+def idle_tables(record: dict) -> list[str]:
+    """The per-run table, then the per-agent one (the agents with a re-write, by API list $, at most
+    IDLE_AGENT_ROWS)."""
+    head = ["re-writes", "API list $", *IDLE_HEADS, "max gap min"]
+    runs = [[r["session"], r["run"], f"{r['agents_rewriting']} of {r['agents']}", r["calls"], r["rewrites"],
+             fmt_usd(r["usd"]), *idle_cells(r), mins(r["max_gap"])]
+            for r in record["runs"] if r["rewrites"]]  # fmt: skip
+    rewriting = sorted((a for a in record["agents"] if a["rewrites"]), key=lambda a: -a["usd"])
+    agents = [[a["session"], a["run"], a["label"], a["type"], a["calls"], a["rewrites"], fmt_usd(a["usd"]),
+               *idle_cells(a), mins(a["max_gap"]), fmt_tok(a["last_ctx"])]
+              for a in rewriting[:IDLE_AGENT_ROWS]]  # fmt: skip
+    md = [table(["session", "run", "agents with a re-write", "API calls", *head], runs), ""]
+    md += [table(["session", "run", "agent", "agent type", "API calls", *head, "final context"], agents), ""]
+    if len(rewriting) > IDLE_AGENT_ROWS:
+        md += [f"{len(rewriting) - IDLE_AGENT_ROWS} more agents with a re-write: the JSON record lists every agent.",
+               ""]
+    return md
+
+
+def idle_section(record: dict) -> list[str]:
+    md = ["## Cache re-writes after an idle gap of 5 minutes or more, per run and per agent (#558)", "",
+          idle_line("workflow agents", record["totals"]), ""]  # fmt: skip
+    if not record["totals"]["rewrites"]:
+        return md
+    return md + idle_tables(record) + [IDLE_NOTE, ""]
+
+
+IDLE_NOTE = (
+    "Each row counts a subagent's API calls made 5 minutes or more after its previous one (a 're-write' in the "
+    "tables): the 5-minute prompt cache has lapsed, so a call usually writes its context to the cache again (the "
+    "'wrote most of the context' count; a call that still hit the cache counts with $0); its API list $ is that call's "
+    "cache write. Its cause "
+    "is what preceded the gap: when the previous call made tool calls, its longest foreground one if that ran for half "
+    "the gap or more (the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep`; any other Bash or "
+    "PowerShell command; Read or another tool), else an API wait; when it made none (it waited for a notification), "
+    "the background task still running (`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another "
+    "command, the first of these), else an API wait. Final context: the agent's last API call."
+)
+
+
+def fmt_k(n: float) -> str:
+    """A context per call in thousands, '420k' (fmt_tok writes 0.42M), from a million on in millions, '1.25M'."""
+    return f"{n / 1e6:.2f}M" if n >= 999_500 else f"{n / 1e3:.0f}k"
+
+
+CONTEXT_HEAVY = f"average {fmt_k(CONTEXT_HEAVY_AVG)}+ or peak {fmt_k(CONTEXT_HEAVY_PEAK)}+ per call"
+
+
+def context_agents(counted: list[dict]) -> list[dict]:
+    """The counted runs' agents with an API call, as context_record reads them."""
+    return [{"session": r["session"], "run": r["wf"], "issue": r["issue"], "label": x["label"], "role": x["role"],
+             "type": x.get("type", "?"), "data": x["data"]}
+            for r in counted for x in r["agents"] if x["data"] and x["data"]["api_calls"]]  # fmt: skip
+
+
+def context_record(agents: list[dict]) -> dict:
+    """The context per API call (#584) of the given agents ({session, run, issue, label, role, type, data}): per agent
+    (its average and peak, heavy at CONTEXT_HEAVY), per role (the average over its agents' calls, the peak of any) and
+    in total; the heavy agents by the tokens over all their calls, most first."""
+    rows = []
+    for a in agents:
+        d = a["data"]
+        avg = d["ctx_sum"] / d["api_calls"] if d["api_calls"] else 0.0
+        rows.append({
+            "session": a["session"], "run": a["run"], "issue": a.get("issue"), "label": a["label"], "role": a["role"],
+            "type": a["type"], "calls": d["api_calls"], "sum": d["ctx_sum"], "avg": avg, "peak": d["ctx_peak"],
+            "heavy": avg >= CONTEXT_HEAVY_AVG or d["ctx_peak"] >= CONTEXT_HEAVY_PEAK,
+        })  # fmt: skip
+
+    def summed(sel: list[dict]) -> dict:
+        calls = sum(r["calls"] for r in sel)
+        return {"agents": len(sel), "calls": calls, "avg": sum(r["sum"] for r in sel) / calls if calls else 0.0,
+                "peak": max((r["peak"] for r in sel), default=0), "heavy": sum(r["heavy"] for r in sel)}  # fmt: skip
+
+    roles = [{"role": role, **summed([r for r in rows if r["role"] == role])}
+             for role in dict.fromkeys(r["role"] for r in rows)]  # fmt: skip
+    return {
+        "thresholds": {"avg": CONTEXT_HEAVY_AVG, "peak": CONTEXT_HEAVY_PEAK},
+        "totals": summed(rows),
+        "roles": sorted(roles, key=lambda g: -g["avg"]),
+        "heavy": sorted((r for r in rows if r["heavy"]), key=lambda r: -r["sum"]),
+        "agents": rows,
+    }
+
+
+def context_line(totals: dict) -> str:
+    """'9 agents, 120 API calls: average 80k, peak 310k per call; 2 heavy (average 150k+ or peak 300k+ per call)'."""
+    if not totals["calls"]:
+        return "no agent made an API call"
+    return (f"{totals['agents']} agents, {totals['calls']} API calls: average {fmt_k(totals['avg'])}, peak "
+            f"{fmt_k(totals['peak'])} per call; {totals['heavy']} heavy ({CONTEXT_HEAVY})")  # fmt: skip
+
+
+def context_section(record: dict) -> list[str]:
+    md = ["## Context per API call, per agent role and the heaviest agents (#584)", "",
+          f"workflow agents: {context_line(record['totals'])}", ""]  # fmt: skip
+    if not record["totals"]["calls"]:
+        return md
+    roles = [[g["role"], g["agents"], g["calls"], fmt_k(g["avg"]), fmt_k(g["peak"]), g["heavy"]]
+             for g in record["roles"]]  # fmt: skip
+    md += [table(["role", "agents", "API calls", "average per call", "peak", "heavy agents"], roles), ""]
+    heavy = record["heavy"]
+    if not heavy:
+        return md + [f"No heavy agent ({CONTEXT_HEAVY}).", ""]
+    rows = [[a["session"], a["run"], f"#{a['issue']}" if a["issue"] else "", a["label"], a["role"], a["type"],
+             a["calls"], fmt_k(a["avg"]), fmt_k(a["peak"]), fmt_tok(a["sum"])]
+            for a in heavy[:CONTEXT_AGENT_ROWS]]  # fmt: skip
+    md += [f"Heavy agents ({CONTEXT_HEAVY}), by the tokens over all their calls:", "",
+           table(["session", "run", "issue", "agent", "role", "agent type", "API calls", "average per call", "peak",
+                  "tokens over its calls"], rows), ""]  # fmt: skip
+    if len(heavy) > CONTEXT_AGENT_ROWS:
+        md += [f"{len(heavy) - CONTEXT_AGENT_ROWS} more heavy agents: the JSON record lists every agent.", ""]
+    return md + [CONTEXT_NOTE, ""]
+
+
+CONTEXT_NOTE = (
+    "Context per call: the input, cache-write and cache-read tokens of one API call (what the agent sent; output "
+    "left out); a role's average is over all its agents' calls. A heavy agent pays for that context on every call, "
+    "so many calls at a large context are what to look at first."
+)
+
+
+def context_compact(record: dict) -> str:
+    """One clause for the compact summary: each role's average/peak, the heavy count and the heaviest agents."""
+    if not record["totals"]["calls"]:
+        return "context per API call (#584): no API call"
+    roles = ", ".join(f"{g['role']} {fmt_k(g['avg'])}/{fmt_k(g['peak'])}" for g in record["roles"])
+    t = record["totals"]
+    text = (f"context per API call avg/peak (#584): {roles}; {t['heavy']} of {t['agents']} agents heavy (avg "
+            f"{fmt_k(CONTEXT_HEAVY_AVG)}+ or peak {fmt_k(CONTEXT_HEAVY_PEAK)}+)")  # fmt: skip
+    if record["heavy"]:
+        text += ", most: " + ", ".join(f"{a['label'] or '?'} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}"
+                                       for a in record["heavy"][:CONTEXT_NAMES])  # fmt: skip
+    return text
+
+
+def context_run_line(record: dict) -> str:
+    """`--run`'s line: the average and peak context per call of the run's agents, the heavy ones first, at most
+    CONTEXT_RUN_AGENTS of them ('+N more' for the rest); a label that repeats (a retry) gets '(2)', '(3)'."""
+    seen: dict[str, int] = {}
+    named = []
+    for a in record["agents"]:
+        label = a["label"] or "?"
+        seen[label] = seen.get(label, 0) + 1
+        named.append((a, label if seen[label] == 1 else f"{label} ({seen[label]})"))
+    named.sort(key=lambda x: not x[0]["heavy"])  # stable: heavy first, the run's order within each
+    shown = ", ".join(f"{label} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}" + (" heavy" if a["heavy"] else "")
+                      for a, label in named[:CONTEXT_RUN_AGENTS])  # fmt: skip
+    more = len(named) - CONTEXT_RUN_AGENTS
+    return (f"context per API call avg/peak (#584; heavy: {CONTEXT_HEAVY}): {shown}"
+            + (f", +{more} more" if more > 0 else ""))  # fmt: skip
 
 
 def other_section(counted: list[dict]) -> list[str]:
@@ -2802,19 +3697,28 @@ def quality_compact(quality: dict) -> str:
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
+    idle: dict | None = None, types: dict | None = None, context: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
+    if types is not None:  # on the first line: the summary keeps its line count (#557, as #558's idle total)
+        lines[0] += f"; general-type writers {types['writers']['general']} of {types['writers']['all']} (#557)"
+    if context is not None:  # the first line too (#584)
+        lines[0] += "; " + context_compact(context)
     if tasks:
         lines.append("per task (wall min, API list $): " + ", ".join(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
         wall, cost = med([p["wall"] for p in tasks]), med([p["usd"] for p in tasks])
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
+        impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
+        over = sum(p.get("over200_calls", 0) for p in tasks)
         lines.append(f"task medians: {mins(wall)} min, {fmt_usd(cost)}, {fmt_tok(ctx)} final context, "
-                     f"{calls:.0f} tool calls")
+                     f"{calls:.0f} tool calls; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
+                     f"({fmt_usd(sum(p.get('over200_usd', 0.0) for p in tasks))}), "
+                     f"{sum(p.get('handoffs', 0) for p in tasks)} handoffs (#559)")  # fmt: skip
         if quality:
             lines.append(quality["compact"])
     diet = instruction_compact(instructions) if instructions else None
@@ -2824,8 +3728,12 @@ def compact_lines(
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
     spent = task_usd + other_usd + man_usd
-    lines.append(f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
-                 f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    line = (f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
+            f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    if idle is not None:  # the re-write table's total, on this line: the summary keeps its line count (#558)
+        line += (f"; API calls after 5+ min idle (its table): {idle['rewrites']}, {idle['most']} of them re-wrote most "
+                 f"of the context, {fmt_usd(idle['usd'])} ({idle['share']:.0%} of the agents' cache-write $)")
+    lines.append(line)
     w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]
@@ -2834,7 +3742,7 @@ def compact_lines(
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
-            tots = [v["total"] for v in lst if v["total"]]
+            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
             names: list[str] = []
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]
@@ -2891,9 +3799,9 @@ def kickoff_track(transcript: Path) -> str | None:
     return None
 
 
-def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int]:
-    """(API list $, its cache-read $, API calls) of one transcript's calls in [since, until): each message id once
-    across every file read (`seen`), each usage field's maximum, at the time of its first line."""
+def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int, float]:
+    """(API list $, its cache-read $, API calls, its cache-write $) of one transcript's calls in [since, until): each
+    message id once across every file read (`seen`), each usage field's maximum, at the time of its first line."""
     usage: dict[str, dict] = {}
     first: dict[str, float] = {}
     with io.open(path, encoding="utf-8", errors="replace") as lines:
@@ -2923,7 +3831,7 @@ def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> t
             cache = u.get("cache_creation")
             if isinstance(cache, dict):
                 cur["cache_write_1h"] = max(cur["cache_write_1h"], int(cache.get("ephemeral_1h_input_tokens") or 0))
-    spent = read = 0.0
+    spent = read = write = 0.0
     calls = 0
     for mid, u in usage.items():
         if mid in seen or first[mid] >= until or (since is not None and first[mid] < since):
@@ -2932,8 +3840,9 @@ def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> t
         cost = usd_of(u)
         spent += sum(cost.values())
         read += cost["usd_cache_read"]
+        write += cost["usd_cache_write"]
         calls += 1
-    return spent, read, calls
+    return spent, read, calls, write
 
 
 def track_spend(
@@ -2952,11 +3861,11 @@ def track_spend(
             transcript = folder / f"{sid}.jsonl"
             files = [transcript] if transcript.is_file() else []
             files += sorted((folder / sid / "subagents").rglob("agent-*.jsonl"))
-            spent = read = 0.0
+            spent = read = write = 0.0
             calls = 0
             for p in files:
-                s, r, c = spend_of(p, since, until, seen)
-                spent, read, calls = spent + s, read + r, calls + c
+                s, r, c, w = spend_of(p, since, until, seen)
+                spent, read, calls, write = spent + s, read + r, calls + c, write + w
             if not calls:
                 continue
             named = next((k for k in labels if sid == k or sid.startswith(k)), None)
@@ -2969,12 +3878,14 @@ def track_spend(
             else:
                 track, source = UNTRACKED, "none"
             sessions.append({"id": sid, "folder": folder.name, "track": track, "source": source, "usd": spent,
-                             "read_usd": read, "calls": calls, **week_percent(spent, read)})  # fmt: skip
+                             "read_usd": read, "write_usd": write, "calls": calls,
+                             **week_percent(spent, read)})  # fmt: skip
     tracks: dict[str, dict] = {}
     for s in sessions:
-        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "sessions": 0})
+        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "write_usd": 0.0, "sessions": 0})
         t["usd"] += s["usd"]
         t["read_usd"] += s["read_usd"]
+        t["write_usd"] += s["write_usd"]
         t["sessions"] += 1
     for t in tracks.values():
         t.update(week_percent(t["usd"], t["read_usd"]))
@@ -3039,6 +3950,40 @@ def track_table(spend: dict) -> list[str]:
     return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
 
 
+def track_idle(
+    dirs: list[tuple[Path, str | None]], spend: dict, names: list[str], since: float | None, until: float
+) -> dict[str, dict]:
+    """Per track named (`all`: every track found), the cache re-writes after an idle gap (#558) of its sessions'
+    subagents (workflow agents and hand-run ones; not the sessions' own lines), each API call by its time in
+    [since, until)."""
+    wanted = track_order(list(spend["tracks"])) if names == ["all"] else names
+    folders = {d.name: d for d, _default in dirs}
+    agents: dict[str, list[dict]] = defaultdict(list)
+    for s in spend["sessions"]:
+        if s["track"] not in wanted:
+            continue
+        for p in sorted((folders[s["folder"]] / s["id"] / "subagents").rglob("agent-*.jsonl")):
+            data = read_agent(p, since, until)
+            if data["api_calls"]:
+                meta = read_meta(p)
+                agents[s["track"]].append({
+                    "session": s["id"][:8], "run": p.parent.name if p.parent.parent.name == "workflows" else "hand-run",
+                    "label": str(meta.get("description", "")), "type": str(meta.get("agentType", "?")), "data": data,
+                })  # fmt: skip
+    return {name: idle_record(agents[name]) for name in wanted}
+
+
+def track_idle_lines(spend: dict, idle: dict[str, dict]) -> list[str]:
+    """Per track: its re-write line (their $ as a share of the track's cache-write $), then its tables."""
+    md = ["## Cache re-writes after an idle gap of 5 minutes or more, per run and per agent (#558)", ""]
+    for name, record in idle.items():
+        write = spend["tracks"].get(name, {}).get("write_usd", 0.0)
+        md += [idle_line(name, record["totals"], write, "the track's"), ""]
+        if record["totals"]["rewrites"]:
+            md += idle_tables(record)
+    return md + [IDLE_NOTE]
+
+
 # --- one run's spend so far (#534) --------------------------------------------------------------------------------
 
 
@@ -3073,14 +4018,27 @@ def run_spend(run_dir: Path, now: float) -> dict:
     phases: dict[str, dict] = {}
     spent = read = 0.0
     calls = 0
-    for aid, (_label, phase) in agents.items():
+    idle: list[dict] = []
+    context: list[dict] = []
+    types: Counter = Counter()
+    type_usd: Counter = Counter()
+    for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
         path = run_dir / f"agent-{aid}.jsonl"
         if path.is_file():
-            s, r, c = spend_of(path, None, float("inf"), seen)
+            agent_type = read_meta(path).get("agentType")
+            s, r, c, _w = spend_of(path, None, float("inf"), seen)
+            if agent_type:
+                types[str(agent_type)] += 1
+                type_usd[str(agent_type)] += s
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
+            data = read_agent(path)
+            if data["api_calls"]:
+                idle.append({"session": run_dir.parents[2].name[:8], "run": run_dir.name, "label": label,
+                             "type": str(read_meta(path).get("agentType", "?")), "data": data})  # fmt: skip
+                context.append({**idle[-1], "role": role_of(label)})
     files = [run_dir / "journal.jsonl", *run_dir.glob("agent-*.jsonl")]
     writes = [p.stat().st_mtime for p in files if p.is_file()]
     return {
@@ -3097,12 +4055,18 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "read_usd": read,
         "api_calls": calls,
         "phases": phases,
+        "types": dict(types),
+        "type_usd": dict(type_usd),
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
+        "idle": idle_record(idle),
+        "context": context_record(context),
     }
 
 
 def run_lines(r: dict) -> list[str]:
-    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase."""
+    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase and its agents' types
+    (#557, when their .meta.json files name them); a fourth with its cache re-writes after an idle gap (#558) when it
+    has one; last, each agent's average and peak context per API call (#584) when one made a call."""
     state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
     head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
             f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
@@ -3115,10 +4079,21 @@ def run_lines(r: dict) -> list[str]:
         head += f"; last write {r['idle_minutes']:.0f} min ago"
     phases = ", ".join(f"{name} {fmt_usd(p['usd'])} ({p['agents']} {'agent' if p['agents'] == 1 else 'agents'})"
                        for name, p in r["phases"].items()) or "no agent yet"  # fmt: skip
-    return [head,
-            f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
-            f"in {r['api_calls']} API calls",
-            f"by phase: {phases}"]  # fmt: skip
+    lines = [head,
+             f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
+             f"in {r['api_calls']} API calls",
+             f"by phase: {phases}"]  # fmt: skip
+    if r.get("types"):  # #557: a general-type implementer or publisher shows here
+        usd = r.get("type_usd", {})
+        lines[-1] += "; agent types: " + ", ".join(f"{t} {n} ({fmt_usd(usd.get(t, 0.0))})" for t, n in r["types"].items())
+    totals = r["idle"]["totals"]
+    if totals["rewrites"]:  # a fourth line only when an agent re-wrote its cache after an idle gap (#558)
+        top = sorted((a for a in r["idle"]["agents"] if a["rewrites"]), key=lambda a: -a["usd"])[:IDLE_RUN_NAMES]
+        most = ", ".join(f"{a['label'] or '?'} {a['rewrites']} ({fmt_usd(a['usd'])})" for a in top)
+        lines.append(f"{idle_line('', totals)}; most: {most}")
+    if r["context"]["agents"]:  # the last line, when an agent made an API call (#584)
+        lines.append(context_run_line(r["context"]))
+    return lines
 
 
 def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
@@ -3168,17 +4143,18 @@ def tracks_main(
     dirs = track_dirs(checkout or main_checkout(), base)
     spend = track_spend(dirs, session_filter(labels), t_since, t_until)
     lines = track_lines(spend, names, budgets, t_since, t_until)
+    idle = {} if compact else track_idle(dirs, spend, names, t_since, t_until)  # the tables print without --compact
     folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],
-              "budgets": dict(zip(names, budgets)), "lines": lines, **spend}  # fmt: skip
+              "budgets": dict(zip(names, budgets)), "lines": lines, **spend, "idle": idle}  # fmt: skip
     with io.open(folder / "tracks.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)
         f.write("\n")
     if compact:
         say("\n".join(lines))
     else:
-        say("\n".join([*lines, "", *track_table(spend)]))
+        say("\n".join([*lines, "", *track_table(spend), "", *track_idle_lines(spend, idle)]))
         say(f"\nmetrics: wrote {folder / 'tracks.json'}")
     return 0
 

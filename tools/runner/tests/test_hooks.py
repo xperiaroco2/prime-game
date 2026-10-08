@@ -15,6 +15,7 @@ from pathlib import Path
 
 from runner import guard, hooks
 from runner.common import ROOT, Result, git_bash
+from runner.tests.tempnames import short_path, short_temp
 
 WRAPPER = str(ROOT / ".claude" / "hooks" / "run-hook.sh")
 # The main checkout, also when the selftest runs in a worktree: there the session's own worktree is free (issue #51).
@@ -418,6 +419,25 @@ class GitFilesTest(unittest.TestCase):
             files.temp = str(Path(tmp) / "missing")
             self.assertIsNone(files.temp_matches("rmtree-*"))
 
+    def test_temp_matches_find_worktrees_from_an_8_3_short_temp_folder(self) -> None:
+        # Issue #542: TEMP as `C:\\Users\\XPERIA~1\\...` lists the worktrees git records by their long names.
+        full, _short = short_temp(self)
+        main, temp = Path(full) / "game", Path(full) / "temp-folder"
+        main.mkdir()
+        (temp / "rmtree-a").mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True, capture_output=True)
+        for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+            subprocess.run(["git", "config", key, value], cwd=main, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "c"], cwd=main, check=True, capture_output=True)
+        add = ["git", "worktree", "add", "-q", "--detach", str(temp / "held" / "wt")]
+        subprocess.run(add, cwd=main, check=True, capture_output=True)
+        files = hooks.GitFiles(str(main))
+        files.temp = short_path(temp) or ""
+        self.assertIn("~", files.temp)
+        self.assertEqual(files.temp_matches("h*"), [("held", True)])
+        self.assertEqual(files.temp_matches("held/w?"), [("held/wt", True)])
+        self.assertEqual(files.temp_matches("rmtree-*"), [("rmtree-a", False)])
+
     def test_a_worktree_is_busy_while_another_live_session_works_there(self) -> None:
         with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
             worktree = Path(tmp) / "game" / ".claude" / "worktrees" / "7"
@@ -432,6 +452,96 @@ class GitFilesTest(unittest.TestCase):
                 (sessions / "1.json").write_text(json.dumps(record), encoding="utf-8")
                 self.assertTrue(files.busy(guard.normalize(str(worktree))))
                 self.assertFalse(files.busy(guard.normalize(str(worktree.parent / "8"))))
+
+
+class HookStartUpTest(unittest.TestCase):
+    """The guard hook's start-up before every shell call (#568): bytecode cached as checked-hash pycs, no site module,
+    no typing."""
+
+    def copy_runner(self, where: Path) -> Path:
+        """run.py and the hook's own modules, copied to where/tools: (the copy's run.py)."""
+        (where / "tools" / "runner").mkdir(parents=True)
+        shutil.copy2(ROOT / "tools" / "run.py", where / "tools" / "run.py")
+        for name in ("__init__", "hooks", "guard"):
+            shutil.copy2(ROOT / "tools" / "runner" / f"{name}.py", where / "tools" / "runner" / f"{name}.py")
+        return where / "tools" / "run.py"
+
+    def guard(self, run_py: Path) -> subprocess.CompletedProcess[str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": "cp x .claude/settings.json"},
+                   "cwd": str(run_py.parent.parent)}  # fmt: skip
+        command = [sys.executable, "-S", str(run_py), "hook", "guard"]
+        return subprocess.run(command, input=json.dumps(payload), capture_output=True, text=True, timeout=60)
+
+    def test_the_guard_keeps_its_modules_compiled_as_checked_hash_pycs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            for _ in range(2):  # the first run compiles, the second reads the cache
+                res = self.guard(run_py)
+                self.assertEqual(res.returncode, 0, res.stderr)
+                self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+            cache = Path(tmp) / "tools" / "out" / "pycache"
+            pycs = sorted(cache.rglob("*.pyc"))
+            # only the hook's modules: the standard library keeps its own bytecode
+            self.assertEqual(sorted(p.name.split(".")[0] for p in pycs), ["__init__", "guard", "hooks"])
+            for pyc in pycs:
+                self.assertEqual(int.from_bytes(pyc.read_bytes()[4:8], "little"), 0b11, pyc)  # PEP 552 checked hash
+
+    def test_the_hook_imports_restore_the_interpreter_s_bytecode_settings(self) -> None:
+        """A pycache prefix the interpreter started with (-X pycache_prefix, PYTHONPYCACHEPREFIX) is kept after the
+        hook's own modules are imported, and so is run.py's dont_write_bytecode."""
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            own = str(Path(tmp) / "own-prefix")
+            code = ("import sys; sys.path.insert(0, sys.argv[1]); import run; run.hook_main('guard'); "
+                    "print(repr((sys.pycache_prefix, sys.dont_write_bytecode)))")  # fmt: skip
+            res = subprocess.run([sys.executable, "-S", "-X", f"pycache_prefix={own}", "-c", code, str(run_py.parent)],
+                                 capture_output=True, text=True, timeout=60)  # fmt: skip
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual(res.stdout.strip(), repr((own, True)))
+            self.assertTrue((Path(tmp) / "tools" / "out" / "pycache").is_dir())  # the hook's modules went there
+
+    def test_an_edit_that_keeps_the_size_and_the_time_is_not_missed(self) -> None:
+        """A timestamp pyc checks only the source's size and whole second: this edit keeps both, and the guard must
+        still run the edited code (here an entry point renamed, so the hook fails closed)."""
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            self.assertEqual(self.guard(run_py).returncode, 0)
+            source = run_py.parent / "runner" / "guard.py"
+            stat = source.stat()
+            text = source.read_bytes()
+            self.assertIn(b"def judge(", text)
+            source.write_bytes(text.replace(b"def judge(", b"def judgf(", 1))
+            os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+            res = self.guard(run_py)
+            self.assertNotEqual(res.returncode, 0, res.stdout)
+            self.assertIn("judge", res.stderr)
+
+    def test_the_wrapper_starts_python_without_site_for_the_guard_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "fakepython"
+            # one argument per line, so a checkout path with a space stays whole
+            fake.write_text('#!/bin/sh\nfor a in "$@"; do echo "$a" >&2; done\nexit 0\n', encoding="ascii", newline="\n")
+            fake.chmod(0o755)
+            bash = git_bash()
+            self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the hooks")
+            env = {**os.environ, "CLAUDE_PROJECT_DIR": str(ROOT), "PYTHON_BIN": str(fake)}
+            seen = {}
+            for name in ("guard", "gd-edit"):
+                res = subprocess.run([str(bash), WRAPPER, name], input="{}", capture_output=True, text=True, env=env,
+                                     timeout=60)  # fmt: skip
+                self.assertEqual(res.returncode, 0, res.stderr)
+                seen[name] = res.stderr.splitlines()[:2]
+        self.assertEqual(seen["guard"][0], "-S")
+        self.assertTrue(seen["gd-edit"][0].endswith("run.py"), seen)
+
+    def test_the_hook_modules_import_neither_typing_nor_the_runner_s_common(self) -> None:
+        code = (
+            "import sys; sys.path.insert(0, sys.argv[1]); import runner.hooks, runner.guard; "
+            "print(sorted(m for m in ('typing', 'runner.common') if m in sys.modules))"
+        )
+        res = subprocess.run([sys.executable, "-S", "-c", code, str(ROOT / "tools")], capture_output=True, text=True,
+                             timeout=60)  # fmt: skip
+        self.assertEqual((res.returncode, res.stdout.strip()), (0, "[]"), res.stderr)
 
 
 if __name__ == "__main__":

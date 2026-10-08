@@ -45,6 +45,9 @@ skill and its `handover.md`.
 - Each item gives a direct link to what he must open (the PR, the issue, the comment) or the ready command itself: one
   fenced PowerShell block per command, starting with `cd` to its absolute folder, run or previewed by you first.
   Housekeeping (a pull of the main checkout, a worktree a live session holds) is batched there once per wave.
+- **The designer is optional** (#518, AGENT_WORKFLOW §9): no step, review or merge waits on him. A PR of his goes to
+  the engineer, who reviews and merges it: list it in "For you:" with its link; a manager neither merges nor edits it.
+  The content area (`content/ levels/ docs/GDD.md docs/design/`) changes on the engineer's word, like any task.
 
 ## 4. The keep-alive
 - While a workflow of yours runs, one background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000) keeps
@@ -146,8 +149,10 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
   results), never a fresh launch, which pays the first phase again.
 - **The check**: `tools\run.cmd metrics --run <run id>` (the Workflow tool's run id, or its start) prints a run's
   spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
-  $ by phase. UI and art run it in prime-game's main checkout (`cd D:\prime-game`); it reads all three checkouts'
-  transcripts. The first phase within 1.5 times its share of the estimate (1.5: #534's reading, until the engineer
-  confirms it): go on, and the plan-issue comment gives both numbers. Over it: re-estimate the rest at the phase's
-  real $ per agent; still within the track's budget left, go on and report it; else launch nothing more of it and ask
-  in "For you:" with both numbers and what the rest buys.
+  $ by phase, and its cache re-writes after an idle gap when it has one (#558: an agent polling a render or a `wait`
+  past 5 minutes writes its whole context again each time), and each agent's average and peak context per API call
+  (#584: one at 150k average or 300k peak is marked heavy). UI and art run it in prime-game's main checkout
+  (`cd D:\prime-game`); it reads all three checkouts' transcripts. The first phase within 1.5 times its share of the
+  estimate (1.5: #534's reading, until the engineer confirms it): go on, and the plan-issue comment gives both numbers.
+  Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left, go on and
+  report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.

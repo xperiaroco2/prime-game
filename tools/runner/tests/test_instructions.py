@@ -1,5 +1,6 @@
 """Instruction-file lint: frontmatter parsing, loaded-line counting, budgets, agent frontmatter."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -229,6 +230,36 @@ class BudgetTest(unittest.TestCase):
         report = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper.replace(", Skill\n", "\n")})
         self.assertEqual(report.errors, [])
 
+    def test_a_lean_agent_names_only_files_that_exist(self) -> None:
+        # #557: task-implementer.md sent agents to `.claude/skills/<name>/SKILL.md` for workflow-authoring, a skill
+        # bundled with Claude Code that has no file there. A lean body's backticked docs/ or .claude/ path must exist;
+        # a placeholder (`<name>`) or a glob is not a path.
+        writer = WRITER_FILES[".claude/agents/task-implementer.md"]
+        cases = (
+            ("Read `docs/nope.md`.", {}, ["body names docs/nope.md, which does not exist"]),
+            ("Read `.claude/skills/nope/SKILL.md`.", {}, ["body names .claude/skills/nope/SKILL.md, which does not exist"]),
+            ("Read `docs/here.md`.", {"docs/here.md": "x\n"}, []),
+            ("Read `.claude/skills/<name>/SKILL.md`, `docs/*.md` and `tools/run.sh`.", {}, []),
+        )
+        for body, extra, want in cases:
+            with self.subTest(body=body):
+                files = {"CLAUDE.md": "x\n", ".claude/agents/task-implementer.md": writer.replace("Body.", body), **extra}
+                report = self.check(files)
+                self.assertEqual([e.split(": ", 1)[1] for e in report.errors], want)
+        # Only the lean types: another agent's body is its own business (and is read-only anyway).
+        helper = AGENT.replace("Body.", "Read `docs/nope.md`.")
+        self.assertEqual(self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper}).errors, [])
+
+    def test_a_lean_agent_preloads_no_skill(self) -> None:
+        # #557's probe: `skills:` puts each named skill's whole text into the agent's context at start, on every call
+        # (workflow-authoring: +6.2k tokens of a 19.5k first call), for every task of that type.
+        for rel, text in (*WRITER_FILES.items(), *LEAN_FILES.items()):
+            with self.subTest(agent=rel):
+                changed = text.replace("\n---\n\n", "\nskills: workflow-authoring\n---\n\n", 1)
+                report = self.check({"CLAUDE.md": "x\n", rel: changed})
+                self.assertEqual(len(report.errors), 1, report.errors)
+                self.assertIn("skills: a lean type preloads no skill", report.errors[0])
+
     def test_no_agent_sets_permission_mode(self) -> None:
         # Project subagents inherit the session's permission mode; a field that could change it is an error.
         for rel, text in ((".claude/agents/helper.md", AGENT), *WRITER_FILES.items(), *LEAN_FILES.items()):
@@ -300,6 +331,9 @@ class SkillTest(unittest.TestCase):
         self.assertIn("name: must be 'start-task'", " ".join(self.problems(SKILL.replace("name: start-task", "name: begin"))))
         reserved = self.problems(SKILL.replace("name: start-task", "name: doctor"), folder="doctor")
         self.assertTrue(any("bundled /doctor" in p for p in reserved), reserved)
+        # #557: a project skill named like the bundled workflow-authoring would shadow it in the managers' sessions.
+        reserved = self.problems(SKILL.replace("name: start-task", "name: workflow-authoring"), folder="workflow-authoring")
+        self.assertTrue(any("bundled /workflow-authoring" in p for p in reserved), reserved)
 
     def test_a_relative_link_in_a_skill_must_name_a_file(self) -> None:
         # #415: SKILL.md points to a supporting file (orchestrate-stage's budget.md), which links the ADRs.
@@ -331,6 +365,67 @@ class SkillTest(unittest.TestCase):
             write(root, "CLAUDE.md", "x\n")
             (root / ".claude" / "skills" / "empty").mkdir(parents=True)
             self.assertIn(".claude/skills/empty/SKILL.md: missing", " ".join(instructions.check(root).errors))
+
+
+class SkillOverridesTest(unittest.TestCase):
+    """`skillOverrides` in .claude/settings.json hides bundled skills from the listing, never ours (#562)."""
+
+    def errors(self, settings: dict) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "CLAUDE.md", "x\n")
+            write(root, ".claude/skills/start-task/SKILL.md", SKILL)
+            write(root, ".claude/workflows/issue-task.js", "// a workflow\n")
+            write(root, ".claude/settings.json", json.dumps(settings))
+            return instructions.check(root).errors
+
+    def test_hiding_bundled_skills_passes(self) -> None:
+        self.assertEqual(self.errors({"skillOverrides": {"simplify": "user-invocable-only", "init": "off"}}), [])
+        self.assertEqual(self.errors({"skillOverrides": {"start-task": "on", "workflow-authoring": "on"}}), [])
+
+    def test_a_project_skill_or_workflow_stays_listed(self) -> None:
+        for name in ("start-task", "issue-task"):
+            for value in ("name-only", "user-invocable-only", "off"):
+                with self.subTest(name=name, value=value):
+                    errors = self.errors({"skillOverrides": {name: value}})
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn(f"skillOverrides hides the project's own {name!r}", errors[0])
+
+    def test_workflow_authoring_stays_listed(self) -> None:
+        errors = self.errors({"skillOverrides": {"workflow-authoring": "user-invocable-only"}})
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("'workflow-authoring'", errors[0])
+
+    def test_code_review_stays_invocable(self) -> None:
+        # #562 review: finish-task step 2 and AGENT_WORKFLOW §4.2 send a docs-only diff to the bundled /code-review.
+        for value in ("name-only", "user-invocable-only", "off"):
+            with self.subTest(value=value):
+                errors = self.errors({"skillOverrides": {"code-review": value}})
+                self.assertEqual(len(errors), 1, errors)
+                self.assertIn("'code-review'", errors[0])
+                self.assertIn("finish-task", errors[0])
+
+    def test_an_unknown_value_or_shape_fails(self) -> None:
+        self.assertIn("'hidden' is not one of", " ".join(self.errors({"skillOverrides": {"simplify": "hidden"}})))
+        self.assertIn("skillOverrides must be an object", " ".join(self.errors({"skillOverrides": ["simplify"]})))
+
+    def test_disable_bundled_skills_fails(self) -> None:
+        # It removes workflow-authoring with the rest, and a skillOverrides "on" cannot bring it back.
+        self.assertIn("disableBundledSkills", " ".join(self.errors({"disableBundledSkills": True})))
+        self.assertEqual(self.errors({"disableBundledSkills": False}), [])
+
+    def test_the_shared_settings_hide_bundled_skills_but_keep_ours(self) -> None:
+        from runner.common import ROOT
+
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        overrides = settings.get("skillOverrides", {})
+        self.assertIn("simplify", overrides)
+        for kept in ("workflow-authoring", "code-review"):
+            self.assertNotIn(kept, overrides)
+        self.assertEqual(set(overrides.values()), {"user-invocable-only"})  # humans can still type /name
+        self.assertNotIn("disableBundledSkills", settings)
+        errors = [e for e in instructions.check(ROOT).errors if "settings.json" in e]
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

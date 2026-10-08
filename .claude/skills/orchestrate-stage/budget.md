@@ -74,8 +74,13 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 
 ## Launch args (N4 (b), N5 (a))
 - **`lean`** is the default of `issue-task` and `pr-rebase` since #458 (the engineer's N4 (b), 2026-10-06): pass
-  nothing. `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (§3's row)
-  ([lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
+  nothing, also for a task that edits `.claude/workflows/` (#557: its agents read `docs/workflow-scripts.md`).
+  `lean: false` needs `lean_reason` (SKILL.md §3's row;
+  [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
+- **The launch check** (#557): before each `issue-task` or `pr-rebase` launch or resume, `tools\run.cmd agents-check
+  --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
+  files that differ from origin/main: pull `main` (or have it pulled) and run it again. Never pass `lean: false` to
+  get around it.
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
   `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as
   `task-publisher` on Sonnet (the call's model wins); the pair is new, so check the first wave's runs with
@@ -87,9 +92,17 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
   non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
   the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
+- **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch during #560's
+  trial ([trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); the engineer's yes on #302):
+  Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
+  design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
+  more without `models.implement` (Opus). Check the first trial run with `tools\run.cmd agents-check`; read `tools\run.cmd metrics
+  --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
+  than "continue", post it on #302 with the table and stop passing `implement` (a keep needs the engineer's yes and
+  an amendment of the model-guard ADR).
 - `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
-  launched before #458 without `lean`, add `lean: false` (§3's row), or the lean agent types change its agents and the
-  resume replays nothing past the reviews.
+  launched before #458 without `lean`, add `lean: false` and `lean_reason: "a resume of <run id>, launched before
+  #458"` (§3's row), or the lean agent types change its agents and the resume replays nothing past the reviews.
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI

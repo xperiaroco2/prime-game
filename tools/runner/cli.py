@@ -118,13 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
         "class, several physics steps in one frame under load, shows only so",
     )
 
-    sub.add_parser(
+    p = sub.add_parser(
         "verify",
         help="everything CI runs, in the same order (definition of done)",
-        description="Everything CI runs, in the same order: doctor, then a Python lane and a Godot lane at once. On "
-        "a PC a run first takes one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots "
-        "--quiet, the one slot). The definition-of-done gate. "
-        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
+        description="Everything CI runs, in the same order: doctor, then a Python lane, a Godot lane and a lane of the "
+        "runner tests that start Godot at once (each step's output whole when it ends). On a PC a run first takes "
+        "one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The "
+        "definition-of-done gate: every step runs and a red one fails it. "
+        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11.16).",
+    )
+    p.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="stop every lane at the first red step: the steps not ended yet are 'not run' in the summary and the "
+        "record, the run is red (an agent's inner loop; publish, merge and CI run every step)",
     )
     p = sub.add_parser(
         "selftest",
@@ -142,7 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
         "else 124 (still running); 2: no log",
-        description="Wait at most S s (default 240) for a background job's last line exit=<n> (the job run as "
+        description="Wait at most S s (default 180) for a background job's last line exit=<n> (the job run as "
         "`<command> > <log> 2>&1; echo \"exit=$?\" >> <log>`), then print its summary and return n. Else 124 with a "
         "'still running' line: call wait again, never start the job again. 2 with a 'wait: ' line: no log, or one "
         "it cannot read. --verified: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago "
@@ -157,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="no log: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago (publish reuses "
         "it instead of verifying again)",
     )
-    p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
+    p.add_argument("--max", type=int, default=180, metavar="S", help="seconds to wait, 1 to 180 (default 180)")
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
@@ -522,12 +529,23 @@ def build_parser() -> argparse.ArgumentParser:
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")
+    scope.add_argument(
+        "--launch",
+        action="store_true",
+        help="judge no transcript: check this checkout before an issue-task or pr-rebase launch (the lean agent "
+        "files exist and pass, the scripts exist, both match origin/main after a fetch; #557)",
+    )
 
     p = sub.add_parser(
         "metrics",
         help="time, tokens and API list $ of the task workflows, from this checkout's transcripts",
-        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts. --track: each "
-        "track's share of the week against its --budget.",
+        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts, with a table "
+        "of the subagents' cache re-writes after an idle gap of 5 min or more per run and per agent (by what preceded "
+        "the gap: wait, verify/publish/mutants, a shell sleep, other shell, Monitor, Read or another tool, an API "
+        "wait; #558), the average and peak context per API call per agent role and the heavy agents (#584), and the "
+        "median and p95 of a tool call's time from its start to its output per class of call (#568). --track: each "
+        "track's share of the week against its --budget, and without --compact its re-write table. --run: a run's "
+        "spend so far, a line of its re-writes when it has one and a line of each agent's context per API call.",
     )
     p.add_argument(
         "--session",
@@ -543,7 +561,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--ci", type=int, default=0, metavar="N", help="also CI from gh: the jobs and steps of the last N green runs"
     )
     p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
-    p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
+    p.add_argument(
+        "--compact",
+        action="store_true",
+        help="print only the summary of at most eleven lines (wave comments); its first line ends with the context "
+        "per API call per role and the heavy agents, and its total line ends with the re-write table's count and $",
+    )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
         "--track",
@@ -703,7 +726,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main()
+            return verify.main(fail_fast=args.fail_fast)
         if args.command == "selftest":
             from . import verify
 
@@ -866,7 +889,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "agents-check":
             from . import agents_check
 
-            return agents_check.main(session=args.session, all_sessions=args.all)
+            return agents_check.main(session=args.session, all_sessions=args.all, launch=args.launch)
         if args.command == "metrics":
             from . import metrics
 

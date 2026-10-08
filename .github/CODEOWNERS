@@ -2,16 +2,9 @@
 # Code-owner review is off in the ruleset. This file records ownership and suggests reviewers; the rules in the
 # CLAUDE.md files are what agents follow. The last matching pattern wins.
 
-# Engineer: engine, tooling, CI, agent setup and everything not listed below.
+# Engineer: engine, tooling, CI, agent setup, the content area (content/ levels/ docs/GDD.md docs/design/ and the
+# skills new-mechanic and new-level-piece, since #518: the designer is optional) and everything not listed below.
 *                                   @xperiaroco2
-
-# Designer
-/content/                           @SwiftySinister
-/levels/                            @SwiftySinister
-/docs/GDD.md                        @SwiftySinister
-/docs/design/                       @SwiftySinister
-/.claude/skills/new-mechanic/       @SwiftySinister
-/.claude/skills/new-level-piece/    @SwiftySinister
 
 # Shared by both
 /docs/interventions/                @xperiaroco2 @SwiftySinister

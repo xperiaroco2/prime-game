@@ -1,6 +1,7 @@
-# content/: mechanics as data (designer)
+# content/: mechanics as data (the content area)
 
-Loaded when a file in `content/` is read. This folder belongs to the **designer**. Roles, abilities, items,
+Loaded when a file in `content/` is read. This folder belongs to the **engineer** (#518, root `CLAUDE.md`
+Ownership); the optional designer may contribute, and his PRs go to the engineer. Roles, abilities, items,
 sabotages and task types live here as Godot `Resource` files (`.tres`), composed from parts the engine provides.
 Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `docs/ARCHITECTURE.md` first.
 
@@ -13,13 +14,13 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   what its refusal reveals; a part is usable once its entry names the PR that built it. Use only those.
 - Where the data lives (§9.6): `modes/`, `roles/`, `items/`, `tasks/`, `win_conditions/`, and `scenarios/` for
   bot scenarios (§9.7). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
-  content ADR, and the designer reviews it in #38.
+  content ADR, each PR approved by the engineer and marked provisional.
 
-## Never edit engine code
-- The designer's agent edits only its own paths (`content/`, `levels/`, `docs/GDD.md`, `docs/design/`, the skills
-  `new-mechanic` and `new-level-piece`) and the shared logs (a new file in `docs/interventions/`, `docs/credits/`
-  or `docs/decisions/`). Everything else is engine code or shared tooling: `core/ server/ net/ client/ voice/
-  tools/ tests/ addons/ .github/ .claude/ project.godot`. Do not edit those, not even "one line".
+## The designer's agent never edits engine code
+- The designer's agent edits only the content area (`content/`, `levels/`, `docs/GDD.md`, `docs/design/`, the
+  skills `new-mechanic` and `new-level-piece`) and the shared logs (a new file in `docs/interventions/`,
+  `docs/credits/` or `docs/decisions/`). Everything else is engine code or shared tooling: `core/ server/ net/
+  client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`. Do not edit those, not even "one line".
 - When a mechanic needs a part that does not exist, open an `engine-request` issue with a precise spec, then
   continue with whatever can be done in data. The spec says:
   - what the part does, in one sentence, and which kind it is (condition or cost, effect, tick system, voice rule,
@@ -32,18 +33,18 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
 - If a request would change how the engine works rather than add a part, say so in the issue: the engineer decides.
 
 ## Designing with the human
-- The designer decides the game's content. Propose options with trade-offs and let the designer pick; never invent
-  final content (names, numbers, rules) on your own.
+- The engineer decides the game's content; the designer may propose. Change it only on the engineer's word.
+  Propose options with trade-offs and let the human pick; never invent final content (names, numbers, rules).
 - Every mechanic states what is hidden and from whom. Hidden information is the core of this game, and the
   engine enforces it only if the design says it.
-- Numbers (cooldowns, ranges, counts) live in the data, where the designer can tune them. The engineer's agent does
-  not rebalance them without the designer's approval.
+- Numbers (cooldowns, ranges, counts) live in the data, where a human can tune them. Agents rebalance them only on
+  the engineer's word.
 
 ## How work flows
 - A new idea ("нова механіка: …"): skill `new-mechanic` (a `mechanic` issue, a GDD section with open questions,
   `engine-request` issues for missing parts, then data once the parts exist).
 - Existing work: "start task 42" (skill `start-task`).
-- Hand-written `.tres` files follow `.claude/rules/godot-resources.md`. The designer may have them open in the
+- Hand-written `.tres` files follow `.claude/rules/godot-resources.md`. A human may have them open in the
   Godot editor: remind them of the save-first convention in `levels/CLAUDE.md`.
 - Done means `verify` is green. Each mechanic gets a bot scenario once the bot harness exists (M3).
-- The designer reviews results through screenshots and playtests, not code: put both in the PR where they apply.
+- The engineer judges results through screenshots and playtests, not code: put both in the PR where they apply.

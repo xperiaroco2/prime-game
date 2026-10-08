@@ -158,5 +158,37 @@ class LeanReadingTest(unittest.TestCase):
                     self.assertIn(phrase, item)
 
 
+NOTES = ROOT / "docs" / "workflow-scripts.md"
+
+
+class WorkflowNotesTest(unittest.TestCase):
+    """#557: workflow-authoring is bundled with Claude Code, with no file in the repo, and the lean types have no Skill
+    tool. A task that edits .claude/workflows/ stays lean and reads docs/workflow-scripts.md instead."""
+
+    def test_the_lean_writers_point_to_the_notes_and_keep_skill_off(self) -> None:
+        for name in ("task-implementer", "task-publisher"):
+            with self.subTest(agent=name):
+                fm = instructions.parse(text(name))
+                self.assertIn("`docs/workflow-scripts.md`", " ".join(fm.body))
+                self.assertIn("workflow-authoring", " ".join(fm.body))
+                self.assertIn("Skill", instructions._as_list(fm.fields.get("disallowedTools")))
+
+    def test_a_rule_points_any_agent_editing_a_script_to_the_notes(self) -> None:
+        fm = instructions.parse((ROOT / ".claude" / "rules" / "workflow-scripts.md").read_text(encoding="utf-8"))
+        self.assertEqual(fm.fields.get("paths"), [".claude/workflows/**"])
+        self.assertIn("`docs/workflow-scripts.md`", " ".join(fm.body))
+
+    def test_the_notes_are_short_and_carry_what_the_harness_enforces(self) -> None:
+        notes = NOTES.read_text(encoding="utf-8")
+        # Read whole by an agent that needs them: at most about 2k tokens.
+        self.assertLessEqual(len(notes.splitlines()), 80)
+        self.assertLessEqual(len(notes), 6000)
+        self.assertRegex(notes, r"Checked against Claude Code \d+\.\d+\.\d+ on \d{4}-\d{2}-\d{2}")
+        for phrase in ("export const meta", "pure literal", "Date.now()", "Math.random()", "No filesystem", "agentType",
+                       "not found", "resumeFromRunId", "PRIME_WORKFLOW_SNAPSHOTS=update", "unbounded/", "withModel"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, notes)
+
+
 if __name__ == "__main__":
     unittest.main()

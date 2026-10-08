@@ -986,7 +986,9 @@ class CommandTest(MergeCase):
 
 LINK ="https://github.com/o/r/issues/170#issuecomment-1"
 APPROVED = f"Approved by the engineer: {LINK}\n"
+# The relay phrase and the designer's review of before #563: neither clears the content area any more.
 RELAYED = "## Cross-area\nagreed with the designer, relayed by the engineer; @SwiftySinister\n"
+DESIGNER_REVIEW = [{"author": {"login": "SwiftySinister"}, "state": "APPROVED"}]
 
 
 class MainGateTest(MergeCase):
@@ -1137,14 +1139,19 @@ class MainGateTest(MergeCase):
         self.assertTrue(self.printed[-1].startswith("wave: merged #30"), self.printed[-1])
         self.assertNotEqual(self.repo.remote("main"), main)
 
-    def test_designer_area_needs_the_designers_review_or_the_relay_phrase(self) -> None:
-        # Each designer path, a hint in a comment and a review that is no approval: GateTextTest.test_exceptions.
+    def test_the_content_area_needs_the_engineers_approval_line(self) -> None:
+        # #563 (b): the engineer owns the content area (#518), so his line clears it, as it clears an ADR; the
+        # designer's review and the old relay phrase no longer do. Each path and form: GateTextTest.test_exceptions.
         self.pr(40, {"content/x.tres": "x = 1\n"})
-        self.assert_refused(40, "the designer's area (content/x.tres) without the designer's approving review")
+        text = self.assert_refused(
+            40, "the content area (content/x.tres) without an \"Approved by the engineer: <GitHub link>\" line"
+        )
+        self.assertIn("refused (1 reason)", text)
         self.gh.prs[40]["body"] = RELAYED
-        self.assertEqual(self.verdict(40)[0], 0, self.printed)
-        self.gh.prs[40]["body"] = ""
-        self.gh.prs[40]["latestReviews"] = [{"author": {"login": "SwiftySinister"}, "state": "APPROVED"}]
+        self.gh.prs[40]["latestReviews"] = DESIGNER_REVIEW
+        self.assert_refused(40, "the content area (content/x.tres) without")
+        self.gh.prs[40]["body"] = APPROVED
+        self.gh.prs[40]["latestReviews"] = []
         self.assertEqual(self.verdict(40)[0], 0, self.printed)
 
     def test_permission_and_safety_files_are_always_refused(self) -> None:
@@ -1183,7 +1190,7 @@ class MainGateTest(MergeCase):
         _git(self.repo.work, "fetch", "-q", "origin")
         self.gh.add(80, "release/m1", "main", headRefOid=stage)
         text = self.assert_refused(80, "a milestone's closing PR (release/m1) merges after the engineer's go")
-        self.assertIn("the designer's area (content/x.tres)", text)
+        self.assertIn("the content area (content/x.tres)", text)
         self.assertIn("ADRs docs/decisions/2026-10-04-m1.md (new)", text)
         self.assertIn("refused (3 reasons)", text)
         self.gh.prs[80]["body"] = APPROVED + "## Needs the engineer\nNone.\n"
@@ -1312,23 +1319,24 @@ class GateTextTest(unittest.TestCase):
                 )
 
     def test_exceptions(self) -> None:
-        def reasons(path: str, body: str = "", status: str = "M", **kw: bool) -> list[str]:
-            return merge.exception_reasons([(status, path)], body, "core/1-x", **kw)
+        def reasons(path: str, body: str = "", status: str = "M") -> list[str]:
+            return merge.exception_reasons([(status, path)], body, "core/1-x")
 
+        line = "without an \"Approved by the engineer: <GitHub link>\" line in the body"
         for path in ("content/x.tres", "levels/a.tscn", "docs/GDD.md", "docs/design/a.md",
                      ".claude/skills/new-mechanic/SKILL.md", ".claude/skills/new-level-piece/SKILL.md"):  # fmt: skip
             with self.subTest(path):
-                self.assertIn(f"the designer's area ({path})", reasons(path)[0])
-                self.assertEqual(reasons(path, RELAYED.upper()), [])
-                self.assertEqual(reasons(path, designer_approved=True), [])
-                # The template's hint carries the phrase inside an HTML comment: it does not count; nor the go.
-                self.assertEqual(len(reasons(path, f"<!-- \"{merge.RELAY_PHRASE}\" -->\n" + APPROVED)), 1)
-                # The phrase counts only as a line of its own, never quoted or negated inside a sentence.
-                for body in (f"This needs \"{merge.RELAY_PHRASE}\" first.\n", f"Not yet {merge.RELAY_PHRASE}.\n"):
-                    self.assertEqual(len(reasons(path, body)), 1, body)
-                bold = f"- **{merge.RELAY_PHRASE.capitalize()}**; @SwiftySinister\n"
-                for body in (bold, f"\"{merge.RELAY_PHRASE}\"\n"):
+                self.assertEqual(reasons(path), [f"the content area ({path}) {line}"])
+                # The engineer's line clears it in the forms that clear an ADR (#563 (b)).
+                for body in (APPROVED, f"- **Approved by the engineer:** {LINK}\n", f"Text.\n  {APPROVED}"):
                     self.assertEqual(reasons(path, body), [], body)
+                # Inside an HTML comment, without a GitHub link or inside a sentence, it does not count.
+                for body in (f"<!-- {APPROVED} -->", "Approved by the engineer: https://example.com/x\n",
+                             f"Not yet: Approved by the engineer: {LINK}\n"):  # fmt: skip
+                    self.assertEqual(len(reasons(path, body)), 1, body)
+                # The old relay phrase, as a line of its own or bold, clears nothing any more.
+                for body in (RELAYED, RELAYED.upper(), "- **Agreed with the designer, relayed by the engineer**\n"):
+                    self.assertEqual(len(reasons(path, body)), 1, body)
         for path in (".claude/settings.json", ".claude/settings.local.json", ".claude/githooks/pre-push",
                      "tools/runner/guard.py"):  # fmt: skip
             with self.subTest(path):
@@ -1348,18 +1356,24 @@ class GateTextTest(unittest.TestCase):
         self.assertEqual(merge.exception_reasons([("M", "core/a.gd")], "", "core/1-x"), [])
         self.assertEqual(len(merge.exception_reasons(adr, "", "core/1-x")), 1)
         self.assertEqual(merge.exception_reasons(adr, APPROVED, "core/1-x"), [])
-        # The go of a closing PR clears its designer-area paths and ADRs, never the safety files.
+        # The go of a closing PR clears its content-area paths and ADRs, never the safety files.
         paths = [("M", "content/x.tres"), *adr, ("M", ".claude/settings.json")]
         reasons = merge.exception_reasons(paths, APPROVED, "release/m5")
         self.assertEqual(len(reasons), 1)
         self.assertIn("permission and safety files (.claude/settings.json)", reasons[0])
         self.assertEqual(len(merge.exception_reasons(paths, "", "release/m5")), 4)
-        self.assertEqual(merge.exception_reasons([("M", "content/x.tres")], "", "c/1-x", designer_approved=True), [])
+        # One line clears a task PR's content and ADR paths together.
+        both = [("M", "content/x.tres"), ("M", "docs/decisions/x.md")]
+        self.assertEqual(len(merge.exception_reasons(both, "", "c/1-x")), 2)
+        self.assertEqual(merge.exception_reasons(both, APPROVED, "c/1-x"), [])
 
     def test_the_owners_match_codeowners(self) -> None:
+        # Since #518 the engineer owns the content area through the `*` line: no line of its own names another owner,
+        # so the engineer's approval line is the one that clears it (#563).
         owners = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
         self.assertRegex(owners, rf"(?m)^\*\s+@{merge.ENGINEER_LOGIN}\s*$")
-        self.assertRegex(owners, rf"(?m)^/content/\s+@{merge.DESIGNER_LOGIN}\s*$")
+        for path in (*merge.CONTENT_PREFIXES, *merge.CONTENT_FILES):
+            self.assertNotRegex(owners, rf"(?m)^/{re.escape(path.rstrip('/'))}/?\s", path)
 
 
 class TypedCommandsTest(unittest.TestCase):

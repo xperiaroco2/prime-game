@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Owner** | The engineer. The **content API** section is the contract with the designer: changes to it are reviewed by both. |
+| **Owner** | The engineer. The **content API** section is the contract between engine and content; since #518 the engineer owns both sides, and the optional designer reviews a change to it only when he wants to. |
 | **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the sections that describe them describe the code as built until the M4 rework updates them (the ADR's Consequences list each section). The windowed client (§4.7) and the split of that rework into M4 issues: M4 design, #125, accepted ([ADR](decisions/2026-10-01-m4-first-person-client.md)). |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
 
@@ -15,8 +15,8 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | designer |
-| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | designer |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | engineer (#518) |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
 
 Changing a boundary is a stop-and-ask item and gets an ADR.
@@ -3679,11 +3679,11 @@ originates (`ForceRole`, 2j; `ForceClock`, M4-3, which forces the match clock's 
 scenarios, §9.7); on the wire (M3 design) it is a kind that only a debug build's table has and only the
 host's own client may send (§4.3, E17).
 
-## 9. Content API (the engineer–designer contract)
+## 9. Content API (the engine–content contract)
 
 A mechanic is data: `Resource`s composed from parts the engine provides. Adding a mechanic should usually mean
-adding data plus at most one new part class, never changing the core loop: that is the test of this API (§9.8). The
-designer's agent uses **only** the parts listed here. A missing part becomes an `engine-request` issue; the engineer
+adding data plus at most one new part class, never changing the core loop: that is the test of this API (§9.8). Content
+work uses **only** the parts listed here. A missing part becomes an `engine-request` issue; the engineer
 adds it with tests and lists it here in the same PR.
 
 **v0** (#33, [ADR](decisions/2026-09-29-content-api-v0.md), accepted by the engineer) is built in stage 2; the

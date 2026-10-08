@@ -146,12 +146,12 @@ OLD_ROWS = {
     ],
     "verify": [
         "everything CI runs",
-        "doctor, then a Python lane and a Godot lane at once",
+        "doctor, then a Python lane, a Godot lane and a lane of the runner tests that start Godot at once",
         "one of 2 machine-wide slots, waiting at most 600 s",
         "definition-of-done gate",
     ],
     "wait": [
-        "at most S s (default 240)",
+        "at most S s (default 180)",
         "last line exit=<n>",
         "print its summary and return n",
         "124",

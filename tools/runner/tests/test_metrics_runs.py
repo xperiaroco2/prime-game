@@ -95,6 +95,8 @@ class RunsTest(unittest.TestCase):
             "review:godot-api:#5 (Review); last write 10 min ago",
             "spent so far: 4.0% (4.3 to 3.6%) of the week, list $92 in 4 API calls",
             "by phase: Implement $69 (2 agents), Review $23 (2 agents)",
+            "context per API call avg/peak (#584; heavy: average 150k+ or peak 300k+ per call): implement:#5 "
+            "5.75M/5.75M x1 heavy, implement:#5 (2) 5.75M/5.75M x2 heavy, review:code:#5 5.75M/5.75M x1 heavy",
         ])
 
     def test_a_finished_run_of_another_checkout_with_a_journal_cut_short(self) -> None:
@@ -103,6 +105,8 @@ class RunsTest(unittest.TestCase):
             "or one the journal does not list), 1 answered; last write 10 min ago",
             "spent so far: 2.0% (2.1 to 1.8%) of the week, list $46 in 2 API calls",
             "by phase: Prototypes $23 (1 agent), Synthesis $23 (1 agent)",
+            "context per API call avg/peak (#584; heavy: average 150k+ or peak 300k+ per call): critic:clay "
+            "5.75M/5.75M x1 heavy, synthesis 5.75M/5.75M x1 heavy",
         ])
 
     def test_a_prefix_names_several_runs_and_their_total(self) -> None:
@@ -110,7 +114,7 @@ class RunsTest(unittest.TestCase):
         self.assertEqual([line.split(" (")[0] for line in lines if line.startswith("run ")],
                          ["run wf_abc12345-111", "run wf_abc99999-222"])  # fmt: skip
         self.assertEqual(lines[-1], "2 runs: 6.0% (6.4 to 5.4%) of the week, list $138")
-        self.assertEqual(len(self.run_main("abc12345", "wf_abc12345-111").splitlines()), 3, "each run once")
+        self.assertEqual(len(self.run_main("abc12345", "wf_abc12345-111").splitlines()), 4, "each run once")
 
     def test_cache_reads_weigh_less(self) -> None:
         # The review's call reads 115M tokens from the cache: $23 list, 0.75% at the central weight (0.75 x $23 / $23);

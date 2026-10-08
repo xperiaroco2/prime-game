@@ -88,6 +88,15 @@ class Doctor:
         report = machine_env.apply()
         for problem in report.problems:
             warn(problem)
+        short_forms: dict[tuple[str, str], list[str]] = {}
+        for var, forms in report.long_temp.items():
+            short_forms.setdefault(forms, []).append(var)
+        for (short, full), names in short_forms.items():
+            warn(
+                f"{', '.join(names)} {'is' if len(names) == 1 else 'are'} the 8.3 short path {short}: the runner uses "
+                f"its long form {full}, a program started outside it does not (#542); set "
+                f"{' and '.join(names)} to the long path in the env of {USER_SETTINGS}"
+            )
         for var in machine_env.MACHINE_VARS:
             source = report.sources.get(var)
             if source:

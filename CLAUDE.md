@@ -2,13 +2,13 @@
 
 A multiplayer social deduction game (first-person 3D, proximity voice, player-hosted) in Godot 4.7.2 with
 statically typed GDScript. Two humans, each with their own Claude session: the **engineer** (engine, netcode,
-voice, tooling) and the **designer** (mechanics, content data, levels, GDD). The sessions cannot see each other:
-everything another agent needs goes into the repo or GitHub. How agents work: `docs/AGENT_WORKFLOW.md`.
+voice, tooling, and content: mechanics, data, levels, GDD) and the optional **designer**. The sessions cannot
+see each other: everything another agent needs goes into the repo or GitHub. How agents work: `docs/AGENT_WORKFLOW.md`.
 Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTURE.md`. The founding brief, which
 "KICKOFF §n" refers to: `docs/history/KICKOFF.md` (superseded by these files; history only).
 
 ## Hard rules
-- Humans write zero code; they hand-make only the designer's scene layout in the editor and imported third-party
+- Humans write zero code; they hand-make only scene layout in the editor and imported third-party
   assets. You write everything else and verify it from the command line. Never claim something works unless you ran
   it; show the command and its result. If you cannot verify it, say so and tell the human exactly what to check and how.
 - Never weaken, skip or delete a test to make it pass without the human's explicit approval.
@@ -33,7 +33,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 3. **Pure core.** `core/` is rules as `RefCounted` classes with no Nodes, scenes, networking or audio. Deterministic:
    commands in, events out. Randomness only through an injected seeded RNG.
 4. **Mechanics are data.** Roles, items, modes and win conditions are `Resource`s of rules (trigger → conditions →
-   effects); task types are classes with settings. The parts are the **content API**, the engineer–designer contract.
+   effects); task types are classes with settings. The parts are the **content API**, the engine–content contract.
 5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Round → End → Lobby.
 6. **Voice routing is game logic** in `core/` (who hears whom, and how). Spatialization happens on the listener.
 7. **Movement:** client-side for the local player with host sanity checks; remote players are interpolated.
@@ -63,19 +63,19 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
   fold a fix with `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
 - Every agent runs verify, publish and mutants in the background (a slot wait can reach 600 s): `<cmd> > <log> 2>&1;
-  echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one. Workflow agents and subagents block no call over 240 s (5-minute cache; AGENT_WORKFLOW §11).
+  echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one. Workflow agents and subagents block no call over 180 s (5-minute cache; AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`,
-  `export_presets.cfg CLAUDE.md README.md docs/ARCHITECTURE.md`, `docs/{AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`.
-- **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
+  `export_presets.cfg CLAUDE.md README.md docs/ARCHITECTURE.md`, `docs/{AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`,
+  and the content area: `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic`, `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
-- The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
-  spec. The engineer's agent never rebalances or redesigns content (`content/ levels/ docs/GDD.md docs/design/`)
-  without the designer's approval in the PR or the engineer's word that the designer agreed: the PR then says "agreed
-  with the designer, relayed by the engineer" and tags @SwiftySinister; a follow-up PR reverts an objection. Never edit
-  a scene in someone else's open PR.
-<!-- see docs/interventions/2026-10-01-engineer-relayed-design-agreement.md -->
+- Agents change the content area (rebalance, redesign, new content) on the engineer's word: an issue, his comment or
+  his chat. Without it they stop and ask; they never invent content (names, numbers, rules) nobody decided.
+- The **designer** (@SwiftySinister) is an optional contributor: nothing waits on him. His PRs go to the engineer, who
+  reviews and merges them. His agent never edits engine code: a missing primitive becomes an `engine-request` issue
+  with a precise spec. Never edit a scene in someone else's open PR.
+<!-- see docs/decisions/2026-09-28-ownership-by-codeowners-and-convention.md (amended 2026-10-08, #518) -->
 - The Godot editor may be open. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking the agent, no hand
   edits while it works; on "files changed on disk" Reload («Джерело отримання»), never «Ігнорувати зовнішні зміни».
 
@@ -102,11 +102,12 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
    (linked issue, summary, verification output, screenshots for visual changes, docs updated yes/no) and the handoff
    comment: done, left, decisions, gotchas.
 5. Merges: `merge <pr> --base main` (its gate: the trust ADR) by the engineer's manager, task PRs into `release/m<k>`;
-   gate exceptions, the designer's PRs and solo sessions without the engineer's word go to a human. Merging a parent
-   deletes its branch and GitHub retargets each child; a child still on it gets `gh pr edit <n> --base <its base>`.
+   gate exceptions, the designer's PRs and solo sessions without the engineer's word go to the engineer. Merging a
+   parent deletes its branch and GitHub retargets each child; a child still on it gets `gh pr edit <n> --base <its base>`.
 
 ## Stop and ask before
-- Adding a dependency or addon; changing an architecture boundary; touching the other owner's area (see Ownership).
+- Adding a dependency or addon; changing an architecture boundary; touching the content area without the engineer's
+  word, or engine code from the designer's session (see Ownership).
 - Anything destructive to git history or that discards work outside your own worktree and task branch (inside them
   git and deletes are free: the guard asks only beyond them); anything that costs money.
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->

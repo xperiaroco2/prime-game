@@ -75,3 +75,7 @@ bandwidth on `verify`.
   (`tools/run.sh check --lfs-content`) right after its checkout, in the first M6 change to `release.yml` after
   `main` reaches `release/m6`. Until then `release/m6`'s `export` already fails loudly on a pointer file in the tree
   it exports (`export.lfs_pointers`); the earlier step names every pointer file before Godot starts.
+  **Note 2026-10-08 (#536):** the step is in place. M6 reached `main` (#499), and `release.yml` on `main` runs
+  `Check LFS content` (`tools/run.sh check --lfs-content`) after its checkout (`lfs: true`) and the pinned toolchain
+  (the runner's Python), before `Export`; a pointer file fails the run with its path. `test_export.py`'s
+  `ReleaseWorkflowTest` (in `verify`) keeps the step there.

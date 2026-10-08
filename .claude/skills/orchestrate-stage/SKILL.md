@@ -128,7 +128,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object. Before
-   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args and **the estimate** (#534) of
+   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args, its launch check and **the estimate** (#534) of
    [MANAGERS.md §9](../../../docs/MANAGERS.md): any other workflow too, and over about 5% a check after its first phase.
 
 | arg | what |
@@ -143,8 +143,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-**Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count
-toward the number per workflow the kickoff approved:
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count toward the number per workflow the kickoff approved:
 
 | arg | when | adds (tool calls each) |
 |---|---|---|
@@ -153,11 +152,12 @@ toward the number per workflow the kickoff approved:
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
-| `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
+| `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 180 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `implement: "sonnet"` on a qualifying task during #560's trial (budget.md; [trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); red twice: relaunched once more on Opus without asking, in place of §4's stop); `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
 | `ab_review: true` | #535's A/B ([ADR](../../../docs/decisions/2026-10-07-code-reviewer-model-ab.md)): on every non-design `issue-task` launch, with `models.code: "sonnet"` (the diff's code reviewer alone; other than `code-reviewer.md`'s `model:`, the control's) beside `publish_clean`, until `metrics`' A/B table gives a verdict other than "continue"; then report it on #302 and stop passing both (`issue-task` only) | 2: a control code reviewer (60) and a judge (40); 1 when neither reviewer found anything |
-| `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: a run's `agent-*.meta.json` shows the `agentType`): pass nothing; `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) or to resume a run launched before #458 without the arg | 0 |
+| `checkpoint: true` | #559, `issue-task` only, opt-in: an implementer past 150k context hands over to a fresh one (a note in `a<n>/handoff-<k>.md`, then `implement:#<n>#2` and `#3`), at most twice. Not on by default until the engineer says yes after `metrics`' implementer context table measured about 10 tasks with it; pass it where the kickoff asks for it. The result's `handoffs` counts them; `wave` treats a handoff as a run still going | 0; up to 2 more implementers (250 each) |
+| `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: `agents-check --launch`; a run's `agent-*.meta.json` and `metrics`' agent-type table show the `agentType`): pass nothing, also for a task editing `.claude/workflows/` (its agents read `docs/workflow-scripts.md`, #557). `lean: false` only with `lean_reason` (`lean_reason?` in `whenToUse`; the script throws without it, #557): why the general agent, today only "a resume of <run id>, launched before #458" (budget.md); the result's `lean_off` counts the general agents | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or
   `code` (only with `ab_review`, next row), never `review` or `netcode` (`review` also covers `code`, `plan_review`,
@@ -280,7 +280,7 @@ taken in a `main` that has them.
   session works in that worktree it asks, so hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
-  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models` and `lean` (roles rebase, review, netcode, second_review,
+  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models`, `lean` and `lean_reason` (roles rebase, review, netcode, second_review,
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
   agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
   `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
@@ -292,8 +292,8 @@ taken in a `main` that has them.
   then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
   refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
   `main` (a background `publish` with `wait <log>` in its worktree, or `pr-rebase` when its `gate: note:` lines name an
-  overlap, then CI), the exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`,
-  `.claude/githooks/`, the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item.
+  overlap, then CI), the exceptions (the content area or an ADR without "Approved by the engineer: <link>", added once
+  his approval is on GitHub; `.claude/settings*.json`, `.claude/githooks/`, the guard), an open "Needs the engineer".
   An exception goes into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind
   `main`: two or more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the
   background, `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a
@@ -303,7 +303,7 @@ taken in a `main` that has them.
   engineer. "стоп мерджі": no merges into `main` until the engineer lifts it; record it on your plan issue and #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
-  engineer" and "Needs the designer" item, and the issues to close after the merge (`Closes` does not fire from the
+  engineer" item, and the issues to close after the merge (`Closes` does not fire from the
   release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
   (auto-delete) and GitHub retargets such a PR to `main`. Run `merge-check --base main` and put its table in the PR.
   Ask the engineer for the milestone's go (a playtest, their human checks done or postponed); record it as a PR

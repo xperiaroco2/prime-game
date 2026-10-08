@@ -2,7 +2,10 @@
 
 - **Status:** Accepted; on by default since 2026-10-06 (the engineer's N4 (b),
   [#302 comment 6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870); #458).
-  Accepted 2026-10-04 for an opt-in trial (default off); amended 2026-10-05 and 2026-10-06 (below)
+  Accepted 2026-10-04 for an opt-in trial (default off); amended 2026-10-05 and 2026-10-06 (below); amendment
+  2026-10-08 (#557) accepted, Approved by the engineer:
+  [#579 comment 6062973984](https://github.com/xperiaroco2/prime-game/pull/579#issuecomment-6062973984)
+  ((b) over (a), `lean_reason` required, `agents-check --launch`; no REV token)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer: build the token efficiency research's proposals, lean agent types once the cache-read
   probe has a result (#302 comment 5974021004); the probe found cache reads count at about 0.5-1 of list (#302
@@ -123,6 +126,38 @@ the types appended (such a resume passes `lean: false`). The A/B's results (#302
 passed the missing-tool and effort criteria, first calls 24.4k for the implementers
 and 29.6k to 32.1k for the publishers.
 
+## Amendment 2026-10-08: no exception for the Skill tool (#557, proposed)
+Between 2026-10-06 and 08, 14 of 37 implementers and 13 of 32 publishers ran the general type (a stale manager
+checkout, or `lean: false`), at about twice the first-call tokens. The one use the 2026-10-06 amendment kept for
+`lean: false`, a task editing `.claude/workflows/` with `workflow-authoring`, cannot use the lean types' "read the
+skill's `SKILL.md`": that skill is bundled with Claude Code and has no file.
+
+The probe (#557's run, CLI 2.1.284, one `claude -p` session, a four-agent workflow on Sonnet at `effort: 'low'`, the
+#332 prompt plus "if you have a Skill tool, load `workflow-authoring`"; temporary agent files, not committed):
+
+| agent | `agentType` (meta.json) | first call: input + cache write + cache read |
+|---|---|---|
+| `probe:lean` | `task-implementer` | 19.5k |
+| `probe:skill` | `task-implementer`'s tools plus Skill | 27.7k (a 40-entry skill listing); the skill's text adds 7.3k once loaded |
+| `probe:preload` | `task-implementer` with `skills: workflow-authoring` | 25.7k (the skill's text, preloaded with no Skill tool) |
+| `probe:unknown` | `no-such-type` | none: `agent()` throws "agent type 'no-such-type' not found" |
+
+Option (a), a type or arg that allows the Skill tool, costs 8.1k more on every call of every agent of that type, or
+6.2k with a preload; option (b), a repo file read by path, costs its own size (about 2k tokens) once, and only in a
+task that reads it. Decision, under (b):
+- `docs/workflow-scripts.md` holds the script rules, resume and this repo's snapshot tests in our own words, with the
+  CLI version it was checked against; both lean writers and a path-scoped rule for `.claude/workflows/**` point to
+  it. A task editing `.claude/workflows/` runs lean like any other; no new type.
+- `lean: false` needs `lean_reason`, a non-empty string (both scripts throw before any agent runs without it); it
+  changes no prompt or option, so a resume of a run launched before #458 (the one use left) replays. The result's
+  `lean_off` counts the general agents.
+- `tools\run.cmd agents-check --launch` checks the manager's checkout before each launch (the lean files exist and
+  pass, the scripts match origin/main after a fetch): a script cannot read files, and an `agentType` with no file
+  throws at the first agent of that type (for `task-publisher.md`, after the implementer and the reviews have spent
+  their tokens), so the check before the launch is the early one. `metrics` reports agents per role and type and the general-type writers.
+- `instructions.py`: a lean type sets no `skills:` preload, and its body names only `docs/` and `.claude/` paths that
+  exist; no project skill may be named `workflow-authoring`.
+
 ## Alternatives
 - Role packs with `omitClaudeMd` and per-role instructions (#325 O5, N3 (b)): a larger change; later, after this
   trial.
@@ -130,4 +165,5 @@ and 29.6k to 32.1k for the publishers.
   run as `code-reviewer`. On by default was deferred until the A/B; the 2026-10-06 amendment made it so.
 - Keeping ToolSearch or the Skill tool: each costs schema or listing tokens on every call for a handful of uses a
   week; a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used
-  `workflow-authoring`) stays off `lean`.
+  `workflow-authoring`) stays off `lean`. Since the 2026-10-08 amendment such a task runs lean and reads
+  `docs/workflow-scripts.md`; a Skill-allowed or skill-preloading type was measured and not taken (above).

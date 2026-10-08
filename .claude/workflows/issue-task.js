@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
@@ -57,7 +57,7 @@ export const meta = {
 //                 task's branch: reported in the result and the PR. +0 agents
 //   bounded_waits true, the default (#411; missing or null is true): the implementer, the test reviewer and the full
 //                 publisher run verify, publish and mutants in the background and poll them with `tools\run.cmd wait`
-//                 (#303), and wait on CI in calls of at most 240 s, so no tool call outlasts their 5-minute prompt
+//                 (#303), and wait on CI in calls of at most 180 s, so no tool call outlasts their 5-minute prompt
 //                 cache; the publisher runs no standalone verify before `publish`, which verifies itself unless an
 //                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground.
 //                 false: the prompts of before #411, byte for byte. +0 agents
@@ -83,9 +83,13 @@ export const meta = {
 //                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
 //                 task-publisher: lean tool allowlists, no Skill tool (#332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
-//                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
-//                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
-//                 the manager's checkout must have both files. +0 agents
+//                 options; prompts, efforts and models stay. A task editing .claude/workflows/ stays lean: its agents
+//                 read docs/workflow-scripts.md (#557). false: the general workflow agent, only with lean_reason.
+//                 .claude/agents/ in the manager's checkout must have both files (`tools\run.cmd agents-check
+//                 --launch`; an agentType with no file throws at agent()). +0 agents
+//   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
+//                 run launched before #458. It changes no prompt or option; the result carries it. Ignored with lean
+//                 on (a log line says so). +0 agents
 //   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
 //                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
 //                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
@@ -94,11 +98,23 @@ export const meta = {
 //                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
 //                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
 //                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
+//   checkpoint    true (#559; opt-in, off until the engineer's yes after a measurement): an implementer past 150,000
+//                 tokens of context hands over to a fresh one. It reads its context from the harness's reminder
+//                 `<total_tokens>N tokens left` after each tool result (the budget B, 15,000,000, less N is the context:
+//                 282 of 283 readings exact on 2026-10-08) or, seeing none, stops after 60 tool calls; it commits, writes
+//                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
+//                 returns handoff, the note's path. A fresh implementer, labelled implement:#<n>#<k> (k = 2, 3) with the
+//                 same type, effort and model, continues from the note and the worktree; at most 2 handoffs (the third
+//                 implementer cannot hand over). The implementer's result is then the last one's with the union of the
+//                 decisions, needs_engineer, proposed_issues, provisional_content and commits, and the compact result
+//                 gains handoffs. Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's journal.jsonl,
-// which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole was 8 to 17 kB.
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review), and under lean false
+// lean_off (#557: how many general agents it launched, and the lean_reason); `full` points to the run's
+// journal.jsonl, which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole
+// was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -121,7 +137,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'ab_review']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review', 'checkpoint']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -141,6 +157,11 @@ const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? 
 const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
 // On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
 const LEAN = flag('lean') || A.lean === undefined || A.lean === null
+// #557: lean false needs a reason, so a stray false (2026-10-06 to 08: 27 general implementers and publishers at about
+// twice the first-call tokens) is refused before any agent runs. The reason changes no prompt or option.
+if (A.lean_reason !== undefined && A.lean_reason !== null && !(typeof A.lean_reason === 'string' && A.lean_reason.trim())) throw new Error('issue-task: args.lean_reason must be a non-empty string')
+if (!LEAN && !A.lean_reason) throw new Error('issue-task: args.lean false needs args.lean_reason (a non-empty string: why the general agent, e.g. a resume of a run launched before #458; its agents stay unchanged). A task editing .claude/workflows/ runs lean: its agents read docs/workflow-scripts.md')
+if (LEAN && A.lean_reason) log(`#${N}: lean_reason ignored: lean is on`)
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
@@ -175,15 +196,19 @@ const AB_REVIEW = flag('ab_review')
 if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
 if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
 if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
+const CHECKPOINT = flag('checkpoint')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
 const LEAN_TYPES = { implement: 'task-implementer', plan: 'task-implementer', test_review: 'task-implementer', publish: 'task-publisher' }
 const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
+// #557: every agent's options are built here, as agent() is called, so this counts the general agents it launched.
+let GENERAL = 0
 const withModel = (o, role) => {
   const m = set(MODELS, role)
   const t = leanType(o, role)
   const out = m === undefined ? o : { ...o, model: m }
+  if (!t && !o.agentType) GENERAL += 1
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
@@ -289,10 +314,10 @@ const HUMAN_STEPS = `human_steps: each step only the engineer can take after you
 // bounded_waits (#303): one paragraph for each agent that runs verify, publish, mutants or a CI watch, placed after the
 // steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two).
 const waits = publishes => [
-  'Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell\'s `timeout` or `wait --max`, never only with the tool\'s timeout.',
+  'Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 180 s: bound it with the shell\'s `timeout` or `wait --max`, never only with the tool\'s timeout.',
   `- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under ${SCRATCH}/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): \`cd ${WTB} && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>\` (<command>: \`verify\`, \`publish\` with the arguments given above, or \`mutants <spec.json>\`).`,
-  `- Then wait in separate calls of \`cd ${WTB} && tools/run.sh wait <log>\` in the Bash tool (in PowerShell \`tools\\run.cmd wait <log>\`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a \`wait: still running\` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a \`wait: ... finished: exit=<n>\` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a \`wait: no log\`, \`wait: cannot read\` or \`wait: --max\` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.`,
-  `- CI: \`cd ${WTB} && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?\` in the Bash tool with the tool's timeout set to 300000 (in PowerShell \`timeout\` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.`,
+  `- Then wait in separate calls of \`cd ${WTB} && tools/run.sh wait <log>\` in the Bash tool (in PowerShell \`tools\\run.cmd wait <log>\`), with the tool's timeout set to 300000 (its default of 120000 cuts a 180 s wait short). Exit 124 with a \`wait: still running\` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a \`wait: ... finished: exit=<n>\` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a \`wait: no log\`, \`wait: cannot read\` or \`wait: --max\` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.`,
+  `- CI: \`cd ${WTB} && timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?\` in the Bash tool with the tool's timeout set to 300000 (in PowerShell \`timeout\` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.`,
   publishes ? '- No standalone `verify` before `publish`: after fixes, run the tests they touch and `check`, then `publish`. It verifies, unless the newest verify passed on this identical tree under 2 hours ago (it says so and pushes on that), and a red verify inside it pushes nothing.' : '',
   '- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.',
 ].filter(Boolean).join('\n')
@@ -532,9 +557,23 @@ if (PLAN_REVIEW) {
   log(`#${N}: planned; the critique found ${(critique.findings || []).length} finding(s)`)
 }
 
-const impl = await agent([
+// checkpoint (#559): the context at which an implementer hands over, read from the harness's `<total_tokens>` reminder
+// (its budget, 15,000,000 on 2026-10-08, less N is the context of the call before it), the tool-call backstop where
+// no reminder shows, and the most handoffs per task. Implementer k (0 first) is labelled implement:#N, then
+// implement:#N#2 and #3 (metrics.role_of reads both as the implementer; never :2). Off, implement(0, null) is today's
+// agent call byte for byte; on, only the rule paragraph and the schema's handoff key are added to it.
+const HANDOFF_AT = 150000
+const HANDOFF_BUDGET = 15000000
+const HANDOFF_CALLS = 60
+const HANDOFF_MAX = 2
+const thousands = x => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+const HANDOFF_SCHEMA = { ...IMPL_SCHEMA, properties: { ...IMPL_SCHEMA.properties, handoff: { type: 'string' } } }
+const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under ${thousands(HANDOFF_AT)} tokens. After each tool result a system reminder \`<total_tokens>N tokens left</total_tokens>\` shows N. Your context is B minus N, exactly, where B is the budget, ${thousands(HANDOFF_BUDGET)} on these runs (your first reading is B less your first call's context, so it lies within 100,000 below B; if your first reading does not, take B = your first N plus 30,000). Once N is at or below B minus ${thousands(HANDOFF_AT)} (at or below ${thousands(HANDOFF_BUDGET - HANDOFF_AT)} with that B), or after ${HANDOFF_CALLS} tool calls if you see no such reminder, hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to ${SCRATCH}/handoff-${k + 1}.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "handed over"} (only the implementer that finishes runs playcheck)' : ''}. If only the final verify and the return are left, finish instead. A fresh implementer of the same kind continues from your note and the worktree (at most ${HANDOFF_MAX} handoffs per task).`
+const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
+const implement = (k, note) => agent([
   RULES,
   `Task: GitHub issue #${N} (${A.title}). Effort: ${IMPL_EFFORT}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
+  k ? continuation(k, note) : '',
   `An earlier attempt may have got part of the way (a resumed run): first run \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from that state; uncommitted files there are that attempt's work.`,
   `Read: \`gh issue view ${N} --comments\`; ${READING}.`,
   `Task notes from the manager:\n${A.notes}`,
@@ -545,9 +584,31 @@ const impl = await agent([
   '`tools\\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree\'s run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.',
   BOUNDED ? waits(false) : '',
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
+  CHECKPOINT && k < HANDOFF_MAX ? handoffRule(k) : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end. summary: at most ${SUMMARY_MAX} characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.`,
-].filter(Boolean).join('\n\n'), withModel({ label: `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: IMPL_SCHEMA }, 'implement'))
+].filter(Boolean).join('\n\n'), withModel({ label: k ? `implement:#${N}#${k + 1}` : `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: CHECKPOINT && k < HANDOFF_MAX ? HANDOFF_SCHEMA : IMPL_SCHEMA }, 'implement'))
+// A handoff's own verify_green is never read: the last implementer's result is the one the run goes on with (a red
+// one stops below), with the earlier ones' lists joined, since each continuation returns only its own.
+const HANDOFF_LISTS = ['decisions', 'needs_engineer', 'proposed_issues', 'provisional_content', 'commits']
+const noteOf = r => (CHECKPOINT && r && typeof r.handoff === 'string' && r.handoff.trim() ? r.handoff.trim() : '')
+const handedOver = []
+let impl = await implement(0, null)
+while (noteOf(impl) && handedOver.length < HANDOFF_MAX) {
+  handedOver.push(impl)
+  log(`#${N}: handoff ${handedOver.length} of ${HANDOFF_MAX}: the implementer stopped at its context limit (verify ${impl.verify_green ? 'green' : 'red'}); a fresh one continues from ${noteOf(impl)}`)
+  impl = await implement(handedOver.length, noteOf(impl))
+}
+if (noteOf(impl)) log(`#${N}: handoff ignored: the last implementer may not hand over (at most ${HANDOFF_MAX}); its result stands`)
+if (impl && handedOver.length) {
+  const { handoff, ...last } = impl
+  const all = [...handedOver, impl]
+  impl = { ...last, handoffs: handedOver.map(noteOf) }
+  for (const key of HANDOFF_LISTS) {
+    const joined = [...new Set(all.flatMap(r => items(r[key])))]
+    if (joined.length) impl[key] = joined
+  }
+}
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
@@ -699,6 +760,7 @@ const brief = (stopped, pub, extra) => {
   }
   Object.assign(out, pick(impl, ['verify_green', 'complete']))
   out.summary = line(impl.summary)
+  if (handedOver.length) out.handoffs = handedOver.length
   // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
   // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
   if (!pub) {
@@ -741,6 +803,7 @@ const brief = (stopped, pub, extra) => {
   }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
+  if (!LEAN) out.lean_off = { general: GENERAL, reason: line(A.lean_reason) }
   out.full = FULL
   return out
 }
@@ -800,7 +863,7 @@ const pub = stoppedByMutants
       'Then, in this order (the definition of done; the reviews above were its review step):',
       '- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human\'s correction of how the agents work that the notes or the issue\'s comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.',
       `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}. If it stops on remote commits the branch never had, or with "cannot confirm that the parent … was merged", push nothing by hand: return published false with what it said, and the engineer's check under human_steps.`,
-      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md (if \`gh pr view ${A.branch}\` already finds a PR for the branch, update its body with \`gh pr edit <pr> --body-file <file>\` instead of creating a second one): \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md (if \`gh pr view ${A.branch}\` already finds a PR for the branch, update its body with \`gh pr edit <pr> --body-file <file>\` instead of creating a second one): \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, for a change in the content area (content/ levels/ docs/GDD.md docs/design/ and the skills .claude/skills/new-mechanic/ and .claude/skills/new-level-piece/), the engineer's word it was made on, with its link, and the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, with no tag (docs/AGENT_WORKFLOW.md §9; the "Approved by the engineer: <link>" line that lets the gate merge it is the manager's, once he approves); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
       `- \`gh pr checks <pr> --watch\`. Red: fix, run the touched tests and \`check\`, publish again (it verifies); at most two rounds, then report what is still red.`,
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
