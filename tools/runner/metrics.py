@@ -2289,7 +2289,7 @@ def latency_record(counted: list[dict]) -> dict:
 
 def latency_section(record: dict) -> list[str]:
     """One line (#568): the time from a tool call's start to its output, per class of call that has any."""
-    parts = [f"{name}: {r['calls']} calls, {r['median_s']:.1f} s median, {r['p95_s']:.1f} s p95"
+    parts = [f"{name}: {r['calls']} call{'' if r['calls'] == 1 else 's'}, {r['median_s']:.1f} s median, {r['p95_s']:.1f} s p95"
              for key, name in LATENCY_CLASSES if (r := record[key])["calls"]]  # fmt: skip
     if not parts:
         return []

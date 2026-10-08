@@ -735,11 +735,11 @@ class BoundedWaitTest(unittest.TestCase):
         self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (2, 33.0, 60.0), "read": (1, 3.0, 3.0),
                                    "edit": (1, 2.0, 2.0), "wait": (1, 6.0, 6.0)})
         self.assertIn("Tool-call start-up (#568), from a call's start to its output: shell calls started in the "
-                      "background (start-up only): 1 calls, 3.0 s median, 3.0 s p95; foreground shell calls (start-up "
+                      "background (start-up only): 1 call, 3.0 s median, 3.0 s p95; foreground shell calls (start-up "
                       "and the command's run): 2 calls, 33.0 s median, 60.0 s p95; Read, Grep and Glob (no hook): 1 "
-                      "calls, 3.0 s median, 3.0 s p95; Edit and Write (with the gd-edit hook): 1 calls, 2.0 s median, "
+                      "call, 3.0 s median, 3.0 s p95; Edit and Write (with the gd-edit hook): 1 call, 2.0 s median, "
                       "2.0 s p95; `wait` calls stopped by their deadline, minus wait's own clock: "
-                      "1 calls, 6.0 s median, 6.0 s p95.", "\n".join(md))  # fmt: skip
+                      "1 call, 6.0 s median, 6.0 s p95.", "\n".join(md))  # fmt: skip
         self.assertEqual(metrics.latency_section(metrics.latency_record([])), [])
 
     def test_p95_is_the_nearest_rank(self) -> None:
