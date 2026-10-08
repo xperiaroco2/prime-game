@@ -339,7 +339,8 @@ def _labelled(label: str) -> tuple[Callable[[str], None], Callable[[str], None]]
 # run would run ran exactly once, with every test function it declares.
 SHARDS_VAR = "PRIME_TEST_SHARDS"
 # K = half the logical CPUs, at most SHARD_CAP: CI's 4 vCPUs give 2, the engineer's PC (16 logical, 8 physical) the
-# cap, so the shards and the Python lane's 4 selftest workers together fill its 8 cores. Measured there on a quiet
+# cap. The Python lane's selftest workers (verify.selftest_workers: 8 on the PC since #556, which has 16 logical CPUs)
+# run beside the shards; that oversubscription is accepted, as `test` took 123 s against 130 s. Measured on a quiet
 # machine (#182, 2026-10-02): `test` in 295 s with one process, 156 s with 2, 108 s with 3, 86 s with 4, 72 s with 5.
 SHARD_CAP = 4
 SHARD_USER = OUT / "gdunit-user"
