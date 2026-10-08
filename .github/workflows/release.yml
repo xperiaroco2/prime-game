@@ -30,6 +30,11 @@ jobs:
 
       - uses: ./.github/actions/setup-toolchain
 
+      # Names every LFS pointer file left in the checkout before Godot starts, and fails on one (#515, #536; the LFS
+      # ADR): a release zip never ships a pointer file in place of an asset. No Godot, no import.
+      - name: Check LFS content
+        run: tools/run.sh check --lfs-content
+
       - name: Export
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh export --version "$GITHUB_REF_NAME"
 
