@@ -486,6 +486,20 @@ class HookStartUpTest(unittest.TestCase):
             for pyc in pycs:
                 self.assertEqual(int.from_bytes(pyc.read_bytes()[4:8], "little"), 0b11, pyc)  # PEP 552 checked hash
 
+    def test_the_hook_imports_restore_the_interpreter_s_bytecode_settings(self) -> None:
+        """A pycache prefix the interpreter started with (-X pycache_prefix, PYTHONPYCACHEPREFIX) is kept after the
+        hook's own modules are imported, and so is run.py's dont_write_bytecode."""
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            own = str(Path(tmp) / "own-prefix")
+            code = ("import sys; sys.path.insert(0, sys.argv[1]); import run; run.hook_main('guard'); "
+                    "print(repr((sys.pycache_prefix, sys.dont_write_bytecode)))")  # fmt: skip
+            res = subprocess.run([sys.executable, "-S", "-X", f"pycache_prefix={own}", "-c", code, str(run_py.parent)],
+                                 capture_output=True, text=True, timeout=60)  # fmt: skip
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual(res.stdout.strip(), repr((own, True)))
+            self.assertTrue((Path(tmp) / "tools" / "out" / "pycache").is_dir())  # the hook's modules went there
+
     def test_an_edit_that_keeps_the_size_and_the_time_is_not_missed(self) -> None:
         """A timestamp pyc checks only the source's size and whole second: this edit keeps both, and the guard must
         still run the edited code (here an entry point renamed, so the hook fails closed)."""

@@ -29,6 +29,7 @@ def hook_main(name: str):  # noqa: ANN201 - runner.hooks.main, imported here
     import json  # noqa: F401
     import re  # noqa: F401
 
+    prefix, nowrite = sys.pycache_prefix, sys.dont_write_bytecode
     sys.pycache_prefix, sys.dont_write_bytecode = HOOK_BYTECODE, False
     try:
         import runner
@@ -40,7 +41,7 @@ def hook_main(name: str):  # noqa: ANN201 - runner.hooks.main, imported here
 
             modules.append(guard)
     finally:
-        sys.pycache_prefix, sys.dont_write_bytecode = None, True
+        sys.pycache_prefix, sys.dont_write_bytecode = prefix, nowrite
     for module in modules:
         if module.__file__ and module.__cached__:
             _checked_hash(module.__file__, module.__cached__)
