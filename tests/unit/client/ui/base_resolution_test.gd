@@ -13,7 +13,7 @@ func test_the_base_is_1920_by_1080() -> void:
 	assert_int(ProjectSettings.get_setting("display/window/size/viewport_width")).is_equal(BASE.x)
 	assert_int(ProjectSettings.get_setting("display/window/size/viewport_height")).is_equal(BASE.y)
 	# Read back from the running root: a misspelt key would leave Godot's default here.
-	assert_object(get_tree().root.content_scale_size).is_equal(BASE)
+	assert_vector(get_tree().root.content_scale_size).is_equal(BASE)
 
 
 func test_the_canvas_stretches_to_the_window() -> void:
@@ -25,7 +25,7 @@ func test_the_canvas_stretches_to_the_window() -> void:
 func test_the_window_opens_at_its_old_size() -> void:
 	var width: int = ProjectSettings.get_setting("display/window/size/window_width_override")
 	var height: int = ProjectSettings.get_setting("display/window/size/window_height_override")
-	assert_object(Vector2i(width, height)).is_equal(START_WINDOW)
+	assert_vector(Vector2i(width, height)).is_equal(START_WINDOW)
 
 
 func test_the_default_theme_keeps_its_apparent_size() -> void:
