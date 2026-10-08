@@ -280,7 +280,7 @@ func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 			if placed[0] and at_placement.is_empty():
 				at_placement.append(_pair.client.client().get("_facing") as Vector3)
 	)
-	# The round ends while the joiner is dead; the host's Back to lobby places everyone.
+	# The round ends while the joiner is dead; the host's ReturnToLobby places everyone.
 	_pair.win()
 	var ended := func() -> bool: return session.model.phase == &"end"
 	assert_bool(await _until(ended)).is_true()

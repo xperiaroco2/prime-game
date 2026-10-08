@@ -69,7 +69,7 @@ func test_the_mouse_stays_captured_from_the_lobby_through_loading_into_the_round
 		assert_array(_pointer(game).asked).not_contains([false])
 		assert_bool(_pointer(game).captured()).is_true()
 		assert_bool(game.player().reads_device_input).is_true()
-	# The end screen frees it for its button; Back to lobby captures it again.
+	# The end screen frees it; the host's ReturnToLobby (before End's own return) captures it again.
 	assert_bool(await _until(_all_on.bind(games, S.END, 2))).is_true()
 	for game: Game in games:
 		assert_bool(_pointer(game).captured()).is_false()

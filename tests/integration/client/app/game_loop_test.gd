@@ -157,7 +157,7 @@ func test_physics_steps_alone_stop_the_player_at_each_frozen_phase() -> void:
 	assert_int(stepped.size()).is_equal(0)
 	# The round's placement: everyone stands where it said.
 	_assert_at_the_last_correction(games)
-	# Time up; then the host's Back to lobby, still with no Game._process. End -> Lobby drops the
+	# Time up; then the host's ReturnToLobby, still with no Game._process. End -> Lobby drops the
 	# others' bodies and places everyone in one host step, and the greybox lobby's markers share
 	# the round's coordinates: the player, stepping again from the next physics step, is pushed off
 	# its lobby Correction neither by a dropped body still in the space (#242) nor by another

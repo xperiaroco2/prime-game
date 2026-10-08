@@ -256,7 +256,7 @@ func change_setting(id: StringName, value: Variant) -> void:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
 
 
-## The host's ReturnToLobby: everyone back in the lobby before End's 3 s pass. No screen offers it
+## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it
 ## since #212 (End returns by itself); the tests use it.
 func return_to_lobby() -> void:
 	if _client != null:
