@@ -1,9 +1,9 @@
 class_name UserSettings
 extends RefCounted
 ## The player's own settings on this machine (the M5 ADR §1.7, E43 (a), E47 as amended): the
-## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15) and
-## §1.1's "opening" mark, in a ConfigFile under user://, read at the start and written on each
-## change. Never sent to anyone.
+## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
+## §1.1's "opening" mark and the interface language (#208), in a ConfigFile under user://, read at
+## the start and written on each change. Never sent to anyone. Key bindings get their own file.
 ##
 ## The windows that `tools\run.cmd host --clients N` starts on one PC share one user:// folder, and
 ## the runner gives each its PRIME_INSTANCE (1 the host, 2 and on the clients): the file is
@@ -48,6 +48,11 @@ var threshold := VoiceGate.DEFAULT_THRESHOLD:
 var denoise := true
 ## The device whose opening has not finished (the M5 ADR's §1.1); "" when none.
 var opening := ""
+## The interface language the player chose, one of Languages.ALL, or "" before any choice (then
+## Languages.shown() follows the system's); any other value reads as "".
+var language := "":
+	set(value):
+		language = value if Languages.ALL.has(value) else ""
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -90,7 +95,7 @@ func set_volume_db(bus: StringName, db: float) -> void:
 
 
 ## Reads the file; a missing file keeps the defaults, and so does any value that is missing or
-## out of place (an unknown mode, a threshold out of bounds is clamped).
+## out of place (an unknown mode or language, a threshold out of bounds is clamped).
 func read() -> Error:
 	if path.is_empty():
 		return ERR_FILE_NOT_FOUND
@@ -107,6 +112,7 @@ func read() -> Error:
 	threshold = _number(file.get_value("voice", "threshold", NAN), VoiceGate.DEFAULT_THRESHOLD)
 	denoise = file.get_value("voice", "denoise", true) == true
 	opening = str(file.get_value("voice", "opening", ""))
+	language = str(file.get_value("interface", "language", ""))
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -122,6 +128,7 @@ func write() -> Error:
 	file.set_value("voice", "threshold", threshold)
 	file.set_value("voice", "denoise", denoise)
 	file.set_value("voice", "opening", opening)
+	file.set_value("interface", "language", language)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)

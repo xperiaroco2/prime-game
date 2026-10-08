@@ -125,6 +125,7 @@ func _ready() -> void:
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
+	_ready_settings()
 	_ready_voice()
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
@@ -728,6 +729,16 @@ func _refresh_voice_overlay() -> void:
 	_overlay.show_voice(_voices.stats())
 
 
+## This window's settings, and their interface language applied (#208): the player's choice, or
+## on a first launch the system's when it is Ukrainian and English otherwise.
+func _ready_settings() -> void:
+	if settings == null:
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
+	Languages.apply(settings)
+
+
 ## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
 ## settings applied, and the Voice tab wired to them.
 func _ready_voice() -> void:
@@ -735,10 +746,6 @@ func _ready_voice() -> void:
 	if voice_codec == null:
 		voice_codec = TwoVoipCodec.new()
 	_world.add_child(_voices)
-	if settings == null:
-		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
-		# player's file in user:// would set the process's buses and take an opening mark.
-		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
 	_sender.codec = voice_codec
 	add_child(_sender)
 	_voice_control = VoiceControl.new(settings, _sender)
