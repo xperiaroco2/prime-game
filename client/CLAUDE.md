@@ -5,8 +5,8 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-person-client.md` and of the M5 ADR.
 
 ## Job
-- The windowed game: the main menu, hosting and joining, the lobby, loading, the round and the end screen, in one
-  persistent main scene that swaps levels under itself (§4.7).
+- The windowed game: the main menu, hosting and joining, the lobby, loading, the pregame, the round and the end
+  screen, in one persistent main scene that swaps levels under itself (§4.7).
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
   and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
 - UI: lobby, HUD, the Tab task screen (no map for now), end screen, the Esc menu with tabs (#169).

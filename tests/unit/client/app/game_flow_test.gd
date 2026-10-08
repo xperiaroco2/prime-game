@@ -27,6 +27,7 @@ func test_each_phase_of_the_base_mode_has_its_screen_and_level() -> void:
 		[&"lobby", S.LOBBY, L.LOBBY],
 		[&"countdown", S.LOBBY, L.LOBBY],
 		[&"loading", S.LOADING, L.MAP],
+		[&"pregame", S.PREGAME, L.MAP],
 		[&"round", S.ROUND, L.MAP],
 		[&"end", S.END, L.MAP],
 		[&"lobby", S.LOBBY, L.LOBBY],
@@ -53,7 +54,7 @@ func test_a_match_that_ended_shows_the_end_screen() -> void:
 
 
 func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
-	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.END]:
+	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.PREGAME, S.END]:
 		assert_bool(GameFlow.frozen(screen)).is_true()
 	for screen: S in [S.LOBBY, S.ROUND]:
 		assert_bool(GameFlow.frozen(screen)).is_false()
@@ -61,12 +62,26 @@ func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
 
 func test_the_lobby_and_the_round_capture_the_mouse_loading_keeps_it_the_rest_free_it() -> void:
 	# #169: the lobby is walked like the round; its Ready and settings are in the Esc menu.
-	# #517: Loading freed it, so the round started with the cursor showing until a click.
+	# #517: Loading freed it, so the round started with the cursor showing until a click; the
+	# pregame (#213), also between the lobby and the round, keeps it too.
 	for screen: S in [S.MENU, S.CONNECTING, S.END]:
 		assert_int(GameFlow.pointer_on(screen)).is_equal(GameFlow.Pointer.FREE)
 	for screen: S in [S.LOBBY, S.ROUND]:
 		assert_int(GameFlow.pointer_on(screen)).is_equal(GameFlow.Pointer.CAPTURE)
-	assert_int(GameFlow.pointer_on(S.LOADING)).is_equal(GameFlow.Pointer.KEEP)
+	for screen: S in [S.LOADING, S.PREGAME]:
+		assert_int(GameFlow.pointer_on(screen)).is_equal(GameFlow.Pointer.KEEP)
+
+
+func test_the_pregame_screen_follows_the_phase_class_not_the_id() -> void:
+	# The screen comes from the own copy's PhaseSpec (its class), never from a phase's name.
+	var mode := (load(MODE) as GameMode).duplicate(true) as GameMode
+	mode.find_phase(&"pregame").id = &"intro"
+	var model := ClientModel.new(mode)
+	var welcome := WelcomeEvent.new(2, Vector3.ZERO, 1)
+	welcome.phase = &"lobby"
+	model.fold(&"Welcome", welcome.to_dict())
+	model.fold(&"PhaseChanged", {"phase": &"intro", "end_tick": -1})
+	assert_int(GameFlow.screen(GameFlow.Session.WELCOMED, model)).is_equal(S.PREGAME)
 
 
 func test_seconds_left_round_up_and_never_go_below_zero() -> void:

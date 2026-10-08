@@ -38,6 +38,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	},
 	&"countdown": {&"Hello": From.NEWCOMER, &"MoveClaim": From.LIVING, &"SetReady": From.PLAYER},
 	&"loading": {&"LoadAck": From.PLAYER},
+	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
+	&"pregame": {},
 	&"round":
 	{
 		&"MoveClaim": From.LIVING | From.DOWNED,

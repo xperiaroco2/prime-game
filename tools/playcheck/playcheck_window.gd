@@ -157,6 +157,7 @@ class GameView:
 			"lobby.hint": ui.lobby_hud.hint_label,
 			"lobby.roster": ui.lobby_hud.roster_label,
 			"lobby.countdown": ui.lobby_hud.countdown_label,
+			"pregame.role": ui.pregame.role_label,
 			"end.winner": ui.end.winner_label,
 			"end.countdown": ui.end.countdown_label,
 		}

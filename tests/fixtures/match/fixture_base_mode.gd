@@ -2,11 +2,13 @@ class_name FixtureBaseMode
 extends RefCounted
 ## The base mode's phase classes in a mode built in code, for the unit tests of 2b (a part's unit
 ## test never loads `content/`, ARCHITECTURE §9.6): lobby (LobbyPhase) -> countdown
-## (CountdownPhase, 5 s) -> loading (LoadingPhase, 60 s) -> round (RoundPhase) -> end (EndPhase,
-## 3 s) -> lobby, with the base mode's rows. The `all_loaded` row places players on
-## `round_player` and demands `knife` markers by `knives` and `circle` markers and colours by
-## `circles` (FixtureDemand); `End -> Lobby` runs ResetMatch, then PlacePlayers on
-## `lobby_player`. 1 to 4 players. The crew wins when peer 0's counter `crew_win` is at least 1.
+## (CountdownPhase, 5 s) -> loading (LoadingPhase, 60 s) -> pregame (PregamePhase, 3 s, accepts
+## nothing) -> round (RoundPhase) -> end (EndPhase, 3 s) -> lobby, with the base mode's rows. The
+## `all_loaded` row places players on `round_player` and demands `knife` markers by `knives` and
+## `circle` markers and colours by `circles` (FixtureDemand); `End -> Lobby` runs ResetMatch, then
+## PlacePlayers on `lobby_player`. 1 to 4 players. The crew wins when peer 0's counter `crew_win`
+## is at least 1. No voice rules (silent everywhere), no roles and no clock: tests that need them
+## add them to the mode.
 
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
@@ -14,6 +16,8 @@ const MAP := "fixture://map"
 const SMALL_MAP := "fixture://small_map"
 const MAX_PLAYERS := 4
 const HOST := 1
+## The pregame's 3 s: its end tick is the entry plus these ticks.
+const PREGAME_TICKS := 60
 
 
 static func mode() -> GameMode:
@@ -70,6 +74,8 @@ static func mode() -> GameMode:
 		[AcceptSpec.of(Intents.LOAD_ACK, player)]
 	)
 	loading.level = PhaseSpec.Level.MAP
+	var pregame := FixtureModes.phase(&"pregame", PregamePhase, {&"seconds": 3.0}, [])
+	pregame.level = PhaseSpec.Level.MAP
 	var round_spec := FixtureModes.phase(
 		&"round",
 		RoundPhase,
@@ -83,7 +89,7 @@ static func mode() -> GameMode:
 		&"end", EndPhase, {&"seconds": 3.0}, [AcceptSpec.of(Intents.RETURN_TO_LOBBY, host)]
 	)
 	end.level = PhaseSpec.Level.MAP
-	made.phases = [lobby, countdown, loading, round_spec, end]
+	made.phases = [lobby, countdown, loading, pregame, round_spec, end]
 	made.first_phase = &"lobby"
 	var circle := StationKind.new()
 	circle.id = &"circle"
@@ -100,7 +106,7 @@ static func mode() -> GameMode:
 			. row(
 				&"loading",
 				LoadingPhase.ALL_LOADED,
-				&"round",
+				&"pregame",
 				[
 					FixtureModes.place(&"round_player"),
 					FixtureDemand.of(&"knife", &"knives"),
@@ -108,6 +114,7 @@ static func mode() -> GameMode:
 				]
 			)
 		),
+		FixtureModes.row(&"pregame", PregamePhase.PREGAME_DONE, &"round", []),
 		FixtureModes.row(&"round", Match.WON, &"end", []),
 		FixtureModes.row(
 			&"end", EndPhase.BACK, &"lobby", [ResetMatch.new(), FixtureModes.place(&"lobby_player")]
@@ -187,12 +194,25 @@ static func load_ack(game: Match, peer: int, match_id: int = -1, seq: int = 0) -
 	FixtureModes.send(game, Intents.LOAD_ACK, peer, {"match_id": id}, seq)
 
 
-## `peers` loaded: the match is in the round.
-static func in_round(peers: Array[int], seed_value: int = 7) -> Match:
+## `peers` loaded: the match is in the pregame, entered at the last tick run.
+static func in_pregame(peers: Array[int], seed_value: int = 7) -> Match:
 	var game := in_loading(peers, seed_value)
 	for peer: int in peers:
 		load_ack(game, peer)
 	return game
+
+
+## `peers` loaded and the pregame's ticks run through its end tick: the match is in the round.
+static func in_round(peers: Array[int], seed_value: int = 7) -> Match:
+	var game := in_pregame(peers, seed_value)
+	through_pregame(game)
+	return game
+
+
+## Runs the pregame's ticks, from its entry tick (the tick after the last one run, which the last
+## LoadAck was stamped with) through its end tick: the match is in the round.
+static func through_pregame(game: Match) -> void:
+	FixtureModes.run_ticks(game, PREGAME_TICKS + 1)
 
 
 ## `peers` in the round, then the crew wins: the match is in End.

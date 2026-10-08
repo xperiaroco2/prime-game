@@ -441,7 +441,7 @@ func _notification(what: int) -> void:
 ## count only there with no Esc menu. Game._process applies them every frame (the Esc menu), and
 ## _on_event as soon as the session folds an event in its physics step (#241): under load several
 ## physics steps run before the next _process, and the player must neither step nor claim after
-## the phase turns frozen (Loading, End), nor wait for _process to walk again.
+## the phase turns frozen (Loading, Pregame, End), nor wait for _process to walk again.
 func _apply_player_flags(now: GameFlow.Screen) -> void:
 	if _player == null:
 		return

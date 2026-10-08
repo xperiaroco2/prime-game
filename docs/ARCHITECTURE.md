@@ -45,8 +45,9 @@ The game mode defines its phases, as an explicit state machine
 ([ADR](decisions/2026-09-29-game-modes-define-the-phases.md)). Designed in #32
 ([ADR](decisions/2026-09-29-match-loop-intents-events-and-entitlement.md)); the rules and every number named here are
 in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are placeholders, "not a decision".
-- **Base mode:** Lobby → Countdown → Loading → Round → End → Lobby. Roles are dealt and packages scattered on the
-  way into Round.
+- **Base mode:** Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Roles are dealt and packages
+  scattered on the way into Pregame, the silent seconds that show each player its role (§3.6); the clock starts on
+  the way into Round.
 - **More phases** (later): a mode may add its own, such as the deathmatch mode that vision revision 1 parks; the
   meetings mode (#35) is closed by that revision.
 
@@ -87,7 +88,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   `outcome_dropped`, so the loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal
   (§9.2), the rule's costs were paid and its effects ran.
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
-  and back. The deal runs only on `Loading, all_loaded → Round`, so returning to Round deals nothing, and a phase
+  and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
   whose clock does not run pauses the match clock by its phase flag. `Match` does not change.
 - **Life states** (vision revision 1; built in M4-1, #137, and M4-2, #138): `PlayerState.Life` is ALIVE, DOWNED,
   DEAD and LEFT, and `is_alive()` means ALIVE only. 0 health knocks a living player down for the knockdown time
@@ -112,6 +113,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
+| Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
 | Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
@@ -121,7 +123,8 @@ hello deadline.
 | Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, circles, knives and players within the map's spawn points, the demands per spawn tag of §9.4, for any draw of the task types; circles within the palette's colours; 1 to 10 players) | Countdown | |
 | Countdown | `cancelled`: a `SetReady(false)`, a join or a leave | Lobby | none: ready flags and positions stay, so after a leave `all_ready` fires on entry and restarts the 5 s |
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
-| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
+| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Pregame | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers` |
+| Pregame | `pregame_done`: the end tick is reached (#213) | Round | `StartClock`: the clock and `RoundStarted` begin with the round |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
 | End | `back`: the end tick is reached, with no intent (#212: everyone returns after 3 s; no button), or the host's `ReturnToLobby` before it | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
 
@@ -216,6 +219,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer`. Entering Loading also disconnects every newcomer still waiting (`DisconnectPeer`, no `Rejected`), and a `Hello` that arrives now gets `Rejected` (`joins_closed`) (E14, 3e) | dropped from the roster; `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which "no crew present" counts (§3.4); the avatar is removed and no body stays: a downed player who leaves leaves none, and a dead player's body is removed (the engineer's answer 1 on PR #133); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the hand item and then the belt item come to rest on the floor below where the player stood (§7.1, M4-5). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
+| Pregame | refused, as in Loading | as in Round (`PregamePhase` hands it to `LifeRules.leave`): the players were dealt, so the round's win checks count the one who left on its entry (#213) |
 | End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
 
 - **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
@@ -235,6 +239,39 @@ dissidents, no crew present only once every crew member left, End widens nothing
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
+
+### 3.6 Pregame, the silent intro (#213, M6.2)
+The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
+Round, like a film's titles: a dark screen (End's `EndBackdrop`, not pure black) shows each player its own role for
+about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
+screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
+silent; a test keeps it so.
+- **The data** (`content/modes/base_mode.tres`): `Phase_pregame`, class `PregamePhase`, `seconds` 3.0 (the
+  engineer's "about 3 s"), no accepts (a `MoveClaim` in flight is dropped as in any phase that refuses it, E15;
+  every other intent gets `not_accepted`), no tick systems, no win check, the clock stopped, `SilentVoice`, the map
+  level, no snapshots (nothing moves). `PregamePhase` itself only reports `pregame_done` on its end tick, refuses
+  joins, and hands a leave to the life rule as Round does (§3.5).
+- **The rows.** The deal stays on `Loading, all_loaded → Pregame`: `RoleAssigned` and `Teammates` reach each client
+  before the pregame's `PhaseChanged`, so its screen has the role at once, and everyone is placed on the map. Only
+  `StartClock` waits, alone on `Pregame, pregame_done → Round`, so `RoundStarted` names the round's first tick and
+  the round's `PhaseChanged` its clock end. No win condition is checked in the pregame: a leave that empties the
+  crew there is seen by the round's entry, in the same step (`Match._finish_step`), before any of its ticks.
+- **The client** (`GameFlow.Screen.PREGAME`, `client/ui/pregame_screen.gd`): chosen by the own copy's `PhaseSpec`,
+  its class `PregamePhase`, never by the phase's name. A dark backdrop (`EndBackdrop`, the end screen's), the copy
+  deck's `pregame.your_role` and the own role's display name from the own mode; nothing of any other player. Frozen
+  as Loading and End, and the mouse kept as in Loading (#517). A greybox: the Toy role reveal is #496.
+- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175). None exists yet, so
+  none plays; whoever adds them plays them on the pregame screen only, where nobody hears anybody.
+- **Not decided here:** a fade between the screens, the teammates on the screen (the deck's `pregame.teammate`).
+Tests: `tests/unit/match/phases/pregame_phase_test.gd` (the last `LoadAck` enters it with roles dealt and no clock;
+the round, `RoundStarted` and the clock on its end tick; each peer's own `RoleAssigned` only; a dropped `MoveClaim`
+and `not_accepted` for the rest; no win check before the round's entry; a leave as Round's; a connection refused;
+its `seconds` bounds; a mode with no `pregame_done` row refused), `tests/unit/voice/voice_by_phase_test.gd` (nobody
+heard on any pregame tick with everyone within 2 m; its radius 0), `tests/unit/content/content_modes_test.gd` (the
+data, the rows, and the real mode's pregame ticks silent with the clock still), `game_flow_test.gd` and
+`screens_test.gd` (the screen, frozen, the mouse kept, no word on the microphone), the chaos bots (the oracle's
+`pregame` row; quiet phases from the mode's voice rules; the hostile speaks in the pregame, and no honest bot may
+decode it). How it looks: `tools\run.cmd shot client/dev/pregame_preview.tscn`.
 
 ## 4. Protocol
 
@@ -600,7 +637,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
 | `LoadMatch` | match id, map, the whole-number settings | everyone | entering Loading |
 | `PlayerLoaded` | peer | everyone | a valid `LoadAck` |
-| `RoundStarted` | start tick | everyone | the deal |
+| `RoundStarted` | start tick | everyone | entering Round (`StartClock` on `Pregame, pregame_done → Round`, #213) |
 | `RoleAssigned` | your role | that player | the deal |
 | `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
@@ -631,7 +668,7 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
 `KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
-(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
+(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
 
@@ -1521,8 +1558,9 @@ sections named:
    a new baseline, checked as one tick and corrected: either answer passes;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
-7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
-   or End (§6; the leak test's voice checks run too);
+7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading,
+   Pregame or End (the mode's phases that hear within 0 m, checked against a hand-written list; §6; the leak
+   test's voice checks run too);
 8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
    the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
    player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
@@ -1561,7 +1599,7 @@ the encoder refuses with an error line).
 ##### 4.6.5.1 Runs
 `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
-step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 900 frames (the 3 s pregame, #213) in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
 `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
 `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
@@ -1722,7 +1760,7 @@ follow the previous one; nothing is drawn in between. A test that reads those wa
 screen it waited for; game_loop_test checks that wait with `Game._process` off (#225). The local player's physics step
 and input flags (`Game._apply_player_flags`) follow the model at once: `Game._on_event` applies them at every event the
 session folds, in its physics step, and `_process` again every frame (the Esc menu), so after a hitch the player
-neither steps nor claims into Loading or End, nor waits for `_process` to walk again (#241). A step turned off there
+neither steps nor claims into Loading, Pregame or End, nor waits for `_process` to walk again (#241). A step turned off there
 stops the player in that physics frame; one turned on steps it from the next (observed on 4.7.2, not in the docs).
 game_loop_test plays a loop with no `Game._process` from the lobby on and sees no step in Loading, everyone at the
 round's and the lobby's `Correction`s and no `Correction` of a refused claim.
@@ -1751,6 +1789,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
+| Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | end screen: black, "The <side's display name> won"; "Back to the lobby in 3" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | main menu with the reason in words | none | none |
@@ -1777,14 +1816,14 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   until End's `end_tick` (`EndScreen.countdown_text`, hidden when End has none), and nothing else (§3.2: no names, no
   roles, no button since #212: End returns everyone by itself).
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
-  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
-  when they show (no click first; also after End's return), Loading keeps it as it was, and the menu, Connecting
-  and the end screen free it (the first two for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
+  when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu,
+  Connecting and the end screen free it (the first two for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
   menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
@@ -2644,7 +2683,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
   living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
-  buttons dead); `clashes_of()`, the "same key" check per phase (#488's rule 6), under which `give_up` and `ready`
+  buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
+  check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
   `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
@@ -3004,6 +3044,7 @@ data names each phase's rule (§3.1), so a new mode's rule is one more rule, not
 |---|---|
 | Lobby, Countdown | every pair within the voice radius |
 | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
+| Pregame | nobody: each player is reading its own role (#213, §3.6) |
 | Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
 | End | nobody: the game is frozen |
 
@@ -3264,7 +3305,7 @@ included), 0 when it routes nobody: the base class and `SilentVoice` 0, `Proximi
 `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
 it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
 (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
-base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading, Pregame (§3.6) and End. The leak test checks the
 routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
 decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
 whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
@@ -4029,7 +4070,7 @@ names the facts that do.
 | `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then each task's `TaskState` in id order (M4-5, E30: `Tasks.announce`) and `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskState` per task and `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
-| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
+| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); alone on the row into the round (`Pregame, pregame_done → Round`, #213), so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
 | `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
@@ -4062,6 +4103,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
+| `Pregame` | phase class | `pregame_done` on its end tick, `seconds` after entry (#213); nothing else of its own: the data makes it silent and frozen (§3.6); joins refused (a connection gets `DisconnectPeer`); a leave as Round's (`LifeRules.leave`, §3.5) | `seconds` (0 to 60; the class default 0) | `PlayerLeft` (everyone), as the life rule's leave; `DisconnectPeer` (server); its end tick goes out in `PhaseChanged` | #213 (`core/match/phases/pregame_phase.gd`) |
 | `End` | phase class | `back` on its end tick, `seconds` after entry, or earlier on `ReturnToLobby` from the host; with no `seconds` it has no end tick and waits for `ReturnToLobby`, which no screen offers (a dead end for the host: a mode sets `seconds`); a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | `seconds` (0 to 60; absent: no end tick) | `PlayerLeft` (everyone); `DisconnectPeer` (server); its end tick goes out in `PhaseChanged` | 2b (#58); the end tick #212 |
 | `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | 2i (#65, `SilentVoice`); the radius M5-1 (#215) |
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6.3, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
@@ -4092,7 +4134,7 @@ Status: designed in #33 · built in <PR>. Tests: path.
 ```
 
 #### 9.5.1 Base mode (game mode)
-What it does: the MVP match, Lobby → Countdown → Loading → Round → End → Lobby (§3.2).
+What it does: the MVP match, Lobby → Countdown → Loading → Pregame → Round → End → Lobby (§3.2).
 Settings:
 - Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
   there (the engineer's answer on #49): players, the match settings and the phase settings. The Godot saver drops
@@ -4120,16 +4162,16 @@ Settings:
   present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
-  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise`,
-  `StopRaise` and `Swap` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
-  `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End 3 s
+  Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
+  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise` and `Swap` from the living, `GiveUp` from the
+  downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, TaskTicks; yes;
+  runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
-- Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
-  at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife by
-  `knives`), `PlacePlayers` (`round_player`),
-  `StartClock`. `Round, won → End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers`
-  (`lobby_player`).
+- Transitions: §3.2. Their actions: `Loading, all_loaded → Pregame`: `DealRoles` (Dissident by `dissidents`,
+  leaving at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife
+  by `knives`), `PlacePlayers` (`round_player`). `Pregame, pregame_done → Round`: `StartClock`. `Round, won →
+  End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers` (`lobby_player`).
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
@@ -4147,11 +4189,11 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and
 greybox of §9.6.
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
-`Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
-match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
+`Loading, all_loaded → Round` row until #213 moved it to `Pregame, pregame_done → Round`) and `EndMatch`
+(`Round, won → End`); `content_modes_test.gd` plays a whole match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
 on any of its ticks, #212), and a round with 0 dissidents set in its lobby.
 Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd` (End silent on every tick until its return).
-End's end tick: `tests/unit/match/phases/end_phase_test.gd`.
+End's end tick: `tests/unit/match/phases/end_phase_test.gd`. The pregame (#213): §3.6.
 
 #### 9.5.2 Crew (role)
 What it does: the side that wins only when every task is done (§3.4).

@@ -26,6 +26,9 @@ const MALFORMED_CAP := 40
 ## The bursts: past the intents bucket (100) and the voice bucket (500) of PeerBudget.
 const BURST_INTENTS := 130
 const BURST_VOICE := 530
+## Voice frames it sends as soon as the silent pregame shows (#213), under the voice bucket so the
+## round's burst still meets a full one: nobody may decode them.
+const PREGAME_VOICE := 20
 ## How far an item it names in a PickUp rests from it at least: past the pick-up's 2 m and past
 ## the over-speed claim's SPEED_M, with a margin; only a carried item moves, and that one is
 ## unavailable.
@@ -50,6 +53,7 @@ var _voice_counter := VOICE_COUNTER
 var _claims := 0
 var _intent_burst_done := false
 var _voice_burst_done := false
+var _pregame_voice_done := false
 
 
 ## The chaos of `bot`, whose `client` runs on a chaos transport with `send_raw`; `budget` replays
@@ -80,6 +84,11 @@ func act(now_usec: int, claimed: bool) -> void:
 		_intent_burst_done = true
 		for _i in BURST_INTENTS:
 			_send(ChaosFrames.message(_schema, Intents.RETURN_TO_LOBBY, {}, _fresh_seq()))
+		return
+	if phase == &"pregame" and not _pregame_voice_done:
+		_pregame_voice_done = true
+		for _i in PREGAME_VOICE:
+			_voice()
 		return
 	if phase == &"round" and life == ClientModel.Life.ALIVE and not _voice_burst_done:
 		_voice_burst_done = true

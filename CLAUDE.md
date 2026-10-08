@@ -34,7 +34,8 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
    commands in, events out. Randomness only through an injected seeded RNG.
 4. **Mechanics are data.** Roles, items, modes and win conditions are `Resource`s of rules (trigger → conditions →
    effects); task types are classes with settings. The parts are the **content API**, the engine–content contract.
-5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Round → End → Lobby.
+5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Pregame → Round → End
+   → Lobby.
 6. **Voice routing is game logic** in `core/` (who hears whom, and how). Spatialization happens on the listener.
 7. **Movement:** client-side for the local player with host sanity checks; remote players are interpolated.
 8. **Debug tools** (dev console, bots, forced roles) may show hidden info locally in debug builds only.
