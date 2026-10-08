@@ -2302,7 +2302,8 @@ a follow-up on #144 and #145):
   applies `UserSettings` to the sender and the buses and takes the Voice tab's changes; which microphone opens, the
   mark and the modes are §6's.
 - `client/app/`: `UserSettings` (`user://settings.cfg`, or `settings_<n>.cfg` for `PRIME_INSTANCE` n > 1: the
-  microphone, the mode, the threshold, RNNoise, the four volumes, the mark; written on each change). `Game` reads this
+  microphone, the mode, the threshold, RNNoise, the four volumes, the mark, and since #208 the interface language,
+  §4.7.26; written on each change). `Game` reads this
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
   stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
   (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
@@ -2532,6 +2533,35 @@ ADR's §6 check the rest.
   build, which is deterministic, seen failing on a planted stale value; the uids; spot values, the press motion and
   the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
   failing on a probe at 1152). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
+
+#### 4.7.26 Built in #208 (a), English and Ukrainian
+The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
+host-made text as ids with arguments on the wire is #548, and the source test against literal strings, the content
+names and the font's glyphs are #549.
+- **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
+  Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
+  ui-copy <tag>` (AGENT_WORKFLOW §11.27) copies it at a release tag into `client/i18n/strings.csv`, byte for byte,
+  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-0.4.0`, 221 keys in 225 rows. Never edit
+  the deck here: a change goes to the UI repo, a new tag, then `ui-copy`.
+- **The translations.** Godot's import writes `strings.en.translation` and `strings.uk.translation` beside the deck
+  (gitignored: every import rebuilds them); `project.godot`'s `[internationalization]` lists both, so every run loads
+  them. A screen sets a Control's text to a key (Godot translates it and retranslates it on a switch) or calls
+  `tr(key)` and fills the placeholders with `String.format({...})` after it, rebuilding on
+  `NOTIFICATION_TRANSLATION_CHANGED`. A number before a word that changes takes `tr_n(key, key, n)`: Ukrainian has
+  three forms (one when the number ends in 1 except 11: 1, 21, 31; few when it ends in 2 to 4 except 12 to 14: 2, 22; many otherwise: 0, 5 to 20, 25), which the deck writes as the
+  key's row and two rows without a key.
+- **The language.** `UserSettings.language` (`[interface] language`, "" before any choice, an unknown one reads as
+  "") holds the player's choice; key bindings get their own file (#211). `Languages` (`client/app/`) names the two
+  (`lang.en`, `lang.uk`, each in its own language in both columns), picks the first launch's language (Ukrainian
+  when `OS.get_locale_language()` is `uk`, English otherwise; not written to the file, so until a choice the game
+  follows the system), applies it with `TranslationServer.set_locale`, and `choose()` applies and saves a pick at
+  once, for the settings screen. `Game._ready_settings` applies it before the voice settings and the first screen. A Game with no command line (a test, a playcheck window) ignores the machine's language and speaks English unless its settings say otherwise.
+Tests: `tests/unit/client/i18n/translations_test.gd` (both translations listed and loaded, every key in both
+languages, Ukrainian plurals for 1, 2, 5, 11 and 21 directly and through `tr_n`, the deck against its lock),
+`tests/unit/client/app/languages_test.gd` (the first launch, the choice over the system, a switch at once that
+outlives a restart, an unknown language), `user_settings_test.gd` (the language's round trip and fallback),
+`tests/integration/client/app/game_language_test.gd` (a saved choice is the locale at the start; seen failing
+without `Languages.apply`), and `tools/runner/tests/test_ui_copy.py`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

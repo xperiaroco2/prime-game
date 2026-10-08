@@ -618,6 +618,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p = sub.add_parser(
+        "ui-copy",
+        help="import the UI track's copy deck (the en and uk strings) at a ui-<semver> tag, with its lock",
+        description="Copy copy/strings.csv of xperiaroco2/prime-game-ui at a release tag into client/i18n/strings.csv, "
+        "byte for byte, and write client/i18n/strings.lock.json (repo, tag, commit, sha256). Godot's import turns it "
+        "into the translations project.godot lists; commit both files. Reads GitHub through gh, or a local checkout "
+        "with --from (#208).",
+    )
+    p.add_argument("tag", help="the UI release tag, for example ui-0.4.0")
+    p.add_argument("--from", dest="source", type=Path, help="a local checkout of prime-game-ui (its tags fetched)")
+
+    p = sub.add_parser(
         "pins", help="print pinned tool versions as JSON", description="Print the pinned tool versions as JSON."
     )
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -875,6 +886,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import inbox
 
             return inbox.main(since=args.since, repos=args.repo)
+        if args.command == "ui-copy":
+            from . import ui_copy
+
+            return ui_copy.main(args.tag, source=args.source)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0

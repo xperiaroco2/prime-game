@@ -18,6 +18,7 @@ func test_the_defaults() -> void:
 	assert_float(settings.threshold).is_equal(VoiceGate.DEFAULT_THRESHOLD)
 	assert_bool(settings.denoise).is_true()
 	assert_str(settings.opening).is_empty()
+	assert_str(settings.language).is_empty()
 	# D15's four sliders at 0, 0, -6 and -14 dB (placeholders).
 	var volumes: Array[float] = []
 	for bus: StringName in UserSettings.VOLUMES:
@@ -36,6 +37,7 @@ func test_a_round_trip_keeps_every_setting() -> void:
 	settings.threshold = 0.25
 	settings.denoise = false
 	settings.opening = "Microphone Array"
+	settings.language = "uk"
 	settings.set_volume_db(&"Master", -3.0)
 	settings.set_volume_db(&"Voice", -60.0)
 	settings.set_volume_db(&"Effects", 2.5)
@@ -48,6 +50,7 @@ func test_a_round_trip_keeps_every_setting() -> void:
 	assert_float(back.threshold).is_equal_approx(0.25, 0.0001)
 	assert_bool(back.denoise).is_false()
 	assert_str(back.opening).is_equal("Microphone Array")
+	assert_str(back.language).is_equal("uk")
 	assert_float(back.volume_db(&"Master")).is_equal(-3.0)
 	assert_float(back.volume_db(&"Voice")).is_equal(-60.0)
 	assert_float(back.volume_db(&"Effects")).is_equal(2.5)
@@ -68,9 +71,12 @@ func test_a_damaged_or_partial_file_falls_back_to_the_defaults() -> void:
 	file.set_value("voice", "threshold", "loud")
 	file.set_value("volume", "Music", 40.0)
 	file.set_value("volume", "Voice", "x")
+	file.set_value("interface", "language", "fr")
 	file.save(PATH)
 	var settings := UserSettings.new(PATH)
+	settings.language = "uk"
 	assert_int(settings.read()).is_equal(OK)
+	assert_str(settings.language).is_empty()
 	assert_int(settings.mode).is_equal(UserSettings.Mode.VOICE_ACTIVITY)
 	assert_float(settings.threshold).is_equal(VoiceGate.DEFAULT_THRESHOLD)
 	assert_bool(settings.denoise).is_true()

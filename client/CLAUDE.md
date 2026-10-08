@@ -59,9 +59,9 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
   `max_distance`, and the sender's `may_speak` (the own life living, radius > 0; every chunk fed each frame, also
   while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
-- Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
-  variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
-  Generated from the UI pack, never edited by hand; UI px on the 1920x1080 base (ARCHITECTURE §4.7.24-25).
+- Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`, generated from the UI pack,
+  never edited by hand; UI px on the 1920x1080 base, ARCHITECTURE §4.7.24-25): a type variation per look, no `add_theme_*_override`,
+  `Color(...)` or font size in a screen's code; a source test holds it. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`.
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
