@@ -1362,7 +1362,8 @@ class GateTextTest(unittest.TestCase):
         owners = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
         self.assertRegex(owners, rf"(?m)^\*\s+@{merge.ENGINEER_LOGIN}\s*$")
         self.assertRegex(owners, rf"(?m)^/docs/decisions/\s+@{merge.ENGINEER_LOGIN}\s+@{merge.DESIGNER_LOGIN}\s*$")
-        self.assertNotRegex(owners, r"(?m)^/(content|levels|docs/GDD\.md|docs/design|\.claude/skills)/?\s")
+        for path in (*merge.DESIGNER_PREFIXES, *merge.DESIGNER_FILES):
+            self.assertNotRegex(owners, rf"(?m)^/{re.escape(path.rstrip('/'))}/?\s", path)
 
 
 class TypedCommandsTest(unittest.TestCase):
