@@ -15,6 +15,7 @@ from pathlib import Path
 
 from runner import guard, hooks
 from runner.common import ROOT, Result, git_bash
+from runner.tests.tempnames import short_path, short_temp
 
 WRAPPER = str(ROOT / ".claude" / "hooks" / "run-hook.sh")
 # The main checkout, also when the selftest runs in a worktree: there the session's own worktree is free (issue #51).
@@ -417,6 +418,25 @@ class GitFilesTest(unittest.TestCase):
             self.assertEqual(files.temp_matches("othe?"), [("other", False)])
             files.temp = str(Path(tmp) / "missing")
             self.assertIsNone(files.temp_matches("rmtree-*"))
+
+    def test_temp_matches_find_worktrees_from_an_8_3_short_temp_folder(self) -> None:
+        # Issue #542: TEMP as `C:\\Users\\XPERIA~1\\...` lists the worktrees git records by their long names.
+        full, _short = short_temp(self)
+        main, temp = Path(full) / "game", Path(full) / "temp-folder"
+        main.mkdir()
+        (temp / "rmtree-a").mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True, capture_output=True)
+        for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+            subprocess.run(["git", "config", key, value], cwd=main, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "c"], cwd=main, check=True, capture_output=True)
+        add = ["git", "worktree", "add", "-q", "--detach", str(temp / "held" / "wt")]
+        subprocess.run(add, cwd=main, check=True, capture_output=True)
+        files = hooks.GitFiles(str(main))
+        files.temp = short_path(temp) or ""
+        self.assertIn("~", files.temp)
+        self.assertEqual(files.temp_matches("h*"), [("held", True)])
+        self.assertEqual(files.temp_matches("held/w?"), [("held/wt", True)])
+        self.assertEqual(files.temp_matches("rmtree-*"), [("rmtree-a", False)])
 
     def test_a_worktree_is_busy_while_another_live_session_works_there(self) -> None:
         with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:

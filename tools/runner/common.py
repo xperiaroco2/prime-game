@@ -14,7 +14,7 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -642,6 +642,47 @@ def remove_own_user_dir(folder: Path | None) -> bool:
         warn(f"kept {folder}: not a removed worktree's own user:// folder")
         return False
     return remove_folder(folder)
+
+
+# The variables that name the temp folder (tempfile reads them in this order).
+TEMP_VARS = ("TMPDIR", "TEMP", "TMP")
+
+
+def long_path(path: str) -> str:
+    """path with each Windows 8.3 short name in it (`C:\\Users\\XPERIA~1`) in its long form, as GetLongPathNameW
+    gives it; anything else, a path that does not exist, and every path elsewhere than Windows unchanged. Unlike
+    os.path.realpath it follows no junction or symbolic link (issue #542)."""
+    if not IS_WINDOWS or "~" not in path:
+        return path
+    import ctypes  # Windows only
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    size = kernel32.GetLongPathNameW(path, None, 0)
+    if not size:
+        return path
+    buffer = ctypes.create_unicode_buffer(size)
+    written = kernel32.GetLongPathNameW(path, buffer, size)
+    return buffer.value if 0 < written < size else path
+
+
+def long_temp(environ: MutableMapping[str, str] | None = None) -> dict[str, tuple[str, str]]:
+    """Put the temp folder's variables in their long form when they hold an 8.3 short path (issue #542): the Claude
+    desktop app may start a shell with TEMP as `C:\\Users\\XPERIA~1\\AppData\\Local\\Temp`, while git, Path.resolve
+    and os.path.realpath give the long `C:\\Users\\xperiaroco\\...`, so two names of one folder compare unequal.
+    Without environ: os.environ (every child process inherits the change) and tempfile's cached folder. Returns
+    {variable: (short, long)} for each one it changed. tools/run.py (machine_env.apply) and the runner tests'
+    package call it once at start."""
+    env = os.environ if environ is None else environ
+    changed: dict[str, tuple[str, str]] = {}
+    for var in TEMP_VARS:
+        value = env.get(var, "")
+        full = long_path(value) if value else value
+        if full != value:
+            env[var] = full
+            changed[var] = (value, full)
+    if environ is None and tempfile.tempdir:
+        tempfile.tempdir = long_path(tempfile.tempdir)
+    return changed
 
 
 @contextmanager
