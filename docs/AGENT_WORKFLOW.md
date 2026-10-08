@@ -464,7 +464,7 @@ Rules for every workflow run:
   the runs (+2; +1 when neither reviewer found anything). `checkpoint: true` (#559, `issue-task` only; opt-in, off
   until the engineer's yes after `metrics` measured it): an implementer whose context passes 150,000 tokens hands over
   to a fresh one. It reads its context from the harness's `<total_tokens>N tokens left` reminder after each tool
-  result (how far N fell since its first reading; exact on 282 of 283 readings, 2026-10-08), or stops after 60 tool
+  result (the budget, 15,000,000, less N is the context of the call before it; `metrics` checks this: exact on 282 of 283 readings, 2026-10-08), or stops after 60 tool
   calls when it sees none; it commits, writes a note (done, left, decisions, gotchas, verify state) to
   `a<n>/handoff-<k>.md` in the scratchpad and returns `handoff`, the note's path. The script then launches
   `implement:#<n>#2` (then `#3`) with the same type, effort, model and schema, at most twice (the third cannot hand

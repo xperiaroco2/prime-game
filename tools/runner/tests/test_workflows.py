@@ -2239,7 +2239,7 @@ class CheckpointTest(unittest.TestCase):
                     self.assertEqual(len(rule), 1)
                     self.assertEqual(without_rule(b["prompt"]), a["prompt"])
                     self.assertTrue(b["prompt"].index(RULE_HEAD) < b["prompt"].index("Do NOT publish"))
-                    for words in ("`<total_tokens>N tokens left</total_tokens>`", "at or below 14,850,000", "after 60 tool calls",
+                    for words in ("`<total_tokens>N tokens left</total_tokens>`", "B minus N, exactly", "B = your first N plus 30,000", "at or below 14,850,000", "after 60 tool calls",
                                   "a7/handoff-1.md", "done (", "left (", "decisions (", "gotchas (", "verify state (",
                                   "leave no background job", "handoff: the note's absolute path"):  # fmt: skip
                         self.assertIn(words, rule[0])
