@@ -99,7 +99,7 @@ class TrialRecordTest(unittest.TestCase):
         self.assertEqual((len(got["tasks"]), got["baseline"]), (2, []))
         self.assertTrue(got["advice"].startswith("continue: 2 of 6 trial tasks; no baseline"), got["advice"])
         md = "\n".join(metrics.trial_section(got))
-        self.assertIn("GitHub was not read (--no-gh)", md)
+        self.assertIn("GitHub's issues were not read (--no-gh or a gh error)", md)
         self.assertIn("| Opus, Size S | 0 | 0 | ? | ? | ? | ? | ? | ? | ? | ? | ? |", md)
 
     def test_the_table(self) -> None:

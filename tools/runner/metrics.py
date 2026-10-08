@@ -2467,7 +2467,8 @@ def trial_section(record: dict) -> list[str]:
                        "?" if t["usd_median"] is None else fmt_usd(t["usd_median"])])  # fmt: skip
     total_head = ["side", "tasks", "red twice", "red runs", "verify runs", "verify reds", "blockers+majors",
                   "publisher fix rounds", "CI fix rounds", "tool calls", "$ (mean)", "$ (median)"]  # fmt: skip
-    sizes = "" if record["sizes_known"] else " GitHub was not read (--no-gh), so no task has a size and no baseline."
+    sizes = "" if record["sizes_known"] else (" GitHub's issues were not read (--no-gh or a gh error), so no task has a "
+                                              "size and there is no baseline.")  # fmt: skip
     return [
         "## Sonnet implementer trial (#560)",
         "",
