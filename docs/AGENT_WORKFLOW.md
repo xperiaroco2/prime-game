@@ -234,8 +234,9 @@ includes `Agent`, no `memory:` field. The three lean writers are the exception: 
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
 `pr-rebase` under `lean` (their default since #458) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
-writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, and sets no
-`effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
+writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, sets no
+`effort:` and no `skills:` preload, and names in its body only `docs/` and `.claude/` paths that exist (#557). No agent
+file sets `permissionMode`, so every subagent runs in the session's mode;
 `tools/runner/instructions.py` (`lint`) enforces all of it. Their shell use is limited by the shared permission
 rules.
 
@@ -246,7 +247,7 @@ rules.
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
-| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
+| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`, and for a workflow script `docs/workflow-scripts.md`, #557) | `opus`, effort from the workflow's role |
 | `task-publisher` | `lean` only (the default): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
@@ -290,6 +291,12 @@ rules.
   read from `model`, as the Agent tool records it, and any other meta key that names a model, at any depth
   (`request.model`), fails until the reader learns it. After a launch that passes `models`, `agents-check` in the
   manager's session checks it. `finish-task` runs it after the reviews.
+- **Launch check [applied] (#557):** `tools\run.cmd agents-check --launch` judges no transcript: in the manager's
+  checkout, where the Workflow tool reads the scripts and resolves their agent types, it fails on a missing or invalid
+  `task-implementer.md` or `task-publisher.md`, a missing `issue-task.js` or `pr-rebase.js`, or a file under
+  `.claude/workflows/` or `.claude/agents/` that differs from origin/main after `git fetch origin main` (a failed
+  fetch warns and compares with the last fetch). A script cannot read files, so it cannot check this itself; the
+  manager runs it before each launch (orchestrate-stage §3).
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
@@ -409,8 +416,8 @@ Rules for every workflow run:
   itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
-  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
-  byte
+  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` (with a `lean_reason` since
+  #557) gets the earlier agents byte for byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
@@ -464,8 +471,13 @@ Rules for every workflow run:
   median of about 57k for a general implementer's whole first call under a desktop manager; the A/B's real tasks
   started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
   prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
-  manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
-  through the Skill tool passes `lean: false`.
+  manager's checkout must have both agent files (`agentType` resolves there; one with no file throws at `agent()`),
+  which `agents-check --launch` checks (§5). Since #557 every task runs lean: one that edits `.claude/workflows/`
+  reads `docs/workflow-scripts.md` (a path-scoped rule points there) instead of loading the bundled
+  `workflow-authoring` skill, which #557's probe priced at 8.1k more tokens on every call for a type with the Skill
+  tool and 6.2k for one preloading it. `lean: false` throws without `lean_reason` (a non-empty string, such as a
+  resume of a run launched before #458), which changes no prompt or option; its result's `lean_off` counts the
+  general agents. In 2026-10-06 to 08, 14 of 37 implementers and 13 of 32 publishers had run general.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
@@ -1524,8 +1536,11 @@ phase per run with a planner (#469: the planner's model, the plan's and its crit
 planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
 code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
 valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
-`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
-prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
+`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), per agent role and
+agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
+list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
+agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s
+phase line; `agent_types` in `metrics.json`), the prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
 (#555, §11.17; `bounded_waits` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
 session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
