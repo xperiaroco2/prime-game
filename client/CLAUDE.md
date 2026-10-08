@@ -20,15 +20,14 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
   and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
-- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure),
-  `EscMenu`, its tabs `LobbyPanel` and `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
+- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure), `EscMenu`, its tabs `LobbyPanel`,
+  `VoicePanel` (M5-6) and `ControlsPanel` (#211, §4.7.28: `app/Controls`, `ui/KeyLabel`), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
   in code, the HUD and the task screen (M4-8), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
-  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
-  `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
-  `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
+  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds). `life/` (M4-9): `LifeView` (the cameras,
+  inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud`.
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
   `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `dev/`: dev rooms, previews.
 
@@ -62,6 +61,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`, generated from the UI pack,
   never edited by hand; UI px on the 1920x1080 base, ARCHITECTURE §4.7.24-25): a type variation per look, no `add_theme_*_override`,
   `Color(...)` or font size in a screen's code; a source test holds it. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
+- A key on screen is `KeyLabel`'s (the binding now, on the player's layout), never a letter in a string (#211).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.

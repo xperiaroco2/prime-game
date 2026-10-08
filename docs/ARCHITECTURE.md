@@ -2041,7 +2041,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
   player within the mode's `TargetInReach` from the feet, less the walking margin of #352, sends `Raise`, its
   release `StopRaise`, and a raise that
-  starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
+  starts after E was let go is stopped at once; the `give_up` key (G until #211, F since) held for 1 s sends
+  `GiveUp` once; the left and right mouse
   buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
   is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
   camera alone); the arm casts at priority 7, after `LifeView` placed it in the same step. The raise target is
@@ -2056,7 +2057,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
-- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
+- `project.godot`: `give_up` (G; F since #211, §4.7.28), `spectate_next` and `spectate_previous` (the left and right
+  mouse buttons).
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
   human picks a CC0 track with its `docs/credits/` entry.
 - Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
@@ -2633,6 +2635,47 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   planted hint problems, a changed hint seen by the stale test); `theme_showcase_test.gd` (the pages show every live
   variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
   large text, the page). The look: the four shots in the PR.
+
+#### 4.7.28 Built in #211 (M6.2), give-up on F and the controls the player rebinds
+- `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
+  reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
+- `client/app/Controls`: the 16 rebindable actions of Settings › Controls in #488's order with their `control.*` deck
+  keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
+  rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
+  movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
+  living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
+  buttons dead); `clashes_of()`, the "same key" check per phase (#488's rule 6), under which `give_up` and `ready`
+  share F legally. A binding is a bare physical key or mouse button, no modifiers; Esc is never bound (#488's rule 2).
+  The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
+  actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
+  reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. `Game` reads and
+  applies it at the start; a `Game` without a command line (tests, playcheck windows) keeps the defaults and never
+  touches the InputMap.
+- `client/ui/KeyLabel`: the label of an action's binding now (`of_action`, `of_event`), for every key prompt and the
+  Toy screens' keycaps (#488's rule 7, #491, #495, #497): the physical key's label on the current layout
+  (`DisplayServer.keyboard_get_label_from_physical`: AZERTY's physical Q reads A) when it is Latin, else its US name
+  (`KeyLabel.shown()`: a Ukrainian layout labels the physical F "А", probed in a window on 4.7.2, and the prompt
+  reads F; headless Godot has no layout and prints an error, so it reads the physical key's name there), the deck's `key.space`, `key.mouse_left` and `key.mouse_right`, through
+  `TranslationServer` with the deck's English text until #208's translations hold them. `LifeHud` ("Hold <key> to
+  give up", the raise and spectate keys, through `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up,
+  `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind.
+- `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
+  Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
+  or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
+  event: the next key or mouse button press binds (applied and saved at once), a release or an echo does nothing,
+  Esc cancels with the menu left open, and hiding the panel cancels it. Reset to defaults empties the file. The
+  Toy Esc menu (#491) hosts the panel in its Settings page and restyles it.
+- Tests: `tests/unit/client/app/controls_test.gd` (the defaults, the phases, the clash per phase, saving only the
+  rebound actions, loading, reset, the fallback for a missing, damaged or foreign file, `apply()`),
+  `tests/unit/client/ui/key_label_test.gd`, `controls_panel_test.gd` (the capture binds, ignores releases and echoes,
+  cancels on Esc, marks a clash, resets), `life_hud_test.gd` (every prompt names the bound key),
+  `input_actions_test.gd` (`give_up` is F); `tests/integration/client/app/esc_menu_input_test.gd` (through real key
+  events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, which K then toggles
+  and F no longer does; seen failing with the capture not consuming its events) and
+  `tests/integration/client/life/life_network_test.gd` (a downed joiner gives up on F held, not on G, and no F in the
+  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_controls_preview.tscn` (the tab with a
+  same-key clash) and `life_give_up_preview.tscn` (the downed panel's "Hold F to give up", from a real window's
+  layout).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
