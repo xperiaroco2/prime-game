@@ -112,10 +112,12 @@ func test_every_mapped_engine_item_exists_in_the_class_reference() -> void:
 	states["read-only"] = "readonly"
 	var press: Dictionary = broken["classes"]["Button"]["press"]
 	press["depth"] = "h_separation"
+	(broken["classes"]["HSlider"]["icons"] as Array).append("grabber_hilight")
 	var found := "\n".join(_unknown_items(broken))
 	assert_str(found).contains("Button colors icon_hover_colour")
 	assert_str(found).contains("LineEdit styles readonly")
 	assert_str(found).contains("Button custom constants h_separation shadows an engine item")
+	assert_str(found).contains("HSlider icons grabber_hilight")
 
 
 func test_names_are_letters_only_and_no_engine_class() -> void:
@@ -352,6 +354,8 @@ func _default_items(cls: String, kind: String) -> PackedStringArray:
 				items.append_array(theme.get_constant_list(type))
 			"font_sizes":
 				items.append_array(theme.get_font_size_list(type))
+			"icons":
+				items.append_array(theme.get_icon_list(type))
 		type = ClassDB.get_parent_class(type)
 	return items
 

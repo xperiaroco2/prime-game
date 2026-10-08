@@ -222,10 +222,12 @@ static func without_uid(text: String) -> String:
 
 
 ## Every engine item the mapping writes for a class, by kind (styles, colors, constants,
-## font_sizes): what the keys test looks up in the class reference. Custom items are left out.
+## font_sizes, and the icons the pack's textures may name): what the keys test looks up in the
+## class reference. Custom items are left out.
 static func engine_items(mapping: Dictionary, cls: String) -> Dictionary:
 	var spec: Dictionary = _dict(_dict(mapping, "classes"), cls)
 	var items := {"styles": [], "colors": [], "constants": [], "font_sizes": []}
+	items["icons"] = _array(spec, "icons").duplicate()
 	var custom_states: Array = _array(spec, "custom_states")
 	var states: Dictionary = _dict(spec, "states")
 	for state: String in states:
