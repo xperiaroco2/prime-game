@@ -118,7 +118,9 @@ def _kill_group(proc: subprocess.Popen[bytes]) -> None:
 # Every process run() started in this process that has not ended (#574). Each runs in a group of its own
 # (group_kwargs), which a kill of its parent's group never reaches: a verify lane process that its parent stops on
 # Linux or macOS kills them first (verify.lane_main's SIGTERM handler). set.add and set.discard hold the GIL, so no
-# lock: a lock that the main thread held when the signal interrupted it would deadlock the handler.
+# lock: a lock that the main thread held when the signal interrupted it would deadlock the handler. A gap stays: a
+# SIGTERM between Popen's return and RUNNING.add misses the child just started (a few bytecodes; blocking the signal
+# there would not close it, since another thread can take it and the main thread still runs the handler).
 RUNNING: set[subprocess.Popen[bytes]] = set()
 
 
