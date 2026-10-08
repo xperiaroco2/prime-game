@@ -143,8 +143,9 @@ class TracksTest(unittest.TestCase):
 
     def test_the_templates_unfilled_placeholder_names_no_track(self) -> None:
         line = 'Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.'
-        skill = Path(__file__).resolve().parents[3] / ".claude" / "skills" / "orchestrate-stage" / "SKILL.md"
-        self.assertIn(line, skill.read_text(encoding="utf-8").splitlines())  # §10's template line as it stands
+        skill = Path(__file__).resolve().parents[3] / ".claude" / "skills" / "orchestrate-stage"
+        template = skill / "kickoff-template.md"  # the skill's §10 since #561
+        self.assertIn(line, template.read_text(encoding="utf-8").splitlines())  # §10's template line as it stands
         write_lines(self.root / "projects" / "D--prime-game" / "tpl.jsonl", [
             kickoff(100, f"ultracode: orchestrate stage <k>\n{line}"), assistant(101, "tpl1", ONE),
         ])

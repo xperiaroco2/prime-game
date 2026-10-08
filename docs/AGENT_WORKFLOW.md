@@ -149,7 +149,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 8,704 (every agent carries them on
   every call), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
   only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
-  folder, read on demand (`orchestrate-stage`'s core names the file for each event, §7.1). It also fails on rule frontmatter that would not parse (Claude
+  folder, read on demand (`orchestrate-stage`'s core names the file for each event, §6). It also fails on rule
+  frontmatter that would not parse (Claude
   Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
   retires it, and the intervention entry says which.
 - **[applied]** Root's commands section is the runner line and one line of command names, no table (#340; N2 (a) of
@@ -325,7 +326,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `new-level-piece` | both | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
-| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
+| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
@@ -450,7 +451,8 @@ Rules for every workflow run:
   the paths, line ranges and facts the plan rests on, read at its `base_sha`. The implementer runs one `git diff
   --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
   the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
-  planner on Sonnet with `models.plan` (orchestrate-stage §3); the critique stays on the review model. `metrics`'
+  planner on Sonnet with `models.plan` (orchestrate-stage §3, `launch-args.md`); the critique stays on the review
+  model. `metrics`'
   plan phase table (§11.12) gives the before and after.
   `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
@@ -607,7 +609,8 @@ Rules for every workflow run:
   started in. A track's spend this week against its budget, over every session of the track, the UI and art
   checkouts' included: `tools\run.cmd metrics --since <the
   weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
-  the `Track:` line of its kickoff, the skill's §10, else its checkout's, else untracked). Shared files (N5 (c)):
+  the `Track:` line of its kickoff, the skill's §10 (`kickoff-template.md`), else its checkout's, else untracked).
+  Shared files (N5 (c)):
   `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
   between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
   changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
@@ -689,7 +692,8 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   it ("messages can't be delivered there", probed on
   [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
   comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
-- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
+- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8, `notifications.md`): the label
+  `For you:` (or `Для вас:`)
   on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
   it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
 
@@ -1532,7 +1536,8 @@ fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-d
 `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
 whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
 running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
-those itself (orchestrate-stage §8, the trust ADR). The section's first line, which the manager lifts into its chat
+those itself (orchestrate-stage §8 in `notifications.md`, the trust ADR). The section's first line, which the manager
+lifts into its chat
 message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
 worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
 #343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
@@ -1662,7 +1667,8 @@ session's own lines, its hand-run subagents and its workflow runs' agents, each 
 its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
 across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
 `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
-orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
+orchestrate-stage skill's §10 template (`kickoff-template.md`) and §7's handover carry one; any case, the key also
+`Трек:` for a translated
 kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
 default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
 (`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the

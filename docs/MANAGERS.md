@@ -28,7 +28,7 @@ skill and its `handover.md`.
 - One message, as the engineer wrote it (his language kept). It names the scope, the plan issue for reports, the
   order, the budget as a percentage of the week, the approved agent count per workflow, and a `Track: <game | ui |
   art | meta>` line in English (`metrics --track` reads it). Game and meta: the `orchestrate-stage` skill's §10
-  template.
+  template (its `kickoff-template.md`).
 - **No "ultracode"** in a manager's kickoff. The keyword is only the opt-in for workflows, and its "token cost is not a
   constraint" guidance works against the token efficiency track. The kickoff says **"one task = one issue-task
   workflow"** (UI and art: one task = one workflow of your repo), with the approved agent count: that explicit request
@@ -145,7 +145,7 @@ issue: the current stage's `plan:` issue in this repo; the context: the app's co
   first phase. A workflow you write returns after its first phase (or takes an arg that runs only it), and the rest
   is a second launch after the check; a saved one you cannot change: stop it once its first phase's agents have
   answered, and after the check go on by relaunching it with `resumeFromRunId` and the same args
-  ([`orchestrate-stage`](../.claude/skills/orchestrate-stage/SKILL.md) §7: its finished agents return their saved
+  ([`orchestrate-stage`](../.claude/skills/orchestrate-stage/resume.md) §7: its finished agents return their saved
   results), never a fresh launch, which pays the first phase again.
 - **The check**: `tools\run.cmd metrics --run <run id>` (the Workflow tool's run id, or its start) prints a run's
   spend so far, finished or in flight: its agents started and answered, who works now, its % of the week and its list
