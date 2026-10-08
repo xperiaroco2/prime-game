@@ -248,7 +248,7 @@ func test_the_large_theme_differs_only_in_text_sizes() -> void:
 func test_legacy_names_are_thin_variations_of_toy_ones() -> void:
 	var theme := _committed("default")
 	var legacy: Dictionary = _mapping["legacy"]
-	assert_int(legacy.size()).is_equal(16)
+	assert_int(legacy.size()).is_equal(17)
 	for type_name: String in legacy:
 		var entry: Dictionary = legacy[type_name]
 		assert_str(str(theme.get_type_variation_base(type_name))).is_equal(str(entry["variation"]))
@@ -266,6 +266,10 @@ func test_legacy_names_are_thin_variations_of_toy_ones() -> void:
 				. override_failure_message(type_name)
 				. is_empty()
 			)
+	# A hint reads below the text it explains (HudHint under HudText, the lobby and the HUD).
+	assert_int(theme.get_font_size(&"font_size", &"ToyHudCaption")).is_less(
+		theme.get_font_size(&"font_size", &"ToyTextOnDark")
+	)
 	var bar := theme.get_stylebox(&"background", &"LifeBar")
 	assert_float(bar.get_minimum_size().x).is_greater(100.0)
 	assert_bool(theme.has_stylebox(&"fill", &"LifeBar")).is_false()
