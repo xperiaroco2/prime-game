@@ -715,6 +715,8 @@ class BoundedWaitTest(unittest.TestCase):
                 tool_result(0.2, "f-1", ""),  # 6 s
                 assistant(0.25, "l2", usage(read=1000), tool={"id": "r-1", "name": "Read", "input": {"file_path": "x"}}),
                 tool_result(0.3, "r-1", "1	x"),  # 3 s
+                assistant(0.31, "l2e", usage(read=1000), tool={"id": "e-1", "name": "Edit", "input": {"file_path": "x"}}),
+                tool_result(0.34, "e-1", "updated"),  # 2 s (whole seconds)
                 assistant(0.35, "l3", usage(read=1000), tool={"id": "m-1", "name": "Monitor", "input": {}}),
                 tool_result(0.4, "m-1", "started"),
                 assistant(0.5, "l4", usage(read=1000), tool=bash("f-2", "tools/run.sh lint")),
@@ -729,12 +731,13 @@ class BoundedWaitTest(unittest.TestCase):
         latency = record["tool_latency"]
         self.assertEqual(list(latency), [key for key, _name in metrics.LATENCY_CLASSES])
         rounded = {k: (v["calls"], round(v["median_s"], 1), round(v["p95_s"], 1)) for k, v in latency.items()}
-        self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (3, 60.0, 246.0), "file": (1, 3.0, 3.0),
-                                   "wait": (1, 6.0, 6.0)})
+        self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (3, 60.0, 246.0), "read": (1, 3.0, 3.0),
+                                   "edit": (1, 2.0, 2.0), "wait": (1, 6.0, 6.0)})
         self.assertIn("Tool-call start-up (#568), from a call's start to its output: shell calls started in the "
                       "background (start-up only): 1 calls, 3.0 s median, 3.0 s p95; foreground shell calls (start-up "
-                      "and the command's run): 3 calls, 60.0 s median, 246.0 s p95; Read, Grep, Glob, Edit and Write: 1 "
-                      "calls, 3.0 s median, 3.0 s p95; `wait` calls stopped by their deadline, minus wait's own clock: "
+                      "and the command's run): 3 calls, 60.0 s median, 246.0 s p95; Read, Grep and Glob (no hook): 1 "
+                      "calls, 3.0 s median, 3.0 s p95; Edit and Write (with the gd-edit hook): 1 calls, 2.0 s median, "
+                      "2.0 s p95; `wait` calls stopped by their deadline, minus wait's own clock: "
                       "1 calls, 6.0 s median, 6.0 s p95.", "\n".join(md))  # fmt: skip
         self.assertEqual(metrics.latency_section(metrics.latency_record([])), [])
 

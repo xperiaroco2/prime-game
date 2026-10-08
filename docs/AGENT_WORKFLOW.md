@@ -1555,7 +1555,8 @@ list $ and the median first-call context; how many implementers, planners, test 
 agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s
 phase line; `agent_types` in `metrics.json`), the prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
 (#555, §11.17; `bounded_waits` in `metrics.json`), the tool-call start-up (#568, §8.2: per class of call, shell calls
-started in the background (the start-up alone), foreground shell calls and the file tools, the median and p95 of the
+started in the background (the start-up alone), foreground shell calls, Read, Grep and Glob (no hook: the baseline)
+and Edit and Write (with the gd-edit hook), the median and p95 of the
 time from its tool_use line to its tool_result line, and of a `wait` call stopped by its deadline minus wait's own
 clock; `tool_latency` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
 session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,

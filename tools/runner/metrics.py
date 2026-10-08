@@ -69,8 +69,8 @@ types in the JSON record and on `--run`'s phase line.
 Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
 the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
 background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
-Python) and the shell's own spawn; a foreground shell call adds its command's run; the file tools have no PreToolUse
-hook and start no shell; a `wait` call that ran to its deadline minus its own clock ("still running after N s") is
+Python) and the shell's own spawn; a foreground shell call adds its command's run; Read, Grep and Glob run no hook and
+start no shell (the baseline); Edit and Write run the gd-edit PostToolUse hook before their output; a `wait` call that ran to its deadline minus its own clock ("still running after N s") is
 its start-up and its end. Compare windows before and after a change of the hook or of verify's load.
 
 Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
@@ -290,10 +290,14 @@ BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks 
 LATENCY_CLASSES = (
     ("shell-background", "shell calls started in the background (start-up only)"),
     ("shell", "foreground shell calls (start-up and the command's run)"),
-    ("file", "Read, Grep, Glob, Edit and Write"),
+    ("read", "Read, Grep and Glob (no hook)"),
+    ("edit", "Edit and Write (with the gd-edit hook)"),
     ("wait", "`wait` calls stopped by their deadline, minus wait's own clock"),
 )
-FILE_TOOLS = ("Read", "Grep", "Glob", "Edit", "Write")
+# The file tools per class: the read tools run no hook (the baseline); Edit and Write run the gd-edit PostToolUse hook
+# (Git Bash, Python and, for a .gd file, an engine check) before their result.
+READ_TOOLS = ("Read", "Grep", "Glob")
+EDIT_TOOLS = ("Edit", "Write")
 # wait's line when the job is still running at its deadline: its own clock, without the shell's and Python's start-up.
 WAIT_RAN = re.compile(r"^wait: still running after (\d+) s \(", re.MULTILINE)
 # A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
@@ -1154,7 +1158,9 @@ def latency_class(call: dict) -> str | None:
     """A tool call's key in LATENCY_CLASSES (#568), None for a call of any other tool."""
     if call["name"] in ("Bash", "PowerShell"):
         return "shell-background" if call["background"] else "shell"
-    return "file" if call["name"] in FILE_TOOLS else None
+    if call["name"] in READ_TOOLS:
+        return "read"
+    return "edit" if call["name"] in EDIT_TOOLS else None
 
 
 def bounded_waits(
