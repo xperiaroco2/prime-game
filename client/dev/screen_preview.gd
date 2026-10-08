@@ -3,7 +3,7 @@ extends Node
 ## fed by a fake ClientModel folded from events written here, as a host would send them. Dev only:
 ## nothing here reaches the game.
 
-enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS }
+enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS, PREGAME }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
@@ -63,6 +63,11 @@ func _ready() -> void:
 			model.fold(&"PlayerLoaded", {"peer": 1})
 			model.fold(&"PlayerLoaded", {"peer": 2})
 			ui.show_screen(GameFlow.Screen.LOADING)
+		Preview.PREGAME:
+			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
+			model.fold(&"RoleAssigned", {"role": &"dissident"})
+			model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
+			ui.show_screen(GameFlow.Screen.PREGAME)
 		Preview.END:
 			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
 			model.fold(&"MatchEnded", {"side": &"dissidents"})

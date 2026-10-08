@@ -20,6 +20,8 @@ var connecting := ConnectingScreen.new()
 ## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
 var lobby_hud := LobbyHud.new()
 var loading := LoadingScreen.new()
+## The silent seconds before the round: black, the own role (#213).
+var pregame := PregameScreen.new()
 var hud := Hud.new()
 var tasks := TaskScreen.new()
 var end := EndScreen.new()
@@ -45,7 +47,9 @@ var _mode: GameMode
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [menu, connecting, lobby_hud, loading, hud, life, tasks, end, esc]:
+	for each: Control in [
+		menu, connecting, lobby_hud, loading, pregame, hud, life, tasks, end, esc
+	]:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
@@ -64,6 +68,7 @@ func show_screen(which: GameFlow.Screen) -> void:
 	connecting.visible = which == GameFlow.Screen.CONNECTING
 	lobby_hud.visible = which == GameFlow.Screen.LOBBY
 	loading.visible = which == GameFlow.Screen.LOADING
+	pregame.visible = which == GameFlow.Screen.PREGAME
 	hud.visible = which == GameFlow.Screen.ROUND
 	end.visible = which == GameFlow.Screen.END
 	life.visible = which == GameFlow.Screen.ROUND
@@ -89,6 +94,8 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 			lobby_hud.refresh(model, host_tick)
 		GameFlow.Screen.LOADING:
 			loading.refresh(model)
+		GameFlow.Screen.PREGAME:
+			pregame.refresh(model, mode)
 		GameFlow.Screen.END:
 			end.refresh(model, mode, host_tick)
 

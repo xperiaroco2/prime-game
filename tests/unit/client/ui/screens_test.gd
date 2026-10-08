@@ -128,6 +128,41 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool(menu.lobby.visible).is_false()
 
 
+func test_the_pregame_screen_shows_the_own_role_alone_and_no_word_on_the_microphone() -> void:
+	# #213: black, "Your role" and the own role's display name; nothing about the microphone (the
+	# engineer, 2026-10-02), no other player (the Teammates a dissident holds stay off it).
+	var mode := load(MODE) as GameMode
+	var model := Preview.fake_model(mode, true)
+	model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
+	var screen: PregameScreen = auto_free(PregameScreen.new())
+	screen.refresh(model, mode)
+	assert_str(screen.role_label.text).is_empty()
+	model.fold(&"RoleAssigned", {"role": &"dissident"})
+	model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([1, 3])})
+	screen.refresh(model, mode)
+	assert_str(screen.title_label.text).is_equal(PregameScreen.TITLE_KEY)
+	assert_str(screen.role_label.text).is_equal(mode.find_role(&"dissident").display_name)
+	model.fold(&"RoleAssigned", {"role": &"crew"})
+	screen.refresh(model, mode)
+	assert_str(screen.role_label.text).is_equal(mode.find_role(&"crew").display_name)
+	assert_array(screen.find_children("*", "BaseButton", true, false)).is_empty()
+	for found: Node in screen.find_children("*", "Label", true, false):
+		var label := found as Label
+		var shown := (label.text + " " + tr(label.text)).to_lower()
+		for word: String in ["mic", "voice", "hear", "player1", "player2", "player3"]:
+			assert_str(shown).override_failure_message("%s: %s" % [word, shown]).not_contains(word)
+
+
+func test_the_ui_shows_the_pregame_screen_alone_in_the_pregame() -> void:
+	var ui: GameUi = auto_free(GameUi.new())
+	ui.show_screen(GameFlow.Screen.PREGAME)
+	assert_bool(ui.pregame.visible).is_true()
+	for other: Control in [ui.loading, ui.hud, ui.life, ui.end, ui.lobby_hud]:
+		assert_bool(other.visible).override_failure_message(other.name).is_false()
+	ui.show_screen(GameFlow.Screen.ROUND)
+	assert_bool(ui.pregame.visible).is_false()
+
+
 func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn_last() -> void:
 	# #204: the game passes its live screen, which may be ahead of the one drawn last.
 	var ui: GameUi = auto_free(GameUi.new())

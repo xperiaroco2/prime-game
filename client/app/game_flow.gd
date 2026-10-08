@@ -17,6 +17,7 @@ enum Screen {
 	CONNECTING,  ## "Connecting to <address>", Cancel
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded
+	PREGAME,  ## black, the own role (#213): silent, frozen, before the round's clock runs
 	ROUND,  ## the round (M4-8's HUD)
 	END,  ## "The <side> won"; "Back to the lobby in 3" (#212)
 }
@@ -24,7 +25,7 @@ enum Screen {
 ## What showing a screen asks of the mouse (#169, #517).
 enum Pointer {
 	CAPTURE,  ## the lobby and the round: the player looks around
-	KEEP,  ## Loading: nothing to click, and a mouse captured in the lobby must reach the round
+	KEEP,  ## Loading and Pregame: nothing to click; a mouse captured in the lobby reaches the round
 	FREE,  ## the menu, Connecting and the end screen: their buttons
 }
 
@@ -43,6 +44,8 @@ static func screen(session: Session, model: ClientModel) -> Screen:
 		return Screen.LOBBY
 	if spec.senders_of(Intents.LOAD_ACK) != 0:
 		return Screen.LOADING
+	if spec.phase_class == PregamePhase:
+		return Screen.PREGAME
 	if not model.winner.is_empty() or spec.senders_of(Intents.RETURN_TO_LOBBY) != 0:
 		return Screen.END
 	return Screen.ROUND
@@ -56,22 +59,24 @@ static func level(session: Session, model: ClientModel) -> PhaseSpec.Level:
 	return spec.level if spec != null else PhaseSpec.Level.NONE
 
 
-## Whether the local player stands still: Loading and End accept no MoveClaim (the map is not
-## there yet, or the match is over), and nothing moves it before Welcome.
+## Whether the local player stands still: Loading, Pregame and End accept no MoveClaim (the map is
+## not there yet, the round has not begun, or the match is over), and nothing moves it before
+## Welcome.
 static func frozen(screen_now: Screen) -> bool:
 	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
 
 
 ## What showing `screen_now` does to the mouse. In the lobby and the round the player looks around:
 ## the screen captures the mouse, Esc's menu frees it and closing the menu captures it again (#169).
-## Loading, between the countdown and the round, keeps it as it was: freeing it there left the
-## round with the cursor showing until a click (#517). Every other screen frees it: the menu and
-## Connecting's Cancel are buttons, and the end screen (no button since #212) only counts down.
+## Loading and Pregame, between the countdown and the round, keep it as it was: freeing it there
+## left the round with the cursor showing until a click (#517). Every other screen frees it: the
+## menu and Connecting's Cancel are buttons, and the end screen (no button since #212) only counts
+## down.
 static func pointer_on(screen_now: Screen) -> Pointer:
 	match screen_now:
 		Screen.LOBBY, Screen.ROUND:
 			return Pointer.CAPTURE
-		Screen.LOADING:
+		Screen.LOADING, Screen.PREGAME:
 			return Pointer.KEEP
 	return Pointer.FREE
 
