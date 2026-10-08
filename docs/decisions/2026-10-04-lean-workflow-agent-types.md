@@ -3,7 +3,9 @@
 - **Status:** Accepted; on by default since 2026-10-06 (the engineer's N4 (b),
   [#302 comment 6011721870](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6011721870); #458).
   Accepted 2026-10-04 for an opt-in trial (default off); amended 2026-10-05 and 2026-10-06 (below); amendment
-  2026-10-08 (#557) proposed, Approved by the engineer: pending
+  2026-10-08 (#557) accepted, Approved by the engineer:
+  [#579 comment 6062973984](https://github.com/xperiaroco2/prime-game/pull/579#issuecomment-6062973984)
+  ((b) over (a), `lean_reason` required, `agents-check --launch`; no REV token)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer: build the token efficiency research's proposals, lean agent types once the cache-read
   probe has a result (#302 comment 5974021004); the probe found cache reads count at about 0.5-1 of list (#302
