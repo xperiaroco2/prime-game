@@ -1,5 +1,6 @@
 """Instruction-file lint: frontmatter parsing, loaded-line counting, budgets, agent frontmatter."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -364,6 +365,57 @@ class SkillTest(unittest.TestCase):
             write(root, "CLAUDE.md", "x\n")
             (root / ".claude" / "skills" / "empty").mkdir(parents=True)
             self.assertIn(".claude/skills/empty/SKILL.md: missing", " ".join(instructions.check(root).errors))
+
+
+class SkillOverridesTest(unittest.TestCase):
+    """`skillOverrides` in .claude/settings.json hides bundled skills from the listing, never ours (#562)."""
+
+    def errors(self, settings: dict) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "CLAUDE.md", "x\n")
+            write(root, ".claude/skills/start-task/SKILL.md", SKILL)
+            write(root, ".claude/workflows/issue-task.js", "// a workflow\n")
+            write(root, ".claude/settings.json", json.dumps(settings))
+            return instructions.check(root).errors
+
+    def test_hiding_bundled_skills_passes(self) -> None:
+        self.assertEqual(self.errors({"skillOverrides": {"simplify": "user-invocable-only", "init": "off"}}), [])
+        self.assertEqual(self.errors({"skillOverrides": {"start-task": "on", "workflow-authoring": "on"}}), [])
+
+    def test_a_project_skill_or_workflow_stays_listed(self) -> None:
+        for name in ("start-task", "issue-task"):
+            for value in ("name-only", "user-invocable-only", "off"):
+                with self.subTest(name=name, value=value):
+                    errors = self.errors({"skillOverrides": {name: value}})
+                    self.assertEqual(len(errors), 1, errors)
+                    self.assertIn(f"skillOverrides hides the project's own {name!r}", errors[0])
+
+    def test_workflow_authoring_stays_listed(self) -> None:
+        errors = self.errors({"skillOverrides": {"workflow-authoring": "user-invocable-only"}})
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("'workflow-authoring'", errors[0])
+
+    def test_an_unknown_value_or_shape_fails(self) -> None:
+        self.assertIn("'hidden' is not one of", " ".join(self.errors({"skillOverrides": {"simplify": "hidden"}})))
+        self.assertIn("skillOverrides must be an object", " ".join(self.errors({"skillOverrides": ["simplify"]})))
+
+    def test_disable_bundled_skills_fails(self) -> None:
+        # It removes workflow-authoring with the rest, and a skillOverrides "on" cannot bring it back.
+        self.assertIn("disableBundledSkills", " ".join(self.errors({"disableBundledSkills": True})))
+        self.assertEqual(self.errors({"disableBundledSkills": False}), [])
+
+    def test_the_shared_settings_hide_bundled_skills_but_keep_ours(self) -> None:
+        from runner.common import ROOT
+
+        settings = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        overrides = settings.get("skillOverrides", {})
+        self.assertIn("code-review", overrides)
+        self.assertNotIn("workflow-authoring", overrides)
+        self.assertEqual(set(overrides.values()), {"user-invocable-only"})  # humans can still type /name
+        self.assertNotIn("disableBundledSkills", settings)
+        errors = [e for e in instructions.check(ROOT).errors if "settings.json" in e]
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":
