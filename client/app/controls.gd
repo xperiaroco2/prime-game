@@ -10,8 +10,8 @@ extends RefCounted
 ##   default, so a default changed later (give_up from G to F, #211) reaches every player who never
 ##   rebound it; reset() empties it.
 ## - A binding is a physical key (the project's input map binds physical keys: the same place on
-##   any layout) or a mouse button, with no modifiers. Esc is fixed (#488's rule 2): it cancels a
-##   capture and is never bound.
+##   any layout) or a mouse button but the wheel, with no modifiers, for every device. Esc is fixed
+##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
@@ -24,6 +24,19 @@ enum Phase { LOBBY = 1, ALIVE = 2, DOWNED = 4, DEAD = 8 }
 
 const FILE := "user://controls.cfg"
 const SECTION := "bindings"
+## InputMap's device id for any device (its C++ ALL_DEVICES), as project.godot's events carry.
+const ALL_DEVICES := -1
+## The actions with a key that is not rebindable and that no binding may take: the debug overlay
+## (F3) and fullscreen (Alt+Enter, so Enter).
+const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
+## The mouse "buttons" that never bind: none, and the wheel's four.
+const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
+	MOUSE_BUTTON_NONE,
+	MOUSE_BUTTON_WHEEL_UP,
+	MOUSE_BUTTON_WHEEL_DOWN,
+	MOUSE_BUTTON_WHEEL_LEFT,
+	MOUSE_BUTTON_WHEEL_RIGHT,
+]
 ## The rebindable actions in Settings › Controls' order, with the deck key (#208) of each row's name
 ## (#488's table).
 const ACTIONS: Dictionary[StringName, StringName] = {
@@ -138,22 +151,43 @@ static func default_event(action: StringName) -> InputEvent:
 
 
 ## `event` as a binding: a physical key or a mouse button with nothing else (no modifiers, not
-## pressed); null for anything else, Esc, or a key with no code.
+## pressed), for every device as in project.godot; null for anything else, Esc, a fixed key
+## (is_fixed_key()), a key with no code, or the wheel (it only clicks: a held action could never
+## be held on it).
 static func normalised(event: InputEvent) -> InputEvent:
 	var key := event as InputEventKey
 	if key != null:
 		var physical := key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
-		if physical == KEY_NONE or physical == KEY_ESCAPE:
+		if physical == KEY_NONE or physical == KEY_ESCAPE or is_fixed_key(physical):
 			return null
 		var bound := InputEventKey.new()
 		bound.physical_keycode = physical
+		bound.device = ALL_DEVICES
 		return bound
 	var button := event as InputEventMouseButton
-	if button != null and button.button_index != MOUSE_BUTTON_NONE:
+	if button != null and button.button_index not in NOT_BINDABLE_BUTTONS:
 		var bound := InputEventMouseButton.new()
 		bound.button_index = button.button_index
+		bound.device = ALL_DEVICES
 		return bound
 	return null
+
+
+## Whether `physical` is the key of a fixed action (FIXED, whatever its modifiers): bound to an
+## action as well, both would act on it (Ready on F3 would never toggle: Game takes F3 first).
+static func is_fixed_key(physical: Key) -> bool:
+	for action: StringName in FIXED:
+		var setting: Variant = ProjectSettings.get_setting("input/%s" % action)
+		if not setting is Dictionary:
+			continue
+		var events: Variant = (setting as Dictionary).get("events", [])
+		if not events is Array:
+			continue
+		for each: Variant in events as Array:
+			var key := each as InputEventKey
+			if key != null and (key.physical_keycode == physical or key.keycode == physical):
+				return true
+	return false
 
 
 ## Whether two bindings are the same key or button.

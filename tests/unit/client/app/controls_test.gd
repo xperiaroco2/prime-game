@@ -194,6 +194,59 @@ func test_apply_rebinds_the_input_map_and_the_key_labels_follow() -> void:
 	assert_bool(_press(KEY_F).is_action_pressed(&"give_up")).is_true()
 
 
+func test_applied_bindings_match_a_real_keyboard_and_mouse() -> void:
+	# A window's key and mouse events carry DEVICE_ID_KEYBOARD and DEVICE_ID_MOUSE; the bindings
+	# keep project.godot's all-devices id (-1), so after apply() the defaults and a rebind still act.
+	var controls := Controls.new()
+	var middle := InputEventMouseButton.new()
+	middle.button_index = MOUSE_BUTTON_MIDDLE
+	controls.bind(&"interact", middle)
+	controls.bind(&"give_up", _press(KEY_G))
+	controls.apply()
+	for action: StringName in Controls.ACTIONS:
+		assert_int(controls.event_of(action).device).override_failure_message(action).is_equal(-1)
+	var forward := _press(KEY_W)
+	forward.device = InputEvent.DEVICE_ID_KEYBOARD
+	assert_bool(forward.is_action_pressed(&"move_forward")).is_true()
+	var give_up := _press(KEY_G)
+	give_up.device = InputEvent.DEVICE_ID_KEYBOARD
+	assert_bool(give_up.is_action_pressed(&"give_up")).is_true()
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.device = InputEvent.DEVICE_ID_MOUSE
+	assert_bool(click.is_action_pressed(&"use")).is_true()
+	var wheel_click := InputEventMouseButton.new()
+	wheel_click.button_index = MOUSE_BUTTON_MIDDLE
+	wheel_click.pressed = true
+	wheel_click.device = InputEvent.DEVICE_ID_MOUSE
+	assert_bool(wheel_click.is_action_pressed(&"interact")).is_true()
+
+
+func test_a_key_of_a_fixed_action_and_the_wheel_never_bind() -> void:
+	# F3 (the debug overlay) and Enter (Alt+Enter: fullscreen) are fixed like Esc: on one of those
+	# keys both would act. The wheel only clicks, so a held action could never be held on it.
+	var controls := Controls.new()
+	assert_bool(controls.bind(&"ready", _press(KEY_F3))).is_false()
+	assert_bool(controls.bind(&"jump", _press(KEY_ENTER))).is_false()
+	for wheel: MouseButton in [
+		MOUSE_BUTTON_WHEEL_UP,
+		MOUSE_BUTTON_WHEEL_DOWN,
+		MOUSE_BUTTON_WHEEL_LEFT,
+		MOUSE_BUTTON_WHEEL_RIGHT
+	]:
+		var button := InputEventMouseButton.new()
+		button.button_index = wheel
+		(
+			assert_bool(controls.bind(&"give_up", button))
+			. override_failure_message(str(wheel))
+			. is_false()
+		)
+	assert_bool(controls.is_default(&"ready")).is_true()
+	assert_bool(controls.is_default(&"jump")).is_true()
+	assert_bool(controls.is_default(&"give_up")).is_true()
+
+
 func _press(key: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.physical_keycode = key
