@@ -304,14 +304,14 @@ func test_the_hints_are_in_both_themes() -> void:
 	for key: String in _mapping["themes"]:
 		var theme := _committed(key)
 		assert_dict(theme.get_meta(meta, {}) as Dictionary).is_equal(hints)
-		for name: String in bases:
-			for context: String in bases[name]:
-				var base := StringName(str((bases[name] as Dictionary)[context]))
+		for variation: String in bases:
+			for context: String in bases[variation]:
+				var base := StringName(str((bases[variation] as Dictionary)[context]))
 				assert_str(str(theme.get_type_variation_base(base))).is_equal("Panel")
-		for name: String in toggles:
-			var selected := StringName(str(toggles[name]))
+		for variation: String in toggles:
+			var selected := StringName(str(toggles[variation]))
 			assert_str(str(theme.get_type_variation_base(selected))).is_equal(
-				str(theme.get_type_variation_base(StringName(name)))
+				str(theme.get_type_variation_base(StringName(variation)))
 			)
 	# The stale test sees a changed hint.
 	var changed: Dictionary = _pack.duplicate(true)

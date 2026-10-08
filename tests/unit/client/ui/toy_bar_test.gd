@@ -19,10 +19,10 @@ func test_the_step_is_the_nearest_stop() -> void:
 func test_all_21_stops_exist_in_both_themes() -> void:
 	for theme: Theme in [GameUi.THEME, GameUi.THEME_LARGE]:
 		for step in 21:
-			var name := "ramp_stop_%02d" % step
+			var stop := "ramp_stop_%02d" % step
 			(
-				assert_bool(theme.has_color(name, ToyBar.HEALTH))
-				. override_failure_message(name)
+				assert_bool(theme.has_color(stop, ToyBar.HEALTH))
+				. override_failure_message(stop)
 				. is_true()
 			)
 		assert_bool(theme.has_color("ramp_stop_21", ToyBar.HEALTH)).is_false()
