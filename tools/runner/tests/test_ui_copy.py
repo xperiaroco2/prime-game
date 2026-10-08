@@ -40,6 +40,8 @@ class UiCopyTest(unittest.TestCase):
         git(self.ui, "config", "user.email", "test@example.com")
         git(self.ui, "config", "user.name", "Test")
         git(self.ui, "config", "core.autocrlf", "false")
+        git(self.ui, "config", "commit.gpgsign", "false")
+        git(self.ui, "config", "tag.gpgsign", "false")
 
     def commit_deck(self, data: bytes, tag: str) -> str:
         (self.ui / "copy" / "strings.csv").write_bytes(data)
@@ -92,7 +94,7 @@ class UiCopyTest(unittest.TestCase):
         bad = {
             "a header": DECK.replace("?context", "notes"),
             "CR line ends": DECK.replace("\n", "\r\n"),
-            "a byte-order mark": "﻿" + DECK,
+            "a byte-order mark": "\ufeff" + DECK,
         }
         for number, (what, text) in enumerate(bad.items()):
             self.commit_deck(text.encode("utf-8"), f"ui-0.0.{number}")

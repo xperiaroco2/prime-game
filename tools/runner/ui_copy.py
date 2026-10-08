@@ -1,4 +1,4 @@
-"""`ui-copy [tag] [--from DIR]`: the UI track's copy deck into the game, pinned (#208, part a).
+"""`ui-copy <tag> [--from DIR]`: the UI track's copy deck into the game, pinned (#208, part a).
 
 xperiaroco2/prime-game-ui keeps every player-facing string of the screens in `copy/strings.csv`, Godot's CSV
 translation format (`keys,en,uk,?plural,?context`). The game imports that file as it is at a tag `ui-<semver>`:
@@ -68,7 +68,7 @@ def key_count(data: bytes) -> int:
         text = data.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise Failure(f"{SOURCE} is not UTF-8: {exc}") from exc
-    if text.startswith("﻿"):
+    if text.startswith("\ufeff"):
         raise Failure(f"{SOURCE} starts with a byte-order mark")
     if "\r" in text:
         raise Failure(f"{SOURCE} has CR line ends; the deck is LF")
