@@ -30,6 +30,7 @@ var controls := Controls.new()
 var key_buttons: Dictionary[StringName, Button] = {}
 ## The "Same key" mark of each action.
 var clash_labels: Dictionary[StringName, Label] = {}
+## Reset to defaults: the face of a Toy button (UiParts.button(), #289).
 var reset_button: Button
 ## The action a capture binds; &"" while none runs.
 var capturing: StringName = &""
@@ -54,9 +55,10 @@ func _init() -> void:
 		row.add_child(key)
 		row.add_child(clash)
 		add_child(row)
-	reset_button = UiParts.button(word(&"settings.controls.reset"), reset)
-	reset_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	add_child(reset_button)
+	var reset_raised := UiParts.button(word(&"settings.controls.reset"), reset)
+	reset_raised.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	add_child(reset_raised)
+	reset_button = reset_raised.face as Button
 	refresh()
 
 

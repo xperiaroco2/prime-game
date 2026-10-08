@@ -38,6 +38,9 @@ func test_a_row_per_action_with_the_bound_keys_and_no_clash_by_default() -> void
 	for action: StringName in Controls.ACTIONS:
 		assert_bool(_panel.clash_labels[action].visible).override_failure_message(action).is_false()
 	assert_str(_panel.reset_button.text).is_equal("Reset to defaults")
+	# Reset is a Toy button (#289): the face of a ToyRaised, the panel's child.
+	assert_object(_panel.reset_button.get_parent()).is_instanceof(ToyRaised)
+	assert_object(_panel.reset_button.get_parent().get_parent()).is_same(_panel)
 
 
 func test_a_capture_binds_the_next_key_press_applies_and_saves_it() -> void:
