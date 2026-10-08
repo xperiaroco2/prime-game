@@ -190,7 +190,7 @@ once) and answered, those working now (a started key with no result), the newest
 transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
 the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
 no file. An ID that names no run fails with the checkouts read (track_checkouts: each one's folders, or not on this
-machine).
+machine); beside an ID that does, it gets a first line `<id>: no run here (checkouts read: ...)`.
 
 The code reviewer's A/B (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md): per run with a control code
 reviewer (`issue-task`'s ab_review), the trial's and the control's model (from their transcripts), their findings, and
@@ -4041,10 +4041,15 @@ def track_idle_lines(spend: dict, idle: dict[str, dict]) -> list[str]:
 # --- one run's spend so far (#534) --------------------------------------------------------------------------------
 
 
+def run_wanted(ids: list[str]) -> list[str]:
+    """The run name prefixes `ids` name: each with its `wf_` (optional in the id), blanks dropped."""
+    return [i if i.startswith("wf_") else f"wf_{i}" for i in (x.strip() for x in ids) if i]
+
+
 def find_runs(dirs: list[Path], ids: list[str]) -> list[Path]:
     """The run folders (<folder>/<session>/subagents/workflows/wf_*) whose name starts with one of `ids` (the `wf_`
     optional), in the order of `dirs`, each once."""
-    wanted = [i if i.startswith("wf_") else f"wf_{i}" for i in (x.strip() for x in ids) if i]
+    wanted = run_wanted(ids)
     found: list[Path] = []
     for folder in dirs:
         for run_dir in sorted(folder.glob("*/subagents/workflows/wf_*")):
@@ -4165,7 +4170,9 @@ def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None
                       f"tool's result or `wave`, such as wf_45e2297a-4a6, or its start)")  # fmt: skip
     moment = time.time() if now is None else now
     runs = [run_spend(d, moment) for d in found]
-    lines: list[str] = []
+    # An ID that matches no run is said so, never dropped: its run may be on a checkout not on this machine (#586).
+    lines = [f"{w}: no run here ({checkouts_line(checkouts)})" for w in run_wanted(ids)
+             if not any(d.name.startswith(w) for d in found)]  # fmt: skip
     for r in runs:
         lines += run_lines(r)
     if len(runs) > 1:

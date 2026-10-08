@@ -128,6 +128,14 @@ class RunsTest(unittest.TestCase):
         self.assertEqual(line, "spent so far: 3.8% (3.9 to 3.6%) of the week, list $92 in 4 API calls")
         self.assertAlmostEqual(metrics.run_spend(self.fx.live, NOW)["read_usd"], 23.0)
 
+    def test_an_id_that_names_no_run_is_said_so_beside_one_that_does(self) -> None:
+        # wf_b may be a run of a checkout not on this machine: its spend is unknown here, not absent (#586).
+        lines = self.run_main("abc12345", "wf_b").splitlines()
+        self.assertEqual(lines[0], f"wf_b: no run here ({READ})")
+        self.assertTrue(lines[1].startswith("run wf_abc12345-111 "), lines[1])
+        self.assertTrue(lines[-1].startswith("context per API call"), "#584's line stays last")
+        self.assertFalse(any(line.startswith("wf_abc12345") for line in lines), "a run found is not 'no run'")
+
     def test_mistakes_fail(self) -> None:
         with self.assertRaises(Failure) as caught:
             metrics.runs_main(["wf_nosuch"], checkout=CHECKOUT, base=self.root, now=NOW)

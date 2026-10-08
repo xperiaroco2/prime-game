@@ -1677,7 +1677,7 @@ message id once, with no window; an agent the journal does not list counts by it
 phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
 three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
 several runs end with their total. It writes no file; an ID that names no run fails, naming the checkouts read (one
-with no folder here: not on this machine, #586). On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
+with no folder here: not on this machine, #586); next to an ID that does, it gets a line `<id>: no run here (...)` first. On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
