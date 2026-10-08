@@ -1,11 +1,20 @@
 extends GdUnitTestSuite
 ## KeyLabel (client/ui/key_label.gd, #211): the label of an action's binding now, a key by its name
 ## (headless Godot has no keyboard layout: the physical key's own name), Space and the two mouse
-## buttons by the deck's words, and "" for nothing bound. The screens (#488's rule 7, #491, #495,
-## #497) show keys only through it.
+## buttons by the deck's words in the current language (#208's translations), and "" for nothing
+## bound. The screens (#488's rule 7, #491, #495, #497) show keys only through it.
+
+var _locale := ""
+
+
+func before_test() -> void:
+	# The deck's words are translated: English here, whatever the machine's language is.
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
 
 
 func after_test() -> void:
+	TranslationServer.set_locale(_locale)
 	# The InputMap is global: every later suite reads the project's bindings.
 	Controls.new().apply()
 
@@ -66,6 +75,13 @@ func test_a_layouts_latin_label_shows_and_another_scripts_label_gives_way_to_the
 	assert_int(KeyLabel.shown(KEY_F, KEY_NONE)).is_equal(KEY_F)
 
 
-func test_a_deck_word_falls_back_to_its_english_text() -> void:
+func test_a_deck_word_is_its_translation_in_the_current_language() -> void:
 	assert_str(KeyLabel.word(&"key.space")).is_equal("Space")
 	assert_str(KeyLabel.word(&"key.mouse_right")).is_equal("RMB")
+	TranslationServer.set_locale("uk")
+	assert_str(KeyLabel.word(&"key.space")).is_equal("Пробіл")
+	assert_str(KeyLabel.of_action(&"jump")).is_equal("Пробіл")
+	assert_str(KeyLabel.of_action(&"use")).is_equal("ЛКМ")
+	assert_str(KeyLabel.of_action(&"spectate_previous")).is_equal("ПКМ")
+	# A letter key keeps its Latin name in every language (the engineer's answer (c) on #571).
+	assert_str(KeyLabel.of_action(&"give_up")).is_equal("F")

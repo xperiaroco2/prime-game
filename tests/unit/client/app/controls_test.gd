@@ -6,12 +6,18 @@ extends GdUnitTestSuite
 
 const PATH := "user://controls_test.cfg"
 
+var _locale := ""
+
 
 func before_test() -> void:
+	# The row names are the deck's translations (#208): English here, whatever the machine's.
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
 	_remove()
 
 
 func after_test() -> void:
+	TranslationServer.set_locale(_locale)
 	_remove()
 	# The InputMap is global: every later suite reads the project's bindings.
 	Controls.new().apply()
@@ -40,6 +46,8 @@ func test_there_are_the_sixteen_actions_of_settings_controls_each_with_its_phase
 		assert_str(Controls.name_of(action)).is_not_empty()
 	assert_str(Controls.name_of(&"give_up")).is_equal("Give up")
 	assert_str(Controls.name_of(&"task_screen")).is_equal("Map and tasks")
+	TranslationServer.set_locale("uk")
+	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
 func test_give_up_and_ready_never_act_in_the_same_phase() -> void:

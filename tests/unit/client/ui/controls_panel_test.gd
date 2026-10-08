@@ -9,9 +9,13 @@ const PATH := "user://controls_panel_test.cfg"
 
 var _panel: ControlsPanel
 var _changes := 0
+var _locale := ""
 
 
 func before_test() -> void:
+	# The panel's words are the deck's translations (#208): English here, whatever the machine's.
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
 	_remove()
 	_panel = auto_free(ControlsPanel.new()) as ControlsPanel
 	_panel.setup(Controls.new(PATH))
@@ -20,6 +24,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	TranslationServer.set_locale(_locale)
 	_remove()
 	Controls.new().apply()
 

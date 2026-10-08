@@ -13,21 +13,15 @@ extends RefCounted
 ##   (its DisplayServer prints an error and returns the key): the physical key's own name there.
 ## - A mouse button: the deck's `key.mouse_left` and `key.mouse_right` (LMB, RMB); the others are
 ##   "Mouse <n>".
-## - Deck keys (#208's copy deck) are read through TranslationServer, with the deck's English text
-##   when no translation holds the key yet.
+## - Deck keys are the copy deck's (#208, client/i18n/strings.csv), read only through its
+##   translation in the current language ("Space" in English, "Пробіл" in Ukrainian).
 ## - Nothing bound: "".
 
 ## The last code point of the Latin scripts (Latin Extended-B): a layout's label above it, and
 ## below the special keys, is shown by its US name.
 const LATIN_END := 0x024F
 
-## Deck keys a label may come from, with the deck's English text (prime-game-ui copy/strings.csv
-## at ui-0.2.0).
-const WORDS: Dictionary[StringName, String] = {
-	&"key.space": "Space",
-	&"key.mouse_left": "LMB",
-	&"key.mouse_right": "RMB",
-}
+## The mouse buttons named by a deck key.
 const MOUSE_WORDS: Dictionary[MouseButton, StringName] = {
 	MOUSE_BUTTON_LEFT: &"key.mouse_left",
 	MOUSE_BUTTON_RIGHT: &"key.mouse_right",
@@ -80,9 +74,6 @@ static func shown(physical: Key, label: Key) -> Key:
 	return physical
 
 
-## A deck key's text in the current language, or its English text while no translation has it.
+## A deck key's text in the current language (the copy deck's translation).
 static func word(deck_key: StringName) -> String:
-	var text := String(TranslationServer.translate(deck_key))
-	if text == String(deck_key) or text.is_empty():
-		return WORDS.get(deck_key, String(deck_key))
-	return text
+	return String(TranslationServer.translate(deck_key))

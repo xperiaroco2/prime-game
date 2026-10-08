@@ -57,26 +57,6 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"spectate_next": &"control.spectate_next",
 	&"spectate_previous": &"control.spectate_previous",
 }
-## The deck's English row names (prime-game-ui copy/strings.csv at ui-0.2.0), shown while no
-## translation holds the deck key.
-const NAMES: Dictionary[StringName, String] = {
-	&"control.forward": "Forward",
-	&"control.backward": "Back",
-	&"control.left": "Left",
-	&"control.right": "Right",
-	&"control.sprint": "Sprint",
-	&"control.jump": "Jump",
-	&"control.interact": "Interact",
-	&"control.use": "Use",
-	&"control.put_down": "Put down",
-	&"control.swap": "Swap hand and belt",
-	&"control.map": "Map and tasks",
-	&"control.give_up": "Give up",
-	&"control.ready": "Ready",
-	&"control.talk": "Talk",
-	&"control.spectate_next": "Next player",
-	&"control.spectate_previous": "Previous player",
-}
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
 ## Ready (Game._unhandled_input); the round reads the item keys and the raise while living
 ## (ItemInteractions, LifeView), the crawl while downed (no sprint, no jump: PlayerController), the
@@ -128,13 +108,12 @@ static func deck_key(action: StringName) -> StringName:
 	return ACTIONS.get(action, &"")
 
 
-## `action`'s row name in the current language (the deck's English text until #208's translation).
+## `action`'s row name in the current language (the copy deck's translation, #208).
 static func name_of(action: StringName) -> String:
 	var key := deck_key(action)
 	if key == &"":
 		return String(action)
-	var text := String(TranslationServer.translate(key))
-	return NAMES.get(key, String(key)) if text == String(key) or text.is_empty() else text
+	return String(TranslationServer.translate(key))
 
 
 ## `action`'s default from `project.godot`; null when it has none.

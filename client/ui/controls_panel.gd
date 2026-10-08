@@ -19,12 +19,6 @@ extends VBoxContainer
 ## Emitted after a binding or a reset changed the controls.
 signal changed
 
-## The deck's English texts (prime-game-ui copy/strings.csv at ui-0.2.0) of its deck keys.
-const WORDS: Dictionary[StringName, String] = {
-	&"settings.controls.press_key": "Press a key…",
-	&"settings.controls.reset": "Reset to defaults",
-	&"settings.controls.same_key": "Same key",
-}
 ## The row name's and the key button's room (layout, on the 1920x1080 base): the longest English
 ## name, "Swap hand and belt", fits.
 const NAME_WIDTH := 330.0
@@ -131,12 +125,9 @@ func refresh() -> void:
 		clash_labels[action].visible = not controls.clashes_of(action).is_empty()
 
 
-## A deck key's text in the current language, or its English text while no translation has it.
+## A deck key's text in the current language (the copy deck's translation, #208).
 static func word(deck_key: StringName) -> String:
-	var text := String(TranslationServer.translate(deck_key))
-	if text == String(deck_key) or text.is_empty():
-		return WORDS.get(deck_key, String(deck_key))
-	return text
+	return String(TranslationServer.translate(deck_key))
 
 
 func _input(event: InputEvent) -> void:

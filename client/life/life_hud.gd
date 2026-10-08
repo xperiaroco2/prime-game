@@ -114,7 +114,8 @@ static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: 
 
 
 ## The downed player's prompt with the bound key: the deck's `downed.give_up_hold` in English
-## ("Hold {key} to give up"), the Toy downed screen's sentence (#497) once #208 brings the deck.
+## ("Hold {key} to give up"), as the rest of this greybox panel; the Toy downed screen (#497)
+## shows that key through tr().
 static func give_up_line(key: String) -> String:
 	return "Hold {key} to give up".format({"key": key})
 
