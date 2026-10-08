@@ -1,6 +1,6 @@
 ---
 name: Engine request
-about: The designer needs a content-API part that the engine does not have yet
+about: Content work needs a content-API part that the engine does not have yet
 title: ""
 labels: needs-engine
 ---

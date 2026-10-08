@@ -1357,9 +1357,13 @@ class GateTextTest(unittest.TestCase):
         self.assertEqual(merge.exception_reasons([("M", "content/x.tres")], "", "c/1-x", designer_approved=True), [])
 
     def test_the_owners_match_codeowners(self) -> None:
+        # Since #518 the engineer owns the content area through the `*` line, and the designer, optional, appears
+        # only on the shared paths: the gate's designer account is read from one of those.
         owners = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
         self.assertRegex(owners, rf"(?m)^\*\s+@{merge.ENGINEER_LOGIN}\s*$")
-        self.assertRegex(owners, rf"(?m)^/content/\s+@{merge.DESIGNER_LOGIN}\s*$")
+        self.assertRegex(owners, rf"(?m)^/docs/decisions/\s+@{merge.ENGINEER_LOGIN}\s+@{merge.DESIGNER_LOGIN}\s*$")
+        for path in (*merge.DESIGNER_PREFIXES, *merge.DESIGNER_FILES):
+            self.assertNotRegex(owners, rf"(?m)^/{re.escape(path.rstrip('/'))}/?\s", path)
 
 
 class TypedCommandsTest(unittest.TestCase):
