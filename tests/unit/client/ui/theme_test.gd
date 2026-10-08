@@ -69,7 +69,12 @@ func test_every_screen_has_the_theme_also_one_added_later() -> void:
 
 func test_every_type_variation_the_screens_name_is_in_the_theme() -> void:
 	var named := RegEx.create_from_string('&"([A-Za-z]+)"')
-	var variation := RegEx.create_from_string("theme_type_variation|styled_label|backdrop")
+	var variation := RegEx.create_from_string(
+		(
+			"theme_type_variation|styled_label|backdrop|variation: StringName ="
+			+ "|UiParts\\.(button|raised|toggle|scroll)\\(|ToyBar\\.new\\("
+		)
+	)
 	var missing := PackedStringArray()
 	for path: String in _scripts(UI):
 		for line: String in FileAccess.get_file_as_string(path).split("\n"):
