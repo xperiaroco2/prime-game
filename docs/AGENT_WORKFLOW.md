@@ -1641,9 +1641,11 @@ AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row 
 single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
 `instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
-session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
-name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
-worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
+session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
+name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's
+from the folder names under `~/.claude/projects/` wherever they sit (#586: `C:\prime-game` with `D:\prime-game-ui`;
+a key such as `D--prime-game-ui` or `E--games-prime-game-art`, its worktrees' `<key>--claude-worktrees-<n>`); the
+session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
 its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
 across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
 `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
@@ -1656,7 +1658,10 @@ engineer's, N1 of the design, so there is no default) `of <budget>% this week; p
 --since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
 (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
 or translated shows there). That total covers only the three checkouts: the counter also counts the account's
-sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
+sessions elsewhere (another project folder, a replay, another machine), so the two differ by more than the
+conversion's error. The last line names the checkouts read (each one's folder keys and worktree count); a `-ui` or
+`-art` checkout with no folder here is `not on this machine`, and so is its track's line when no session here has that
+track (`all` lists it too): its spend is unknown, never 0%. `tracks.json` lists them under `checkouts`.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
 named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
 own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
@@ -1671,8 +1676,8 @@ journal or agent transcripts, its % of the week with the bracket and its list $ 
 message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
 phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
 three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
-several runs end with their total. It writes no file; an ID that names no run fails. On
-art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
+several runs end with their total. It writes no file; an ID that names no run fails, naming the checkouts read (one
+with no folder here: not on this machine, #586). On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
