@@ -179,6 +179,18 @@ totals and the stop rule (ab_verdict): stop once the trial missed AB_STOP_MISSES
 the control did; after AB_RUNS judged runs keep the trial model when it missed at most AB_KEEP_MISSES more, found at
 least AB_VALID_RATIO times as many valid findings as the control, and its invalid share is at most
 AB_INVALID_MARGIN over the control's; else drop it. The verdict is advice: the engineer decides. The JSON record's "ab_review" holds the rows and totals.
+
+Implementer context and checkpoint handoffs (#559, issue-task's opt-in `checkpoint`): per run with an
+implementer, its implementer agents (a continuation is labelled `implement:#N#k`, k >= 2, and counts as a handoff),
+their API calls, those whose context (input + cache write + cache read) is over HIGH_CTX and their API list $, and the
+implementers' $; the totals against the issue's target (under 5% of implementer calls over 200k, from 14%). Then the
+two triggers the checkpoint rule names, re-measured: the tool-call count as a proxy for context (per PROXY_CALLS k,
+the implementers with at least k tool calls, their median context at the first API call after k of them, the share
+at or over HANDOFF_CTX, and the tool call at which each crossed HANDOFF_CTX), and the `<total_tokens>N tokens left`
+reminder after each tool result (an attachment of type total_tokens_reminder in the transcript): a reading is exact
+when N plus the context of the API call before it (its four token fields, output included) equals the agent's budget
+(the most common such sum), for every agent of the counted runs. The per-task records carry handoffs, impl_calls,
+over200_calls and over200_usd; the JSON record's "handoffs" holds the rows, the proxy and the reminder check.
 """
 
 from __future__ import annotations
@@ -347,6 +359,13 @@ AB_KEEP_MISSES = 1
 AB_VALID_RATIO = 0.8
 AB_INVALID_MARGIN = 0.15
 AB_SIDES = ("trial", "control")
+# Implementer context (#559, the module docstring): an API call over HIGH_CTX tokens of context, the checkpoint's
+# threshold, a continuation's label, the tool-call counts the proxy table reads, and the harness's context reminder.
+HIGH_CTX = 200_000
+HANDOFF_CTX = 150_000
+HANDOFF_LABEL = re.compile(r"#\d+#\d+$")
+PROXY_CALLS = (40, 60, 80, 100)
+TOKENS_LEFT = re.compile(r"<total_tokens>(\d+) tokens left")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
 CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
 PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
@@ -969,6 +988,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
     files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
+    left: list[tuple[int, int]] = []  # #559: each <total_tokens> reading, with the context of the API call before it
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -1000,7 +1020,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 code_seen.clear()
                 continue
             if d.get("type") == "attachment":
-                found = attachment_items(d.get("attachment"))
+                att = d.get("attachment")
+                if isinstance(att, dict) and att.get("type") == "total_tokens_reminder":
+                    m_left = TOKENS_LEFT.search(str(att.get("text", "")))
+                    if m_left:
+                        left.append((int(m_left.group(1)), last_ctx))
+                found = attachment_items(att)
                 items += found
                 pending += found
                 continue
@@ -1120,6 +1145,14 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         kinds[c["kind"]] += (c["t1"] or c["t0"]) - c["t0"]
     price_items(items, list(usage.values()), bounds)  # in the order the calls were first seen, as "at" counts them
     first = next(iter(usage.values()), None)  # #557: what the agent type's system prompt and tools cost up front
+    # #559: each API call's context (its prompt: input, cache write and read) with the tool calls made before it.
+    ctx_series, before = [], 0
+    for mid in order:
+        ctx_series.append((before, sum(usage[mid][f] for f in TOKEN_FIELDS if f != "output_tokens")))
+        before += len(made.get(mid, []))
+    high = [usage[mid] for (_, ctx), mid in zip(ctx_series, order) if ctx > HIGH_CTX]
+    budgets = Counter(n + ctx for n, ctx in left)
+    budget = budgets.most_common(1)[0][0] if budgets else None
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
@@ -1152,6 +1185,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
         "code_reads": code_reads,
         "files_read": sorted(files_read),
+        "ctx_series": ctx_series,
+        "high_ctx": {"calls": len(high), "usd": sum(usd(usd_of(u)) for u in high)},
+        "reminders": {"n": len(left), "exact": budgets[budget] if budget is not None else 0, "budget": budget},
     }
 
 
@@ -1616,6 +1652,7 @@ def per_task(r: dict) -> dict:
         if isinstance(f, dict)
     )
     pub = next((x["result"] for x in r["agents"] if x["role"] == "publisher" and x["result"]), None) or {}
+    impl = implementer_context(r)
     return {
         "session": r["session"],
         "issue": r["issue"],
@@ -1637,6 +1674,25 @@ def per_task(r: dict) -> dict:
         "sev": dict(sev),
         "pr": pub.get("pr_number"),
         "ci_green": pub.get("ci_green"),
+        "handoffs": impl["handoffs"],
+        "impl_calls": impl["api_calls"],
+        "over200_calls": impl["over200"],
+        "over200_usd": impl["over200_usd"],
+    }
+
+
+def implementer_context(r: dict) -> dict:
+    """#559: a run's implementers (each attempt), their API calls, those over HIGH_CTX and their $, and its handoffs:
+    the continuations the script launched (distinct `implement:#N#k` labels; a retried agent is one)."""
+    impls = [x for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    labels = {x["label"] for x in r["agents"] if x["role"] == "implementer" and HANDOFF_LABEL.search(x["label"])}
+    return {
+        "implementers": len(impls),
+        "handoffs": len(labels),
+        "api_calls": sum(x["data"].get("api_calls", 0) for x in impls),
+        "over200": sum(x["data"].get("high_ctx", {}).get("calls", 0) for x in impls),
+        "over200_usd": sum(x["data"].get("high_ctx", {}).get("usd", 0.0) for x in impls),
+        "usd": sum(usd(x["data"]["tokens"]) for x in impls),
     }
 
 
@@ -1681,6 +1737,8 @@ def build(
     md += code_read_section(counted)
     plans = plan_rows(counted)
     md += plan_section(plans)
+    handoffs = handoff_record(counted)
+    md += handoff_section(handoffs)
     judged = ab_rows(counted)
     ab = {"rows": judged, "totals": ab_totals(judged)}
     md += ab_section(ab)
@@ -1729,6 +1787,7 @@ def build(
         "tool_latency": latency,
         "quality": quality,
         "plans": plans,
+        "handoffs": handoffs,
         "ab_review": ab,
         "instructions": instructions,
         "agent_types": types,
@@ -1981,6 +2040,84 @@ def plan_section(rows: list[dict]) -> list[str]:
         "",
         f"Plan + critique: mean {fmt_usd(sum(both) / len(both))} over {len(both)} runs; the implementers re-read "
         f"{again} of {files} planner files ({again / max(1, files):.0%}).",
+        "",
+    ]
+
+
+def handoff_record(counted: list[dict]) -> dict:
+    """#559's numbers (the module docstring): per run with an implementer its row, the tool-call proxy
+    over every implementer, and the <total_tokens> check over every agent."""
+    rows = []
+    series = []
+    for r in counted:
+        c = implementer_context(r)
+        if not c["implementers"]:
+            continue
+        rows.append({"session": r["session"], "issue": r["issue"], "wf": r["wf"], **c})
+        series += [x["data"].get("ctx_series") or [] for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    proxy = []
+    for k in PROXY_CALLS:
+        at = [next(ctx for before, ctx in s if before >= k) for s in series if any(before >= k for before, _ in s)]
+        proxy.append({"calls": k, "agents": len(at), "median_ctx": med(at) if at else None,
+                      "over": sum(ctx >= HANDOFF_CTX for ctx in at)})  # fmt: skip
+    crossed = [next(before for before, ctx in s if ctx >= HANDOFF_CTX) for s in series if any(c >= HANDOFF_CTX for _, c in s)]
+    reminders = [x["data"].get("reminders") or {} for r in counted for x in r["agents"] if x["data"]]
+    return {
+        "rows": rows,
+        "proxy": proxy,
+        "crossed": {"agents": len(crossed), "of": len(series), "median": med(crossed) if crossed else None,
+                    "min": min(crossed, default=None), "max": max(crossed, default=None)},
+        "reminders": {"n": sum(m.get("n", 0) for m in reminders), "exact": sum(m.get("exact", 0) for m in reminders),
+                      "budgets": sorted({m["budget"] for m in reminders if m.get("budget") is not None})},
+    }  # fmt: skip
+
+
+def handoff_section(rec: dict) -> list[str]:
+    """The implementer context table (#559); nothing when no run had an implementer."""
+    rows = rec["rows"]
+    if not rows:
+        return []
+    body = [[f"#{x['issue']}" if x["issue"] else x["wf"], x["implementers"], x["handoffs"], x["api_calls"],
+             f"{x['over200']} ({x['over200'] / max(1, x['api_calls']):.0%})", fmt_usd(x["over200_usd"]),
+             fmt_usd(x["usd"])] for x in rows]  # fmt: skip
+    calls = sum(x["api_calls"] for x in rows)
+    over = sum(x["over200"] for x in rows)
+    spent = sum(x["usd"] for x in rows)
+    over_usd = sum(x["over200_usd"] for x in rows)
+    proxy = [[p["calls"], p["agents"], "-" if p["median_ctx"] is None else fmt_tok(p["median_ctx"]),
+              "-" if not p["agents"] else f"{p['over']} ({p['over'] / p['agents']:.0%})"] for p in rec["proxy"]]  # fmt: skip
+    c = rec["crossed"]
+    crossed = (f"{c['agents']} of {c['of']} implementers crossed {HANDOFF_CTX // 1000}k, at tool call {c['median']:.0f} "
+               f"at the median ({c['min']} to {c['max']})." if c["agents"] else
+               f"None of {c['of']} implementers crossed {HANDOFF_CTX // 1000}k.")  # fmt: skip
+    m = rec["reminders"]
+    reminder = (f"`<total_tokens>` reminders: {m['exact']} of {m['n']} readings equal the budget less the context of "
+                f"the API call before them (budget {', '.join(str(b) for b in m['budgets'])})." if m["n"] else
+                "`<total_tokens>` reminders: none read: the harness shows none, so a checkpoint agent falls back to "
+                "the tool-call backstop.")  # fmt: skip
+    head = ["run", "implementers", "handoffs", "API calls", f"calls over {HIGH_CTX // 1000}k", "their $",
+            "implementers' $"]  # fmt: skip
+    return [
+        "## Implementer context and checkpoint handoffs (#559)",
+        "",
+        f"Per run with an implementer: its implementer agents (a continuation after a checkpoint handoff counts as a "
+        f"handoff), their API calls, those with a context over {HIGH_CTX // 1000}k and their API list $.",
+        "",
+        table(head, body),
+        "",
+        f"Implementer calls over {HIGH_CTX // 1000}k: {over} of {calls} ({over / max(1, calls):.0%}), "
+        f"{fmt_usd(over_usd)} of the implementers' {fmt_usd(spent)}; #559's target with checkpoint: under 5% (14% "
+        f"before), with the long tasks' $ not up.",
+        "",
+        f"Tool calls as a proxy for context (checkpoint's backstop): per k, the implementers with k or more tool calls, "
+        f"their median context at the first API call after k of them, and how many were at {HANDOFF_CTX // 1000}k or "
+        f"over.",
+        "",
+        table(["tool calls", "implementers", "median context", f"at {HANDOFF_CTX // 1000}k or over"], proxy),
+        "",
+        crossed,
+        "",
+        reminder,
         "",
     ]
 
@@ -3245,8 +3382,12 @@ def compact_lines(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
         wall, cost = med([p["wall"] for p in tasks]), med([p["usd"] for p in tasks])
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
+        impl_calls = sum(p.get("impl_calls", 0) for p in tasks)
+        over = sum(p.get("over200_calls", 0) for p in tasks)
         lines.append(f"task medians: {mins(wall)} min, {fmt_usd(cost)}, {fmt_tok(ctx)} final context, "
-                     f"{calls:.0f} tool calls")
+                     f"{calls:.0f} tool calls; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
+                     f"({fmt_usd(sum(p.get('over200_usd', 0.0) for p in tasks))}), "
+                     f"{sum(p.get('handoffs', 0) for p in tasks)} handoffs (#559)")  # fmt: skip
         if quality:
             lines.append(quality["compact"])
     diet = instruction_compact(instructions) if instructions else None

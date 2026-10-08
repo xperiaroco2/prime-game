@@ -143,8 +143,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-**Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count
-toward the number per workflow the kickoff approved:
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count toward the number per workflow the kickoff approved:
 
 | arg | when | adds (tool calls each) |
 |---|---|---|
@@ -157,6 +156,7 @@ toward the number per workflow the kickoff approved:
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
 | `ab_review: true` | #535's A/B ([ADR](../../../docs/decisions/2026-10-07-code-reviewer-model-ab.md)): on every non-design `issue-task` launch, with `models.code: "sonnet"` (the diff's code reviewer alone; other than `code-reviewer.md`'s `model:`, the control's) beside `publish_clean`, until `metrics`' A/B table gives a verdict other than "continue"; then report it on #302 and stop passing both (`issue-task` only) | 2: a control code reviewer (60) and a judge (40); 1 when neither reviewer found anything |
+| `checkpoint: true` | #559, `issue-task` only, opt-in: an implementer past 150k context hands over to a fresh one (a note in `a<n>/handoff-<k>.md`, then `implement:#<n>#2` and `#3`), at most twice. Not on by default until the engineer says yes after `metrics`' implementer context table measured about 10 tasks with it; pass it where the kickoff asks for it. The result's `handoffs` counts them; `wave` treats a handoff as a run still going | 0; up to 2 more implementers (250 each) |
 | `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: `agents-check --launch`; a run's `agent-*.meta.json` and `metrics`' agent-type table show the `agentType`): pass nothing, also for a task editing `.claude/workflows/` (its agents read `docs/workflow-scripts.md`, #557). `lean: false` only with `lean_reason` (`lean_reason?` in `whenToUse`; the script throws without it, #557): why the general agent, today only "a resume of <run id>, launched before #458" (budget.md); the result's `lean_off` counts the general agents | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or

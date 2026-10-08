@@ -10,7 +10,8 @@ resume replays an agent only while its prompt and options are unchanged. So with
 `lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
 `workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
 origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
-of #308, `plan-review-main` #469's plan phase and `ab-review-main` #535's A/B of the code reviewer's model, so the
+of #308, `plan-review-main` #469's plan phase, `ab-review-main` #535's A/B of the code reviewer's model and
+`checkpoint-main` #559's implementer handoffs, so the
 byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
@@ -189,6 +190,15 @@ SNAPSHOT_CASES = {
                 "manager": "the M5 manager session",
             },
             {"paths": ["core/match/vote.gd"], "findings": [MAJOR, MINOR]},
+        ),
+        # #559's checkpoint: three implementers that each hand over; the third may not, so all three prompts are pinned.
+        (
+            "checkpoint-main",
+            {"branch": "tooling/7-x", "checkpoint": True},
+            {"paths": ["tools/runner/x.py"], "queues": {"implement": [
+                {"verify_green": True, "complete": False, "summary": f"part {k}", "changed_paths": ["tools/runner/x.py"], "decisions": [f"d{k}"], "handoff": f"C:/scratchpad/a7/handoff-{k}.md"}
+                for k in (1, 2, 3)
+            ]}},
         ),
         (
             "red-main",
@@ -606,7 +616,7 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main, plan-review-main and ab-review-main passes no v2 arg besides the bounded_waits
+        # case but publish-clean-main, plan-review-main, ab-review-main and checkpoint-main passes no v2 arg besides the bounded_waits
         # and lean false of its unbounded/ run).
         # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
         # and with both false (`unbounded/<case>.txt`, the text and options before #411).
@@ -922,6 +932,7 @@ class PipelineV2Test(unittest.TestCase):
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
+        jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"checkpoint": "yes"}, {"checkpoint": 1})]  # #559
         # ab_review (#535): an A/B needs a model on trial for the code reviewer, other than the control's.
         jobs += [
             ("issue-task.js", dict(ARGS, **args), {})
@@ -1483,7 +1494,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
         ):
@@ -2177,6 +2188,130 @@ class RebaseRuleTest(unittest.TestCase):
         self.git("rebase", "-q", "-i", "--autosquash", self.base, GIT_SEQUENCE_EDITOR=":")
         self.assertEqual(self.git("log", "--format=%s", f"{self.base}..").splitlines(), ["feat: three", "feat: tow"])
         self.assertEqual(self.git("status", "--porcelain"), "")
+
+
+# checkpoint (#559): an implementer past 150k context hands over to a fresh one, at most twice.
+RULE_HEAD = "Checkpoint (checkpoint, #559): keep your context under 150,000 tokens."
+NOTE = "C:/scratchpad/a7/handoff-1.md"
+
+
+def handing_over(note: str = NOTE, **extra) -> dict:
+    return implemented(["tools/runner/x.py"], **dict({"complete": False, "verify_green": False, "handoff": note}, **extra))
+
+
+def without_rule(prompt: str) -> str:
+    """The prompt with its checkpoint paragraph (one paragraph of the '\\n\\n'-joined prompt) cut out."""
+    return "\n\n".join(p for p in prompt.split("\n\n") if not p.startswith(RULE_HEAD))
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class CheckpointTest(unittest.TestCase):
+    PATHS = {"paths": ["tools/runner/x.py"]}
+
+    def test_checkpoint_off_changes_nothing(self) -> None:
+        # Without the arg (or false, or null) a handoff in the result is not followed: the agents are today's.
+        stub = dict(self.PATHS, queues={"implement": [implemented(["tools/runner/x.py"], handoff=NOTE)]})
+        jobs = [("issue-task.js", dict(ARGS), self.PATHS)] + [
+            ("issue-task.js", dict(ARGS, **extra), s) for extra, s in (({"checkpoint": False}, self.PATHS), ({"checkpoint": None}, self.PATHS), ({}, stub))
+        ]
+        base, *others = run_jobs(jobs)
+        want = [(e["label"], e["opts"], e["prompt"]) for e in agents(base)]
+        for result in others:
+            self.assertIsNone(result["error"])
+            got = [(e["label"], e["opts"], e["prompt"]) for e in agents(result)]
+            # The publisher embeds the implementer's whole result, so the stub's own handoff key shows there only.
+            self.assertEqual([g[0] for g in got], [w[0] for w in want])
+            self.assertEqual(got[:-1], want[:-1])
+            self.assertNotIn("handoffs", result["returned"])
+            self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "handoff" in e["message"]])
+        self.assertNotIn(RULE_HEAD, json.dumps(want))
+
+    def test_checkpoint_adds_only_the_rule_and_the_schema_key(self) -> None:
+        for extra in ({}, {"visual": True}):
+            off, on = run_jobs([("issue-task.js", dict(ARGS, **extra), self.PATHS), ("issue-task.js", dict(ARGS, checkpoint=True, **extra), self.PATHS)])
+            with self.subTest(**{k: str(v) for k, v in extra.items()}):
+                self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
+                for a, b in zip(agents(off), agents(on)):
+                    if not a["label"].startswith("implement"):
+                        self.assertEqual((a["opts"], a["prompt"]), (b["opts"], b["prompt"]), a["label"])
+                        continue
+                    rule = [p for p in b["prompt"].split("\n\n") if p.startswith(RULE_HEAD)]
+                    self.assertEqual(len(rule), 1)
+                    self.assertEqual(without_rule(b["prompt"]), a["prompt"])
+                    self.assertTrue(b["prompt"].index(RULE_HEAD) < b["prompt"].index("Do NOT publish"))
+                    for words in ("`<total_tokens>N tokens left</total_tokens>`", "B minus N, exactly", "B = your first N plus 30,000", "at or below 14,850,000", "after 60 tool calls",
+                                  "a7/handoff-1.md", "done (", "left (", "decisions (", "gotchas (", "verify state (",
+                                  "leave no background job", "handoff: the note's absolute path"):  # fmt: skip
+                        self.assertIn(words, rule[0])
+                    self.assertEqual("visual" in extra, "playcheck {available: false" in rule[0])
+                    o_off, o_on = options(a), options(b)
+                    self.assertEqual(o_on["schema"]["properties"].pop("handoff"), {"type": "string"})
+                    self.assertNotIn("handoff", o_on["schema"]["required"])
+                    self.assertEqual(json.dumps(o_on), json.dumps(o_off), "the same options in the same order otherwise")
+
+    def test_a_handoff_launches_a_fresh_implementer_with_the_note(self) -> None:
+        first = handing_over(decisions=["d1"], needs_engineer=["n1"], commits=["c1"], left=["the rest"], summary="first part")
+        last = implemented(["tools/runner/x.py", "docs/x.md"], decisions=["d2", "d1"], commits=["c2"], summary="the whole branch")
+        result = run_one("issue-task.js", {"checkpoint": True}, dict(self.PATHS, queues={"implement": [first, last]}))
+        self.assertIsNone(result["error"])
+        one, two = calls(result, "implement")
+        self.assertEqual([one["label"], two["label"]], ["implement:#7", "implement:#7#2"])
+        self.assertIn(f"Continuation 1 of 2 (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is {NOTE}:", two["prompt"])
+        self.assertIn("Your result covers the whole branch since origin/main", two["prompt"])
+        self.assertIn(STASH_RULE, two["prompt"])
+        self.assertIn(RULE_HEAD, two["prompt"], "the second may hand over too")
+        self.assertIn("a7/handoff-2.md", two["prompt"])
+        self.assertNotIn("You are the last one", two["prompt"])
+        o1, o2 = options(one), options(two)
+        self.assertEqual(o2.pop("label"), "implement:#7#2")
+        o1.pop("label")
+        self.assertEqual(o1, o2, "the same agent type, effort, model and schema")
+        self.assertEqual(o2["agentType"], "task-implementer")
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any(f"handoff 1 of 2: the implementer stopped at its context limit (verify red); a fresh one continues from {NOTE}" in m for m in logs), logs)
+        # The handoff's red verify did not stop the run: the reviewers and the publisher read the joined result.
+        report = calls(result, "review:code")[0]["prompt"]
+        self.assertIn('"summary":"the whole branch"', report)
+        self.assertIn('"decisions":["d1","d2"]', report)
+        self.assertIn('"needs_engineer":["n1"]', report)
+        pub = calls(result, "publish")[0]["prompt"]
+        self.assertIn(f'"handoffs":["{NOTE}"]', pub)
+        self.assertIn('"commits":["c1","c2"]', pub)
+        self.assertNotIn('"handoff":', pub)
+        out = result["returned"]
+        self.assertEqual((out["handoffs"], out["verify_green"], out["summary"]), (1, True, "the whole branch"))
+        self.assertNotIn("stopped", out)
+
+    def test_at_most_two_handoffs(self) -> None:
+        notes = [f"C:/scratchpad/a7/handoff-{k}.md" for k in (1, 2, 3)]
+        result = run_one("issue-task.js", {"checkpoint": True}, dict(self.PATHS, queues={"implement": [handing_over(n, verify_green=True) for n in notes]}))
+        self.assertIsNone(result["error"])
+        impls = calls(result, "implement")
+        self.assertEqual([e["label"] for e in impls], ["implement:#7", "implement:#7#2", "implement:#7#3"])
+        third = impls[2]
+        self.assertIn("Continuation 2 of 2 (checkpoint, #559)", third["prompt"])
+        self.assertIn(f"Its note is {notes[1]}:", third["prompt"])
+        self.assertIn("You are the last one: do not hand over", third["prompt"])
+        self.assertNotIn(RULE_HEAD, third["prompt"])
+        self.assertNotIn("handoff", options(third)["schema"]["properties"])
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any("handoff 2 of 2" in m for m in logs), logs)
+        self.assertTrue(any("handoff ignored: the last implementer may not hand over" in m for m in logs), logs)
+        self.assertTrue(calls(result, "review:code"))
+        self.assertEqual(result["returned"]["handoffs"], 2)
+        self.assertIn(f'"handoffs":["{notes[0]}","{notes[1]}"]', calls(result, "publish")[0]["prompt"])
+
+    def test_a_dead_or_red_continuation(self) -> None:
+        dead, red = run_jobs([
+            ("issue-task.js", dict(ARGS, checkpoint=True), dict(self.PATHS, queues={"implement": [handing_over(), None]})),
+            ("issue-task.js", dict(ARGS, checkpoint=True), dict(self.PATHS, queues={"implement": [handing_over(verify_green=True), implemented(["tools/runner/x.py"], verify_green=False, verify_tail="FAILED")]})),
+        ])  # fmt: skip
+        self.assertIn("the implementer returned nothing", dead["error"])
+        self.assertIn("resume this run with the same args", dead["error"])
+        self.assertIn("verify red after the implementer", red["returned"]["stopped"])
+        self.assertEqual((red["returned"]["handoffs"], red["returned"]["verify_tail"]), (1, "FAILED"))
+        self.assertFalse(calls(red, "review"))
+        self.assertFalse(calls(red, "publish"))
 
 
 if __name__ == "__main__":
