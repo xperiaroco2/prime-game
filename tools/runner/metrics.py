@@ -66,6 +66,12 @@ cache read of its first API call: the type's system prompt and tools plus the ta
 WRITER_ROLES ran as the general type (on the compact summary's first line too; expected 0 after #557), and each run's
 types in the JSON record and on `--run`'s phase line.
 
+Context per API call (#584): each counted run's agent's average and peak of input, cache write and cache read per API
+call (each message id once, output left out), per role (the average over all its agents' calls, the peak of any) and
+the heavy agents (CONTEXT_HEAVY_AVG average or CONTEXT_HEAVY_PEAK peak, by the tokens over all their calls) with their
+run and issue; the compact summary's first line names each role's average/peak and the heaviest agents; `--run` ends
+with each agent's average and peak.
+
 Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
 the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
 background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
@@ -338,6 +344,12 @@ IDLE_WAKERS = ("verify", "wait", "Monitor", "sleep", "shell")
 MONITOR_TIMEOUT, MONITOR_MAX = 300, 3600
 # The per-agent table lists at most this many agents (the JSON record has every agent), `--run` names this many.
 IDLE_AGENT_ROWS, IDLE_RUN_NAMES = 40, 3
+# Context per API call (#584): input, cache write and cache read of one call. An agent is heavy when its average per
+# call or its peak reaches these (the issue's; the art track's 17 agents of 150+ calls at 400 to 560k per call were 48%
+# of its spend, #302). The heavy table lists at most CONTEXT_AGENT_ROWS (the JSON record has every agent), the compact
+# line names CONTEXT_NAMES.
+CONTEXT_HEAVY_AVG, CONTEXT_HEAVY_PEAK = 150_000, 300_000
+CONTEXT_AGENT_ROWS, CONTEXT_NAMES, CONTEXT_RUN_AGENTS = 40, 3, 10
 # A keep-alive timer: a background shell call that only sleeps (an `echo` after it allowed), in Bash or PowerShell.
 TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:(?:;|&&)\s*echo\b.*)?",
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
@@ -1165,6 +1177,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "unpriced": unpriced,
         "last_ctx": last_ctx,
         "first_ctx": sum(first[f] for f in TOKEN_FIELDS if f != "output_tokens") if first else 0,
+        "ctx_sum": sum(ctx for _, ctx in ctx_series),  # #584, as #559's series counts a call's context
+        "ctx_peak": max((ctx for _, ctx in ctx_series), default=0),
         "gaps": gaps,
         "idle": idle,
         "max_gap": max((g[0] for g in gaps), default=0.0),
@@ -1753,6 +1767,7 @@ def build(
     md += cache_section(counted)
     idle = idle_record(idle_agents(counted))
     md += idle_section(idle)
+    md += context_section(context := context_record(context_agents(counted)))
     waits = bounded_wait_record(counted)
     md += bounded_wait_section(waits)
     latency = latency_record(counted)
@@ -1766,7 +1781,7 @@ def build(
         md += ci_section(ci)
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
-                            instructions=instructions, idle=idle["totals"], types=types)  # fmt: skip
+                            instructions=instructions, idle=idle["totals"], types=types, context=context)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -1783,6 +1798,7 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "idle": idle,
+        "context_per_call": context,
         "bounded_waits": waits,
         "tool_latency": latency,
         "quality": quality,
@@ -2689,6 +2705,119 @@ IDLE_NOTE = (
 )
 
 
+def fmt_k(n: float) -> str:
+    """A context per call in thousands, '420k' (fmt_tok writes 0.42M), from a million on in millions, '1.25M'."""
+    return f"{n / 1e6:.2f}M" if n >= 999_500 else f"{n / 1e3:.0f}k"
+
+
+CONTEXT_HEAVY = f"average {fmt_k(CONTEXT_HEAVY_AVG)}+ or peak {fmt_k(CONTEXT_HEAVY_PEAK)}+ per call"
+
+
+def context_agents(counted: list[dict]) -> list[dict]:
+    """The counted runs' agents with an API call, as context_record reads them."""
+    return [{"session": r["session"], "run": r["wf"], "issue": r["issue"], "label": x["label"], "role": x["role"],
+             "type": x.get("type", "?"), "data": x["data"]}
+            for r in counted for x in r["agents"] if x["data"] and x["data"]["api_calls"]]  # fmt: skip
+
+
+def context_record(agents: list[dict]) -> dict:
+    """The context per API call (#584) of the given agents ({session, run, issue, label, role, type, data}): per agent
+    (its average and peak, heavy at CONTEXT_HEAVY), per role (the average over its agents' calls, the peak of any) and
+    in total; the heavy agents by the tokens over all their calls, most first."""
+    rows = []
+    for a in agents:
+        d = a["data"]
+        avg = d["ctx_sum"] / d["api_calls"] if d["api_calls"] else 0.0
+        rows.append({
+            "session": a["session"], "run": a["run"], "issue": a.get("issue"), "label": a["label"], "role": a["role"],
+            "type": a["type"], "calls": d["api_calls"], "sum": d["ctx_sum"], "avg": avg, "peak": d["ctx_peak"],
+            "heavy": avg >= CONTEXT_HEAVY_AVG or d["ctx_peak"] >= CONTEXT_HEAVY_PEAK,
+        })  # fmt: skip
+
+    def summed(sel: list[dict]) -> dict:
+        calls = sum(r["calls"] for r in sel)
+        return {"agents": len(sel), "calls": calls, "avg": sum(r["sum"] for r in sel) / calls if calls else 0.0,
+                "peak": max((r["peak"] for r in sel), default=0), "heavy": sum(r["heavy"] for r in sel)}  # fmt: skip
+
+    roles = [{"role": role, **summed([r for r in rows if r["role"] == role])}
+             for role in dict.fromkeys(r["role"] for r in rows)]  # fmt: skip
+    return {
+        "thresholds": {"avg": CONTEXT_HEAVY_AVG, "peak": CONTEXT_HEAVY_PEAK},
+        "totals": summed(rows),
+        "roles": sorted(roles, key=lambda g: -g["avg"]),
+        "heavy": sorted((r for r in rows if r["heavy"]), key=lambda r: -r["sum"]),
+        "agents": rows,
+    }
+
+
+def context_line(totals: dict) -> str:
+    """'9 agents, 120 API calls: average 80k, peak 310k per call; 2 heavy (average 150k+ or peak 300k+ per call)'."""
+    if not totals["calls"]:
+        return "no agent made an API call"
+    return (f"{totals['agents']} agents, {totals['calls']} API calls: average {fmt_k(totals['avg'])}, peak "
+            f"{fmt_k(totals['peak'])} per call; {totals['heavy']} heavy ({CONTEXT_HEAVY})")  # fmt: skip
+
+
+def context_section(record: dict) -> list[str]:
+    md = ["## Context per API call, per agent role and the heaviest agents (#584)", "",
+          f"workflow agents: {context_line(record['totals'])}", ""]  # fmt: skip
+    if not record["totals"]["calls"]:
+        return md
+    roles = [[g["role"], g["agents"], g["calls"], fmt_k(g["avg"]), fmt_k(g["peak"]), g["heavy"]]
+             for g in record["roles"]]  # fmt: skip
+    md += [table(["role", "agents", "API calls", "average per call", "peak", "heavy agents"], roles), ""]
+    heavy = record["heavy"]
+    if not heavy:
+        return md + [f"No heavy agent ({CONTEXT_HEAVY}).", ""]
+    rows = [[a["session"], a["run"], f"#{a['issue']}" if a["issue"] else "", a["label"], a["role"], a["type"],
+             a["calls"], fmt_k(a["avg"]), fmt_k(a["peak"]), fmt_tok(a["sum"])]
+            for a in heavy[:CONTEXT_AGENT_ROWS]]  # fmt: skip
+    md += [f"Heavy agents ({CONTEXT_HEAVY}), by the tokens over all their calls:", "",
+           table(["session", "run", "issue", "agent", "role", "agent type", "API calls", "average per call", "peak",
+                  "tokens over its calls"], rows), ""]  # fmt: skip
+    if len(heavy) > CONTEXT_AGENT_ROWS:
+        md += [f"{len(heavy) - CONTEXT_AGENT_ROWS} more heavy agents: the JSON record lists every agent.", ""]
+    return md + [CONTEXT_NOTE, ""]
+
+
+CONTEXT_NOTE = (
+    "Context per call: the input, cache-write and cache-read tokens of one API call (what the agent sent; output "
+    "left out); a role's average is over all its agents' calls. A heavy agent pays for that context on every call, "
+    "so many calls at a large context are what to look at first."
+)
+
+
+def context_compact(record: dict) -> str:
+    """One clause for the compact summary: each role's average/peak, the heavy count and the heaviest agents."""
+    if not record["totals"]["calls"]:
+        return "context per API call (#584): no API call"
+    roles = ", ".join(f"{g['role']} {fmt_k(g['avg'])}/{fmt_k(g['peak'])}" for g in record["roles"])
+    t = record["totals"]
+    text = (f"context per API call avg/peak (#584): {roles}; {t['heavy']} of {t['agents']} agents heavy (avg "
+            f"{fmt_k(CONTEXT_HEAVY_AVG)}+ or peak {fmt_k(CONTEXT_HEAVY_PEAK)}+)")  # fmt: skip
+    if record["heavy"]:
+        text += ", most: " + ", ".join(f"{a['label'] or '?'} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}"
+                                       for a in record["heavy"][:CONTEXT_NAMES])  # fmt: skip
+    return text
+
+
+def context_run_line(record: dict) -> str:
+    """`--run`'s line: the average and peak context per call of the run's agents, the heavy ones first, at most
+    CONTEXT_RUN_AGENTS of them ('+N more' for the rest); a label that repeats (a retry) gets '(2)', '(3)'."""
+    seen: dict[str, int] = {}
+    named = []
+    for a in record["agents"]:
+        label = a["label"] or "?"
+        seen[label] = seen.get(label, 0) + 1
+        named.append((a, label if seen[label] == 1 else f"{label} ({seen[label]})"))
+    named.sort(key=lambda x: not x[0]["heavy"])  # stable: heavy first, the run's order within each
+    shown = ", ".join(f"{label} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}" + (" heavy" if a["heavy"] else "")
+                      for a, label in named[:CONTEXT_RUN_AGENTS])  # fmt: skip
+    more = len(named) - CONTEXT_RUN_AGENTS
+    return (f"context per API call avg/peak (#584; heavy: {CONTEXT_HEAVY}): {shown}"
+            + (f", +{more} more" if more > 0 else ""))  # fmt: skip
+
+
 def other_section(counted: list[dict]) -> list[str]:
     rows = [
         [r["session"], r["wf"], r["kind"], f"#{r['issue']}" if r["issue"] else "", "yes" if r["finished"] else "no",
@@ -3368,7 +3497,7 @@ def quality_compact(quality: dict) -> str:
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
-    idle: dict | None = None, types: dict | None = None,
+    idle: dict | None = None, types: dict | None = None, context: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify."""
@@ -3377,6 +3506,8 @@ def compact_lines(
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
     if types is not None:  # on the first line: the summary keeps its line count (#557, as #558's idle total)
         lines[0] += f"; general-type writers {types['writers']['general']} of {types['writers']['all']} (#557)"
+    if context is not None:  # the first line too (#584)
+        lines[0] += "; " + context_compact(context)
     if tasks:
         lines.append("per task (wall min, API list $): " + ", ".join(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
@@ -3688,6 +3819,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
     spent = read = 0.0
     calls = 0
     idle: list[dict] = []
+    context: list[dict] = []
     types: Counter = Counter()
     type_usd: Counter = Counter()
     for aid, (label, phase) in agents.items():
@@ -3706,6 +3838,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
             if data["api_calls"]:
                 idle.append({"session": run_dir.parents[2].name[:8], "run": run_dir.name, "label": label,
                              "type": str(read_meta(path).get("agentType", "?")), "data": data})  # fmt: skip
+                context.append({**idle[-1], "role": role_of(label)})
     files = [run_dir / "journal.jsonl", *run_dir.glob("agent-*.jsonl")]
     writes = [p.stat().st_mtime for p in files if p.is_file()]
     return {
@@ -3726,13 +3859,14 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "type_usd": dict(type_usd),
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
         "idle": idle_record(idle),
+        "context": context_record(context),
     }
 
 
 def run_lines(r: dict) -> list[str]:
     """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase and its agents' types
     (#557, when their .meta.json files name them); a fourth with its cache re-writes after an idle gap (#558) when it
-    has one."""
+    has one; last, each agent's average and peak context per API call (#584) when one made a call."""
     state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
     head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
             f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
@@ -3757,6 +3891,8 @@ def run_lines(r: dict) -> list[str]:
         top = sorted((a for a in r["idle"]["agents"] if a["rewrites"]), key=lambda a: -a["usd"])[:IDLE_RUN_NAMES]
         most = ", ".join(f"{a['label'] or '?'} {a['rewrites']} ({fmt_usd(a['usd'])})" for a in top)
         lines.append(f"{idle_line('', totals)}; most: {most}")
+    if r["context"]["agents"]:  # the last line, when an agent made an API call (#584)
+        lines.append(context_run_line(r["context"]))
     return lines
 
 

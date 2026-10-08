@@ -526,9 +526,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Time, tokens and API list $ per task workflow, from this checkout's transcripts, with a table "
         "of the subagents' cache re-writes after an idle gap of 5 min or more per run and per agent (by what preceded "
         "the gap: wait, verify/publish/mutants, a shell sleep, other shell, Monitor, Read or another tool, an API "
-        "wait; #558), and the median and p95 of a tool call's time from its start to its output per class of call "
-        "(#568). --track: each track's share of the week against its --budget, and without --compact its "
-        "re-write table. --run: a run's spend so far, and a line of its re-writes when it has one.",
+        "wait; #558), the average and peak context per API call per agent role and the heavy agents (#584), and the "
+        "median and p95 of a tool call's time from its start to its output per class of call (#568). --track: each "
+        "track's share of the week against its --budget, and without --compact its re-write table. --run: a run's "
+        "spend so far, a line of its re-writes when it has one and a line of each agent's context per API call.",
     )
     p.add_argument(
         "--session",
@@ -547,8 +548,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--compact",
         action="store_true",
-        help="print only the summary of at most eleven lines (wave comments); its total line ends with the re-write "
-        "table's count and $",
+        help="print only the summary of at most eleven lines (wave comments); its first line ends with the context "
+        "per API call per role and the heavy agents, and its total line ends with the re-write table's count and $",
     )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
