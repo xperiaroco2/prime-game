@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The game (client/app/game.tscn, ARCHITECTURE §4.7) headless through a whole loop: a host and
 ## two clients, three Game roots in one tree over a LoopbackHub on a simulated clock, go through
-## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
-## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
-## screens call (headless runs have no input); the screens themselves are `shot`.
+## the lobby, Ready, the countdown, loading, the round, time up, the end screen and, 3 s later with
+## no intent, back to the lobby, then a client leaves and the host closes. Each Game is driven
+## through the methods its screens call (headless runs have no input); the screens themselves are
+## `shot`.
 ##
 ## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
 ## one shared physics space each player stood inside the body another game drew of it and was
@@ -100,11 +101,11 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 		var winner := game.mode.find_side(game.client().model.winner)
 		assert_object(winner).is_not_null()
 		assert_str(game.ui.end.winner_label.text).is_equal("The %s won" % winner.display_name)
-		assert_bool(game.ui.end.back_button.visible).is_equal(game.hosting())
-		# No click outside the end screen's button captures the mouse again.
+		# Everyone, the host too, sees the countdown to the lobby and no button (#212).
+		assert_str(game.ui.end.countdown_label.text).starts_with("Back to the lobby in ")
+		assert_array(game.ui.end.find_children("*", "BaseButton", true, false)).is_empty()
 		assert_bool(game.player().reads_device_input).is_false()
-	# The host's Back to lobby: the lobby level again, the match's facts gone.
-	host.return_to_lobby()
+	# With no intent, End's 3 s pass: the lobby level again, the match's facts gone.
 	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.LOBBY)

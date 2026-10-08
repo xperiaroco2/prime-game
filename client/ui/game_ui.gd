@@ -85,7 +85,7 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 		GameFlow.Screen.LOADING:
 			loading.refresh(model)
 		GameFlow.Screen.END:
-			end.refresh(model, mode, hosting)
+			end.refresh(model, mode, host_tick)
 
 
 ## Refreshes the round's HUD and task screen; `local` is what the game knows besides the model.
