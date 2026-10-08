@@ -56,6 +56,7 @@ func test_check_pack_names_what_the_mapping_does_not_cover() -> void:
 		"member shiny is not in mapping.variation_members",
 		"has a delay",
 		"legacy LifeBar: ToyBarProgress is not a live pack variation",
+		"lacks bg-color (a StyleBox field)",
 	]
 	for want in cases:
 		var broken: Dictionary = _pack.duplicate(true)
@@ -96,6 +97,10 @@ func _plant(pack: Dictionary, problem: String) -> void:
 			(tokens["button.common.motion"] as Dictionary)["delayMs"] = 5
 		"legacy LifeBar: ToyBarProgress is not a live pack variation":
 			_variation(pack, "ToyBarProgress")["deprecated"] = {}
+		"lacks bg-color (a StyleBox field)":
+			var plate := _variation(pack, "ToyPlate")
+			var state := str((plate["styleboxes"] as Array)[0])
+			tokens.erase("%s.%s.bg-color" % [plate["prefix"], state])
 
 
 func test_every_mapped_engine_item_exists_in_the_class_reference() -> void:

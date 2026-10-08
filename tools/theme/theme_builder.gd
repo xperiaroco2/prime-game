@@ -87,6 +87,7 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 	var classes: Dictionary = _dict(mapping, "classes")
 	var regex := RegEx.create_from_string(NAME_PATTERN)
 	var reserved: Array = _dict(mapping, "legacy").keys() + _dict(mapping, "keep").keys()
+	var tokens: Dictionary = _dict(pack, "tokens")
 	for name: String in variations:
 		var variation: Dictionary = _dict(variations, name)
 		var where := "variation %s" % name
@@ -116,6 +117,14 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 		for state: String in _array(variation, "styleboxes") + _array(variation, "empty"):
 			if not _dict(spec, "states").has(state):
 				problems.append("%s: state %s is not mapped for %s" % [where, state, cls])
+		# A missing field would silently keep StyleBoxFlat's default (an opaque grey centre).
+		for state: String in _array(variation, "styleboxes"):
+			for field: String in _dict(mapping, "stylebox_fields"):
+				var key := "%s.%s.%s" % [variation.get("prefix"), state, field]
+				if not tokens.has(key):
+					problems.append(
+						"%s: state %s lacks %s (a StyleBox field)" % [where, state, field]
+					)
 		var textures: Dictionary = _dict(variation, "textures")
 		for key: String in textures:
 			if not _array(spec, "icons").has(key.replace("-", "_")):
