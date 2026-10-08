@@ -404,8 +404,11 @@ class TrainTest(TrainCase):
         self.assertIn("idle, last update 1 min ago", self.summary()[1])
         self.assertEqual(self.published, [])
         self.live[0] = sessions.Session(os.getpid(), "idle one", str(wt), "idle", time.time() - 3600, "finished")
-        # A commit younger than --recent holds it; --recent 0 lets the train in.
-        rc, text = self.train(30, recent=10)
+        # A commit younger than --recent holds it; --recent 0 lets the train in. The clock reads 30 s after the commit:
+        # under a loaded verify the cases above can take over a minute, and the age then reads 1 min (#560's publish).
+        stamp = int(_git(wt, "log", "-1", "--format=%ct"))
+        with mock.patch.object(train.time, "time", return_value=stamp + 30):
+            rc, text = self.train(30, recent=10)
         self.assertEqual(rc, 1, text)
         self.assertIn("its last commit is 0 min old (under --recent 10): a run may still work there; once you know "
                       "it ended, run again with --recent 0", self.summary()[1])  # fmt: skip

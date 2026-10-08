@@ -1573,7 +1573,10 @@ continuations), API calls, those over 200k of context and their API list $, agai
 the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
 `<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
 `metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
-compact "task medians" line), per agent role and
+compact "task medians" line), the Sonnet implementer trial (#560: per trial task, against the
+Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
+and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
+[trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
 agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
 agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s

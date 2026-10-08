@@ -166,6 +166,21 @@ list $ of the planner and of the plan's critique, the repository files the plann
 read as above, a shell read of a doc), how many of them the implementer read too, and the critique's findings (all,
 and blockers plus majors). The JSON record's "plans" holds the same rows.
 
+The Sonnet implementer trial (#560, docs/decisions/2026-10-08-sonnet-implementer-trial.md): the finished `issue-task`
+runs grouped per task (its issue). A trial task is one with a run whose implementer (its first attempt's transcript) is
+of TRIAL_FAMILY; its runs on another model (the manager's relaunch on Opus) count with it. The baseline: the tasks whose
+every implementer is of BASELINE_FAMILY, not a design task, and whose issue's first `Size:` line (from GitHub; "S to M"
+is M) is in TRIAL_SIZES. Per task: its runs and the red ones (a run the manager must relaunch: the implementer's
+verify_green false, published false or ci_green false), verify runs and reds (the summaries its agents saw), the
+review's blockers and majors (trial_serious: one reviewer set on both sides), publisher fix rounds, CI fix rounds (red
+CI rounds, once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and
+the stop rule (trial_advice): stop once TRIAL_RED_TWICE trial tasks were red twice; from TRIAL_EARLY_TASKS trial tasks
+stop when their blockers and majors per task are TRIAL_SERIOUS_OVER or more over the baseline's; after TRIAL_TASKS keep
+it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its $ per task is lower, else drop it.
+Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
+verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
+tasks, the totals and the advice.
+
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
 UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
@@ -363,6 +378,19 @@ BACKGROUND_TIMEOUT = 1800
 # and the agents whose findings it counts (#315's open blockers and majors).
 SERIOUS = re.compile(r"blocker|major", re.IGNORECASE)
 SERIOUS_FROM = (*REVIEWERS, "code-reviewer-control", "netcode-second-reviewer", "test-reviewer")
+# The Sonnet implementer trial (#560, the module docstring): the trial's and the baseline's implementer model family,
+# the baseline's sizes (an issue's `Size:` line), and the stop rule's numbers (the trial ADR).
+TRIAL_FAMILY, BASELINE_FAMILY = "sonnet", "opus"
+TRIAL_SIZES = frozenset({"XS", "S"})
+SIZE_LINE = re.compile(r"^[\s>*-]*size:[\s*]*(XS|S|M|L|XL)\b(?:\s+to\s+(XS|S|M|L|XL)\b)?", re.IGNORECASE | re.MULTILINE)
+TRIAL_TASKS = 6
+TRIAL_EARLY_TASKS = 4
+TRIAL_RED_TWICE = 2
+TRIAL_SERIOUS_OVER = 1.0
+# The per-task means the table compares, and those the keep rule needs no worse than the baseline's.
+TRIAL_MEASURES = ("red_runs", "verify_runs", "verify_red", "serious", "fix_rounds", "ci_fix_rounds", "calls", "usd")
+TRIAL_NO_WORSE = {"red_runs": "red runs", "verify_red": "verify reds", "fix_rounds": "publisher fix rounds",
+                  "ci_fix_rounds": "CI fix rounds"}  # fmt: skip
 # The code reviewer's A/B (#535, the module docstring): the judged runs per pair of models before the verdict, the
 # early stop, and the bar the trial model must clear to be kept. Proposals the engineer may change (the A/B ADR).
 AB_RUNS = 10
@@ -1763,6 +1791,7 @@ def build(
     md += review_section(counted)
     quality = quality_record(finished, labels, github)
     md += quality_section(quality)
+    md += trial_section(trial := trial_record(finished, tasks, quality["tasks"], github))
     md += time_section(counted)
     md += cache_section(counted)
     idle = idle_record(idle_agents(counted))
@@ -1805,6 +1834,7 @@ def build(
         "plans": plans,
         "handoffs": handoffs,
         "ab_review": ab,
+        "sonnet_trial": trial,
         "instructions": instructions,
         "agent_types": types,
         "compact": compact,
@@ -2287,6 +2317,176 @@ def ab_section(record: dict) -> list[str]:
         f"{AB_INVALID_MARGIN:.0%} over the control's (the A/B ADR; the engineer decides).",
         "",
         table(total_head, totals),
+        "",
+    ]
+
+
+def issue_size(body: str) -> str | None:
+    """An issue body's first `Size:` line ("S", "**Size:** M.", "S to M" is the larger); None without one."""
+    found = SIZE_LINE.search(body)
+    return (found.group(2) or found.group(1)).upper() if found else None
+
+
+def implementer_family(r: dict) -> str | None:
+    """The model family of a run's implementer (its first attempt with a transcript)."""
+    d = next((x["data"] for x in r["agents"] if x["role"] == "implementer" and x["data"] and x["data"].get("model")), None)
+    return agents_check.family(str(d["model"])) if d else None
+
+
+def run_red(r: dict) -> bool:
+    """A run the manager must relaunch (orchestrate-stage §4): its implementer ended red, its publisher published
+    nothing, or CI stayed red after the publisher's rounds."""
+    last = {
+        role: next((x["result"] for x in reversed(r["agents"]) if x["role"] == role and x["result"] is not None), {})
+        for role in ("implementer", "publisher")
+    }
+    return (last["implementer"].get("verify_green") is False or last["publisher"].get("published") is False
+            or last["publisher"].get("ci_green") is False)  # fmt: skip
+
+
+def trial_serious(r: dict) -> int | None:
+    """A run's blockers and majors from one reviewer set on both sides of the trial: REVIEWERS, with the A/B's
+    code-reviewer-control (the Opus code reviewer) in place of code-reviewer where the run has one, so a finding both
+    code reviewers raised counts once; no test review (only some launches have one). None when no review ran."""
+    done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
+    roles = [role for role in REVIEWERS if role in done]
+    if "code-reviewer-control" in done:
+        roles = [role for role in roles if role != "code-reviewer"] + ["code-reviewer-control"]
+    if not roles:
+        return None
+    serious = 0
+    for role in roles:
+        listed = done[role].get("findings")
+        for f in listed if isinstance(listed, list) else []:
+            serious += isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
+    return serious
+
+
+def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | None) -> dict:
+    """One task's runs (run, per_task, quality row) summed: the trial table's measures; None where no run knows."""
+
+    def known(values: list) -> int | float | None:
+        values = [v for v in values if v is not None]
+        return sum(values) if values else None
+
+    ci = {q["pr"]: q.get("ci_red_rounds") for _r, _p, q in members if q["pr"] is not None}  # once per PR
+    first = members[0][0]
+    return {
+        "issue": first["issue"], "wf": first["wf"], "key": key, "size": size,
+        "models": sorted({str(implementer_family(r)) for r, _p, _q in members}),
+        "design": any(q["design"] for _r, _p, q in members),
+        "runs": len(members), "red_runs": sum(run_red(r) for r, _p, _q in members),
+        "verify_runs": sum(p["summaries"] for _r, p, _q in members),
+        "verify_red": sum(p["summaries_failed"] for _r, p, _q in members),
+        "serious": known([trial_serious(r) for r, _p, _q in members]),
+        "fix_rounds": known([q["fix_rounds"] for _r, _p, q in members]),
+        "ci_fix_rounds": known(list(ci.values())),
+        "calls": sum(p["calls"] for _r, p, _q in members), "usd": sum(q["usd"] for _r, _p, q in members),
+    }  # fmt: skip
+
+
+def trial_totals(rows: list[dict]) -> dict:
+    """One side's tasks: the tasks red twice, the per-task mean of each measure (over the tasks that know it) and the
+    median $."""
+    out: dict = {"tasks": len(rows), "red_twice": sum(x["red_runs"] >= 2 for x in rows)}
+    for k in TRIAL_MEASURES:
+        values = [x[k] for x in rows if x[k] is not None]
+        out[k] = sum(values) / len(values) if values else None
+    out["usd_median"] = med([x["usd"] for x in rows]) if rows else None
+    return out
+
+
+def trial_advice(trial: dict, base: dict) -> str:
+    """The stop rule (the module docstring) over the trial's and the baseline's totals."""
+    if trial["red_twice"] >= TRIAL_RED_TWICE:
+        return (f"stop: drop Sonnet for the implementer ({trial['red_twice']} trial tasks red twice; the manager "
+                f"relaunches them on Opus)")  # fmt: skip
+    if not base["tasks"]:
+        if trial["tasks"] >= TRIAL_TASKS:
+            return (f"no verdict: {trial['tasks']} trial tasks but no baseline in the window (Opus-implemented Size S "
+                    f"tasks); report on #302, the engineer decides")  # fmt: skip
+        return (f"continue: {trial['tasks']} of {TRIAL_TASKS} trial tasks; no baseline in the window (Opus-implemented "
+                f"Size S tasks: their size comes from GitHub)")  # fmt: skip
+    over = None if trial["serious"] is None or base["serious"] is None else trial["serious"] - base["serious"]
+    if trial["tasks"] >= TRIAL_EARLY_TASKS and over is not None and over >= TRIAL_SERIOUS_OVER:
+        return (f"stop: drop Sonnet for the implementer ({over:.2f} blockers and majors per task over the "
+                f"baseline's)")  # fmt: skip
+    if trial["tasks"] < TRIAL_TASKS:
+        return f"continue: {trial['tasks']} of {TRIAL_TASKS} trial tasks"
+    worse = [name for k, name in TRIAL_NO_WORSE.items()
+             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
+    if trial["usd"] >= base["usd"]:
+        worse.append("$ per task not lower")
+    if worse:
+        return f"drop Sonnet for the implementer (worse or unknown: {', '.join(worse)})"
+    return "keep Sonnet for qualifying tasks (the engineer decides; a habit only by a further amendment)"
+
+
+def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: dict | None) -> dict:
+    """The Sonnet implementer trial (#560) from the finished issue-task runs, their per_task records and their
+    scorecard rows (the three in one order), and the issues' sizes from read_github's list."""
+    issues = (github or {}).get("issues")
+    sizes = {i.get("number"): issue_size(str(i.get("body") or "")) for i in issues} if isinstance(issues, list) else {}
+    groups: dict[object, list[tuple[dict, dict, dict]]] = {}
+    for r, p, q in zip(runs, tasks, rows):
+        groups.setdefault(r["issue"] if r["issue"] is not None else r["wf"], []).append((r, p, q))
+    trial, base = [], []
+    for key, members in groups.items():
+        families = [implementer_family(r) for r, _p, _q in members]
+        row = trial_task(key, members, sizes.get(key))
+        if TRIAL_FAMILY in families:
+            trial.append(row)
+        elif all(f == BASELINE_FAMILY for f in families) and not row["design"] and row["size"] in TRIAL_SIZES:
+            base.append(row)
+    totals = {"trial": trial_totals(trial), "baseline": trial_totals(base)}
+    return {"tasks": trial, "baseline": base, "totals": totals, "sizes_known": isinstance(issues, list),
+            "advice": trial_advice(totals["trial"], totals["baseline"])}  # fmt: skip
+
+
+def trial_section(record: dict) -> list[str]:
+    """The Sonnet implementer trial's tables (#560); nothing when no task had a Sonnet implementer."""
+    if not record["tasks"]:
+        return []
+
+    def n(value: int | float | None, digits: int = 0) -> str:
+        return "?" if value is None else f"{value:.{digits}f}"
+
+    body = [
+        [f"#{x['issue']}" if x["issue"] is not None else x["wf"], x["size"] or "?", ", ".join(x["models"]),
+         f"{x['runs']} ({x['red_runs']})", f"{x['verify_runs']} ({x['verify_red']})", n(x["serious"]),
+         n(x["fix_rounds"]), n(x["ci_fix_rounds"]), x["calls"], fmt_usd(x["usd"])]
+        for x in record["tasks"]
+    ]  # fmt: skip
+    head = ["task", "size", "implementer models", "runs (red)", "verify runs (red)", "blockers+majors",
+            "publisher fix rounds", "CI fix rounds", "tool calls", "API list $"]  # fmt: skip
+    totals = []
+    for side, label in (("trial", "Sonnet trial"), ("baseline", "Opus, Size S")):
+        t = record["totals"][side]
+        totals.append([label, t["tasks"], t["red_twice"], *(n(t[k], 2) for k in TRIAL_MEASURES[:-2]),
+                       n(t["calls"]), "?" if t["usd"] is None else fmt_usd(t["usd"]),
+                       "?" if t["usd_median"] is None else fmt_usd(t["usd_median"])])  # fmt: skip
+    total_head = ["side", "tasks", "red twice", "red runs", "verify runs", "verify reds", "blockers+majors",
+                  "publisher fix rounds", "CI fix rounds", "tool calls", "$ (mean)", "$ (median)"]  # fmt: skip
+    sizes = "" if record["sizes_known"] else (" GitHub's issues were not read (--no-gh or a gh error), so no task has a "
+                                              "size and there is no baseline.")  # fmt: skip
+    return [
+        "## Sonnet implementer trial (#560)",
+        "",
+        "Per trial task (an issue with a Sonnet implementer run; its relaunches on Opus count with it): its runs and the "
+        "red ones, the verify runs its agents saw and the red ones, the review's blockers and majors, the publisher's "
+        f"fix rounds, the PR's red CI rounds, tool calls and API list $.{sizes}",
+        "",
+        table(head, body),
+        "",
+        f"Per task (means), against the baseline: Opus-implemented non-design tasks of the window, Size "
+        f"{' or '.join(sorted(TRIAL_SIZES, reverse=True))}. Stop once {TRIAL_RED_TWICE} trial tasks were red twice; "
+        f"from {TRIAL_EARLY_TASKS} trial tasks stop at {TRIAL_SERIOUS_OVER:g} or more blockers and majors per task "
+        f"over the baseline; after {TRIAL_TASKS} keep Sonnet when the reds and fix rounds are no worse and the $ per "
+        f"task is lower (the trial ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
+        "",
+        f"Advice: {record['advice']}.",
         "",
     ]
 
