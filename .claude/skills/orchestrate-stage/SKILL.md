@@ -292,8 +292,8 @@ taken in a `main` that has them.
   then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
   refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
   `main` (a background `publish` with `wait <log>` in its worktree, or `pr-rebase` when its `gate: note:` lines name an
-  overlap, then CI), the exceptions (the content area without the relay phrase or approval; `.claude/settings*.json`,
-  `.claude/githooks/`, the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item.
+  overlap, then CI), the exceptions (the content area or an ADR without "Approved by the engineer: <link>", added once
+  his approval is on GitHub; `.claude/settings*.json`, `.claude/githooks/`, the guard), an open "Needs the engineer".
   An exception goes into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind
   `main`: two or more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the
   background, `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a

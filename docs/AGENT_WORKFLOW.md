@@ -510,10 +510,9 @@ Rules for every workflow run:
     open blocker or major. Its gate collects every refusal: not open into `main` or a draft; not authored by the
     engineer's account, or gh not running as it (the designer's PRs go to the engineer); CI not green on the head;
     `mergeable` CONFLICTING; `origin/<head>` moved; **behind `main`** (`origin/main` not in the head: `publish` or
-    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the content area, §9, without the
-    designer's approving review or a line starting "agreed with the designer, relayed by the engineer";
-    `.claude/settings*.json`, `.claude/githooks/` and `tools/runner/guard.py`, always; an ADR added, changed or deleted
-    without "Approved by the engineer: <GitHub link>"); a closing PR (head `release/*`) without that line, the
+    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the content area, §9, or an ADR added,
+    changed or deleted, without "Approved by the engineer: <GitHub link>" (#563); `.claude/settings*.json`,
+    `.claude/githooks/` and `tools/runner/guard.py`, always); a closing PR (head `release/*`) without that line, the
     engineer's go, which also clears its content-area paths and ADRs; and any top-level item, or sub-heading or bold
     label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
     pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
@@ -1178,12 +1177,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
     continues with data (`content/CLAUDE.md`, `levels/CLAUDE.md`).
   - A scene with someone else's open PR is still never edited (`gh pr list --state open --json number,author,files`).
 - The gate of `merge <pr> --base main` (§7.1) refuses a PR not authored by the engineer's account, or run outside the
-  engineer's sessions, so the designer's PRs reach the engineer. Its code still treats the content area as the
-  designer's: a PR into `main` that changes it without the designer's approving review or the old relay phrase is
-  refused, and so goes to the engineer like the other exceptions (an agent never writes the relay phrase for a change
-  the designer did not agree to). A milestone's closing PR clears it with the engineer's go. `.claude/settings*.json`,
-  `.claude/githooks/` and the guard are always the engineer's to merge, and an ADR change needs "Approved by the
-  engineer: <link>" ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+  engineer's sessions, so the designer's PRs reach the engineer. A PR into `main` that changes the content area merges
+  through it once its body has "Approved by the engineer: <GitHub link>", as an ADR does (the engineer's answer (b) on
+  [#563](https://github.com/xperiaroco2/prime-game/issues/563#issuecomment-6057446276)): the publisher lists the
+  `content/` and `levels/` files as provisional, and the manager adds the line, linking the engineer's approval
+  recorded on GitHub; the designer's review and the old relay phrase clear nothing. A milestone's closing PR clears it
+  with the engineer's go, the same line. `.claude/settings*.json`, `.claude/githooks/` and the guard are always the
+  engineer's to merge ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
 - MVP content: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
   engineer's explicit approval and marked provisional
   ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).

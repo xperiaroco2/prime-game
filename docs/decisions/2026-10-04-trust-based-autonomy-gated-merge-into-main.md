@@ -2,8 +2,8 @@
 
 - **Status:** Accepted: the engineer's decision on #170 and #300; its wording approved by merging its PR (#300), the
   last PR of the tooling track the engineer merges by hand under the old rule; the launch budget amended 2026-10-05
-  (the weekly budget ADR's N1 (b), below); the designer's PRs and the content area amended 2026-10-08 (#518, the
-  last section)
+  (the weekly budget ADR's N1 (b), below); the designer's PRs and the content area amended 2026-10-08 (#518), and
+  the content area's gate the same day (#563, the last section)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
@@ -143,3 +143,15 @@ skills). Where this ADR sends the designer's PRs or area to a human, it now read
   them. The gate still refuses a PR not authored by the engineer's account, which is what sends them to him.
 - The gate's code (`tools/runner/merge.py`: `DESIGNER_PREFIXES`, `RELAY_RE`) is unchanged by #518; changing it is a
   follow-up the engineer decides (the options are in #518's PR under "Needs the engineer").
+
+## Amendment 2026-10-08: the content area merges on the engineer's line (#563)
+
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/563#issuecomment-6057446276
+
+The engineer took option (b) of #563 for the follow-up above. Answer 1's content-area exception now reads: a PR into
+`main` that changes the content area merges through the gate once its body has an "Approved by the engineer: <GitHub
+link>" line, the same line an ADR change needs; the designer's approving review and the relay phrase no longer clear
+it. The publisher lists the `content/` and `levels/` files as provisional (the [MVP content
+ADR](2026-09-29-mvp-content-built-by-the-engineer.md)) with no tag, and the manager adds the line only for the
+engineer's approval recorded on GitHub, as for an ADR. The ADR and the permission and safety exceptions are unchanged.
+Built in `tools/runner/merge.py` (`CONTENT_PREFIXES`, `CONTENT_FILES`, `exception_reasons`) and `inbox.py`.
