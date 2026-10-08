@@ -68,7 +68,7 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
    news in one line (merged, finished, stopped), not its whole story.
 4. **Approvals (a heuristic; §7.2's probe):** a session with `isRunning` true whose last event is a call with no
    result (`[assistant] (called Bash)`) and whose `lastActivityAt` is over 5 minutes old probably waits on a
-   permission card (agents block no call over 240 s). Name the session, its link and the tool; never claim more.
+   permission card (agents block no call over 180 s). Name the session, its link and the tool; never claim more.
 5. **Merge into one list.** One item per thing: a PR named by a session, its wave comment and `inbox` is one item,
    with the best link. Drop what a later comment or event answered (the engineer's words, an "Answered:" link, a
    merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at.

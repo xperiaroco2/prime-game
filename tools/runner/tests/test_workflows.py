@@ -23,7 +23,8 @@ critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5,
 list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
 too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
 summary cap, the publisher's plan summary and inline finish-task steps); they landed between waves, when no run could
-resume. #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
+resume. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the launched snapshots, between
+waves too. #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
 the return): #386 made it compact and changed only that part of every snapshot.
 """
 
@@ -37,6 +38,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from runner import wait
 from runner.common import ROOT, force_rmtree, node_bin
 
 WORKFLOWS = ROOT / ".claude" / "workflows"
@@ -1419,11 +1421,11 @@ class PipelineV2Test(unittest.TestCase):
                         "tools/run.sh wait <log>",
                         "`tools\\run.cmd wait <log>`",
                         "300000",
-                        "No tool call blocks longer than 240 s",
+                        f"No tool call blocks longer than {wait.DEFAULT_MAX} s",
                         "never only with the tool's timeout",
                         "never start the job again",
-                        "timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the "
-                        "tool's timeout set to 300000",
+                        f"timeout {wait.DEFAULT_MAX} gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash "
+                        "tool with the tool's timeout set to 300000",
                         "while rc is 124 or 8",
                         "no checks reported",
                         "`wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error",
@@ -1432,6 +1434,12 @@ class PipelineV2Test(unittest.TestCase):
                         "run them in the foreground as before",
                     ):
                         self.assertIn(text, paragraph)
+                    # #555: the Bash tool's timeout outlasts the step plus the start-up before it, and every number of
+                    # seconds the paragraph names is the step.
+                    for ms in re.findall(r"timeout set to (\d+)", paragraph):
+                        self.assertGreater(int(ms), (wait.DEFAULT_MAX + wait.AROUND_P95) * 1000)
+                    self.assertEqual(set(re.findall(r"(\d+) s\b", paragraph)), {str(wait.DEFAULT_MAX)})
+                    self.assertEqual(set(re.findall(r"timeout (\d+) gh", paragraph)), {str(wait.DEFAULT_MAX)})
                     # It comes after every step it replaces, so the last word on CI and verify is the bounded one.
                     for j, text in enumerate(new):
                         if j != i and ("gh pr checks" in text or "run.cmd verify" in text):

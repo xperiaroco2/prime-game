@@ -140,7 +140,7 @@ FILES_FIELDS = "number,baseRefName,mergedAt,files"
 FILES_LIMIT = 200
 # Agents that push or rebase a branch: a run is stopped for a handover only between them.
 PUSHING_ROLES = ("publisher", "pr-rebase", "pr-rebase fix")
-# A running run with no line for longer is stale for the verdict (its agents block no call over 240 s, #303).
+# A running run with no line for longer is stale for the verdict (its agents block no call over 180 s, #303, #555).
 STALE_MINUTES = 60
 
 

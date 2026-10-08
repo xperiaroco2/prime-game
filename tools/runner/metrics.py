@@ -60,6 +60,14 @@ the counted runs' agents, as the cache table above it; `--track` every subagent 
 sessions' own lines) of the named tracks' sessions, each call by its time in the window, its $ as a share of the track's
 cache-write $; `--run` the run's agents, with no window.
 
+Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
+(`gh pr checks --watch`, `gh run watch`), and the agent's next API call. Per API call that made one (its longest, with a
+result and a next call): the call's seconds, the gap between the two API calls' first lines (as the cache section
+measures it) and the next call's cache write and read. A re-write is a next call after CACHE_TTL or more that wrote
+most of its context, priced as its write's premium over a read. A `wait` that ran to its deadline says so with its own
+clock ("still running after N s"); the gap minus N is the time around wait (the shell's and Python's start-up, the
+guard hook, the model's turn): the step (wait's DEFAULT_MAX) plus that time's p95 must stay under CACHE_TTL.
+
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
   issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
@@ -233,6 +241,8 @@ SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
 CMD_KINDS = [
+    # `wait --verified` (a quick check) and `wait --help` (the probe) poll no job: they are not a bounded wait (#555).
+    ("wait", re.compile(r"run(\.cmd|\.sh)\s+wait\b(?!\s+(--verified|--help|-h)\b)")),
     ("publish", re.compile(r"run(\.cmd|\.sh)\s+publish\b")),
     ("verify", re.compile(r"run(\.cmd|\.sh)\s+verify\b")),
     ("selftest", re.compile(r"run(\.cmd|\.sh)\s+selftest\b")),
@@ -260,13 +270,18 @@ CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
 CI_WORKFLOW = "ci.yml"
 GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to 10 min"), (600, None, "over 10 min"))
+# A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
+CACHE_TTL = 300
+BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
+# wait's line when the job is still running at its deadline: its own clock, without the shell's and Python's start-up.
+WAIT_RAN = re.compile(r"^wait: still running after (\d+) s \(", re.MULTILINE)
 # A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
 REWRITE_GAP = 3600
 # What held when such a gap began, in the order the first that holds wins (module docstring).
 REWRITE_KINDS = ("timer", "run", "stop")
 # A subagent's cache re-write after an idle gap (#558): its API call 5 minutes or more after its previous one, when the
 # 5-minute prompt cache has lapsed.
-IDLE_GAP = 300
+IDLE_GAP = CACHE_TTL  # one 5-minute cache for #555 and #558
 # What preceded such a gap (module docstring), in the tables' order: the runner's `wait`; `verify`, `publish` or
 # `mutants`; a shell `sleep`; any other Bash or PowerShell command; Monitor; Read or any other tool; none (an API wait).
 IDLE_CAUSES = ("wait", "verify", "sleep", "shell", "Monitor", "tool", "API")
@@ -1006,6 +1021,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             code_seen.pop(rel, None)
                         uses[b["id"]] = {
                             "name": b.get("name"),
+                            "mid": mid,
                             "t0": t,
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
@@ -1026,6 +1042,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         found = read_items(call["docs"], text)
                         items += found
                         pending += found
+                        polled = WAIT_RAN.search(text) if call["kind"] == "wait" else None
+                        call["polled"] = float(polled.group(1)) if polled else None
                         if MERGE_HEADER.search(text):
                             merge_outputs += 1
                             merge_pairs += architecture_pairs(text)
@@ -1064,6 +1082,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         for a, b in zip(order, order[1:])
         if first_seen[b] - first_seen[a] >= IDLE_GAP
     ]  # fmt: skip
+    waits = bounded_waits(calls, order, first_seen, usage)
     seen, unique = set(), []
     for v in verifies:
         sig = (v["total"], tuple(sorted((k, x[1]) for k, x in v["steps"].items())))
@@ -1088,6 +1107,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "gaps": gaps,
         "idle": idle,
         "max_gap": max((g[0] for g in gaps), default=0.0),
+        "waits": waits,
         # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
         # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
         "timers": [(a, b) for a, b in armed if since is None or b > since],
@@ -1103,6 +1123,29 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "code_reads": code_reads,
         "files_read": sorted(files_read),
     }
+
+
+def bounded_waits(
+    calls: list[dict], order: list[str], first_seen: dict[str, float], usage: dict[str, dict]
+) -> list[dict]:
+    """#555: per API call that made a bounded wait (BOUNDED_WAITS) with a result and a next API call, its longest such
+    wait: its kind, the wait's own seconds, the gap to the next call (first line to first line, as `gaps` measures
+    it), and that next call's cache write, read and the write's premium over a read."""
+    after = dict(zip(order, order[1:]))
+    kinds = {kind for kind, _name in BOUNDED_WAITS}
+    longest: dict[str, dict] = {}
+    for c in calls:
+        if c["kind"] not in kinds or not c["t1"] or c["mid"] not in after:
+            continue
+        if c["mid"] not in longest or c["t1"] - c["t0"] > longest[c["mid"]]["seconds"]:
+            nxt = usage[after[c["mid"]]]
+            longest[c["mid"]] = {
+                "kind": c["kind"], "seconds": c["t1"] - c["t0"], "polled": c.get("polled"),
+                "gap": first_seen[after[c["mid"]]] - first_seen[c["mid"]],
+                "write": nxt["cache_creation_input_tokens"], "read": nxt["cache_read_input_tokens"],
+                "premium": write_premium(nxt),
+            }  # fmt: skip
+    return list(longest.values())
 
 
 def files_of(name: str, inp: dict, call: dict) -> list[str]:
@@ -1608,6 +1651,8 @@ def build(
     md += cache_section(counted)
     idle = idle_record(idle_agents(counted))
     md += idle_section(idle)
+    waits = bounded_wait_record(counted)
+    md += bounded_wait_section(waits)
     managers = manager_rows(counted, data["sessions"])
     md += manager_section(managers, data["other_sessions"])
     rewrites = rewrite_rows(data["sessions"], data["runs"])
@@ -1632,6 +1677,7 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "idle": idle,
+        "bounded_waits": waits,
         "quality": quality,
         "plans": plans,
         "ab_review": ab,
@@ -2119,6 +2165,56 @@ def cache_section(counted: list[dict]) -> list[str]:
         md += [f"Cache writes after a wait of 5 minutes or more: {fmt_tok(long_w)} of {fmt_tok(all_w)} "
                f"({long_w / all_w:.0%}), about {fmt_usd(long_usd)} list more than reading them "
                "(each call at its own model's prices).", ""]
+    return md
+
+
+def p95(values: list[float]) -> float:
+    """The nearest-rank 95th percentile (0.0 for none)."""
+    ranked = sorted(values)
+    return ranked[max(0, -(-len(ranked) * 95 // 100) - 1)] if ranked else 0.0
+
+
+def bounded_wait_record(counted: list[dict]) -> dict:
+    """#555, per kind of BOUNDED_WAITS over the counted runs' agents: the calls; the cache re-writes after one (a next
+    call after CACHE_TTL or more that wrote most of its context: the tokens written and their premium over a read); the
+    tool call's median seconds; the turn after it (the gap to the agent's next API call minus the call's seconds: the
+    model's own call; median, p95, maximum); the longest gap. For `wait` also the calls that ran to their deadline
+    (wait's "still running after N s" line) and the time around wait's own clock (the gap minus its N: the shell's and
+    Python's start-up plus the turn; median, p95, maximum): a step plus that p95 must stay under CACHE_TTL."""
+    waits = [w for r in counted for x in r["agents"] if x["data"] for w in x["data"].get("waits", [])]
+    out = {}
+    for kind, _name in BOUNDED_WAITS:
+        sel = [w for w in waits if w["kind"] == kind]
+        turn = [w["gap"] - w["seconds"] for w in sel]
+        around = [w["gap"] - w["polled"] for w in sel if w.get("polled") is not None]
+        lapsed = [w for w in sel if w["gap"] >= CACHE_TTL and w["write"] > 0.5 * (w["write"] + w["read"])]
+        out[kind] = {
+            "calls": len(sel), "rewrites": len(lapsed), "rewrite_tokens": sum(w["write"] for w in lapsed),
+            "rewrite_usd": sum(w["premium"] for w in lapsed), "call_median_s": med([w["seconds"] for w in sel]),
+            "turn_median_s": med(turn), "turn_p95_s": p95(turn), "turn_max_s": max(turn, default=0.0),
+            "gap_max_s": max((w["gap"] for w in sel), default=0.0), "deadline_calls": len(around),
+            "around_median_s": med(around), "around_p95_s": p95(around), "around_max_s": max(around, default=0.0),
+        }  # fmt: skip
+    return out
+
+
+def bounded_wait_section(record: dict) -> list[str]:
+    """One line per kind of bounded wait (#555): the cache re-writes after one, and the time around it."""
+    md = []
+    for kind, name in BOUNDED_WAITS:
+        r = record[kind]
+        if not r["calls"]:
+            continue
+        line = (f"Cache re-writes after {name} (#555): {r['rewrites']} of {r['calls']} calls "
+                f"({fmt_tok(r['rewrite_tokens'])}, about {fmt_usd(r['rewrite_usd'])} list more than reading them). "
+                f"The call {r['call_median_s']:.0f} s median; the turn after it (the gap to the next API call minus "
+                f"the call) {r['turn_median_s']:.0f} s median, {r['turn_p95_s']:.0f} s p95, {r['turn_max_s']:.0f} s "
+                f"max; the longest gap {r['gap_max_s']:.0f} s.")  # fmt: skip
+        if r["deadline_calls"]:
+            line += (f" {r['deadline_calls']} ran to their deadline: the gap minus wait's own clock (start-up and "
+                     f"turn) {r['around_median_s']:.0f} s median, {r['around_p95_s']:.0f} s p95, "
+                     f"{r['around_max_s']:.0f} s max.")  # fmt: skip
+        md += [line, ""]
     return md
 
 

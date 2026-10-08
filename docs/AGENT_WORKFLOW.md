@@ -201,7 +201,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
    matches too (`bots`, `bots-enet` and `bots-webrtc`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
-   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11.17, "Bounded waits").
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -653,7 +653,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
 **Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
 result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
-then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 240 s
+then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 180 s
 (§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
 minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
 known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
@@ -1525,7 +1525,9 @@ planner read and how many of them the implementer read too, the critique's findi
 code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
 valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
 `ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
-prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
+(#555, §11.17; `bounded_waits` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
+session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
 minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
@@ -1829,9 +1831,16 @@ agent or subagent writes its prompt cache with a 5-minute lifetime (a main or ma
 tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
 that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
 all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
-300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
-session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 180 s, and bounds a call with the
+shell's `timeout` or `wait --max`, never only with the tool's own timeout. The step was 4 minutes until #555: from 10-06
+10:00 to 10-08 there were 390 `wait` calls and 25 of them were followed by a cache re-write (4.19M tokens, about $20 of
+list $); 212 of the calls ran to their deadline, and their gap to the next API call exceeded wait's own clock by 6 s
+median but 94 s p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the
+model's turn, itself 3 s median and 14 s p95), so a 4-minute step plus the p95 crossed 300 s and 180 s + 94 s stays
+under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's
+`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted).
+Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with
+`wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
 (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
 the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
@@ -1840,7 +1849,7 @@ the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule
 run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
 the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
 `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
-default 120000 would cut a 240 s wait short. `wait` polls every 3 s for at most S seconds (default 240, 1 to 270;
+default 120000 would cut a 180 s wait short. `wait` polls every 3 s for at most S seconds (default 180, 1 to 180;
 else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
 `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
 bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
@@ -1853,8 +1862,8 @@ locked file): `wait: cannot read <path>: ...` and 2. Every line `wait` writes it
 its own 2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM or none), CRLF, and on Windows the Git
 Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not visible to Windows Python, and the
 missing-log line says so. A log that has not grown for 10 minutes points at a background task that died (no marker is
-ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with
-the tool's timeout at 300000 (its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own
+ever written): check it. CI: `timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with
+the tool's timeout at 300000 (its default 120000 would cut the 180 s short; in PowerShell `timeout` is Windows' own
 program), repeated while rc is 124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not
 registered yet. `wait --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl`
 passed at HEAD with a clean tree (`tree` set), on HEAD's tree and runner, under 2 hours ago, and the tree is still

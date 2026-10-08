@@ -107,8 +107,8 @@ exit codes:
 Run it in the Bash tool in the background (run_in_background, its timeout 3600000: a foreground shell call dies at
 600 s, and setup and the baseline come before the first mutant; PowerShell 5.1's `>` writes UTF-16 and its `$?` is a
 boolean, so the log would never end in `exit=<n>`). Then call wait in separate calls, the tool's timeout at 300000
-(its default 120000 cuts a 240 s wait short), again while it exits 124 (still running); a workflow agent or subagent
-blocks no call over 240 s:
+(its default 120000 cuts a 180 s wait short), again while it exits 124 (still running); a workflow agent or subagent
+blocks no call over 180 s:
   tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>
   tools/run.sh wait <log>
 The report file shows the progress meanwhile."""

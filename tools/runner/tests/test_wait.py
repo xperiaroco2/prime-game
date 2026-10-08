@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, guard, permissions, verify, wait
+from runner import cli, guard, metrics, permissions, verify, wait
 from runner.common import IS_WINDOWS, ROOT, git_bash
 
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
@@ -82,7 +82,9 @@ class WaitTest(unittest.TestCase):
         with self.log.open("ab") as out:
             out.write(text.encode("utf-8"))
 
-    def run_wait(self, max_seconds: int = 240, log: str | None = None, **kwargs: float) -> tuple[int, list[str]]:
+    def run_wait(
+        self, max_seconds: int = wait.DEFAULT_MAX, log: str | None = None, **kwargs: float
+    ) -> tuple[int, list[str]]:
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             rc = wait.main(
@@ -133,13 +135,13 @@ class WaitTest(unittest.TestCase):
 
     def test_a_running_log_times_out_with_124_and_one_line(self) -> None:
         self.write(VERIFY_START + VERIFY_STEPS)
-        rc, out = self.run_wait(240)
+        rc, out = self.run_wait(180)
         self.assertEqual(rc, wait.STILL_RUNNING)
         self.assertEqual(len(out), 1, out)
-        self.assertTrue(out[0].startswith("wait: still running after 240 s ("), out[0])
+        self.assertTrue(out[0].startswith("wait: still running after 180 s ("), out[0])
         self.assertIn("never start the job again", out[0])
-        self.assertLessEqual(sum(self.time.sleeps), 240)
-        self.assertAlmostEqual(self.time.t, 240)
+        self.assertLessEqual(sum(self.time.sleeps), 180)
+        self.assertAlmostEqual(self.time.t, 180)
 
     def test_verify_early_lines_are_not_a_result(self) -> None:
         self.write(VERIFY_START)
@@ -172,14 +174,14 @@ class WaitTest(unittest.TestCase):
     def test_the_job_finishing_during_the_wait_returns_early(self) -> None:
         self.write(VERIFY_START + VERIFY_STEPS)
         self.time.on_sleep[3] = lambda: self.append("\n".join(GREEN_SUMMARY) + "\nexit=0\n")
-        rc, out = self.run_wait(240)
+        rc, out = self.run_wait(180)
         self.assertEqual(rc, 0)
         self.assertEqual(len(self.time.sleeps), 3)
-        self.assertLess(self.time.t, 240)
+        self.assertLess(self.time.t, 180)
         self.assertEqual(out[0], "verify summary")
 
     def test_a_missing_log_exits_2_after_the_grace(self) -> None:
-        rc, out = self.run_wait(240, grace=10)
+        rc, out = self.run_wait(180, grace=10)
         self.assertEqual(rc, wait.MISSING)
         self.assertEqual(len(out), 1, out)
         self.assertTrue(out[0].startswith("wait: no log at "), out[0])
@@ -188,12 +190,12 @@ class WaitTest(unittest.TestCase):
 
     def test_a_log_that_appears_during_the_grace_is_waited_on(self) -> None:
         self.time.on_sleep[2] = lambda: self.write(GREEN_SUMMARY + ["exit=0"])
-        self.assertEqual(self.run_wait(240, grace=10)[0], 0)
+        self.assertEqual(self.run_wait(180, grace=10)[0], 0)
 
     def test_a_log_deleted_during_the_wait_exits_2(self) -> None:
         self.write(VERIFY_START)
         self.time.on_sleep[1] = self.log.unlink
-        rc, out = self.run_wait(240)
+        rc, out = self.run_wait(180)
         self.assertEqual(rc, wait.MISSING)
         self.assertTrue(out[0].startswith("wait: "), out)
         self.assertIn("disappeared", out[0])
@@ -201,30 +203,47 @@ class WaitTest(unittest.TestCase):
     def test_an_unreadable_log_is_waits_own_2_never_a_traceback(self) -> None:
         # A folder passed by mistake (Windows reads it as a PermissionError) or a locked log: never Python's exit 1,
         # which an agent would read as a red job.
-        rc, out = self.run_wait(240, log=str(self.tmp))
+        rc, out = self.run_wait(180, log=str(self.tmp))
         self.assertEqual(rc, wait.MISSING)
         self.assertEqual(len(out), 1, out)
         self.assertTrue(out[0].startswith("wait: cannot read "), out[0])
         self.write(VERIFY_START)
         with mock.patch.object(Path, "read_bytes", side_effect=PermissionError(13, "locked")):
-            rc, out = self.run_wait(240)
+            rc, out = self.run_wait(180)
         self.assertEqual(rc, wait.MISSING)
         self.assertTrue(out[0].startswith("wait: cannot read "), out)
 
-    def test_max_over_270_or_under_1_is_refused(self) -> None:
+    def test_max_over_180_or_under_1_is_refused(self) -> None:
         self.write(GREEN_SUMMARY + ["exit=0"])
-        for value in ("300", "271", "0", "-5"):
+        for value in ("300", "271", "181", "0", "-5"):
             with self.subTest(max=value):
                 out = io.StringIO()
                 with contextlib.redirect_stdout(out):
                     rc = cli.main(["wait", str(self.log), "--max", value])
                 self.assertEqual(rc, 2)
-                self.assertIn("wait: --max is 1 to 270 s", out.getvalue())
+                self.assertIn("wait: --max is 1 to 180 s", out.getvalue())
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
             cli.main(["wait", str(self.log), "--max", "four"])
         self.assertEqual(raised.exception.code, 2)
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(cli.main(["wait", str(self.log), "--max", "270"]), 0)
+            self.assertEqual(cli.main(["wait", str(self.log), "--max", "180"]), 0)
+
+    def test_the_step_keeps_a_5_minute_cache_warm_and_agrees_everywhere(self) -> None:
+        # #555: the gap between an agent's two API calls around a wait is the step plus the time around wait's own
+        # clock, AROUND_P95 at p95 as measured (wait.py's DEFAULT_MAX comment); the cache lives CACHE_TTL.
+        self.assertLess(wait.DEFAULT_MAX + wait.AROUND_P95, wait.CACHE_TTL)
+        self.assertEqual(wait.CACHE_TTL, metrics.CACHE_TTL)
+        self.assertEqual(wait.MAX_ALLOWED, wait.DEFAULT_MAX, "a longer --max brings the edge back")
+        self.assertIn(f"(default and maximum {wait.DEFAULT_MAX}, #555)", wait.__doc__ or "")
+        parser = cli.build_parser()
+        self.assertEqual(parser.parse_args(["wait", "x.log"]).max, wait.DEFAULT_MAX)
+        shown = io.StringIO()
+        with contextlib.redirect_stdout(shown), self.assertRaises(SystemExit) as raised:
+            cli.main(["wait", "--help"])
+        self.assertEqual(raised.exception.code, 0)
+        text = " ".join(shown.getvalue().split())
+        self.assertIn(f"Wait at most S s (default {wait.DEFAULT_MAX})", text)
+        self.assertIn(f"1 to {wait.MAX_ALLOWED} (default {wait.DEFAULT_MAX})", text)
 
     def test_encodings_and_line_ends(self) -> None:
         # PowerShell 5.1's `*>` writes UTF-16 with a BOM; Out-File and Set-Content may add a UTF-8 BOM; CRLF lines.
@@ -252,7 +271,7 @@ class WaitTest(unittest.TestCase):
 
     def test_an_msys_only_path_says_so(self) -> None:
         # Git Bash's /tmp is not a folder Windows' Python can see: the log seems missing, and the line says why.
-        rc, out = self.run_wait(240, log="/tmp/prime-wait-test-no-such.log", grace=0)
+        rc, out = self.run_wait(180, log="/tmp/prime-wait-test-no-such.log", grace=0)
         self.assertEqual(rc, wait.MISSING)
         if IS_WINDOWS:
             self.assertIn("scratchpad", out[0])
@@ -430,9 +449,9 @@ class NoPromptTest(unittest.TestCase):
                  for job in ("verify", "publish", "publish --base release/m5", "mutants a.json")]  # fmt: skip
         calls += [
             ("Bash", f"cd {wt} && tools/run.sh wait {log}"),
-            ("Bash", f"cd {wt} && tools/run.sh wait {log} --max 200"),
+            ("Bash", f"cd {wt} && tools/run.sh wait {log} --max 150"),
             ("PowerShell", f"Set-Location {wt}; tools\\run.cmd wait {log}"),
-            ("Bash", f"cd {wt} && timeout 240 gh pr checks 12 --watch --interval 30; echo rc=$?"),
+            ("Bash", f"cd {wt} && timeout 180 gh pr checks 12 --watch --interval 30; echo rc=$?"),
             ("Bash", f"cd {wt} && tools/run.sh wait --verified"),
             ("PowerShell", f"Set-Location {wt}; tools\\run.cmd wait --verified"),
         ]
