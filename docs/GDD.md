@@ -28,8 +28,10 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Death does not take you out of the game, and killing is not a win.**
 - **Action over long discussions.** Run, do tasks, outwit.
 - **Cringe-fun vibe**, and an audience that is not only guys.
-- **Macro skill over micro skill.** Simple mechanics, no aim-heavy or one-shot mechanics: decisions, teamwork and
-  communication win, and a player who never plays shooters has as much fun as anyone.
+- **Macro skill over micro skill.** Simple mechanics, no aim-heavy mechanics: decisions, teamwork and communication
+  win, and a player who never plays shooters has as much fun as anyone. One-shot kills exist only as rare moments that
+  are hard to abuse: the dropped car now, maybe later a single-shot weapon that is very hard to get. The player
+  respawns as usual (the ADR's amendment of 2026-10-08, #591).
 - **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the zones
   where items may appear) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but
   it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.

@@ -12,6 +12,8 @@
   [game modes define the phases](2026-09-29-game-modes-define-the-phases.md),
   [match loop, intents and events](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md)
+- **Amended 2026-10-08 (#591):** the pillar "Macro skill over micro skill" allows rare one-shot moments that are hard
+  to abuse ([below](#amendment-2026-10-08-rare-one-shot-moments-591)).
 
 ## Context
 The [MVP rules](2026-09-29-mvp-rules.md) were decided before the game had a vision of its own. Since then a vision
@@ -461,3 +463,18 @@ The order below keeps `verify` green after every item. Two rules hold for each o
 - The skill `new-mechanic` (`.claude/skills/new-mechanic/SKILL.md`, step 2) still lists "dead players, meetings" among
   a mechanic's edge cases; it follows `content/CLAUDE.md`'s new list in a follow-up, since this ADR's PR changes no
   file under `.claude/`.
+
+## Amendment 2026-10-08: rare one-shot moments (#591)
+
+Decided by the engineer on 2026-10-08 in chat with his agent while agreeing the first map
+([House](../design/house-map.md), decision 10); recorded on #591.
+
+- **Why:** the House map's car repair has one player hold a car on a lift while another works under it, and the
+  dropped car kills at once. The pillar's "no one-shot mechanics" forbade that.
+- **The pillar now reads:** **Macro skill over micro skill.** Simple mechanics, no aim-heavy mechanics: decisions,
+  teamwork and communication win, and a player who never plays shooters has as much fun as anyone. One-shot kills
+  exist only as rare moments that are hard to abuse: the dropped car now, maybe later a single-shot weapon that is
+  very hard to get. The player respawns as usual.
+- **Unchanged:** no aim-heavy mechanics; death does not take a player out of the game, and killing is not a win.
+- Where it lives: `docs/GDD.md` §1 (Pillars). The pillar's text under "Vision pillars" above is the 2026-10-01
+  wording.
