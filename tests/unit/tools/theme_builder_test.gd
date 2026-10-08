@@ -281,6 +281,10 @@ func test_legacy_names_are_thin_variations_of_toy_ones() -> void:
 func test_the_base_must_be_the_packs_reference() -> void:
 	assert_str(Builder.base_problem(_pack, 1152, 648)).contains("1920x1080")
 	assert_str(Builder.base_problem(_pack, 1920, 1080)).is_empty()
+	# build_theme.gd stops on this; here CI holds it, so the project and the pack cannot drift apart.
+	var width := ProjectSettings.get_setting("display/window/size/viewport_width") as int
+	var height := ProjectSettings.get_setting("display/window/size/viewport_height") as int
+	assert_str(Builder.base_problem(_pack, width, height)).is_empty()
 
 
 func test_the_font_hook_waits_for_520() -> void:

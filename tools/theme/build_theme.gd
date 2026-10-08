@@ -4,9 +4,9 @@ extends SceneTree
 ##   tools\run.cmd ui-sync ui-<version>
 ##   tools\run.cmd run tools/theme/build_theme.gd --headless
 ## It stops with an error when the pinned pack does not match its lock, when the mapping does not
-## cover the pack, or when the project's UI base is not the size the pack is drawn at (#287); the
-## user arg `-- --skip-base-check` turns that last one into a warning, for a branch built before
-## #287 lands. The tests rebuild the same themes in memory and fail when a committed file is stale.
+## cover the pack, or when the project's UI base is not the size the pack is drawn at (#287). The
+## tests rebuild the same themes in memory and fail when a committed file is stale, and fail when
+## the project's base drifts from the pack's reference.
 
 const Builder := preload("res://tools/theme/theme_builder.gd")
 
@@ -38,10 +38,8 @@ func _build() -> int:
 		)
 	)
 	if not base.is_empty():
-		if not OS.get_cmdline_user_args().has("--skip-base-check"):
-			push_error("THEME %s; build after it (or pass -- --skip-base-check)" % base)
-			return 1
-		print("THEME warning: %s (--skip-base-check)" % base)
+		push_error("THEME %s" % base)
+		return 1
 	for deprecated in Builder.deprecated_names(pack):
 		print("THEME skipped deprecated variation %s" % deprecated)
 	var themes: Dictionary = mapping.get("themes", {})
