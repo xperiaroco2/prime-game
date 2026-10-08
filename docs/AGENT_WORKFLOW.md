@@ -94,7 +94,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 |---|---|---|---|
 | Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
-| `content/ levels/` `CLAUDE.md` (designer-owned) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
+| `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
@@ -294,14 +294,14 @@ rules.
 
 ## 6. Skills [applied]
 
-Committed in `.claude/skills/<name>/SKILL.md` (M0 stage 6); no plugins. The two designer skills are designer-owned
-and wait for the designer's review.
+Committed in `.claude/skills/<name>/SKILL.md` (M0 stage 6); no plugins. The two content skills are the engineer's
+since #518 (§9); they serve whoever brings the idea, the engineer or the optional designer.
 
 | Skill | For | Does |
 |---|---|---|
 | `start-task`, `finish-task` | both | §4.1, §4.2 |
-| `new-mechanic` | designer | Front door for an idea: interview → `mechanic` issue + `engine-request` issues (stop for OK) → `start-task` → GDD section with open questions and **no invented content**; content data only once the content API exists (M2+) |
-| `new-level-piece` | designer | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
+| `new-mechanic` | both | Front door for an idea: interview → `mechanic` issue + `engine-request` issues (stop for OK) → `start-task` → GDD section with open questions and **no invented content**; content data only once the content API exists (M2+) |
+| `new-level-piece` | both | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
@@ -508,13 +508,13 @@ Rules for every workflow run:
   - **Into `main`** (#300, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)): the
     engineer's manager runs `tools\run.cmd merge <pr> --base main` from the main checkout once the fresh reviews left no
     open blocker or major. Its gate collects every refusal: not open into `main` or a draft; not authored by the
-    engineer's account, or gh not running as it (the designer's PRs keep their flow); CI not green on the head;
+    engineer's account, or gh not running as it (the designer's PRs go to the engineer); CI not green on the head;
     `mergeable` CONFLICTING; `origin/<head>` moved; **behind `main`** (`origin/main` not in the head: `publish` or
-    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the designer's area without the
+    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the content area, §9, without the
     designer's approving review or a line starting "agreed with the designer, relayed by the engineer";
     `.claude/settings*.json`, `.claude/githooks/` and `tools/runner/guard.py`, always; an ADR added, changed or deleted
     without "Approved by the engineer: <GitHub link>"); a closing PR (head `release/*`) without that line, the
-    engineer's go, which also clears its designer-area paths and ADRs; and any top-level item, or sub-heading or bold
+    engineer's go, which also clears its content-area paths and ADRs; and any top-level item, or sub-heading or bold
     label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
     pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
     inside HTML comments do not count. **No local `verify`:** with `main` in the head, the merged tree is the head's
@@ -1159,35 +1159,33 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md` |
-| Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Designer (optional) | none of his own: he may contribute anywhere, mostly in the content area, through PRs the engineer merges |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
 - Enforced by **`.github/CODEOWNERS` and the rules in `CLAUDE.md` files**, not by a hook.
-- The designer's agent never edits engine code. A missing primitive becomes an `engine-request` issue with a precise
-  spec, and the agent continues with data. This rule is in `content/CLAUDE.md` and `levels/CLAUDE.md`.
-- The engineer's agent does not change the designer's area (rebalance or redesign content, edit `docs/GDD.md`,
-  `docs/design/` or `levels/`) without the designer's approval in the PR, except on a **relayed agreement**
-  (the engineer, 2026-10-01, option (a), permanent;
-  [intervention](interventions/2026-10-01-engineer-relayed-design-agreement.md)):
-  - The engineer's agent works in the designer's area when the engineer says the change was agreed with the
-    designer. Without that word it stops and asks, as before.
-  - The PR says "agreed with the designer, relayed by the engineer" under "Cross-area" and tags @SwiftySinister
-    there for a later look. It is merged without the designer's approval, by the engineer or by the manager, into
-    `release/m<k>` or through the gate into `main` (this replaces "a cross-area PR is approved by the other owner
-    first" in §10 for such a PR).
-  - If the designer objects, a follow-up PR reverts the change.
-  - A scene the designer has an open PR on is still never edited (`gh pr list --state open --json
-    number,author,files`).
-  - The designer keeps his area and his skills (`new-mechanic`, `new-level-piece`); the engineer acts in it on his
-    behalf. The M3 decisions D1 to D3 on #96 were relayed the same way.
-- The gate of `merge <pr> --base main` (§7.1) keeps ownership: it refuses a PR not authored by the engineer's
-  account, or run outside the engineer's sessions, and a PR that changes the designer's area without the designer's
-  approving review or the relay phrase; `.claude/settings*.json`, `.claude/githooks/` and the guard are always the
-  engineer's to merge, and an ADR change needs "Approved by the engineer: <link>"
-  ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
-- MVP exception: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
-  engineer's explicit approval and marked provisional; the designer may replace them
+- **The designer is optional** (the engineer's decision of 2026-10-07,
+  [#170 comment 6037210189](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6037210189) point 3;
+  #518). The engineer owns the content area and its two skills. It replaces the designer's area and the **relayed
+  agreement** of 2026-10-01 ([intervention](interventions/2026-10-01-engineer-relayed-design-agreement.md), kept as
+  history): no "agreed with the designer" line and no tag are needed any more.
+  - Agents change the content area (rebalance or redesign content, edit `docs/GDD.md`, `docs/design/` or `levels/`)
+    on the engineer's word: the issue, his comment or his chat. Without it they stop and ask. They never invent
+    content (names, numbers, rules) nobody decided: options with a recommendation go to the engineer.
+  - Nothing waits on the designer: no step, review or merge needs his approval.
+  - The designer may still contribute: his PRs go to the engineer, who reviews and merges them (§10). His agent never
+    edits engine code: a missing primitive becomes an `engine-request` issue with a precise spec, and the agent
+    continues with data (`content/CLAUDE.md`, `levels/CLAUDE.md`).
+  - A scene with someone else's open PR is still never edited (`gh pr list --state open --json number,author,files`).
+- The gate of `merge <pr> --base main` (§7.1) refuses a PR not authored by the engineer's account, or run outside the
+  engineer's sessions, so the designer's PRs reach the engineer. Its code still treats the content area as the
+  designer's: a PR into `main` that changes it without the designer's approving review or the old relay phrase is
+  refused, and so goes to the engineer like the other exceptions (an agent never writes the relay phrase for a change
+  the designer did not agree to). A milestone's closing PR clears it with the engineer's go. `.claude/settings*.json`,
+  `.claude/githooks/` and the guard are always the engineer's to merge, and an ADR change needs "Approved by the
+  engineer: <link>" ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+- MVP content: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
+  engineer's explicit approval and marked provisional
   ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).
 
 ## 10. GitHub coordination
@@ -1196,9 +1194,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   is published as is.
 - **Merging:** the engineer's manager merges into `main` through the gate of `tools\run.cmd merge <pr> --base main`
   (§7.1, [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)); the gate's exceptions and
-  the designer's PRs are merged by a human, with the Merge button on GitHub or in the Desktop PR pane, after CI is
-  green. A cross-area PR is approved by the other owner first. The designer reviews through `shot` screenshots and a
-  playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
+  the designer's PRs are merged by the engineer, with the Merge button on GitHub or in the Desktop PR pane, after CI
+  is green: he reviews the designer's PRs, and no PR waits for the designer (§9). Content and levels are judged
+  through `shot` screenshots and a playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
   PRs into the milestone's `release/m<k>` (§7.1, [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
 - **Board:** a Project owned by the engineer, linked to the repo; the designer is invited to the project and the
   repo. Built-in workflows: keep closed → Done and PR merged → Done; item added → Backlog; disable
@@ -1221,7 +1219,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `M7` with the
   roadmap goals.
 - **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. The designer is `@SwiftySinister` (since 2026-09-30,
-  #85); GitHub accepts an owner only once they have write access, so the entries count from the accepted invitation.
+  #85); since #518 he appears only on the shared paths, and the content area falls to the engineer's `*` line. GitHub
+  accepts an owner only once they have write access, so the entries count from the accepted invitation.
 - **ADRs:** `docs/decisions/YYYY-MM-DD-<slug>.md`, never sequential numbers, so two branches cannot collide on
   the same number. Short: status, date, deciders, context, decision, alternatives, consequences.
 - **Append-style logs are one file per entry** ([ADR](decisions/2026-09-28-one-file-per-entry-logs.md)):
@@ -1275,7 +1274,7 @@ body carry it), the step's history record (`exit_crash: true`) and `metrics`' cr
 A real window at `--position -30000,-30000` (off-screen), never headless or minimized
 (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
 one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
-forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the designer
+forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the human
 gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 
 ### 11.5 `run <scene.tscn | script.gd>` [applied]
@@ -1977,6 +1976,9 @@ verdicts", a JSON download that the engineer saves next to the set as `sfx-verdi
 
 ## 12. The designer's agent
 
+Optional since #518 (§9): the designer contributes when he wants, his PRs go to the engineer, and nothing below
+waits on him; the engineer's sessions do the content work otherwise.
+
 - **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
   `onboard` runs `doctor` (which sets `core.hooksPath`), writes her user settings (`env`, `language`, `defaultMode`)
   after she approves the exact content, installs gdtoolkit via a real Python with her OK, and runs
@@ -1996,7 +1998,7 @@ verdicts", a JSON download that the engineer saves next to the set as `sfx-verdi
 
 ## 13. How humans talk to the agent
 
-- Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
+- Existing work: "start task 42". A new idea: "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
 - Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); a manager kickoff naming a
