@@ -31,6 +31,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    is not, stop and ask. Everything must be committed (Conventional Commits, one logical change each).
 1. **Verify.** `tools\run.cmd verify`, in the background with `wait <log>` (root CLAUDE.md, Shell: a slot wait alone
    can reach 600 s, where a foreground call is killed). Paste its summary (from "verify summary" to the end).
+   In your inner loop you may run `verify --fail-fast` (it stops at the first red step); the run you paste here, and
+   publish's, is a plain `verify`.
    Red: stop and report the failures. Never weaken, skip or delete a test to make it pass.
 2. **Fresh-context reviews,** chosen from `git diff --name-only origin/<base>...HEAD`, where `<base>` is the open PR's
    base (`gh pr view --json baseRefName`; a stacked PR's parent), else the parent `start --base` recorded
