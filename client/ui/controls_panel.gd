@@ -165,7 +165,9 @@ func _bind(event: InputEvent) -> void:
 
 func _save() -> void:
 	controls.apply()
-	controls.write()
+	var saved := controls.write()
+	if saved != OK:
+		push_warning("controls: %s not saved: %s" % [controls.path, error_string(saved)])
 	refresh()
 	changed.emit()
 
