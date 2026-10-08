@@ -37,11 +37,12 @@ class Local:
 	## The crosshair is on a downed player the host would let this player raise.
 	var can_raise := false
 	## The labels of the keys bound now (KeyLabel.of_action): give_up, interact (the raise),
-	## spectate_next and spectate_previous. The defaults are the project's.
+	## spectate_next and spectate_previous. The defaults are the project's, the mouse buttons in
+	## the deck's words.
 	var give_up_key := "F"
 	var raise_key := "E"
-	var next_key := "LMB"
-	var previous_key := "RMB"
+	var next_key := KeyLabel.word(&"key.mouse_left")
+	var previous_key := KeyLabel.word(&"key.mouse_right")
 
 	## The labels of the keys bound now, from the InputMap and the keyboard layout.
 	func read_keys() -> void:
@@ -114,8 +115,10 @@ static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: 
 
 
 ## The downed player's prompt with the bound key: the deck's `downed.give_up_hold` in English
-## ("Hold {key} to give up"), as the rest of this greybox panel; the Toy downed screen (#497)
-## shows that key through tr().
+## ("Hold {key} to give up"), in every language, as the rest of this greybox panel ("Knocked down",
+## "Giving up"): translated alone it would make the default panel mixed. Known gap (§4.7.28): a key
+## rebound to Space or a mouse button reads in the current language inside it; the Toy downed
+## screen (#497) shows the whole sentence through tr().
 static func give_up_line(key: String) -> String:
 	return "Hold {key} to give up".format({"key": key})
 

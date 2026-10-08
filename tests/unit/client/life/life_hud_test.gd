@@ -11,9 +11,14 @@ const OTHER := 5
 var _model: ClientModel
 var _countdowns: LifeCountdowns
 var _local: LifeHud.Local
+var _locale := ""
 
 
 func before_test() -> void:
+	# The key words and the give-up line are the deck's translations (#208): English here,
+	# whatever the machine's.
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
 	_model = ClientModel.new(FixtureBaseMode.mode())
 	_model.own_peer = OWN
 	for peer: int in [1, OWN, OTHER]:
@@ -22,6 +27,10 @@ func before_test() -> void:
 		_model.roster[peer] = member
 	_countdowns = LifeCountdowns.new(FixtureModes.player_rules(), 3.0)
 	_local = LifeHud.Local.new()
+
+
+func after_test() -> void:
+	TranslationServer.set_locale(_locale)
 
 
 func test_a_living_player_with_nothing_to_show_shows_no_panel() -> void:
@@ -93,6 +102,19 @@ func test_every_prompt_names_the_key_bound_now() -> void:
 func test_the_give_up_line_is_the_decks_sentence_with_the_key() -> void:
 	assert_str(LifeHud.give_up_line("F")).is_equal("Hold F to give up")
 	assert_str(LifeHud.give_up_line("А")).is_equal("Hold А to give up")
+	# English in every language, as the rest of the greybox panel: the default panel is never
+	# mixed (#211 review; the Toy downed screen, #497, translates the whole sentence).
+	TranslationServer.set_locale("uk")
+	assert_str(LifeHud.give_up_line("F")).is_equal("Hold F to give up")
+
+
+func test_the_mouse_keys_before_read_keys_are_the_decks_words() -> void:
+	assert_str(_local.next_key).is_equal("LMB")
+	assert_str(_local.previous_key).is_equal("RMB")
+	TranslationServer.set_locale("uk")
+	var local := LifeHud.Local.new()
+	assert_str(local.next_key).is_equal("ЛКМ")
+	assert_str(local.previous_key).is_equal("ПКМ")
 
 
 func test_the_dead_see_the_respawn_and_the_cycling_keys_only() -> void:
