@@ -19,12 +19,16 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 @export var preview := Preview.MENU
 ## The preview shows the host's view (its settings, Esc's confirmation).
 @export var hosting := true
-## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, or the host's Leave or Quit.
+## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, Voice, Controls (#211), or the
+## host's Leave or Quit.
 @export var esc_tab := EscMenuState.Tab.LOBBY
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
 ## The Voice tab (M5-6) as without the voice addon.
 @export var voice_unavailable := false
+## The Controls tab (#211) with Map and tasks on V, Talk's key: both rows marked "Same key". The
+## preview's controls stay in memory and the InputMap untouched.
+@export var controls_clash := false
 
 
 func _ready() -> void:
@@ -69,6 +73,11 @@ func _ready() -> void:
 				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
 				ui.esc.press(esc_tab)
 			ui.esc.voice.show_facts(fake_voice(not voice_unavailable))
+			if controls_clash:
+				var key := InputEventKey.new()
+				key.physical_keycode = KEY_V
+				ui.esc.controls.controls.bind(&"task_screen", key)
+				ui.esc.controls.refresh()
 		Preview.ROUND, Preview.TASKS:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)

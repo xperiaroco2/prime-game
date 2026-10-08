@@ -5,13 +5,15 @@ extends RefCounted
 ## menu and its unit test read the same rules; EscMenu draws it.
 ##
 ## The tabs: Resume, Lobby (on the lobby screen only: the lobby and the countdown), Voice (in every
-## screen, M5-6: the microphone, the mode and the volumes), Leave and Quit. Resume closes the menu.
+## screen, M5-6: the microphone, the mode and the volumes), Controls (in every screen, #211: the
+## rebindable keys), Leave and Quit. Resume closes the menu.
 ## A client's Leave and Quit act at once; the host's ask first, since they end the session for
 ## every player, so the host's Leave or Quit tab shows the question and confirm() answers it.
 ## Opening selects the Lobby tab where there is one, else Resume.
 
-## VOICE comes last so the preview scenes' saved tab numbers keep their meaning; tabs() orders them.
-enum Tab { RESUME, LOBBY, LEAVE, QUIT, VOICE }
+## VOICE and CONTROLS come last so the preview scenes' saved tab numbers keep their meaning; tabs()
+## orders them.
+enum Tab { RESUME, LOBBY, LEAVE, QUIT, VOICE, CONTROLS }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
 
@@ -57,7 +59,7 @@ func tabs() -> Array[Tab]:
 	var shown: Array[Tab] = [Tab.RESUME]
 	if in_lobby:
 		shown.append(Tab.LOBBY)
-	shown.append_array([Tab.VOICE, Tab.LEAVE, Tab.QUIT])
+	shown.append_array([Tab.VOICE, Tab.CONTROLS, Tab.LEAVE, Tab.QUIT])
 	return shown
 
 

@@ -71,6 +71,10 @@ var voice_codec: VoiceCodec
 ## The player's settings on this machine: this window's file (UserSettings.for_this_window()),
 ## or in memory with `read_command_line` off, unless a test sets one before _ready.
 var settings: UserSettings
+## The player's controls (#211): the player's file (Controls.for_this_player()), applied to the
+## InputMap at the start, or the project's defaults in memory, untouched, with `read_command_line`
+## off, unless a test sets one before _ready. The Esc menu's Controls tab changes them.
+var controls: Controls
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -127,6 +131,7 @@ func _ready() -> void:
 	_world.add_child(_items)
 	_ready_settings()
 	_ready_voice()
+	_ready_controls()
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
@@ -760,6 +765,16 @@ func _ready_voice() -> void:
 	panel.tone_toggled.connect(_voice_control.set_tone)
 	panel.mute_toggled.connect(_voice_control.set_muted)
 	_voice_control.start()
+
+
+## The player's controls applied (a test's or a playcheck window's stay the project's: the player's
+## file in user:// would rebind the process's keys), and the Controls tab wired to them.
+func _ready_controls() -> void:
+	if controls == null:
+		controls = Controls.for_this_player() if read_command_line else Controls.new()
+		if read_command_line:
+			controls.apply()
+	ui.esc.controls.setup(controls)
 
 
 ## The voices follow the new session's ClientSession, model and avatars; the own voice speaks
