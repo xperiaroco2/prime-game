@@ -9,7 +9,8 @@ extends Node
 ## `button_down`, `button_up`, `mouse_entered`, `mouse_exited` and `toggled`, and tweens only when
 ## the target changes: TRANS_SINE, EASE_OUT over `press_duration_ms` (70), or
 ## `press_duration_reduced_ms` (0: at once) under UiPrefs.reduced_motion. The base of its
-## ToyRaised is hidden while the face is disabled ("unplugged").
+## ToyRaised is hidden while the face is disabled ("unplugged"). A face disabled while held drops
+## the hold: Godot sends no `button_up` then, and drops the release on a disabled button.
 ##
 ## A toggle that stays on (the Esc menu's Ready, a selected preset card) rests at `press_held`,
 ## sunk onto its base with its pressed look (#289's decision; the flat tabs and chips hold 0).
@@ -66,6 +67,8 @@ func duration_ms() -> int:
 
 ## Re-evaluates the target and the base; moves the face only when the target changed.
 func refresh() -> void:
+	if face.disabled:
+		_held = false
 	if raised != null:
 		raised.show_base(not face.disabled)
 	var target := target_offset()

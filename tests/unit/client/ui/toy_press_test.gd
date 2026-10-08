@@ -46,6 +46,21 @@ func test_the_targets_follow_hover_held_and_disabled() -> void:
 	assert_bool(raised.base.visible).is_true()
 
 
+func test_a_face_disabled_while_held_is_not_held_once_enabled() -> void:
+	# Disabling a held button sends no button_up, and the release on a disabled button is dropped.
+	var raised := _raised(&"ToyButtonSecondary")
+	var face := raised.face as Button
+	var press := _press(raised)
+	press.on_button_down()
+	assert_int(press.target_offset()).is_equal(4)
+	face.disabled = true
+	press.refresh()
+	face.disabled = false
+	press.refresh()
+	assert_int(press.target_offset()).is_equal(0)
+	assert_float(face.offset_transform_position.y).is_equal(0.0)
+
+
 func test_each_variation_reads_its_own_depths() -> void:
 	var primary := _press(_raised(&"ToyButtonPrimary"))
 	primary.on_button_down()
