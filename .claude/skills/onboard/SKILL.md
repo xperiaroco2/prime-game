@@ -21,7 +21,8 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
    If it cannot start at all, Python is missing: that is the first checklist item (step 8). For each FAIL, say what
    it means; fix what the agent may fix (steps 3 to 5), and put the rest in the checklist.
 3. **Who is this?** `gh auth status --active --json hosts` gives the GitHub login. The repo owner is the engineer;
-   anyone else is the designer. Ask if unsure. The designer's paths and rules are in root `CLAUDE.md` (Ownership).
+   anyone else is the designer, an optional contributor whose PRs go to the engineer (root `CLAUDE.md`, Ownership).
+   Ask if unsure.
 4. **User settings** `~/.claude/settings.json` ([ADR](../../../docs/decisions/2026-09-28-machine-env-in-user-settings.md)):
    - Read the current file, if any, and keep every key it has.
    - `env`: `GODOT_BIN` (the Godot 4.7.2 `*_console.exe`), `GODOT_GUI_BIN` (the Godot 4.7.2 window exe), `PYTHON_BIN`
@@ -57,12 +58,12 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
    - designer only: tell the engineer your GitHub handle for `.github/CODEOWNERS`.
 9. **One-page summary** for their sign-off:
    - what was set up (settings keys, hooks, LFS) and what is left on the checklist;
-   - how to talk to the agent: "start task 42", "нова механіка: …" (designer), "заверши задачу", "запам'ятай",
+   - how to talk to the agent: "start task 42", "нова механіка: …", "заверши задачу", "запам'ятай",
      "стоп", "поясни"; dictation is fine, the agent reads file names back;
-   - the rules that bind them: their paths (Ownership in root `CLAUDE.md`), `engine-request` issues for missing engine
-     parts (designer), the engineer's manager merges into `main` through a gate after green CI and humans merge its
-     exceptions and the designer's PRs (a stage's manager merges task PRs into `release/m<k>`), the other owner approves
-     a cross-area PR (or, in the designer's area, the engineer relays the designer's agreement and the designer may have
-     it reverted, `docs/AGENT_WORKFLOW.md` §9), the designer reviews through `shot` screenshots and playtests,
+   - the rules that bind them: their paths (Ownership in root `CLAUDE.md`: the engineer owns the content area too, the
+     designer is optional), `engine-request` issues for missing engine parts (designer), the engineer's manager merges
+     into `main` through a gate after green CI and the engineer merges its exceptions and the designer's PRs (a stage's
+     manager merges task PRs into `release/m<k>`), the content area changes only on the engineer's word
+     (`docs/AGENT_WORKFLOW.md` §9), content and levels are judged through `shot` screenshots and playtests,
      save-first, one-time guard answers; the designer never uses worktrees and works at medium effort;
    - they may reopen any decision that binds them: say so, and the agent opens an issue for both humans.

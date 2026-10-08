@@ -33,8 +33,8 @@ allowed-tools:
    - `.claude/rules/<topic>.md` with `paths:` for a kind of file;
    - a skill step for a procedure; a hook or permission rule when it must be enforced (engineer-owned, ask first).
    Write it as an instruction and put `<!-- see docs/interventions/<file> -->` on the next line. Only edit files your
-   human owns or that are shared (root `CLAUDE.md` ownership map). The designer's agent does not edit engine-owned
-   files: it writes the entry and asks the engineer in the PR to promote the rule, naming the file.
+   human owns or that are shared (root `CLAUDE.md` ownership map); the designer's agent also the content area, and
+   never engine-owned files: it writes the entry and asks the engineer in the PR to promote the rule, naming the file.
 5. **Check budgets:** `tools\run.cmd lint`. Over budget: scope a rule to `paths:`, move it into a skill, or retire an
    old rule, and say in the entry which you did.
 6. **Commit:** `docs: log intervention <slug>` with the entry and the promoted rule together. The PR goes out with

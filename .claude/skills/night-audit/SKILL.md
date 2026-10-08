@@ -86,7 +86,8 @@ have no Skill tool: each prompt names this file and the steps that agent follows
    `docs/GDD.md` `docs/design/` content, `levels/` level, and `tools/ .github/ .claude/ CLAUDE.md
    docs/AGENT_WORKFLOW.md` tooling; `tests/<x>/` and an `ARCHITECTURE.md` section take the area of the code they
    cover. Body: `## Finding` (one sentence), `## Evidence` (file:line, commands and their output), `## Suggested fix`
-   (one or two sentences; a designer-owned path says "for the designer"), the skeptic's verdict line, and last
+   (one or two sentences; a content-area path says "on the engineer's word": content changes only on it), the
+   skeptic's verdict line, and last
    `Found by: night-audit <lens> (<date>, origin/main <short sha>)`.
 6. **Summary** on the Night jobs issue (`gh issue comment <n> --body-file ...`); if no issue has that exact title,
    create it once with `--label area:tooling` and the body the nightly workflow uses. First line

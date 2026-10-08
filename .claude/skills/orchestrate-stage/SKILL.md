@@ -292,7 +292,7 @@ taken in a `main` that has them.
   then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
   refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
   `main` (a background `publish` with `wait <log>` in its worktree, or `pr-rebase` when its `gate: note:` lines name an
-  overlap, then CI), the exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`,
+  overlap, then CI), the exceptions (the content area without the relay phrase or approval; `.claude/settings*.json`,
   `.claude/githooks/`, the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item.
   An exception goes into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind
   `main`: two or more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the
@@ -303,7 +303,7 @@ taken in a `main` that has them.
   engineer. "стоп мерджі": no merges into `main` until the engineer lifts it; record it on your plan issue and #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
-  engineer" and "Needs the designer" item, and the issues to close after the merge (`Closes` does not fire from the
+  engineer" item, and the issues to close after the merge (`Closes` does not fire from the
   release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
   (auto-delete) and GitHub retargets such a PR to `main`. Run `merge-check --base main` and put its table in the PR.
   Ask the engineer for the milestone's go (a playtest, their human checks done or postponed); record it as a PR
