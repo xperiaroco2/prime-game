@@ -151,7 +151,8 @@ task that reads it. Decision, under (b):
   `lean_off` counts the general agents.
 - `tools\run.cmd agents-check --launch` checks the manager's checkout before each launch (the lean files exist and
   pass, the scripts match origin/main after a fetch): a script cannot read files, and an `agentType` with no file
-  throws only at its first agent. `metrics` reports agents per role and type and the general-type writers.
+  throws at the first agent of that type (for `task-publisher.md`, after the implementer and the reviews have spent
+  their tokens), so the check before the launch is the early one. `metrics` reports agents per role and type and the general-type writers.
 - `instructions.py`: a lean type sets no `skills:` preload, and its body names only `docs/` and `.claude/` paths that
   exist; no project skill may be named `workflow-authoring`.
 

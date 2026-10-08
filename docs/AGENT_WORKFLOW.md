@@ -291,7 +291,8 @@ rules.
   read from `model`, as the Agent tool records it, and any other meta key that names a model, at any depth
   (`request.model`), fails until the reader learns it. After a launch that passes `models`, `agents-check` in the
   manager's session checks it. `finish-task` runs it after the reviews.
-- **Launch check [applied] (#557):** `tools\run.cmd agents-check --launch` judges no transcript: in the manager's
+- **Launch check [proposed] (#557; applies once the engineer approves the lean ADR amendment of 2026-10-08):**
+  `tools\run.cmd agents-check --launch` judges no transcript: in the manager's
   checkout, where the Workflow tool reads the scripts and resolves their agent types, it fails on a missing or invalid
   `task-implementer.md` or `task-publisher.md`, a missing `issue-task.js` or `pr-rebase.js`, or a file under
   `.claude/workflows/` or `.claude/agents/` that differs from origin/main after `git fetch origin main` (a failed
@@ -472,8 +473,9 @@ Rules for every workflow run:
   started at 24.4k (implementers) and 29.6k to 32.1k (publishers). It appends only `agentType` to their options;
   prompts, efforts and models stay. The default since 2026-10-06 (the weekly budget ADR's N4 (b), #458); the
   manager's checkout must have both agent files (`agentType` resolves there; one with no file throws at `agent()`),
-  which `agents-check --launch` checks (§5). Since #557 every task runs lean: one that edits `.claude/workflows/`
-  reads `docs/workflow-scripts.md` (a path-scoped rule points there) instead of loading the bundled
+  which `agents-check --launch` checks (§5). Since #557 (proposed until the engineer approves the lean ADR
+  amendment of 2026-10-08) every task runs lean: one that edits `.claude/workflows/` reads
+  `docs/workflow-scripts.md` (a path-scoped rule points there) instead of loading the bundled
   `workflow-authoring` skill, which #557's probe priced at 8.1k more tokens on every call for a type with the Skill
   tool and 6.2k for one preloading it. `lean: false` throws without `lean_reason` (a non-empty string, such as a
   resume of a run launched before #458), which changes no prompt or option; its result's `lean_off` counts the
