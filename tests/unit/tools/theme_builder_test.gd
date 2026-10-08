@@ -137,6 +137,7 @@ func test_the_committed_themes_are_not_stale() -> void:
 	for key: String in themes:
 		var spec: Dictionary = themes[key]
 		var built := _text(_pack, str(spec["text_size"]))
+		# Deterministic: a second build of the same pack writes the same text.
 		assert_str(built).is_equal(_text(_pack, str(spec["text_size"])))
 		var committed := Builder.without_uid(FileAccess.get_file_as_string(str(spec["path"])))
 		(
