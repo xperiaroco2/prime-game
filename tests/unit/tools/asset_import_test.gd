@@ -166,6 +166,13 @@ func test_an_image_keeps_its_folders_compression() -> void:
 	assert_array(Check.check_texture("res://client/x.png", null, _contract)).is_empty()
 
 
+func test_every_texture_format_has_its_compression_checked() -> void:
+	for ext: String in ["png", "jpg", "jpeg", "webp", "tga", "bmp", "exr", "hdr"]:
+		var path := PROBE + "wood." + ext
+		_write_pointer(path)
+		assert_array(Check.find_files(PROBE, Check.IMAGE_EXTENSIONS)).contains([path])
+
+
 func test_an_lfs_pointer_is_told_from_an_asset() -> void:
 	var pointer := (
 		"version https://git-lfs.github.com/spec/v1\noid sha256:%s\nsize 10756\n" % "0".repeat(64)

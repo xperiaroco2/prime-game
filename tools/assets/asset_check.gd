@@ -16,7 +16,10 @@ const SKIP_DIRS: Array[String] = [
 	"res://tools/out",
 	"res://tests/scratch",
 ]
-const IMAGE_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp"]
+## Every image format Godot imports as a texture that .gitattributes routes through LFS.
+const IMAGE_EXTENSIONS: Array[String] = [
+	"png", "jpg", "jpeg", "webp", "tga", "bmp", "exr", "hdr"
+]
 ## The first line of a Git LFS pointer file (the spec; tools/runner/lfs.py reads it the same way).
 const LFS_POINTER := "version https://git-lfs.github.com/spec/v1"
 ## A pointer file is small; a real asset that starts with these bytes would be larger.

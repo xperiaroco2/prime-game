@@ -4737,7 +4737,8 @@ tests/unit/tools/asset_import_test.gd`):
   with §11.2's options and loads headless as a `PackedScene` that instantiates;
 - a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract and one
   `AnimationPlayer` holding every clip, each looping exactly as listed;
-- every image under `assets/` keeps its folder's `compress/mode`.
+- every image under `assets/` (png, jpg, jpeg, webp, tga, bmp, exr, hdr: the texture formats `.gitattributes`
+  routes through LFS) keeps its folder's `compress/mode`.
 
 Each problem is one line that starts with the asset's path and names what is missing, for instance
 `res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
