@@ -165,6 +165,10 @@ Return the structured result.
    "minor": 1
   }
  ],
+ "lean_off": {
+  "general": 2,
+  "reason": "a resume of a run launched before #458"
+ },
  "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

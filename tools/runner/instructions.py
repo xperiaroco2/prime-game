@@ -41,7 +41,8 @@ SKILL_FIELDS = {
     "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent", "background",
     "hooks", "paths", "shell", "metadata", "license", "compatibility",
 }  # fmt: skip
-SKILL_RESERVED = ("doctor", "verify", "run")  # would replace bundled commands (§6)
+# Would replace bundled commands (§6); workflow-authoring is the bundled skill a manager loads for a script (#557).
+SKILL_RESERVED = ("doctor", "verify", "run", "workflow-authoring")
 SKILL_NO_FORK = ("start-task", "finish-task")  # they need the conversation (§6)
 SKILL_LISTING_CAP = 1536  # description + when_to_use are cut here in the skill listing
 SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to supporting files beyond this
@@ -50,6 +51,8 @@ SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 EXTERNAL_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|#)")
+# A repo path a lean agent's body names in backticks (#557): docs/ or .claude/, no placeholder, glob or space.
+BODY_PATH_RE = re.compile(r"`((?:docs|\.claude)/[^`<>*\s]+)`")
 FALSE = ("false", "no", "off", "0")
 TRUE = ("true", "yes", "on", "1")
 SKIP = {".git", ".godot", "addons", "tools/out", "docs/history", ".claude/worktrees"}
@@ -383,6 +386,15 @@ def agent_problems(path: Path) -> list[str]:
             problems.append(f"disallowedTools: must include {', '.join(missing)} (lean agent types ADR)")
         if "effort" in fm.fields:
             problems.append("effort: is set by the workflow per role (lean agent types ADR)")
+        if "skills" in fm.fields:
+            # #557's probe: a preloaded skill's whole text is in every call of every task of the type.
+            problems.append("skills: a lean type preloads no skill (its text is in every call; #557)")
+        # #557: the body sent agents to a SKILL.md that does not exist; a named path must (the root is the agents'
+        # .claude/agents/ two levels up).
+        root = path.resolve().parents[2]
+        for rel in dict.fromkeys(BODY_PATH_RE.findall("\n".join(fm.body))):
+            if not (root / rel).exists():
+                problems.append(f"body names {rel}, which does not exist")
     if "permissionMode" in fm.fields:
         problems.append("permissionMode: project subagents inherit the session's mode (lean agent types ADR)")
     if "memory" in fm.fields:

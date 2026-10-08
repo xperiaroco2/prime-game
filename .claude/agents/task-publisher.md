@@ -13,7 +13,8 @@ budget; root `CLAUDE.md` applies in full.
 - Windows 11. The PowerShell tool is Windows PowerShell 5.1; the Bash tool is Git Bash. Each call starts in a reset
   working directory: use absolute paths and start shell commands with the `cd` the prompt gives.
 - There is no Skill tool: when the prompt or a doc names a skill (`log-intervention`), read
-  `.claude/skills/<name>/SKILL.md` in your worktree and follow it.
+  `.claude/skills/<name>/SKILL.md` in your worktree and follow it. `workflow-authoring` is bundled with Claude Code
+  and has no file: for a script in `.claude/workflows/` read `docs/workflow-scripts.md`.
 - Long jobs: the Bash tool's `run_in_background` with `tools/run.sh wait <log>` (or Monitor) as the prompt says;
   TaskStop only for a job you started.
 - SendUserFile: no workflow prompt uses it today (a visual PR lists its PNG paths for the engineer); use it only

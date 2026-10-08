@@ -60,6 +60,12 @@ the counted runs' agents, as the cache table above it; `--track` every subagent 
 sessions' own lines) of the named tracks' sessions, each call by its time in the window, its $ as a share of the track's
 cache-write $; `--run` the run's agents, with no window.
 
+Agent types (#557): each agent's agentType from its .meta.json (workflow-subagent for the general workflow agent). Per
+role and type over the counted runs: agents, API list $ and the median first-call context (input, cache write and
+cache read of its first API call: the type's system prompt and tools plus the task prompt); how many agents of
+WRITER_ROLES ran as the general type (on the compact summary's first line too; expected 0 after #557), and each run's
+types in the JSON record and on `--run`'s phase line.
+
 Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
 (`gh pr checks --watch`, `gh run watch`), and the agent's next API call. Per API call that made one (its longest, with a
 result and a next call): the call's seconds, the gap between the two API calls' first lines (as the cache section
@@ -1093,6 +1099,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     for c in calls:
         kinds[c["kind"]] += (c["t1"] or c["t0"]) - c["t0"]
     price_items(items, list(usage.values()), bounds)  # in the order the calls were first seen, as "at" counts them
+    first = next(iter(usage.values()), None)  # #557: what the agent type's system prompt and tools cost up front
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
@@ -1104,6 +1111,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "tokens": dict(tokens),
         "unpriced": unpriced,
         "last_ctx": last_ctx,
+        "first_ctx": sum(first[f] for f in TOKEN_FIELDS if f != "output_tokens") if first else 0,
         "gaps": gaps,
         "idle": idle,
         "max_gap": max((g[0] for g in gaps), default=0.0),
@@ -1634,6 +1642,8 @@ def build(
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
+    types = type_record(counted)
+    md += type_section(types)
     md += code_read_section(counted)
     plans = plan_rows(counted)
     md += plan_section(plans)
@@ -1662,7 +1672,7 @@ def build(
         md += ci_section(ci)
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
-                            instructions=instructions, idle=idle["totals"])  # fmt: skip
+                            instructions=instructions, idle=idle["totals"], types=types)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -1670,7 +1680,9 @@ def build(
         "week": week,
         "stages": stages,
         "tasks": tasks,
-        "runs": [{k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r)} for r in counted],
+        "runs": [
+            {k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r), "types": run_types(r)} for r in counted
+        ],
         "verifies": {
             k: [{**v, "steps": {s: list(x) for s, x in v["steps"].items()}} for v in lst] for k, lst in by_row.items()
         },
@@ -1682,6 +1694,7 @@ def build(
         "plans": plans,
         "ab_review": ab,
         "instructions": instructions,
+        "agent_types": types,
         "compact": compact,
     }
     return md, record, compact
@@ -1739,6 +1752,58 @@ def stage_section(stages: list[dict]) -> list[str]:
     return [
         "## Per session (a stage): finished issue-task runs, medians in minutes", "", table(head, rows), "",
         "\"verify runs\" counts the summaries an implementer or publisher printed (`publish` included).", "",
+    ]
+
+
+# #557: the roles a lean writer type serves (task-implementer: implementer, planner, test reviewer; task-publisher:
+# publisher, pr-rebase and its fix agent). On the general type (workflow-subagent) they cost about twice the first-call
+# tokens; after #557 a launch needs lean_reason for that, so the count should read 0.
+WRITER_ROLES = ("implementer", "planner", "test-reviewer", "publisher", "pr-rebase", "pr-rebase fix")
+GENERAL_TYPE = "workflow-subagent"
+
+
+def run_types(r: dict) -> dict[str, int]:
+    """How many of a run's agents ran as each agentType (agent-*.meta.json; '?' without one)."""
+    return dict(Counter(x["type"] for x in r["agents"]))
+
+
+def type_record(counted: list[dict]) -> dict:
+    """Per (role, agentType), over every counted run: agents, API list $ and the median first-call context; and how
+    many agents of WRITER_ROLES ran as the general type (#557)."""
+    groups: dict[tuple[str, str], dict] = defaultdict(lambda: {"n": 0, "tok": Counter(), "first": []})
+    general = writers = 0
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            g = groups[(x["role"], x["type"])]
+            g["n"] += 1
+            g["tok"].update(d["tokens"])
+            g["first"].append(d["first_ctx"])
+            if x["role"] in WRITER_ROLES:
+                writers += 1
+                general += x["type"] == GENERAL_TYPE
+    rows = [
+        {"role": role, "type": t, "agents": g["n"], "usd": usd(g["tok"]), "first_ctx": med(g["first"])}
+        for (role, t), g in sorted(groups.items(), key=lambda kv: -usd(kv[1]["tok"]))
+    ]
+    return {"rows": rows, "writers": {"general": general, "all": writers}}
+
+
+def type_section(rec: dict) -> list[str]:
+    rows = [[r["role"], r["type"], r["agents"], fmt_usd(r["usd"]), fmt_tok(r["first_ctx"])] for r in rec["rows"]]
+    head = ["role", "agent type (meta.json)", "agents", "API list $", "first-call context (median)"]
+    w = rec["writers"]
+    return [
+        "## Per agent type (#557)",
+        "",
+        table(head, rows),
+        "",
+        f"Implementers, planners, test reviewers, publishers and pr-rebase agents on the general type "
+        f"({GENERAL_TYPE}): {w['general']} of {w['all']} (a lean launch gives them task-implementer or task-publisher; "
+        "lean false needs lean_reason).",
+        "",
     ]
 
 
@@ -3109,13 +3174,15 @@ def quality_compact(quality: dict) -> str:
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
-    idle: dict | None = None,
+    idle: dict | None = None, types: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
+    if types is not None:  # on the first line: the summary keeps its line count (#557, as #558's idle total)
+        lines[0] += f"; general-type writers {types['writers']['general']} of {types['writers']['all']} (#557)"
     if tasks:
         lines.append("per task (wall min, API list $): " + ", ".join(
             f"#{p['issue']} {mins(p['wall'])} min {fmt_usd(p['usd'])}" for p in tasks))
@@ -3423,12 +3490,18 @@ def run_spend(run_dir: Path, now: float) -> dict:
     spent = read = 0.0
     calls = 0
     idle: list[dict] = []
+    types: Counter = Counter()
+    type_usd: Counter = Counter()
     for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
         path = run_dir / f"agent-{aid}.jsonl"
         if path.is_file():
+            agent_type = read_meta(path).get("agentType")
             s, r, c, _w = spend_of(path, None, float("inf"), seen)
+            if agent_type:
+                types[str(agent_type)] += 1
+                type_usd[str(agent_type)] += s
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
             data = read_agent(path)
@@ -3451,14 +3524,17 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "read_usd": read,
         "api_calls": calls,
         "phases": phases,
+        "types": dict(types),
+        "type_usd": dict(type_usd),
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
         "idle": idle_record(idle),
     }
 
 
 def run_lines(r: dict) -> list[str]:
-    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase; a fourth with its cache
-    re-writes after an idle gap (#558) when it has one."""
+    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase and its agents' types
+    (#557, when their .meta.json files name them); a fourth with its cache re-writes after an idle gap (#558) when it
+    has one."""
     state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
     head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
             f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
@@ -3475,6 +3551,9 @@ def run_lines(r: dict) -> list[str]:
              f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
              f"in {r['api_calls']} API calls",
              f"by phase: {phases}"]  # fmt: skip
+    if r.get("types"):  # #557: a general-type implementer or publisher shows here
+        usd = r.get("type_usd", {})
+        lines[-1] += "; agent types: " + ", ".join(f"{t} {n} ({fmt_usd(usd.get(t, 0.0))})" for t, n in r["types"].items())
     totals = r["idle"]["totals"]
     if totals["rewrites"]:  # a fourth line only when an agent re-wrote its cache after an idle gap (#558)
         top = sorted((a for a in r["idle"]["agents"] if a["rewrites"]), key=lambda a: -a["usd"])[:IDLE_RUN_NAMES]

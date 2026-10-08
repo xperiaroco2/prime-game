@@ -128,7 +128,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object. Before
-   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args and **the estimate** (#534) of
+   each launch: [budget.md](budget.md)'s PC cap, its 93% stop, its args, its launch check and **the estimate** (#534) of
    [MANAGERS.md §9](../../../docs/MANAGERS.md): any other workflow too, and over about 5% a check after its first phase.
 
 | arg | what |
@@ -157,7 +157,7 @@ toward the number per workflow the kickoff approved:
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; `publish_clean: "sonnet"` on every non-design `issue-task` launch (budget.md, N5; not `pr-rebase`: it has no publisher and rejects the role); and `plan: "sonnet"` on every launch with `plan_review` (budget.md, #469); `code: "sonnet"` with `ab_review` (next row) | 0 |
 | `ab_review: true` | #535's A/B ([ADR](../../../docs/decisions/2026-10-07-code-reviewer-model-ab.md)): on every non-design `issue-task` launch, with `models.code: "sonnet"` (the diff's code reviewer alone; other than `code-reviewer.md`'s `model:`, the control's) beside `publish_clean`, until `metrics`' A/B table gives a verdict other than "continue"; then report it on #302 and stop passing both (`issue-task` only) | 2: a control code reviewer (60) and a judge (40); 1 when neither reviewer found anything |
-| `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: a run's `agent-*.meta.json` shows the `agentType`): pass nothing; `lean: false` is the exception, for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) or to resume a run launched before #458 without the arg | 0 |
+| `lean` | the default since #458 (the engineer's N4 (b), 2026-10-06; the implementing and publishing agents run as `task-implementer` and `task-publisher`, whose files must be in your checkout: `agents-check --launch`; a run's `agent-*.meta.json` and `metrics`' agent-type table show the `agentType`): pass nothing, also for a task editing `.claude/workflows/` (its agents read `docs/workflow-scripts.md`, #557). `lean: false` only with `lean_reason` (`lean_reason?` in `whenToUse`; the script throws without it, #557): why the general agent, today only "a resume of <run id>, launched before #458" (budget.md); the result's `lean_off` counts the general agents | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`, `plan` or
   `code` (only with `ab_review`, next row), never `review` or `netcode` (`review` also covers `code`, `plan_review`,
@@ -280,7 +280,7 @@ taken in a `main` that has them.
   session works in that worktree it asks, so hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
-  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models` and `lean` (roles rebase, review, netcode, second_review,
+  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models`, `lean` and `lean_reason` (roles rebase, review, netcode, second_review,
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
   agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
   `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one

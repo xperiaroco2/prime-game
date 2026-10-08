@@ -1,7 +1,7 @@
 export const meta = {
   name: 'pr-rebase',
   description: 'Bring one open prime-game PR up to date with its base after a semantic conflict: rebase and reconcile, verify, publish; fresh review; fix only if blocker or major',
-  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?, lean_reason?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
     { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major)' },
@@ -47,13 +47,16 @@ export const meta = {
 //   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
 //                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
-//                 appended to their options. false: the general workflow agent, for a PR whose fix needs the Skill
-//                 tool. +0 agents
+//                 appended to their options. false: the general workflow agent, only with lean_reason. +0 agents
+//   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
+//                 run launched before #458, as in issue-task.js. It changes no prompt or option; the result carries
+//                 it. Ignored with lean on (a log line says so). +0 agents
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
 // problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
-// fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full), and
-// `full`, a pointer to the run's journal.jsonl with every agent's whole result.
+// fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full),
+// lean_off under lean false as in issue-task.js, and `full`, a pointer to the run's journal.jsonl with every agent's
+// whole result.
 // Resume: relaunch with resumeFromRunId and the SAME args.
 
 const A = args || {}
@@ -73,7 +76,7 @@ const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 // The pipeline v2 args, checked as in issue-task.js: a wrong value throws before any agent runs; an unknown arg logs.
-const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean']
+const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${PR}: unknown args ignored: ${unknown.join(', ')}`)
 if (A.second_review !== undefined && A.second_review !== null && typeof A.second_review !== 'boolean') throw new Error('pr-rebase: args.second_review must be true or false')
@@ -84,6 +87,10 @@ const BOUNDED = A.bounded_waits !== false
 if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
 // On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
 const LEAN = A.lean !== false
+// #557: lean false needs a reason, as in issue-task.js.
+if (A.lean_reason !== undefined && A.lean_reason !== null && !(typeof A.lean_reason === 'string' && A.lean_reason.trim())) throw new Error('pr-rebase: args.lean_reason must be a non-empty string')
+if (!LEAN && !A.lean_reason) throw new Error('pr-rebase: args.lean false needs args.lean_reason (a non-empty string: why the general agent, e.g. a resume of a run launched before #458; its agents stay unchanged). A PR editing .claude/workflows/ runs lean: its agents read docs/workflow-scripts.md')
+if (LEAN && A.lean_reason) log(`#${PR}: lean_reason ignored: lean is on`)
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
@@ -113,10 +120,13 @@ const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
 // (a reviewer's own agentType wins), resolved through CHAIN, last.
 const LEAN_TYPES = { rebase: 'task-publisher', fix: 'task-publisher' }
 const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
+// #557: every agent's options are built here, as agent() is called, so this counts the general agents it launched.
+let GENERAL = 0
 const withModel = (o, role) => {
   const m = set(MODELS, role)
   const t = leanType(o, role)
   const out = m === undefined ? o : { ...o, model: m }
+  if (!t && !o.agentType) GENERAL += 1
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
@@ -198,6 +208,7 @@ const brief = (stopped, reviews, fix, extra) => {
   out.fix = fix ? { fixed: items(fix.fixed).length } : null
   if (fix) out.not_fixed = lines(items(fix.not_fixed))
   Object.assign(out, extra)
+  if (!LEAN) out.lean_off = { general: GENERAL, reason: line(A.lean_reason) }
   out.full = FULL
   return out
 }

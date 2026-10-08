@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
@@ -83,9 +83,13 @@ export const meta = {
 //                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
 //                 task-publisher: lean tool allowlists, no Skill tool (#332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
-//                 options; prompts, efforts and models stay. false: the general workflow agent, for a task whose
-//                 agents need the Skill tool (editing .claude/workflows/ with workflow-authoring). .claude/agents/ in
-//                 the manager's checkout must have both files. +0 agents
+//                 options; prompts, efforts and models stay. A task editing .claude/workflows/ stays lean: its agents
+//                 read docs/workflow-scripts.md (#557). false: the general workflow agent, only with lean_reason.
+//                 .claude/agents/ in the manager's checkout must have both files (`tools\run.cmd agents-check
+//                 --launch`; an agentType with no file throws at agent()). +0 agents
+//   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
+//                 run launched before #458. It changes no prompt or option; the result carries it. Ignored with lean
+//                 on (a log line says so). +0 agents
 //   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
 //                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
 //                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
@@ -97,8 +101,10 @@ export const meta = {
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's journal.jsonl,
-// which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole was 8 to 17 kB.
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review), and under lean false
+// lean_off (#557: how many general agents it launched, and the lean_reason); `full` points to the run's
+// journal.jsonl, which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole
+// was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -121,7 +127,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'ab_review']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -141,6 +147,11 @@ const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? 
 const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
 // On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
 const LEAN = flag('lean') || A.lean === undefined || A.lean === null
+// #557: lean false needs a reason, so a stray false (2026-10-06 to 08: 27 general implementers and publishers at about
+// twice the first-call tokens) is refused before any agent runs. The reason changes no prompt or option.
+if (A.lean_reason !== undefined && A.lean_reason !== null && !(typeof A.lean_reason === 'string' && A.lean_reason.trim())) throw new Error('issue-task: args.lean_reason must be a non-empty string')
+if (!LEAN && !A.lean_reason) throw new Error('issue-task: args.lean false needs args.lean_reason (a non-empty string: why the general agent, e.g. a resume of a run launched before #458; its agents stay unchanged). A task editing .claude/workflows/ runs lean: its agents read docs/workflow-scripts.md')
+if (LEAN && A.lean_reason) log(`#${N}: lean_reason ignored: lean is on`)
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
@@ -180,10 +191,13 @@ if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: arg
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
 const LEAN_TYPES = { implement: 'task-implementer', plan: 'task-implementer', test_review: 'task-implementer', publish: 'task-publisher' }
 const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
+// #557: every agent's options are built here, as agent() is called, so this counts the general agents it launched.
+let GENERAL = 0
 const withModel = (o, role) => {
   const m = set(MODELS, role)
   const t = leanType(o, role)
   const out = m === undefined ? o : { ...o, model: m }
+  if (!t && !o.agentType) GENERAL += 1
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
@@ -741,6 +755,7 @@ const brief = (stopped, pub, extra) => {
   }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
+  if (!LEAN) out.lean_off = { general: GENERAL, reason: line(A.lean_reason) }
   out.full = FULL
   return out
 }
