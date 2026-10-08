@@ -628,6 +628,83 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual((args.ci, args.compact, args.out), (12, True, None))
 
 
+class BoundedWaitTest(unittest.TestCase):
+    """#555: the cache re-writes after a `wait` call or a CI wait, and the time around one."""
+
+    STILL = "wait: still running after 240 s (C:/s/a7/verify-1.log: 3 lines, last written 2 s ago); call wait again"
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        folder = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = folder
+        log = "/c/s/a7/verify-1.log"
+        Fixture.run(folder / SESSION / "subagents" / "workflows" / "wf_w", [
+            ("k-impl", "a-w", "implement:#5", "Implement", {"verify_green": True}, [
+                assistant(0, "w0", usage(write=10000), tool=bash("b1", f"tools/run.sh verify > {log} 2>&1")),
+                tool_result(0.1, "b1", "Command running in background"),
+                # 12 s: a wait that runs to its 240 s deadline in a 246 s call; the next call 312 s after this one
+                # re-writes most of the context (turn 66 s, 72 s around wait's own clock).
+                assistant(0.2, "w1", usage(read=10000), tool=bash("w-1", f"cd /d/x && tools/run.sh wait {log}")),
+                tool_result(4.3, "w-1", self.STILL),
+                # A wait that sees the job finish after 96 s; the next call 102 s later reads the cache.
+                assistant(5.4, "w2", usage(write=9000, read=1000), tool=bash("w-2", f"tools/run.sh wait {log}")),
+                tool_result(7.0, "w-2", SUMMARY + "wait: verify-1.log finished: exit=1 (whole log: x)"),
+                assistant(7.1, "w3", usage(read=10000), tool=bash("c-1", "timeout 240 gh pr checks 9 --watch")),
+                tool_result(11.1, "c-1", "rc=0"),
+                assistant(11.2, "w4", usage(read=10000)),
+            ]),
+        ])
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def build(self) -> tuple[list[str], dict, list[str]]:
+        data = metrics.collect([self.dir], {}, None, metrics.parse_time(UNTIL))
+        self.data = data
+        return metrics.build(data, [], None, None, metrics.parse_time(UNTIL))
+
+    def test_each_wait_and_the_call_after_it(self) -> None:
+        self.build()
+        agent = self.data["runs"][0]["agents"][0]["data"]
+        self.assertEqual(agent["kind_counts"]["wait"], 2)
+        self.assertEqual(agent["kind_counts"]["ci-wait"], 1)
+        waits = sorted(agent["waits"], key=lambda w: w["gap"])
+        self.assertEqual([(w["kind"], round(w["seconds"]), round(w["gap"]), w["polled"]) for w in waits],
+                         [("wait", 96, 102, None), ("ci-wait", 240, 246, None), ("wait", 246, 312, 240.0)])  # fmt: skip
+        self.assertEqual((waits[2]["write"], waits[2]["read"]), (9000, 1000))
+
+    def test_the_record_and_the_line(self) -> None:
+        md, record, _compact = self.build()
+        wait, ci = record["bounded_waits"]["wait"], record["bounded_waits"]["ci-wait"]
+        self.assertEqual((wait["calls"], wait["rewrites"], wait["rewrite_tokens"]), (2, 1, 9000))
+        self.assertAlmostEqual(wait["rewrite_usd"], 9000 * (5.0 - 0.20) / 1e6)
+        self.assertEqual(round(wait["call_median_s"]), 171)
+        self.assertEqual([round(wait[k]) for k in ("turn_median_s", "turn_p95_s", "turn_max_s", "gap_max_s")],
+                         [36, 66, 66, 312])  # fmt: skip
+        self.assertEqual(wait["deadline_calls"], 1)
+        self.assertEqual([round(wait[k]) for k in ("around_median_s", "around_p95_s", "around_max_s")], [72] * 3)
+        self.assertEqual((ci["calls"], ci["rewrites"], round(ci["turn_max_s"]), ci["deadline_calls"]), (1, 0, 6, 0))
+        text = "\n".join(md)
+        self.assertIn("Cache re-writes after `wait` calls (#555): 1 of 2 calls (9k, about $0.04 list more than "
+                      "reading them). The call 171 s median; the turn after it", text)  # fmt: skip
+        self.assertIn("1 ran to their deadline: the gap minus wait's own clock (start-up and turn) 72 s median, "
+                      "72 s p95, 72 s max.", text)  # fmt: skip
+        self.assertIn("Cache re-writes after CI waits (`gh pr checks --watch`, `gh run watch`) (#555): 0 of 1 calls",
+                      text)  # fmt: skip
+        self.assertNotIn("ran to their deadline", text.split("CI waits")[1])
+
+    def test_no_wait_no_line(self) -> None:
+        record = metrics.bounded_wait_record([])
+        self.assertEqual((record["wait"]["calls"], record["wait"]["rewrites"]), (0, 0))
+        self.assertEqual(metrics.bounded_wait_section(record), [])
+
+    def test_p95_is_the_nearest_rank(self) -> None:
+        self.assertEqual(metrics.p95([]), 0.0)
+        self.assertEqual(metrics.p95([5.0]), 5.0)
+        self.assertEqual(metrics.p95([float(n) for n in range(20, 0, -1)]), 19.0)
+        self.assertEqual(metrics.p95([float(n) for n in range(1, 101)]), 95.0)
+
+
 def background(tool_id: str, command: str, name: str = "Bash", timeout: int | None = 3_300_000) -> dict:
     inp: dict = {"command": command, "run_in_background": True}
     if timeout is not None:
