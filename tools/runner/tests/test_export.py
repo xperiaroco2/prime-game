@@ -351,6 +351,12 @@ class ReleaseWorkflowTest(unittest.TestCase):
         self.assertFalse(any("twovoip" in run for run in runs), "the Windows build needs the TwoVoIP extension")
         exporting = next(i for i, run in enumerate(runs) if "tools/run.sh export" in run)
         self.assertIn('--version "$GITHUB_REF_NAME"', runs[exporting])
+        lfs_content = [i for i, run in enumerate(runs) if run.strip() == "tools/run.sh check --lfs-content"]
+        self.assertEqual(len(lfs_content), 1, "the release checks for LFS pointer files once (#536)")
+        self.assertLess(uses.index("./.github/actions/setup-toolchain"), lfs_content[0], "the runner needs Python")
+        self.assertLess(lfs_content[0], exporting, "a pointer file fails the run before the export (#536)")
+        self.assertNotIn("if", steps[lfs_content[0]], "the check runs on every release")
+        self.assertNotIn("continue-on-error", steps[lfs_content[0]], "a pointer file fails the release")
         publish = next(i for i, run in enumerate(runs) if "gh release create" in run)
         self.assertIn('-windows-x86_64.zip"', runs[publish])
         self.assertIn("gh release upload", runs[publish])
