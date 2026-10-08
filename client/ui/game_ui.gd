@@ -8,9 +8,12 @@ extends CanvasLayer
 ##
 ## Every screen is styled only through one shared Theme, THEME (the M4 manager's decision of
 ## 2026-10-01 on #144 and #145; client/CLAUDE.md): a CanvasLayer holds no theme, so each Control
-## child of this layer gets it, also one added later (the debug overlay, a later screen).
+## child of this layer gets it, also one added later (the debug overlay, a later screen). Large
+## text swaps it for THEME_LARGE, the same theme with larger text (#289; Settings > Accessibility,
+## #491, calls set_large_text).
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
+const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
 
 var menu := MainMenu.new()
 var connecting := ConnectingScreen.new()
@@ -27,6 +30,8 @@ var screen := GameFlow.Screen.MENU
 ## Read the task screen's key (the game sets it from its own `device_input`). Tests and previews
 ## turn it off and call show_tasks() themselves. Under the Esc menu the key does nothing.
 var reads_device_input := true
+## Whether the screens have the large-text theme (set_large_text).
+var large_text := false
 
 var _tasks_held := false
 ## Whether the own player is living, from the last refresh_round: the crosshair is for the living
@@ -120,8 +125,23 @@ func esc_open() -> bool:
 	return esc.is_open()
 
 
+## Swaps every screen's theme to the large-text one while `on`, and back: live, a screen that
+## brought its own theme keeps it, and a screen added later gets the theme of the moment.
+func set_large_text(on: bool) -> void:
+	large_text = on
+	for child: Node in get_children():
+		var control := child as Control
+		if control != null and (control.theme == THEME or control.theme == THEME_LARGE):
+			control.theme = shared_theme()
+
+
+## The shared theme the screens have now: THEME, or THEME_LARGE under large text.
+func shared_theme() -> Theme:
+	return THEME_LARGE if large_text else THEME
+
+
 ## Gives a Control child the shared theme, unless it brought one of its own.
 func _style(child: Node) -> void:
 	var control := child as Control
 	if control != null and control.theme == null:
-		control.theme = THEME
+		control.theme = shared_theme()
