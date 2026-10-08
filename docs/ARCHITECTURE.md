@@ -4720,10 +4720,11 @@ assets/
   import that changes or creates one, so run `check`, review the `.import` and commit it). A GLB keeps
   `nodes/root_type=""` (a `Node3D` root: the game's scene owns the body), `nodes/root_scale=1.0` and
   `nodes/apply_root_scale=true` (1 unit = 1 m, the contract's axes) and `animation/import=true`. A character adds
-  the art repo's two options (its `docs/godot.md`): `animation/fps=30` (the animation set is baked at 30 fps; at
-  another rate Godot resamples every track) and `optimizer/enabled=false` on the AnimationPlayer node
-  (`_subresources={"nodes": {"PATH:AnimationPlayer": {"optimizer/enabled": false}}}`; the optimizer moved joints up
-  to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
+  the art repo's two options (its `docs/godot.md`): `animation/fps=30`, the rate an animation set (the MVP set,
+  `mvp.toml` fps = 30) is baked at, which the GLB's `.export.json` records (at another rate Godot resamples every
+  track; a GLB of the pack's own 24 fps clips would need 24, and the contract changed first) and
+  `optimizer/enabled=false` on the AnimationPlayer node (`_subresources={"nodes": {"PATH:AnimationPlayer":
+  {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
   with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
   (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
 - **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green; for a visible asset `shot`

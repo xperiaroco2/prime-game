@@ -21,6 +21,7 @@
   "character": {
     "_about": "A GLB under assets/characters/. The bones are the art export's rig as measured (art docs/animations.md: CharacterArmature, 62 Ultimate Modular bones plus Toe.L and Toe.R); the contract v2 may replace them. The clips are the art MVP set's names (art tools/blender/anim_sets/mvp.toml) as Godot 4.7.2 imports them (a _Loop suffix dropped, the clip looping): the slice's list from prime-game-art#42, provisional, not a decision: #522 settles the clips it maps.",
     "params": {
+      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A GLB of the pack's own 24 fps clips needs this changed first.",
       "animation/fps": 30
     },
     "player_options": {
