@@ -124,8 +124,6 @@ class GameView:
 		match field:
 			"life.bar":
 				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
-			"end.back":
-				found = [ui.end.back_button.text, ui.end.back_button.is_visible_in_tree()]
 			"esc.tabs":
 				var names := PackedStringArray()
 				for button: Button in ui.esc.tab_buttons.values():
@@ -160,6 +158,7 @@ class GameView:
 			"lobby.roster": ui.lobby_hud.roster_label,
 			"lobby.countdown": ui.lobby_hud.countdown_label,
 			"end.winner": ui.end.winner_label,
+			"end.countdown": ui.end.countdown_label,
 		}
 
 	## The FirstPersonHand under the current camera: the own player's, or the spectated target's
