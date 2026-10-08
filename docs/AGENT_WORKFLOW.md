@@ -1778,7 +1778,9 @@ test count.
 **`verify --fail-fast` (#556):** the first red step stops every lane (`stop_lane`, as Ctrl+C and a lane timeout do:
 on Windows `taskkill /T` kills each lane's whole tree; on Linux and macOS the lane process first gets SIGTERM, whose
 handler in `lane_main` kills each process `common.run` started there, in a session of its own that the kill of the
-lane's group never reaches, #574; a Godot that a selftest worker process started still survives): the steps that had not ended are `not run` in the summary (no output block) and the record, a
+lane's group never reaches, #574; not tracked there, a Godot that a selftest worker process started survives, and the
+`game` step's host and client, which `hostjoin.start` starts, stop on their own within 10 s once its alive file goes
+stale): the steps that had not ended are `not run` in the summary (no output block) and the record, a
 `stopped early (--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step>
 (--fail-fast)`, the count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is
 {`at`, `not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
