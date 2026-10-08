@@ -45,6 +45,21 @@ gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_back
 until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
 run of the session in flight, else a stop.
 
+Subagent cache re-writes after an idle gap (#558): an agent's API call IDLE_GAP (5 minutes) or more after its previous
+one, when the 5-minute prompt cache has lapsed; its $ is that call's cache-write API list $ (most such calls write their
+whole context again: the count of those is beside it). Its cause (IDLE_CAUSES) is what preceded the gap: when the
+previous call made tool calls, the longest foreground one (a shell call without run_in_background, or any tool but
+Monitor; from its line to its result) if it ran for half the gap or more, else an API wait (the model took the time);
+when the previous call made none (it ended its turn to wait for a notification), the first of IDLE_WAKERS among its
+background tasks started by then and still running when the gap began (a background shell call until the notification
+naming its tool-use id, else its timeout; a Monitor until its timeout_ms), else an API wait. A shell call's cause is
+IDLE_SHELL's first match: the runner's `verify`, `publish` or `mutants`, its `wait`, a `sleep N` anywhere (a keep-alive
+or a poll loop), else any other command. Per agent (with its agentType from the .meta.json, API calls, longest gap and
+final context), per run and in total (with the share of the agents' cache-write $ and the median gap). The report covers
+the counted runs' agents, as the cache table above it; `--track` every subagent (workflow and hand-run, never the
+sessions' own lines) of the named tracks' sessions, each call by its time in the window, its $ as a share of the track's
+cache-write $; `--run` the run's agents, with no window.
+
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
   issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
@@ -247,6 +262,27 @@ GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to
 REWRITE_GAP = 3600
 # What held when such a gap began, in the order the first that holds wins (module docstring).
 REWRITE_KINDS = ("timer", "run", "stop")
+# A subagent's cache re-write after an idle gap (#558): its API call 5 minutes or more after its previous one, when the
+# 5-minute prompt cache has lapsed.
+IDLE_GAP = 300
+# What preceded such a gap (module docstring), in the tables' order: the runner's `wait`; `verify`, `publish` or
+# `mutants`; a shell `sleep`; any other Bash or PowerShell command; Monitor; Read or any other tool; none (an API wait).
+IDLE_CAUSES = ("wait", "verify", "sleep", "shell", "Monitor", "tool", "API")
+IDLE_HEADS = ("`wait`", "verify, publish, mutants", "a shell sleep", "other shell", "Monitor", "Read or other tool",
+              "API wait (no tool)")  # fmt: skip
+# A shell command's cause, the first match wins; any other is "shell".
+IDLE_SHELL = (
+    ("verify", re.compile(r"run(\.cmd|\.sh)\"?\s+(verify|publish|mutants)\b")),
+    ("wait", re.compile(r"run(\.cmd|\.sh)\"?\s+wait\b")),
+    ("sleep", re.compile(r"\b(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+\d", re.IGNORECASE)),
+)
+# After a call that ended the agent's turn, the background tasks in flight when the gap began, the first cause here
+# that one of them has wins.
+IDLE_WAKERS = ("verify", "wait", "Monitor", "sleep", "shell")
+# Monitor stops after its timeout_ms, 5 minutes when none is given, at most 1 hour.
+MONITOR_TIMEOUT, MONITOR_MAX = 300, 3600
+# The per-agent table lists at most this many agents (the JSON record has every agent), `--run` names this many.
+IDLE_AGENT_ROWS, IDLE_RUN_NAMES = 40, 3
 # A keep-alive timer: a background shell call that only sleeps (an `echo` after it allowed), in Bash or PowerShell.
 TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:(?:;|&&)\s*echo\b.*)?",
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
@@ -562,6 +598,40 @@ def timer_seconds(block: object) -> float | None:
     limit = inp.get("timeout")
     limit_s = limit / 1000 if isinstance(limit, (int, float)) and limit > 0 else None
     return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
+
+
+def idle_use(tool_id: str, mid: str, name: str, inp: dict) -> dict:
+    """A tool call's fields for the idle gaps (#558): its id, the API call (message id) that made it, whether it runs in
+    the background (a shell call with run_in_background, a Monitor) and for how long at most, and its cause."""
+    cmd = str(inp.get("command", ""))
+    background = name == "Monitor" or (name in ("Bash", "PowerShell") and inp.get("run_in_background") is True)
+    limit = inp.get("timeout_ms" if name == "Monitor" else "timeout")
+    if isinstance(limit, (int, float)) and not isinstance(limit, bool) and limit > 0:
+        seconds = min(limit / 1000, MONITOR_MAX) if name == "Monitor" else limit / 1000
+    else:
+        seconds = MONITOR_TIMEOUT if name == "Monitor" else BACKGROUND_TIMEOUT
+    if name in ("Bash", "PowerShell"):
+        cause = next((c for c, rx in IDLE_SHELL if rx.search(cmd)), "shell")
+    else:
+        cause = "Monitor" if name == "Monitor" else "tool"
+    return {"id": tool_id, "mid": mid, "background": background, "limit": seconds, "cause": cause}
+
+
+def idle_cause(made: list[dict], calls: list[dict], began: float, ended: float, woken: dict[str, float]) -> str:
+    """What preceded an idle gap from the API call at `began` to the next at `ended` (IDLE_CAUSES): when that call made
+    tool calls, the cause of its longest foreground one if that ran for half the gap or more, else an API wait (the
+    model, not a tool, took the time); when it made none (it ended its turn to wait for a notification), the first of
+    IDLE_WAKERS among the background tasks started by then and still running when the gap began (until their
+    notification, else their timeout), else an API wait."""
+    if made:
+        fore = [c for c in made if not c["background"]]
+        longest = max(((c["t1"] or ended) - c["t0"] for c in fore), default=0.0)
+        if fore and longest >= (ended - began) / 2:
+            return max(fore, key=lambda c: (c["t1"] or ended) - c["t0"])["cause"]
+        return "API"
+    running = {c["cause"] for c in calls
+               if c["background"] and c["t0"] <= began < woken.get(c["id"], c["t0"] + c["limit"])}  # fmt: skip
+    return next((cause for cause in IDLE_WAKERS if cause in running), "API")
 
 
 def repo_path(path: object) -> str | None:
@@ -936,6 +1006,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
                             "docs": doc_targets(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
+                            **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
                         files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
@@ -976,6 +1047,18 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     ]
     armed = sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items())
     calls = list(uses.values())
+    made: dict[str, list[dict]] = defaultdict(list)  # an API call's message id: the tool calls it made
+    for c in calls:
+        made[c["mid"]].append(c)
+    # Per call after a gap of IDLE_GAP or more (#558): when, the gap, its cache write and read, the write's API list $,
+    # and what preceded the gap.
+    idle = [
+        {"at": first_seen[b], "gap": first_seen[b] - first_seen[a], "write": usage[b]["cache_creation_input_tokens"],
+         "read": usage[b]["cache_read_input_tokens"], "usd": usd_of(usage[b])["usd_cache_write"],
+         "cause": idle_cause(made.get(a, []), calls, first_seen[a], first_seen[b], woken)}
+        for a, b in zip(order, order[1:])
+        if first_seen[b] - first_seen[a] >= IDLE_GAP
+    ]  # fmt: skip
     seen, unique = set(), []
     for v in verifies:
         sig = (v["total"], tuple(sorted((k, x[1]) for k, x in v["steps"].items())))
@@ -998,6 +1081,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "unpriced": unpriced,
         "last_ctx": last_ctx,
         "gaps": gaps,
+        "idle": idle,
+        "max_gap": max((g[0] for g in gaps), default=0.0),
         # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
         # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
         "timers": [(a, b) for a, b in armed if since is None or b > since],
@@ -1197,6 +1282,7 @@ def read_run(folder: Path, files: dict[str, Path], cache: dict[str, dict], label
             {
                 "id": aid,
                 "label": agent_label,
+                "type": str(read_meta(files[aid]).get("agentType", "?")) if aid in files else "?",
                 "role": role_of(agent_label),
                 "phase": phase,
                 "result": as_dict(result["result"]) if result else None,
@@ -1512,6 +1598,8 @@ def build(
     md += quality_section(quality)
     md += time_section(counted)
     md += cache_section(counted)
+    idle = idle_record(idle_agents(counted))
+    md += idle_section(idle)
     managers = manager_rows(counted, data["sessions"])
     md += manager_section(managers, data["other_sessions"])
     rewrites = rewrite_rows(data["sessions"], data["runs"])
@@ -1521,7 +1609,7 @@ def build(
         md += ci_section(ci)
     week = total_week(counted, managers)
     compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
-                            instructions=instructions)  # fmt: skip
+                            instructions=instructions, idle=idle["totals"])  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -1535,6 +1623,7 @@ def build(
         },
         "ci": ci,
         "manager_rewrites": rewrites,
+        "idle": idle,
         "quality": quality,
         "plans": plans,
         "ab_review": ab,
@@ -2121,6 +2210,120 @@ def rewrite_section(rows: list[dict]) -> list[str]:
             "the first column that held when the gap began: a keep-alive timer armed (a background `sleep`; the "
             "orchestrate-stage skill, §7), which should stay 0; a workflow run of the session in flight; else a stop "
             "for the human.", ""]  # fmt: skip
+
+
+def idle_agents(counted: list[dict]) -> list[dict]:
+    """The counted runs' agents with an API call, as idle_record reads them."""
+    return [{"session": r["session"], "run": r["wf"], "label": x["label"], "type": x.get("type", "?"),
+             "data": x["data"]}
+            for r in counted for x in r["agents"] if x["data"] and x["data"]["api_calls"]]  # fmt: skip
+
+
+def idle_sum(rows: list[dict]) -> dict:
+    """Agent rows (idle_record's) added up: re-writes, those that wrote most of the context again, their cache-write
+    API list $ and its share of the agents' cache-write $, by cause, the median and the longest gap."""
+    gaps = [g for row in rows for g in row["gaps"]]
+    usd_sum = sum(row["usd"] for row in rows)
+    write = sum(row["write_usd"] for row in rows)
+    return {
+        "agents": len(rows),
+        "agents_rewriting": sum(1 for row in rows if row["rewrites"]),
+        "calls": sum(row["calls"] for row in rows),
+        "rewrites": sum(row["rewrites"] for row in rows),
+        "most": sum(row["most"] for row in rows),
+        "usd": usd_sum,
+        "write_usd": write,
+        "share": usd_sum / write if write else 0.0,
+        "causes": {c: {"rewrites": sum(row["causes"][c]["rewrites"] for row in rows),
+                       "usd": sum(row["causes"][c]["usd"] for row in rows)} for c in IDLE_CAUSES},  # fmt: skip
+        "median_gap": med(gaps),
+        "max_gap": max((row["max_gap"] for row in rows), default=0.0),
+    }
+
+
+def idle_record(agents: list[dict]) -> dict:
+    """The cache re-writes after an idle gap (#558) of the given agents ({session, run, label, type, data}): per agent,
+    per run (in the agents' order) and in total."""
+    rows = []
+    for a in agents:
+        d, events = a["data"], a["data"]["idle"]
+        rows.append({
+            "session": a["session"], "run": a["run"], "label": a["label"], "type": a["type"], "calls": d["api_calls"],
+            "rewrites": len(events), "most": sum(e["write"] > 0.5 * (e["write"] + e["read"]) for e in events),
+            "usd": sum(e["usd"] for e in events), "write_usd": d["tokens"].get("usd_cache_write", 0.0),
+            "causes": {c: {"rewrites": sum(e["cause"] == c for e in events),
+                           "usd": sum(e["usd"] for e in events if e["cause"] == c)} for c in IDLE_CAUSES},
+            "gaps": [e["gap"] for e in events], "max_gap": d["max_gap"], "last_ctx": d["last_ctx"],
+        })  # fmt: skip
+    keys = list(dict.fromkeys((row["session"], row["run"]) for row in rows))
+    runs = [{"session": s, "run": r, **idle_sum([row for row in rows if (row["session"], row["run"]) == (s, r)])}
+            for s, r in keys]  # fmt: skip
+    return {"totals": idle_sum(rows), "runs": runs, "agents": rows}
+
+
+def idle_causes_text(causes: dict) -> str:
+    """'wait 25 ($16), API wait 2 ($1.10)': the causes with a re-write, in IDLE_CAUSES' order."""
+    parts = [f"{c if c != 'API' else 'API wait'} {v['rewrites']} ({fmt_usd(v['usd'])})"
+             for c, v in causes.items() if v["rewrites"]]  # fmt: skip
+    return ", ".join(parts) or "none"
+
+
+def idle_line(name: str, totals: dict, write: float | None = None, whose: str = "their") -> str:
+    """One line of a set of agents' re-writes (a report's, a track's or a run's), after `name: ` when a name is given;
+    their $ as a share of `write` (whose cache-write $: default the agents' own)."""
+    t = totals
+    of = t["write_usd"] if write is None else write
+    head = f"{name}: " if name else ""
+    if not t["rewrites"]:
+        return f"{head}no API call after an idle gap of 5 min or more in {t['agents']} agents"
+    return (f"{head}{t['rewrites']} API calls after an idle gap of 5 min or more ({t['most']} wrote most of the "
+            f"context to the cache again) in {t['agents_rewriting']} of {t['agents']} agents, {fmt_usd(t['usd'])} list = "
+            f"{t['usd'] / of if of else 0.0:.0%} of {whose} cache-write $; gap median {t['median_gap'] / 60:.1f} min, "
+            f"max {t['max_gap'] / 60:.0f} min; by cause: {idle_causes_text(t['causes'])}")  # fmt: skip
+
+
+def idle_cells(row: dict) -> list[str]:
+    return [f"{v['rewrites']} ({fmt_usd(v['usd'])})" if v["rewrites"] else "" for v in row["causes"].values()]
+
+
+def idle_tables(record: dict) -> list[str]:
+    """The per-run table, then the per-agent one (the agents with a re-write, by API list $, at most
+    IDLE_AGENT_ROWS)."""
+    head = ["re-writes", "API list $", *IDLE_HEADS, "max gap min"]
+    runs = [[r["session"], r["run"], f"{r['agents_rewriting']} of {r['agents']}", r["calls"], r["rewrites"],
+             fmt_usd(r["usd"]), *idle_cells(r), mins(r["max_gap"])]
+            for r in record["runs"] if r["rewrites"]]  # fmt: skip
+    rewriting = sorted((a for a in record["agents"] if a["rewrites"]), key=lambda a: -a["usd"])
+    agents = [[a["session"], a["run"], a["label"], a["type"], a["calls"], a["rewrites"], fmt_usd(a["usd"]),
+               *idle_cells(a), mins(a["max_gap"]), fmt_tok(a["last_ctx"])]
+              for a in rewriting[:IDLE_AGENT_ROWS]]  # fmt: skip
+    md = [table(["session", "run", "agents with a re-write", "API calls", *head], runs), ""]
+    md += [table(["session", "run", "agent", "agent type", "API calls", *head, "final context"], agents), ""]
+    if len(rewriting) > IDLE_AGENT_ROWS:
+        md += [f"{len(rewriting) - IDLE_AGENT_ROWS} more agents with a re-write: the JSON record lists every agent.",
+               ""]
+    return md
+
+
+def idle_section(record: dict) -> list[str]:
+    md = ["## Cache re-writes after an idle gap of 5 minutes or more, per run and per agent (#558)", "",
+          idle_line("workflow agents", record["totals"]), ""]  # fmt: skip
+    if not record["totals"]["rewrites"]:
+        return md
+    return md + idle_tables(record) + [IDLE_NOTE, ""]
+
+
+IDLE_NOTE = (
+    "Each row counts a subagent's API calls made 5 minutes or more after its previous one (a 're-write' in the "
+    "tables): the 5-minute prompt cache has lapsed, so a call usually writes its context to the cache again (the "
+    "'wrote most of the context' count; a call that still hit the cache counts with $0); its API list $ is that call's "
+    "cache write. Its cause "
+    "is what preceded the gap: when the previous call made tool calls, its longest foreground one if that ran for half "
+    "the gap or more (the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep`; any other Bash or "
+    "PowerShell command; Read or another tool), else an API wait; when it made none (it waited for a notification), "
+    "the background task still running (`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another "
+    "command, the first of these), else an API wait. Final context: the agent's last API call."
+)
 
 
 def other_section(counted: list[dict]) -> list[str]:
@@ -2802,6 +3005,7 @@ def quality_compact(quality: dict) -> str:
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
     managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
+    idle: dict | None = None,
 ) -> list[str]:
     """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
     (#314), the instructions' and docs' line (#337), the % of the week, verify."""
@@ -2824,8 +3028,12 @@ def compact_lines(
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
     spent = task_usd + other_usd + man_usd
-    lines.append(f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
-                 f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    line = (f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
+            f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    if idle is not None:  # the re-write table's total, on this line: the summary keeps its line count (#558)
+        line += (f"; API calls after 5+ min idle (its table): {idle['rewrites']}, {idle['most']} of them re-wrote most "
+                 f"of the context, {fmt_usd(idle['usd'])} ({idle['share']:.0%} of the agents' cache-write $)")
+    lines.append(line)
     w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]
@@ -2891,9 +3099,9 @@ def kickoff_track(transcript: Path) -> str | None:
     return None
 
 
-def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int]:
-    """(API list $, its cache-read $, API calls) of one transcript's calls in [since, until): each message id once
-    across every file read (`seen`), each usage field's maximum, at the time of its first line."""
+def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int, float]:
+    """(API list $, its cache-read $, API calls, its cache-write $) of one transcript's calls in [since, until): each
+    message id once across every file read (`seen`), each usage field's maximum, at the time of its first line."""
     usage: dict[str, dict] = {}
     first: dict[str, float] = {}
     with io.open(path, encoding="utf-8", errors="replace") as lines:
@@ -2923,7 +3131,7 @@ def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> t
             cache = u.get("cache_creation")
             if isinstance(cache, dict):
                 cur["cache_write_1h"] = max(cur["cache_write_1h"], int(cache.get("ephemeral_1h_input_tokens") or 0))
-    spent = read = 0.0
+    spent = read = write = 0.0
     calls = 0
     for mid, u in usage.items():
         if mid in seen or first[mid] >= until or (since is not None and first[mid] < since):
@@ -2932,8 +3140,9 @@ def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> t
         cost = usd_of(u)
         spent += sum(cost.values())
         read += cost["usd_cache_read"]
+        write += cost["usd_cache_write"]
         calls += 1
-    return spent, read, calls
+    return spent, read, calls, write
 
 
 def track_spend(
@@ -2952,11 +3161,11 @@ def track_spend(
             transcript = folder / f"{sid}.jsonl"
             files = [transcript] if transcript.is_file() else []
             files += sorted((folder / sid / "subagents").rglob("agent-*.jsonl"))
-            spent = read = 0.0
+            spent = read = write = 0.0
             calls = 0
             for p in files:
-                s, r, c = spend_of(p, since, until, seen)
-                spent, read, calls = spent + s, read + r, calls + c
+                s, r, c, w = spend_of(p, since, until, seen)
+                spent, read, calls, write = spent + s, read + r, calls + c, write + w
             if not calls:
                 continue
             named = next((k for k in labels if sid == k or sid.startswith(k)), None)
@@ -2969,12 +3178,14 @@ def track_spend(
             else:
                 track, source = UNTRACKED, "none"
             sessions.append({"id": sid, "folder": folder.name, "track": track, "source": source, "usd": spent,
-                             "read_usd": read, "calls": calls, **week_percent(spent, read)})  # fmt: skip
+                             "read_usd": read, "write_usd": write, "calls": calls,
+                             **week_percent(spent, read)})  # fmt: skip
     tracks: dict[str, dict] = {}
     for s in sessions:
-        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "sessions": 0})
+        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "write_usd": 0.0, "sessions": 0})
         t["usd"] += s["usd"]
         t["read_usd"] += s["read_usd"]
+        t["write_usd"] += s["write_usd"]
         t["sessions"] += 1
     for t in tracks.values():
         t.update(week_percent(t["usd"], t["read_usd"]))
@@ -3039,6 +3250,40 @@ def track_table(spend: dict) -> list[str]:
     return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
 
 
+def track_idle(
+    dirs: list[tuple[Path, str | None]], spend: dict, names: list[str], since: float | None, until: float
+) -> dict[str, dict]:
+    """Per track named (`all`: every track found), the cache re-writes after an idle gap (#558) of its sessions'
+    subagents (workflow agents and hand-run ones; not the sessions' own lines), each API call by its time in
+    [since, until)."""
+    wanted = track_order(list(spend["tracks"])) if names == ["all"] else names
+    folders = {d.name: d for d, _default in dirs}
+    agents: dict[str, list[dict]] = defaultdict(list)
+    for s in spend["sessions"]:
+        if s["track"] not in wanted:
+            continue
+        for p in sorted((folders[s["folder"]] / s["id"] / "subagents").rglob("agent-*.jsonl")):
+            data = read_agent(p, since, until)
+            if data["api_calls"]:
+                meta = read_meta(p)
+                agents[s["track"]].append({
+                    "session": s["id"][:8], "run": p.parent.name if p.parent.parent.name == "workflows" else "hand-run",
+                    "label": str(meta.get("description", "")), "type": str(meta.get("agentType", "?")), "data": data,
+                })  # fmt: skip
+    return {name: idle_record(agents[name]) for name in wanted}
+
+
+def track_idle_lines(spend: dict, idle: dict[str, dict]) -> list[str]:
+    """Per track: its re-write line (their $ as a share of the track's cache-write $), then its tables."""
+    md = ["## Cache re-writes after an idle gap of 5 minutes or more, per run and per agent (#558)", ""]
+    for name, record in idle.items():
+        write = spend["tracks"].get(name, {}).get("write_usd", 0.0)
+        md += [idle_line(name, record["totals"], write, "the track's"), ""]
+        if record["totals"]["rewrites"]:
+            md += idle_tables(record)
+    return md + [IDLE_NOTE]
+
+
 # --- one run's spend so far (#534) --------------------------------------------------------------------------------
 
 
@@ -3073,14 +3318,19 @@ def run_spend(run_dir: Path, now: float) -> dict:
     phases: dict[str, dict] = {}
     spent = read = 0.0
     calls = 0
-    for aid, (_label, phase) in agents.items():
+    idle: list[dict] = []
+    for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
         path = run_dir / f"agent-{aid}.jsonl"
         if path.is_file():
-            s, r, c = spend_of(path, None, float("inf"), seen)
+            s, r, c, _w = spend_of(path, None, float("inf"), seen)
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
+            data = read_agent(path)
+            if data["api_calls"]:
+                idle.append({"session": run_dir.parents[2].name[:8], "run": run_dir.name, "label": label,
+                             "type": str(read_meta(path).get("agentType", "?")), "data": data})  # fmt: skip
     files = [run_dir / "journal.jsonl", *run_dir.glob("agent-*.jsonl")]
     writes = [p.stat().st_mtime for p in files if p.is_file()]
     return {
@@ -3098,11 +3348,13 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "api_calls": calls,
         "phases": phases,
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
+        "idle": idle_record(idle),
     }
 
 
 def run_lines(r: dict) -> list[str]:
-    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase."""
+    """Three lines: the run's state, its spend so far as a % of the week, its list $ by phase; a fourth with its cache
+    re-writes after an idle gap (#558) when it has one."""
     state = "finished" if r["finished"] else "unfinished (in flight, or stopped)"
     head = (f"run {r['run']} (session {r['session'][:8]}, {r['folder']}): {state}; {r['started']} "
             f"{'agent' if r['started'] == 1 else 'agents'} started")  # fmt: skip
@@ -3115,10 +3367,16 @@ def run_lines(r: dict) -> list[str]:
         head += f"; last write {r['idle_minutes']:.0f} min ago"
     phases = ", ".join(f"{name} {fmt_usd(p['usd'])} ({p['agents']} {'agent' if p['agents'] == 1 else 'agents'})"
                        for name, p in r["phases"].items()) or "no agent yet"  # fmt: skip
-    return [head,
-            f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
-            f"in {r['api_calls']} API calls",
-            f"by phase: {phases}"]  # fmt: skip
+    lines = [head,
+             f"spent so far: {fmt_week(week_percent(r['usd'], r['read_usd']))} of the week, list {fmt_usd(r['usd'])} "
+             f"in {r['api_calls']} API calls",
+             f"by phase: {phases}"]  # fmt: skip
+    totals = r["idle"]["totals"]
+    if totals["rewrites"]:  # a fourth line only when an agent re-wrote its cache after an idle gap (#558)
+        top = sorted((a for a in r["idle"]["agents"] if a["rewrites"]), key=lambda a: -a["usd"])[:IDLE_RUN_NAMES]
+        most = ", ".join(f"{a['label'] or '?'} {a['rewrites']} ({fmt_usd(a['usd'])})" for a in top)
+        lines.append(f"{idle_line('', totals)}; most: {most}")
+    return lines
 
 
 def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
@@ -3168,17 +3426,18 @@ def tracks_main(
     dirs = track_dirs(checkout or main_checkout(), base)
     spend = track_spend(dirs, session_filter(labels), t_since, t_until)
     lines = track_lines(spend, names, budgets, t_since, t_until)
+    idle = {} if compact else track_idle(dirs, spend, names, t_since, t_until)  # the tables print without --compact
     folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],
-              "budgets": dict(zip(names, budgets)), "lines": lines, **spend}  # fmt: skip
+              "budgets": dict(zip(names, budgets)), "lines": lines, **spend, "idle": idle}  # fmt: skip
     with io.open(folder / "tracks.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)
         f.write("\n")
     if compact:
         say("\n".join(lines))
     else:
-        say("\n".join([*lines, "", *track_table(spend)]))
+        say("\n".join([*lines, "", *track_table(spend), "", *track_idle_lines(spend, idle)]))
         say(f"\nmetrics: wrote {folder / 'tracks.json'}")
     return 0
 

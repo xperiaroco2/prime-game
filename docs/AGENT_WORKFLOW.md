@@ -1527,9 +1527,19 @@ valid ones each side missed, each agent's $, and per pair of models the totals a
 `ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
 prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
-call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
+call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
+minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
+how many of them wrote most of the context again (a call that still hit the cache counts, at $0); per
+run and then per agent, with its agent type from the `.meta.json`, API calls, longest gap and final context; split by
+what preceded the gap: the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep` (a keep-alive or a poll
+loop); another shell command; Monitor; Read or another tool, each when the previous call's longest foreground tool ran
+for half the gap or more; after a call that ended the agent's turn, the background task still running: the first of
+`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
+with their share of the agents' cache-write $ and the median gap; `idle` in
+`metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
+lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
+the % of the week, `verify` medians): the manager pastes
 `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
 weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
 0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
@@ -1582,8 +1592,11 @@ engineer's, N1 of the design, so there is no default) `of <budget>% this week; p
 (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
 or translated shows there). That total covers only the three checkouts: the counter also counts the account's
 sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
-Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
-`tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
+Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
+named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
+own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
+`--compact` the budget lines stay as they are). It writes `tracks.json` (`--out`, with `idle` per track), never
+`metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
 labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%. **`--run ID ...`** (#534),
 alone: one workflow run's spend so far, finished or in flight, for the manager's check after a large launch's first
 phase ([`docs/MANAGERS.md`](MANAGERS.md) §9). Each run whose folder name starts with an ID (`wf_` optional) in the
@@ -1591,8 +1604,9 @@ folders of `TRACK_CHECKOUTS` (so a UI or art run too, from this repo's main chec
 one once) and answered, who works now (a started agent with no result), the minutes since the newest write to its
 journal or agent transcripts, its % of the week with the bracket and its list $ (every call of its agents, each
 message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
-phase; several runs end with their total. It writes no file; an ID that names no run fails. On art's `wf_45e2297a`
-it gives the 2026-10-07 audit's $693 and 27%.
+phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
+three costliest agents); several runs end with their total. It writes no file; an ID that names no run fails. On
+art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
