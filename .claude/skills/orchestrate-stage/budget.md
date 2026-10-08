@@ -92,6 +92,14 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
   non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
   the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
+- **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch during #560's
+  trial ([trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); the engineer's yes on #302):
+  Size S by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
+  design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
+  more without `models.implement` (Opus). Check the first trial run with `tools\run.cmd agents-check`; read `tools\run.cmd metrics
+  --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
+  than "continue", post it on #302 with the table and stop passing `implement` (a keep needs the engineer's yes and
+  an amendment of the model-guard ADR).
 - `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
   launched before #458 without `lean`, add `lean: false` and `lean_reason: "a resume of <run id>, launched before
   #458"` (§3's row), or the lean agent types change its agents and the resume replays nothing past the reviews.
