@@ -17,9 +17,7 @@ const SKIP_DIRS: Array[String] = [
 	"res://tests/scratch",
 ]
 ## Every image format Godot imports as a texture that .gitattributes routes through LFS.
-const IMAGE_EXTENSIONS: Array[String] = [
-	"png", "jpg", "jpeg", "webp", "tga", "bmp", "exr", "hdr"
-]
+const IMAGE_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp", "tga", "bmp", "exr", "hdr"]
 ## The first line of a Git LFS pointer file (the spec; tools/runner/lfs.py reads it the same way).
 const LFS_POINTER := "version https://git-lfs.github.com/spec/v1"
 ## A pointer file is small; a real asset that starts with these bytes would be larger.
@@ -48,12 +46,12 @@ static func _walk(base: String, extensions: Array[String], found: PackedStringAr
 	var dir := DirAccess.open(base)
 	if dir == null:
 		return
-	for name: String in dir.get_files():
-		if name.get_extension().to_lower() in extensions:
-			found.append(base + name)
-	for name: String in dir.get_directories():
-		if not name.begins_with("."):
-			_walk(base + name + "/", extensions, found)
+	for entry: String in dir.get_files():
+		if entry.get_extension().to_lower() in extensions:
+			found.append(base + entry)
+	for entry: String in dir.get_directories():
+		if not entry.begins_with("."):
+			_walk(base + entry + "/", extensions, found)
 
 
 ## True for the bytes of a Git LFS pointer file: a checkout without LFS content (CI) has these
@@ -74,7 +72,8 @@ static func is_lfs_pointer(path: String) -> bool:
 
 
 static func is_character(path: String, contract: Dictionary) -> bool:
-	return path.begins_with(str(_dict(contract, "folders").get("characters", "\u0000")))
+	var folder := str(_dict(contract, "folders").get("characters", ""))
+	return not folder.is_empty() and path.begins_with(folder)
 
 
 ## The [params] of an asset's committed .import file, or null when it has none.
@@ -200,17 +199,19 @@ static func check_character(path: String, root: Node, contract: Dictionary) -> P
 	var missing_clips := PackedStringArray()
 	for clip: Variant in _list(role, "clips"):
 		var spec: Dictionary = clip as Dictionary if clip is Dictionary else {}
-		var name := str(spec.get("name", ""))
-		if not player.has_animation(name):
-			missing_clips.append(name)
+		var clip_name := str(spec.get("name", ""))
+		if not player.has_animation(clip_name):
+			missing_clips.append(clip_name)
 			continue
-		var loops := player.get_animation(name).loop_mode != Animation.LOOP_NONE
+		var loops := player.get_animation(clip_name).loop_mode != Animation.LOOP_NONE
 		var should_loop: bool = spec.get("loop", false) == true
 		if loops and not should_loop:
-			problems.append("%s: the clip %s loops, the contract says it plays once" % [path, name])
+			problems.append(
+				"%s: the clip %s loops, the contract says it plays once" % [path, clip_name]
+			)
 		elif not loops and should_loop:
 			var why := "the contract says it loops (a _Loop suffix in the art export)"
-			problems.append("%s: the clip %s plays once, %s" % [path, name, why])
+			problems.append("%s: the clip %s plays once, %s" % [path, clip_name, why])
 	if not missing_clips.is_empty():
 		var has := ", ".join(player.get_animation_list())
 		var lacks := ", ".join(missing_clips)

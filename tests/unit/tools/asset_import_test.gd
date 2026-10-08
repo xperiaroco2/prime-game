@@ -3,8 +3,8 @@ extends GdUnitTestSuite
 ## res:// loads and keeps the art repo's glTF options, every image under assets/ keeps its folder's
 ## compression (tools/assets/asset_check.gd over tools/assets/asset_contract.json). A checkout
 ## without LFS content (CI) has pointer files there; their .import files are checked, their scenes
-## are named and skipped, the local run loads them. Each rule also runs on a broken fixture built in memory and must name the asset and
-## what is missing.
+## are named and skipped, the local run loads them. Each rule also runs on a broken fixture built in
+## memory and must name the asset and what is missing.
 
 const Check := preload("res://tools/assets/asset_check.gd")
 const FIXTURE := "res://assets/characters/fixture/fixture.glb"
@@ -69,6 +69,12 @@ func test_every_glb_is_found_in_every_folder() -> void:
 	for path: String in Check.find_files("res://", ["glb", "gltf"]):
 		assert_bool(path.begins_with("res://addons/")).is_false()
 		assert_bool(path.begins_with("res://tests/scratch/")).is_false()
+
+
+func test_a_character_is_a_glb_under_the_characters_folder() -> void:
+	assert_bool(Check.is_character(FIXTURE, _contract)).is_true()
+	assert_bool(Check.is_character("res://assets/environment/x/x.glb", _contract)).is_false()
+	assert_bool(Check.is_character(FIXTURE, {})).is_false()
 
 
 func test_a_whole_character_passes() -> void:
@@ -204,11 +210,14 @@ func test_a_pointer_glb_still_has_its_import_checked() -> void:
 	var pointers: PackedStringArray = result["pointers"]
 	assert_array(pointers).contains_exactly([bare, prop])
 	var problems: PackedStringArray = result["problems"]
-	assert_array(problems).contains(
-		[
-			prop + ": .import nodes/root_scale=0.01, want 1",
-			bare + ": no committed .import file (run the import and commit it)",
-		]
+	(
+		assert_array(problems)
+		. contains(
+			[
+				prop + ": .import nodes/root_scale=0.01, want 1",
+				bare + ": no committed .import file (run the import and commit it)",
+			]
+		)
 	)
 
 
@@ -225,14 +234,14 @@ func _character(drop_bone: String = "", drop_clip: String = "", once: String = "
 	var library := AnimationLibrary.new()
 	for clip: Variant in role.get("clips", []):
 		var spec: Dictionary = clip
-		var name := str(spec["name"])
-		if name == drop_clip:
+		var clip_name := str(spec["name"])
+		if clip_name == drop_clip:
 			continue
 		var animation := Animation.new()
 		animation.length = 1.0
-		var loops: bool = spec["loop"] == true and name != once
+		var loops: bool = spec["loop"] == true and clip_name != once
 		animation.loop_mode = Animation.LOOP_LINEAR if loops else Animation.LOOP_NONE
-		library.add_animation(name, animation)
+		library.add_animation(clip_name, animation)
 	var player := AnimationPlayer.new()
 	player.add_animation_library("", library)
 	root.add_child(player)
