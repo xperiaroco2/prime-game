@@ -1528,12 +1528,14 @@ valid ones each side missed, each agent's $, and per pair of models the totals a
 prompt cache after waits, manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
-minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $; per
+minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
+how many of them wrote most of the context again (a call that still hit the cache counts, at $0); per
 run and then per agent, with its agent type from the `.meta.json`, API calls, longest gap and final context; split by
 what preceded the gap: the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep` (a keep-alive or a poll
 loop); another shell command; Monitor; Read or another tool, each when the previous call's longest foreground tool ran
-for half the gap or more; after a call that ended the agent's turn, the background task still running, in that order;
-else an API wait; and a totals line with their share of the agents' cache-write $ and the median gap; `idle` in
+for half the gap or more; after a call that ended the agent's turn, the background task still running: the first of
+`verify`, `publish` or `mutants`; `wait`; Monitor; a `sleep`; another command; else an API wait; and a totals line
+with their share of the agents' cache-write $ and the median gap; `idle` in
 `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
 lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,

@@ -2275,9 +2275,9 @@ def idle_line(name: str, totals: dict, write: float | None = None, whose: str = 
     of = t["write_usd"] if write is None else write
     head = f"{name}: " if name else ""
     if not t["rewrites"]:
-        return f"{head}no cache re-write after an idle gap of 5 min or more in {t['agents']} agents"
-    return (f"{head}{t['rewrites']} cache re-writes after an idle gap of 5 min or more ({t['most']} wrote most of the "
-            f"context again) in {t['agents_rewriting']} of {t['agents']} agents, {fmt_usd(t['usd'])} list = "
+        return f"{head}no API call after an idle gap of 5 min or more in {t['agents']} agents"
+    return (f"{head}{t['rewrites']} API calls after an idle gap of 5 min or more ({t['most']} wrote most of the "
+            f"context to the cache again) in {t['agents_rewriting']} of {t['agents']} agents, {fmt_usd(t['usd'])} list = "
             f"{t['usd'] / of if of else 0.0:.0%} of {whose} cache-write $; gap median {t['median_gap'] / 60:.1f} min, "
             f"max {t['max_gap'] / 60:.0f} min; by cause: {idle_causes_text(t['causes'])}")  # fmt: skip
 
@@ -2314,8 +2314,10 @@ def idle_section(record: dict) -> list[str]:
 
 
 IDLE_NOTE = (
-    "A re-write is a subagent's API call 5 minutes or more after its previous one: the 5-minute prompt cache has "
-    "lapsed, so the call writes its context to the cache again; its API list $ is that call's cache write. Its cause "
+    "Each row counts a subagent's API calls made 5 minutes or more after its previous one (a 're-write' in the "
+    "tables): the 5-minute prompt cache has lapsed, so a call usually writes its context to the cache again (the "
+    "'wrote most of the context' count; a call that still hit the cache counts with $0); its API list $ is that call's "
+    "cache write. Its cause "
     "is what preceded the gap: when the previous call made tool calls, its longest foreground one if that ran for half "
     "the gap or more (the runner's `wait`; `verify`, `publish` or `mutants`; a shell `sleep`; any other Bash or "
     "PowerShell command; Read or another tool), else an API wait; when it made none (it waited for a notification), "
@@ -3029,8 +3031,8 @@ def compact_lines(
     line = (f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
             f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
     if idle is not None:  # the re-write table's total, on this line: the summary keeps its line count (#558)
-        line += (f"; cache re-writes after 5+ min idle (its table): {idle['rewrites']}, {fmt_usd(idle['usd'])} "
-                 f"({idle['share']:.0%} of the agents' cache-write $)")
+        line += (f"; API calls after 5+ min idle (its table): {idle['rewrites']}, {idle['most']} of them re-wrote most "
+                 f"of the context, {fmt_usd(idle['usd'])} ({idle['share']:.0%} of the agents' cache-write $)")
     lines.append(line)
     w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET

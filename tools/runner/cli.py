@@ -533,7 +533,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--compact",
         action="store_true",
-        help="print only the summary of at most ten lines (wave comments); its total line ends with the re-write "
+        help="print only the summary of at most eleven lines (wave comments); its total line ends with the re-write "
         "table's count and $",
     )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")

@@ -176,7 +176,7 @@ class IdleReportTest(unittest.TestCase):
         self.assertEqual(totals["causes"]["API"], {"rewrites": 3, "usd": 1.0})
         text = "\n".join(md)
         self.assertIn(
-            "workflow agents: 9 cache re-writes after an idle gap of 5 min or more (8 wrote most of the context again) "
+            "workflow agents: 9 API calls after an idle gap of 5 min or more (8 wrote most of the context to the cache again) "
             "in 1 of 2 agents, $4.00 list = 89% of their cache-write $; gap median 6.5 min, max 7 min; by cause: wait 1 "
             "($0.50), verify 1 ($0.50), sleep 1 ($0.50), shell 1 ($0.50), Monitor 1 ($0.50), tool 1 ($0.50), API wait 3 "
             "($1.00)", text)  # fmt: skip
@@ -195,21 +195,21 @@ class IdleReportTest(unittest.TestCase):
     def test_the_compact_summary_keeps_its_lines(self) -> None:
         _md, _record, compact = self.build()
         total = next(line for line in compact if line.startswith("total API list $"))
-        self.assertTrue(total.endswith("; cache re-writes after 5+ min idle (its table): 9, $4.00 (89% of the agents' "
-                                       "cache-write $)"), total)  # fmt: skip
+        self.assertTrue(total.endswith("; API calls after 5+ min idle (its table): 9, 8 of them re-wrote most of the "
+                                       "context, $4.00 (89% of the agents' cache-write $)"), total)  # fmt: skip
         self.assertLessEqual(len(compact), 10)
         data = metrics.collect([self.dir], {}, None, metrics.parse_time(UNTIL))
         counted = [r for r in data["runs"] if r["counted"]]
         week = {"percent": 0.0, "bracket": [0.0, 0.0]}
         without = metrics.compact_lines([], counted, {}, [], None, [], week, "w")
         self.assertEqual(len(metrics.compact_lines([], counted, {}, [], None, [], week, "w",
-                                                   idle={"rewrites": 0, "usd": 0.0, "share": 0.0})), len(without))
+                                                   idle={"rewrites": 0, "most": 0, "usd": 0.0, "share": 0.0})), len(without))
 
     def test_no_gap_says_so(self) -> None:
         record = metrics.idle_record([])
         self.assertEqual(metrics.idle_section(record), [
             "## Cache re-writes after an idle gap of 5 minutes or more, per run and per agent (#558)", "",
-            "workflow agents: no cache re-write after an idle gap of 5 min or more in 0 agents", ""])
+            "workflow agents: no API call after an idle gap of 5 min or more in 0 agents", ""])
 
     def test_a_run_s_fourth_line(self) -> None:
         buf = io.StringIO()
@@ -217,7 +217,7 @@ class IdleReportTest(unittest.TestCase):
             metrics.runs_main(["wf_idle"], checkout=CHECKOUT, base=self.root, now=0.0)
         lines = buf.getvalue().splitlines()
         self.assertEqual(len(lines), 4)
-        self.assertTrue(lines[3].startswith("9 cache re-writes after an idle gap of 5 min or more (8 wrote most"))
+        self.assertTrue(lines[3].startswith("9 API calls after an idle gap of 5 min or more (8 wrote most"))
         self.assertTrue(lines[3].endswith("; most: implement:#9 9 ($4.00)"), lines[3])
 
     def test_the_help_names_the_table(self) -> None:
@@ -258,7 +258,7 @@ class IdleTrackTest(unittest.TestCase):
 
     def test_the_tracks_line_and_tables(self) -> None:
         out = self.run_main(False)
-        self.assertIn("art: 10 cache re-writes after an idle gap of 5 min or more (9 wrote most of the context again) "
+        self.assertIn("art: 10 API calls after an idle gap of 5 min or more (9 wrote most of the context to the cache again) "
                       "in 2 of 2 agents, $4.50 list = 90% of the track's cache-write $", out)  # fmt: skip
         self.assertIn("| s-art | wf_art | implement:#9 | task-implementer | 13 | 9 | $4.00 |", out)
         self.assertIn("| s-art | hand-run |  | ? | 2 | 1 | $0.50 |  |  | 1 ($0.50) |", out, "no .meta.json: '?'")
@@ -270,6 +270,7 @@ class IdleTrackTest(unittest.TestCase):
         out = self.run_main(True)
         self.assertNotIn("re-write", out)
         self.assertEqual(len(out.splitlines()), 3, "the window, art, every session")
+
 
 
 if __name__ == "__main__":
