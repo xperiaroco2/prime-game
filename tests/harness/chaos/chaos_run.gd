@@ -17,7 +17,7 @@ extends BotsRunner
 ## 6. repeated, replayed and out-of-order seqs: each copy answered by the rule, echoing its seq
 ##    (4 and 5 check every copy);
 ## 7. no honest bot decodes a frame of the malformed peer, nor of the hostile while it is downed or
-##    dead or in a phase where nobody hears anyone (Loading, End);
+##    dead or in a phase where nobody hears anyone (radius 0: Loading, Pregame, End);
 ## 8. (compare_rejected) the hostile's Rejected stream is the same when only hidden roles differ.
 ## In one process over the loopback the host's counts are replayed exactly (ChaosBudget) and the
 ## honest bots' decoded views equal a baseline run's with the chaos peers joined but idle
@@ -36,6 +36,8 @@ enum Mode { BASELINE, CHAOS }
 const HOSTILE := ChaosScenario.HOSTILE
 const HONEST: Array[int] = [1, 2, 3]
 const ENET_ADDRESS := "127.0.0.1"
+## The base mode's silent phases by hand from §6; class 7 checks the mode against them.
+const SILENT_PHASES: Array[StringName] = [&"loading", &"pregame", &"end"]
 ## Frames run after the match over ENet, so what is in flight arrives before the views are compared.
 const ENET_DRAIN_FRAMES := 120
 ## The fault shim's seeds over WebRTC: this plus the chaos seed times SHIM_SEED_STRIDE, plus a count
@@ -648,11 +650,19 @@ func _check_malformed_view() -> void:
 
 ## Class 7: no honest bot decoded the malformed peer's voice, nor the hostile's while it was not
 ## living or in a phase where nobody hears anyone: the mode's phases whose voice rule hears within
-## 0 m (Loading, Pregame and End in the base mode), so a new silent phase is checked too (#213).
+## 0 m, so a new silent phase is checked too (#213). The base mode's silent phases are also written
+## by hand from §6's table (SILENT_PHASES): the mode's declarations must not be the only judge, so
+## a phase that loses its SilentVoice fails here whatever the routing says.
 func _check_voice_rule() -> void:
 	var quiet: Array[StringName] = []
 	for spec: PhaseSpec in game.mode.phases:
 		if VoiceRule.radius_of(spec.voice_rule) == 0.0:
+			quiet.append(spec.id)
+	for spec: PhaseSpec in game.mode.phases:
+		if SILENT_PHASES.has(spec.id) and not quiet.has(spec.id):
+			failures.append(
+				"chaos: phase %s must be silent (§6) but its voice rule hears" % spec.id
+			)
 			quiet.append(spec.id)
 	for number: int in HONEST:
 		var client: BotClient = clients.get(number)
