@@ -44,6 +44,7 @@ func test_an_end_with_no_seconds_waits_for_the_host() -> void:
 	FixtureModes.run_ticks(game, 101)
 	for peer: int in [P1, P2]:
 		FixtureBaseMode.load_ack(game, peer)
+	FixtureBaseMode.through_pregame(game)
 	game.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(game, 1)
 	game.state.set_counter(0, &"crew_win", 0)

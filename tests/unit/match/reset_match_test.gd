@@ -97,6 +97,7 @@ func _in_end(mode: GameMode) -> Match:
 	FixtureModes.run_ticks(game, 101)
 	for peer: int in [P1, P2]:
 		FixtureBaseMode.load_ack(game, peer)
+	FixtureBaseMode.through_pregame(game)
 	game.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(game, 1)
 	return game

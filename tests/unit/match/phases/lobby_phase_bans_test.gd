@@ -138,6 +138,7 @@ func test_the_deal_never_draws_a_banned_type() -> void:
 		FixtureBaseMode.ready(game, P1)
 		FixtureModes.run_ticks(game, 101)
 		FixtureBaseMode.load_ack(game, P1)
+		FixtureBaseMode.through_pregame(game)
 		assert_str(game.phase_id()).is_equal("round")
 		assert_int(game.state.tasks.size()).is_equal(1)
 		for id: int in game.state.tasks:
@@ -166,9 +167,10 @@ func test_the_bans_outlive_the_match() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-## P1 readies, the countdown runs out and P1 loads: the round.
+## P1 readies, the countdown runs out, P1 loads and the pregame runs out: the round.
 func _play_to_the_round(game: Match) -> void:
 	FixtureBaseMode.ready(game, P1)
 	FixtureModes.run_ticks(game, 101)
 	FixtureBaseMode.load_ack(game, P1)
+	FixtureBaseMode.through_pregame(game)
 	assert_str(game.phase_id()).is_equal("round")
