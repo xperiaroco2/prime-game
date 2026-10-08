@@ -61,7 +61,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
 - Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
   variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
-  Wording and looks stay greybox placeholders until the UI milestone (#150).
+  Wording and looks stay greybox placeholders until the UI milestone (#150). UI px: the 1920x1080 base (#287).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.

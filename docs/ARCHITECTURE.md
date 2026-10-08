@@ -2462,6 +2462,25 @@ screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck`
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest.
 
+#### 4.7.24 Built in #287 (M6.2), the UI's base resolution
+- `project.godot`: the UI is laid out on a 1920x1080 canvas (`display/window/size/viewport_width` and `_height`),
+  the size the UI pack's mock-ups and Toy tokens are drawn at, so one mock-up px is one Godot px and no int token
+  (border, radius, shadow, font size) is scaled and rounded. It still stretches to the window (`canvas_items`,
+  `expand`; the 3D view renders at the window's size), and `window_width_override` and `_height_override` keep the
+  start window at 1152x648 (`shot`, `playcheck`, `host` and `join` size theirs with `--resolution`). Mouse look reads
+  `screen_relative`, which the stretch does not scale.
+- Until the generated theme (#288) and the Toy components (#289) replace the greybox look, its sizes are those of
+  the old 1152x648 base times 5/3, rounded, so the screens keep their apparent size: the theme's font sizes,
+  container margins and separations and its style boxes' content margins (not the corner radii); the layout widths
+  in `client/ui/` code (the menu's fields, `UiParts`' buttons and labels, `EscMenu.PAGE_SIZE`,
+  `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset); and Godot's default theme, which draws
+  the controls the greybox theme leaves alone (buttons, fields, sliders, scroll bars), through
+  `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover those controls sets it back
+  to 1.
+- Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
+  start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
+  `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
