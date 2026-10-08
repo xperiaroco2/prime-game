@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
@@ -98,6 +98,16 @@ export const meta = {
 //                 model, rules each finding of both valid, invalid or unsure with its own severity and pairs the
 //                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
 //                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
+//   checkpoint    true (#559; opt-in, off until the engineer's yes after a measurement): an implementer past 150,000
+//                 tokens of context hands over to a fresh one. It reads its context from the harness's reminder
+//                 `<total_tokens>N tokens left` after each tool result (the fall of N since its first is the context:
+//                 282 of 283 readings exact on 2026-10-08) or, seeing none, stops after 60 tool calls; it commits, writes
+//                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
+//                 returns handoff, the note's path. A fresh implementer, labelled implement:#<n>#<k> (k = 2, 3) with the
+//                 same type, effort and model, continues from the note and the worktree; at most 2 handoffs (the third
+//                 implementer cannot hand over). The implementer's result is then the last one's with the union of the
+//                 decisions, needs_engineer, proposed_issues, provisional_content and commits, and the compact result
+//                 gains handoffs. Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
@@ -127,7 +137,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review', 'checkpoint']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -186,6 +196,7 @@ const AB_REVIEW = flag('ab_review')
 if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab_review needs models.code, the code reviewer\'s model on trial')
 if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
 if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
+const CHECKPOINT = flag('checkpoint')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
@@ -546,9 +557,23 @@ if (PLAN_REVIEW) {
   log(`#${N}: planned; the critique found ${(critique.findings || []).length} finding(s)`)
 }
 
-const impl = await agent([
+// checkpoint (#559): the context at which an implementer hands over, read from the harness's `<total_tokens>` reminder
+// (its budget, 15,000,000 on 2026-10-08, less N is the context of the call before it), the tool-call backstop where
+// no reminder shows, and the most handoffs per task. Implementer k (0 first) is labelled implement:#N, then
+// implement:#N#2 and #3 (metrics.role_of reads both as the implementer; never :2). Off, implement(0, null) is today's
+// agent call byte for byte; on, only the rule paragraph and the schema's handoff key are added to it.
+const HANDOFF_AT = 150000
+const HANDOFF_BUDGET = 15000000
+const HANDOFF_CALLS = 60
+const HANDOFF_MAX = 2
+const thousands = x => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+const HANDOFF_SCHEMA = { ...IMPL_SCHEMA, properties: { ...IMPL_SCHEMA.properties, handoff: { type: 'string' } } }
+const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under ${thousands(HANDOFF_AT)} tokens. After each tool result a system reminder \`<total_tokens>N tokens left</total_tokens>\` shows N; note N in the first one you see (${thousands(HANDOFF_BUDGET)} so far): how far N has fallen since is your context, exactly. Once it has fallen by ${thousands(HANDOFF_AT)} or more (from ${thousands(HANDOFF_BUDGET)}: at or below ${thousands(HANDOFF_BUDGET - HANDOFF_AT)}), or after ${HANDOFF_CALLS} tool calls if you see no such reminder, hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to ${SCRATCH}/handoff-${k + 1}.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "handed over"} (only the implementer that finishes runs playcheck)' : ''}. If only the final verify and the return are left, finish instead. A fresh implementer of the same kind continues from your note and the worktree (at most ${HANDOFF_MAX} handoffs per task).`
+const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
+const implement = (k, note) => agent([
   RULES,
   `Task: GitHub issue #${N} (${A.title}). Effort: ${IMPL_EFFORT}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
+  k ? continuation(k, note) : '',
   `An earlier attempt may have got part of the way (a resumed run): first run \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from that state; uncommitted files there are that attempt's work.`,
   `Read: \`gh issue view ${N} --comments\`; ${READING}.`,
   `Task notes from the manager:\n${A.notes}`,
@@ -559,9 +584,31 @@ const impl = await agent([
   '`tools\\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree\'s run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.',
   BOUNDED ? waits(false) : '',
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
+  CHECKPOINT && k < HANDOFF_MAX ? handoffRule(k) : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end. summary: at most ${SUMMARY_MAX} characters, a few lines on what changed and why (the reviewers and the PR read it); the why of each choice goes in decisions, one line each, and the commits and the diff carry the rest.`,
-].filter(Boolean).join('\n\n'), withModel({ label: `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: IMPL_SCHEMA }, 'implement'))
+].filter(Boolean).join('\n\n'), withModel({ label: k ? `implement:#${N}#${k + 1}` : `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: CHECKPOINT && k < HANDOFF_MAX ? HANDOFF_SCHEMA : IMPL_SCHEMA }, 'implement'))
+// A handoff's own verify_green is never read: the last implementer's result is the one the run goes on with (a red
+// one stops below), with the earlier ones' lists joined, since each continuation returns only its own.
+const HANDOFF_LISTS = ['decisions', 'needs_engineer', 'proposed_issues', 'provisional_content', 'commits']
+const noteOf = r => (CHECKPOINT && r && typeof r.handoff === 'string' && r.handoff.trim() ? r.handoff.trim() : '')
+const handedOver = []
+let impl = await implement(0, null)
+while (noteOf(impl) && handedOver.length < HANDOFF_MAX) {
+  handedOver.push(impl)
+  log(`#${N}: handoff ${handedOver.length} of ${HANDOFF_MAX}: the implementer stopped at its context limit (verify ${impl.verify_green ? 'green' : 'red'}); a fresh one continues from ${noteOf(impl)}`)
+  impl = await implement(handedOver.length, noteOf(impl))
+}
+if (noteOf(impl)) log(`#${N}: handoff ignored: the last implementer may not hand over (at most ${HANDOFF_MAX}); its result stands`)
+if (impl && handedOver.length) {
+  const { handoff, ...last } = impl
+  const all = [...handedOver, impl]
+  impl = { ...last, handoffs: handedOver.map(noteOf) }
+  for (const key of HANDOFF_LISTS) {
+    const joined = [...new Set(all.flatMap(r => items(r[key])))]
+    if (joined.length) impl[key] = joined
+  }
+}
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
@@ -713,6 +760,7 @@ const brief = (stopped, pub, extra) => {
   }
   Object.assign(out, pick(impl, ['verify_green', 'complete']))
   out.summary = line(impl.summary)
+  if (handedOver.length) out.handoffs = handedOver.length
   // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
   // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
   if (!pub) {
