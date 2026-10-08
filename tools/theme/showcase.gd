@@ -11,6 +11,12 @@ extends Control
 ##   tools\run.cmd run tools/theme/showcase_interactive.tscn --seconds 3600   a window, for a human
 ## A dev tool, not a screen, so it lives under tools/ (prime-game-ui spec §19.6).
 
+const MARGINS: Dictionary[Side, StringName] = {
+	SIDE_LEFT: &"margin_left",
+	SIDE_TOP: &"margin_top",
+	SIDE_RIGHT: &"margin_right",
+	SIDE_BOTTOM: &"margin_bottom",
+}
 const DARK := ToyHints.DARK
 const LIGHT := ToyHints.LIGHT
 ## Each page: its title and its sections; a section is [title, context, entries]. An entry is a
@@ -200,7 +206,12 @@ const BUTTON_TEXTS: Dictionary[String, String] = {
 	"ToyPresetCardQuiet": "",
 	"ToyTab": "Lobby",
 	"ToyMenuItem": "Join",
-	"ToyRadio": "Option",
+	"ToyRadio": "",
+}
+## The held cell's name for a variation that draws its own pressed look (prime-game-ui#13).
+const HELD_NAMES: Dictionary[String, String] = {
+	"ToyMenuItem": "open",
+	"ToyKeyButton": "capturing",
 }
 
 ## The page shown.
@@ -210,9 +221,11 @@ const BUTTON_TEXTS: Dictionary[String, String] = {
 @export var interactive := false
 
 var large_text := false
+## The interactive window's live health bar and its label (null on a shot's page).
+var health_bar: ToyBar
+var health_label: Label
+
 var _body: Control
-var _health_bar: ToyBar
-var _health_label: Label
 
 
 func _ready() -> void:
@@ -245,7 +258,7 @@ func rebuild() -> void:
 		"Toy showcase %d/%d: %s%s"
 		% [page + 1, PAGES.size(), PAGES[page]["title"], " (large text)" if large_text else ""]
 	)
-	top.add_child(title)
+	top.add_child(_inset(title, &"ToyPlateNight"))
 	if interactive:
 		_controls(top)
 	_body = HBoxContainer.new()
@@ -353,7 +366,10 @@ func _button_row(column: VBoxContainer, entry: String, context: StringName) -> v
 		row.add_child(cell)
 		var face := _button(cell, variation, context, wide)
 		_force(face, variation, state)
-		cell.add_child(_caption(state, context))
+		var caption: String = state
+		if state == "held" and HELD_NAMES.has(str(variation)):
+			caption = HELD_NAMES[str(variation)]
+		cell.add_child(_caption(caption, context))
 
 
 ## A button of `variation` built the way the screens build it, added to `cell`; its face.
@@ -374,7 +390,8 @@ func _button(cell: Control, variation: StringName, context: StringName, wide: bo
 		face.theme_type_variation = variation
 		ToyPress.attach(face)
 		cell.add_child(face)
-	if variation in [&"ToyKeyButton", &"ToyKeyRoundButton"]:
+	if not face.get_parent() is ToyRaised:
+		# A flat face as the screens size it: keycaps, radios, chips (their `width`/`min_width`).
 		UiParts.sized(face, wide)
 	if variation in [&"ToyPresetCard", &"ToyPresetCardQuiet"]:
 		_card_content(face)
@@ -479,7 +496,7 @@ func _made(variation: StringName, entry: String, context: StringName) -> Control
 	var special: Dictionary[StringName, Callable] = {
 		&"ToyField": _fields,
 		&"ToyDropdown": _dropdowns,
-		&"ToySlider": _sliders,
+		&"ToySlider": _sliders.bind(context),
 		&"ToyScroll": _scroll,
 		&"ToyMapBoard": _map.bind(context),
 	}
@@ -503,8 +520,37 @@ func _made(variation: StringName, entry: String, context: StringName) -> Control
 func _label_sample(variation: StringName, context: StringName) -> Control:
 	var label := UiParts.styled_label(_label_text(variation), variation)
 	if _has_base(variation, context):
-		return UiParts.raised(label, context)
+		var raised := UiParts.raised(label, context)
+		return _room_for_base(raised, ToyHints.base_for(variation, context), variation)
 	return label
+
+
+## `raised` with room around it for what its base's and its face's StyleBoxes draw outside the
+## rect (expand margins): a raised wrapper does not reserve it, its caller leaves the gap.
+func _room_for_base(raised: ToyRaised, base: StringName, face: StringName) -> MarginContainer:
+	var styles: Array[StyleBox] = [theme.get_stylebox(&"panel", base)]
+	styles.append(theme.get_stylebox(&"normal", face))
+	var room := MarginContainer.new()
+	for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		var grow := 0.0
+		for style in styles:
+			if style is StyleBoxFlat:
+				grow = maxf(grow, (style as StyleBoxFlat).get_expand_margin(side))
+			elif style is StyleBoxTexture:
+				grow = maxf(grow, (style as StyleBoxTexture).get_expand_margin(side))
+		room.add_theme_constant_override(MARGINS[side], ceili(grow))
+	room.add_child(raised)
+	return room
+
+
+## `control` inset by the left content margin of `plate`'s StyleBox, so it lines up with the rows
+## inside the stages.
+func _inset(control: Control, plate: StringName) -> MarginContainer:
+	var inset := MarginContainer.new()
+	var left := theme.get_stylebox(&"panel", plate).get_margin(SIDE_LEFT)
+	inset.add_theme_constant_override(&"margin_left", ceili(left))
+	inset.add_child(control)
+	return inset
 
 
 func _label_text(variation: StringName) -> String:
@@ -599,7 +645,7 @@ func _fields() -> Control:
 	for state: String in ["normal", "placeholder", "read-only", "focus", "live"]:
 		var field := LineEdit.new()
 		field.theme_type_variation = &"ToyField"
-		field.custom_minimum_size = Vector2(150, 0)
+		field.custom_minimum_size = Vector2(190, 0)
 		field.context_menu_enabled = false
 		field.text = "" if state == "placeholder" else "Kitchen"
 		field.placeholder_text = "Lobby name"
@@ -628,16 +674,20 @@ func _dropdowns() -> Control:
 	return row
 
 
-func _sliders() -> Control:
+func _sliders(context: StringName) -> Control:
 	var row := HBoxContainer.new()
 	row.theme_type_variation = &"ToyRowEight"
-	for state: String in ["idle", "focus", "not editable", "live"]:
+	for state: String in ["idle", "focused", "not editable", "live"]:
+		var cell := VBoxContainer.new()
+		cell.theme_type_variation = &"ToyColumnFour"
+		row.add_child(cell)
 		var slider := ToySlider.new()
 		slider.custom_minimum_size = Vector2(150, 24)
 		slider.value = 60
 		slider.editable = state != "not editable"
-		row.add_child(slider)
-		if state == "focus" and not interactive:
+		cell.add_child(slider)
+		cell.add_child(_caption(state, context))
+		if state == "focused" and not interactive:
 			slider.grab_focus.call_deferred()
 	return row
 
@@ -705,48 +755,52 @@ func _spacing(variation: StringName, base: StringName) -> Control:
 func _controls(top: HBoxContainer) -> void:
 	var group := ButtonGroup.new()
 	for index in PAGES.size():
-		var chip := UiParts.toggle("Page %d" % (index + 1), _show_page.bind(index))
+		var chip := UiParts.toggle("Page %d" % (index + 1), show_page.bind(index))
 		chip.button_group = group
 		chip.set_pressed_no_signal(index == page)
 		(chip.get_node(^"ToyToggle") as ToyToggle).sync()
 		top.add_child(chip)
-	var large := UiParts.toggle("Large text", _switch_large)
+	var large := UiParts.toggle("Large text", switch_large)
 	large.set_pressed_no_signal(large_text)
 	(large.get_node(^"ToyToggle") as ToyToggle).sync()
 	top.add_child(large)
 	var reduced := UiParts.toggle("Reduced motion")
+	reduced.name = "ReducedMotion"
 	reduced.set_pressed_no_signal(UiPrefs.reduced_motion)
 	(reduced.get_node(^"ToyToggle") as ToyToggle).sync()
 	reduced.toggled.connect(func(on: bool) -> void: UiPrefs.reduced_motion = on)
 	top.add_child(reduced)
 	var slider := ToySlider.new()
+	slider.name = "HealthSlider"
 	slider.custom_minimum_size = Vector2(240, 24)
 	slider.max_value = 1.0
 	slider.step = 0.01
 	slider.value = 0.22
 	top.add_child(slider)
-	_health_bar = ToyBar.new()
-	_health_bar.custom_minimum_size.x = 200
-	_health_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	top.add_child(_health_bar)
-	_health_label = UiParts.styled_label("", &"ToyTextOnDark")
-	top.add_child(_health_label)
+	health_bar = ToyBar.new()
+	health_bar.custom_minimum_size.x = 200
+	health_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(health_bar)
+	health_label = UiParts.styled_label("", &"ToyTextOnDark")
+	top.add_child(health_label)
 	slider.value_changed.connect(show_health)
 	show_health(slider.value)
 
 
 ## The live health bar at `hp`, with its stop's number.
 func show_health(hp: float) -> void:
-	_health_bar.set_fraction(hp)
-	_health_label.text = "hp %.2f: stop %02d" % [hp, ToyBar.step_of(hp)]
+	health_bar.set_fraction(hp)
+	health_label.text = "hp %.2f: stop %02d" % [hp, ToyBar.step_of(hp)]
 
 
-func _show_page(index: int) -> void:
+## Shows page `index` (its chip).
+func show_page(index: int) -> void:
 	page = index
 	rebuild.call_deferred()
 
 
-func _switch_large() -> void:
+## Swaps between the default and the large-text theme (its chip).
+func switch_large() -> void:
 	large_text = not large_text
 	rebuild.call_deferred()
 

@@ -31,15 +31,15 @@ func test_the_pages_show_every_live_variation() -> void:
 			shown.merge(Showcase.variations_under(page))
 			page.free()
 	var missing := PackedStringArray()
-	for name in Builder.generated_names(pack):
-		var abstract: Variant = ((pack["variations"] as Dictionary)[name] as Dictionary).get(
+	for variation in Builder.generated_names(pack):
+		var abstract: Variant = ((pack["variations"] as Dictionary)[variation] as Dictionary).get(
 			"abstract"
 		)
-		if abstract != true and not shown.has(name):
-			missing.append(name)
+		if abstract != true and not shown.has(variation):
+			missing.append(variation)
 	assert_array(missing).is_empty()
-	for name in Builder.deprecated_names(pack):
-		assert_bool(shown.has(name)).override_failure_message(name).is_false()
+	for variation in Builder.deprecated_names(pack):
+		assert_bool(shown.has(variation)).override_failure_message(variation).is_false()
 
 
 func test_the_interactive_scene_switches() -> void:
@@ -48,15 +48,26 @@ func test_the_interactive_scene_switches() -> void:
 	add_child(page)
 	await get_tree().process_frame
 	assert_bool(page.interactive).is_true()
-	page.show_health(0.22)
-	assert_str(page._health_label.text).is_equal("hp 0.22: stop 04")
-	assert_that(page._health_bar.fill.self_modulate).is_equal(
+	assert_str(page.health_label.text).is_equal("hp 0.22: stop 04")
+	assert_that(page.health_bar.fill.self_modulate).is_equal(
 		GameUi.THEME.get_color(&"ramp_stop_04", ToyBar.HEALTH)
 	)
-	page._switch_large()
+	var slider := page.find_child("HealthSlider", true, false) as ToySlider
+	slider.value = 0.8
+	assert_str(page.health_label.text).is_equal("hp 0.80: stop 16")
+	assert_that(page.health_bar.fill.self_modulate).is_equal(
+		GameUi.THEME.get_color(&"ramp_stop_16", ToyBar.HEALTH)
+	)
+	var reduced := page.find_child("ReducedMotion", true, false) as Button
+	reduced.button_pressed = false
+	reduced.button_pressed = true
+	assert_bool(UiPrefs.reduced_motion).is_true()
+	reduced.button_pressed = false
+	assert_bool(UiPrefs.reduced_motion).is_false()
+	page.switch_large()
 	await get_tree().process_frame
 	assert_object(page.theme).is_same(GameUi.THEME_LARGE)
-	page._show_page(2)
+	page.show_page(2)
 	await get_tree().process_frame
 	assert_int(page.page).is_equal(2)
 	page.free()
