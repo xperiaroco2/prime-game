@@ -1196,8 +1196,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (§7.1, [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)); the gate's exceptions and
   the designer's PRs are merged by the engineer, with the Merge button on GitHub or in the Desktop PR pane, after CI
   is green: he reviews the designer's PRs, and no PR waits for the designer (§9). Content and levels are judged
-  through `shot` screenshots and a playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
-  PRs into the milestone's `release/m<k>` (§7.1, [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
+  through `shot` screenshots and a playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a
+  stage the manager merges task PRs into the milestone's `release/m<k>` (§7.1,
+  [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
 - **Board:** a Project owned by the engineer, linked to the repo; the designer is invited to the project and the
   repo. Built-in workflows: keep closed → Done and PR merged → Done; item added → Backlog; disable
   "PR linked → In progress". Agents set only In progress and In review, via `tools\run.cmd board move`.
