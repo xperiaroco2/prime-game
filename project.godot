@@ -137,6 +137,10 @@ toggle_fullscreen={
 ]
 }
 
+[internationalization]
+
+locale/translations=PackedStringArray("res://client/i18n/strings.en.translation", "res://client/i18n/strings.uk.translation")
+
 [layer_names]
 
 3d_physics/layer_1="world"

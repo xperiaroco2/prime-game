@@ -20,3 +20,6 @@ __pycache__/
 
 # The runner's per-worktree user:// (tools/runner/common.py ensure_user_dir, #182); the main checkout has none
 /override.cfg
+
+# Godot's import writes the translations next to the copy deck (client/i18n/strings.csv, #208)
+/client/i18n/*.translation
