@@ -8,7 +8,7 @@ extends Control
 ## <name>" heads the slots' corner, over the watched player's hand and belt (#168).
 
 ## The swatch's size in pixels (layout, not style).
-const SWATCH_SIZE := Vector2(28, 28)
+const SWATCH_SIZE := Vector2(47, 47)
 
 var role_label := UiParts.styled_label("", &"HudText")
 var teammates_label := UiParts.styled_label("", &"HudText")

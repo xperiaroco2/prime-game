@@ -8,7 +8,7 @@ extends Control
 ## TaskRow, TaskDescription).
 
 ## The descriptions' wrapping width in pixels (layout, not style).
-const TEXT_WIDTH := 520.0
+const TEXT_WIDTH := 867.0
 
 var progress_label := UiParts.styled_label("", &"TaskRow")
 var rows_box := VBoxContainer.new()
