@@ -454,5 +454,95 @@ class GitFilesTest(unittest.TestCase):
                 self.assertFalse(files.busy(guard.normalize(str(worktree.parent / "8"))))
 
 
+class HookStartUpTest(unittest.TestCase):
+    """The guard hook's start-up before every shell call (#568): bytecode cached as checked-hash pycs, no site module,
+    no typing."""
+
+    def copy_runner(self, where: Path) -> Path:
+        """run.py and the hook's own modules, copied to where/tools: (the copy's run.py)."""
+        (where / "tools" / "runner").mkdir(parents=True)
+        shutil.copy2(ROOT / "tools" / "run.py", where / "tools" / "run.py")
+        for name in ("__init__", "hooks", "guard"):
+            shutil.copy2(ROOT / "tools" / "runner" / f"{name}.py", where / "tools" / "runner" / f"{name}.py")
+        return where / "tools" / "run.py"
+
+    def guard(self, run_py: Path) -> subprocess.CompletedProcess[str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": "cp x .claude/settings.json"},
+                   "cwd": str(run_py.parent.parent)}  # fmt: skip
+        command = [sys.executable, "-S", str(run_py), "hook", "guard"]
+        return subprocess.run(command, input=json.dumps(payload), capture_output=True, text=True, timeout=60)
+
+    def test_the_guard_keeps_its_modules_compiled_as_checked_hash_pycs(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            for _ in range(2):  # the first run compiles, the second reads the cache
+                res = self.guard(run_py)
+                self.assertEqual(res.returncode, 0, res.stderr)
+                self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+            cache = Path(tmp) / "tools" / "out" / "pycache"
+            pycs = sorted(cache.rglob("*.pyc"))
+            # only the hook's modules: the standard library keeps its own bytecode
+            self.assertEqual(sorted(p.name.split(".")[0] for p in pycs), ["__init__", "guard", "hooks"])
+            for pyc in pycs:
+                self.assertEqual(int.from_bytes(pyc.read_bytes()[4:8], "little"), 0b11, pyc)  # PEP 552 checked hash
+
+    def test_the_hook_imports_restore_the_interpreter_s_bytecode_settings(self) -> None:
+        """A pycache prefix the interpreter started with (-X pycache_prefix, PYTHONPYCACHEPREFIX) is kept after the
+        hook's own modules are imported, and so is run.py's dont_write_bytecode."""
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            own = str(Path(tmp) / "own-prefix")
+            code = ("import sys; sys.path.insert(0, sys.argv[1]); import run; run.hook_main('guard'); "
+                    "print(repr((sys.pycache_prefix, sys.dont_write_bytecode)))")  # fmt: skip
+            res = subprocess.run([sys.executable, "-S", "-X", f"pycache_prefix={own}", "-c", code, str(run_py.parent)],
+                                 capture_output=True, text=True, timeout=60)  # fmt: skip
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual(res.stdout.strip(), repr((own, True)))
+            self.assertTrue((Path(tmp) / "tools" / "out" / "pycache").is_dir())  # the hook's modules went there
+
+    def test_an_edit_that_keeps_the_size_and_the_time_is_not_missed(self) -> None:
+        """A timestamp pyc checks only the source's size and whole second: this edit keeps both, and the guard must
+        still run the edited code (here an entry point renamed, so the hook fails closed)."""
+        with tempfile.TemporaryDirectory(prefix="hook-pycache") as tmp:
+            run_py = self.copy_runner(Path(tmp))
+            self.assertEqual(self.guard(run_py).returncode, 0)
+            source = run_py.parent / "runner" / "guard.py"
+            stat = source.stat()
+            text = source.read_bytes()
+            self.assertIn(b"def judge(", text)
+            source.write_bytes(text.replace(b"def judge(", b"def judgf(", 1))
+            os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+            res = self.guard(run_py)
+            self.assertNotEqual(res.returncode, 0, res.stdout)
+            self.assertIn("judge", res.stderr)
+
+    def test_the_wrapper_starts_python_without_site_for_the_guard_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "fakepython"
+            # one argument per line, so a checkout path with a space stays whole
+            fake.write_text('#!/bin/sh\nfor a in "$@"; do echo "$a" >&2; done\nexit 0\n', encoding="ascii", newline="\n")
+            fake.chmod(0o755)
+            bash = git_bash()
+            self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the hooks")
+            env = {**os.environ, "CLAUDE_PROJECT_DIR": str(ROOT), "PYTHON_BIN": str(fake)}
+            seen = {}
+            for name in ("guard", "gd-edit"):
+                res = subprocess.run([str(bash), WRAPPER, name], input="{}", capture_output=True, text=True, env=env,
+                                     timeout=60)  # fmt: skip
+                self.assertEqual(res.returncode, 0, res.stderr)
+                seen[name] = res.stderr.splitlines()[:2]
+        self.assertEqual(seen["guard"][0], "-S")
+        self.assertTrue(seen["gd-edit"][0].endswith("run.py"), seen)
+
+    def test_the_hook_modules_import_neither_typing_nor_the_runner_s_common(self) -> None:
+        code = (
+            "import sys; sys.path.insert(0, sys.argv[1]); import runner.hooks, runner.guard; "
+            "print(sorted(m for m in ('typing', 'runner.common') if m in sys.modules))"
+        )
+        res = subprocess.run([sys.executable, "-S", "-c", code, str(ROOT / "tools")], capture_output=True, text=True,
+                             timeout=60)  # fmt: skip
+        self.assertEqual((res.returncode, res.stdout.strip()), (0, "[]"), res.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(argv=sys.argv)

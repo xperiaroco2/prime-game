@@ -24,6 +24,11 @@ elif command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>
 else
   fail "no Python found. Install Python 3.11+ and set PYTHON_BIN in the env of ~/.claude/settings.json."
 fi
+# The guard runs before every shell command and needs only the standard library: -S skips the site module (its
+# site-packages and .pth files), about 15 ms a call (#568).
+if [ "$hook" = guard ]; then
+  set -- "$@" -S
+fi
 
 "$@" "$root/tools/run.py" hook "$hook"
 rc=$?

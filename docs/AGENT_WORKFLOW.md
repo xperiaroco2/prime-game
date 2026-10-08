@@ -778,6 +778,17 @@ Hooks live in `.claude/settings.json` and run in Git Bash through `.claude/hooks
 a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the call. A hook that cannot start, or
 that times out, fails open: `doctor` is red when Git Bash is missing.
 
+**Start-up (#568).** The guard runs before every shell call, so its start-up is kept small: `run-hook.sh` starts
+Python with `-S` for the guard (no `site` module: it needs only the standard library), `tools/run.py` imports `hooks`
+and `guard` from checked-hash pycs in `tools/out/pycache` (PEP 552: checked against the source's hash on every import,
+so an edit is never missed; the standard library keeps its own bytecode, the runner's other modules compile as
+before), and neither module imports `typing` or `common` (`test_hooks.py`'s `HookStartUpTest`). Measured on the
+laptop (16 threads) on 2026-10-08, the hook as Claude Code starts it (`bash -c 'bash run-hook.sh guard'`), median /
+p95 of 20 calls: 249 / 267 ms idle before; beside one other worktree's `verify`, 418 / 884 ms before and 333 / 675 ms
+after, Python's part 243 / 425 ms before and 145 / 357 ms after. The rest is two Git Bash starts (Claude Code's shell
+for the hook's command, then the `bash` the command names; about 70 ms each idle, 100 to 140 ms under load) and
+Python's own start. `metrics` reports the start-up of real calls (§11.12, "Tool-call start-up").
+
 The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It asks before three kinds of shell
 command: those that lose work outside the session's own worktree and task branch, `gh` commands that may write to
 another repository (both below), and **shell commands that write to the ask-protected paths** of this project
@@ -1550,7 +1561,11 @@ agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-suba
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
 agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s
 phase line; `agent_types` in `metrics.json`), the prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
-(#555, §11.17; `bounded_waits` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
+(#555, §11.17; `bounded_waits` in `metrics.json`), the tool-call start-up (#568, §8.2: per class of call, shell calls
+started in the background (the start-up alone), foreground shell calls but `wait`, Read, Grep and Glob (no hook: the baseline)
+and Edit and Write (with the gd-edit hook), the median and p95 of the
+time from its tool_use line to its tool_result line, and of a `wait` call stopped by its deadline minus wait's own
+clock; `tool_latency` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
 session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
@@ -1862,7 +1877,10 @@ list $); 212 of the calls ran to their deadline, and their gap to the next API c
 median but 94 s p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the
 model's turn, itself 3 s median and 14 s p95), so a 4-minute step plus the p95 crossed 300 s and 180 s + 94 s stays
 under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's
-`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted).
+`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted). #568 measured the guard hook's
+and Git Bash's start-up beside a `verify` at well under a second (§8.2), so that tail is not the hook's; `metrics`'
+"Tool-call start-up" line splits the time: a `wait` call beyond its own clock (the laptop's 8 such calls to 10-08:
+2.6 s median, 3.3 s p95) apart from the turn after it.
 Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with
 `wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command

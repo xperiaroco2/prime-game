@@ -703,6 +703,45 @@ class BoundedWaitTest(unittest.TestCase):
         self.assertEqual((record["wait"]["calls"], record["wait"]["rewrites"]), (0, 0))
         self.assertEqual(metrics.bounded_wait_section(record), [])
 
+    def test_tool_call_start_up_per_class(self) -> None:
+        """#568: from a tool call's tool_use line to its tool_result line, per class; a Monitor is in none, a `wait`
+        call only in its own."""
+        folder = Path(self.tmp.name) / "projects" / "E--prime-game"
+        background = {"id": "g-1", "name": "Bash", "input": {"command": "tools/run.sh verify", "run_in_background": True}}
+        Fixture.run(folder / SESSION / "subagents" / "workflows" / "wf_l", [
+            ("k-impl", "a-l", "implement:#6", "Implement", {"verify_green": True}, [
+                assistant(0, "l0", usage(write=1000), tool=background),
+                tool_result(0.05, "g-1", "Command running in background"),  # 3 s
+                assistant(0.1, "l1", usage(read=1000), tool=bash("f-1", "git status")),
+                tool_result(0.2, "f-1", ""),  # 6 s
+                assistant(0.25, "l2", usage(read=1000), tool={"id": "r-1", "name": "Read", "input": {"file_path": "x"}}),
+                tool_result(0.3, "r-1", "1	x"),  # 3 s
+                assistant(0.31, "l2e", usage(read=1000), tool={"id": "e-1", "name": "Edit", "input": {"file_path": "x"}}),
+                tool_result(0.34, "e-1", "updated"),  # 2 s (whole seconds)
+                assistant(0.35, "l3", usage(read=1000), tool={"id": "m-1", "name": "Monitor", "input": {}}),
+                tool_result(0.4, "m-1", "started"),
+                assistant(0.5, "l4", usage(read=1000), tool=bash("f-2", "tools/run.sh lint")),
+                tool_result(1.5, "f-2", "lint: passed"),  # 60 s
+                assistant(1.6, "l5", usage(read=1000), tool=bash("w-1", "tools/run.sh wait x.log")),
+                tool_result(5.7, "w-1", self.STILL),  # 246 s, 6 s more than wait's own 240 s
+                assistant(5.8, "l6", usage(read=1000)),
+            ]),
+        ])  # fmt: skip
+        data = metrics.collect([folder], {}, None, metrics.parse_time(UNTIL))
+        md, record, _compact = metrics.build(data, [], None, None, metrics.parse_time(UNTIL))
+        latency = record["tool_latency"]
+        self.assertEqual(list(latency), [key for key, _name in metrics.LATENCY_CLASSES])
+        rounded = {k: (v["calls"], round(v["median_s"], 1), round(v["p95_s"], 1)) for k, v in latency.items()}
+        self.assertEqual(rounded, {"shell-background": (1, 3.0, 3.0), "shell": (2, 33.0, 60.0), "read": (1, 3.0, 3.0),
+                                   "edit": (1, 2.0, 2.0), "wait": (1, 6.0, 6.0)})
+        self.assertIn("Tool-call start-up (#568), from a call's start to its output: shell calls started in the "
+                      "background (start-up only): 1 call, 3.0 s median, 3.0 s p95; foreground shell calls (start-up "
+                      "and the command's run): 2 calls, 33.0 s median, 60.0 s p95; Read, Grep and Glob (no hook): 1 "
+                      "call, 3.0 s median, 3.0 s p95; Edit and Write (with the gd-edit hook): 1 call, 2.0 s median, "
+                      "2.0 s p95; `wait` calls stopped by their deadline, minus wait's own clock: "
+                      "1 call, 6.0 s median, 6.0 s p95.", "\n".join(md))  # fmt: skip
+        self.assertEqual(metrics.latency_section(metrics.latency_record([])), [])
+
     def test_p95_is_the_nearest_rank(self) -> None:
         self.assertEqual(metrics.p95([]), 0.0)
         self.assertEqual(metrics.p95([5.0]), 5.0)

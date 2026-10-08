@@ -66,6 +66,14 @@ cache read of its first API call: the type's system prompt and tools plus the ta
 WRITER_ROLES ran as the general type (on the compact summary's first line too; expected 0 after #557), and each run's
 types in the JSON record and on `--run`'s phase line.
 
+Tool-call start-up (#568): per class of tool call (LATENCY_CLASSES) of the counted runs' agents, the median and p95 of
+the time from its start (its tool_use line) to its output (its tool_result line). A shell call started in the
+background returns at once, so its time is the start-up alone: Claude Code's turn-around, the guard hook (Git Bash and
+Python) and the shell's own spawn; a foreground shell call adds its command's run; Read, Grep and Glob run no hook and
+start no shell (the baseline); Edit and Write run the gd-edit PostToolUse hook before their output; a `wait` call
+is in no shell class (its deadline would dwarf theirs): one that ran to its deadline, minus its own clock ("still
+running after N s"), is its start-up and its end. Compare windows before and after a change of the hook or of verify's load.
+
 Cache re-writes after a bounded wait (#555): a workflow agent's call that polls a long job, a `wait` call or a CI wait
 (`gh pr checks --watch`, `gh run watch`), and the agent's next API call. Per API call that made one (its longest, with a
 result and a next call): the call's seconds, the gap between the two API calls' first lines (as the cache section
@@ -279,6 +287,18 @@ GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to
 # A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
 CACHE_TTL = 300
 BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
+# #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
+LATENCY_CLASSES = (
+    ("shell-background", "shell calls started in the background (start-up only)"),
+    ("shell", "foreground shell calls (start-up and the command's run)"),
+    ("read", "Read, Grep and Glob (no hook)"),
+    ("edit", "Edit and Write (with the gd-edit hook)"),
+    ("wait", "`wait` calls stopped by their deadline, minus wait's own clock"),
+)
+# The file tools per class: the read tools run no hook (the baseline); Edit and Write run the gd-edit PostToolUse hook
+# (Git Bash, Python and, for a .gd file, an engine check) before their result.
+READ_TOOLS = ("Read", "Grep", "Glob")
+EDIT_TOOLS = ("Edit", "Write")
 # wait's line when the job is still running at its deadline: its own clock, without the shell's and Python's start-up.
 WAIT_RAN = re.compile(r"^wait: still running after (\d+) s \(", re.MULTILINE)
 # A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
@@ -1121,6 +1141,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
+        "latency": [(k, c["t1"] - c["t0"]) for c in calls if c["t1"] and (k := latency_class(c))]
+        + [("wait", c["t1"] - c["t0"] - c["polled"]) for c in calls if c["t1"] and c.get("polled") is not None],
         "kinds": dict(kinds),
         "kind_counts": Counter(c["kind"] for c in calls),
         "tool_seconds": union_seconds([(c["t0"], c["t1"]) for c in calls if c["t1"]]),
@@ -1131,6 +1153,18 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "code_reads": code_reads,
         "files_read": sorted(files_read),
     }
+
+
+def latency_class(call: dict) -> str | None:
+    """A tool call's key in LATENCY_CLASSES (#568), None for a call of any other tool and for a `wait` call, whose
+    deadline would dwarf the foreground shell calls' times (the "wait" class counts it, minus wait's own clock)."""
+    if call["kind"] == "wait":
+        return None
+    if call["name"] in ("Bash", "PowerShell"):
+        return "shell-background" if call["background"] else "shell"
+    if call["name"] in READ_TOOLS:
+        return "read"
+    return "edit" if call["name"] in EDIT_TOOLS else None
 
 
 def bounded_waits(
@@ -1663,6 +1697,8 @@ def build(
     md += idle_section(idle)
     waits = bounded_wait_record(counted)
     md += bounded_wait_section(waits)
+    latency = latency_record(counted)
+    md += latency_section(latency)
     managers = manager_rows(counted, data["sessions"])
     md += manager_section(managers, data["other_sessions"])
     rewrites = rewrite_rows(data["sessions"], data["runs"])
@@ -1690,6 +1726,7 @@ def build(
         "manager_rewrites": rewrites,
         "idle": idle,
         "bounded_waits": waits,
+        "tool_latency": latency,
         "quality": quality,
         "plans": plans,
         "ab_review": ab,
@@ -2237,6 +2274,26 @@ def p95(values: list[float]) -> float:
     """The nearest-rank 95th percentile (0.0 for none)."""
     ranked = sorted(values)
     return ranked[max(0, -(-len(ranked) * 95 // 100) - 1)] if ranked else 0.0
+
+
+def latency_record(counted: list[dict]) -> dict:
+    """#568, per class of LATENCY_CLASSES over the counted runs' agents: the calls, and the median and p95 seconds from a
+    call's start to its output."""
+    seconds: dict[str, list[float]] = {key: [] for key, _name in LATENCY_CLASSES}
+    for r in counted:
+        for x in r["agents"]:
+            for key, s in (x["data"] or {}).get("latency", []):
+                seconds[key].append(s)
+    return {key: {"calls": len(v), "median_s": med(v), "p95_s": p95(v)} for key, v in seconds.items()}
+
+
+def latency_section(record: dict) -> list[str]:
+    """One line (#568): the time from a tool call's start to its output, per class of call that has any."""
+    parts = [f"{name}: {r['calls']} call{'' if r['calls'] == 1 else 's'}, {r['median_s']:.1f} s median, {r['p95_s']:.1f} s p95"
+             for key, name in LATENCY_CLASSES if (r := record[key])["calls"]]  # fmt: skip
+    if not parts:
+        return []
+    return ["Tool-call start-up (#568), from a call's start to its output: " + "; ".join(parts) + ".", ""]
 
 
 def bounded_wait_record(counted: list[dict]) -> dict:

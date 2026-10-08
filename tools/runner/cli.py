@@ -526,7 +526,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Time, tokens and API list $ per task workflow, from this checkout's transcripts, with a table "
         "of the subagents' cache re-writes after an idle gap of 5 min or more per run and per agent (by what preceded "
         "the gap: wait, verify/publish/mutants, a shell sleep, other shell, Monitor, Read or another tool, an API "
-        "wait; #558). --track: each track's share of the week against its --budget, and without --compact its "
+        "wait; #558), and the median and p95 of a tool call's time from its start to its output per class of call "
+        "(#568). --track: each track's share of the week against its --budget, and without --compact its "
         "re-write table. --run: a run's spend so far, and a line of its re-writes when it has one.",
     )
     p.add_argument(
