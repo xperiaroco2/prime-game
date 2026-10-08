@@ -149,7 +149,7 @@ def build_parser() -> argparse.ArgumentParser:
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
         "else 124 (still running); 2: no log",
-        description="Wait at most S s (default 240) for a background job's last line exit=<n> (the job run as "
+        description="Wait at most S s (default 180) for a background job's last line exit=<n> (the job run as "
         "`<command> > <log> 2>&1; echo \"exit=$?\" >> <log>`), then print its summary and return n. Else 124 with a "
         "'still running' line: call wait again, never start the job again. 2 with a 'wait: ' line: no log, or one "
         "it cannot read. --verified: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago "
@@ -164,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="no log: 0 when the newest verify passed at HEAD with a clean tree under 2 hours ago (publish reuses "
         "it instead of verifying again)",
     )
-    p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
+    p.add_argument("--max", type=int, default=180, metavar="S", help="seconds to wait, 1 to 180 (default 180)")
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",

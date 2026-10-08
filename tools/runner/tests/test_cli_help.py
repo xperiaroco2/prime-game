@@ -151,7 +151,7 @@ OLD_ROWS = {
         "definition-of-done gate",
     ],
     "wait": [
-        "at most S s (default 240)",
+        "at most S s (default 180)",
         "last line exit=<n>",
         "print its summary and return n",
         "124",
