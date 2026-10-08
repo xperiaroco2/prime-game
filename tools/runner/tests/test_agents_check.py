@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import agents_check, metrics
+from runner import agents_check, instructions, metrics
 from runner.agents_check import Transcript
 from runner.common import ROOT, Failure, force_rmtree
 
@@ -425,12 +425,16 @@ class LaunchTest(unittest.TestCase):
         git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
         self.work = self.clone("work")
         for name in agents_check.LAUNCH_AGENTS:
-            self.write(f".claude/agents/{name}.md", (ROOT / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8"))
+            body = (ROOT / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8")
+            self.write(f".claude/agents/{name}.md", body)
+            # The paths the lean bodies name, which instructions.agent_problems checks: the real ones, as stubs.
+            for rel in instructions.BODY_PATH_RE.findall(body):
+                if (ROOT / rel).is_file():
+                    self.write(rel, "x\n")
+                elif (ROOT / rel).is_dir():
+                    self.write(f"{rel.rstrip('/')}/x", "x\n")
         for name in agents_check.LAUNCH_SCRIPTS:
             self.write(f".claude/workflows/{name}", "export const meta = { name: 'x', description: 'x' }\n")
-        # The paths the lean bodies name, which instructions.agent_problems checks.
-        self.write("docs/workflow-scripts.md", "x\n")
-        self.write("docs/decisions/2026-10-04-lean-workflow-agent-types.md", "x\n")
         self.commit("c1")
 
     def clone(self, name: str) -> Path:
