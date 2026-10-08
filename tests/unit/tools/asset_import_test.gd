@@ -59,10 +59,14 @@ func test_every_committed_glb_and_image_passes() -> void:
 	assert_array(problems).override_failure_message("\n".join(problems)).is_empty()
 
 
-func test_the_dry_run_asset_is_found() -> void:
-	var glbs := Check.find_files("res://", ["glb", "gltf"])
-	assert_array(glbs).contains(["res://assets/environment/kenney_chair/kenney_chair.glb"])
-	for path: String in glbs:
+func test_every_glb_is_found_in_every_folder() -> void:
+	# A probe tree, not a committed asset: the dry-run chair may be replaced or removed (#522, #523).
+	for path: String in [PROBE + "b/b.glb", PROBE + "a/deep/a.gltf", PROBE + "a/notes.txt"]:
+		_write_pointer(path)
+	assert_array(Check.find_files(PROBE, ["glb", "gltf"])).contains_exactly(
+		[PROBE + "a/deep/a.gltf", PROBE + "b/b.glb"]
+	)
+	for path: String in Check.find_files("res://", ["glb", "gltf"]):
 		assert_bool(path.begins_with("res://addons/")).is_false()
 		assert_bool(path.begins_with("res://tests/scratch/")).is_false()
 
