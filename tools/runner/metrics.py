@@ -3426,7 +3426,7 @@ def tracks_main(
     dirs = track_dirs(checkout or main_checkout(), base)
     spend = track_spend(dirs, session_filter(labels), t_since, t_until)
     lines = track_lines(spend, names, budgets, t_since, t_until)
-    idle = track_idle(dirs, spend, names, t_since, t_until)
+    idle = {} if compact else track_idle(dirs, spend, names, t_since, t_until)  # the tables print without --compact
     folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],

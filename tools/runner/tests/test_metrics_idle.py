@@ -270,7 +270,8 @@ class IdleTrackTest(unittest.TestCase):
         out = self.run_main(True)
         self.assertNotIn("re-write", out)
         self.assertEqual(len(out.splitlines()), 3, "the window, art, every session")
-
+        record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
+        self.assertEqual(record["idle"], {}, "--compact prints none of it, so it does not read every subagent")
 
 
 if __name__ == "__main__":
