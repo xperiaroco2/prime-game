@@ -1526,7 +1526,8 @@ code reviewer's A/B per run with a control code reviewer (#535: each side's find
 valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
 `ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), the
 prompt cache after waits, the cache re-writes after a `wait` call and after a CI wait and the time around one
-(#555, §11.17; `bounded_waits` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+(#555, §11.17; `bounded_waits` in `metrics.json`), manager sessions with their % of a Max 20x week, each manager
+session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
 by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
 call's context; #305, the skill's §7), the subagents' cache re-writes after an idle gap (#558: each API call 5
 minutes or more after the agent's previous one, when the 5-minute cache has lapsed, with that call's cache-write $ and
@@ -1832,12 +1833,14 @@ that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit poin
 all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
 300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 180 s, and bounds a call with the
 shell's `timeout` or `wait --max`, never only with the tool's own timeout. The step was 4 minutes until #555: from 10-06
-10:00 to 10-08 25 of the window's 34 re-writes after 5 minutes came right after a `wait` call; over the 212 `wait`
-calls that ran to their deadline, the gap to the agent's next API call exceeded wait's own clock by 6 s median but 94 s
-p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the model's turn,
-itself 3 s median and 14 s p95), so a 4-minute step crossed 300 s about one call in twelve and 180 s + 94 s stays
-under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's `bounded_waits`).
-Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+10:00 to 10-08 there were 390 `wait` calls and 25 of them were followed by a cache re-write (4.19M tokens, about $20 of
+list $); 212 of the calls ran to their deadline, and their gap to the next API call exceeded wait's own clock by 6 s
+median but 94 s p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the
+model's turn, itself 3 s median and 14 s p95), so a 4-minute step plus the p95 crossed 300 s and 180 s + 94 s stays
+under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's
+`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted).
+Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with
+`wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
 (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
 the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
