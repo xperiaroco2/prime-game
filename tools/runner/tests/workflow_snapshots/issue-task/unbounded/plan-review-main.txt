@@ -214,6 +214,10 @@ Return the structured result.
   "model": "sonnet",
   "effort": "high"
  },
+ "lean_off": {
+  "general": 3,
+  "reason": "a resume of a run launched before #458"
+ },
  "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

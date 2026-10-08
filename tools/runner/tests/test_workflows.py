@@ -15,7 +15,8 @@ byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
 an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
-resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
+resume of a run launched without `lean` passes `lean: false`, since #557 with a `lean_reason`, which changes no
+prompt or option). A deliberate change of a default prompt rewrites them:
 run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
 wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote
 unbounded/ too: #413's and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan
@@ -27,7 +28,8 @@ nor tag); they must merge between waves, with no issue-task run before its publi
 the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
 launched snapshots, between waves too. #469's plan phase (the plan's comment, its short form and file map) changed only
 `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume
-replays agents, not the return): #386 made it compact and changed only that part of every snapshot.
+replays agents, not the return): #386 made it compact and changed only that part of every snapshot, and #557 added
+`lean_off` to the unbounded/ ones.
 """
 
 import difflib
@@ -611,7 +613,7 @@ class WorkflowTest(unittest.TestCase):
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                for extra, folder in (({}, ()), ({"bounded_waits": False, "lean": False}, ("unbounded",))):
+                for extra, folder in (({}, ()), (dict(OFF, bounded_waits=False), ("unbounded",))):
                     jobs.append((name, dict(ARGS, **args, **extra), stub))
                     files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
         results = run_jobs(jobs)
@@ -671,6 +673,8 @@ MUTANTS_RERUN = {
 PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
 # lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
+# Since #557 a launch with lean false says why in lean_reason (a resume of a run launched before #458 does too).
+OFF = {"lean": False, "lean_reason": "a resume of a run launched before #458"}
 LEAN_WRITERS = ("task-implementer", "task-publisher")
 LEAN_TYPES = {
     "plan": "task-implementer",
@@ -909,6 +913,12 @@ class PipelineV2Test(unittest.TestCase):
             {"bounded_waits": "yes"},
             {"lean": "yes"},
             {"lean": 1},
+            # #557: lean false needs a reason; a reason is a non-empty string.
+            {"lean": False},
+            {"lean": False, "lean_reason": ""},
+            {"lean": False, "lean_reason": "  "},
+            {"lean": False, "lean_reason": 5},
+            {"lean_reason": ["x"]},
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
@@ -945,11 +955,11 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, lean=False), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
         ]
         lines: set[str] = set()
         labels: set[str] = set()
@@ -1000,7 +1010,7 @@ class PipelineV2Test(unittest.TestCase):
         ]
         # With lean (the default since #458) the implementing and publishing agents get a lean writer type (#332) and
         # still every rule; with lean false they are general workflow agents, also with every rule.
-        jobs += [(name, dict(args, lean=False), stub) for name, args, stub in jobs]
+        jobs += [(name, dict(args, **OFF), stub) for name, args, stub in jobs]
         for result in run_jobs(jobs):
             for event in agents(result):
                 with self.subTest(agent=event["label"]):
@@ -1473,9 +1483,9 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "ab_review"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review"),
             ),
-            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean")),
+            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
         ):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             when = next(line for line in text.splitlines() if line.strip().startswith("whenToUse:"))
@@ -1499,7 +1509,7 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, efforts={"fix": "medium"}), core),
         ]
-        extras = ({}, {"lean": None}, {"lean": False}, {"lean": True})
+        extras = ({}, {"lean": None}, OFF, {"lean": True})
         jobs = [(name, dict(args, **extra), stub) for name, args, stub in bases for extra in extras]
         results = run_jobs(jobs)
         typed = set()
@@ -1527,6 +1537,67 @@ class PipelineV2Test(unittest.TestCase):
         lean = {e["label"]: options(e) for e in agents(results[3])}
         self.assertEqual((lean["implement:#7"]["effort"], lean["implement:#7"]["model"]), ("medium", AVAILABLE[0]))
         self.assertEqual(lean["publish:#7"]["effort"], "low")
+
+    def test_lean_false_needs_a_reason(self) -> None:
+        # #557: 14 of 37 implementers and 13 of 32 publishers of 2026-10-06 to 08 ran the general type, at about twice
+        # the first-call tokens. A launch with lean false now says why (lean_reason), so a stray false is refused before
+        # any agent runs; a resume of a run launched before #458 passes a reason and replays its old agents unchanged.
+        long = "a resume of wf_1 launched before #458, " * 10
+        cases = (
+            ("refused", {"lean": False}),
+            ("ok", OFF),
+            ("ok", {"lean": False, "lean_reason": long}),
+            ("ignored", {"lean_reason": "x"}),
+            ("ignored", {"lean": True, "lean_reason": "x"}),
+        )
+        for name in ("issue-task.js", "pr-rebase.js"):
+            jobs = [(name, dict(ARGS, **extra), {"paths": ["tools/x.py"]}) for _, extra in cases]
+            jobs.append((name, dict(ARGS, lean=False, lean_reason="z"), {"paths": ["tools/x.py"]}))
+            results = run_jobs(jobs)
+            plain = run_one(name, {"lean": False, "lean_reason": "z"}, {"paths": ["tools/x.py"]})
+            for (kind, extra), result in zip(cases, results):
+                with self.subTest(workflow=name, args=extra):
+                    logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+                    if kind == "refused":
+                        self.assertIn("args.lean false needs args.lean_reason", result["error"])
+                        self.assertIn("docs/workflow-scripts.md", result["error"])
+                        self.assertEqual(agents(result), [])
+                        continue
+                    self.assertIsNone(result["error"])
+                    if kind == "ignored":
+                        self.assertTrue(any("lean_reason ignored" in m for m in logs), logs)
+                        self.assertNotIn("lean_off", result["returned"])
+                        continue
+                    # The reason changes no prompt or option (a resume replays by prompt), and the result names it, cut
+                    # to a line.
+                    self.assertFalse([e for e in agents(result) if e["label"].split(":")[0] in LEAN_TYPES and "agentType" in options(e)])
+                    self.assertEqual([(e["prompt"], e["opts"]) for e in agents(result)], [(e["prompt"], e["opts"]) for e in agents(plain)])
+                    reason = result["returned"]["lean_off"]["reason"]
+                    self.assertTrue(extra["lean_reason"].startswith(reason.removesuffix("…").rstrip()), reason)
+                    self.assertLessEqual(len(reason), 160)
+
+    def test_lean_off_counts_its_general_agents(self) -> None:
+        # #557: the result of a run with lean false counts the general agents it launched beside its reason; a lean run
+        # has no such field (its compact result stays as it was). Claude Code records each agent's agentType in its
+        # agent-*.meta.json, which `metrics` reports per run; an agentType it cannot resolve throws at agent().
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd", "client/x.tscn"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2, **OFF), {"paths": ["core/x.gd", "client/x.tscn"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, **OFF), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        results = run_jobs(jobs)
+        for (name, args, _), result in zip(jobs, results):
+            with self.subTest(workflow=name, lean=args.get("lean", True)):
+                self.assertIsNone(result["error"])
+                general = sum(1 for e in agents(result) if "agentType" not in options(e))
+                if args.get("lean", True):
+                    self.assertEqual(general, 0)
+                    self.assertNotIn("lean_off", result["returned"])
+                else:
+                    self.assertEqual(result["returned"]["lean_off"], {"general": general, "reason": OFF["lean_reason"]})
+        # plan, implement, test-review and publish; rebase and fix.
+        self.assertEqual([r["returned"]["lean_off"]["general"] for r in results[1::2]], [4, 2])
 
     def test_lean_options_match_their_snapshots(self) -> None:
         # Like the main snapshots, each case runs as launched and with bounded_waits false (`unbounded/`): a resume of
