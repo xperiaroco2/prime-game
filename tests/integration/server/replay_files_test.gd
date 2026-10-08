@@ -26,7 +26,7 @@ func test_a_session_writes_its_log_when_it_ends_and_it_replays() -> void:
 	_h.join()
 	assert_bool(_h.welcome_all()).is_true()
 	_h.ready_all()
-	assert_bool(_h.run_until_phase(&"round", 400)).is_true()
+	assert_bool(_h.run_until_phase(&"round", 600)).is_true()
 	_h.pump_seconds(1)
 	assert_array(Array(ReplayFiles.list(DIR))).is_empty()
 	var recorded := _h.session.game.command_log.to_dict()

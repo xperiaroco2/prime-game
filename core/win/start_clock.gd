@@ -1,7 +1,8 @@
 class_name StartClock
 extends RuleEffect
-## Starts the match clock (ARCHITECTURE §3.3, §9.4): a transition action, the last of the deal's
-## row (`Loading, all_loaded -> Round`, after PlacePlayers). It sets the clock's end to now plus
+## Starts the match clock (ARCHITECTURE §3.3, §9.4): a transition action, alone on the row into
+## the round (`Pregame, pregame_done -> Round`, #213: the deal ran on the row into the pregame,
+## and the silent pregame's seconds do not count). It sets the clock's end to now plus
 ## the match setting `minutes_setting` (converted once, toward zero: 10 min is 12000 ticks) and
 ## emits RoundStarted. A forced clock (MatchState.forced_clock_s, the debug ForceClock command of
 ## the bot scenarios) replaces the setting, in seconds. Match then counts the clock down in the

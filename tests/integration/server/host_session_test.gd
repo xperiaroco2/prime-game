@@ -278,10 +278,11 @@ func test_a_loading_deadline_disconnects_the_peer_after_what_was_sent_to_it() ->
 	_h.ready_all()
 	assert_bool(_h.run_until_phase(&"loading", 400)).is_true()
 	assert_array(slow.names()).contains([&"LoadMatch"])
-	# It never acknowledges: at the 60 s deadline it is disconnected, the round starts without it.
+	# It never acknowledges: at the 60 s deadline it is disconnected, the pregame (#213) starts
+	# without it.
 	_h.pump_seconds(61)
 	assert_bool(slow.lost).is_true()
-	assert_str(String(_h.session.game.phase_id())).is_equal("round")
+	assert_str(String(_h.session.game.phase_id())).is_equal("pregame")
 	assert_bool(_h.session.is_running()).is_true()
 	# Everything core/ addressed to it before the DisconnectPeer arrived, in order, then host_lost.
 	var view := _h.session.game.view_of(slow.peer)

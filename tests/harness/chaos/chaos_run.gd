@@ -467,7 +467,8 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 	if command == null and hostile_player != null:
 		_life_at[at_tick] = hostile_player.life
 		_phase_at[at_tick] = game.phase_id()
-	if game.phase_id() in [&"round", &"end"]:
+	# The roles are dealt on the row into the pregame (#213).
+	if game.phase_id() in [&"pregame", &"round", &"end"]:
 		for peer: int in game.state.peers():
 			_role_of[peer] = game.state.player(peer).role
 
@@ -646,9 +647,13 @@ func _check_malformed_view() -> void:
 
 
 ## Class 7: no honest bot decoded the malformed peer's voice, nor the hostile's while it was not
-## living or in a phase where nobody hears anyone.
+## living or in a phase where nobody hears anyone: the mode's phases whose voice rule hears within
+## 0 m (Loading, Pregame and End in the base mode), so a new silent phase is checked too (#213).
 func _check_voice_rule() -> void:
-	var quiet: Array[StringName] = [&"loading", &"end"]
+	var quiet: Array[StringName] = []
+	for spec: PhaseSpec in game.mode.phases:
+		if VoiceRule.radius_of(spec.voice_rule) == 0.0:
+			quiet.append(spec.id)
 	for number: int in HONEST:
 		var client: BotClient = clients.get(number)
 		if client == null:
