@@ -45,6 +45,9 @@ skill and its `handover.md`.
 - Each item gives a direct link to what he must open (the PR, the issue, the comment) or the ready command itself: one
   fenced PowerShell block per command, starting with `cd` to its absolute folder, run or previewed by you first.
   Housekeeping (a pull of the main checkout, a worktree a live session holds) is batched there once per wave.
+- **The designer is optional** (#518, AGENT_WORKFLOW §9): no step, review or merge waits on him. A PR of his goes to
+  the engineer, who reviews and merges it: list it in "For you:" with its link; a manager neither merges nor edits it.
+  The content area (`content/ levels/ docs/GDD.md docs/design/`) changes on the engineer's word, like any task.
 
 ## 4. The keep-alive
 - While a workflow of yours runs, one background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000) keeps

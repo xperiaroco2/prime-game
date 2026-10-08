@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Owner** | The designer. The engineer's agent never fills in or changes design content here without the designer's approval. |
+| **Owner** | The engineer (#518; the designer is optional and may contribute through PRs to the engineer). Agents never fill in or change design content here without the engineer's word. |
 | **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided except §1's pillars, §3's base mode and what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14; examples inside a question are prompts for the designer, not proposals. |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |

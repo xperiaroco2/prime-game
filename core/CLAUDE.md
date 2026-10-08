@@ -35,7 +35,7 @@ to `core/`. Design: `docs/ARCHITECTURE.md` (§3 the loop, §5 entitlement, §7.1
 - Win conditions, and voice routing rules (who hears whom, per phase).
 - Parts are stateless definitions: what changes lives in `MatchState` (items, tasks with their task state,
   stations, bodies, cooldowns, counters, `part_state`) or in the phase object, which `Match` creates fresh on every
-  entry (§9.1). Adding or changing a part updates §9 of `docs/ARCHITECTURE.md` in the same PR (the designer's
+  entry (§9.1). Adding or changing a part updates §9 of `docs/ARCHITECTURE.md` in the same PR (the content
   contract), with the events it can emit and the reason each condition rejects with.
 
 ## Tests

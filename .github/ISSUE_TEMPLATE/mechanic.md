@@ -1,6 +1,6 @@
 ---
 name: Mechanic
-about: A game mechanic (role, ability, item, sabotage, task, information tool) as the designer sees it
+about: A game mechanic (role, ability, item, sabotage, task, information tool) as the human who brings it sees it
 title: ""
 labels: area:content
 ---
@@ -21,7 +21,7 @@ labels: area:content
 <!-- Content-API parts it uses (docs/ARCHITECTURE.md §9). For each missing part, link its engine-request issue. -->
 
 ## Numbers to tune
-<!-- Cooldowns, ranges, counts: the designer's starting values, if any. -->
+<!-- Cooldowns, ranges, counts: the starting values the human gave, if any. -->
 
 ## Acceptance criteria
 - [ ]
