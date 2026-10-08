@@ -461,7 +461,17 @@ Rules for every workflow run:
   with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
   one, both reviews going on as usual, then a read-only
   judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
-  the runs (+2; +1 when neither reviewer found anything). A missing `mutants` or `playcheck` on the task's
+  the runs (+2; +1 when neither reviewer found anything). `checkpoint: true` (#559, `issue-task` only; opt-in, off
+  until the engineer's yes after `metrics` measured it): an implementer whose context passes 150,000 tokens hands over
+  to a fresh one. It reads its context from the harness's `<total_tokens>N tokens left` reminder after each tool
+  result (how far N fell since its first reading; exact on 282 of 283 readings, 2026-10-08), or stops after 60 tool
+  calls when it sees none; it commits, writes a note (done, left, decisions, gotchas, verify state) to
+  `a<n>/handoff-<k>.md` in the scratchpad and returns `handoff`, the note's path. The script then launches
+  `implement:#<n>#2` (then `#3`) with the same type, effort, model and schema, at most twice (the third cannot hand
+  over); each continuation's result covers the whole branch, the script joins their decisions, needs_engineer,
+  proposed_issues, provisional_content and commits, and a handoff's own red verify does not stop the run (only the
+  last implementer's does; `wave` waits for the continuation too). +0 agents, up to +2. A label `metrics` reads ends
+  `:#<n>` or `#<n>#<k>`, never `:<k>`. A missing `mutants` or `playcheck` on the task's
   branch is reported in the result and the PR, and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`,
   +0; the default since #411, `false` turns it off for a resume of an earlier run launched without it): each agent that
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
@@ -1478,7 +1488,8 @@ the window); the manager's own judgement from `--notes FILE` as written (decisio
 here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default main) since T (number, title,
 branch, merge time and commit, closing issues or the branch's issue); the runs finished since T (a "relaunch fresh,
 never resume" flag when the outcome has published false, a publisher stopped on `mutants` exit 2, issue-task stopped
-on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
+on a red implementer (the last one: one that handed over under `checkpoint` is followed by a continuation, #559), a
+pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
 read-only scouting run, are listed by their name with no issue), the running runs (title, worktree, branch, base, the
 agent working now: each `started` with no `result`, and the minutes since the launch and since the newest write to the
 run's journal or agent transcripts, which tell a live run from one whose session died); the open PRs into the base and
@@ -1556,7 +1567,13 @@ phase per run with a planner (#469: the planner's model, the plan's and its crit
 planner read and how many of them the implementer read too, the critique's findings; `plans` in `metrics.json`), the
 code reviewer's A/B per run with a control code reviewer (#535: each side's findings as the blind judge ruled them, the
 valid ones each side missed, each agent's $, and per pair of models the totals and the stop rule's advice;
-`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), per agent role and
+`ab_review` in `metrics.json`; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)), implementer context per
+run with an implementer (#559, `issue-task`'s `checkpoint`: implementer agents, handoffs (the `implement:#N#k`
+continuations), API calls, those over 200k of context and their API list $, against the target of under 5% from 14%;
+the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
+`<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
+`metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
+compact "task medians" line), per agent role and
 agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
 agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s

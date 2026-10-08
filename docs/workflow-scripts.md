@@ -53,3 +53,6 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
   read the diff (only the intended lines may change), commit it with the change, then run them again without it.
   Never edit a snapshot by hand; after a rebase that touched the scripts, regenerate them.
 - The compact result (#386) stays small: `CompactResultTest` bounds it.
+- `tools\run.cmd metrics` and `wave` read each agent's role from its label (`metrics.role_of`): `implement:#<n>`,
+  `review:code:#<n>` and the like, with a suffix `#<k>` for a later agent of the same role (issue-task's checkpoint
+  continuations, `implement:#<n>#2`; pr-rebase's `fix:#<n>#2`). A suffix `:<k>` makes the label unknown ("other").
