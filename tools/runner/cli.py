@@ -581,8 +581,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="ID",
         help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
         "who works now, its %% of the week and its list $ by phase, over the three track checkouts found on this machine "
-        "(the check after a large "
-        "launch's first phase, docs/MANAGERS.md §9)",
+        "(the check after a large launch's first phase, docs/MANAGERS.md §9)",
     )
 
     p = sub.add_parser(
