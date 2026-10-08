@@ -1640,7 +1640,7 @@ Python core `tools/run.py` with
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
 `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
 tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
-`ui-sync` (§11.26), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
+`ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
 lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
@@ -1992,6 +1992,18 @@ the lock, no extra or missing file, the `.gdignore`, the lock's tag against the 
 assets' sha256, nothing deferred on disk); a tag already pinned and intact is not fetched again unless `--force`. A
 runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.
 Then `tools\run.cmd run tools/theme/build_theme.gd --headless` regenerates the themes.
+
+### 11.27 `ui-copy <tag> [--from DIR]` [applied] (#208)
+The UI track's copy deck into the game: `copy/strings.csv` of xperiaroco2/prime-game-ui at a release tag
+`ui-<major>.<minor>.<patch>` becomes `client/i18n/strings.csv`, byte for byte, and `client/i18n/strings.lock.json`
+records the repo, the tag, its commit and the file's sha256 (the shape of #288's theme pack lock; `ui-sync` copies
+the pack, not the deck, so the deck has its own step). It reads GitHub through `gh api`, or with `--from` a local
+checkout of prime-game-ui (its tags fetched first). It refuses another tag form, a missing tag, a deck that is not
+UTF-8, has CR line ends or a byte-order mark, or another header than `keys,en,uk,?plural,?context`, and then writes
+nothing. Godot's import turns the deck into `strings.en.translation` and `strings.uk.translation` beside it
+(gitignored, rebuilt by every import); commit the deck, the lock and a changed `strings.csv.import`. The game's side:
+`docs/ARCHITECTURE.md` §4.7.26. Tests: `tools/runner/tests/test_ui_copy.py` (a throwaway git repository as the
+checkout, and the committed deck against its lock).
 
 ## 12. The designer's agent
 
