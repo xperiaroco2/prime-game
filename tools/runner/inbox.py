@@ -38,7 +38,7 @@ DEFAULT_HOURS = 72
 COMMENT_LIMIT = 100
 COMMENT_PAGES = 5
 PR_LIMIT = 100
-PR_JSON = "number,title,url,body,isDraft,baseRefName,headRefName,author,files,latestReviews"
+PR_JSON = "number,title,url,body,isDraft,baseRefName,headRefName,author,files"
 # "For you" (or "Для вас") at a line's start, maybe as a heading or bold; label_rest decides whether it is a label.
 LABEL_RE = re.compile(r"^\s*(#{1,6}\s+)?(\*\*|__)?\s*(?:For you|Для вас)\b\s*(.*)$", re.I)
 ITEM_RE = re.compile(r"^(?:\d+[.)]|[-*+])\s+")
@@ -161,11 +161,7 @@ def exceptions_of(prs: list[dict[str, Any]], repo: str = GATED) -> list[str]:
             except (Failure, OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
                 found.append(f"PR #{pr.get('number')} \"{pr.get('title')}\": renames files whose old paths could not be "
                              f"read ({exc}); the gate sees them too. {pr.get('url')}")  # fmt: skip
-        designer = any(
-            (r.get("author") or {}).get("login") == merge.DESIGNER_LOGIN and r.get("state") == "APPROVED"
-            for r in pr.get("latestReviews") or []
-        )
-        for reason in merge.exception_reasons(paths, str(pr.get("body") or ""), str(pr.get("headRefName")), designer):
+        for reason in merge.exception_reasons(paths, str(pr.get("body") or ""), str(pr.get("headRefName"))):
             found.append(f"PR #{pr.get('number')} \"{pr.get('title')}\": {reason}. {pr.get('url')}")
     return found
 

@@ -294,7 +294,7 @@ class TrainTest(TrainCase):
     def test_the_gates_standing_refusals_skip_before_any_publish(self) -> None:
         self.pr(30, {"tools/runner/guard.py": "X = 2\n"})
         self.pr(31, {"core/b.gd": "extends Node\n"}, body="## Needs the engineer\n1. Which port?\n")
-        self.pr(32, {"core/c.gd": "extends Node\n"}, author={"login": merge.DESIGNER_LOGIN})
+        self.pr(32, {"core/c.gd": "extends Node\n"}, author={"login": "SwiftySinister"})
         self.main_moves({"core/z.gd": "extends Node\n"})
         rc, text = self.train(30, 31, 32)
         self.assertEqual(rc, 1, text)
