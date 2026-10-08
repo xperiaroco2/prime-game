@@ -18,8 +18,9 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 - **No workflow framework.** Plain plan mode plus our own project skills (§6). No Superpowers, no GSD
   ([ADR](decisions/2026-09-28-no-workflow-framework.md)).
 - **Proportionate protection.** This is a hobby project for the humans and their friends. Protections exist to stop
-  accidents and lost work, not attackers. Do not add privacy or security hardening that nobody asked for. Secrets
-  (tokens, keys) are still never committed.
+  accidents and lost work, not attackers. Do not add privacy or security hardening (redaction, scrubbing, extra
+  guards) that nobody asked for. Secrets (tokens, keys, passwords) are still never committed.
+- **The repo is English**: code, comments, docs, commits, issues, PRs. Chat follows each human's settings.
 - **Humans write zero code** (KICKOFF §0). The agent verifies its own work from the command line and never claims
   something works without running it.
 
@@ -88,11 +89,19 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
   humans' settings files, the TwoVoIP round trip).
 
+### 2.2 Shell notes for agents
+Known shell failures on this machine, moved out of root `CLAUDE.md` (#561), whose Shell section keeps the rules that
+prevent prompts and lost work and names these symptoms with a pointer here:
+- PowerShell 5.1 breaks quoted arguments containing spaces for native exes (`gh --jq '.a + " " + .b'`): use Bash.
+- `bash` on PATH is the WSL launcher, not Git Bash (§11.15). In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
+- In the Bash tool `\\` arrives as `\`, even in single quotes and heredocs: write such code to a file with Write.
+- `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
+
 ## 3. Instruction files and memory
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, memory guardrail, dictation glossary; each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 8,704 bytes loaded, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -136,7 +145,11 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
-  `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
+  `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
+  `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 8,704 (every agent carries them on
+  every call), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
+  only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
+  folder, read on demand (`orchestrate-stage`'s core names the file for each event, §7.1). It also fails on rule frontmatter that would not parse (Claude
   Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
   retires it, and the intervention entry says which.
 - **[applied]** Root's commands section is the runner line and one line of command names, no table (#340; N2 (a) of
@@ -162,7 +175,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
   .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
   table go with it.
-- **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
+- **Auto memory stays on.** It is personal and machine-local, and never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
 
@@ -1728,7 +1741,8 @@ Python core `tools/run.py` with
 tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25), and
 `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
+Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
+`tools/out/gdunit/`. Outside a Claude Code session (a human's PowerShell) the
 runner takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
@@ -2138,8 +2152,8 @@ waits on him; the engineer's sessions do the content work otherwise.
 <!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
 - Phrases: "запам'ятай" → the question in §3; "стоп" → stop and summarise; "поясни" → explain the pending prompt or
   step.
-- **The agent explains choices plainly:** start from a concrete scenario of what goes wrong, then the options; jargon
-  comes after. Before designing enforcement, it asks how the humans actually work.
+- **The agent explains choices plainly:** start from a concrete scenario of what goes wrong (which person, agent and
+  machine), then the options; jargon comes after. Before designing enforcement, it asks how the humans actually work.
 - Human-reserved decisions (KICKOFF §0) come as one batched question.
 
 ## 14. Open questions (deferred past M0)
