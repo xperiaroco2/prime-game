@@ -519,7 +519,8 @@ class HookStartUpTest(unittest.TestCase):
     def test_the_wrapper_starts_python_without_site_for_the_guard_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             fake = Path(tmp) / "fakepython"
-            fake.write_text('#!/bin/sh\necho "args: $*" >&2\nexit 0\n', encoding="ascii", newline="\n")
+            # one argument per line, so a checkout path with a space stays whole
+            fake.write_text('#!/bin/sh\nfor a in "$@"; do echo "$a" >&2; done\nexit 0\n', encoding="ascii", newline="\n")
             fake.chmod(0o755)
             bash = git_bash()
             self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the hooks")
@@ -529,7 +530,7 @@ class HookStartUpTest(unittest.TestCase):
                 res = subprocess.run([str(bash), WRAPPER, name], input="{}", capture_output=True, text=True, env=env,
                                      timeout=60)  # fmt: skip
                 self.assertEqual(res.returncode, 0, res.stderr)
-                seen[name] = res.stderr.split()[1:3]
+                seen[name] = res.stderr.splitlines()[:2]
         self.assertEqual(seen["guard"][0], "-S")
         self.assertTrue(seen["gd-edit"][0].endswith("run.py"), seen)
 
