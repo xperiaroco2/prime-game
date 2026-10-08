@@ -753,13 +753,33 @@ class AfterTest(unittest.TestCase):
                 verify.run_lane_process(lane, names, emit, cmd=[sys.executable, "-u", "-c", code], timeout=60)
 
         steps: list[verify.StepRun] = []
-        with mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}):
+        with (
+            mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}),
+            mock.patch.object(verify, "AFTER", {"two": ("one",)}),
+        ):
             verify.run_lanes(run_lane, steps.append)
         two = next(step for step in steps if step.name == "two")
         self.assertEqual(two.status, "passed", two.output)
         started = re.search(r"two at ([\d.]+)", two.output)
         assert started is not None, two.output
         self.assertGreaterEqual(float(started.group(1)), ended[0])
+
+    def test_a_lane_without_an_after_step_gets_the_end_of_input_on_stdin(self) -> None:
+        code = "import sys; print('stdin:', repr(sys.stdin.read()))"
+        steps: list[verify.StepRun] = []
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "a":
+                emit(verify.StepRun("one", lane, "passed", 0.0))
+            else:
+                time.sleep(0.3)  # lane a's step has ended: a Gate pipe would carry it
+                verify.run_lane_process(lane, names, emit, cmd=[sys.executable, "-c", code], timeout=60)
+
+        with mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}), mock.patch.object(verify, "AFTER", {}):
+            verify.run_lanes(run_lane, steps.append)
+        lane_b = [step for step in steps if step.lane == "b"]
+        self.assertTrue(lane_b)
+        self.assertIn("stdin: ''", "".join(step.output for step in lane_b))
 
     def test_a_lane_that_crashes_still_tells_its_steps_as_ended(self) -> None:
         def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:

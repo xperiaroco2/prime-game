@@ -118,9 +118,10 @@ STEP_ORDER = (
     "selftest-godot",
 )
 # After doctor, every lane at once; each one serial. Until #556 the Godot lane also held selftest-godot between check
-# and test, and it was the critical path in every run measured (68 full runs on the PC, 10-06 to 10-08: the Godot lane
-# median 507 s, p90 654 s; the Python lane 336 s and 509 s): so the runner tests that start Godot got a lane of their
-# own, which starts after check (AFTER) and runs beside test.
+# and test, and it was the critical path in every run measured (101 full runs on the PC, 10-06 to 10-08: the Godot lane
+# median 527 s, the Python lane 336 s): so the runner tests that start Godot got a lane of their own, which starts after
+# check (AFTER) and runs beside test. If `test` turns flaky under the extra load (see its red rate in `metrics`),
+# AFTER["selftest-godot"] = ("check", "test") makes the lane wait for test to end, as its old place in the Godot lane did.
 LANES: dict[str, tuple[str, ...]] = {
     "python": ("lint", "signal", "selftest"),
     "godot": (
@@ -490,15 +491,16 @@ def run_lane_process(
     timeout: float = LANE_TIMEOUT,
 ) -> None:
     """Run a lane in a process of its own and emit each step as it ends. Its Godot runs and worker processes are its
-    children, so every line they print reaches this lane's output, never another lane's. Its stdin carries the steps
-    that ended (Gate), which its AFTER steps wait for."""
+    children, so every line they print reaches this lane's output, never another lane's. A lane with an AFTER step gets
+    the steps that ended on its stdin (Gate); any other lane's stdin is the end of input, as it was before #556."""
     if cmd is None and os.environ.get(INSIDE_VAR):
         raise Failure(f"no verify lanes inside a lane or a selftest worker ({INSIDE_VAR} is set): stub run_lane")
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1", INSIDE_VAR: "1"}
+    gated = any(name in AFTER for name in names)
     proc = subprocess.Popen(
         cmd or lane_command(lane),
         cwd=ROOT,
-        stdin=subprocess.PIPE,
+        stdin=subprocess.PIPE if gated else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
@@ -508,8 +510,9 @@ def run_lane_process(
         _LIVE.add(proc)
     if _STOP.is_set():  # stopped while it started: stop_lanes may have missed it
         kill_tree(proc)
-    assert proc.stdin is not None
-    _GATE.attach(proc.stdin)
+    pipe = proc.stdin
+    if pipe is not None:
+        _GATE.attach(pipe)
     reader = LaneReader(lane, names, emit)
     fired = threading.Event()
 
@@ -527,9 +530,10 @@ def run_lane_process(
         proc.wait()
     finally:
         timer.cancel()
-        _GATE.detach(proc.stdin)
-        with contextlib.suppress(OSError):
-            proc.stdin.close()
+        if pipe is not None:
+            _GATE.detach(pipe)
+            with contextlib.suppress(OSError):
+                pipe.close()
         if proc.stdout is not None:
             proc.stdout.close()
         with _LIVE_LOCK:
