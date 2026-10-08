@@ -499,6 +499,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", type=Path, help="the folder for the report and the page (default: tools/out/sfx/)")
 
     p = sub.add_parser(
+        "ui-sync",
+        help="pin the UI pack of prime-game-ui at a tag into client/ui/theme/pack/; no tag: verify it offline",
+        description="Pin the UI track's pack (xperiaroco2/prime-game-ui, dist/pack/ at a tag ui-<semver>, #288): its "
+        "JSON and SVG files land byte for byte in client/ui/theme/pack/ under a .gdignore, and "
+        "client/ui/theme/pack.lock.json records the repo, tag, commit and each file's sha256. Binaries (card art, "
+        "a font) are not landed: the lock lists them under deferred for #520. The pack is checked (format, a known "
+        "schema, version = the tag, assets' sha256) before anything is written. With no tag, or --check, it "
+        "verifies the pinned copy offline; a tag already pinned and intact is not fetched again unless --force. "
+        "Then regenerate the theme: run tools/theme/build_theme.gd --headless.",
+    )
+    p.add_argument("tag", nargs="?", help="the tag to pin, ui-<major>.<minor>.<patch> (none: verify the pinned copy)")
+    p.add_argument("--check", action="store_true", help="verify the pinned copy offline (with a tag: and its tag)")
+    p.add_argument("--force", action="store_true", help="fetch the tag even when it is already pinned and intact")
+    p.add_argument("--source", help="a clone or URL to fetch from instead of GitHub (e.g. D:/prime-game-ui)")
+
+    p = sub.add_parser(
         "agents-check",
         help="assert each subagent and workflow agent was served by the model family it asked for",
         description="Assert that each subagent and workflow agent ran on the model family it asked for.",
@@ -832,6 +848,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import sfx
 
             return sfx.main(args.paths, page=args.page, category=args.category, out=args.out)
+        if args.command == "ui-sync":
+            from . import ui_sync
+
+            return ui_sync.main(args.tag, source=args.source, check=args.check, force=args.force)
         if args.command == "agents-check":
             from . import agents_check
 
