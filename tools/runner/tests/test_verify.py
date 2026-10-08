@@ -1037,8 +1037,10 @@ class SelftestTest(unittest.TestCase):
         found = {".".join(t.id().split(".")[2:4]) for t in verify.discover() if verify.group_of(t) == "godot"}
         self.assertEqual(found, needs)
 
-    def test_a_quarter_of_the_logical_cpus_at_least_one(self) -> None:
-        self.assertEqual([verify.selftest_workers(n) for n in (1, 2, 4, 8, 16, 32)], [1, 1, 1, 2, 4, 8])
+    def test_half_the_logical_cpus_of_a_big_machine_a_quarter_of_a_small_one_at_least_one(self) -> None:
+        # #556: 8 on the engineer's PC (16 logical CPUs), 1 on CI's 4-vCPU runner as before.
+        cpus = (1, 2, 4, 6, 7, 8, 16, 32)
+        self.assertEqual([verify.selftest_workers(n) for n in cpus], [1, 1, 1, 1, 1, 4, 8, 16])
 
     def test_workers_report_each_outcome_like_a_serial_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

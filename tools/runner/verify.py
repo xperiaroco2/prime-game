@@ -582,17 +582,23 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
 
 # --- selftest ---------------------------------------------------------------------------------------------------
 
-# The Python lane runs beside the Godot lane's timing-sensitive freeze and stall runs, and on the engineer's PC beside
-# another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores, 16 logical CPUs).
-# Its runner tests therefore take at most a quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's
-# 4-vCPU runner), which still ends the lane long before the Godot lane reaches freeze (measured on the PC with four
-# other runs going, 2026-10-02, before the verify slots: the Python lane about 125 to 150 s, the Godot lane's check,
-# selftest-godot and test alone about 370 s).
-WORKER_SHARE = 4
+# The Python lane runs beside the Godot lane's check and test and then its timing-sensitive network runs, and on the
+# engineer's PC beside another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores,
+# 16 logical CPUs). Until #556 its runner tests took a quarter of the logical CPUs, 4 workers there, meant to end the
+# lane long before the network runs (2026-10-02: the Python lane about 125 to 150 s); the suite grew, and from 10-06 to
+# 10-08 the lane took 336 s (median of 68 runs; selftest 264 s), so it ran beside the network runs for most of them.
+# Since #556 a machine with at least BIG_MACHINE logical CPUs gives them half (8 on the PC; over 10 runs on 10-08:
+# selftest 144 s, the lane 212 s, which ends it near the first network run, and `test` beside it no slower, 123 s
+# against 130 s); a smaller one keeps a quarter (1 on CI's 4-vCPU runner, where the Python lane ends about 230 s
+# before the Godot lane anyway).
+WORKER_SHARE = 2
+SMALL_WORKER_SHARE = 4
+BIG_MACHINE = 8
 
 
 def selftest_workers(cpus: int | None = None) -> int:
-    return max(1, (cpus if cpus is not None else os.cpu_count() or 1) // WORKER_SHARE)
+    count = cpus if cpus is not None else os.cpu_count() or 1
+    return max(1, count // (WORKER_SHARE if count >= BIG_MACHINE else SMALL_WORKER_SHARE))
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:

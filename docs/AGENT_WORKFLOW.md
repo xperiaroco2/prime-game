@@ -1678,8 +1678,9 @@ session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), 
 merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
 first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python
 lane (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner
-tests that start no Godot, each test in one of the worker processes, a quarter of
-the logical CPUs and at least one, since the lane runs beside `test` and the network runs), the Godot lane (`check`,
+tests that start no Godot, each test in one of the worker processes: half the logical CPUs on a machine with at least
+8, so 8 on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most
+of them), else a quarter and at least one, 1 on CI), the Godot lane (`check`,
 `test`, then the network runs: `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
 WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`,
 `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot lane
