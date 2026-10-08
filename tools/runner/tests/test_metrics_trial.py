@@ -144,6 +144,8 @@ class TrialAdviceTest(unittest.TestCase):
         # Two tasks red twice: stop, whatever the rest (even with no baseline).
         self.assertTrue(advice(totals(2, red_twice=2), totals(0)).startswith("stop: drop Sonnet"))
         self.assertTrue(advice(totals(1, red_twice=1), totals(0)).startswith("continue: 1 of 6 trial tasks; no baseline"))
+        # Six trial tasks and still no baseline: no verdict, never an endless "continue".
+        self.assertTrue(advice(totals(6), totals(0)).startswith("no verdict: 6 trial tasks but no baseline"))
         # One blocker or major per task over the baseline: stop from the fourth task on, not before.
         self.assertTrue(advice(totals(4, serious=2.0), base).startswith("stop: drop Sonnet for the implementer (1.00 blockers"))
         self.assertEqual(advice(totals(3, serious=2.0), base), "continue: 3 of 6 trial tasks")

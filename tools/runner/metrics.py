@@ -167,18 +167,19 @@ read as above, a shell read of a doc), how many of them the implementer read too
 and blockers plus majors). The JSON record's "plans" holds the same rows.
 
 The Sonnet implementer trial (#560, docs/decisions/2026-10-08-sonnet-implementer-trial.md): the finished `issue-task`
-runs grouped per task (its issue). A trial task is one with a run whose implementer (its first attempt's transcript)
-is of TRIAL_FAMILY; its runs on another model (the manager's relaunch on Opus) count with it. The baseline: the tasks
-whose every implementer is of BASELINE_FAMILY, not a design task, and whose issue's first `Size:` line (from GitHub;
-"S to M" is M) is in TRIAL_SIZES. Per task: its runs and the red ones (a run the manager must relaunch: the
-implementer's verify_green false, published false or ci_green false), verify runs and reds (the summaries its agents
-saw), the review's blockers and majors (trial_serious: one reviewer set on both sides), publisher fix rounds, CI
-fix rounds (red CI rounds, once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and the stop
-rule (trial_advice): stop once TRIAL_RED_TWICE trial tasks were red twice; from TRIAL_EARLY_TASKS trial tasks stop when
-their blockers and majors per task are TRIAL_SERIOUS_OVER or more over the baseline's; after TRIAL_TASKS keep it when
-the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its $ per task is lower, else drop it. Without
-GitHub (--no-gh) there is no baseline. The verdict is advice: the engineer decides. The JSON record's "sonnet_trial"
-holds the tasks, the baseline's tasks, the totals and the advice.
+runs grouped per task (its issue). A trial task is one with a run whose implementer (its first attempt's transcript) is
+of TRIAL_FAMILY; its runs on another model (the manager's relaunch on Opus) count with it. The baseline: the tasks whose
+every implementer is of BASELINE_FAMILY, not a design task, and whose issue's first `Size:` line (from GitHub; "S to M"
+is M) is in TRIAL_SIZES. Per task: its runs and the red ones (a run the manager must relaunch: the implementer's
+verify_green false, published false or ci_green false), verify runs and reds (the summaries its agents saw), the
+review's blockers and majors (trial_serious: one reviewer set on both sides), publisher fix rounds, CI fix rounds (red
+CI rounds, once per PR), tool calls and API list $. Per side the per-task means (a measure no task knows is unknown) and
+the stop rule (trial_advice): stop once TRIAL_RED_TWICE trial tasks were red twice; from TRIAL_EARLY_TASKS trial tasks
+stop when their blockers and majors per task are TRIAL_SERIOUS_OVER or more over the baseline's; after TRIAL_TASKS keep
+it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its $ per task is lower, else drop it.
+Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
+verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
+tasks, the totals and the advice.
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -2401,6 +2402,9 @@ def trial_advice(trial: dict, base: dict) -> str:
         return (f"stop: drop Sonnet for the implementer ({trial['red_twice']} trial tasks red twice; the manager "
                 f"relaunches them on Opus)")  # fmt: skip
     if not base["tasks"]:
+        if trial["tasks"] >= TRIAL_TASKS:
+            return (f"no verdict: {trial['tasks']} trial tasks but no baseline in the window (Opus-implemented Size S "
+                    f"tasks); report on #302, the engineer decides")  # fmt: skip
         return (f"continue: {trial['tasks']} of {TRIAL_TASKS} trial tasks; no baseline in the window (Opus-implemented "
                 f"Size S tasks: their size comes from GitHub)")  # fmt: skip
     over = None if trial["serious"] is None or base["serious"] is None else trial["serious"] - base["serious"]
