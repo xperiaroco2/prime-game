@@ -105,7 +105,7 @@ FOOTER_CALLS = 20
 # manager's queue (background shells, monitors, its subagents' tasks) are not runs and are passed over.
 WORKFLOW_NOTE = re.compile(r"\bworkflow\b", re.I)
 # issue-task's checkpoint (#559): at most this many continuations follow a handoff (implement:#N#2, #N#3).
-HANDOFF_MAX = 2
+HANDOFF_MAX = 2  # a copy of issue-task.js's HANDOFF_MAX: change both together (test_wave pins it)
 CONTINUATION = re.compile(r"#\d+#(\d+)$")
 REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-reviewer", "godot-api-checker")
 # The branch every task's work finally lands in: worktree-done checks against origin/main.

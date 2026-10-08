@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -503,6 +504,14 @@ class WaveTest(unittest.TestCase):
             self.assertNotIn(wave.RELAUNCH, self.row(body, run_id), run_id)
         self.assertIn("implement:#5#2", self.row(body, "wf_cont"), "the continuation is the agent working now")
         self.assertIn("verify red after the implementer", self.row(body, "wf_last"))
+
+    def test_the_handoff_limit_matches_issue_tasks(self) -> None:
+        # wave.HANDOFF_MAX copies issue-task.js's: a script limit raised alone would make wave read a handing-over
+        # implement:#N#3 as the end of the run while its continuation is still running.
+        script = (Path(__file__).resolve().parents[3] / ".claude" / "workflows" / "issue-task.js").read_text("utf-8")
+        found = re.search(r"^const HANDOFF_MAX = (\d+)", script, re.M)
+        self.assertIsNotNone(found)
+        self.assertEqual(int(found.group(1)), wave.HANDOFF_MAX)
 
     def test_human_steps_in_both_shapes(self) -> None:
         steps = [
