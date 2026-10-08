@@ -259,10 +259,14 @@ def launch_problems(root: Path, *, fetch: bool = True) -> tuple[list[str], list[
         problems += [f"{rel}: {problem}" for problem in instructions.agent_problems(root / rel)]
     problems += [f".claude/workflows/{n}: missing" for n in LAUNCH_SCRIPTS if not (root / ".claude" / "workflows" / n).is_file()]
     if fetch:
-        res = _git(root, "fetch", "-q", "origin", "main")
-        if res.returncode != 0:
-            last = (res.stderr.strip().splitlines() or ["?"])[-1]
-            warnings.append(f"could not fetch origin main ({last}): compared with the last fetch")
+        try:
+            res = _git(root, "fetch", "-q", "origin", "main")
+        except subprocess.TimeoutExpired:
+            warnings.append("could not fetch origin main (timed out): compared with the last fetch")
+        else:
+            if res.returncode != 0:
+                last = (res.stderr.strip().splitlines() or ["?"])[-1]
+                warnings.append(f"could not fetch origin main ({last}): compared with the last fetch")
     # The working tree against origin/main: the Workflow tool reads the files, committed or not.
     res = _git(root, "diff", "--name-only", "origin/main", "--", *LAUNCH_PATHS)
     if res.returncode != 0:

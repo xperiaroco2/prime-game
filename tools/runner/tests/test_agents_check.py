@@ -507,6 +507,20 @@ class LaunchTest(unittest.TestCase):
         self.assertEqual(len(notes), 1, notes)
         self.assertIn("could not fetch origin main", notes[0])
 
+    def test_a_fetch_that_times_out_warns_instead_of_crashing(self) -> None:
+        real = agents_check._git
+
+        def git_that_hangs_on_fetch(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+            if args[0] == "fetch":
+                raise subprocess.TimeoutExpired(["git", *args], 120)
+            return real(root, *args)
+
+        with mock.patch.object(agents_check, "_git", git_that_hangs_on_fetch):
+            problems, notes = agents_check.launch_problems(self.work)
+        self.assertEqual(problems, [])
+        self.assertEqual(len(notes), 1, notes)
+        self.assertIn("could not fetch origin main (timed out)", notes[0])
+
     def test_launch_is_its_own_mode(self) -> None:
         from runner import cli
 
