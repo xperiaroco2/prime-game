@@ -104,7 +104,8 @@ from __future__ import annotations
 
 import fnmatch
 import re
-from typing import TYPE_CHECKING
+
+TYPE_CHECKING = False  # typing.TYPE_CHECKING: importing typing cost the guard about 5 ms per shell call (#568)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
