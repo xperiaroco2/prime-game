@@ -2473,7 +2473,7 @@ ADR's §6 check the rest.
   the old 1152x648 base times 5/3, rounded, so the screens keep their apparent size: the theme's font sizes,
   container margins and separations and its style boxes' content margins (not the corner radii); the layout widths
   in `client/ui/` code (the menu's fields, `UiParts`' buttons and labels, `EscMenu.PAGE_SIZE`,
-  `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset); and Godot's default theme, which draws
+  `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug overlay's inset, the dev test room's overlay box); and Godot's default theme, which draws
   the controls the greybox theme leaves alone (buttons, fields, sliders, scroll bars), through
   `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover those controls sets it back
   to 1.
