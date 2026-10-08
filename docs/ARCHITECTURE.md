@@ -2555,7 +2555,7 @@ names and the font's glyphs are #549.
   (`lang.en`, `lang.uk`, each in its own language in both columns), picks the first launch's language (Ukrainian
   when `OS.get_locale_language()` is `uk`, English otherwise; not written to the file, so until a choice the game
   follows the system), applies it with `TranslationServer.set_locale`, and `choose()` applies and saves a pick at
-  once, for the settings screen. `Game._ready_settings` applies it before the voice settings and the first screen.
+  once, for the settings screen. `Game._ready_settings` applies it before the voice settings and the first screen. A Game with no command line (a test, a playcheck window) ignores the machine's language and speaks English unless its settings say otherwise.
 Tests: `tests/unit/client/i18n/translations_test.gd` (both translations listed and loaded, every key in both
 languages, Ukrainian plurals for 1, 2, 5, 11 and 21 directly and through `tr_n`, the deck against its lock),
 `tests/unit/client/app/languages_test.gd` (the first launch, the choice over the system, a switch at once that

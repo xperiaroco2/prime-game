@@ -730,13 +730,15 @@ func _refresh_voice_overlay() -> void:
 
 
 ## This window's settings, and their interface language applied (#208): the player's choice, or
-## on a first launch the system's when it is Ukrainian and English otherwise.
+## on a first launch the system's when it is Ukrainian and English otherwise. A Game with no command
+## line (a test, a playcheck window) ignores the machine's language: it speaks English unless its
+## settings say otherwise, so a run reads the same on every machine.
 func _ready_settings() -> void:
 	if settings == null:
 		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
 		# player's file in user:// would set the process's buses and take an opening mark.
 		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
-	Languages.apply(settings)
+	Languages.apply(settings, OS.get_locale_language() if read_command_line else Languages.ENGLISH)
 
 
 ## The buses (D15), the voices' node under World, and the own voice: the sender, this window's

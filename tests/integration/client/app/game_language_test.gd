@@ -28,6 +28,14 @@ func test_the_saved_choice_is_the_locale_at_the_start() -> void:
 		await get_tree().process_frame
 
 
+func test_a_game_with_no_command_line_ignores_the_machines_language() -> void:
+	TranslationServer.set_locale("uk")
+	var game := _game(UserSettings.new())
+	assert_str(TranslationServer.get_locale()).is_equal(Languages.ENGLISH)
+	assert_str(game.tr("menu.quit")).is_equal("Quit")
+	await get_tree().process_frame
+
+
 ## A Game on the main menu with `settings`, in its own SubViewport world (client/CLAUDE.md).
 func _game(settings: UserSettings) -> Game:
 	var game := GAME.instantiate() as Game
