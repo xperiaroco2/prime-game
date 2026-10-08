@@ -2,11 +2,11 @@ class_name FixtureBaseMode
 extends RefCounted
 ## The base mode's phase classes in a mode built in code, for the unit tests of 2b (a part's unit
 ## test never loads `content/`, ARCHITECTURE §9.6): lobby (LobbyPhase) -> countdown
-## (CountdownPhase, 5 s) -> loading (LoadingPhase, 60 s) -> round (RoundPhase) -> end (EndPhase)
-## -> lobby, with the base mode's rows. The `all_loaded` row places players on `round_player` and
-## demands `knife` markers by `knives` and `circle` markers and colours by `circles`
-## (FixtureDemand); `End -> Lobby` runs ResetMatch, then PlacePlayers on `lobby_player`. 1 to 4
-## players. The crew wins when peer 0's counter `crew_win` is at least 1.
+## (CountdownPhase, 5 s) -> loading (LoadingPhase, 60 s) -> round (RoundPhase) -> end (EndPhase,
+## 3 s) -> lobby, with the base mode's rows. The `all_loaded` row places players on
+## `round_player` and demands `knife` markers by `knives` and `circle` markers and colours by
+## `circles` (FixtureDemand); `End -> Lobby` runs ResetMatch, then PlacePlayers on
+## `lobby_player`. 1 to 4 players. The crew wins when peer 0's counter `crew_win` is at least 1.
 
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
@@ -80,7 +80,7 @@ static func mode() -> GameMode:
 	round_spec.checks_wins = true
 	round_spec.snapshots = true
 	var end := FixtureModes.phase(
-		&"end", EndPhase, {}, [AcceptSpec.of(Intents.RETURN_TO_LOBBY, host)]
+		&"end", EndPhase, {&"seconds": 3.0}, [AcceptSpec.of(Intents.RETURN_TO_LOBBY, host)]
 	)
 	end.level = PhaseSpec.Level.MAP
 	made.phases = [lobby, countdown, loading, round_spec, end]
