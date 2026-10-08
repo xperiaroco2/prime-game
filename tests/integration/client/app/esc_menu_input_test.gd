@@ -164,6 +164,20 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_str(panel.key_buttons[&"ready"].text).is_equal("K")
 	assert_str(KeyLabel.of_action(&"ready")).is_equal("K")
+	# A real click on another row's key while capturing binds nothing: it reaches that button,
+	# which starts its own capture; Esc ends that one.
+	panel.key_buttons[&"ready"].pressed.emit()
+	var back := panel.key_buttons[&"move_back"]
+	# Input takes the window's coordinates; the button's rect is in the 1920x1080 base's.
+	_click(back.get_viewport().get_screen_transform() * back.get_global_rect().get_center())
+	await _frames(2)
+	assert_str(String(panel.capturing)).is_equal("move_back")
+	assert_str(KeyLabel.of_action(&"ready")).is_equal("K")
+	assert_bool(panel.controls.is_default(&"move_back")).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(panel.is_capturing()).is_false()
+	assert_str(back.text).is_equal("S")
 	# The menu closes on Esc as before; the lobby's hint names the new key.
 	_press(KEY_ESCAPE)
 	await _frames(2)
@@ -207,6 +221,18 @@ func _frames(count: int) -> void:
 func _press(key: Key) -> void:
 	_hold(key, true)
 	_hold(key, false)
+
+
+## Presses and releases the left mouse button at `at` (viewport coordinates).
+func _click(at: Vector2) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = at
+		event.global_position = at
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
 
 
 func _hold(key: Key, pressed: bool) -> void:

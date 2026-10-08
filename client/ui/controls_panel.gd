@@ -7,10 +7,14 @@ extends VBoxContainer
 ##
 ## A click on a key button (or ui_accept on it) starts a capture: the button reads "Press a key…"
 ## and the next key press or mouse button press binds, applied to the InputMap and saved at once
-## (Controls.apply(), write()). A release (that of the click that started it) and an echo do
-## nothing; Esc cancels (#488's rule 2: Esc is fixed). The capture runs in _input and consumes every
-## event, so neither the menu (Esc), the focus (the arrows, ui_accept) nor the game sees one; it is
-## cancelled when the panel hides. Built in code, styled only through the shared theme (#150).
+## (Controls.apply(), write()): so a panel on in-memory Controls (a test, a preview) changes the
+## global InputMap too, and a test restores it with `Controls.new().apply()`. A release (that of the
+## click that started it) and an echo do nothing; Esc cancels (#488's rule 2: Esc is fixed); a
+## click on another key or on Reset cancels and reaches that button; a click on the capturing key
+## binds the left mouse button. The capture runs in _input and consumes every other event but the
+## wheel (it scrolls the page and never binds), so neither the menu (Esc), the focus (the arrows,
+## ui_accept) nor the game sees one; it is cancelled when the panel hides. Built in code, styled
+## only through the shared theme (#150).
 
 ## Emitted after a binding or a reset changed the controls.
 signal changed
@@ -88,8 +92,10 @@ func is_capturing() -> bool:
 	return capturing != &""
 
 
-## A capture's handling of `event`: Esc cancels, a key or mouse button press binds; anything else
-## waits. Returns whether a capture ran (the caller consumes the event then).
+## A capture's handling of `event`: Esc cancels, a key or mouse button press binds; a click on
+## another of the panel's buttons cancels and reaches that button, the wheel passes on (the page
+## scrolls) and the capture waits; anything else waits. Returns whether the event is the capture's
+## (the caller consumes it then).
 func capture(event: InputEvent) -> bool:
 	if not is_capturing():
 		return false
@@ -103,8 +109,7 @@ func capture(event: InputEvent) -> bool:
 			return true
 		_bind(event)
 	elif event is InputEventMouseButton:
-		if (event as InputEventMouseButton).pressed:
-			_bind(event)
+		return _capture_click(event as InputEventMouseButton)
 	return true
 
 
@@ -163,6 +168,32 @@ func _save() -> void:
 	controls.write()
 	refresh()
 	changed.emit()
+
+
+## capture() of a mouse button: the wheel passes on, a press on another button cancels and passes
+## on, any other press binds.
+func _capture_click(button: InputEventMouseButton) -> bool:
+	if Controls.normalised(button) == null:
+		return false
+	if not button.pressed:
+		return true
+	if _other_button_at(button.position) != null:
+		cancel_capture()
+		return false
+	_bind(button)
+	return true
+
+
+## The panel's button under `at` (viewport coordinates) other than the capturing key; null if none.
+func _other_button_at(at: Vector2) -> Button:
+	var buttons: Array[Button] = [reset_button]
+	buttons.append_array(key_buttons.values())
+	for button: Button in buttons:
+		if button == key_buttons.get(capturing) or not button.is_visible_in_tree():
+			continue
+		if button.get_global_rect().has_point(at):
+			return button
+	return null
 
 
 func _label(action: StringName) -> String:

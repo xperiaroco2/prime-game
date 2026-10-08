@@ -107,6 +107,62 @@ func test_reset_restores_every_default() -> void:
 	assert_int(_changes).is_equal(2)
 
 
+func test_the_wheel_scrolls_on_through_a_capture_and_binds_nothing() -> void:
+	_panel.start_capture(&"give_up")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	# Not taken: it reaches the page's scroll bar, and the capture still waits for a key.
+	assert_bool(_panel.capture(wheel)).is_false()
+	assert_bool(_panel.is_capturing()).is_true()
+	assert_bool(_panel.capture(_key(KEY_G, true))).is_true()
+	assert_str(_panel.key_buttons[&"give_up"].text).is_equal("G")
+
+
+func test_a_click_on_another_button_cancels_the_capture_and_reaches_that_button() -> void:
+	await _laid_out()
+	_panel.start_capture(&"move_forward")
+	# A click on another row's key, or on Reset, is no binding: it reaches the button it is on.
+	for other: Button in [_panel.key_buttons[&"move_back"], _panel.reset_button]:
+		_panel.start_capture(&"move_forward")
+		(
+			assert_bool(_panel.capture(_click_on(other)))
+			. override_failure_message(other.name)
+			. is_false()
+		)
+		assert_bool(_panel.is_capturing()).is_false()
+		assert_str(_panel.key_buttons[&"move_forward"].text).is_equal("W")
+	assert_int(_changes).is_equal(0)
+	# A click on the capturing button itself binds the left mouse button.
+	_panel.start_capture(&"move_forward")
+	assert_bool(_panel.capture(_click_on(_panel.key_buttons[&"move_forward"]))).is_true()
+	assert_str(_panel.key_buttons[&"move_forward"].text).is_equal("LMB")
+
+
+func test_a_key_of_a_fixed_action_ends_the_capture_and_binds_nothing() -> void:
+	_panel.start_capture(&"ready")
+	assert_bool(_panel.capture(_key(KEY_F3, true))).is_true()
+	assert_bool(_panel.is_capturing()).is_false()
+	assert_str(_panel.key_buttons[&"ready"].text).is_equal("F")
+	assert_int(_changes).is_equal(0)
+
+
+func _laid_out() -> void:
+	_panel.size = Vector2(1200, 1000)
+	add_child(_panel)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _click_on(button: Button) -> InputEventMouseButton:
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = button.get_global_rect().get_center()
+	click.global_position = click.position
+	return click
+
+
 func _key(code: Key, pressed: bool) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.physical_keycode = code
