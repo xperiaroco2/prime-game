@@ -4,7 +4,7 @@ extends RefCounted
 ## comes from the shared theme (GameUi.THEME) through a type variation named here; no screen sets
 ## one inline (client/CLAUDE.md, a source test holds it).
 ##
-## The Toy components (#289; ARCHITECTURE §4.7.26), one way to build each:
+## The Toy components (#289; ARCHITECTURE §4.7.27), one way to build each:
 ## - button(): a raised Toy button, a ToyRaised (base under the face) whose `face` is the Button;
 ##   the face has ToyPress and, for a toggle pair (ToyPresetCard), ToyToggle, which acts once the
 ##   caller sets the face's `toggle_mode` (a preset card; not the Save card).

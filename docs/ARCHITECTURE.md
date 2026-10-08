@@ -2117,8 +2117,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
   screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
-  the large-text swap are §4.7.27. The input actions
-  `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2501,9 +2500,8 @@ ADR's §6 check the rest.
   reduced-motion mode, `press_trans`, `press_ease`), the health ramp to the colours `ramp_stop_00` … `ramp_stop_20`
   (ToyBarHealth), ToyMic's `icon_on` and `icon_off`, and the `empty` list to one `StyleBoxEmpty`. ToySlider's
   `focus` StyleBox is written though Slider draws none: `ToySlider` draws that ring (§4.7.27). Custom items are what
-  the Toy
-  components' code reads; the mapping names which items are custom and which bound items Godot's default theme
-  leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
+  the Toy components' code reads; the mapping names which items are custom and which bound items Godot's default
+  theme leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
 - `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
   state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion stop the
   build) and builds the `Theme` in memory; each StyleBox has the sub-resource id `<Variation>_<item>`, so a
@@ -2580,14 +2578,18 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   IGNORE, hidden while there is none or while a button face is disabled), then the face. The base StyleBox draws
   the face's shape moved down by its depth through expand margins, so layout and the hit area are the face's. The
   wrapper takes placement, size flags, minimum size and visibility; the face keeps its variation, text and signals;
-  the base follows the face's variation on its theme change.
+  the base follows the face's variation on its theme change. The wrapper reserves no room for what the base's and
+  the face's StyleBoxes draw outside its rect (expand margins: ToyTitlePlate's base reaches 36 px out): the caller
+  leaves that gap, read from the theme (the showcase's `_room_for_base`).
 - **`ToyPress`** (an internal child of every Toy button): `offset_transform_enabled`, and the face's visual-only
   `offset_transform_position:y` moves to `press_disabled` if disabled, else `press_held` while held (`button_down`
   to `button_up`: mouse, touch and `ui_accept`) or while a toggle is on, else `press_hover` while the pointer is
   over it, else 0. It re-evaluates on `draw`, `button_down`, `button_up`, `mouse_entered`, `mouse_exited` and
   `toggled`, and tweens only when the target changes (`TRANS_SINE`, `EASE_OUT`, `press_duration_ms` 70, or
   `press_duration_reduced_ms` 0 under `UiPrefs.reduced_motion`). A container's sort sets position and size, never
-  the offset transform, so a press survives a re-layout or a theme swap. A raised toggle that stays on (the Esc
+  the offset transform, so a press survives a re-layout or a theme swap. A face disabled while held drops the hold
+  (Godot sends no `button_up` then and drops the release on a disabled button), so it is not sunk once enabled. A
+  raised toggle that stays on (the Esc
   menu's Ready, a selected preset card) rests at `press_held`: #289's choice, to judge in the interactive showcase.
 - **`ToyToggle`** (an internal child): on `toggled(true)` the variation becomes the partner (ToyTab, both
   ToyChipToggle, ToyRadio, ToyPresetCard), and back on `toggled(false)`; companions (a card's note) swap with it;
@@ -2608,7 +2610,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   of EscTab (`tab_buttons` still maps the Buttons). The screens' own Toy layouts are #489-#498.
 - **Large text and reduced motion.** `GameUi.set_large_text(on)` gives every screen that holds the shared theme
   `THEME_LARGE` (or back) live; a screen with its own theme keeps it, a later one gets `shared_theme()`.
-  `UiPrefs.reduced_motion` defaults from `DisplayServer.accessibility_should_reduce_animation()`; the screen issues
+  `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
+  it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
   read it for the connecting spinner and the fades. Neither is stored yet: Settings > Accessibility (#491) sets and
   saves both.
 - **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
@@ -2621,13 +2624,15 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   changes, never as edits in the game.
 - Tests: `tests/unit/client/ui/toy_press_test.gd` (the targets per variation from the theme; the base unplugged,
   seen failing without its line; one tween per changed target; reduced motion; the raised toggle on; the offset
-  after a sort and a theme swap), `toy_raised_test.gd`, `toy_toggle_test.gd` (every pair, a ButtonGroup, no
+  after a sort and a theme swap; a face disabled while held, seen failing), `ui_prefs_test.gd` (only 1 is on; a
+  bool after `reset()`), `toy_raised_test.gd`, `toy_toggle_test.gd` (every pair, a ButtonGroup, no
   partner, a companion, `sync()`), `toy_bar_test.gd` (step(0.22) = 4, (0.8) = 16, (1.0) = 20, (0.23) = 5 against a
   floor, the clamps; all 21 stops in both themes; the fill's colour), `toy_slider_test.gd`, `ui_parts_test.gd`
   (the large keycap's 42 after a theme swap), `large_text_test.gd`; `theme_test.gd` also reads the builders'
   variation names (seen failing on a planted `EscTabb`); `tests/unit/tools/theme_builder_test.gd` (the hints, three
   planted hint problems, a changed hint seen by the stale test); `theme_showcase_test.gd` (the pages show every live
-  variation, seen failing with ToyMic left out; the interactive switches). The look: the four shots in the PR.
+  variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
+  large text, the page). The look: the four shots in the PR.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
