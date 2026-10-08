@@ -2,14 +2,16 @@ class_name LifeHud
 extends RefCounted
 ## What the life panel shows (ARCHITECTURE §4.7, the own player by life), as words: pure, from the
 ## own ClientModel, the own LifeCountdowns at the estimated host tick and the life view's own state
-## (whom a dead player watches, how long G has been held, whether the crosshair is on a downed
-## player within reach). Greybox wording, placeholders until the UI milestone (#150).
+## (whom a dead player watches, how long the give-up key has been held, whether the crosshair is on
+## a downed player within reach, and the keys bound now, KeyLabel's, so every prompt follows a
+## rebind, #211). Greybox wording, placeholders until the UI milestone (#150).
 ##
-## - Living: the raise it runs and its progress; "Hold E to raise" over a downed player in reach.
+## - Living: the raise it runs and its progress; "Hold <interact> to raise" over a downed player in
+##   reach.
 ##   No own invulnerability read-out (the engineer's answer 2 on PR #167: a later buffs UI may
 ##   show it); other players' invulnerable shell (D8) stays.
 ## - Downed: the knockdown countdown (paused while raised), who raises them and the raise's
-##   progress, and the give-up hold (G).
+##   progress, and "Hold <give_up> to give up" with the hold's progress (F by default, #211).
 ## - Dead: the respawn countdown and the keys that cycle the target (the HUD names whom they
 ##   watch, #168): nothing of the target's (no health, stamina, role or private event).
 
@@ -29,11 +31,24 @@ class Local:
 	extends RefCounted
 	## The peer a dead player watches; 0 for none.
 	var watching := 0
-	## Seconds G has been held, and how long it must be.
+	## Seconds the give-up key has been held, and how long it must be.
 	var give_up_held_s := 0.0
 	var give_up_hold_s := 1.0
 	## The crosshair is on a downed player the host would let this player raise.
 	var can_raise := false
+	## The labels of the keys bound now (KeyLabel.of_action): give_up, interact (the raise),
+	## spectate_next and spectate_previous. The defaults are the project's.
+	var give_up_key := "F"
+	var raise_key := "E"
+	var next_key := "LMB"
+	var previous_key := "RMB"
+
+	## The labels of the keys bound now, from the InputMap and the keyboard layout.
+	func read_keys() -> void:
+		give_up_key = KeyLabel.of_action(&"give_up")
+		raise_key = KeyLabel.of_action(&"interact")
+		next_key = KeyLabel.of_action(&"spectate_next")
+		previous_key = KeyLabel.of_action(&"spectate_previous")
 
 
 static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local) -> Shown:
@@ -57,11 +72,11 @@ static func _living(
 	if raising != 0 and progress >= 0.0:
 		shown.title = "Raising %s" % name_of(model, raising)
 		shown.progress = progress
-		shown.progress_label = "Keep holding E"
+		shown.progress_label = "Keep holding %s" % local.raise_key
 		return
 	if local.can_raise:
 		shown.title = "Downed player"
-		shown.lines.append("Hold E to raise")
+		shown.lines.append("Hold %s to raise" % local.raise_key)
 
 
 static func _downed(
@@ -83,7 +98,7 @@ static func _downed(
 	if local.give_up_held_s > 0.0:
 		shown.progress = clampf(local.give_up_held_s / local.give_up_hold_s, 0.0, 1.0)
 		shown.progress_label = "Giving up"
-	shown.lines.append("Hold G to give up")
+	shown.lines.append(give_up_line(local.give_up_key))
 
 
 static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: Local) -> void:
@@ -93,9 +108,15 @@ static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: 
 		shown.lines.append("Respawn in %d s" % ceili(left))
 	# Whom it watches is the HUD's "Spectating <name>" (HudText, #168).
 	if local.watching != 0:
-		shown.lines.append("Left and right click: next and previous")
+		shown.lines.append("%s and %s: next and previous" % [local.next_key, local.previous_key])
 	else:
 		shown.lines.append("Nobody to watch")
+
+
+## The downed player's prompt with the bound key: the deck's `downed.give_up_hold` in English
+## ("Hold {key} to give up"), the Toy downed screen's sentence (#497) once #208 brings the deck.
+static func give_up_line(key: String) -> String:
+	return "Hold {key} to give up".format({"key": key})
 
 
 ## A player's roster name, or "Player <id>" once it left the roster.

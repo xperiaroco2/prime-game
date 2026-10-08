@@ -2,15 +2,16 @@ class_name LobbyHud
 extends Control
 ## What shows while the player walks in the lobby (ARCHITECTURE §4.7, #169): the keys' hint, the
 ## roster with ready flags and the countdown, in a corner, with nothing to click: the pointer stays
-## the game's. Ready (the `ready` key, F) and the settings are in the Esc menu's Lobby tab. Until a
-## microphone is picked, a hint points to the Esc menu's Voice tab (M5-6). The room's code, to
-## whoever knows it (the M6 design §3 item 2); Copy is in the Esc menu's Lobby tab. Styled only
-## through the shared theme (HudMargin, HudPanel, HudHint, HudText).
+## the game's. Ready (the `ready` key, F by default) and the settings are in the Esc menu's Lobby
+## tab. Until a microphone is picked, a hint points to the Esc menu's Voice tab (M5-6). The room's
+## code, to whoever knows it (the M6 design §3 item 2); Copy is in the Esc menu's Lobby tab.
+## Styled only through the shared theme (HudMargin, HudPanel, HudHint, HudText).
 
-## Greybox wording (#150); F is a placeholder key, "not a decision".
-const HINT := "Esc: menu  ·  F: ready"
+## Greybox wording (#150); {ready} is the `ready` key's label (KeyLabel: F by default, rebindable,
+## #211). The Toy lobby HUD (#495) drops this prompt.
+const HINT := "Esc: menu  ·  {ready}: ready"
 
-var hint_label := UiParts.styled_label(HINT, &"HudHint")
+var hint_label := UiParts.styled_label(hint(), &"HudHint")
 var roster_label := UiParts.styled_label("", &"HudText")
 var countdown_label := UiParts.styled_label("", &"HudText")
 ## The code line (show_code(), JoinProgress.code_text); hidden when empty.
@@ -47,8 +48,14 @@ func _init() -> void:
 
 ## Shows what `model` knows now; `host_tick` is the newest host tick it knows (-1: none yet).
 func refresh(model: ClientModel, host_tick: int) -> void:
+	hint_label.text = hint()
 	roster_label.text = LobbyPanel.roster_text(model)
 	countdown_label.text = LobbyPanel.countdown_text(model, host_tick)
+
+
+## The keys' hint with the `ready` key bound now.
+static func hint() -> String:
+	return HINT.format({"ready": KeyLabel.of_action(&"ready")})
 
 
 ## The code line (JoinProgress.code_text); "" hides it.

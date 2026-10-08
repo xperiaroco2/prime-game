@@ -74,6 +74,7 @@ static func _life_hud(mode: GameMode, model: ClientModel) -> LifeHud.Shown:
 	var countdowns := LifeCountdowns.new(mode.player_rules, LifeCountdowns.raise_seconds_of(mode))
 	countdowns.on_event(&"Died", {"peer": 1, "position": Vector3.ZERO}, 1, DIED_AT)
 	var local := LifeHud.Local.new()
+	local.read_keys()
 	local.watching = 2
 	return LifeHud.of(model, countdowns, NOW, local)
 
