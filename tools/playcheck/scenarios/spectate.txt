@@ -1,7 +1,7 @@
 # Downed, then dead, then spectating through the target's eyes (#168, PR #173) in the game's
 # real windows. Window 1 hosts, window 2 joins, and player 3 is a bot forced to be the dissident
 # (spectate_bots.tres): it takes a knife and knocks player 2 down, then player 1. Window 2 shows
-# its downed camera, holds G (give_up) once player 1 is down too, dies, and watches the one living
+# its downed camera, holds F (give_up, #211) once player 1 is down too, dies, and watches the one living
 # player, the bot, through its eyes: its knife in the first-person hand, and the spectator HUD
 # naming it with its Hand and Belt and none of the spectator's own slots or numbers.
 # The text waits read short parts of the greybox wording (#150), never whole sentences.
