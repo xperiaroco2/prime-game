@@ -207,7 +207,7 @@ class RepoTest(unittest.TestCase):
     def test_an_entry_without_lfs_assets_needs_no_provenance(self) -> None:
         # The addons' entries: their files stay out of LFS.
         self.entry(ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`", "`addons/tool/**`").replace(
-            "- **Public repo OK:** true\n", ""))
+            "- **Public repo OK:** true\n", "").replace("- **AI generated:** false\n", ""))
         write(self.root, "docs/credits/wood.md", ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`",
                                                                "`levels/props/**`").replace("# Crate", "# Wood"))
         self.main()
