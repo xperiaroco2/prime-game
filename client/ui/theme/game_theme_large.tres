@@ -3880,3 +3880,47 @@ ToyTitlePlate/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
 ToyTitlePlate/colors/font_shadow_color = Color(0, 0, 0, 0)
 ToyTitlePlate/font_sizes/font_size = 96
 ToyTitlePlate/styles/normal = SubResource("ToyTitlePlate_normal")
+metadata/toy_hints = {
+"bases": {
+"ToyButtonDanger": {
+"dark": "ToyBaseRaisedOnDark",
+"light": "ToyBaseRaisedOnLight"
+},
+"ToyButtonPrimary": {
+"dark": "ToyBasePrimaryOnDark",
+"light": "ToyBasePrimaryOnLight"
+},
+"ToyButtonSecondary": {
+"dark": "ToyBaseRaisedOnDark",
+"light": "ToyBaseRaisedOnLight"
+},
+"ToyMapBoard": {
+"any": "ToyBasePanel"
+},
+"ToyPanelDialog": {
+"any": "ToyBasePanel"
+},
+"ToyPanelHowto": {
+"any": "ToyBasePanel"
+},
+"ToyPanelMenu": {
+"any": "ToyBasePanel"
+},
+"ToyPresetCard": {
+"any": "ToyBaseCard"
+},
+"ToyPresetCardSelected": {
+"any": "ToyBaseCard"
+},
+"ToyTitlePlate": {
+"any": "ToyBaseTitle"
+}
+},
+"toggles": {
+"ToyChipToggleOnDark": "ToyChipToggleOnDarkSelected",
+"ToyChipToggleOnLight": "ToyChipToggleOnLightSelected",
+"ToyPresetCard": "ToyPresetCardSelected",
+"ToyRadio": "ToyRadioSelected",
+"ToyTab": "ToyTabSelected"
+}
+}

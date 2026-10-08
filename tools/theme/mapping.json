@@ -10,6 +10,7 @@
     "keep": "Names the issue does not map to a Toy variation (containers' margins and separations, a few labels): their greybox values as #287 scaled them to the 1920x1080 base, until the screens move to Toy variations (#289 and the screen issues). Not a design decision.",
     "font": "Comfortaa ships with #520 (the font file and its licence). file null: the builder sets only font_size; when #520 lands the font it fills file and the builder sets a FontVariation (weight from each label's fontWeight) and line_spacing from the font's metrics.",
     "textures": "The pack's textures (slider knobs, the dropdown arrow, the radio icons) are SVGs under the pack's .gdignore, so Godot cannot load them from there: #520 imports them into an imported folder under the same sha256 lock and then the builder sets them as theme icons. Until then the builder only checks each texture key against the class's icons below.",
+    "hints": "The pack's `base` (the toy base Panel under a raised face, per context) and `toggle` (the selected partner) are not theme items: the builder writes them into each theme's metadata `toy_hints` ({bases: {variation: {context: base}}, toggles: {variation: selected}}), which client/ui/toy_hints.gd reads for ToyRaised and ToyToggle (#289).",
     "deprecated": "Variations the pack marks deprecated (ToyChipNew, ToyChipNewText, ToyHowtoCaption) are not written: no screen uses them and they leave the pack at its next major release."
   },
   "pack_schemas": [1],
@@ -24,8 +25,9 @@
   "deprecated": "skip",
   "variation_members": {
     "used": ["class", "parent", "prefix", "styleboxes", "empty", "textures", "deprecated"],
-    "ignored": ["abstract", "context", "base", "toggle", "on", "proposal"]
+    "ignored": ["abstract", "context", "on", "proposal"]
   },
+  "hints": {"meta": "toy_hints", "members": ["base", "toggle"]},
   "stylebox_fields": {
     "bg-color": "bg_color",
     "border-color": "border_color",

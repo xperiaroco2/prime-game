@@ -5,8 +5,9 @@ extends GdUnitTestSuite
 ## the 4.7.2 class reference (Godot's default theme, or the mapping's list of items it binds but
 ## does not set); names are letters only; the committed files are what a fresh build writes (the
 ## stale test, with a planted change that must show); the uid is kept; spot values, the press
-## motion and the ramp; the large-text theme; the legacy and kept names. Each check that guards
-## data is also run on a broken copy and must name it.
+## motion and the ramp; the large-text theme; the legacy and kept names; the toy base and toggle
+## hints in the themes' metadata (#289). Each check that guards data is also run on a broken copy
+## and must name it.
 
 const Builder := preload("res://tools/theme/theme_builder.gd")
 const THEME_UID := "uid://c8behqt7jtcn8"
@@ -57,6 +58,9 @@ func test_check_pack_names_what_the_mapping_does_not_cover() -> void:
 		"has a delay",
 		"legacy LifeBar: ToyBarProgress is not a live pack variation",
 		"lacks bg-color (a StyleBox field)",
+		"base ToyBogus is not a live Panel variation",
+		"base context night is not dark, light or any",
+		"toggle ToyTabGone is not a live variation of its class",
 	]
 	for want in cases:
 		var broken: Dictionary = _pack.duplicate(true)
@@ -101,6 +105,12 @@ func _plant(pack: Dictionary, problem: String) -> void:
 			var plate := _variation(pack, "ToyPlate")
 			var state := str((plate["styleboxes"] as Array)[0])
 			tokens.erase("%s.%s.bg-color" % [plate["prefix"], state])
+		"base ToyBogus is not a live Panel variation":
+			_variation(pack, "ToyButtonPrimary")["base"] = {"dark": "ToyBogus"}
+		"base context night is not dark, light or any":
+			_variation(pack, "ToyPanelMenu")["base"] = {"night": "ToyBasePanel"}
+		"toggle ToyTabGone is not a live variation of its class":
+			_variation(pack, "ToyTab")["toggle"] = {"selected": "ToyTabGone"}
 
 
 func test_every_mapped_engine_item_exists_in_the_class_reference() -> void:
@@ -251,6 +261,63 @@ func test_the_large_theme_differs_only_in_text_sizes() -> void:
 				. override_failure_message(lines_normal[index])
 				. is_true()
 			)
+
+
+func test_the_hints_are_in_both_themes() -> void:
+	var hints := Builder.hints(_pack)
+	var bases: Dictionary = hints["bases"]
+	var toggles: Dictionary = hints["toggles"]
+	(
+		assert_array(bases.keys())
+		. contains_exactly(
+			[
+				"ToyButtonDanger",
+				"ToyButtonPrimary",
+				"ToyButtonSecondary",
+				"ToyMapBoard",
+				"ToyPanelDialog",
+				"ToyPanelHowto",
+				"ToyPanelMenu",
+				"ToyPresetCard",
+				"ToyPresetCardSelected",
+				"ToyTitlePlate",
+			]
+		)
+	)
+	assert_dict(bases["ToyButtonPrimary"]).is_equal(
+		{"dark": "ToyBasePrimaryOnDark", "light": "ToyBasePrimaryOnLight"}
+	)
+	assert_dict(bases["ToyPresetCard"]).is_equal({"any": "ToyBaseCard"})
+	(
+		assert_dict(toggles)
+		. is_equal(
+			{
+				"ToyChipToggleOnDark": "ToyChipToggleOnDarkSelected",
+				"ToyChipToggleOnLight": "ToyChipToggleOnLightSelected",
+				"ToyPresetCard": "ToyPresetCardSelected",
+				"ToyRadio": "ToyRadioSelected",
+				"ToyTab": "ToyTabSelected",
+			}
+		)
+	)
+	var meta := StringName(str((_mapping["hints"] as Dictionary)["meta"]))
+	for key: String in _mapping["themes"]:
+		var theme := _committed(key)
+		assert_dict(theme.get_meta(meta, {}) as Dictionary).is_equal(hints)
+		for name: String in bases:
+			for context: String in bases[name]:
+				var base := StringName(str((bases[name] as Dictionary)[context]))
+				assert_str(str(theme.get_type_variation_base(base))).is_equal("Panel")
+		for name: String in toggles:
+			var selected := StringName(str(toggles[name]))
+			assert_str(str(theme.get_type_variation_base(selected))).is_equal(
+				str(theme.get_type_variation_base(StringName(name)))
+			)
+	# The stale test sees a changed hint.
+	var changed: Dictionary = _pack.duplicate(true)
+	_variation(changed, "ToyTab")["toggle"] = {"selected": "ToyRadioSelected"}
+	var committed := Builder.without_uid(FileAccess.get_file_as_string(_path("default")))
+	assert_str(_first_difference(committed, _text(changed, "default"))).contains("ToyRadioSelected")
 
 
 func test_legacy_names_are_thin_variations_of_toy_ones() -> void:
