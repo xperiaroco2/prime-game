@@ -37,8 +37,9 @@ reviewers stay on Opus, so a weaker diff is still reviewed as today before its P
 3. **Scoring** (`metrics`' "Sonnet implementer trial (#560)" table, `sonnet_trial` in `metrics.json`). A trial task is
    an issue with a run whose implementer was Sonnet; its relaunch on Opus counts with it. The baseline is the
    Opus-implemented, non-design tasks of the window whose issue says Size S or XS (read from GitHub, so not with
-   `--no-gh`). Per task: runs and red runs (a run the manager must relaunch), verify runs and reds, the reviewers'
-   blockers and majors, the publisher's fix rounds, the PR's red CI rounds, tool calls and API list $; per side the
+   `--no-gh`). Per task: runs and red runs (a run the manager must relaunch), verify runs and reds, the diff
+   reviewers' blockers and majors (one reviewer set on both sides: where a run of the reviewer A/B had two code
+   reviewers only the Opus control counts, and no test review), the publisher's fix rounds, the PR's red CI rounds, tool calls and API list $; per side the
    per-task means. Read it with `--since 2026-09-30T00:00:00Z` (the A/B's window), so the baseline holds the Opus
    tasks before and beside the trial: only an issue with a `Size:` line can be in it (on 2026-10-08, 24 of the 157
    `area:tooling` issues since 2026-09-28 said S or XS; most said no size), and the manager gives every qualifying
@@ -47,7 +48,8 @@ reviewers stay on Opus, so a weaker diff is still reviewed as today before its P
    - **Drop early** after **2** trial tasks red twice, or once **4** or more trial tasks have **1 or more** blockers
      and majors per task over the baseline's.
    - **After 6 trial tasks**, keep Sonnet when red runs, verify reds, publisher fix rounds and CI fix rounds per task
-     are each no worse than the baseline's and its $ per task is lower; otherwise drop it.
+     are each no worse than the baseline's and its $ per task is lower; otherwise drop it. With no baseline in the
+     window by then, the advice is "no verdict".
    - The verdict is advice. The manager posts it on #302 with the table, and the engineer decides. A keep becomes a
      standing launch habit only by a further amendment of the model-guard ADR after his yes; a drop ends the
      `models.implement` launches and changes nothing else.
