@@ -145,8 +145,24 @@ class ContextReportTest(unittest.TestCase):
             metrics.runs_main(["wf_ctx"], checkout=CHECKOUT, base=self.root, now=0.0)
         lines = buf.getvalue().splitlines()
         self.assertEqual(lines[-1], f"context per API call avg/peak (#584; heavy: {HEAVY}): implement:#9 200k/300k x3 "
-                                    "heavy, review:code:#9 50k/60k x2, publish:#9 120k/330k x4 heavy")  # fmt: skip
+                                    "heavy, publish:#9 120k/330k x4 heavy, review:code:#9 50k/60k x2")  # fmt: skip
         self.assertEqual(len(lines), 4, "no re-write line: no gap of 5 minutes")
+
+    def test_a_run_s_context_line_is_capped_with_the_heavy_agents_first_and_a_retry_numbered(self) -> None:
+        def agent(label: str, avg: int, peak: int) -> dict:
+            return {"label": label, "avg": avg, "peak": peak, "calls": 2, "heavy": avg >= 150_000 or peak >= 300_000}
+
+        many = [agent(f"critic:{i}", 50_000, 60_000) for i in range(metrics.CONTEXT_RUN_AGENTS + 2)]
+        many.append(agent("implement:#9", 200_000, 300_000))
+        many.append(agent("implement:#9", 210_000, 310_000))
+        line = metrics.context_run_line({"agents": many})
+        self.assertTrue(line.endswith(", +4 more"), line)
+        shown = line.split("per call): ", 1)[1].split(", ")[:-1]
+        self.assertEqual(len(shown), metrics.CONTEXT_RUN_AGENTS)
+        self.assertEqual(shown[:2], ["implement:#9 200k/300k x2 heavy", "implement:#9 (2) 210k/310k x2 heavy"])
+        self.assertEqual(shown[2], "critic:0 50k/60k x2")
+        none = metrics.context_run_line({"agents": [agent("a", 1_000, 2_000)]})
+        self.assertNotIn("more", none)
 
     def test_the_help_names_it(self) -> None:
         buf = io.StringIO()

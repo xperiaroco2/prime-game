@@ -96,7 +96,7 @@ class RunsTest(unittest.TestCase):
             "spent so far: 4.0% (4.3 to 3.6%) of the week, list $92 in 4 API calls",
             "by phase: Implement $69 (2 agents), Review $23 (2 agents)",
             "context per API call avg/peak (#584; heavy: average 150k+ or peak 300k+ per call): implement:#5 "
-            "5.75M/5.75M x1 heavy, implement:#5 5.75M/5.75M x2 heavy, review:code:#5 5.75M/5.75M x1 heavy",
+            "5.75M/5.75M x1 heavy, implement:#5 (2) 5.75M/5.75M x2 heavy, review:code:#5 5.75M/5.75M x1 heavy",
         ])
 
     def test_a_finished_run_of_another_checkout_with_a_journal_cut_short(self) -> None:

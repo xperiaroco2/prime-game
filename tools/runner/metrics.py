@@ -349,7 +349,7 @@ IDLE_AGENT_ROWS, IDLE_RUN_NAMES = 40, 3
 # of its spend, #302). The heavy table lists at most CONTEXT_AGENT_ROWS (the JSON record has every agent), the compact
 # line names CONTEXT_NAMES.
 CONTEXT_HEAVY_AVG, CONTEXT_HEAVY_PEAK = 150_000, 300_000
-CONTEXT_AGENT_ROWS, CONTEXT_NAMES = 40, 3
+CONTEXT_AGENT_ROWS, CONTEXT_NAMES, CONTEXT_RUN_AGENTS = 40, 3, 10
 # A keep-alive timer: a background shell call that only sleeps (an `echo` after it allowed), in Bash or PowerShell.
 TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:(?:;|&&)\s*echo\b.*)?",
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
@@ -2802,10 +2802,20 @@ def context_compact(record: dict) -> str:
 
 
 def context_run_line(record: dict) -> str:
-    """`--run`'s line: each agent's average and peak context per call, in the run's order, the heavy ones marked."""
-    agents = ", ".join(f"{a['label'] or '?'} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}"
-                       + (" heavy" if a["heavy"] else "") for a in record["agents"])  # fmt: skip
-    return f"context per API call avg/peak (#584; heavy: {CONTEXT_HEAVY}): {agents}"
+    """`--run`'s line: the average and peak context per call of the run's agents, the heavy ones first, at most
+    CONTEXT_RUN_AGENTS of them ('+N more' for the rest); a label that repeats (a retry) gets '(2)', '(3)'."""
+    seen: dict[str, int] = {}
+    named = []
+    for a in record["agents"]:
+        label = a["label"] or "?"
+        seen[label] = seen.get(label, 0) + 1
+        named.append((a, label if seen[label] == 1 else f"{label} ({seen[label]})"))
+    named.sort(key=lambda x: not x[0]["heavy"])  # stable: heavy first, the run's order within each
+    shown = ", ".join(f"{label} {fmt_k(a['avg'])}/{fmt_k(a['peak'])} x{a['calls']}" + (" heavy" if a["heavy"] else "")
+                      for a, label in named[:CONTEXT_RUN_AGENTS])  # fmt: skip
+    more = len(named) - CONTEXT_RUN_AGENTS
+    return (f"context per API call avg/peak (#584; heavy: {CONTEXT_HEAVY}): {shown}"
+            + (f", +{more} more" if more > 0 else ""))  # fmt: skip
 
 
 def other_section(counted: list[dict]) -> list[str]:
