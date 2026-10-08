@@ -482,6 +482,28 @@ class WaveTest(unittest.TestCase):
         self.assertIn("wf_red;", handover)
         self.assertNotIn("wf_ok;", handover)
 
+    def test_a_checkpoint_handoff_does_not_end_the_run(self) -> None:
+        # #559: a red implementer that handed over (issue-task's checkpoint) is followed by a continuation, so the run
+        # goes on; only the last one's red result ends it (the third, implement:#N#3, may not hand over).
+        note = {"verify_green": False, "handoff": "a5/handoff-1.md"}
+        cases = {
+            "wf_cont": [("k1", "implement:#5", "Implement", note), ("k2", "implement:#5#2", "Implement", None)],
+            "wf_gap": [("k1", "implement:#6", "Implement", note)],  # before the continuation's start is journaled
+            "wf_last": [("k1", "implement:#7", "Implement", note),
+                        ("k2", "implement:#7#2", "Implement", dict(note, handoff="a7/handoff-2.md")),
+                        ("k3", "implement:#7#3", "Implement", dict(note, handoff="a7/handoff-3.md"))],
+        }  # fmt: skip
+        for i, (run_id, agents) in enumerate(cases.items()):
+            self.p.launch(i, f"t{i}", run_id, {"n": 5 + i})
+            journal(self.p.run_dir(run_id), agents)
+        runs = self.runs()
+        self.assertEqual([runs[r].finished for r in cases], [False, False, True])
+        body = self.p.body()
+        for run_id in ("wf_cont", "wf_gap"):
+            self.assertNotIn(wave.RELAUNCH, self.row(body, run_id), run_id)
+        self.assertIn("implement:#5#2", self.row(body, "wf_cont"), "the continuation is the agent working now")
+        self.assertIn("verify red after the implementer", self.row(body, "wf_last"))
+
     def test_human_steps_in_both_shapes(self) -> None:
         steps = [
             {"why": "Remove the worktree", "command": "cd D:\\prime-game; tools\\run.cmd worktree-done 5"},
