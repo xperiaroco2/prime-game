@@ -94,7 +94,7 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
 - **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch during #560's
   trial ([trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); the engineer's yes on #302):
-  Size S by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
+  Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
   design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
   more without `models.implement` (Opus). Check the first trial run with `tools\run.cmd agents-check`; read `tools\run.cmd metrics
   --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
