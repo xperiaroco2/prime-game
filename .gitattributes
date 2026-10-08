@@ -18,6 +18,9 @@
 gdlintrc text eol=lf
 gdformatrc text eol=lf
 
+# The pinned UI pack is stored as ui-sync wrote it, byte for byte under its sha256 lock (#288): no EOL conversion.
+client/ui/theme/pack/** -text
+
 # Windows batch files need CRLF.
 *.cmd text eol=crlf
 *.bat text eol=crlf
