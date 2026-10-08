@@ -14,13 +14,13 @@ func test_it_shows_the_words_and_the_bar_and_hides_when_empty() -> void:
 	assert_bool(panel.panel.visible).is_false()
 	var shown := LifeHud.Shown.new()
 	shown.title = "Knocked down"
-	shown.lines = PackedStringArray(["Dying in 7 s", "Hold G to give up"])
+	shown.lines = PackedStringArray(["Dying in 7 s", "Hold F to give up"])
 	shown.progress = 0.25
 	shown.progress_label = "Giving up"
 	panel.show_hud(shown)
 	assert_bool(panel.panel.visible).is_true()
 	assert_str(panel.title_label.text).is_equal("Knocked down")
-	assert_str(panel.lines_label.text).is_equal("Dying in 7 s\nHold G to give up")
+	assert_str(panel.lines_label.text).is_equal("Dying in 7 s\nHold F to give up")
 	assert_bool(panel.bar.visible).is_true()
 	assert_float(panel.bar.value).is_equal_approx(0.25, 1e-4)
 	assert_str(panel.bar_label.text).is_equal("Giving up")

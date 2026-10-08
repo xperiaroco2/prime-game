@@ -154,6 +154,9 @@ func show_facts(facts: Shown) -> void:
 			device_button.add_item(device_name(device))
 	var picked := facts.device if not facts.device.is_empty() else VoiceMicrophone.DEFAULT_DEVICE
 	device_button.select(_devices.find(picked))
+	# The talk key follows a rebind in the Controls tab (#211).
+	var talk := mode_button.get_item_index(UserSettings.Mode.PUSH_TO_TALK)
+	mode_button.set_item_text(talk, _mode_name(UserSettings.Mode.PUSH_TO_TALK))
 	mode_button.select(mode_button.get_item_index(facts.mode))
 	threshold_slider.set_value_no_signal(facts.threshold)
 	meter.value = facts.peak
@@ -172,13 +175,10 @@ static func device_name(device: String) -> String:
 	return DEFAULT_NAME if device == VoiceMicrophone.DEFAULT_DEVICE else device
 
 
-## The talk key's name, from the input map (V, D11).
+## The talk key's name, from the input map (V by default, D11; rebindable, #211); "?" unbound.
 static func talk_key() -> String:
-	for event: InputEvent in InputMap.action_get_events(VoiceSender.TALK_ACTION):
-		var key := event as InputEventKey
-		if key != null:
-			return OS.get_keycode_string(key.physical_keycode)
-	return "?"
+	var label := KeyLabel.of_action(VoiceSender.TALK_ACTION)
+	return label if not label.is_empty() else "?"
 
 
 static func _mode_name(mode: UserSettings.Mode) -> String:

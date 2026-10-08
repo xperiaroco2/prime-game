@@ -6,6 +6,8 @@ extends GdUnitTestSuite
 ## - a downed joiner raised by the host's player holds still while it tries to crawl and is never
 ##   corrected; it stands up living, in first person, invulnerable for the mode's time, with the
 ##   look it had (the knockdown's Correction and the revive keep it, #191);
+## - a downed joiner gives up on F held (G no longer), through real key events, and F in the round
+##   readies nobody (#211);
 ## - a joiner who gives up dies: its controller stays off the living (no layer, no step) however
 ##   it is driven, it spectates the host's player from its eyes with the lift music, switches to
 ##   the camera above the host's body when the host goes down, and respawns at a marker in first
@@ -33,6 +35,9 @@ func before_test() -> void:
 
 func after_test() -> void:
 	_pair.free()
+	# Input's action states are global: nothing stays held for the next suite.
+	for action: StringName in [&"give_up", &"ready"]:
+		Input.action_release(action)
 
 
 func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
@@ -329,6 +334,50 @@ func test_a_dead_player_who_leaves_hears_no_lift_music_in_the_menu() -> void:
 	assert_bool(life.music().playing).is_false()
 	assert_int(life.view()).is_equal(LifeView.View.FIRST_PERSON)
 	await _pair.stop()
+
+
+func test_the_downed_give_up_on_f_held_and_f_readies_nobody_in_the_round() -> void:
+	# #211: give-up moved from G to F, Ready's key in the lobby. Through real key events on the
+	# joiner's Game (the host's reads no device): F held while living does nothing; G held while
+	# downed no longer gives up; F held while downed gives up; no F ever toggles the ready flag.
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var session := _pair.client.client()
+	var ready_before := _ready_of(session.model, joiner)
+	_pair.client.device_input = true
+	_hold(KEY_F, true)
+	await _pair.frames(90)
+	_hold(KEY_F, false)
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.ALIVE)
+	_pair.knock_down(_pair.client)
+	assert_bool(await _until(func() -> bool: return _pair.client.player().is_downed())).is_true()
+	_hold(KEY_G, true)
+	await _pair.frames(90)
+	_hold(KEY_G, false)
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DOWNED)
+	_hold(KEY_F, true)
+	var dead := func() -> bool: return session.model.life_of(joiner) == ClientModel.Life.DEAD
+	assert_bool(await _until(dead, 180)).is_true()
+	_hold(KEY_F, false)
+	await _pair.frames(10)
+	assert_bool(_ready_of(session.model, joiner)).is_equal(ready_before)
+	await _pair.stop()
+
+
+## `peer`'s ready flag in `model`'s roster.
+func _ready_of(model: ClientModel, peer: int) -> bool:
+	var member: ClientModel.Member = model.roster.get(peer)
+	return member != null and member.ready
+
+
+func _hold(key: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = key
+	event.physical_keycode = key
+	event.pressed = pressed
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 
 
 ## The head's pitch of `player`'s first-person view, in radians (up is positive).

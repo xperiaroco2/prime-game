@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## Esc's menu and the Ready key through Input events (#169): a host's Game alone over a LoopbackHub
-## on a simulated clock, in the lobby. Keys go in through Input.parse_input_event, which reaches
-## the nodes' _input and _unhandled_input and the action states headless too (probed on 4.7.2).
+## Esc's menu, the Ready key and the Controls tab (#211) through Input events (#169): a host's Game
+## alone over a LoopbackHub on a simulated clock, in the lobby. Keys go in through
+## Input.parse_input_event, which reaches the nodes' _input and _unhandled_input and the action
+## states headless too (probed on 4.7.2).
 ## Headless Godot keeps no mouse mode, so the game's pointer is a FakePointer.
 
 const GAME := preload("res://client/app/game.tscn")
@@ -36,6 +37,8 @@ func after_test() -> void:
 	# Input's action states are global: nothing stays held for the next suite.
 	for action: StringName in [&"move_forward", &"ready", &"ui_cancel"]:
 		Input.action_release(action)
+	# The InputMap is global too: a rebind in the Controls tab must not outlive its test.
+	Controls.new().apply()
 
 
 func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab() -> void:
@@ -45,7 +48,7 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	game.pointer.capture(true)
 	assert_array(_visible_buttons(game.ui)).is_empty()
 	assert_bool(game.ui.lobby_hud.is_visible_in_tree()).is_true()
-	assert_str(game.ui.lobby_hud.hint_label.text).is_equal(LobbyHud.HINT)
+	assert_str(game.ui.lobby_hud.hint_label.text).is_equal("Esc: menu  ·  F: ready")
 	assert_str(game.ui.lobby_hud.roster_label.text).contains("(host, you)  not ready")
 	# One Esc: the menu on its Lobby tab (Ready and the host's settings), the mouse free.
 	_press(KEY_ESCAPE)
@@ -136,6 +139,59 @@ func test_the_ready_key_sends_what_the_ready_toggle_sends() -> void:
 	await get_tree().process_frame
 
 
+func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_capture() -> void:
+	# #211: Settings › Controls in the Esc menu. A capture takes the next key in _input before the
+	# menu sees it: Esc cancels the capture and the menu stays open; K binds Ready, which K then
+	# toggles in the lobby while F no longer does.
+	var game := await _lobby_game(PORT + 4)
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	game.ui.esc.press(EscMenuState.Tab.CONTROLS)
+	await _frames(1)
+	var panel := game.ui.esc.controls
+	assert_object(game.ui.esc.page()).is_same(panel)
+	assert_bool(panel.is_visible_in_tree()).is_true()
+	assert_object(panel.controls).is_same(game.controls)
+	panel.key_buttons[&"ready"].pressed.emit()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(panel.is_capturing()).is_false()
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_str(panel.key_buttons[&"ready"].text).is_equal("F")
+	panel.key_buttons[&"ready"].pressed.emit()
+	_press(KEY_K)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_str(panel.key_buttons[&"ready"].text).is_equal("K")
+	assert_str(KeyLabel.of_action(&"ready")).is_equal("K")
+	# A real click on another row's key while capturing binds nothing: it reaches that button,
+	# which starts its own capture; Esc ends that one.
+	panel.key_buttons[&"ready"].pressed.emit()
+	var back := panel.key_buttons[&"move_back"]
+	# Input takes the window's coordinates; the button's rect is in the 1920x1080 base's.
+	_click(back.get_viewport().get_screen_transform() * back.get_global_rect().get_center())
+	await _frames(2)
+	assert_str(String(panel.capturing)).is_equal("move_back")
+	assert_str(KeyLabel.of_action(&"ready")).is_equal("K")
+	assert_bool(panel.controls.is_default(&"move_back")).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(panel.is_capturing()).is_false()
+	assert_str(back.text).is_equal("S")
+	# The menu closes on Esc as before; the lobby's hint names the new key.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_str(game.ui.lobby_hud.hint_label.text).is_equal("Esc: menu  ·  K: ready")
+	_press(KEY_F)
+	await _until(_ready_flag_is.bind(game, true), 20)
+	assert_bool(_own_ready(game)).is_false()
+	_press(KEY_K)
+	assert_bool(await _until(_ready_flag_is.bind(game, true))).is_true()
+	game.leave()
+	await get_tree().process_frame
+
+
 ## A host's Game alone in the lobby, its pointer a FakePointer, its screens shown.
 func _lobby_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
@@ -165,6 +221,18 @@ func _frames(count: int) -> void:
 func _press(key: Key) -> void:
 	_hold(key, true)
 	_hold(key, false)
+
+
+## Presses and releases the left mouse button at `at` (viewport coordinates).
+func _click(at: Vector2) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = at
+		event.global_position = at
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
 
 
 func _hold(key: Key, pressed: bool) -> void:

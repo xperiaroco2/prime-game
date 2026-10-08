@@ -21,7 +21,9 @@ func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
 	assert_bool(menu.is_open).is_false()
 	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
 	assert_bool(menu.is_open).is_true()
-	assert_array(menu.tabs()).is_equal([TAB.RESUME, TAB.LOBBY, TAB.VOICE, TAB.LEAVE, TAB.QUIT])
+	assert_array(menu.tabs()).is_equal(
+		[TAB.RESUME, TAB.LOBBY, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
+	)
 	assert_int(menu.selected).is_equal(TAB.LOBBY)
 	menu.close()
 	assert_bool(menu.is_open).is_false()
@@ -31,7 +33,9 @@ func test_outside_the_lobby_there_is_no_lobby_tab_and_it_opens_on_resume() -> vo
 	for screen: S in [S.CONNECTING, S.LOADING, S.ROUND, S.END]:
 		var menu := EscMenuState.new()
 		menu.open(screen, null, true)
-		assert_array(menu.tabs()).is_equal([TAB.RESUME, TAB.VOICE, TAB.LEAVE, TAB.QUIT])
+		assert_array(menu.tabs()).is_equal(
+			[TAB.RESUME, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
+		)
 		assert_int(menu.selected).is_equal(TAB.RESUME)
 		assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
 		assert_int(menu.press(TAB.LOBBY)).is_equal(ACT.NONE)

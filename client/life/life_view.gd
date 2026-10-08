@@ -8,7 +8,8 @@ extends Node3D
 ##   margin short of the host's, raise_hint_reach_of()) sends Raise(target), its release
 ##   StopRaise() (D6); the host checks everything again.
 ## - Downed: the DownedCamera over the own body with the own look, and SightHider hiding what the
-##   body's eye could not see. G held for GIVE_UP_HOLD_S sends GiveUp() once (D6).
+##   body's eye could not see. The give_up key (F, #211) held for GIVE_UP_HOLD_S sends GiveUp()
+##   once (D6).
 ## - Dead: spectating. The first target is drawn by SpectateTargets with the client's own
 ##   generator; the left and right mouse buttons cycle; a target that goes down, dies or leaves is
 ##   replaced by a new first target. A living target is watched from its eyes (its interpolated
@@ -28,7 +29,7 @@ extends Node3D
 enum View { FIRST_PERSON, DOWNED, SPECTATE_EYES, SPECTATE_ABOVE }
 
 const PHYSICS_PRIORITY := 5
-## Seconds G must be held to give up (D6: a placeholder, "not a decision").
+## Seconds the give_up key must be held to give up (D6: a placeholder, "not a decision").
 const GIVE_UP_HOLD_S := 1.0
 ## How far the crosshair's ray looks for a downed player, in metres: past any reach the host
 ## grants, since the reach is checked from the feet afterwards (raise_target()).
@@ -189,6 +190,7 @@ func hud(tick: float) -> LifeHud.Shown:
 	local.give_up_held_s = _give_up_held_s
 	local.give_up_hold_s = GIVE_UP_HOLD_S
 	local.can_raise = _own_life() == ClientModel.Life.ALIVE and _raise_peer != 0
+	local.read_keys()
 	return LifeHud.of(model, countdowns, tick, local)
 
 
@@ -209,7 +211,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 				session.send_intent(Intents.STOP_RAISE)
 
 
-## Sends GiveUp() while downed (G held long enough); once per knockdown.
+## Sends GiveUp() while downed (the give_up key, F, held long enough); once per knockdown.
 func give_up() -> void:
 	if _own_life() != ClientModel.Life.DOWNED or _gave_up:
 		return
@@ -278,7 +280,7 @@ func _process(delta: float) -> void:
 	var was_captured := _was_captured
 	_was_captured = captured
 	if not listening:
-		# Nothing reads the keys now (the Esc menu): a held E or G must not keep acting.
+		# Nothing reads the keys now (the Esc menu): a held raise or give-up key must not keep acting.
 		_give_up_held_s = 0.0
 		if _raise_wanted:
 			release_raise()
