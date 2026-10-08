@@ -2662,22 +2662,29 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` ("Hold <key> to
   give up", the raise and spectate keys, through `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up,
-  `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind.
+  `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind. Known gap until the Toy
+  screens (#491, #497) move these sentences to the deck: they are greybox English in every language (the give-up line
+  too, though the deck has `downed.give_up_hold`: translated alone it would mix the default downed panel), so under
+  Ukrainian a mouse button or Space reads in Ukrainian inside one ("ЛКМ and ПКМ: next and previous" by default,
+  "Hold Пробіл to give up" or `LobbyHud`'s "Esc: menu · ЛКМ: ready" after a rebind).
 - `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
   Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
   or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
   event but the wheel (it scrolls the page): the next key or mouse button press binds (applied and saved at once), a
   release or an echo does nothing, a click on another key or on Reset cancels and reaches that button, Esc cancels
   with the menu left open, and hiding the panel cancels it. Reset to defaults empties the file; it is a Toy button
-  (`UiParts.button()`, §4.7.27), the key buttons plain ones. The Toy Esc menu (#491) hosts the panel in its Settings
-  page and restyles it.
+  (`UiParts.button()`, §4.7.27), the key buttons plain ones. `GameUi` builds the panel before `Game` applies the
+  player's language, so it writes its words again on `NOTIFICATION_TRANSLATION_CHANGED` (`retext()`, §4.7.26), and
+  `screen_preview` sets English first, so its shots read the same on every machine. The Toy Esc menu (#491) hosts
+  the panel in its Settings page and restyles it.
 - Tests: `tests/unit/client/app/controls_test.gd` (the defaults, the phases, the clash per phase, saving only the
   rebound actions, loading, reset, the fallback for a missing, damaged or foreign file, `apply()` matching real
   keyboard and mouse device ids, F3, Enter and the wheel refused),
   `tests/unit/client/ui/key_label_test.gd` (the deck's words in English and Ukrainian; these suites set the locale,
   as the machine's language is the test run's), `controls_panel_test.gd` (the capture binds, ignores releases and
-  echoes, cancels on Esc and on a click on another button, lets the wheel through, marks a clash, resets),
-  `life_hud_test.gd` (every prompt names the bound key),
+  echoes, cancels on Esc and on a click on another button, lets the wheel through, marks a clash, resets, follows a
+  language switch after it was built), `life_hud_test.gd` (every prompt names the bound key; the give-up line is
+  English in Ukrainian too; the mouse keys' defaults are the deck's words),
   `input_actions_test.gd` (`give_up` is F); `tests/integration/client/app/esc_menu_input_test.gd` (through real key
   events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, a click on another
   row's key cancels the capture and starts that row's, K then toggles Ready
