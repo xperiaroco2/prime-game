@@ -100,7 +100,8 @@ class AgentTypeTest(unittest.TestCase):
         with redirect_stdout(buf):
             self.assertEqual(metrics.runs_main(["wf_general"], checkout=CHECKOUT, base=base, now=1_000_600.0), 0)
         lines = buf.getvalue().splitlines()
-        self.assertEqual(len(lines), 3, lines)
+        self.assertEqual(len(lines), 4, lines)
+        self.assertTrue(lines[3].startswith("context per API call avg/peak (#584"), lines[3])
         self.assertTrue(lines[2].startswith("by phase: P "), lines[2])
         self.assertTrue(lines[2].endswith("; agent types: workflow-subagent 1 ($0.27), code-reviewer 1 ($0.14), task-publisher 1 ($0.14)"), lines[2])
 

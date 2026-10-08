@@ -216,7 +216,7 @@ class IdleReportTest(unittest.TestCase):
         with redirect_stdout(buf):
             metrics.runs_main(["wf_idle"], checkout=CHECKOUT, base=self.root, now=0.0)
         lines = buf.getvalue().splitlines()
-        self.assertEqual(len(lines), 4)
+        self.assertEqual(len(lines), 5, "and the context line of #584 last")
         self.assertTrue(lines[3].startswith("9 API calls after an idle gap of 5 min or more (8 wrote most"))
         self.assertTrue(lines[3].endswith("; most: implement:#9 9 ($4.00)"), lines[3])
 
