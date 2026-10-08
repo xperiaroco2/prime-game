@@ -1676,26 +1676,27 @@ minimum Python (`pins --get python_min`, 3.11), checks it runs that version, com
 public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
 session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
 merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
-first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python
-lane (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner
-tests that start no Godot, each test in one of the worker processes: half the logical CPUs on a machine with at least
-8, so 8 on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most
-of them), else a quarter and at least one, 1 on CI), the Godot lane (`check`,
-`test`, then the network runs: `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
-WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`,
-`bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot lane
-(`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
-starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process
-every step that ended, one name per line on its stdin): `selftest-godot` after `check`, so that a fresh checkout
-has imported the project and no two imports run at once, and `enet` after `selftest-godot`, so that no other Godot
-run overlaps a network run and the network runs never overlap each other. Until #556 `selftest-godot` ran in the
-Godot lane between `check` and `test`; that lane was the critical path in all 68 full runs on the PC from 10-06 to
-10-08 (median 507 s, p90 654 s; the Python lane 336 s and 509 s; CI alike: 490 s against 264 s). Measured over 10
-full runs after #556 (2026-10-08, one or two runs at once) against the 101 full runs since 10-06 before it: `verify`
-455 s median (p90 486 s) against 530 s (660 s), the Godot lane 452 s against 527 s, the Python lane 212 s against
-336 s, `selftest` 144 s against 265 s, and `test` beside the new lane 123 s against 130 s. Every step runs and any
-red step fails it; each step's
-output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After the lanes: the
+first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python lane
+(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner tests
+that start no Godot, each test in one of the worker processes: half the logical CPUs on a machine with at least 8, so 8
+on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most of them),
+else a quarter and at least one, 1 on CI), the Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and
+`stall` (the headless ENet runs of `net/`, below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
+`webrtc-silence`, `bots`, `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot
+lane (`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
+starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process every
+step that ended, one name per line on its stdin): `selftest-godot` after `check`, so that a fresh checkout has imported
+the project and no two imports run at once, and `enet` after `selftest-godot`, so that no other Godot run overlaps a
+network run and the network runs never overlap each other. Until #556 `selftest-godot` ran in the Godot lane between
+`check` and `test`; that lane was the critical path in every run measured (the 101 full runs on the PC from 10-06 to
+10-08: the Godot lane median 527 s, the Python lane 336 s; CI alike: 490 s against 264 s). Measured over 10 full runs
+after #556 (2026-10-08, one or two runs at once) against those 101 before it (read from the verify logs of the sessions,
+since `verify-history.jsonl` survives only in the live worktrees): `verify` 455 s median (p90 486 s) against 530 s (660
+s), the Godot lane 452 s against 527 s, the Python lane 212 s against 336 s, `selftest` 144 s against 265 s, and `test`
+beside the new lane 123 s against 130 s. If `test` turns flaky under the extra load (see its red rate in `metrics`),
+`AFTER["selftest-godot"] = ("check", "test")` puts the lane after `test` again. Every step runs and any red step fails
+it; each step's output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`).
+After the lanes: the
 clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
 it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
 `selftest --group python|godot` runs one group without it). The
@@ -1703,21 +1704,23 @@ summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `en
 `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
 `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
 test count.
-**`verify --fail-fast` (#556):** the first red step stops every lane (their processes and children are killed): the
-steps that had not ended are `not run` in the summary (no output block) and the record, a `stopped early
-(--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step> (--fail-fast)`, the
-count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is {`at`,
-`not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
+**`verify --fail-fast` (#556):** the first red step stops every lane (their processes and children are killed on
+Windows; on Linux and macOS a Godot or node child started by the lane survives the kill, as it already does on Ctrl+C
+and a lane timeout): the steps that had not ended are `not run` in the summary (no output block) and the record, a
+`stopped early (--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step>
+(--fail-fast)`, the count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is
+{`at`, `not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
 stopped run's total as no verify length. Use it in an implementer's inner loop, where a red step means another fix
-anyway: a planted `lint` error returned in 60 s and a planted type error (red `check`) in 31 s, against 455 s
-for a whole run. Never for the run that gates:
-the green verify that the definition of done pastes, `publish` (which runs `verify` itself, without the flag),
-`merge` and CI run every step, since one run must show every red step at once; a run stopped early is red, so
-`wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py` (`AfterTest`, `FailFastTest`).
+anyway: a planted `lint` error returned in 60 s and a planted type error (red `check`) in 31 s, against 455 s for a
+whole run. Never for the run that gates: the green verify that the definition of done pastes, `publish` (which runs
+`verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
+stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
+(`AfterTest`, `FailFastTest`).
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
 at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
-`selftest` (run, skipped; empty after a stop), `slot` (below; null without one) and `stopped` (above). Since #273 a red step adds `failure`, its first `FAIL`
+`selftest` (run, skipped; empty after a stop), `slot` (below; null without one) and `stopped` (above). Since #273 a
+red step adds `failure`, its first `FAIL`
 line with the reason under it when a step that runs the game (`check`, `enet` to `game`) printed one (the first engine
 error line, or the first line under a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a
 placement", #284); the `test` step adds `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results:
