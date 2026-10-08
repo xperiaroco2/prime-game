@@ -1497,7 +1497,8 @@ sections named:
    a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
    item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
    field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
-   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold, read after the last call in the round or End: End's
+   return to the lobby 3 s later, which a slow network run outlasts, resets every role, #212);
 2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
    (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
 3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
