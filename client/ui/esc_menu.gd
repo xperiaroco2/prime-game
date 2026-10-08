@@ -21,7 +21,7 @@ const TAB_NAMES: Dictionary[EscMenuState.Tab, String] = {
 const RESUME_TEXT := "Back to the game: Esc or Resume."
 const HOST_WARNING := "You host this session: leaving ends it for every player."
 ## The pages' room on the right (layout, not style): the Lobby tab scrolls inside it.
-const PAGE_SIZE := Vector2(460, 440)
+const PAGE_SIZE := Vector2(767, 733)
 
 var state := EscMenuState.new()
 var lobby := LobbyPanel.new()

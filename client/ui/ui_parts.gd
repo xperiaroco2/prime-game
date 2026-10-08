@@ -48,7 +48,7 @@ static func backdrop(parent: Control, variation: StringName) -> Panel:
 static func button(text: String, pressed: Callable) -> Button:
 	var made := Button.new()
 	made.text = text
-	made.custom_minimum_size = Vector2(110, 0)
+	made.custom_minimum_size = Vector2(183, 0)
 	made.pressed.connect(pressed)
 	return made
 
@@ -58,7 +58,7 @@ static func labelled(text: String, control: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	var label := Label.new()
 	label.text = text
-	label.custom_minimum_size = Vector2(150, 0)
+	label.custom_minimum_size = Vector2(250, 0)
 	row.add_child(label)
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(control)

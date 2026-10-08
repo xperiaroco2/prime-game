@@ -25,7 +25,7 @@ func _init() -> void:
 	var column := UiParts.centered_column(self, "PrimeGame")
 	column.add_child(UiParts.heading("Join with a code"))
 	code_edit.placeholder_text = "the code the host gave you"
-	code_edit.custom_minimum_size = Vector2(280, 0)
+	code_edit.custom_minimum_size = Vector2(467, 0)
 	code_edit.text_submitted.connect(func(_text: String) -> void: _join_code())
 	var code_row := UiParts.labelled("Code", code_edit)
 	code_row.add_child(UiParts.button("Join", _join_code))
@@ -34,7 +34,7 @@ func _init() -> void:
 	column.add_child(UiParts.heading("Direct (LAN or VPN)"))
 	address_edit.text = DEFAULT_ADDRESS
 	address_edit.placeholder_text = "the host's address or name"
-	address_edit.custom_minimum_size = Vector2(280, 0)
+	address_edit.custom_minimum_size = Vector2(467, 0)
 	column.add_child(UiParts.labelled("Address", address_edit))
 	port_box.min_value = 1
 	port_box.max_value = 65535
@@ -51,7 +51,7 @@ func _init() -> void:
 	column.add_child(buttons)
 	column.add_child(UiParts.button("Quit", func() -> void: quit_requested.emit()))
 	reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	reason_label.custom_minimum_size = Vector2(420, 0)
+	reason_label.custom_minimum_size = Vector2(700, 0)
 	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(reason_label)
 
