@@ -102,7 +102,7 @@ class AgentTypeTest(unittest.TestCase):
         lines = buf.getvalue().splitlines()
         self.assertEqual(len(lines), 3, lines)
         self.assertTrue(lines[2].startswith("by phase: P "), lines[2])
-        self.assertTrue(lines[2].endswith("; agent types: workflow-subagent 1, code-reviewer 1, task-publisher 1"), lines[2])
+        self.assertTrue(lines[2].endswith("; agent types: workflow-subagent 1 ($0.27), code-reviewer 1 ($0.14), task-publisher 1 ($0.14)"), lines[2])
 
 
 if __name__ == "__main__":

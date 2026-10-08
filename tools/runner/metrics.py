@@ -3491,15 +3491,17 @@ def run_spend(run_dir: Path, now: float) -> dict:
     calls = 0
     idle: list[dict] = []
     types: Counter = Counter()
+    type_usd: Counter = Counter()
     for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
         path = run_dir / f"agent-{aid}.jsonl"
         if path.is_file():
             agent_type = read_meta(path).get("agentType")
+            s, r, c, _w = spend_of(path, None, float("inf"), seen)
             if agent_type:
                 types[str(agent_type)] += 1
-            s, r, c, _w = spend_of(path, None, float("inf"), seen)
+                type_usd[str(agent_type)] += s
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
             data = read_agent(path)
@@ -3523,6 +3525,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "api_calls": calls,
         "phases": phases,
         "types": dict(types),
+        "type_usd": dict(type_usd),
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
         "idle": idle_record(idle),
     }
@@ -3549,7 +3552,8 @@ def run_lines(r: dict) -> list[str]:
              f"in {r['api_calls']} API calls",
              f"by phase: {phases}"]  # fmt: skip
     if r.get("types"):  # #557: a general-type implementer or publisher shows here
-        lines[-1] += "; agent types: " + ", ".join(f"{t} {n}" for t, n in r["types"].items())
+        usd = r.get("type_usd", {})
+        lines[-1] += "; agent types: " + ", ".join(f"{t} {n} ({fmt_usd(usd.get(t, 0.0))})" for t, n in r["types"].items())
     totals = r["idle"]["totals"]
     if totals["rewrites"]:  # a fourth line only when an agent re-wrote its cache after an idle gap (#558)
         top = sorted((a for a in r["idle"]["agents"] if a["rewrites"]), key=lambda a: -a["usd"])[:IDLE_RUN_NAMES]
