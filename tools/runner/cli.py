@@ -510,8 +510,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "metrics",
         help="time, tokens and API list $ of the task workflows, from this checkout's transcripts",
-        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts. --track: each "
-        "track's share of the week against its --budget.",
+        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts, with a table "
+        "of the subagents' cache re-writes after an idle gap of 5 min or more per run and per agent (by what preceded "
+        "the gap: wait, verify/publish/mutants, a shell sleep, other shell, Monitor, Read or another tool, an API "
+        "wait; #558). --track: each track's share of the week against its --budget, and without --compact its "
+        "re-write table. --run: a run's spend so far, and a line of its re-writes when it has one.",
     )
     p.add_argument(
         "--session",
@@ -527,7 +530,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--ci", type=int, default=0, metavar="N", help="also CI from gh: the jobs and steps of the last N green runs"
     )
     p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
-    p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
+    p.add_argument(
+        "--compact",
+        action="store_true",
+        help="print only the summary of at most ten lines (wave comments); its total line ends with the re-write "
+        "table's count and $",
+    )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
         "--track",
