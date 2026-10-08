@@ -27,7 +27,7 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
                             every other window the first wait after its first `press ready`, waits
                             BOTS_START_SECONDS longer, for their process to start
 Then a section per window, `window <n>`, and its steps, run in order:
-    wait phase <id>                      its model's phase (lobby, countdown, loading, round, end)
+    wait phase <id>                      its model's phase (lobby, countdown, loading, pregame, round, end)
     wait screen <screen>                 the screen it shows (SCREENS)
     wait life [<player>] <life>          its own, or that player's, life as its model knows it (LIVES)
     wait ready [<player>] on|off         a roster member's ready flag (its own without a player)
@@ -124,13 +124,14 @@ INT_RE = re.compile(r"-?[0-9]+")
 FLOAT_RE = re.compile(r"-?[0-9]+\.[0-9]+")
 LIVES = ("alive", "downed", "dead", "left")
 # GameFlow.Screen in client/app/game_flow.gd, lower case.
-SCREENS = ("menu", "connecting", "lobby", "loading", "round", "end")
+SCREENS = ("menu", "connecting", "lobby", "loading", "pregame", "round", "end")
 # The event fields that name a player (ScenarioPlay.PLAYER_FIELDS): the scenario writes the player's number.
 PLAYER_FIELDS = ("peer", "raiser", "target")
 ACTIONS = ("press", "hold", "release")
 # What `wait text` and `wait shown` read, the keys of playcheck_window.gd's GameView: the round's Hud labels, the
-# LifePanel (title_label, lines_label, bar_label: its bar's visibility), the LobbyHud, the EndScreen, the visible Esc
-# tabs' texts joined with ", ", and the kind of the item in the FirstPersonHand under the current camera.
+# LifePanel (title_label, lines_label, bar_label: its bar's visibility), the LobbyHud, the PregameScreen's role, the
+# EndScreen, the visible Esc tabs' texts joined with ", ", and the kind of the item in the FirstPersonHand under the
+# current camera.
 FIELDS = (
     "hud.role",
     "hud.teammates",
@@ -150,6 +151,7 @@ FIELDS = (
     "lobby.hint",
     "lobby.roster",
     "lobby.countdown",
+    "pregame.role",
     "end.winner",
     "end.countdown",
     "esc.tabs",
