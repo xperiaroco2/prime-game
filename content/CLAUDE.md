@@ -14,9 +14,9 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   what its refusal reveals; a part is usable once its entry names the PR that built it. Use only those.
 - Where the data lives (§9.6): `modes/`, `roles/`, `items/`, `tasks/`, `win_conditions/`, and `scenarios/` for
   bot scenarios (§9.7). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
-  content ADR, each PR approved by the engineer, and #38 reviews it before v1.
+  content ADR, each PR approved by the engineer and marked provisional.
 
-## Never edit engine code
+## The designer's agent never edits engine code
 - The designer's agent edits only the content area (`content/`, `levels/`, `docs/GDD.md`, `docs/design/`, the
   skills `new-mechanic` and `new-level-piece`) and the shared logs (a new file in `docs/interventions/`,
   `docs/credits/` or `docs/decisions/`). Everything else is engine code or shared tooling: `core/ server/ net/

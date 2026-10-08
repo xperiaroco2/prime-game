@@ -31,7 +31,7 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
-## Never edit engine code
+## The designer's agent never edits engine code
 - Interactables and task stations come from the engine. If a level needs one that does not exist, open an
   `engine-request` issue with a precise spec (see `content/CLAUDE.md` for what the spec says) and continue with the
   rest of the level.
