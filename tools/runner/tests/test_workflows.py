@@ -22,11 +22,12 @@ unbounded/ too: #413's and #456's lines of the shared rules, and #339's section 
 critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading
 list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
 too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
-summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay
-phrase nor tag); they landed between waves, when no run could
-resume. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the launched snapshots, between
-waves too. #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not
-the return): #386 made it compact and changed only that part of every snapshot.
+summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay phrase
+nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
+the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
+launched snapshots, between waves too. #469's plan phase (the plan's comment, its short form and file map) changed only
+`plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume
+replays agents, not the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib
@@ -435,6 +436,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("the content/ and levels/ files as provisional under the MVP content ADR", publish[0])
         self.assertIn('the "Approved by the engineer: <link>" line that lets the gate merge it is the manager\'s',
                       publish[0])  # fmt: skip
+        self.assertIn(".claude/skills/new-mechanic/ and .claude/skills/new-level-piece/", publish[0])
         self.assertNotIn("relayed by the engineer", publish[0])
         self.assertNotIn("@SwiftySinister", publish[0])
 

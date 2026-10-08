@@ -154,4 +154,6 @@ link>" line, the same line an ADR change needs; the designer's approving review 
 it. The publisher lists the `content/` and `levels/` files as provisional (the [MVP content
 ADR](2026-09-29-mvp-content-built-by-the-engineer.md)) with no tag, and the manager adds the line only for the
 engineer's approval recorded on GitHub, as for an ADR. The ADR and the permission and safety exceptions are unchanged.
+The stripped HTML hint of the PR template (see the gate's bullet on the exceptions above) now carries the approval line's
+placeholder, not the relay phrase.
 Built in `tools/runner/merge.py` (`CONTENT_PREFIXES`, `CONTENT_FILES`, `exception_reasons`) and `inbox.py`.

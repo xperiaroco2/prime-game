@@ -14,7 +14,7 @@ Closes #
 
 ## Cross-area
 <!-- If this touches the other owner's paths (.github/CODEOWNERS), request them as reviewer and say why.
-     A change in the content area (content/ levels/ docs/GDD.md docs/design/): say on whose word it was made (the
-     engineer's, with its link); content/ and levels/ files are provisional for his approval (docs/AGENT_WORKFLOW.md
+     A change in the content area (content/ levels/ docs/GDD.md docs/design/, the skills new-mechanic and
+     new-level-piece): say on whose word it was made (the engineer's, with its link); content/ and levels/ files are provisional for his approval (docs/AGENT_WORKFLOW.md
      section 9). Into main, the gate merges it once the body has "Approved by the engineer: <GitHub link>", added
      when that approval is recorded on GitHub. -->
