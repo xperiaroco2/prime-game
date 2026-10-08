@@ -559,8 +559,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="NAME",
         help="each track's %% of the week since --since (the reset), over the main checkout's, -ui's and -art's "
-        "sessions; a session's track: --session ID=TRACK, else its kickoff's 'Track: <name>' line, else its checkout's "
-        "(-ui: ui, -art: art), else untracked; 'all' names every track found",
+        "sessions (the -ui and -art checkouts by their transcript folders' names, in any folder; the last line names "
+        "the checkouts read, or one not on this machine); a session's track: --session ID=TRACK, else its kickoff's "
+        "'Track: <name>' line, else its checkout's (-ui: ui, -art: art), else untracked; 'all' names every track found",
     )
     p.add_argument(
         "--budget",
@@ -579,7 +580,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="ID",
         help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
-        "who works now, its %% of the week and its list $ by phase, over the three track checkouts (the check after a large "
+        "who works now, its %% of the week and its list $ by phase, over the three track checkouts found on this machine "
+        "(the check after a large "
         "launch's first phase, docs/MANAGERS.md §9)",
     )
 

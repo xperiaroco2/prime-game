@@ -135,16 +135,18 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   that spans several waves sums them (`--since <wave start>` for one).
 
 A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
-with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout and its -ui
-and -art siblings, each with its worktrees), whether or not it ran a workflow: its own transcript, its hand-run
-subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in flight or one
-that began before the reset counts in part), each message id once across every file. A session's track is, the first
-that holds: its --session ID=TRACK label (under --track --session labels and never filters), a `Track: <name>` line in
-its first user message (the kickoff, the key also `Трек:`, the name in English; isMeta lines and tool results are
-none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the engineer's reserve). Per named track it prints
-the % of the week (week_percent, with the bracket), and with `--budget PCT ...` (one per name, in order) the budget and
-the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
-counter, with the untracked share and its largest sessions (a kickoff's Track: line left out or translated). It writes
+with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui
+and -art checkouts wherever they sit on this machine, each with its worktrees: track_checkouts), whether or not it ran a
+workflow: its own transcript, its hand-run subagents and its workflow runs' agents, each API call counted by its time in
+[--since, --until) (a run in flight or one that began before the reset counts in part), each message id once across
+every file. A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
+never filters), a `Track: <name>` line in its first user message (the kickoff, the key also `Трек:`, the name in
+English; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the
+engineer's reserve). Per named track it prints the % of the week (week_percent, with the bracket), and with `--budget
+PCT ...` (one per name, in order) the budget and the plan to date (budget x days since --since / 7, at most the budget);
+then every session's total for the weekly counter, with the untracked share and its largest sessions (a kickoff's Track:
+line left out or translated), and the checkouts read: a -ui or -art checkout with no transcript folder here is `not on
+this machine`, its track's line too when no session here has that track (its spend is unknown, never 0). It writes
 tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 
 Code reads per agent role (#468, its before and after numbers). A code read is a read of a repository file that is
@@ -187,7 +189,8 @@ UI and art managers' runs too) and prints, finished or in flight and with no win
 once) and answered, those working now (a started key with no result), the newest write to its journal or agent
 transcripts, its API list $ and % of the week (week_percent, every call of its agents, each message id once; an agent
 the journal does not list counts by its .meta.json) and its list $ by phase; with several runs, their total. It writes
-no file.
+no file. An ID that names no run fails with the checkouts read (track_checkouts: each one's folders, or not on this
+machine).
 
 The code reviewer's A/B (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md): per run with a control code
 reviewer (`issue-task`'s ab_review), the trial's and the control's model (from their transcripts), their findings, and
@@ -493,9 +496,11 @@ HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
 # `metrics --track` (#409, P1 of the design docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md): the
 # checkouts whose transcript folders it reads, each with its worktrees, as suffixes of the main checkout's folder name
-# (D:\prime-game, D:\prime-game-ui, D:\prime-game-art), each with the track of a session there that neither a --session
-# label nor a kickoff's Track: line names (None: untracked).
+# (prime-game, prime-game-ui, prime-game-art: the -ui and -art checkouts in any folder, #586), each with the track of a
+# session there that neither a --session label nor a kickoff's Track: line names (None: untracked).
 TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
+# A transcript folder of a session started in a worktree: <the checkout's key>--claude-worktrees-<name>.
+WORKTREE_KEY = "--claude-worktrees-"
 # A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
 # any case. The humans translate kickoffs, so the Ukrainian key `Трек:` counts too, but the name stays English (game,
 # ui, art, meta): an unfilled placeholder `<game | ...>` or a translated name names no track.
@@ -3763,14 +3768,45 @@ def compact_lines(
 # --- tracks (#409) ------------------------------------------------------------------------------------------------
 
 
-def track_dirs(main: Path, base: Path | None = None) -> list[tuple[Path, str | None]]:
-    """Each TRACK_CHECKOUTS checkout's transcript folders (its worktrees' included) with the checkout's default track.
-    `base`: the config folder (default agents_check.config_dir())."""
-    found: list[tuple[Path, str | None]] = []
+def track_checkouts(main: Path, base: Path | None = None) -> list[dict]:
+    """Each TRACK_CHECKOUTS checkout with its transcript folders on this machine (its worktrees' included; none: the
+    checkout is not on this machine) and its default track. The main checkout's by its path; the -ui and -art ones
+    (#586) also by their folder name wherever they sit (C:\\prime-game with D:\\prime-game-ui): each folder under
+    projects/ whose checkout key (its name before WORKTREE_KEY) ends with `-` and the checkout's name encoded
+    (D--prime-game-ui, E--games-prime-game-ui). The encoding is lossy: a checkout in a folder named my-prime-game-ui
+    counts too. `base`: the config folder (default agents_check.config_dir())."""
+    projects = (base or agents_check.config_dir()) / "projects"
+    every = sorted(p for p in projects.iterdir() if p.is_dir()) if projects.is_dir() else []
+    found: list[dict] = []
     for suffix, default in TRACK_CHECKOUTS:
-        checkout = main.with_name(main.name + suffix)
-        found += [(d, default) for d in agents_check.project_dirs(checkout, base)]
+        name = main.name + suffix
+        folders = agents_check.project_dirs(main.with_name(name), base)
+        if suffix:
+            tail = "-" + project_key(Path(name)).lower()
+            folders += [p for p in every if p not in folders and p.name.split(WORKTREE_KEY)[0].lower().endswith(tail)]
+        found.append({"checkout": name, "track": default, "folders": sorted(folders)})
     return found
+
+
+def track_dirs(main: Path, base: Path | None = None) -> list[tuple[Path, str | None]]:
+    """Each TRACK_CHECKOUTS checkout's transcript folders (track_checkouts) with the checkout's default track."""
+    return [(d, c["track"]) for c in track_checkouts(main, base) for d in c["folders"]]
+
+
+def checkouts_line(checkouts: list[dict]) -> str:
+    """Which checkouts' transcripts were read (#586): each one's folder keys and its worktree folders' count, or `not
+    on this machine` (its spend is unknown here, never 0)."""
+    parts = []
+    for c in checkouts:
+        label = c["track"] or "main"
+        if not c["folders"]:  # the main checkout is this one: without a folder it only has had no session yet
+            gone = "no transcripts yet" if c["track"] is None else "not on this machine, its spend unknown here"
+            parts.append(f"{label} ({c['checkout']}) {gone}")
+            continue
+        keys = list(dict.fromkeys(d.name.split(WORKTREE_KEY)[0] for d in c["folders"]))
+        n = sum(WORKTREE_KEY in d.name for d in c["folders"])
+        parts.append(f"{label} {' '.join(keys)}" + (f" with {n} worktree{'s' if n != 1 else ''}" if n else ""))
+    return "checkouts read: " + "; ".join(parts)
 
 
 def kickoff_track(transcript: Path) -> str | None:
@@ -3900,32 +3936,50 @@ def track_order(names: list[str]) -> list[str]:
     )
 
 
-def track_lines(spend: dict, names: list[str], budgets: list[float], since: float, until: float) -> list[str]:
+def track_lines(
+    spend: dict, names: list[str], budgets: list[float], since: float, until: float, checkouts: list[dict] | None = None
+) -> list[str]:
     """The budget lines: the window, one line per track (its % of the week with the bracket, its budget and the plan to
-    date when a budget is given: budget x days since --since / 7, at most the budget), and every session's total, which
-    the manager holds against the weekly counter (get_usage); the counter also counts the account's sessions outside
-    TRACK_CHECKOUTS (other project folders, replays), so the two differ by more than the conversion's error."""
+    date when a budget is given: budget x days since --since / 7, at most the budget), every session's total, which
+    the manager holds against the weekly counter (get_usage), and the checkouts read (#586, with `checkouts`); the
+    counter also counts the account's sessions outside TRACK_CHECKOUTS (other project folders, replays, another
+    machine), so the two differ by more than the conversion's error. The default track of a checkout not on this
+    machine (track_checkouts: no folder) is `not on this machine` when no session here has it, never 0%; `all` lists
+    it too."""
     days = (until - since) / 86400
     tracks = spend["tracks"]
+    checkouts = checkouts if checkouts is not None else []
+    absent = {c["track"]: c["checkout"] for c in checkouts if c["track"] and not c["folders"]}
     if names == ["all"]:
-        names = track_order(list(tracks))
+        names = track_order(list(tracks) + [t for t in absent if t not in tracks])
     lines = [f"tracks, {iso(since)} to {iso(until)} ({days:.1f} days of the week's 7), % of a Max 20x week at the "
              f"central weight (the bracket in brackets)"]  # fmt: skip
     empty = {"usd": 0.0, "sessions": 0, **week_percent(0.0, 0.0)}
     for i, name in enumerate(names):
-        t = tracks.get(name, empty)
         budget = budgets[i] if budgets else None
+        if name in absent and name not in tracks:
+            budget_text = f"; its budget {budget:g}%" if budget is not None else ""
+            lines.append(f"{name}: not on this machine (no transcripts of a {absent[name]} checkout here: its spend "
+                         f"is unknown, not 0){budget_text}")  # fmt: skip
+            continue
+        t = tracks.get(name, empty)
         of = f" of {budget:g}%" if budget is not None else ""
         line = f"{name}: {fmt_week(t)}{of} this week"
         if budget is not None:
             line += f"; plan to date {budget * min(days, 7) / 7:.1f}%"
         n = t["sessions"]
-        lines.append(f"{line}; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}")
+        line += f"; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}"
+        if name in absent:  # sessions of other checkouts with its Track: line: the checkout's own are not here
+            line += f" (the {absent[name]} checkout is not on this machine: its sessions are not counted)"
+        lines.append(line)
     every = week_percent(sum(t["usd"] for t in tracks.values()), sum(t["read_usd"] for t in tracks.values()))
     left = tracks.get(UNTRACKED, empty)
-    lines.append(f"every session of the {len(TRACK_CHECKOUTS)} checkouts: {fmt_week(every)} (untracked "
+    read = len(TRACK_CHECKOUTS) - len([c for c in checkouts if not c["folders"]])
+    lines.append(f"every session of the {read} checkout{'s' if read != 1 else ''} read: {fmt_week(every)} (untracked "
                  f"{left['percent']:.1f}%{untracked_named(spend)}), against the weekly counter (get_usage), which "
                  f"also counts the account's sessions elsewhere")  # fmt: skip
+    if checkouts:
+        lines.append(checkouts_line(checkouts))
     return lines
 
 
@@ -4099,14 +4153,16 @@ def run_lines(r: dict) -> list[str]:
 def runs_main(ids: list[str], *, checkout: Path | None = None, base: Path | None = None,
               now: float | None = None) -> int:  # fmt: skip
     """`metrics --run ID ...`: each named workflow run's spend so far, in flight or finished (#534: the manager's
-    check after a large launch's first phase), from the transcripts of the three track checkouts and their
-    worktrees."""
-    dirs = [d for d, _default in track_dirs(checkout or main_checkout(), base)]
+    check after a large launch's first phase), from the transcripts of the three track checkouts found on this
+    machine (track_checkouts) and their worktrees. Each run's first line names its folder; a run found nowhere fails
+    with the checkouts read, one not on this machine named so (#586)."""
+    checkouts = track_checkouts(checkout or main_checkout(), base)
+    dirs = [d for c in checkouts for d in c["folders"]]
     found = find_runs(dirs, ids)
     if not found:
         raise Failure(f"metrics: no workflow run named {' '.join(ids)} in the {len(dirs)} transcript folders of the "
-                      f"three track checkouts and their worktrees (a run id from the Workflow tool's result or `wave`, "
-                      f"such as wf_45e2297a-4a6, or its start)")  # fmt: skip
+                      f"track checkouts and their worktrees ({checkouts_line(checkouts)}; a run id from the Workflow "
+                      f"tool's result or `wave`, such as wf_45e2297a-4a6, or its start)")  # fmt: skip
     moment = time.time() if now is None else now
     runs = [run_spend(d, moment) for d in found]
     lines: list[str] = []
@@ -4140,13 +4196,15 @@ def tracks_main(
                       f"budgets")  # fmt: skip
     if any(b < 0 for b in budgets):
         raise Failure("--budget is a % of the week, 0 or more")
-    dirs = track_dirs(checkout or main_checkout(), base)
+    checkouts = track_checkouts(checkout or main_checkout(), base)
+    dirs = [(d, c["track"]) for c in checkouts for d in c["folders"]]
     spend = track_spend(dirs, session_filter(labels), t_since, t_until)
-    lines = track_lines(spend, names, budgets, t_since, t_until)
+    lines = track_lines(spend, names, budgets, t_since, t_until, checkouts)
     idle = {} if compact else track_idle(dirs, spend, names, t_since, t_until)  # the tables print without --compact
     folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],
+              "checkouts": [{**c, "folders": [str(d) for d in c["folders"]]} for c in checkouts],
               "budgets": dict(zip(names, budgets)), "lines": lines, **spend, "idle": idle}  # fmt: skip
     with io.open(folder / "tracks.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)

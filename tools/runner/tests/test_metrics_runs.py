@@ -1,7 +1,8 @@
 """`metrics --run ID ...` (#534): one workflow run's spend so far, in flight or finished, for the manager's check after
 a large launch's first phase (docs/MANAGERS.md §9), over small synthetic transcripts written here (never real ones) in
-the three track checkouts' folders: the agents and who works now, a retried agent, a journal cut short, the dedup by
-message id, the % of the week by phase, the prefix match and the command line."""
+the three track checkouts' folders (one not on this machine): the agents and who works now, a retried agent, a journal
+cut short, the dedup by message id, the % of the week by phase, the prefix match, the checkouts a failure names and the
+command line."""
 
 import io
 import json
@@ -19,6 +20,9 @@ CHECKOUT = Path("D:/prime-game")
 ONE = usage(inp=5_750_000)  # $23.00 of input on Opus 5.5: 1% of the week, no cache reads
 WRITTEN = 1_000_000.0  # every fixture file's mtime
 NOW = WRITTEN + 600  # ten minutes later
+# The checkouts read, named when no run matches (#586): the fixture has no -ui checkout's folder.
+READ = ("checkouts read: main D--prime-game; ui (prime-game-ui) not on this machine, its spend unknown here; art "
+        "D--prime-game-art")  # fmt: skip
 
 
 def journal(folder: Path, lines: list[dict]) -> None:
@@ -128,6 +132,7 @@ class RunsTest(unittest.TestCase):
         with self.assertRaises(Failure) as caught:
             metrics.runs_main(["wf_nosuch"], checkout=CHECKOUT, base=self.root, now=NOW)
         self.assertIn("no workflow run named wf_nosuch", str(caught.exception))
+        self.assertIn(READ, str(caught.exception))
         for extra in ({"since": "2026-10-06T10:00:00Z"}, {"track": ["game"]}, {"compact": True}, {"sessions": ["x"]},
                       {"out": "x"}):
             with self.subTest(extra), self.assertRaises(Failure) as caught:
