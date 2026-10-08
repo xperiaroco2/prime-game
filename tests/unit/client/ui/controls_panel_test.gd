@@ -155,6 +155,23 @@ func test_a_key_of_a_fixed_action_ends_the_capture_and_binds_nothing() -> void:
 	assert_int(_changes).is_equal(0)
 
 
+func test_the_words_follow_a_language_switch_after_the_panel_was_built() -> void:
+	# GameUi builds the panel before Game applies the player's language (Languages.apply), and
+	# Languages.choose() switches it live: the words follow NOTIFICATION_TRANSLATION_CHANGED.
+	TranslationServer.set_locale("uk")
+	var panel := auto_free(ControlsPanel.new()) as ControlsPanel
+	panel.setup(Controls.new(PATH))
+	add_child(panel)
+	assert_str(panel.reset_button.text).is_equal("Скинути до стандартних")
+	assert_str(panel.name_labels[&"give_up"].text).is_equal("Здатися")
+	assert_str(panel.key_buttons[&"jump"].text).is_equal("Пробіл")
+	TranslationServer.set_locale("en")
+	assert_str(panel.reset_button.text).is_equal("Reset to defaults")
+	assert_str(panel.name_labels[&"give_up"].text).is_equal("Give up")
+	assert_str(panel.clash_labels[&"give_up"].text).is_equal("Same key")
+	assert_str(panel.key_buttons[&"jump"].text).is_equal("Space")
+
+
 func _laid_out() -> void:
 	_panel.size = Vector2(1200, 1000)
 	add_child(_panel)

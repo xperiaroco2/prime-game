@@ -33,6 +33,9 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 
 func _ready() -> void:
 	var mode := load(MODE) as GameMode
+	# English on every machine, as a Game with no command line (Languages.apply): the words built
+	# in code (the Controls tab's, #211) follow the language, so a shot would follow the PC's.
+	TranslationServer.set_locale(Languages.ENGLISH)
 	var ui := GameUi.new()
 	add_child(ui)
 	ui.esc.lobby.set_mode(mode)

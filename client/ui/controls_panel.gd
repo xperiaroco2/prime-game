@@ -26,6 +26,8 @@ const KEY_WIDTH := 200.0
 
 ## The controls this panel changes; in memory until the game gives it the player's.
 var controls := Controls.new()
+## The name of each action's row.
+var name_labels: Dictionary[StringName, Label] = {}
 ## The key button of each action.
 var key_buttons: Dictionary[StringName, Button] = {}
 ## The "Same key" mark of each action.
@@ -45,20 +47,31 @@ func _init() -> void:
 		key.custom_minimum_size = Vector2(KEY_WIDTH, 0)
 		key.pressed.connect(start_capture.bind(action))
 		key_buttons[action] = key
-		var clash := UiParts.styled_label(word(&"settings.controls.same_key"), &"Shortfalls")
+		var clash := UiParts.styled_label("", &"Shortfalls")
 		clash_labels[action] = clash
 		var row := HBoxContainer.new()
 		var label := Label.new()
-		label.text = Controls.name_of(action)
 		label.custom_minimum_size = Vector2(NAME_WIDTH, 0)
+		name_labels[action] = label
 		row.add_child(label)
 		row.add_child(key)
 		row.add_child(clash)
 		add_child(row)
-	var reset_raised := UiParts.button(word(&"settings.controls.reset"), reset)
+	var reset_raised := UiParts.button("", reset)
 	reset_raised.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	add_child(reset_raised)
 	reset_button = reset_raised.face as Button
+	retext()
+
+
+## Writes every word in the current language (the copy deck's translation, #208): the row names,
+## "Same key", Reset and the key labels. Built before Game applies the player's language, the panel
+## writes them again on NOTIFICATION_TRANSLATION_CHANGED (§4.7.26).
+func retext() -> void:
+	for action: StringName in name_labels:
+		name_labels[action].text = Controls.name_of(action)
+		clash_labels[action].text = KeyLabel.word(&"settings.controls.same_key")
+	reset_button.text = KeyLabel.word(&"settings.controls.reset")
 	refresh()
 
 
@@ -123,13 +136,8 @@ func refresh() -> void:
 		var on := action == capturing
 		key.toggle_mode = on
 		key.set_pressed_no_signal(on)
-		key.text = word(&"settings.controls.press_key") if on else _label(action)
+		key.text = KeyLabel.word(&"settings.controls.press_key") if on else _label(action)
 		clash_labels[action].visible = not controls.clashes_of(action).is_empty()
-
-
-## A deck key's text in the current language (the copy deck's translation, #208).
-static func word(deck_key: StringName) -> String:
-	return String(TranslationServer.translate(deck_key))
 
 
 func _input(event: InputEvent) -> void:
@@ -143,7 +151,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree() and is_capturing():
+	if what == NOTIFICATION_TRANSLATION_CHANGED:
+		retext()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree() and is_capturing():
 		cancel_capture()
 
 
