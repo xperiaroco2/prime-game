@@ -281,7 +281,7 @@ REWRITE_GAP = 3600
 REWRITE_KINDS = ("timer", "run", "stop")
 # A subagent's cache re-write after an idle gap (#558): its API call 5 minutes or more after its previous one, when the
 # 5-minute prompt cache has lapsed.
-IDLE_GAP = 300
+IDLE_GAP = CACHE_TTL  # one 5-minute cache for #555 and #558
 # What preceded such a gap (module docstring), in the tables' order: the runner's `wait`; `verify`, `publish` or
 # `mutants`; a shell `sleep`; any other Bash or PowerShell command; Monitor; Read or any other tool; none (an API wait).
 IDLE_CAUSES = ("wait", "verify", "sleep", "shell", "Monitor", "tool", "API")
