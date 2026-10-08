@@ -2,7 +2,8 @@
 
 - **Status:** Accepted: the engineer's decision on #170 and #300; its wording approved by merging its PR (#300), the
   last PR of the tooling track the engineer merges by hand under the old rule; the launch budget amended 2026-10-05
-  (the weekly budget ADR's N1 (b), below)
+  (the weekly budget ADR's N1 (b), below); the designer's PRs and the content area amended 2026-10-08 (#518, the
+  last section)
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
@@ -126,3 +127,19 @@ reason; `--dry-run` prints the verdict and merges nothing.
   only for the engineer's own words, recorded on GitHub.
 - A head pushed without `publish` (a hand push, GitHub's "Update branch") has only CI behind it, not the Windows
   `verify`; CI's push run on `main` and the revert rule cover what CI misses.
+
+## Amendment 2026-10-08: the designer's PRs go to the engineer (#518)
+
+Approved by the engineer: https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6037210189
+
+The designer becomes optional ([ownership ADR](2026-09-28-ownership-by-codeowners-and-convention.md), its amendment of
+the same date): the engineer owns the content area (`content/ levels/ docs/GDD.md docs/design/` and the two content
+skills). Where this ADR sends the designer's PRs or area to a human, it now reads:
+- **Answer 1:** the content area is the engineer's. Agents change it on his word, and no "agreed with the designer"
+  line is written any more. Until the gate's code follows (below), its check of that area stays: a PR into `main` that
+  changes it without the designer's approving review or the old relay phrase is refused, so the engineer merges it by
+  hand like the other exceptions; a milestone's closing PR still clears it with the engineer's go.
+- **Answer 3:** the designer's PRs no longer keep a flow of their own: they go to the engineer, who reviews and merges
+  them. The gate still refuses a PR not authored by the engineer's account, which is what sends them to him.
+- The gate's code (`tools/runner/merge.py`: `DESIGNER_PREFIXES`, `RELAY_RE`) is unchanged by #518; changing it is a
+  follow-up the engineer decides (the options are in #518's PR under "Needs the engineer").
