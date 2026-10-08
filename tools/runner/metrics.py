@@ -4207,7 +4207,10 @@ def tracks_main(
     dirs = [(d, c["track"]) for c in checkouts for d in c["folders"]]
     spend = track_spend(dirs, session_filter(labels), t_since, t_until)
     lines = track_lines(spend, names, budgets, t_since, t_until, checkouts)
-    idle = {} if compact else track_idle(dirs, spend, names, t_since, t_until)  # the tables print without --compact
+    # A track of a checkout not on this machine with no session here has no agents to count (#586): no idle line.
+    gone = {c["track"] for c in checkouts if c["track"] and not c["folders"]} - set(spend["tracks"])
+    idle_names = names if names == ["all"] else [n for n in names if n not in gone]
+    idle = {} if compact else track_idle(dirs, spend, idle_names, t_since, t_until)  # the tables print without --compact
     folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],

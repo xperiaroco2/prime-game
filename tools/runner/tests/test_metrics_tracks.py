@@ -339,6 +339,14 @@ class OtherLayoutTest(unittest.TestCase):
         self.assertEqual(lines[4], "checkouts read: main C--prime-game; ui D--prime-game-ui with 1 worktree; art "
                                    "(prime-game-art) not on this machine, its spend unknown here")  # fmt: skip
         self.assertIn("art: not on this machine", "\n".join(self.tracks("all")))
+        # The tables (no --compact) give it no "0 agents" idle line either (#586 review).
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            metrics.tracks_main([], ["art"], [], SINCE, UNTIL, str(self.root / "out"), False,
+                                checkout=self.main, base=self.root)  # fmt: skip
+        self.assertIn("art: not on this machine", buf.getvalue())
+        self.assertNotIn("0 agents", buf.getvalue())
+        self.assertEqual(json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))["idle"], {})
         # A session here whose kickoff names art: its spend shows, and that the art checkout's own is missing.
         write_lines(self.root / "projects" / "C--prime-game" / "m2.jsonl", [
             kickoff(100, "Track: art"), assistant(101, "m2", ONE),
