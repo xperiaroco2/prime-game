@@ -2645,32 +2645,40 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
   living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
   buttons dead); `clashes_of()`, the "same key" check per phase (#488's rule 6), under which `give_up` and `ready`
-  share F legally. A binding is a bare physical key or mouse button, no modifiers; Esc is never bound (#488's rule 2).
+  share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
+  for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
+  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
-  reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. `Game` reads and
+  reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. Each window keeps
+  its copy in memory, so with two windows open the last to save wins. `Game` reads and
   applies it at the start; a `Game` without a command line (tests, playcheck windows) keeps the defaults and never
   touches the InputMap.
 - `client/ui/KeyLabel`: the label of an action's binding now (`of_action`, `of_event`), for every key prompt and the
   Toy screens' keycaps (#488's rule 7, #491, #495, #497): the physical key's label on the current layout
   (`DisplayServer.keyboard_get_label_from_physical`: AZERTY's physical Q reads A) when it is Latin, else its US name
   (`KeyLabel.shown()`: a Ukrainian layout labels the physical F "А", probed in a window on 4.7.2, and the prompt
-  reads F; headless Godot has no layout and prints an error, so it reads the physical key's name there), the deck's `key.space`, `key.mouse_left` and `key.mouse_right`, through
-  `TranslationServer` with the deck's English text until #208's translations hold them. `LifeHud` ("Hold <key> to
-  give up", the raise and spectate keys, through `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up,
-  `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind.
+  reads F; headless Godot has no layout and prints an error, so it reads the physical key's name there), the deck's
+  `key.space`, `key.mouse_left` and `key.mouse_right`, through `TranslationServer` with the deck's English text
+  until #208's translations hold them. `LifeHud` ("Hold <key> to give up", the raise and spectate keys, through
+  `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up, `LobbyHud`'s hint and the Voice tab's
+  push-to-talk name use it, so each follows a rebind.
 - `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
   Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
   or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
-  event: the next key or mouse button press binds (applied and saved at once), a release or an echo does nothing,
-  Esc cancels with the menu left open, and hiding the panel cancels it. Reset to defaults empties the file. The
+  event but the wheel (it scrolls the page): the next key or mouse button press binds (applied and saved at once), a
+  release or an echo does nothing, a click on another key or on Reset cancels and reaches that button, Esc cancels
+  with the menu left open, and hiding the panel cancels it. Reset to defaults empties the file. The
   Toy Esc menu (#491) hosts the panel in its Settings page and restyles it.
 - Tests: `tests/unit/client/app/controls_test.gd` (the defaults, the phases, the clash per phase, saving only the
-  rebound actions, loading, reset, the fallback for a missing, damaged or foreign file, `apply()`),
-  `tests/unit/client/ui/key_label_test.gd`, `controls_panel_test.gd` (the capture binds, ignores releases and echoes,
-  cancels on Esc, marks a clash, resets), `life_hud_test.gd` (every prompt names the bound key),
+  rebound actions, loading, reset, the fallback for a missing, damaged or foreign file, `apply()` matching real
+  keyboard and mouse device ids, F3, Enter and the wheel refused),
+  `tests/unit/client/ui/key_label_test.gd`, `controls_panel_test.gd` (the capture binds, ignores releases and
+  echoes, cancels on Esc and on a click on another button, lets the wheel through, marks a clash, resets),
+  `life_hud_test.gd` (every prompt names the bound key),
   `input_actions_test.gd` (`give_up` is F); `tests/integration/client/app/esc_menu_input_test.gd` (through real key
-  events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, which K then toggles
+  events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, a click on another
+  row's key cancels the capture and starts that row's, K then toggles Ready
   and F no longer does; seen failing with the capture not consuming its events) and
   `tests/integration/client/life/life_network_test.gd` (a downed joiner gives up on F held, not on G, and no F in the
   round readies; seen failing with G bound). The `shot`s: `client/dev/esc_controls_preview.tscn` (the tab with a

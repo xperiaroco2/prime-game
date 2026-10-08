@@ -81,7 +81,8 @@ const NAMES: Dictionary[StringName, String] = {
 ## Ready (Game._unhandled_input); the round reads the item keys and the raise while living
 ## (ItemInteractions, LifeView), the crawl while downed (no sprint, no jump: PlayerController), the
 ## give-up while downed and the spectate buttons while dead (LifeView), and the map on any life
-## (GameUi). Talk sends only while living (VoiceSender.may_speak).
+## (GameUi). Talk sends while the own life is living, in the lobby too, whose VoiceRule hears
+## (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
 	&"move_back": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
@@ -114,7 +115,8 @@ func _init(at := "") -> void:
 
 ## The player's file (FILE), read if it exists. One file for every window of one PC: the controls
 ## are the person's, not the window's (UserSettings' per-window files keep each window's
-## microphone).
+## microphone). Each window keeps its own copy in memory, so with two windows open the last one
+## to save wins (a dev playtest's second window can undo the first one's rebind).
 static func for_this_player() -> Controls:
 	var controls := Controls.new(FILE)
 	controls.read()
