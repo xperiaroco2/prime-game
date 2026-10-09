@@ -989,7 +989,9 @@ def selftest(group: str = "all") -> int:
     @starts_godot, serially in one process. `all` (the `selftest` command): both at once, then the count check.
     """
     say("selftest-godot" if group == "godot" else "selftest")
-    alone = not os.environ.get(INSIDE_VAR)  # not in a verify lane beside the Godot lane
+    # Alone: the Python group by itself outside a verify lane (CI's minimum-Python job), with no Godot lane and no
+    # selftest-godot group beside it (`all` runs that group at the same time, #603 review).
+    alone = group == "python" and not os.environ.get(INSIDE_VAR)
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"  # the spawned workers import the runner afresh
     os.environ[INSIDE_VAR] = "1"  # and inherit this: a test that reaches the real lanes fails (run_lane_process)
     tests = discover()

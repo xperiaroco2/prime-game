@@ -1689,16 +1689,17 @@ class SelftestTest(unittest.TestCase):
         self.assertEqual([verify.selftest_workers(n, alone=True) for n in cpus], [1, 2, 4, 6, 7, 4, 8, 16])
 
     def test_selftest_in_a_verify_lane_shares_the_machine_and_alone_does_not(self) -> None:
-        for inside, alone in (("1", False), ("", True)):
+        # `all` runs the selftest-godot group beside the Python one, so outside a lane it is not alone either.
+        for group, inside, alone in (("python", "1", False), ("python", "", True), ("all", "", False)):
             with (
-                self.subTest(inside=inside),
+                self.subTest(group=group, inside=inside),
                 mock.patch.dict(os.environ, {verify.INSIDE_VAR: inside}),
                 mock.patch.object(verify, "discover", return_value=[]),
                 mock.patch.object(verify, "selftest_workers", return_value=3) as workers,
                 mock.patch.object(verify, "_run_group", return_value=([], 0.0)),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
-                verify.selftest("python")
+                verify.selftest(group)
                 workers.assert_called_once_with(alone=alone)
 
     def test_workers_report_each_outcome_like_a_serial_run(self) -> None:
