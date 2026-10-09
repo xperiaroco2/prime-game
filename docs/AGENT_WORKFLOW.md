@@ -221,7 +221,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
-   can leak) or `tests/harness/` (the information-leak test) changed; plus
+   can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only such
+   paths are under `client/ui/`, the screens: §7.1, #606); plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
@@ -400,11 +401,23 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A small task (the
   issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
-  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
-  net/ client/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge` (the
-  definition of done's review step, §4.2, is then CI alone for any other diff). A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
+  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/ net/
+  client/ voice/ tests/harness/` (`code-reviewer` alone when those paths are all under `client/ui/`, #606), and the
+  manager merges it at once when its result says `ready_to_merge` (the definition of done's review step, §4.2, is then
+  CI alone for any other diff). `issue-task`'s
+  review chain follows the change's risk (#606, [ADR
+  amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the implementer, a path under `core/
+  server/ net/ client/ voice/ tests/harness/` (but `client/ui/`, the screens: the engineer's answer 2b,
+  [#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)), no changed paths, a design task
+  or the arg `tier: "full"` gets today's full chain (the How above, unchanged); any other diff the light one
+  (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher), which drops `skeptic` even when
+  passed, `plan_review` on a `content`, `level` or `tooling` branch, and on a `client/ui/` diff the netcode review and
+  `test_review` (no other light diff ever routed them).
+  A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
-  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
+  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158); a diff whose only
+  such paths are under `client/ui/` gets none in either script (#606: `issue-task`'s light tier, `quick-task`'s
+  `NETCODE` rule), and the result says so.
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
   read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
@@ -463,7 +476,8 @@ Rules for every workflow run:
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
   publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
-  for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review: true`: a second
+  for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is
+  under `client/ui/`, the light tier, #606). `second_review: true`: a second
   `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1). `skeptic: true` or a
   number: a read-only agent tries to refute each blocker or major finding before the publisher (a number caps the
   agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
@@ -1579,7 +1593,9 @@ under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.jso
 id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
 with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
+`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run, per review tier (#606: light, full, or
+unknown before #606 or with no publisher, read from the publisher's prompt; runs, wall time, review phase, API list $;
+`tiers` in `metrics.json`, and `--run` names a run's tier) and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
 issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
 `review:code-control` and `ab-judge`; any other is "other"),
