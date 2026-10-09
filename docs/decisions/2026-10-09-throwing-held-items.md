@@ -88,11 +88,15 @@ no key is proposed.
 (the facing, normalized, times the speed). The item's state keeps the flight (o, v, the gravity g, the ticks flown n
 and the fallback rest f, below), as `Channels` keeps a raise, and its `position` holds o until it rests. On every later tick a new tick system,
 `FlightTicks`, adds one to the flight's own count of flown ticks n and sweeps the segment from p(n−1) to p(n), where
-p(n) = o + v·s + ½·g·s², s = n / `Ticks.RATE` in seconds and g points straight down. The count is the flight's, not the
+p(n) = o + v·s + ½·g·s², s = `float(n) / Ticks.RATE` in seconds (both are ints, so an integer division would
+give s = 0 for the whole first second) and g points straight down. The count is the flight's, not the
 host tick less L, so a phase that lists no `FlightTicks` pauses a flight instead of making it jump past a wall when the
 next phase resumes it (no base-mode phase does: End freezes it, below). Each point is computed from the launch, never
 integrated step by step, so no error adds up; one static function in `core/` computes it, and a client calls the same
-one (as it calls `StaminaLedger.simulate_ticks`), so the client's points are the host's. The first contact along the
+one (as it calls `StaminaLedger.simulate_ticks`), so the client's points are the host's. That holds only on the same
+inputs: the flight keeps o, v and g exactly as the `Vector3`s `ItemThrown` carries (single precision; g straight down
+as a vector, TE6), set once at the launch, and every point is computed from those stored vectors, never again from the
+rule's numbers (data floats, which are double). The host's arc is then bit for bit the one every client decodes. The first contact along the
 segment ends the flight, whichever comes first: the world's (the sweep's answer, TE2), or a living player's other than
 the thrower (TD3 (b); a downed one is flown over, TD12 (a)), tested in `core/` against the `PlayerRules` capsule standing at that player's last accepted
 position, widened by the item's radius, with no lag compensation, as for hits (ARCHITECTURE §7.1.10). The item then
@@ -171,7 +175,8 @@ protocol version rises, and the chaos bots cover `Throw` (`ChaosHostile._refused
 originates no new command: ARCHITECTURE §3.3 drops `ItemRested` from its list, and the flight's geometry reaches the
 command log as `WorldQuery` answers, as every other rule's does.
 
-**Tests (TE7).** Unit, in `core/`: the arc's points against the formula; a stop at a wall, a ceiling, a floor and a
+**Tests (TE7).** Unit, in `core/`: the arc's points against the formula, p(1) among them (the first tick moves);
+the points computed from a decoded `ItemThrown` equal `FlightTicks`' points on every tick of a flight; a stop at a wall, a ceiling, a floor and a
 living player; the thrower and a downed player flown through; the rest on the floor below the stop; the longest flight
 with and without a floor; a thrower at a ledge's edge whose flight ends over no floor rests the item on the floor
 below its feet, never in the air; a `Throw` by a thrower over no floor refused with `no_floor`; a flight paused by a phase without `FlightTicks` resuming where it stopped; a package thrown
