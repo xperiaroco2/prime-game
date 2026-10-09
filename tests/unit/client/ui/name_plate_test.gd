@@ -45,6 +45,19 @@ func test_the_plate_centres_on_the_point() -> void:
 	assert_float(plate.size.x).is_greater(20.0)
 
 
+func test_the_plate_shrinks_when_the_large_text_theme_is_swapped_back() -> void:
+	var plate: NamePlate = auto_free(NamePlate.new())
+	plate.theme = GameUi.THEME_LARGE
+	add_child(plate)
+	plate.show_player("Olena", false)
+	await get_tree().process_frame
+	var large := plate.size.x
+	plate.theme = GameUi.THEME
+	await get_tree().process_frame
+	assert_float(plate.size.x).is_less(large)
+	assert_vector(plate.size).is_equal_approx(plate.get_combined_minimum_size(), Vector2.ONE * 0.01)
+
+
 func test_a_dissident_marks_its_teammates_only_never_itself() -> void:
 	var model := _model()
 	model.fold(&"RoleAssigned", {"role": &"dissident"})

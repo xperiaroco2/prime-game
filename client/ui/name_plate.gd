@@ -27,6 +27,9 @@ func _init() -> void:
 	row.add_child(name_label)
 	row.add_child(mark)
 	add_child(row)
+	# A container only grows to its minimum on its own: a smaller one (the large-text theme swapped
+	# back, a shorter name) shrinks the plate here.
+	minimum_size_changed.connect(reset_size)
 
 
 ## Shows `player_name`, with the teammate mark while `teammate`; shrinks to fit a shorter name.
