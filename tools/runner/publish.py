@@ -178,7 +178,8 @@ def main(base: str | None = None, verbose: bool = False) -> int:
     # recorded parent commit (--onto), else after the fork point that the upstream's reflog shows (--fork-point).
     # HEAD already holds the upstream's tip (a branch that took main or the base in by a merge, #694): there is
     # nothing to replay, and a rebase would drop its merges and replay the merged-in commits as the branch's own.
-    if not _in(upstream, "HEAD"):
+    # Not when --onto must leave out a parent's commits that the upstream lacks (the tip is not in the upstream).
+    if not (_in(upstream, "HEAD") and (not onto or _in(tip, upstream))):
         res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
         if res.rc != 0 or res.timed_out:
             _git("rebase", "--abort")
