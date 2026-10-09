@@ -40,9 +40,17 @@ func test_items_fly_in_id_order() -> void:
 	var first := FixtureFlightModes.holding(game, P1, Vector3.ZERO)
 	var second := FixtureFlightModes.holding(game, P2, Vector3(0, 0, 3))
 	assert_int(first.id).is_less(second.id)
-	# The higher id is thrown first.
+	# The higher id is thrown first, and the dictionary holds the items in the reverse order, so
+	# only the sort in FlightTicks puts the sweeps in id order.
 	FixtureFlightModes.throw(game, P2, Vector3.LEFT)
 	FixtureFlightModes.throw(game, P1, Vector3.RIGHT)
+	var ids: Array = game.state.items.keys()
+	ids.reverse()
+	var kept: Dictionary[int, ItemState] = game.state.items.duplicate()
+	game.state.items.clear()
+	for id: int in ids:
+		game.state.items[id] = kept[id]
+	assert_int(game.state.items.keys()[0]).is_equal(second.id)
 	FixtureModes.run_ticks(game, 2)
 	assert_int(world.sweeps.size()).is_equal(2)
 	assert_vector(world.sweeps[0][0]).is_equal(first.flight.origin)
@@ -170,7 +178,7 @@ func test_the_downed_the_dead_and_the_gone_are_flown_over() -> void:
 	for life: int in [PlayerState.Life.DOWNED, PlayerState.Life.DEAD, PlayerState.Life.LEFT]:
 		var game := FixtureFlightModes.thrown(Vector3.RIGHT, Vector3.ZERO, FixtureFlightWorld.new())
 		FixtureItemModes.stand(game, P2, Vector3(5, 0, 0))
-		game.state.player(P2).life = life
+		game.state.player(P2).life = life as PlayerState.Life
 		var item := FixtureFlightModes.flying(game)
 		FixtureModes.run_ticks(game, 15)
 		assert_int(item.where).is_equal(ItemState.Where.GROUND)
@@ -316,10 +324,23 @@ func test_the_thrower_downed_dead_or_gone_does_not_touch_the_flight() -> void:
 		var game := FixtureFlightModes.thrown(Vector3.RIGHT, Vector3.ZERO, FixtureFlightWorld.new())
 		var item := FixtureFlightModes.flying(game)
 		FixtureModes.run_ticks(game, 2)
-		game.state.player(P1).life = life
+		game.state.player(P1).life = life as PlayerState.Life
 		FixtureModes.run_ticks(game, 18)
 		assert_int(item.where).is_equal(ItemState.Where.GROUND)
 		assert_vector(item.position).is_equal(control.state.items[1].position)
+
+
+func test_a_mode_without_player_rules_logs_it_and_the_world_still_ends_the_flight() -> void:
+	var world := FixtureFlightWorld.new()
+	world.add_wall(AABB(Vector3(3, 0, -1), Vector3(1, 3, 2)))
+	var game := FixtureFlightModes.thrown(Vector3.RIGHT, Vector3.ZERO, world)
+	var item := FixtureFlightModes.flying(game)
+	game.state.player_rules = null
+	FixtureModes.run_ticks(game, 8)
+	assert_int(item.where).is_equal(ItemState.Where.GROUND)
+	assert_vector(item.position).is_equal_approx(Vector3(3 - R, 0, 0), NEAR)
+	assert_bool(game.diagnostics.is_empty()).is_false()
+	assert_str(game.diagnostics[0]).contains("the mode has no PlayerRules")
 
 
 func test_the_same_commands_land_it_the_same_way() -> void:
@@ -332,9 +353,7 @@ func test_the_same_commands_land_it_the_same_way() -> void:
 		FixtureModes.run_ticks(game, 20)
 		runs.append(game)
 	assert_array(FixtureModes.describe(runs[1])).is_equal(FixtureModes.describe(runs[0]))
-	assert_str(str(runs[1].command_log.world_answers)).is_equal(
-		str(runs[0].command_log.world_answers)
-	)
+	assert_array(runs[1].command_log.world_answers).is_equal(runs[0].command_log.world_answers)
 
 
 func test_the_capsule_contact_on_its_side_its_caps_and_inside() -> void:

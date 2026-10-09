@@ -121,6 +121,9 @@ static func _first_player_contact(
 	ctx: MatchContext, flight: ItemFlight, from: Vector3, to: Vector3
 ) -> float:
 	var rules := ctx.state.player_rules
+	if rules == null:
+		ctx.error("FlightTicks: the mode has no PlayerRules, so no player stops a flight")
+		return -1.0
 	var best := -1.0
 	for peer: int in ctx.state.peers():
 		var player := ctx.state.players[peer]
