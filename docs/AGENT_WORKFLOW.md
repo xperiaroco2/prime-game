@@ -1190,7 +1190,8 @@ marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` 
   step 5) and the lease push. It stops before touching anything when the remote branch has a commit this branch never
   had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease alone would not
   protect it, because the fetch just updated the expected value. A conflict aborts the rebase and leaves the branch as
-  it was; a red `verify` pushes nothing. After its parent was rebased or amended, a stacked child replays only its own
+  it was; a red `verify` pushes nothing. When HEAD already holds the base's tip (a branch that took `main` or the base
+  in by a merge, #694) there is no rebase: it would drop the merges and replay what they brought in as the branch's own. After its parent was rebased or amended, a stacked child replays only its own
   commits: those after the parent commit `start` recorded (`branch.<task>.primeBaseTip`, renewed by each publish on the
   parent; `rebase --onto`), else those after the fork point (`--fork-point`, which needs the reflog of the parent's
   remote ref).

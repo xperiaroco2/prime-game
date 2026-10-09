@@ -176,13 +176,16 @@ def main(base: str | None = None, verbose: bool = False) -> int:
 
     # After a stacked parent was rebased or amended, replay only this branch's own commits onto it: the ones after the
     # recorded parent commit (--onto), else after the fork point that the upstream's reflog shows (--fork-point).
-    res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
-    if res.rc != 0 or res.timed_out:
-        _git("rebase", "--abort")
-        raise Failure(
-            f"the rebase on {upstream} stopped, usually on a conflict. Publish aborted it: {branch} is unchanged "
-            f"at {before[:10]}. Ask the human how to resolve it.\n{res.out.strip()[-600:]}"
-        )
+    # HEAD already holds the upstream's tip (a branch that took main or the base in by a merge, #694): there is
+    # nothing to replay, and a rebase would drop its merges and replay the merged-in commits as the branch's own.
+    if not _in(upstream, "HEAD"):
+        res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
+        if res.rc != 0 or res.timed_out:
+            _git("rebase", "--abort")
+            raise Failure(
+                f"the rebase on {upstream} stopped, usually on a conflict. Publish aborted it: {branch} is unchanged "
+                f"at {before[:10]}. Ask the human how to resolve it.\n{res.out.strip()[-600:]}"
+            )
     after = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     ok(f"rebased on {upstream}" + (" (already up to date)" if after == before else f": {before[:10]} -> {after[:10]}"))
     if unstack:

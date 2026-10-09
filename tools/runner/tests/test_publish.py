@@ -273,6 +273,24 @@ class RealGitTest(unittest.TestCase):
         self.assertEqual(own, "1")
         self.assertEqual(self.remote("tooling/2-child"), self.git(self.work, "rev-parse", "HEAD"))
 
+    def test_a_branch_that_holds_main_by_a_merge_is_not_replayed(self) -> None:
+        # #694: a task branch on a release branch took main in by a merge. The base tip is in HEAD, so there is
+        # nothing to replay; a rebase would drop the merge and replay main's commits as the branch's own.
+        self.git(self.work, "switch", "-q", "-c", "release/m1")
+        self.git(self.work, "push", "-q", "origin", "release/m1")
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.git(self.work, "config", "branch.tooling/1-x.primeBase", "release/m1")
+        self.git(self.work, "config", "branch.tooling/1-x.primeBaseTip", self.git(self.work, "rev-parse", "HEAD"))
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.commit(self.other, "h.txt", "theirs\n", "main moves")
+        self.git(self.other, "push", "-q", "origin", "main")
+        self.git(self.work, "fetch", "-q", "origin")
+        self.git(self.work, "merge", "-q", "--no-ff", "-m", "take main", "origin/main")
+        before = self.git(self.work, "rev-parse", "HEAD")
+        self.assertEqual(publish.main(base="release/m1"), 0)
+        self.assertEqual(self.git(self.work, "rev-parse", "HEAD"), before)
+        self.assertEqual(self.remote("tooling/1-x"), before)
+
 
 if __name__ == "__main__":
     unittest.main()
