@@ -80,6 +80,7 @@ func _ready() -> void:
 	add_child(ui)
 	ui.set_large_text(large_text)
 	ui.esc.lobby.set_mode(mode)
+	ui.esc.guide.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
 	ui.lobby_hud.show_code(code_line)

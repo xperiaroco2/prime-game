@@ -6,7 +6,8 @@ extends Control
 ## everyone else). The Voice tab is VoicePanel (M5-6), which the game feeds and listens to.
 ## On the host, Leave and Quit end the session for every player, so their tabs ask first; closing
 ## the window asks the same. The Controls tab is ControlsPanel (#211), which the game gives the
-## player's controls. What it shows and does is EscMenuState's; this draws it.
+## player's controls. The Guide tab is GuidePanel (#254: every how-to card), which the game gives
+## the mode. What it shows and does is EscMenuState's; this draws it.
 
 signal resume_requested
 signal leave_requested
@@ -14,11 +15,17 @@ signal quit_requested
 
 const TAB_NAMES: Dictionary[EscMenuState.Tab, String] = {
 	EscMenuState.Tab.RESUME: "Resume",
+	EscMenuState.Tab.GUIDE: "Guide",
 	EscMenuState.Tab.LOBBY: "Lobby",
 	EscMenuState.Tab.VOICE: "Voice",
 	EscMenuState.Tab.CONTROLS: "Controls",
 	EscMenuState.Tab.LEAVE: "Leave",
 	EscMenuState.Tab.QUIT: "Quit",
+}
+## A tab whose label is a deck key (both languages); the greybox tabs keep their English words until
+## the restyle (#491).
+const TAB_KEYS: Dictionary[EscMenuState.Tab, String] = {
+	EscMenuState.Tab.GUIDE: "esc.tab.guide",
 }
 const RESUME_TEXT := "Back to the game: Esc or Resume."
 const HOST_WARNING := "You host this session: leaving ends it for every player."
@@ -29,6 +36,7 @@ var state := EscMenuState.new()
 var lobby := LobbyPanel.new()
 var voice := VoicePanel.new()
 var controls := ControlsPanel.new()
+var guide := GuidePanel.new()
 var tab_buttons: Dictionary[EscMenuState.Tab, Button] = {}
 var resume_page := VBoxContainer.new()
 var confirm_box := VBoxContainer.new()
@@ -48,7 +56,8 @@ func _init() -> void:
 	tabs.theme_type_variation = &"EscTabs"
 	body.add_child(tabs)
 	for tab: EscMenuState.Tab in TAB_NAMES:
-		var button := UiParts.toggle(TAB_NAMES[tab], press.bind(tab), &"EscTab")
+		var text: String = TAB_KEYS.get(tab, TAB_NAMES[tab])
+		var button := UiParts.toggle(text, press.bind(tab), &"EscTab")
 		button.custom_minimum_size = UiParts.BUTTON_SIZE
 		button.name = TAB_NAMES[tab]
 		tab_buttons[tab] = button
@@ -70,6 +79,8 @@ func _init() -> void:
 	stack.add_child(voice)
 	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(controls)
+	guide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack.add_child(guide)
 	confirm_box.theme_type_variation = &"EscPage"
 	warning_label.text = HOST_WARNING
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -139,16 +150,15 @@ func cancel() -> void:
 func page() -> Control:
 	if not state.is_open:
 		return null
-	match state.selected:
-		EscMenuState.Tab.LOBBY:
-			return lobby
-		EscMenuState.Tab.VOICE:
-			return voice
-		EscMenuState.Tab.CONTROLS:
-			return controls
-		EscMenuState.Tab.LEAVE, EscMenuState.Tab.QUIT:
-			return confirm_box
-	return resume_page
+	var pages: Dictionary[EscMenuState.Tab, Control] = {
+		EscMenuState.Tab.LOBBY: lobby,
+		EscMenuState.Tab.VOICE: voice,
+		EscMenuState.Tab.CONTROLS: controls,
+		EscMenuState.Tab.GUIDE: guide,
+		EscMenuState.Tab.LEAVE: confirm_box,
+		EscMenuState.Tab.QUIT: confirm_box,
+	}
+	return pages.get(state.selected, resume_page)
 
 
 func _act(action: EscMenuState.Action) -> void:
@@ -169,7 +179,7 @@ func _sync() -> void:
 		button.visible = state.has_tab(tab)
 		button.set_pressed_no_signal(state.selected == tab)
 	var shown := page()
-	for each: Control in [resume_page, lobby, voice, controls, confirm_box]:
+	for each: Control in [resume_page, lobby, voice, controls, guide, confirm_box]:
 		each.visible = each == shown
 	if state.asking():
 		var what := TAB_NAMES[state.selected]

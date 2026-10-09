@@ -22,7 +22,7 @@ func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
 	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
 	assert_bool(menu.is_open).is_true()
 	assert_array(menu.tabs()).is_equal(
-		[TAB.RESUME, TAB.LOBBY, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
+		[TAB.RESUME, TAB.GUIDE, TAB.LOBBY, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
 	)
 	assert_int(menu.selected).is_equal(TAB.LOBBY)
 	menu.close()
@@ -34,12 +34,25 @@ func test_outside_the_lobby_there_is_no_lobby_tab_and_it_opens_on_resume() -> vo
 		var menu := EscMenuState.new()
 		menu.open(screen, null, true)
 		assert_array(menu.tabs()).is_equal(
-			[TAB.RESUME, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
+			[TAB.RESUME, TAB.GUIDE, TAB.VOICE, TAB.CONTROLS, TAB.LEAVE, TAB.QUIT]
 		)
 		assert_int(menu.selected).is_equal(TAB.RESUME)
 		assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
 		assert_int(menu.press(TAB.LOBBY)).is_equal(ACT.NONE)
 		assert_int(menu.selected).is_equal(TAB.RESUME)
+
+
+func test_the_guide_tab_is_in_every_screen_the_lobby_included() -> void:
+	# #254: every how-to card, browsable any time; a press selects it and acts on nothing.
+	var model := Preview.fake_model(_mode, true)
+	for screen: S in [S.CONNECTING, S.LOBBY, S.LOADING, S.PREGAME, S.ROUND, S.END]:
+		for hosting: bool in [false, true]:
+			var menu := EscMenuState.new()
+			menu.open(screen, model, hosting)
+			assert_bool(menu.has_tab(TAB.GUIDE)).is_true()
+			assert_int(menu.press(TAB.GUIDE)).is_equal(ACT.NONE)
+			assert_int(menu.selected).is_equal(TAB.GUIDE)
+			assert_bool(menu.asking()).is_false()
 
 
 func test_the_voice_tab_is_in_every_screen_and_stays_selected_across_them() -> void:

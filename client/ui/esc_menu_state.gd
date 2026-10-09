@@ -4,16 +4,17 @@ extends RefCounted
 ## screen, the selected tab, and who may change the match settings in its Lobby tab. Pure, so the
 ## menu and its unit test read the same rules; EscMenu draws it.
 ##
-## The tabs: Resume, Lobby (on the lobby screen only: the lobby and the countdown), Voice (in every
-## screen, M5-6: the microphone, the mode and the volumes), Controls (in every screen, #211: the
-## rebindable keys), Leave and Quit. Resume closes the menu.
+## The tabs: Resume, Guide (in every screen, #254: every how-to card), Lobby (on the lobby screen
+## only: the lobby and the countdown), Voice (in every screen, M5-6: the microphone, the mode and
+## the volumes), Controls (in every screen, #211: the rebindable keys), Leave and Quit. Resume
+## closes the menu.
 ## A client's Leave and Quit act at once; the host's ask first, since they end the session for
 ## every player, so the host's Leave or Quit tab shows the question and confirm() answers it.
 ## Opening selects the Lobby tab where there is one, else Resume.
 
-## VOICE and CONTROLS come last so the preview scenes' saved tab numbers keep their meaning; tabs()
-## orders them.
-enum Tab { RESUME, LOBBY, LEAVE, QUIT, VOICE, CONTROLS }
+## VOICE, CONTROLS and GUIDE come last so the preview scenes' saved tab numbers keep their meaning;
+## tabs() orders them.
+enum Tab { RESUME, LOBBY, LEAVE, QUIT, VOICE, CONTROLS, GUIDE }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
 
@@ -56,7 +57,7 @@ func follow(screen: GameFlow.Screen, model: ClientModel, hosting_now: bool) -> v
 
 ## The tabs in their order, top to bottom.
 func tabs() -> Array[Tab]:
-	var shown: Array[Tab] = [Tab.RESUME]
+	var shown: Array[Tab] = [Tab.RESUME, Tab.GUIDE]
 	if in_lobby:
 		shown.append(Tab.LOBBY)
 	shown.append_array([Tab.VOICE, Tab.CONTROLS, Tab.LEAVE, Tab.QUIT])
