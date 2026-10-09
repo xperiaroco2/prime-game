@@ -500,6 +500,65 @@ class StartTest(unittest.TestCase):
         self.assertEqual(self.branch(tree), "core/42-vote-tally")
         self.moves.assert_called_once_with(42, "in-progress")
 
+    def project(self, where: Path, features: str = '"4.7", "Forward Plus"') -> None:
+        text = f'[application]\n\nconfig/name="PrimeGame"\nconfig/features=PackedStringArray({features})\n'
+        (where / "project.godot").write_text(text, encoding="utf-8", newline="\n")
+
+    def main_cache(self) -> Path:
+        cache = self.work / ".godot"
+        (cache / "imported").mkdir(parents=True)
+        (cache / "imported" / "a.png-1.md5").write_text("md5\n", encoding="utf-8")
+        (cache / "global_script_class_cache.cfg").write_text("list=[]\n", encoding="utf-8")
+        (cache / "runner_import.stamp").write_text("1.0\n", encoding="ascii")
+        return cache
+
+    def test_a_new_worktree_gets_the_main_checkouts_import_cache(self) -> None:
+        # #608: the first check in a new worktree reimports only what differs, not the whole project.
+        self.write(".gitignore", ".claude/worktrees/\n.godot/\n")
+        self.project(self.work)
+        git(self.work, "add", ".")
+        git(self.work, "commit", "-q", "-m", "project")
+        git(self.work, "push", "-q", "origin", "main")
+        self.main_cache()
+        self.assertEqual(start.main(42), 0)
+        seeded = self.work / ".claude" / "worktrees" / "42" / ".godot"
+        self.assertEqual((seeded / "imported" / "a.png-1.md5").read_text(encoding="utf-8"), "md5\n")
+        self.assertTrue((seeded / "global_script_class_cache.cfg").is_file())
+        # Without the runner's stamp check.freshness still imports once in the new worktree.
+        self.assertFalse((seeded / "runner_import.stamp").exists())
+
+    def test_the_import_cache_is_seeded_only_for_the_same_project(self) -> None:
+        source, target = self.tmp / "src", self.tmp / "dst"
+        target.mkdir()
+        self.project(target)
+        self.work = source
+        cache = self.main_cache()
+        (cache / "shader_cache").mkdir()
+        (cache / "shader_cache" / "big.bin").write_bytes(b"x")
+        self.assertFalse(start.seed_import_cache(source, target), "no project.godot in the source")
+        self.project(source, '"4.8", "Forward Plus"')
+        self.assertFalse(start.seed_import_cache(source, target), "another Godot minor")
+        (source / "project.godot").write_text('config/name="Other"\nconfig/features=PackedStringArray("4.7", "Forward Plus")\n', encoding="utf-8")
+        self.assertFalse(start.seed_import_cache(source, target), "another project")
+        self.project(source)
+        (cache / "runner_import.stamp").unlink()
+        self.assertFalse(start.seed_import_cache(source, target), "a cache the runner did not make")
+        (cache / "runner_import.stamp").write_text("1.0\n", encoding="ascii")
+        self.assertFalse((target / ".godot").exists())
+        self.assertTrue(start.seed_import_cache(source, target))
+        self.assertTrue((target / ".godot" / "imported" / "a.png-1.md5").is_file())
+        self.assertFalse((target / ".godot" / "shader_cache").exists(), "an import does not need the shader cache")
+        self.assertFalse(start.seed_import_cache(source, target), "the target has its own cache now")
+        force_rmtree(str(target / ".godot"))
+
+        def half_copy(src: Path, dst: Path, **_: object) -> None:  # the editor wrote meanwhile
+            (dst / "imported").mkdir(parents=True)
+            raise OSError("busy")
+
+        with mock.patch.object(start.shutil, "copytree", side_effect=half_copy):
+            self.assertFalse(start.seed_import_cache(source, target), "a copy error skips silently")
+        self.assertFalse((target / ".godot").exists(), "a half copy is removed")
+
     def test_include_keeps_the_engineer_here(self) -> None:
         self.write("f.txt", "edited\n")
         self.assertEqual(start.main(42, include=True), 0)  # the changes belong to this task, in this checkout
