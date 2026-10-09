@@ -67,6 +67,16 @@ func test_a_counter_changes_in_place_and_keeps_the_focus() -> void:
 	assert_object(get_viewport().gui_get_focus_owner()).is_same(help)
 
 
+func test_an_unchanged_refresh_does_not_lay_the_zone_tag_out_again() -> void:
+	var screen := _screen(_round_model())
+	screen.light(&"delivery")
+	var marked := Vector2(-7, -7)
+	screen.zone_hint.position = marked
+	screen.refresh(_round_model(), _mode, NOW, _local())
+	assert_vector(screen.zone_hint.position).is_equal(marked)
+	assert_bool(screen.zone_hint.visible).is_true()
+
+
 func test_the_words_follow_the_language_at_once() -> void:
 	var screen := _screen(_round_model())
 	TranslationServer.set_locale(Languages.UKRAINIAN)

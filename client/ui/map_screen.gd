@@ -409,8 +409,9 @@ func _refresh_now() -> void:
 		same_types = same_types and made[i].type == _shown[i].type
 	_shown = made
 	if same_types:
-		# The counters in place: a rebuild would take a «?»'s focus while the map is open.
-		_retext()
+		# The counters in place: a rebuild would take a «?»'s focus while the map is open, and
+		# every frame must not lay the zones' tag out again.
+		_retext_rows()
 	else:
 		_rebuild_rows()
 	_place_pin()
@@ -419,15 +420,20 @@ func _refresh_now() -> void:
 ## The words built in code again, in the language now: the rows', the rooms', the clock's and
 ## the zones' tag.
 func _retext() -> void:
-	var plates := rows_box.get_children()
-	for i in mini(plates.size(), _shown.size()):
-		(plates[i].find_child("Name", true, false) as Label).text = name_of(_shown[i])
-		(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
+	_retext_rows()
 	for id: StringName in _room_labels:
 		_room_labels[id].text = _room_name(id)
 	if _model != null:
 		time_label.text = time_text(_model, _host_tick)
 	_show_zone_hint()
+
+
+## The rows' names and counters only: all that a counter change touches.
+func _retext_rows() -> void:
+	var plates := rows_box.get_children()
+	for i in mini(plates.size(), _shown.size()):
+		(plates[i].find_child("Name", true, false) as Label).text = name_of(_shown[i])
+		(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
 
 
 func _rebuild_rows() -> void:
