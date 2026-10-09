@@ -60,6 +60,18 @@ func test_the_respawn_is_free_of_the_corner_and_within_its_voice_radius() -> voi
 	assert_float(apart).is_less(radius)
 
 
+func test_the_markers_read_without_errors_in_the_host_s_world() -> void:
+	# What a real session does: the room's own colliders (shelf, table) in the host's world.
+	var mode := load(MODE) as GameMode
+	var world := HostWorldQuery.new()
+	world.add_level(LevelWorld.build(MAP))
+	world.use_level(MAP)
+	var read := MarkerReader.read_scene(MAP, world, MarkerReader.floor_tags_of(mode))
+	assert_array(Array(read.errors)).is_empty()
+	var layouts: Dictionary[String, LevelLayout] = {MAP: read.layout}
+	assert_array(Array(LayoutCheck.run(mode, layouts))).is_empty()
+
+
 func _layout() -> LevelLayout:
 	var levels := MarkerReader.read_levels(load(MODE) as GameMode, FlatWorldQuery.new())
 	assert_array(Array(levels.errors)).is_empty()
