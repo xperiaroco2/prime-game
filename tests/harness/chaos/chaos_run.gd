@@ -594,6 +594,10 @@ func _check_after() -> void:
 	_check_malformed_view()
 	_check_voice_rule()
 	_check_roles()
+	# The hostile's refused ChangeSettings carry a lobby name (#214); the host's bot never sends
+	# one, so the lobby keeps its default.
+	if not game.state.lobby_name.is_empty():
+		failures.append("the lobby is named %s, which only the host may do" % game.state.lobby_name)
 	if chaos_mode == Mode.CHAOS:
 		_check_chaos_counts()
 
