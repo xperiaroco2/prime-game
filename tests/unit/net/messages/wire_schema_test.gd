@@ -203,11 +203,15 @@ func test_the_hello_row_is_frozen_byte_for_byte() -> void:
 	assert_int(hello.lane).is_equal(NetKindTable.Lane.RELIABLE)
 	assert_int(hello.cap).is_equal(8192)
 	var payload := schema.encode(
-		WireMessage.new(&"Hello", {"version": 0x0102, "content": 0x1122334455667788})
+		WireMessage.new(&"Hello", {"version": 0x0102, "content": 0x1122334455667788, "name": "Ді"})
 	)
+	# The version first (frozen); since protocol 10 (#550) the name: u8 length, then UTF-8.
 	assert_array(Array(payload)).is_equal(
-		[0x02, 0x01, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11]
+		[0x02, 0x01, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 4, 0xD0, 0x94, 0xD1, 0x96]
 	)
+	# The name is required: a Hello without one is refused, not sent short.
+	var nameless := schema.write(WireMessage.new(&"Hello", {"version": 1, "content": 2}))
+	assert_str(nameless.problem).is_equal("a missing field name")
 
 
 func test_the_rejected_row_is_frozen_byte_for_byte() -> void:
@@ -243,12 +247,14 @@ func test_a_hello_of_another_version_decodes_to_its_version_alone() -> void:
 func test_a_hello_of_this_version_is_decoded_strictly() -> void:
 	var schema := WireSchema.game(false)
 	var payload := schema.encode(
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 5})
+		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 5, "name": "Dima"})
 	)
 	assert_dict(schema.decode(WireSchema.HELLO, payload).fields).is_equal(
-		{"version": WireSchema.VERSION, "content": 5}
+		{"version": WireSchema.VERSION, "content": 5, "name": "Dima"}
 	)
 	assert_object(schema.decode(WireSchema.HELLO, payload.slice(0, 9))).is_null()
+	# The name's length promises more bytes than follow.
+	assert_object(schema.decode(WireSchema.HELLO, payload.slice(0, payload.size() - 1))).is_null()
 	payload.append(0)
 	assert_object(schema.decode(WireSchema.HELLO, payload)).is_null()
 

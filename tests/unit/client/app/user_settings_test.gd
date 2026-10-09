@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## UserSettings (the M5 ADR §1.7, E43, E47 as amended): the defaults, a round trip through the file
 ## under user://, a damaged or partial file falling back to the defaults, the threshold kept above
-## digital silence, and one file per window by PRIME_INSTANCE.
+## digital silence, one file per window by PRIME_INSTANCE, and the player's own name (#550).
 
 const PATH := "user://user_settings_test.cfg"
+## A control character a name never keeps.
+const BELL := "\u0007"
 
 
 func after_test() -> void:
@@ -19,6 +21,7 @@ func test_the_defaults() -> void:
 	assert_bool(settings.denoise).is_true()
 	assert_str(settings.opening).is_empty()
 	assert_str(settings.language).is_empty()
+	assert_str(settings.player_name).is_empty()
 	# D15's four sliders at 0, 0, -6 and -14 dB (placeholders).
 	var volumes: Array[float] = []
 	for bus: StringName in UserSettings.VOLUMES:
@@ -83,6 +86,44 @@ func test_a_damaged_or_partial_file_falls_back_to_the_defaults() -> void:
 	assert_float(settings.volume_db(&"Music")).is_equal(UserSettings.MAX_DB)
 	assert_float(settings.volume_db(&"Voice")).is_equal(0.0)
 	assert_float(settings.volume_db(&"Effects")).is_equal(-6.0)
+
+
+## The name (#550): at most 16 characters, no controls, no blank edges, and once chosen never
+## empty; "" (none chosen yet) until the player picks one.
+func test_the_player_name_is_kept_clean_and_never_empty() -> void:
+	var settings := UserSettings.new(PATH)
+	settings.player_name = "   "
+	assert_str(settings.player_name).is_empty()
+	settings.player_name = "  Діма" + BELL + " "
+	assert_str(settings.player_name).is_equal("Діма")
+	for blank: String in ["", "  ", BELL + " " + BELL]:
+		settings.player_name = blank
+		assert_str(settings.player_name).is_equal("Діма")
+	settings.player_name = "x".repeat(20)
+	assert_str(settings.player_name).is_equal("x".repeat(16))
+	assert_int(settings.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_str(back.player_name).is_equal("x".repeat(16))
+
+
+## A file edited by hand, or one from before #550: what it holds is cleaned on reading, so the
+## name always fits Hello; a file without the section reads as no name.
+func test_a_hand_edited_name_is_cleaned_on_reading_and_fits_hello() -> void:
+	var file := ConfigFile.new()
+	file.set_value("player", "name", BELL + "Д".repeat(40))
+	file.save(PATH)
+	var settings := UserSettings.new(PATH)
+	assert_int(settings.read()).is_equal(OK)
+	assert_str(settings.player_name).is_equal("Д".repeat(16))
+	var hello := {"version": WireSchema.VERSION, "content": 1, "name": settings.player_name}
+	assert_int(WireSchema.game(false).encode(WireMessage.new(&"Hello", hello)).size()).is_greater(0)
+	var old := ConfigFile.new()
+	old.set_value("interface", "language", "uk")
+	old.save(PATH)
+	var fresh := UserSettings.new(PATH)
+	assert_int(fresh.read()).is_equal(OK)
+	assert_str(fresh.player_name).is_empty()
 
 
 func test_settings_with_no_path_stay_in_memory() -> void:

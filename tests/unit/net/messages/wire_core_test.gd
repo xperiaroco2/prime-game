@@ -238,10 +238,16 @@ func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
 	for peer: int in [1, 2]:
 		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
 	var host_hash := _decoded(
-		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT})
+		schema,
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT, "name": "Діма"}
+		)
 	)
 	var other_hash := _decoded(
-		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1})
+		schema,
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1, "name": ""}
+		)
 	)
 	if host_hash == null or other_hash == null:
 		return

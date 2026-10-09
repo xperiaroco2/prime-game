@@ -38,6 +38,9 @@ enum Type {
 	## An Opus frame anywhere in a payload: a u16 length, then that many bytes (the batched voice
 	## row's frames, M5-4b); OPUS is the rest of the payload and only a row's last field.
 	SIZED_OPUS,
+	## A player's name (#550): a u8 length, then that many bytes of well-formed UTF-8, at most
+	## NAME_MAX_BYTES, without the characters is_name_char refuses.
+	NAME,
 }
 
 ## Where a decoded field goes: the payload's Dictionary, or a WireMessage slot outside it (the
@@ -47,6 +50,8 @@ enum Slot { FIELD, SEQ, PEER }
 const ID_MAX := 32
 const PATH_MAX := 255
 const TEXT_MAX := 64
+## A name's most bytes: core/'s 16 characters at 4 UTF-8 bytes each (PlayerNames.MAX_CHARS).
+const NAME_MAX_BYTES := 64
 const NOTE_MAX := 320
 const PATH_PREFIX := "res://"
 const PEER_MAX := 0x7FFFFFFF
@@ -54,6 +59,10 @@ const U16_MAX := 0xFFFF
 const U32_MAX := 0xFFFFFFFF
 const S32_MIN := -0x80000000
 const S32_MAX := 0x7FFFFFFF
+## Per UTF-8 continuation count: the lead byte's bits of the code point, and the smallest code
+## point that needs that many bytes (anything smaller is an overlong form).
+const UTF8_LEAD_BITS := [0x7F, 0x1F, 0x0F, 0x07]
+const UTF8_SMALLEST := [0, 0x80, 0x800, 0x10000]
 ## How much of a refused value a refusal line shows.
 const WRONG_VALUE_MAX := 64
 ## The integer types and their bounds; one above the top is none (-1) where a field is optional.
@@ -92,6 +101,7 @@ const FIXED_SIZES := {
 	Type.PATH: 1 + PATH_MAX,
 	Type.TEXT: 1 + TEXT_MAX,
 	Type.NOTE: 2 + NOTE_MAX,
+	Type.NAME: 1 + NAME_MAX_BYTES,
 }
 const DECODED_TYPES := {
 	Type.BOOL: TYPE_BOOL,
@@ -101,6 +111,7 @@ const DECODED_TYPES := {
 	Type.PATH: TYPE_STRING,
 	Type.TEXT: TYPE_STRING,
 	Type.NOTE: TYPE_STRING,
+	Type.NAME: TYPE_STRING,
 	Type.MAP: TYPE_DICTIONARY,
 	Type.RECORD: TYPE_DICTIONARY,
 	Type.OPUS: TYPE_PACKED_BYTE_ARRAY,
@@ -264,6 +275,35 @@ static func is_printable(text: String, most: int) -> bool:
 	return true
 
 
+## Whether `text` is a `name` on the wire (#550): at most NAME_MAX_BYTES bytes of UTF-8, every
+## character one is_name_char allows. Empty is one (the host gives a fallback).
+static func is_name(text: String) -> bool:
+	for i: int in text.length():
+		if not is_name_char(text.unicode_at(i)):
+			return false
+	return text.to_utf8_buffer().size() <= NAME_MAX_BYTES
+
+
+## Whether a `name` may hold the character `code`: not a C0 control, DEL or a C1 control, not a
+## surrogate, not U+FEFF (a UTF-8 decoder may drop it silently, so it would not decode back to the
+## same bytes), not an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to
+## U+2064, U+2066 to U+2069: a name that looks like another) and at most U+10FFFF. core/'s
+## PlayerNames.is_dropped refuses exactly these (net/ names no core/ class; a test pins the two), so
+## every name the host makes encodes.
+static func is_name_char(code: int) -> bool:
+	return not (
+		code < 0x20
+		or (code >= 0x7F and code <= 0x9F)
+		or (code >= 0x200B and code <= 0x200F)
+		or (code >= 0x2028 and code <= 0x202E)
+		or (code >= 0x2060 and code <= 0x2064)
+		or (code >= 0x2066 and code <= 0x2069)
+		or (code >= 0xD800 and code <= 0xDFFF)
+		or code == 0xFEFF
+		or code > 0x10FFFF
+	)
+
+
 ## Writes `fields` from `source`; the problem, or empty. Every key of `source` must be one the
 ## fields fill. `message` gives the SEQ and PEER slots (null inside a record).
 static func write_all(
@@ -412,6 +452,8 @@ func _write_value(value: Variant, writer: WireWriter) -> String:
 		return _write_number(value, writer)
 	if type in TEXTS:
 		return _write_string(value, writer)
+	if type == Type.NAME:
+		return _write_name(value, writer)
 	if type in CONTAINERS:
 		return _write_container(value, writer)
 	if not _is_plain(value):
@@ -513,6 +555,15 @@ func _write_string(value: Variant, writer: WireWriter) -> String:
 	return ""
 
 
+func _write_name(value: Variant, writer: WireWriter) -> String:
+	if not (value is String or value is StringName) or not is_name(str(value)):
+		return _wrong(value)
+	var bytes := str(value).to_utf8_buffer()
+	writer.u8(bytes.size())
+	writer.raw(bytes)
+	return ""
+
+
 func _write_list(value: Variant, writer: WireWriter) -> String:
 	if not _is_list(value):
 		return _wrong(value)
@@ -601,6 +652,8 @@ func _read_value(reader: WireReader) -> Variant:
 		return _read_number(reader)
 	if type in TEXTS:
 		return _read_string(reader)
+	if type == Type.NAME:
+		return _read_name(reader)
 	if type in CONTAINERS:
 		return _read_container(reader)
 	if type == Type.SIZED_OPUS:
@@ -693,6 +746,27 @@ func _read_string(reader: WireReader) -> Variant:
 		Type.PATH:
 			if not is_path(text):
 				reader.fail("%s: not a path" % name)
+	return text
+
+
+## A `name` (#550): its bytes are checked as UTF-8 by hand before any decode, since
+## get_string_from_utf8 prints an engine error on malformed bytes (a peer could repeat it at will)
+## and drops a byte-order mark; then the text must encode back to the same bytes.
+func _read_name(reader: WireReader) -> String:
+	var length := reader.u8()
+	if length > NAME_MAX_BYTES:
+		reader.fail("%s: a length of %d" % [name, length])
+	var raw := reader.raw(length)
+	if reader.failed:
+		return ""
+	var at := _utf8_problem(raw)
+	if at >= 0:
+		reader.fail("%s: not UTF-8 at byte %d" % [name, at])
+		return ""
+	var text := raw.get_string_from_utf8()
+	if not is_name(text) or text.to_utf8_buffer() != raw:
+		reader.fail("%s: not a name" % name)
+		return ""
 	return text
 
 
@@ -864,3 +938,38 @@ static func _is_path_char(c: int) -> bool:
 
 static func _is_printable_char(c: int) -> bool:
 	return c >= 0x20 and c <= 0x7E
+
+
+## Where `raw` stops being well-formed UTF-8 (RFC 3629: the shortest form only, no surrogate,
+## nothing above U+10FFFF), or -1 when it is; a character is_name_char refuses is a problem too.
+static func _utf8_problem(raw: PackedByteArray) -> int:
+	var at := 0
+	while at < raw.size():
+		var tail := _utf8_tail(raw[at])
+		if tail < 0 or at + tail >= raw.size():
+			return at
+		var code: int = raw[at] & UTF8_LEAD_BITS[tail]
+		for i: int in range(1, tail + 1):
+			var byte := raw[at + i]
+			if byte & 0xC0 != 0x80:
+				return at
+			code = (code << 6) | (byte & 0x3F)
+		if code < UTF8_SMALLEST[tail] or not is_name_char(code):
+			return at
+		at += tail + 1
+	return -1
+
+
+## How many continuation bytes follow the lead byte `lead`; -1 when it cannot lead (a continuation
+## byte, C0 and C1, which only lead overlong forms, and F5 to FF, which lead nothing below
+## U+110000).
+static func _utf8_tail(lead: int) -> int:
+	if lead < 0x80:
+		return 0
+	if lead >= 0xC2 and lead <= 0xDF:
+		return 1
+	if lead >= 0xE0 and lead <= 0xEF:
+		return 2
+	if lead >= 0xF0 and lead <= 0xF4:
+		return 3
+	return -1

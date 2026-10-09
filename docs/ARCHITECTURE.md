@@ -230,12 +230,24 @@ dissidents, no crew present only once every crew member left, End widens nothing
   `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
   `Rejected` (`full`) and `DisconnectPeer`. A newcomer's leave is forgotten silently, and so is the late `PeerLeft`
   of a peer that a directive disconnected.
-- **Names** (the engineer's decision of 2026-09-30, #58): the host names every joiner `Player<n>`, with n counted
-  by accepted joins over the whole session (`MatchState.joins`): Player1, Player2, and so on. The host's own
-  client normally joins first and so is Player1, but the rule is only the join order. A number is never
-  reused: Player1 to Player3 join, Player2 leaves, and the next joiner becomes Player4. `ResetMatch` keeps the
-  count, so it runs on through End → Lobby. The name in `Hello` is ignored in the MVP. After the MVP a player sets
-  their own name and body colour, and a reconnecting player gets their old number back (#73).
+- **Names** (#550, the engineer's answers on #73; built on #58's `Player<n>`): a player sets their own name
+  (`UserSettings.player_name` in `user://`, "" until chosen, never empty once chosen) and `Hello` asks for it.
+  The host decides (`JoinRules.joiner_name`, the rules in `core/match/player_names.gd`): `PlayerNames.clean`
+  drops the C0 and C1 controls, DEL, U+FEFF, surrogates and the invisible format characters (zero-width
+  marks, line separators, bidi controls: a name that looks like another), trims blank edges (the space and the Unicode spaces
+  that show nothing) and keeps the first 16 characters (code points); when nothing is left (no name, the wrong
+  type, blanks or controls only) the joiner gets the fallback `Player<n>`, with n counted by accepted joins over
+  the whole session (`MatchState.joins`, which steps on every join, a named one too): Player1, Player2, and so on.
+  A number is never reused: Player1 to Player3 join, Player2 leaves, and the next nameless joiner becomes
+  Player4. `ResetMatch` keeps the count, so it runs on through End → Lobby. Then `PlayerNames.unique`: a name
+  that a present player has, ignoring case, gets the first free suffix " 2", " 3" and so on ("Dima", then
+  "Dima 2"; the fallback too, so a player who chose "Player2" never meets a second one), its base cut so the
+  whole stays within 16 characters; a leaver's name is free again. A name is never a reason to refuse a
+  `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). The name is
+  fixed for the session (a change after joining needs an intent of its own, #491). Still to come (#73): the
+  body colour, and a reconnecting player's old number.
+  Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
+  `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
 - A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
@@ -602,7 +614,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(version, content)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. No name: the host names the joiner `Player<n>` (§3.5; own names: #73), and a `name` a client sends is ignored. Accepted, it is the join (§3.5) |
+| `Hello(version, content, name)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. `name` (a String, the player's own, #550) is never refused: the host cleans it, falls back to `Player<n>` and suffixes a duplicate (§3.5). Accepted, it is the join (§3.5) |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
@@ -628,8 +640,8 @@ wire schemas of the events and the snapshot are §4.3.
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's `Player<n>`, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
-| `PlayerJoined` | peer, name (the host's `Player<n>`, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
+| `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
 | `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
@@ -697,7 +709,8 @@ Little-endian; sizes in bytes.
 | `tick` | 4 | `u32`; where optional, 0xFFFFFFFF is none (-1) | 0xFFFFFFFF where not optional |
 | `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
-| `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 | another byte (UTF-8 names come with #73) |
+| `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 (no row uses it since #550) | another byte |
+| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 64 (`WireField.NAME_MAX_BYTES`: 16 characters of at most 4 bytes, #550); empty allowed (the host's fallback) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 64 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two |
 | `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
@@ -734,7 +747,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
-| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1) | 10; 8192 |
+| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1), `name: name` (the player's own, "" for none; #550) | 11 + n; 8192 |
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
@@ -768,8 +781,8 @@ directive has no row, because it reaches no peer.
 | Kind | Event | Fields | Bytes; cap |
 |---|---|---|---|
 | 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
-| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: text, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>` | 410; 2048 |
-| 34 | `PlayerJoined` | `peer: peer`, `name: text`, `spot: vec3` | 25; 81 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>` | 410; 2048 |
+| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3` | 25; 81 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
 | 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>` | 250 with no shortfall; 8192 |
@@ -819,8 +832,8 @@ The rules of the table:
   `Rejected(wrong_version)` (§3.5), instead of timing out at the hello deadline on a host that drops its packets as
   malformed or over the cap. The host decodes `Hello` in two steps: the version, and the rest only when the version is
   its own; another version reaches `core/` as `{version}` alone and the rest of its payload is ignored, whatever its
-  length (#73's name makes a later `Hello` longer than this one). 3d's version test pins both rows byte for byte and
-  decodes a synthetic longer `Hello` of another version to `{version}`.
+  length (since protocol 10 `Hello` ends with the player's name, #550). 3d's version test pins both rows byte for
+  byte and decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
@@ -829,7 +842,8 @@ The rules of the table:
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
   `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), and is 9 since #429 added `MoveClaimReliable` (14);
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), and is 10 since
+  #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster;
   M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
@@ -840,8 +854,8 @@ The rules of the table:
   playtest. An exported build, which may convert scenes, is M6's to check. The host's `server/` and each client compute
   it when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
-  predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
-  the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
+  predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s `name` (#550)
+  is not part of the check: the host cleans it (§3.5).
   The level files are walked (#118): every scene and resource a level reaches through
   `ResourceLoader.get_dependencies`, recursively and each once (a cycle, a piece two levels share), is hashed too,
   sorted by `res://` path, so a wall moved inside a room the map instances counts. A dependency with a known uid is
@@ -1297,7 +1311,8 @@ and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a de
 A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
-the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
+the wire tells bot 1 which peer is bot i: a name is no id (a wire bot's `Hello` asks for none, so the host names it
+`Player<n>`, §3.5; the core runner's bots ask for `bot<i>`, which the host keeps), and over ENet the clients choose
 their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
 `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
 runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
@@ -3960,7 +3975,8 @@ phase classes come in the task each row names.
   leaving); 2b (#58) filled the base mode's Lobby, Countdown, Loading and End classes, with `JoinRules` (joins,
   leaves, the ready flag) and `FitCheck` (the fit check) beside them in `core/match/phases/`, and
   `MatchState.newcomers` for the connected peers not yet players and `MatchState.joins` for the `Player<n>` names
-  (§3.5); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
+  (§3.5; own names since #550, `PlayerNames`); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the
+  checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT, and `life_deadline`, M4-2), settings and
   `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5), tasks (`MatchTask`: its task type and `TaskState`,
   no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and

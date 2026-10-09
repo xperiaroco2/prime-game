@@ -513,7 +513,7 @@ func _new_transport() -> NetTransport:
 
 func _start_client(transport: NetTransport) -> void:
 	_ending = false
-	_client = ClientSession.new(transport, mode, _schema)
+	_client = ClientSession.new(transport, mode, _schema, settings.player_name)
 	_client.welcomed.connect(_on_welcomed)
 	_client.corrected.connect(_on_corrected)
 	_client.map_loaded.connect(_on_map_loaded)

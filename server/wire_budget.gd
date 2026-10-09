@@ -9,9 +9,9 @@ extends RefCounted
 ## a problem when it starts; a test runs it over every mode in content/, so `verify` catches a
 ## content edit first.
 
-## A joiner's name is the host's Player<n>, which grows with the join count: bound it by the text
-## type itself.
-const NAME_BYTES := WireField.TEXT_MAX
+## A joiner's name is its own (at most 16 characters of UTF-8) or the host's Player<n>, which grows
+## with the join count: bound it by the name type itself.
+const NAME_BYTES := WireField.NAME_MAX_BYTES
 const LARGEST_U32 := WireField.U32_MAX
 
 

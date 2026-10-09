@@ -61,9 +61,10 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   `NetKindTable.game()` is built from it. Field names are `core/`'s (`MatchCommand.args`, each event's `to_dict()`),
   written as strings: `net/` references no `core/` class.
 - Wire types only (§4.3): little-endian integers, `f32` for every float (lossless for `Vector3` and `Color`), ids of
-  `a-z 0-9 _`, `res://` paths, printable-ASCII text and notes (shortfalls), counted lists and maps with ascending
-  keys. Never `var_to_bytes` or `bytes_to_var` on the wire, even without objects. Content sets how big some kinds
-  get: `WireBudget` (`server/`) refuses a mode that could exceed a cap (§4.3, E16).
+  `a-z 0-9 _`, `res://` paths, printable-ASCII text and notes (shortfalls), players' names in UTF-8 checked by hand
+  before any decode (`name`, #550), counted lists and maps with ascending keys. Never `var_to_bytes` or
+  `bytes_to_var` on the wire, even without objects. Content sets how big some kinds get: `WireBudget` (`server/`)
+  refuses a mode that could exceed a cap (§4.3, E16).
 - Decode through the bounds-checked reader only: check the bytes left before every `decode_*`, reject the whole
   message at the first problem (a type rule, a count, a key order, unknown flag bits, trailing bytes), and count it.
 - The encoder checks its input by the same rules and refuses, with an error, what the decoder would reject or what
