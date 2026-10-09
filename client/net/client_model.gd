@@ -2,10 +2,10 @@ class_name ClientModel
 extends RefCounted
 ## What one client knows now (ARCHITECTURE §4.6), folded from the events and snapshots it decoded:
 ## its peer id and epoch, the phase, the roster, the settings, the items with every player's hand
-## and belt, the stations, the tasks and bodies, each player's life (E25), the avatars of the
-## newest snapshot and its own SelfStatus. Built only from
-## what the host sent this client, never from core/ state (invariant 2). The game mode is the
-## client's own copy, read for where each phase plays.
+## and belt, the stations (a zone's progress too), the tasks and bodies, each player's life (E25),
+## the avatars of the newest snapshot and its own SelfStatus. Built only from what the host sent
+## this client, never from core/ state (invariant 2). The game mode is the client's own copy, read
+## for where each phase plays.
 ##
 ## A match's facts (items, stations, bodies, role, tasks, avatars and the like) are cleared on
 ## LoadMatch and on entering the lobby: a new level holds none of the old ones. A snapshot sent
@@ -51,14 +51,22 @@ class Task:
 	var total := 0
 
 
-## One station (in the MVP a delivery circle).
+## One station: a delivery circle or a zone (#36).
 class Station:
 	extends RefCounted
 	var kind: StringName
 	var colour := Color.WHITE
 	var position := Vector3.ZERO
-	## A package was delivered to it (§4.2 PackageDelivered: now shown as done).
+	## Done: a package was delivered to it (§4.2 PackageDelivered), or, for a zone, its last
+	## ZoneProgress has `ticks` at `needed` (ZE8 of the zone task ADR).
 	var done := false
+	## A zone's progress as its last ZoneProgress told it (ZE4, ZE8): its ticks so far, the ticks
+	## it needs, whether it counts, and the host tick this held at (-1 before the first). The client
+	## predicts nothing: ZoneViews extrapolates from these alone.
+	var ticks := 0
+	var needed := 0
+	var counting := false
+	var progress_tick := -1
 
 
 ## Its own peer id once welcomed; 0 before.
@@ -317,6 +325,14 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			var station: Station = stations.get(fields["station"] as int)
 			if station != null:
 				station.done = true
+		&"ZoneProgress":
+			var zone: Station = stations.get(fields["station"] as int)
+			if zone != null:
+				zone.ticks = fields["ticks"]
+				zone.needed = fields["needed"]
+				zone.counting = fields["counting"]
+				zone.progress_tick = fields["tick"]
+				zone.done = zone.needed > 0 and zone.ticks >= zone.needed
 		&"TaskProgress":
 			tasks_done = fields["done"]
 			tasks_total = fields["total"]
