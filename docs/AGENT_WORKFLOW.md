@@ -1710,10 +1710,12 @@ another machine), so the two differ by more than the conversion's error. **`--si
 restarted, not always the scheduled reset** (#677): a reset by hand (the engineer's spare reset, 2026-10-08 12:25 UTC,
 counter 1%) restarts the counter, and `--since` the scheduled reset then reads 103% against the counter's 31% (every
 message id counted once, no response in two files; against the counter's 99% at 11:48 UTC just before that reset, the
-same `metrics` read 95.9%, so the conversion holds). After a reset by hand, pass its time as `--since`. The last line
-names the checkouts read (each one's folder keys and worktree count); a `-ui` or `-art` checkout with no folder here is
-`not on this machine`, and so is its track's line when no session here has that track (`all` lists it too): its spend
-is unknown, never 0%. `tracks.json` lists them under `checkouts`.
+same `metrics` read 95.9%, so the conversion holds). After a reset by hand, pass its time as `--since`; the plan to
+date then counts the days from it and runs low until the next scheduled reset (that week is shorter than 7 days), so
+hold a track's % against its budget directly. The last line names the checkouts read (each one's folder keys and
+worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so is its track's line
+when no session here has that track (`all` lists it too): its spend is unknown, never 0%. `tracks.json` lists them
+under `checkouts`.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
 named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
 own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with

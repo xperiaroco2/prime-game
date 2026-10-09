@@ -39,7 +39,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   the counter last restarted (the Tuesday 10:00 UTC reset, or a reset by hand after it; never a fixed date: `--since`
   the scheduled reset after a reset by hand read 103% against the counter's 31%, #677), prints the window, one line per
   track named (`<track>: <%> (<bracket>) of <budget>% this week; plan to date <%>;
-  list $<n> in <k> sessions`; the plan to date is the budget x the days since the reset / 7), and the total of every
+  list $<n> in <k> sessions`; the plan to date is the budget x the days since `--since` / 7: after a reset by hand it
+  runs low until the next scheduled reset, so hold the track's % against its budget directly), and the total of every
   session of the three checkouts with its untracked share and that share's largest sessions. Several tracks take one
   budget each, in their order (`--track game meta --budget 26 12`); `--track all` lists every track found and takes no
   `--budget`. Without `--compact` it adds a table of every session with its track and where the track came from.
