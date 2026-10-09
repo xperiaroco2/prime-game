@@ -2,9 +2,10 @@ extends GdUnitTestSuite
 ## The UI's base resolution (#287): the screens are laid out on a 1920x1080 canvas, the size the
 ## UI pack's mock-ups and Toy tokens are drawn at (one mock-up px is one Godot px), stretched to
 ## the window (`canvas_items`, `expand`). The window still opens at Godot's old default of
-## 1152x648. Godot's default theme is not scaled: the generated theme covers the base controls the
-## screens build (#576; base_controls_test.gd), so its scale went back to 1 from the 1920/1152 that
-## #287 set to keep the default controls' apparent size.
+## 1152x648, and Godot's default theme is scaled by 1920/1152 so the controls it draws keep their
+## apparent size. The generated theme covers the bare fields, dropdowns, sliders and scroll bars
+## since #576, but CheckBox's box, SpinBox's arrows and the bare Buttons' padding still come from
+## the default theme, so the scale stays until they have looks or the engineer accepts the gaps.
 
 const BASE := Vector2i(1920, 1080)
 const START_WINDOW := Vector2i(1152, 648)
@@ -29,8 +30,9 @@ func test_the_window_opens_at_its_old_size() -> void:
 	assert_vector(Vector2i(width, height)).is_equal(START_WINDOW)
 
 
-func test_the_default_theme_is_not_scaled() -> void:
+func test_the_default_theme_keeps_its_apparent_size() -> void:
+	var scale := float(BASE.x) / float(START_WINDOW.x)
 	var setting: float = ProjectSettings.get_setting("gui/theme/default_theme_scale")
-	assert_float(setting).is_equal_approx(1.0, 0.001)
+	assert_float(setting).is_equal_approx(scale, 0.001)
 	# Read back from the theme Godot built at startup.
-	assert_float(ThemeDB.get_default_theme().default_base_scale).is_equal_approx(1.0, 0.001)
+	assert_float(ThemeDB.get_default_theme().default_base_scale).is_equal_approx(scale, 0.001)

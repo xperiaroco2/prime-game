@@ -40,6 +40,10 @@ window/stretch/aspect="expand"
 
 enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
+[gui]
+
+theme/default_theme_scale=1.6667
+
 [input]
 
 move_forward={
