@@ -16,6 +16,8 @@ extends RefCounted
 ## - Deck keys are the copy deck's (#208, client/i18n/strings.csv), read only through its
 ##   translation in the current language ("Space" in English, "Пробіл" in Ukrainian).
 ## - Nothing bound: "".
+## - A keycap takes the wide size (is_wide) when its label is longer than one character: Space,
+##   Shift, Tab and Esc (#488 rule 7), and so whatever a rebind gives it (Ctrl, F5, LMB).
 
 ## The last code point of the Latin scripts (Latin Extended-B): a layout's label above it, and
 ## below the special keys, is shown by its US name.
@@ -72,6 +74,18 @@ static func shown(physical: Key, label: Key) -> Key:
 	if (label & KEY_SPECIAL) != 0 or label <= LATIN_END:
 		return label
 	return physical
+
+
+## Whether a keycap showing `label` takes the wide size: a label of more than one character
+## (#488 rule 7 names Space, Shift, Tab and Esc; a rebind to Ctrl, F5 or a mouse button fits the
+## same way).
+static func is_wide(label: String) -> bool:
+	return label.length() > 1
+
+
+## Whether `action`'s keycap takes the wide size now (its binding, as of_action reads it).
+static func is_wide_action(action: StringName) -> bool:
+	return is_wide(of_action(action))
 
 
 ## A deck key's text in the current language (the copy deck's translation).

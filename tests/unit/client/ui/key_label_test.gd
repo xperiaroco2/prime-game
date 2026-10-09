@@ -61,6 +61,34 @@ func test_the_label_follows_a_rebind() -> void:
 	assert_str(LobbyHud.hint()).contains("K: ready")
 
 
+func test_space_shift_tab_and_esc_keycaps_are_wide_and_a_rebind_decides() -> void:
+	# #488 rule 7: the wide keycap follows the label, so the binding now.
+	for key: Key in [KEY_SPACE, KEY_SHIFT, KEY_TAB, KEY_ESCAPE]:
+		(
+			assert_bool(KeyLabel.is_wide(KeyLabel.of_key(key)))
+			. override_failure_message(OS.get_keycode_string(key))
+			. is_true()
+		)
+	for key: Key in [KEY_F, KEY_M, KEY_E, KEY_1]:
+		assert_bool(KeyLabel.is_wide(KeyLabel.of_key(key))).is_false()
+	assert_bool(KeyLabel.is_wide_action(&"jump")).is_true()
+	assert_bool(KeyLabel.is_wide_action(&"sprint")).is_true()
+	assert_bool(KeyLabel.is_wide_action(&"use")).is_true()
+	assert_bool(KeyLabel.is_wide_action(&"interact")).is_false()
+	var controls := Controls.new()
+	var k := InputEventKey.new()
+	k.physical_keycode = KEY_K
+	controls.bind(&"jump", k)
+	var ctrl := InputEventKey.new()
+	ctrl.physical_keycode = KEY_CTRL
+	controls.bind(&"interact", ctrl)
+	controls.apply()
+	assert_bool(KeyLabel.is_wide_action(&"jump")).is_false()
+	assert_bool(KeyLabel.is_wide_action(&"interact")).is_true()
+	TranslationServer.set_locale("uk")
+	assert_bool(KeyLabel.is_wide(KeyLabel.of_key(KEY_SPACE))).is_true()
+
+
 func test_a_layouts_latin_label_shows_and_another_scripts_label_gives_way_to_the_us_name() -> void:
 	# Real layouts (probed on Windows, 4.7.2): Ukrainian labels the physical F "А" (U+0410), W "Ц".
 	assert_int(KeyLabel.shown(KEY_F, 0x0410 as Key)).is_equal(KEY_F)
