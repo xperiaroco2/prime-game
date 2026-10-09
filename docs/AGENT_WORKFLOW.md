@@ -147,12 +147,12 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
   `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 8,704 (every agent carries them on
-  every call), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
+  every call; root `CLAUDE.md` has little room left, so a rule or glossary row added there trims another rule into its
+  doc in the same PR), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
   only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
   folder, read on demand (`orchestrate-stage`'s core names the file for each event, §6). It also fails on rule
-  frontmatter that would not parse (Claude
-  Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
-  retires it, and the intervention entry says which.
+  frontmatter that would not parse (Claude Code would then load the rule at every launch). The same PR then scopes a
+  rule to paths, moves it into a skill, or retires it, and the intervention entry says which.
 - **[applied]** Root's commands section is the runner line and one line of command names, no table (#340; N2 (a) of
   the instruction-diet ADR, PR #325): each command's `--help` (its `description` in `tools/runner/cli.py`) carries what
   its table row said. A new command adds its name in alphabetical order and a description; a note on the names line
@@ -452,8 +452,7 @@ Rules for every workflow run:
   --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
   the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
   planner on Sonnet with `models.plan` (orchestrate-stage §3, `launch-args.md`); the critique stays on the review
-  model. `metrics`'
-  plan phase table (§11.12) gives the before and after.
+  model. `metrics`' plan phase table (§11.12) gives the before and after.
   `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
@@ -610,19 +609,18 @@ Rules for every workflow run:
   checkouts' included: `tools\run.cmd metrics --since <the
   weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
   the `Track:` line of its kickoff, the skill's §10 (`kickoff-template.md`), else its checkout's, else untracked).
-  Shared files (N5 (c)):
-  `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
-  between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
-  changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
-  another base (a PR stacked on one of its own track counts as its track's) when both change a shared file (`tools/`,
-  `.claude/`, `.github/`, this file), the same one or different ones (a signature changed in `tools/runner/x.py` that
-  the other PR calls from `tools/runner/y.py`, #231): the textual conflicts in the files both change and the same symbol
-  check over each whole PR, in a table "across bases" that names both bases (#207); the pairs where at most one side
-  changes a shared file it names as not compared. A flagged pair: its manager names it on the other track's plan issue;
-  the PR into `main` merges first (through the gate, or by a human for an exception; the milestone's manager holds its
-  own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
-  rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
-  manager says so on each running manager's plan issue.
+  Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an
+  issue there, landing between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and
+  this file may be changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every
+  open PR into another base (a PR stacked on one of its own track counts as its track's) when both change a shared file
+  (`tools/`, `.claude/`, `.github/`, this file), the same one or different ones (a signature changed in
+  `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`, #231): the textual conflicts in the files both
+  change and the same symbol check over each whole PR, in a table "across bases" that names both bases (#207); the pairs
+  where at most one side changes a shared file it names as not compared. A flagged pair: its manager names it on the
+  other track's plan issue; the PR into `main` merges first (through the gate, or by a human for an exception; the
+  milestone's manager holds its own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge
+  --sync-main`) and its PR is rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches
+  `main`, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the weekly
   limit; each handover comment's notes end with it as the ready kickoff he pastes, the manager's last For-you carrying
   it too, Recovery below), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest)
@@ -693,9 +691,9 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
   comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
 - **Every manager's "For you:" block stays parseable** (orchestrate-stage §8, `notifications.md`): the label
-  `For you:` (or `Для вас:`)
-  on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
-  it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
+  `For you:` (or `Для вас:`) on a line of its own, then numbered items at the line's start, each item's command block
+  indented or fenced under it, or `For you: nothing.`; the same block goes into the wave comment's notes in English,
+  where `inbox` reads it.
 
 **Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
@@ -1537,17 +1535,16 @@ fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-d
 whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
 running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
 those itself (orchestrate-stage §8 in `notifications.md`, the trust ADR). The section's first line, which the manager
-lifts into its chat
-message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
-worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
-#343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
-the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
---search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
-the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
-returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
-may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
-whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
-a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
+lifts into its chat message, names only what needs the engineer, a worktree a live session holds: `For you: close the
+Claude session in worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay
+out of it, #343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD
+not the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
+--search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves the
+merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh returns
+all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree) may be
+missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block whole, to
+`<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed, a part one
+run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
 A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
 publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
 every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
@@ -1669,18 +1666,18 @@ across every file. A session's track is, the first that holds: `--session <id>=<
 `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
 orchestrate-stage skill's §10 template (`kickoff-template.md`) and §7's handover carry one; any case, the key also
 `Трек:` for a translated
-kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
-default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
-(`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
-bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
-engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
---since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
-(`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
-or translated shows there). That total covers only the three checkouts: the counter also counts the account's
-sessions elsewhere (another project folder, a replay, another machine), so the two differ by more than the
-conversion's error. The last line names the checkouts read (each one's folder keys and worktree count); a `-ui` or
-`-art` checkout with no folder here is `not on this machine`, and so is its track's line when no session here has that
-track (`all` lists it too): its spend is unknown, never 0%. `tracks.json` lists them under `checkouts`.
+kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's default
+(`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track (`all`: every
+track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the bracket, its list $
+and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the engineer's, N1 of the design, so
+there is no default) `of <budget>% this week; plan to date <budget x days since --since / 7, at most the budget>%`; then
+every session's total, which the manager holds against the weekly counter (`get_usage`), with the untracked share and
+its three largest sessions (a kickoff whose `Track:` line was left out or translated shows there). That total covers
+only the three checkouts: the counter also counts the account's sessions elsewhere (another project folder, a replay,
+another machine), so the two differ by more than the conversion's error. The last line names the checkouts read (each
+one's folder keys and worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so
+is its track's line when no session here has that track (`all` lists it too): its spend is unknown, never 0%.
+`tracks.json` lists them under `checkouts`.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
 named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
 own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
@@ -1748,8 +1745,8 @@ tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export
 `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
-`tools/out/gdunit/`. Outside a Claude Code session (a human's PowerShell) the
-runner takes the machine paths from the Claude settings (§2).
+`tools/out/gdunit/`. Outside a Claude Code session (a human's PowerShell) the runner takes the machine paths from the
+Claude settings (§2).
 
 ### 11.16 CI [applied]
 `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
