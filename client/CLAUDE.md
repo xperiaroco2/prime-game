@@ -46,7 +46,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   client's own seeded generator and never sent; nothing private of the target is shown (no health, stamina, role,
   teammates or private event).
   Of the target, the spectator's HUD shows only "Watching: <name>" and its (public) hand and belt items, and of the
-  spectator none of its own slots, numbers, role or time (#489, §4.7.36); from a living target's eyes its body and the item views at it are
+  spectator none of its own slots, numbers, role or time (#489, §4.7.37); from a living target's eyes its body and the item views at it are
   hidden, and its hand item shows in the spectate camera's first-person hand, as on its own screen (#168).
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## What the round's HUD shows (client/ui/HudText, ARCHITECTURE §4.7.36, #489; M4-8 first) from a
+## What the round's HUD shows (client/ui/HudText, ARCHITECTURE §4.7.37, #489; M4-8 first) from a
 ## fake ClientModel and the client's own mode only: the time, the own role's key, the own health
 ## and stamina as fractions, the microphone, the own hand and belt, the item under the crosshair
 ## and the own raise; nothing of another player, no player list, destination or task progress;

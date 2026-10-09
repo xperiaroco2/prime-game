@@ -1,6 +1,6 @@
 class_name HudSlot
 extends PanelContainer
-## One of the round HUD's two slots (#489; ARCHITECTURE §4.7.36): the UI handoff's (prime-game-ui
+## One of the round HUD's two slots (#489; ARCHITECTURE §4.7.37): the UI handoff's (prime-game-ui
 ## `ui-0.4.0` `docs/handoff/s07-hud.md`) `Hud/Slots/Hand` and `Belt`, `<slot>` > `Center`
 ## CenterContainer > `Row` ToyRowEight > `Icon`, `Name` and `ItemName`. One pattern for both: empty
 ## shows the slot's name; a one-handed item only its icon (48 px); a two-handed item (the package)

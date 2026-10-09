@@ -1,6 +1,6 @@
 class_name Hud
 extends Control
-## The round's HUD in the Toy style (#489; ARCHITECTURE §4.7.36): the UI handoff's tree, node for
+## The round's HUD in the Toy style (#489; ARCHITECTURE §4.7.37): the UI handoff's tree, node for
 ## node (prime-game-ui `ui-0.4.0` `docs/handoff/s07-hud.md`), drawing what HudText says. HUD edges
 ## sit 40 px in (px at the 1920x1080 base, #287):
 ## - `Timer` (top centre): the time left as mm:ss, data; its 140 px hold the widest time,

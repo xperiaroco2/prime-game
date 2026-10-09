@@ -1,6 +1,6 @@
 class_name HudText
 extends RefCounted
-## What the round's HUD shows (ARCHITECTURE §4.7.36, #489; M4-8 first), pure: from the own
+## What the round's HUD shows (ARCHITECTURE §4.7.37, #489; M4-8 first), pure: from the own
 ## ClientModel, the client's own copy of the mode, the estimated host tick and what the game knows
 ## locally (the predicted stamina, the item under the crosshair, whether the own voice is heard, the
 ## own raise's progress, whom a dead player watches). The Toy HUD (prime-game-ui `ui-0.4.0`

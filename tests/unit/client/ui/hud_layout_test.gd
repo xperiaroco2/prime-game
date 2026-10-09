@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The round HUD's Controls (client/ui/Hud and HudSlot, #489; ARCHITECTURE §4.7.36) under the
+## The round HUD's Controls (client/ui/Hud and HudSlot, #489; ARCHITECTURE §4.7.37) under the
 ## shared theme: the UI handoff's tree node for node (prime-game-ui `ui-0.4.0`
 ## `docs/handoff/s07-hud.md`: names, classes, variations, anchors, offsets, grow directions, size
 ## flags and minimum sizes), every node ignoring the mouse and focus, the health fill's ramp stop

@@ -2194,7 +2194,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   each file passing `sfx-check` first, AGENT_WORKFLOW §11.25).
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
-- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.36); `TaskScreen` (its rows pure: each `TaskState` by task
+- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.37); `TaskScreen` (its rows pure: each `TaskState` by task
   id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
   and hint under it. **Superseded by #253** (§4.7.33): the map and tasks screen `MapScreen`, opened and closed on M

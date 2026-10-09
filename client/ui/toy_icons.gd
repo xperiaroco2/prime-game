@@ -1,7 +1,7 @@
 class_name ToyIcons
 extends RefCounted
 ## The UI pack's white icons (prime-game-ui `dist/pack/icons/`, own work) for the screens that draw
-## them in a TextureRect tinted through `self_modulate` (#489; ARCHITECTURE §4.7.36). An icon is
+## them in a TextureRect tinted through `self_modulate` (#489; ARCHITECTURE §4.7.37). An icon is
 ## its imported copy, `res://assets/ui/toy_pack/icons/<name>.svg` (#520's ui-sync imports it at the
 ## pack's `svg_scale`), once that exists. Until #520 lands, the pinned copy the theme is built from
 ## (`client/ui/theme/pack/icons/`, `.gdignore`d, so never imported) is rasterised here at the scale
