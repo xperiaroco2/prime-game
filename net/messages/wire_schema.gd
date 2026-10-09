@@ -14,8 +14,9 @@ extends RefCounted
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
 ## 9 since #429 added MoveClaimReliable (kind 14); 10 since #550 added Hello's `name` and made
 ## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8); 11 since #214 added
-## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes.
-const VERSION := 11
+## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes;
+## 12 since #599 added NextStage (kind 15).
+const VERSION := 12
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -224,6 +225,7 @@ static func _intents() -> Array[WireRow]:
 		_up(12, &"GiveUp", 4, [_seq()]),
 		_up(13, &"Swap", 4, [_seq()]),
 		twin,
+		_up(15, &"NextStage", 4, [_seq()]),
 	]
 
 

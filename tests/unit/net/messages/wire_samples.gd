@@ -111,6 +111,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"StopRaise", {}, 15),
 		WireMessage.new(&"GiveUp", {}, 16),
 		WireMessage.new(&"Swap", {}, 17),
+		WireMessage.new(&"NextStage", {}, 18),
+		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
 	]
 
 

@@ -36,7 +36,7 @@ func on_tick(ctx: MatchContext) -> void:
 func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	match command.kind:
 		Intents.HELLO:
-			if JoinRules.hello(ctx, command, spec.id):
+			if JoinRules.hello(ctx, command, spec):
 				_cancel(ctx, CountdownCancelledEvent.JOIN)
 		Intents.SET_READY:
 			# Countdown accepts SetReady(false) only (§4.1).

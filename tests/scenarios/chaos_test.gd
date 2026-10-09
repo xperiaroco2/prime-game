@@ -85,6 +85,10 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"MoveClaim", {}, &"round", dead, ChaosOracle.SILENT],
 		[&"SetReady", {"ready": true}, &"lobby", null, &"not_accepted"],
 		[&"MoveClaim", {}, &"lobby", null, ChaosOracle.SILENT],
+		[&"NextStage", {}, &"lobby", living, &"not_accepted"],
+		[&"NextStage", {}, &"round", living, &"not_accepted"],
+		[&"NextStage", {}, &"round", downed, &"not_accepted"],
+		[&"NextStage", {}, &"end", dead, &"not_accepted"],
 	]
 	for case: Array in cases:
 		var player: PlayerState = case[3]
@@ -94,6 +98,25 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		var answer := ChaosOracle.answer(intent, args, 4, phase, player, 0)
 		assert_str(str(answer)).override_failure_message("%s" % [case]).is_equal(str(case[4]))
 	assert_bool(ChaosOracle.accepts(&"MoveClaim", 4, &"round", downed)).is_true()
+
+
+func test_every_intent_has_an_oracle_answer_and_next_stage_is_refused_even_from_the_host() -> void:
+	# #599: every intent is in a phase of ACCEPTS or in NEVER_ACCEPTED, so a new intent forces a
+	# decision here; NextStage is refused in every base-mode phase, peer 1's included.
+	for intent: StringName in Intents.ALL:
+		var listed := ChaosOracle.NEVER_ACCEPTED.has(intent)
+		for phase: StringName in ChaosOracle.ACCEPTS:
+			listed = listed or (ChaosOracle.ACCEPTS[phase] as Dictionary).has(intent)
+		assert_bool(listed).override_failure_message(str(intent)).is_true()
+	assert_array(ChaosOracle.NEVER_ACCEPTED).contains([Intents.NEXT_STAGE])
+	var host := PlayerState.new(NetTransport.HOST_ID, "Player1")
+	for phase: StringName in ChaosOracle.ACCEPTS:
+		(
+			assert_bool(ChaosOracle.accepts(Intents.NEXT_STAGE, NetTransport.HOST_ID, phase, host))
+			. is_false()
+		)
+		for intent: StringName in ChaosOracle.NEVER_ACCEPTED:
+			assert_bool((ChaosOracle.ACCEPTS[phase] as Dictionary).has(intent)).is_false()
 
 
 func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach() -> void:

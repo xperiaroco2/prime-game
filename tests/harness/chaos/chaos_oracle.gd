@@ -53,6 +53,11 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
 }
+## The intents the base mode accepts in no phase, from no sender, the host included: the part of
+## ACCEPTS that has no row above (accepts() reads an absent intent as refused). NextStage (#599,
+## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
+## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
