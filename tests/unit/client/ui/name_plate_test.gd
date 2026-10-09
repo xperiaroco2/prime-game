@@ -30,6 +30,14 @@ func test_the_plate_is_the_handoffs_tree_with_the_name_as_data() -> void:
 	assert_vector(plate.mark.custom_minimum_size).is_equal(Vector2(20, 20))
 	var text := GameUi.THEME.get_color(&"font_color", &"ToyNamePlateText")
 	assert_object(plate.mark.tint()).is_equal(text)
+	# The pack's white SVG (#520), tinted through self_modulate, drawn at the handoff's 20 px.
+	assert_object(plate.mark).is_instanceof(TextureRect)
+	assert_str(plate.mark.texture.resource_path).is_equal(
+		"res://assets/ui/toy_pack/icons/teammate-mark.svg"
+	)
+	assert_object(plate.mark.self_modulate).is_equal(text)
+	assert_int(plate.mark.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
+	assert_int(plate.mark.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
 
 
 func test_the_plate_centres_on_the_point() -> void:
