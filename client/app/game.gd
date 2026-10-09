@@ -39,7 +39,7 @@ extends Node
 ## Speaking (M5-6): `VoiceSender` sends the own microphone through the gate into the own session;
 ## `VoiceControl` applies this window's UserSettings (the microphone, the mode, the threshold,
 ## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them, as does the
-## main menu's Voice page before any session (#301: the meter runs, nothing is sent); the lobby
+## main menu's Settings panel before any session (#301: the meter runs, nothing is sent); the lobby
 ## hints at the tab until a microphone is picked; F3 shows the own gate, peak, age and encode time.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
@@ -513,14 +513,13 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	# Then the open overlay on top, only that one (#488 rule 2): a card, the map, the host's
-	# question, the Esc menu (its Resume), the main menu's Voice page (#301). A key capture in
+	# question, the Esc menu (its Resume), the main menu's open panel (#493). A key capture in
 	# Settings > Controls took its Esc in its own _input already.
 	if ui.overlays.close_top() != &"":
 		get_viewport().set_input_as_handled()
 		return
 	# None open: the Esc menu, over a session only.
 	if _client == null:
-		# No session has no Esc menu; the main menu closes its own open panel (MainMenu._input).
 		return
 	open_esc()
 	get_viewport().set_input_as_handled()
@@ -922,7 +921,7 @@ func _typing() -> bool:
 	return focus is LineEdit or focus is TextEdit or ui.esc.controls.is_capturing()
 
 
-## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Voice page, or null.
+## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Settings panel, or null.
 func shown_voice_panel() -> VoicePanel:
 	if ui.esc_open():
 		return ui.esc.voice if ui.esc.state.selected == EscMenuState.Tab.VOICE else null

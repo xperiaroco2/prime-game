@@ -5,8 +5,8 @@ extends Control
 ## the open panel to their right), the Settings panel, a root of its own, and the Version.
 ## - Items: Host (a game with a code), Join, Join by address (Direct), Tutorial, Settings, Quit.
 ##   Join, Direct and Settings are one ButtonGroup with allow_unpress: pressing one opens its
-##   panel, pressing it again, Back or Esc (ui_cancel, handled here) closes it and gives the focus
-##   back to the item. Focus starts on Host.
+##   panel, pressing it again, Back or Esc (GameUi's `menu_panel` overlay, #488) closes it and
+##   gives the focus back to the item. Focus starts on Host.
 ## - CodePanel: the code field (only the code alphabet, upper case, at most 6), Join once it holds
 ##   a whole code, Enter = Join. DirectPanel: the host's address[:port], Join once it parses
 ##   (JoinTarget), Host on the port typed or the default, the default port's line.
@@ -122,15 +122,6 @@ func _notification(what: int) -> void:
 		_focus.call_deferred()
 
 
-## Esc closes the open panel (#488's rule for the main menu) before anything else sees it.
-func _input(event: InputEvent) -> void:
-	if open == Open.NONE or not is_visible_in_tree():
-		return
-	if event.is_action_pressed(&"ui_cancel"):
-		close_panel()
-		get_viewport().set_input_as_handled()
-
-
 ## The name row shows and keeps `settings`' player_name (#550): each change is cleaned and saved;
 ## a field left empty shows the name kept.
 func bind_name(settings: UserSettings) -> void:
@@ -162,6 +153,12 @@ func open_direct() -> void:
 
 func settings_open() -> bool:
 	return open == Open.SETTINGS
+
+
+## Whether a panel is open, the code, Direct or Settings one: the `menu_panel` overlay Esc closes
+## (GameUi, #488 rule 2).
+func panel_open() -> bool:
+	return open != Open.NONE
 
 
 ## The state as the handoff names it: main, code, code-ready, direct or settings.

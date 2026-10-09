@@ -257,14 +257,15 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await get_tree().process_frame
 
 
-## #493 (#488's rule for the main menu): Esc closes the open panel, Settings' too, and gives the
-## focus back to its item; no Esc menu opens with no session.
+## #493 (#488 rule 2, the `menu_panel` overlay): Esc closes the open panel, the code, Direct and
+## Settings ones, and gives the focus back to its item; no Esc menu opens with no session.
 func test_on_the_main_menu_esc_closes_the_open_panel_and_opens_no_esc_menu() -> void:
 	var game := _game([])
 	game.pointer = FakePointer.new()
 	await _frames(2)
 	assert_int(game.screen()).is_equal(S.MENU)
-	for item: Button in [game.ui.menu.settings_item, game.ui.menu.join_item]:
+	var menu := game.ui.menu
+	for item: Button in [menu.settings_item, menu.join_item, menu.direct_item]:
 		item.button_pressed = true
 		await _frames(2)
 		assert_str(String(game.ui.menu.state())).is_not_equal("main")

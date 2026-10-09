@@ -1,10 +1,12 @@
 extends GdUnitTestSuite
 ## The main menu (client/ui/main_menu.gd, #493): prime-game-ui's s2 handoff at ui-0.4.0 node for
-## node, its five states, the items' group and focus, Esc, the code field's alphabet and Join at
+## node, its five states, the items' group and focus, the code field's alphabet and Join at
 ## six characters, the Direct panel's Join and Host, the name row bound to UserSettings, and the
-## texts in both languages. The game's wiring is in tests/integration/client/app/ (Esc in
-## esc_menu_input_test.gd, the Settings panel's voice in game_voice_test.gd). How it looks: the
-## `shot`s of client/dev/screen_preview.gd per state (`menu_state`, `language`, `large_text`).
+## texts in both languages. Esc on an open panel is GameUi's `menu_panel` overlay (#488):
+## game_ui_overlays_test.gd, and through real keys esc_menu_input_test.gd. The game's wiring is in
+## tests/integration/client/app/ (the Settings panel's voice in game_voice_test.gd). How it
+## looks: the `shot`s of client/dev/screen_preview.gd per state (`menu_state`, `language`,
+## `large_text`).
 
 const DECK := "res://client/i18n/strings.csv"
 const CODE_V := "Column/Body/CodePanelRaised/CodePanel/V"
@@ -229,25 +231,6 @@ func test_the_focus_starts_on_host_goes_to_the_field_and_back_to_the_item() -> v
 	assert_object(_focus()).is_same(_menu.settings_item)
 
 
-func test_esc_closes_the_open_panel_and_gives_the_focus_back_to_its_item() -> void:
-	for item: Button in [_menu.join_item, _menu.direct_item, _menu.settings_item]:
-		item.button_pressed = true
-		await _frames(1)
-		_press(KEY_ESCAPE)
-		assert_str(String(_menu.state())).override_failure_message(item.name).is_equal("main")
-		assert_bool(item.button_pressed).is_false()
-		assert_object(_focus()).is_same(item)
-	# With no panel open Esc is not the menu's: it passes on.
-	var seen: Array[bool] = []
-	var probe := _EscProbe.new()
-	probe.seen = seen
-	add_child(probe)
-	move_child(probe, 0)
-	_press(KEY_ESCAPE)
-	assert_array(seen).contains_exactly([true])
-	probe.free()
-
-
 ## Seen in the large-text shot: follow_focus scrolled to the first row before the panel's first
 ## sort, with the sizes before it, and cut that row off.
 func test_the_settings_open_at_their_top_also_under_large_text() -> void:
@@ -459,16 +442,6 @@ func test_every_key_the_menu_names_is_in_the_deck() -> void:
 		assert_bool(deck.has(item.text)).override_failure_message(item.text).is_true()
 
 
-## Esc reaching a node under the menu's parent once the menu let it pass.
-class _EscProbe:
-	extends Node
-	var seen: Array[bool] = []
-
-	func _input(event: InputEvent) -> void:
-		if event.is_action_pressed(&"ui_cancel"):
-			seen.append(true)
-
-
 func _items() -> Array[Button]:
 	return [
 		_menu.host_item,
@@ -508,16 +481,6 @@ func _assert_rect(
 	assert_float(control.offset_bottom).override_failure_message(why).is_equal(offsets.end.y)
 	assert_int(control.grow_horizontal).override_failure_message(why).is_equal(grow)
 	assert_int(control.grow_vertical).override_failure_message(why).is_equal(grow)
-
-
-func _press(key: Key) -> void:
-	for pressed: bool in [true, false]:
-		var event := InputEventKey.new()
-		event.keycode = key
-		event.physical_keycode = key
-		event.pressed = pressed
-		Input.parse_input_event(event)
-		Input.flush_buffered_events()
 
 
 func _focus() -> Control:

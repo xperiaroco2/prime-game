@@ -3095,7 +3095,8 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   no Button reads it. `ui_up/down/left/right` are the arrows and the d-pad only, never WASD.
 - **Esc closes the topmost overlay, one per press** (rule 2). `client/ui/UiOverlays` (pure) holds the overlays by
   layer, each registered with what tells whether it is open and what closes it, asked on every press (a freed one
-  counts as closed): `MENU_PANEL` (the main menu's Voice page, only while the main menu shows), `MAP`, `CARD`,
+  counts as closed): `MENU_PANEL` (the main menu's open panel, code, Direct or Settings since #493, §4.7.38, only
+  while the main menu shows), `MAP`, `CARD`,
   `ESC_MENU` (closed as its Resume, so `Game.close_esc` captures the mouse again), `ESC_DIALOG` (the host's Leave or
   Quit question, `EscMenuState.asking()`: back to the default tab). `GameUi` registers all but the card. `Game._input`
   asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
@@ -3267,8 +3268,9 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   `MainMenu.pointer_icon()` rasterises a copy of the pack's `pointer.svg` (`Image.load_svg_from_string`, scale 1);
   #520 swaps in the imported file. Join, Join by address and Settings are `UiParts.toggle`s in one ButtonGroup with
   `allow_unpress`: pressing one opens its panel (`open_panel`), pressing it again, Back or Esc closes it
-  (`close_panel`) and focuses its item. Esc is the menu's own (`MainMenu._input`, #488's rule for the main menu),
-  handled before anything else sees it and only while a panel is open; `Game._input` leaves it alone with no session.
+  (`close_panel`) and focuses its item. Esc reaches the open panel as #488's overlay `menu_panel` (§4.7.35:
+  `GameUi` registers `panel_open()` and `close_panel`, only while the menu shows), so `Game._input` closes it like
+  any other overlay; with no panel open and no session it does nothing.
   Focus starts on Host whenever the menu shows with no panel; up and down follow the items. Host emits
   `code_host_requested` (`Game.host_with_code` on the launch options' port); Quit quits; Tutorial is drawn and
   unplugged until the tutorial exists (#492).
@@ -3302,12 +3304,12 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   LineEdit has `context_menu_enabled` false (Godot's menu words are English).
 - Tests: `tests/unit/client/ui/main_menu_test.gd` (the tree node for node: names, classes, variations, anchors,
   offsets, grow, size flags and minimum sizes; the items, the group and the pointer's colours; every state by its
-  item, Back and another item, seen failing on the group's release order; the focus as drawn; Esc closes each panel
-  and returns the focus, seen failing without `_input`; the alphabet, the case, six at most and a long paste, seen
+  item, Back and another item, seen failing on the group's release order; the focus as drawn; the alphabet, the case, six at most and a long paste, seen
   failing without the filter; Join and Enter only with a whole code; the code kept on a return; Direct's Join and
   Host's port; the Settings panel at its top under large text, seen failing without the scroll back; the name row and its file; the port and version lines in uk; every key in the deck),
-  `tests/integration/client/app/esc_menu_input_test.gd` (Esc on the real game's menu closes Settings and the code
-  panel, no Esc menu), `game_voice_test.gd` (the Settings panel's pick and meter), `game_code_join_test.gd` (Join
+  `tests/unit/client/ui/game_ui_overlays_test.gd` (the `menu_panel` overlay closes each panel and returns the focus to
+  its item; none open, no overlay), `tests/integration/client/app/esc_menu_input_test.gd` (Esc on the real game's
+  menu closes Settings, the code and the Direct panel, no Esc menu), `game_voice_test.gd` (the Settings panel's pick and meter), `game_code_join_test.gd` (Join
   directly opens the Direct panel; a mistyped code never leaves the field) and `game_loop_test.gd` (Back to the
   Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
   text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
