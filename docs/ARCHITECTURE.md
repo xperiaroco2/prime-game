@@ -2172,7 +2172,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
   and hint under it. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
-  variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.29); `GameUi`
+  variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
   gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the screens name
   variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
   the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
@@ -2552,7 +2552,7 @@ ADR's §6 check the rest.
   styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), is scaled by
   `gui/theme/default_theme_scale` = 1.6667. Since #576 the generated theme covers the fields, dropdowns, sliders and
   scroll bars, but the scale stays 1.6667 until the rest (CheckBox's box, SpinBox's arrows, the bare Buttons'
-  padding) has a look or the engineer accepts the gaps (§4.7.29).
+  padding) has a look or the engineer accepts the gaps (§4.7.30).
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
   start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
   `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
@@ -2575,13 +2575,13 @@ ADR's §6 check the rest.
   theme leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
 - `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
   state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion, a bad
-  base type, §4.7.29, stop the build) and builds the `Theme` in memory; each StyleBox has the sub-resource id
+  base type, §4.7.30, stop the build) and builds the `Theme` in memory; each StyleBox has the sub-resource id
   `<Variation>_<item>`, so a regenerated file differs only where a value did. `build_theme.gd` also stops when the
   pack differs from its lock or the project's UI base is not the pack's `reference` (1920x1080, #287), which the
   tests also hold.
 - What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
-  engine's SpinBoxInnerLineEdit and a default font size (§4.7.29); no default font (#520). Each theme also carries
+  engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); no default font (#520). Each theme also carries
   the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
   is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
   `GameUi.set_large_text` swaps to it.
