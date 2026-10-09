@@ -46,7 +46,8 @@ const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
 const STOP_CHECK_MS := 200
 
-## The client's own copy of the game mode; MODE_PATH unless a test sets one before _ready.
+## The client's own copy of the game mode; MODE_PATH unless a test sets one before _ready, and the
+## tutorial's while one runs (GameTutorial).
 var mode: GameMode
 ## The arguments after --; OS.get_cmdline_user_args() unless a test sets `read_command_line` off.
 var launch_args := PackedStringArray()
@@ -89,6 +90,8 @@ var controls: Controls
 ## (#254): the player's file under user:// (HowtoProgress.for_this_player()), or in memory with
 ## `read_command_line` off, unless a test sets one; GameHowto wires the cards to it.
 var howto: HowtoProgress
+## The solo tutorial session (#601): Game.start_tutorial, the first launch's own start.
+var tutorial := GameTutorial.new()
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -184,6 +187,7 @@ func _ready() -> void:
 	elif options.joining:
 		_fill_menu(options.target)
 		join_target(options.target)
+	tutorial.setup(self)
 
 
 ## The tree outlives this root in tests: give it back the quit it had. The microphone closes
@@ -203,7 +207,7 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	var enet := transport as EnetTransport
 	if enet != null:
 		enet.bind_address = bind
-	return _host_on(transport, port, bind)
+	return host_on(transport, port, bind)
 
 
 ## Hosts a session whose room has a code, through the signalling service of the launch options
@@ -226,20 +230,21 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 		_cannot_host(room.problem)
 		return false
 	_room = room
-	if _host_on(room.transport, port, bind):
+	if host_on(room.transport, port, bind):
 		return true
 	_drop_room()
 	return false
 
 
-func _host_on(transport: NetTransport, port: int, bind: String) -> bool:
+## Hosts on `transport` (a socket's, a code room's or the tutorial's private hub) and joins it.
+func host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	var node := HostNode.host(transport, mode, port, clock)
 	if not node.is_running():
 		var why := "; ".join(node.errors)
 		node.free()
 		_cannot_host(why)
 		return false
-	if options != null and not options.replay:
+	if tutorial.running or (options != null and not options.replay):
 		node.skip_replay()
 	node.name = "HostNode"
 	_host = node
@@ -249,6 +254,14 @@ func _host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	_start_client(_host.own_client)
 	print("%s %s on %s:%d" % [LaunchOptions.HOSTING, mode.resource_path.get_file(), bind, port])
 	return true
+
+
+## The solo tutorial (GameTutorial, #601), its invite on a first launch; false while a session runs
+## or when it could not start, and then Try again starts it again.
+func start_tutorial(invite := false) -> bool:
+	if _client == null:
+		_retry = start_tutorial.bind(false)
+	return tutorial.start(self, invite)
 
 
 ## Joins the host at `address` (a host name or address, ":port" allowed), on `port` otherwise.
@@ -422,8 +435,9 @@ func room() -> CodeRoom:
 	return _room
 
 
+## A networked host: the solo tutorial hosts for nobody else (no question on Leave, #601).
 func hosting() -> bool:
-	return _host != null
+	return _host != null and not tutorial.running
 
 
 func screen() -> GameFlow.Screen:
@@ -804,6 +818,7 @@ func _end_session(reason: StringName, detail := "") -> void:
 	if _player != null:
 		_player.queue_free()
 		_player = null
+	tutorial.end(self)
 	_show_end(reason, detail, versions)
 	_ending = false
 

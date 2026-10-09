@@ -31,8 +31,7 @@ func test_only_the_stand_ins_and_the_tutorial_wiring_name_them() -> void:
 
 
 func test_the_tutorial_wiring_never_looks_inside_them() -> void:
-	if not FileAccess.file_exists(WIRING):
-		return
+	assert_bool(FileAccess.file_exists(WIRING)).is_true()
 	assert_array(lookup_problems(FileAccess.get_file_as_string(WIRING))).is_empty()
 
 
