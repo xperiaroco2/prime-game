@@ -29,6 +29,9 @@ var _starts: Array[Transform3D] = []
 
 func _ready() -> void:
 	_player.rules = _rules
+	# The game's theme sizes its text for the 1920x1080 base; Godot's default theme is unscaled
+	# since #576.
+	_overlay.theme = GameUi.THEME
 	for remote: RemotePlayerBody in [$DummyBlue, $DummyRed]:
 		remote.rules = _rules
 	_pushable = _add_dummy(Vector3(-4.0, 0.0, -5.5), Color(0.3, 0.75, 0.35))
