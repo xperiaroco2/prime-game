@@ -1,6 +1,8 @@
 class_name FixtureThrow
 extends RuleEffect
-## Stands in for the throw's effect (37c's ThrowItem) in tests: the actor's hand item leaves from
+## Puts an item in flight for #642's flight tests (the real effect is ThrowItem, tested through
+## FixtureThrowModes): kept because those tests' numbers and Use rule lie outside ThrowItem's
+## bounds and required conditions. The actor's hand item leaves from
 ## its eye (Items.eye_of) along the intent's facing at `speed_mps`, with `gravity`, `radius_m` and
 ## `longest_ticks` set on the flight, and the fallback rest asked below the actor's feet
 ## (Items.fallback_rest); then Items.launch. A facing that does not normalize, or an empty hand,
