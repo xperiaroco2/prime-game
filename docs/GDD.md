@@ -345,6 +345,71 @@ from the ADR's split, for the M7 backlog: for now the track only designs.
 Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
 in the playtest.
 
+### Car repair (#688)
+The House map's garage chain ([House map](design/house-map.md) §2, decisions 5, 9 and 10; its stations in §6). The
+rules below are the engineer's (#688, chat of 2026-10-10); the engine parts and the questions still open are in
+[the car repair ADR](decisions/2026-10-10-car-repair-task.md).
+
+**Intent.** A two-player chain with the game's one rare one-shot kill. One player holds the lift, another goes under
+the car to fit a part brought from storage, and a dropped car kills at once. It runs on trust: the one at the lift
+cannot see who is under the car.
+
+**Rules.**
+- Car repair is a task type, like the others, and the host's per-task-type subtask count applies (#256, #679). What
+  one subtask is, is open.
+- The car stands on a lift in the garage, the lift panel in the garage too, the parts shelf in storage (the panel's
+  place is a proposal).
+- The car stays up only while someone holds E at the lift panel. Let go, or be knocked down, and the car drops and
+  kills at once whoever is under it (decision 9). The player respawns as usual (decision 10).
+- The car shows which part it needs, one of several kinds. The part is taken from the parts shelf in storage and
+  carried to the garage.
+- Fitting a part: under the car, with the part in hand, the player holds E for some seconds. Whether the player lies
+  down or works crouched is open (the engineer is not sure about lying down; "maybe crouched").
+- The lift panel has no view of who is under the car: the one holding the lift relies on trust and voice.
+- As for the Generator (#679): a dissident plays the same character under the same rules, so either side may hold the
+  lift, let it go or fit a part; busy hands: a player holding a two-handed item, such as a package, cannot use the
+  lift panel, the car or the shelf (whether a part itself takes both hands is open).
+
+**Hidden information.** Nobody at the lift panel sees who is under the car. Tasks are shared and every player sees the
+same task progress (#79).
+
+**Edge cases.** Only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md),
+V4): a knocked-out player and a dead player can do nothing. The host's own player follows the same rules as everyone.
+
+**Numbers.** None decided yet: the fitting time, the number of part kinds and the subtask count are open.
+
+**Engine parts** ([the car repair ADR](decisions/2026-10-10-car-repair-task.md) §1, §8): a car repair task type with
+three station kinds (the car, the lift panel, one bin per part kind on the shelf); the lift's hold and the fit as
+holds of E on a station (the raise's channel, extended to stations and to a hold with no end); the drop as an instant
+kill of every player under the car, decided by the host; the parts as items from the shelf (the cooking design's item
+source, #682); the Generator's `Interact(station)` (#679); station scenes in `levels/stations/` in place of the
+House's markers; the client's car, display, pose and sounds. The issues follow from the ADR's split.
+
+Open questions (the engineer's; #688's "Open" and the ADR's RD items, each with options and a recommendation):
+- Lying down or crouched under the car? The movement code has no crouch today.
+- The fitting time, the number of part kinds, the subtask count, and how near a player must stand to the panel, the car
+  and the shelf.
+- How the car shows the needed part: a sign on the car or on the panel; a picture or a code? May the same part be
+  needed twice in a row?
+- Is one subtask one part fitted (the car needs several, one after another, as the host's count), or one car
+  repaired?
+- Does the car rise at once when someone starts holding E, or over some seconds? Does it lower slowly when let go, or
+  drop at once?
+- Who counts as under the car, and does the drop kill a player only partly under it?
+- Does the drop kill a downed player under the car, and one still invulnerable after a revive or a respawn?
+- A wrong part: refused, or fitted and wasted?
+- The parts on the shelf: unlimited? One place per part kind, the player picking? One-handed, or two-handed like a
+  package?
+- Does a hit that does not knock down drop the car (as it stops a raise), and does it stop a fit? Does a stopped fit
+  start again from zero?
+- After the last part: can the lift still be raised?
+- The task's name and description, and the lobby label of its subtask count.
+- Does car repair play on the greybox too, and does every match deal it?
+- The sounds: the lift's motor, the drop, the fitting?
+- Is "no view of who is under the car" hidden by sight only (every client receives every player's position, as
+  today, and the level's walls hide the space under the car from the panel; a modified client could show it), or
+  should the host stop sending those positions to the holder?
+
 ## 9. Meetings and voting
 
 Dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md): no game mode has meetings. The questions
