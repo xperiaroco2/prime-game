@@ -171,7 +171,8 @@ Open questions (the engineer's; #687's open items and the ADR's PD items, each w
   camera?
 - After the task is done, do the camera, the printer and the board stop working?
 - Is a photo's content hidden by sight only (every client could know which shots have a person, as hidden packages
-  today), or should the host hide it until the photo is hung?
+  today), or should the host hide it until the photo is hung? May every client know who pressed the camera (who
+  carries which card is known today), or should only those who see the gazebo?
 - Does the photo task play on the greybox too, and does every match deal it?
 - The flash and the sounds (the shutter, the printer).
 
