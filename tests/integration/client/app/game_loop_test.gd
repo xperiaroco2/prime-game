@@ -225,6 +225,28 @@ func test_the_game_makes_the_buses_and_its_voices_under_the_world() -> void:
 	assert_object(game.life().ears()).is_not_null()
 
 
+func test_the_name_in_the_settings_is_the_name_the_game_asks_for() -> void:
+	# Game hands UserSettings.player_name to its session (#550): the host names the joiner by it,
+	# and a second player asking for the same name gets the suffix.
+	var saved := UserSettings.new()
+	saved.player_name = "Діма"
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 6)])
+	var one := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 6)], saved)
+	var two := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 6)], saved)
+	var games: Array[Game] = [host, one, two]
+	assert_str(one.client().player_name).is_equal("Діма")
+	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()
+	var names: Array[String] = []
+	for member: ClientModel.Member in host.client().model.roster.values():
+		names.append(member.name)
+	names.sort()
+	assert_array(names).contains_exactly(["Player1", "Діма", "Діма 2"])
+	two.leave()
+	one.leave()
+	host.leave()
+	await get_tree().process_frame
+
+
 func test_a_session_end_forgets_the_voices_flushes() -> void:
 	# Host ticks start again at 0 in the next session and the host is always peer 1: a flush kept
 	# from this session would mute it there until the new ticks passed the old one.
@@ -242,8 +264,9 @@ func test_a_session_end_forgets_the_voices_flushes() -> void:
 	await get_tree().process_frame
 
 
-func _game(args: Array[String]) -> Game:
+func _game(args: Array[String], settings: UserSettings = null) -> Game:
 	var game := GAME.instantiate() as Game
+	game.settings = settings
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
