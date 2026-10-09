@@ -3091,16 +3091,22 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`), sets it as the
   `font` of each variation with a label, and type.body's weight (`Comfortaa_wght_600`) as the theme's default font;
   the base types copy it. The committed themes carry both. A checkout without the file builds themes with no font, so
-  Godot's default draws. `line_spacing` from the font's metrics is not built: CI imports a stand-in font (§4.7.21,
-  `lfs`'s TTF and OTF stand-in), whose metrics differ, so a metric-derived value would make the stale test fail
-  there. The credits entry `docs/credits/comfortaa.md` is complete; the OFL text ships as
+  Godot's default draws. With the font, each Label variation also gets the `line_spacing` that makes its line its
+  label token's `lineHeight` tall (#685): `fontSizePx` × `lineHeight`, half rounded up, less Godot's line height
+  of the font at that size (its ascent plus descent, each rounded up to a pixel; 22 px: a 28 px line over 26, so
+  2). The ascent and descent are `mapping.font.metrics` (881 and 234 at size 1000), measured once from the real
+  TTF and committed, never read from the loaded file: CI imports a stand-in font (§4.7.21, `lfs`'s TTF and OTF
+  stand-in) whose metrics differ, so a build there writes the same theme. The test checks the metrics and every
+  Label variation's line against the real font only where it is present (its `font_name` is Comfortaa). The bare
+  Label keeps #287's greybox 5. The credits entry `docs/credits/comfortaa.md` is complete; the OFL text ships as
   `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`).
 - Tests: `tools/runner/tests/test_ui_sync.py` (the imported copy, its scales and a re-sync that keeps Godot's
   `.import`, an asset the pack lists but does not ship, each problem verify names: a missing, changed or extra file,
   an LFS pointer by its oid, a wrong or missing scale, an asset not imported; the committed copy);
   `tests/unit/tools/theme_builder_test.gd` (the icons and their size, exactly the six types with icons, a texture
   that is not imported named; no font in a checkout without the file, and with Godot's fallback font as a stand-in a
-  FontVariation per label weight shared by every label and base type); `base_controls_test.gd` (a bare slider,
+  FontVariation per label weight shared by every label and base type; each Label variation's line spacing, #685);
+  `base_controls_test.gd` (a bare slider,
   dropdown and list draw the pack's icons); `name_plate_test.gd` (the mark's texture and tint);
   `test_credits.py` (a Pending entry, seen failing without the change); `test_lfs.py` (the TTF and OTF stand-ins
   import with the pinned Godot, seen failing on a broken one). `client/dev/pack_preview.tscn`: a `shot` of the

@@ -242,7 +242,7 @@ static func build_with_font(
 			_apply_token(theme, pack, mapping, name, spec, key, text_size)
 		_add_icons(theme, mapping, name, _dict(variation, "textures"))
 	if font != null:
-		_add_fonts(theme, pack, mapping, font)
+		_add_fonts(theme, pack, mapping, font, text_size)
 	_add_base_types(theme, mapping)
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
@@ -350,6 +350,8 @@ static func engine_items(mapping: Dictionary, cls: String) -> Dictionary:
 			(items[kind] as Array).append(str(item.get("name")))
 	if spec.has("label"):
 		(items["font_sizes"] as Array).append(str(spec["label"]))
+	if spec.has("line_height"):
+		(items["constants"] as Array).append(str(spec["line_height"]))
 	return items
 
 
@@ -696,8 +698,11 @@ static func _add_icons(
 ## The font (#520): one FontVariation of `font` per weight the labels use, on the variable font's
 ## `axis` (Comfortaa ships one file, wght 300 to 700), as the `item` of each variation with a label
 ## and, at the weight of the mapping's `default` token, the theme's default font. Each is one
-## sub-resource, `<family>_<axis>_<weight>`.
-static func _add_fonts(theme: Theme, pack: Dictionary, mapping: Dictionary, font: Font) -> void:
+## sub-resource, `<family>_<axis>_<weight>`. A class whose spec names a `line_height` item (Label's
+## line_spacing) also gets the spacing that meets its label token's lineHeight (#685).
+static func _add_fonts(
+	theme: Theme, pack: Dictionary, mapping: Dictionary, font: Font, text_size: String
+) -> void:
 	var spec: Dictionary = _dict(mapping, "font")
 	var item := str(spec.get("item", "font"))
 	var tokens: Dictionary = _dict(pack, "tokens")
@@ -708,14 +713,39 @@ static func _add_fonts(theme: Theme, pack: Dictionary, mapping: Dictionary, font
 	for name in generated_names(pack):
 		var variation: Dictionary = _dict(variations, name)
 		var key := "%s.label" % variation.get("prefix")
-		if not _dict(classes, str(variation.get("class", ""))).has("label"):
+		var cls: Dictionary = _dict(classes, str(variation.get("class", "")))
+		if not cls.has("label"):
 			continue
 		if not (owned[name] as Array).has(key):
 			continue
 		var weight := _int(_dict(tokens, key).get("fontWeight", 0))
 		theme.set_font(item, name, _weighted(by_weight, font, spec, weight))
+		if cls.has("line_height"):
+			var spacing := line_spacing(spec, _record(pack, key, text_size))
+			theme.set_constant(str(cls["line_height"]), name, spacing)
 	var default_weight := _int(_dict(tokens, str(spec.get("default", ""))).get("fontWeight", 0))
 	theme.default_font = _weighted(by_weight, font, spec, default_weight)
+
+
+## The Label line_spacing that makes a line as tall as a typography token's lineHeight (#685): the
+## line box (fontSizePx x lineHeight, half rounded up) less the font's own line height at that size,
+## which Godot 4.7.2 takes as its ascent plus its descent, each rounded up to a whole pixel. The
+## ascent and descent are mapping.font.metrics, measured once from the real TTF (at `size`) and
+## committed: CI imports a stand-in font whose metrics differ (§4.7.21), so the builder never reads
+## them from the loaded file, and a build there writes the same theme.
+static func line_spacing(font_spec: Dictionary, record: Dictionary) -> int:
+	var metrics: Dictionary = _dict(font_spec, "metrics")
+	var per := maxi(_int(metrics.get("size", 0)), 1)
+	var size := _int(record.get("fontSizePx", 0))
+	var ascent := _ceil_div(size * _int(metrics.get("ascent", 0)), per)
+	var descent := _ceil_div(size * _int(metrics.get("descent", 0)), per)
+	return roundi(size * _float(record.get("lineHeight", 1.0))) - ascent - descent
+
+
+## `top` / `bottom` rounded up, in whole numbers (no float error at an exact multiple).
+static func _ceil_div(top: int, bottom: int) -> int:
+	@warning_ignore("integer_division")
+	return (top + bottom - 1) / bottom
 
 
 ## The FontVariation of `font` at `weight`, made once per theme.
