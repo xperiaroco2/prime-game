@@ -56,13 +56,13 @@ func _init(shown: HowtoCard, art_size: Vector2, with_close := false) -> void:
 		bar.name = "Bar"
 		bar.alignment = BoxContainer.ALIGNMENT_END
 		column.add_child(bar)
-		var raised := UiParts.button(
+		var close_raised := UiParts.button(
 			"common.close", close_requested.emit, &"ToyButtonSecondary", ToyHints.LIGHT
 		)
-		close_button = raised.face as Button
+		close_button = close_raised.face as Button
 		close_button.name = "Close"
-		raised.name = "CloseRaised"
-		bar.add_child(raised)
+		close_raised.name = "CloseRaised"
+		bar.add_child(close_raised)
 	_retext()
 
 
