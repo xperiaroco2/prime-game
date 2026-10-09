@@ -1,10 +1,10 @@
 export const meta = {
   name: 'quick-task',
   description: 'One small prime-game issue by one agent: change, lint and check, commit, push, PR, CI; fresh reviews only when the diff touches core, server, net, voice or tests/harness',
-  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, voice/ or tests/harness/ adds 2 reviewers and, on a blocker or major, 1 fix agent.',
+  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, client/, voice/ or tests/harness/ adds 2 reviewers and, on a blocker or major, 1 fix agent.',
   phases: [
     { title: 'Quick', detail: 'one agent: the change, lint and check, commit, push, PR, CI (at most two fix rounds)' },
-    { title: 'Review', detail: 'only for a diff under core/ server/ net/ voice/ tests/harness/: code-reviewer and netcode-security-reviewer, then one fix agent on a blocker or major' },
+    { title: 'Review', detail: 'only for a diff under core/ server/ net/ client/ voice/ tests/harness/: code-reviewer and netcode-security-reviewer, then one fix agent on a blocker or major' },
   ],
 }
 
@@ -39,11 +39,11 @@ const BASE = A.base || 'main'
 const SCRATCH = `a${N}`
 const QUICK_MODEL = M.quick || 'sonnet'
 // The diff-path rule (#608): only these paths get the fresh reviews; anything else has CI as its gate.
-const REVIEWED = /^(core|server|net|voice|tests\/harness)\//
+const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
 const SERIOUS = /blocker|major/i
 
 const RULES = [
-  `You are the one agent of a quick-task run of prime-game, unattended (no human answers: never ask in chat). Root CLAUDE.md's hard rules apply; area CLAUDE.md files load by path. Do not read docs/AGENT_WORKFLOW.md or the finish-task skill: this prompt is the whole procedure.`,
+  `You are an agent of a quick-task run of prime-game, unattended (no human answers: never ask in chat). Root CLAUDE.md's hard rules apply; area CLAUDE.md files load by path. Do not read docs/AGENT_WORKFLOW.md or the finish-task skill: this prompt is the whole procedure.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; \`start\` already ran). Every shell command starts with \`cd ${WTB} && \` (Git Bash); absolute paths under ${WT} for Read, Edit and Write. Never change the main checkout or another worktree.`,
   `- Temporary files (commit message, PR body, logs) only under ${SCRATCH}/ of your scratchpad. No \`git stash\`. Never merge, push to main, force-push, close an issue or edit another PR.`,
   '- No tool call blocks longer than 180 s: a command that may take longer runs in the Bash tool with run_in_background true and output to a new log under the scratchpad folder, then `tools/run.sh wait <log>` in separate calls (exit 124: call it again).',
@@ -119,10 +119,10 @@ const quick = await agent([
 
 const brief = (fields) => {
   const q = quick || {}
-  const out = { n: N, pr_url: q.pr_url || '', ci_green: q.ci_green === true, ...fields }
+  const out = { n: N, pr_url: q.pr_url || '', ...(q.pr_number ? { pr: q.pr_number } : {}), ci_green: q.ci_green === true, ...fields }
   out.needs_engineer = [...items(q.needs_engineer), ...items(fields.needs_engineer)]
   out.ready_to_merge = !!out.pr_url && out.ci_green && out.open_serious === 0 && !out.needs_engineer.length
-  out.summary = line(q.summary)
+  out.summary = line(q.summary, 600)
   return out
 }
 
@@ -133,8 +133,8 @@ const paths = quick.changed_paths || []
 // No paths returned with a PR open: unknown, so reviewed (as issue-task does).
 const touched = paths.filter(p => REVIEWED.test(p))
 if (paths.length && !touched.length) {
-  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ voice/ tests/harness/`)
-  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ voice/ tests/harness/: CI is the gate' }, open_serious: 0 })
+  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ client/ voice/ tests/harness/`)
+  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ client/ voice/ tests/harness/: CI is the gate' }, open_serious: 0 })
 }
 
 phase('Review')
@@ -147,13 +147,15 @@ const base = [
 const reviews = (await parallel([
   () => agent(base, opts({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, M.review)),
   () => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots and view_of (ARCHITECTURE §5, §4.2 and §4.6: `tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`); intents the host does not validate; host-trust assumptions.', opts({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, M.review)),
-])).map(r => r || { reviewer: 'none', verdict: 'returned nothing', findings: [] })
+])).map(r => r || { dead: true, findings: [] })
 const serious = reviews.flatMap(r => (r.findings || []).filter(f => SERIOUS.test(f.severity)))
 const why = paths.length ? `the diff touches ${touched.slice(0, 3).join(', ')}${touched.length > 3 ? ', ...' : ''}` : 'no changed paths returned'
 const counts = reviews.map((r, i) => ({ by: ['code-reviewer', 'netcode-security-reviewer'][i], findings: (r.findings || []).length, serious: (r.findings || []).filter(f => SERIOUS.test(f.severity)).length }))
-const died = reviews.filter(r => r.reviewer === 'none').length
+// A reviewer that returned nothing leaves half the review missing: never ready_to_merge then.
+const died = reviews.filter(r => r.dead).length
+const deadReviewers = `${died} reviewer(s) returned nothing: review PR ${quick.pr_url} before a merge`
 if (!serious.length) {
-  return brief({ reviewed: { done: true, why }, reviews: counts, open_serious: 0, ...(died ? { needs_engineer: [`${died} reviewer(s) returned nothing: review PR ${quick.pr_url} before a merge`] } : {}) })
+  return brief({ reviewed: { done: true, why }, reviews: counts, open_serious: 0, needs_engineer: died ? [deadReviewers] : [] })
 }
 
 const fix = await agent([
@@ -171,5 +173,5 @@ return brief({
   reviews: counts,
   fixed: fix ? items(fix.fixed).length : 0,
   open_serious: fix ? (typeof fix.open === 'number' ? fix.open : serious.length) : serious.length,
-  needs_engineer: fix ? items(fix.needs_engineer) : ['the fix agent returned nothing: the blocker or major findings are open'],
+  needs_engineer: [...(died ? [deadReviewers] : []), ...(fix ? items(fix.needs_engineer) : ['the fix agent returned nothing: the blocker or major findings are open'])],
 })

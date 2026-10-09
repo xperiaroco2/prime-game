@@ -401,8 +401,8 @@ Rules for every workflow run:
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A small task (the
   issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
   #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
-  net/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge`. A session runs a
-  saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
+  net/ client/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge` (the
+  definition of done's review step, §4.2, is then CI alone for any other diff). A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and

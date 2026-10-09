@@ -2341,7 +2341,7 @@ class QuickTaskTest(unittest.TestCase):
         return run_jobs([("quick-task.js", dict(ARGS, **args), stub) for args, stub in cases])
 
     def test_a_light_diff_gets_no_reviewer_and_is_ready(self) -> None:
-        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd"]
+        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd", "levels/r.tscn"]
         (result,) = self.run_quick(({}, {"queues": {"publish": [quick(light)]}}))
         self.assertIsNone(result["error"])
         self.assertEqual([e["label"] for e in agents(result)], ["publish:#7"])
@@ -2350,10 +2350,10 @@ class QuickTaskTest(unittest.TestCase):
         self.assertEqual(out["reviewed"]["done"], False)
         self.assertIn("CI is the gate", out["reviewed"]["why"])
         self.assertTrue(out["ready_to_merge"])
-        self.assertEqual((out["pr_url"], out["ci_green"], out["needs_engineer"]), ("https://github.com/o/r/pull/9", True, []))
+        self.assertEqual((out["pr_url"], out["pr"], out["ci_green"], out["needs_engineer"]), ("https://github.com/o/r/pull/9", 9, True, []))
 
     def test_a_core_or_netcode_diff_gets_both_reviewers(self) -> None:
-        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
+        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "client/hud/hud.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
         cases.append(({}, {"queues": {"publish": [quick([])]}}))  # no paths returned: unknown, so reviewed
         for result in self.run_quick(*cases):
             with self.subTest(why=result["returned"]["reviewed"]["why"]):
@@ -2381,6 +2381,20 @@ class QuickTaskTest(unittest.TestCase):
         (minor,) = self.run_quick(({}, {"findings": [MINOR], "queues": {"publish": [core]}}))
         self.assertFalse(calls(minor, "fix"))
         self.assertTrue(minor["returned"]["ready_to_merge"])
+
+    def test_a_dead_reviewer_or_fix_agent_blocks_the_merge(self) -> None:
+        core = quick(["core/match/vote.gd"])
+        clean, fixed, no_fix = self.run_quick(
+            ({}, {"queues": {"publish": [core], "review:netcode": [None]}}),
+            ({}, {"findings": [MAJOR], "queues": {"publish": [core], "review:netcode": [None], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
+            ({}, {"findings": [MAJOR], "queues": {"publish": [core], "fix": [None]}}),
+        )
+        for result in (clean, fixed):
+            self.assertFalse(result["returned"]["ready_to_merge"])
+            self.assertIn("1 reviewer(s) returned nothing", result["returned"]["needs_engineer"][0])
+        self.assertFalse(no_fix["returned"]["ready_to_merge"])
+        self.assertEqual(no_fix["returned"]["open_serious"], 2)  # the stub gives both reviewers the major
+        self.assertIn("the fix agent returned nothing", no_fix["returned"]["needs_engineer"][0])
 
     def test_red_ci_no_pr_or_a_dead_agent_is_not_ready(self) -> None:
         red, none, dead, asks = self.run_quick(

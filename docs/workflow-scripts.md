@@ -60,7 +60,8 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
   merge-ready PR in minutes, with CI as the gate. One `task-publisher` agent (Sonnet; `models.quick` overrides) makes
   the change, runs `lint` and `check` (not `verify`), commits, pushes with `git push -u origin <branch>`, opens the PR
   and polls CI in calls of at most 180 s. The script reads the agent's `changed_paths`: only a path under `core/
-  server/ net/ voice/ tests/harness/` (or no paths returned) adds `code-reviewer` and `netcode-security-reviewer` in
-  parallel and, on a blocker or major, one fix agent. It returns `pr_url`, `ci_green`, `reviewed` (`{done, why}`),
+  server/ net/ client/ voice/ tests/harness/` (`client/` as in §4.2: a rendering leak is a leak, #158), or no paths
+  returned, adds `code-reviewer` and `netcode-security-reviewer` in parallel and, on a blocker or major, one fix
+  agent; a reviewer or fix agent that returns nothing leaves the PR not ready. It returns `pr_url`, `ci_green`, `reviewed` (`{done, why}`),
   `ready_to_merge` (a PR, CI green, no blocker or major open, nothing under `needs_engineer`), `needs_engineer` and
   `summary`. `QuickTaskTest` in `test_workflows.py` covers the diff-path rule and the result; it has no snapshots.
