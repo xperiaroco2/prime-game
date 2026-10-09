@@ -117,6 +117,57 @@ Open questions:
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
 
+### Delivery (#683)
+The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md), Tasks; `docs/ARCHITECTURE.md`
+§9.5.4), reworked by the engineer on 2026-10-10 (#683 and its comments): it no longer goes by colours. The engine parts
+and the questions still open are in [the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md).
+
+**Intent.** Carrying things around the house to where they belong. Storage holds different items, and each kind has
+its own place that fits what it is: the engineer's examples are wine to the living room, maybe oil to the garage, and
+something to the garden. Players tell the items and their places apart by meaning, not by colour.
+
+**Rules.**
+- Decided (#683): storage holds different items; each kind is carried to its own location, chosen by what the item
+  is; nothing goes by colour; the mechanic changes, not only the text.
+- Unchanged ([MVP rules](decisions/2026-09-29-mvp-rules.md), #79): one shared task that nobody owns; one item is one
+  subtask; any living player carries and delivers any item; an item counts when it rests at its place, however it got
+  there (put down, swapped, dropped at a death or a leave; later thrown); a delivered item is locked; the dissidents
+  sabotage by hiding items.
+- On House, storage is the hub ([House map](design/house-map.md) §2, decision 5); its §6 names the sources (the wine
+  rack and the boxes in storage) and the drop-offs: the dining table (the wine's), the terrace table, the garden and the
+  garage's workbench.
+
+**Hidden information.** None: everyone may know which kind goes where, where each item started and every delivery.
+Where a moved item lies now is not shown: players find it by looking.
+
+**Edge cases.** A knocked-out player and a dead player deliver nothing; an item dropped at a body counts if it rests at
+its place. The host's own player follows the same rules as everyone.
+
+**Numbers** (today's, until the engineer changes them): the host's `packages` setting, 1 to 10, default 6; a circle's
+1 m radius and 2 m height. Whether they hold for the new places is open.
+
+**Name and description.** Open: today's description, "Carry each package to the circle of its colour. Packages take
+both hands.", names colours and must change.
+
+**Engine parts** ([the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md) §1, §8): one item kind
+per kind of item; one station kind per place, on its own marker in every map; a list in Delivery's data saying which
+kind goes to which place; no colours in the rules, on the wire or on the screen; the greybox and House get one marker
+per place, so the bots' scenarios keep playing on the flat greybox. The issues follow from the ADR's split.
+
+Open questions (the engineer's; the ADR's DD items, each with options and a recommendation):
+- Which item kinds, and which place each goes to? Does the wine go to the living room, as dictated, or to the dining
+  table (House map §6)? Does the terrace table keep a drop-off? What are the garden's item and the terrace's?
+- How many items a round: the host's packages setting as today, one item per place, or every kind once? With fewer
+  items than places, which places are used?
+- What counts as "at its place": a drop-off spot at the table or the bench (as a circle today), anywhere in the room,
+  or only on the table's top? How big is each place?
+- How does a player tell where an item goes: by its look and name alone, with today's marker over its place through
+  walls (without a colour), with a sign on the item and at the place, or with a line on the HUD?
+- What happens when an item rests at a wrong place?
+- Do all items take both hands, as packages do today?
+- Does the name "Delivery" stay, and what does the description say?
+- Does each kind start at its own source in storage (the wine at the wine rack), or anywhere in storage?
+
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
 shared and only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4),
