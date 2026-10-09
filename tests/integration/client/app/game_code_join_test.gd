@@ -177,6 +177,19 @@ func test_a_mistyped_code_stays_on_the_menu_and_says_why() -> void:
 	assert_bool((joiner.ui.menu.code_join.face as Button).disabled).is_true()
 
 
+## A --join= that does not parse: its words in last_words, and the text in the Direct field with
+## Join off, so the menu shows what the command line named (#493 review).
+func test_a_join_on_the_command_line_that_does_not_parse_waits_in_the_direct_field() -> void:
+	var joiner := _game(["--join=bad name!:99999"])
+	assert_object(joiner.client()).is_null()
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
+	assert_str(joiner.last_words).contains("1 to 65535")
+	assert_int(joiner.ui.menu.open).is_equal(MainMenu.Open.DIRECT)
+	assert_str(joiner.ui.menu.address_edit.text).is_equal("bad name!:99999")
+	assert_bool((joiner.ui.menu.direct_join.face as Button).disabled).is_true()
+	assert_bool((joiner.ui.menu.direct_host.face as Button).disabled).is_true()
+
+
 func test_a_code_join_without_a_service_says_to_use_direct() -> void:
 	var joiner := _game(["--signal="])
 	joiner.ui.menu.code_edit.text = "K7M2QX"

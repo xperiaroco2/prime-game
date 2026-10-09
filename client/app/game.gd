@@ -173,6 +173,8 @@ func _ready() -> void:
 	if not options.problem.is_empty():
 		print("session: %s" % options.problem)
 		last_words = options.problem
+		if options.joining and options.target != null:
+			_fill_menu(options.target, options.address)
 	elif options.hosting and options.by_code:
 		host_with_code(options.port, options.bind)
 	elif options.hosting:
@@ -258,7 +260,9 @@ func join_code(code: String) -> void:
 	join_target(JoinTarget.of_code(code, service))
 
 
-## Joins `target`; a problem with what was typed stays on the menu.
+## Joins `target`; a problem with it is printed and kept in last_words, and no screen shows it:
+## the menu's fields admit none (Join stays off), and a --join= that does not parse waits in the
+## Direct field (_fill_menu).
 func join_target(target: JoinTarget) -> void:
 	if _client != null:
 		return
@@ -953,14 +957,17 @@ func _show_end(reason: StringName, detail := "", versions := PackedStringArray()
 
 
 ## The menu's panel and field of a join from the command line, so Back finds them there as if
-## typed: the code, or the address with its port when not the default.
-func _fill_menu(target: JoinTarget) -> void:
+## typed: the code, or the address with its port when not the default. One that does not parse
+## (`typed`, as given) waits in the Direct field with its Join off, so the player sees what the
+## command line named (#493 review: the menu has no reason line).
+func _fill_menu(target: JoinTarget, typed := "") -> void:
 	if target.is_code():
 		ui.menu.code_edit.text = target.code
 		ui.menu.open_panel(MainMenu.Open.CODE, false)
-	elif target.problem.is_empty():
-		var typed := target.label() if target.port != ui.menu.default_port else target.address
-		ui.menu.address_edit.text = typed
+	else:
+		if target.problem.is_empty():
+			typed = target.label() if target.port != ui.menu.default_port else target.address
+		ui.menu.address_edit.text = typed.strip_edges()
 		ui.menu.open_panel(MainMenu.Open.DIRECT, false)
 
 
