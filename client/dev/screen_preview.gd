@@ -4,7 +4,7 @@ extends Node
 ## nothing here reaches the game.
 
 ## New previews go last: the preview scenes save the numbers.
-enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS, PREGAME, MENU_VOICE }
+enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, MAP, PREGAME, MENU_VOICE }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
@@ -66,6 +66,8 @@ const FAKE_OWN_HEADING := 0.6
 ## The connecting screen's state (Preview.CONNECTING; #494): finding, connecting-direct, joined,
 ## a failure's (ConnectingScreen.FAILURES), or load (Preview.LOADING shows load).
 @export var s3_state: StringName = &"finding"
+## The map (Preview.MAP, #253) with the zones of this task type lit, as when its row is hovered.
+@export var map_lit: StringName = &""
 
 
 func _ready() -> void:
@@ -79,7 +81,6 @@ func _ready() -> void:
 	ui.set_large_text(large_text)
 	ui.esc.lobby.set_mode(mode)
 	var model := fake_model(mode, hosting)
-	ui.reads_device_input = false
 	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
 	ui.lobby_hud.show_code(code_line)
 	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
@@ -129,14 +130,23 @@ func _ready() -> void:
 				key.physical_keycode = KEY_V
 				ui.esc.controls.controls.bind(&"map", key)
 				ui.esc.controls.refresh()
-		Preview.ROUND, Preview.TASKS:
+		Preview.ROUND, Preview.MAP:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)
-			ui.show_tasks(preview == Preview.TASKS)
 			var local := HudText.Local.new()
 			local.stamina = 62.0
 			local.hint = "E: pick up Knife"
+			local.placed = true
+			local.position = FAKE_OWN_PLACE
+			local.heading = FAKE_OWN_HEADING
 			ui.refresh_round(model, mode, 100, local)
+			if preview == Preview.MAP:
+				var house := fake_level()
+				ui.set_map_data(MapData.from_level(house, mode))
+				house.free()
+				ui.open_map()
+				if not map_lit.is_empty():
+					ui.map.light(map_lit)
 	ui.refresh(model, mode, 100, hosting)
 
 

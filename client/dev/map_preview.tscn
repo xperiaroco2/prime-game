@@ -5,3 +5,4 @@
 [node name="ScreenPreview" type="Node" unique_id=516732379]
 script = ExtResource("1_preview")
 preview = 7
+map_lit = &"delivery"

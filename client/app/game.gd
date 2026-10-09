@@ -432,7 +432,6 @@ func _process(_delta: float) -> void:
 		_screen = now
 		_point_for(now)
 	ui.show_screen(now)
-	ui.reads_device_input = device_input
 	if _client != null:
 		_refresh_join()
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())

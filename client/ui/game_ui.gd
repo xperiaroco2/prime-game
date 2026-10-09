@@ -2,16 +2,22 @@ class_name GameUi
 extends CanvasLayer
 ## The `Ui` layer of the game (ARCHITECTURE §4.7): one screen at a time as GameFlow says, and Esc's
 ## menu over it; in the lobby the lobby HUD (the keys' hint, the roster), whose Ready and settings
-## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the task screen while Tab
-## (`task_screen`) is held; under them, in the lobby and the round, the name plates over the
-## others' heads (#257). It shows what the own ClientModel and the client's own mode hold; the
-## game connects the screens' signals.
+## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the map and tasks screen while
+## it is open (#253: the game toggles it on the `map` action; one place holds whether it is open,
+## and the Esc menu and every screen but the round close it); under them, in the lobby and the
+## round, the name plates over the others' heads (#257). It shows what the own ClientModel and the
+## client's own mode hold; the game connects the screens' signals.
 ##
 ## Every screen is styled only through one shared Theme, THEME (the M4 manager's decision of
 ## 2026-10-01 on #144 and #145; client/CLAUDE.md): a CanvasLayer holds no theme, so each Control
 ## child of this layer gets it, also one added later (the debug overlay, a later screen). Large
 ## text swaps it for THEME_LARGE, the same theme with larger text (#289; Settings > Accessibility,
 ## #491, calls set_large_text).
+
+## The map and tasks screen opened (the game frees the mouse; the tutorial's `map_opened`).
+signal map_opened
+## It closed: by the key, Esc, the Esc menu or the end of the round.
+signal map_closed
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
@@ -31,40 +37,34 @@ var lobby_hud := LobbyHud.new()
 ## The silent seconds before the round: black, the own role (#213).
 var pregame := PregameScreen.new()
 var hud := Hud.new()
-var tasks := TaskScreen.new()
+var map := MapScreen.new()
 var end := EndScreen.new()
 var esc := EscMenu.new()
 ## The own player's life in the round (M4-9).
 var life := LifePanel.new()
 var screen := GameFlow.Screen.MENU
-## Read the task screen's key (the game sets it from its own `device_input`). Tests and previews
-## turn it off and call show_tasks() themselves. Under the Esc menu the key does nothing.
-var reads_device_input := true
 ## Whether the screens have the large-text theme (set_large_text).
 var large_text := false
 
-var _tasks_held := false
+var _map_open := false
 ## Whether the own player is living, from the last refresh_round: the crosshair is for the living
 ## (the downed and the dead pick nothing up).
 var _alive := true
-## The last round's model and mode, so the task screen has its rows on the frame Tab shows it.
+## The last round's refresh, so the map has its rows on the frame it opens.
 var _model: ClientModel
 var _mode: GameMode
+var _host_tick := 0.0
+var _local := HudText.Local.new()
 
 
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [plates, menu, connecting, lobby_hud, pregame, hud, life, tasks, end, esc]:
+	for each: Control in [plates, menu, connecting, lobby_hud, pregame, hud, life, map, end, esc]:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
 	close_esc()
-
-
-func _process(_delta: float) -> void:
-	if reads_device_input:
-		show_tasks(not esc_open() and Input.is_action_pressed(&"map"))
 
 
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
@@ -81,17 +81,43 @@ func show_screen(which: GameFlow.Screen) -> void:
 	hud.visible = which == GameFlow.Screen.ROUND
 	end.visible = which == GameFlow.Screen.END
 	life.visible = which == GameFlow.Screen.ROUND
-	show_tasks(_tasks_held)
+	if which != GameFlow.Screen.ROUND:
+		close_map()
+	_show_map()
 
 
-## The task screen while `held` (Tab) in the round; the crosshair while it is not, for the living.
-func show_tasks(held: bool) -> void:
-	var was_shown := tasks.visible
-	_tasks_held = held
-	tasks.visible = held and screen == GameFlow.Screen.ROUND
-	hud.aiming = not tasks.visible and _alive
-	if tasks.visible and not was_shown and _model != null:
-		tasks.refresh(_model, _mode)
+## Opens the map and tasks screen, in the round with no Esc menu only.
+func open_map() -> void:
+	if _map_open or screen != GameFlow.Screen.ROUND or esc_open():
+		return
+	_map_open = true
+	_show_map()
+	map_opened.emit()
+
+
+func close_map() -> void:
+	if not _map_open:
+		return
+	_map_open = false
+	_show_map()
+	map_closed.emit()
+
+
+## The map key: opens the map, or closes it when open.
+func toggle_map() -> void:
+	if _map_open:
+		close_map()
+	else:
+		open_map()
+
+
+func map_is_open() -> bool:
+	return _map_open
+
+
+## The level's rooms and zones for the map (the game reads them when a map level loads).
+func set_map_data(data: MapData) -> void:
+	map.set_data(data)
 
 
 ## Refreshes the visible screen and an open Esc menu from `model`; `host_tick` is the newest host
@@ -109,7 +135,8 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 			end.refresh(model, mode, host_tick)
 
 
-## Refreshes the round's HUD and task screen; `local` is what the game knows besides the model.
+## Refreshes the round's HUD and the map while open; `local` is what the game knows besides the
+## model.
 func refresh_round(
 	model: ClientModel, mode: GameMode, host_tick: float, local: HudText.Local
 ) -> void:
@@ -117,11 +144,13 @@ func refresh_round(
 		return
 	_model = model
 	_mode = mode
+	_host_tick = host_tick
+	_local = local
 	_alive = model.is_alive(model.own_peer)
-	hud.aiming = not tasks.visible and _alive
+	hud.aiming = not map.visible and _alive
 	hud.show_hud(HudText.of(model, mode, host_tick, local))
-	if tasks.visible:
-		tasks.refresh(model, mode)
+	if map.visible:
+		map.refresh(model, mode, host_tick, local)
 
 
 ## Opens the Esc menu over `screen_now`, by default the screen drawn last; `model` is the own
@@ -131,6 +160,9 @@ func open_esc(
 	hosting: bool, model: ClientModel = null, screen_now: GameFlow.Screen = screen
 ) -> void:
 	esc.open(screen_now, model, hosting)
+	# Never both: the map closes under the menu, after it opened, so whoever hears map_closed sees
+	# the menu open and leaves the mouse free.
+	close_map()
 
 
 func close_esc() -> void:
@@ -139,6 +171,16 @@ func close_esc() -> void:
 
 func esc_open() -> bool:
 	return esc.is_open()
+
+
+## The map shows while open in the round; it hides the crosshair. The first frame it shows has
+## its rows.
+func _show_map() -> void:
+	var was_shown := map.visible
+	map.visible = _map_open and screen == GameFlow.Screen.ROUND
+	hud.aiming = not map.visible and _alive
+	if map.visible and not was_shown and _model != null:
+		map.refresh(_model, _mode, _host_tick, _local)
 
 
 ## Swaps every screen's theme to the large-text one while `on`, and back: live, a screen that

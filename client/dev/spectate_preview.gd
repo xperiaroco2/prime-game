@@ -45,7 +45,6 @@ func _ready() -> void:
 	other.carry_point().add_child(carried)
 	var ui := GameUi.new()
 	add_child(ui)
-	ui.reads_device_input = false
 	ui.show_screen(GameFlow.Screen.ROUND)
 	var local := HudText.Local.new()
 	local.stamina = 40.0
