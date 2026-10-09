@@ -548,7 +548,8 @@ const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
 const LIGHT_AREAS = ['content', 'level', 'tooling']
 const PLAN_SKIPPED = PLAN_REVIEW && !DESIGN && !FORCED_FULL && LIGHT_AREAS.includes(AREA)
 if (PLAN_SKIPPED) log(`#${N}: plan_review skipped: the branch's area ${AREA} is the light review tier (#606)`)
-// The tier of the implementer's changed paths, the worst one winning: [tier, why].
+// The tier of the implementer's changed paths, the worst one winning: [tier, why]. A path no rule lists is light (the
+// manager's notes for #606; the ADR amendment says why and that the engineer may turn it around).
 const tierOf = paths => {
   if (FORCED_FULL) return ['full', 'forced by the launch (tier: full)']
   if (DESIGN) return ['full', 'a design task']

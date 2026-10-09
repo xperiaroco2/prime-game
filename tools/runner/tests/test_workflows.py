@@ -2330,8 +2330,11 @@ class CheckpointTest(unittest.TestCase):
 
 # #606: issue-task's review tier by the change's risk. Each light path alone is light; each full path, alone or with
 # light ones, makes the run full.
+# A path no rule lists is light (the manager's notes for #606: "otherwise light"; the issue's table said full for
+# "anything else", the ADR amendment says which and why): project.godot and CI's workflow pin that default.
 LIGHT_PATHS = ["docs/AGENT_WORKFLOW.md", "content/roles/x.tres", "levels/rooms/x.tscn", "tools/runner/start.py",
-               "tests/unit/match/vote_test.gd", "addons/x/plugin.cfg", ".claude/workflows/issue-task.js"]  # fmt: skip
+               "tests/unit/match/vote_test.gd", "addons/x/plugin.cfg", ".claude/workflows/issue-task.js",
+               "project.godot", ".github/workflows/ci.yml", "tests/integration/net/x_test.gd"]  # fmt: skip
 FULL_PATHS = ["core/match/vote.gd", "server/host_session.gd", "net/protocol/codec.gd", "client/hud/hud.gd",
               "voice/mixer.gd", "tests/harness/bots/leak_check.gd"]  # fmt: skip
 # Every option the light tier drops, passed at once, with a major finding for the skeptic to check.

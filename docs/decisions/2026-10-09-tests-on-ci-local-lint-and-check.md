@@ -49,6 +49,11 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - **Two tiers, not the issue's three:** #606 named a `tooling` tier after #605's verify tiers, which comment
   6082442125 replaced with one fast local verify; a tooling diff is light, its tests run on CI (`selftest`), and the
   script cannot read an issue's `Size:` line to drop `plan_review` below M.
+- **A path no rule lists is light:** the issue's table made `full` the default ("anything else"); the manager's notes
+  for #606, from the engineer's answer above, make it `light`. So a diff of only `project.godot`, export presets,
+  `addons/`, `.github/workflows/`, `.claude/settings*.json`, `tests/unit/` or `tests/integration/` (its `net/` too)
+  drops the skeptic, and on a light branch the plan. Open for the engineer's word on #606's PR; `ReviewTierTest` pins
+  whichever default holds (with `project.godot` and CI's workflow).
 - **Consequences:** a docs, content or tooling task launched with `plan_review` and `skeptic` runs 3 agents (4 with
   `godot-api-checker`) instead of 5 and a skeptic per blocker or major;
   a light change has one fresh reviewer and CI. A mistake in tooling that guards against lost work (the guard, the
