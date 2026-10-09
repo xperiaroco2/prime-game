@@ -137,6 +137,17 @@ func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
 	host.ui.esc.controls.cancel_capture()
 	await _frames(2)
 	assert_bool(host.sender().listening).is_true()
+	# V pressed to end a capture (or a field) is still held when the typing stops: it must be
+	# let go once before it keys the microphone (the key that bound an action is not talk).
+	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
+	await _frames(2)
+	Input.action_press(VoiceSender.TALK_ACTION)
+	host.ui.esc.controls.cancel_capture()
+	await _frames(3)
+	assert_bool(host.sender().listening).is_false()
+	Input.action_release(VoiceSender.TALK_ACTION)
+	await _frames(3)
+	assert_bool(host.sender().listening).is_true()
 	host.sender().talk_held = false
 	host.leave()
 	await _frames(2)

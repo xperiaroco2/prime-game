@@ -112,6 +112,8 @@ var _voice_control: VoiceControl
 ## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
 ## is read again when one opens.
 var _voice_panel_shown := false
+## The keys were typing and the talk key is not yet let go (#488): the microphone stays shut.
+var _talk_blocked := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -912,12 +914,18 @@ func _setup_voice() -> void:
 
 
 ## Each frame: the talk key counts, under the Esc menu too (#488 rule 4), but never while the
-## keys are typing; an open Voice panel (the Esc menu's tab, or the main menu's page with no
-## session, #301) shows the settings and the microphone's level (the device list read again as it
-## opens); the lobby's hint.
+## keys are typing, nor after it, until the talk key has been let go once (a V that ended a typing
+## or bound a key is still held, and must not key the microphone); an open Voice panel (the Esc
+## menu's tab, or the main menu's page with no session, #301) shows the settings and the
+## microphone's level (the device list read again as it opens); the lobby's hint.
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
-	_sender.listening = not _typing()
+	var typing := _typing()
+	if typing:
+		_talk_blocked = true
+	elif not Input.is_action_pressed(VoiceSender.TALK_ACTION):
+		_talk_blocked = false
+	_sender.listening = not typing and not _talk_blocked
 	var panel := shown_voice_panel()
 	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
