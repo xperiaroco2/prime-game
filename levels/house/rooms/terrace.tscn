@@ -228,3 +228,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 8)
 
 [node name="TerraceTable" type="Marker3D" parent="Stations" unique_id=1011750443]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 4)
+
+[node name="Markers" type="Node3D" parent="." unique_id=1519407510]
+
+[node name="Circle02" type="Marker3D" parent="Markers" unique_id=1353989239 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.5, 4)

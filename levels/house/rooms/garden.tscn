@@ -30,3 +30,11 @@ mesh = SubResource("Mesh_1")
 
 [node name="GardenDropOff" type="Marker3D" parent="Stations" unique_id=743312008]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 22)
+
+[node name="Markers" type="Node3D" parent="." unique_id=811928258]
+
+[node name="Circle03" type="Marker3D" parent="Markers" unique_id=276664534 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.46, 22)
+
+[node name="Knife4" type="Marker3D" parent="Markers" unique_id=1331936887 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.04, 8)

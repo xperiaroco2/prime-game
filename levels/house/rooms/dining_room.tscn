@@ -194,3 +194,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 6)
 
 [node name="DiningTable" type="Marker3D" parent="Stations" unique_id=1267227030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 3)
+
+[node name="Markers" type="Node3D" parent="." unique_id=963271132]
+
+[node name="Circle01" type="Marker3D" parent="Markers" unique_id=411432794 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 3)
