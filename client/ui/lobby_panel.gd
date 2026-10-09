@@ -58,7 +58,7 @@ func _init() -> void:
 	_code_row.visible = false
 	add_child(_code_row)
 	name_edit.max_length = LobbyName.MAX_CHARS
-	name_edit.text_submitted.connect(func(_text: String) -> void: _submit_name())
+	name_edit.text_submitted.connect(func(_submitted: String) -> void: _submit_name())
 	name_edit.focus_exited.connect(_submit_name)
 	add_child(UiParts.labelled(NAME_LABEL, name_edit))
 	add_child(roster_label)

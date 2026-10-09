@@ -58,10 +58,10 @@ func test_the_lobby_name_follows_welcome_and_settings_changed() -> void:
 	assert_str(other.host_name()).is_empty()
 	var no_sets: Dictionary[StringName, PackedStringArray] = {}
 	var problems := PackedStringArray()
-	var renamed := SettingsChangedEvent.new(
+	var renamed_event := SettingsChangedEvent.new(
 		{}, "res://levels/a.tscn", 2, Demands.new(null), null, problems, no_sets, "Діма's den"
 	)
-	_fold(renamed)
+	_fold(renamed_event)
 	assert_str(_model.lobby_name).is_equal("Діма's den")
 	_fold(SettingsChangedEvent.new({}, "res://levels/a.tscn", 2, Demands.new(null), null, problems))
 	assert_str(_model.lobby_name).is_empty()
