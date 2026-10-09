@@ -12,7 +12,7 @@ extends Node
 ## and the time since Join; a code join ends early when the service's `found` names another
 ## version (JoinProgress). A failed join or session shows its failure there (EndReasons'
 ## failure_state, #494) until Back, Try again (the same join, or the host again) or Join directly;
-## the player's own leaving goes straight to the menu, whose fields keep the code and address. The
+## the player's own leaving goes straight to the menu, whose panels keep the code and address. The
 ## lobby shows the room's code to whoever knows it: the host from its transport, a joiner the code
 ## it typed (the M6 design §3). Everything shown comes from the own ClientModel
 ## and the client's own copy of the mode: the host's player reads nothing of the host's session
@@ -60,6 +60,10 @@ var clock := Callable()
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
 var last_reason: StringName = &""
+## The last end's words with their detail, or what was wrong with a target typed or given on the
+## command line, as the console prints them; no screen draws them since #493 (a failure shows on
+## the connecting screen, and the menu's fields admit no unparsed target).
+var last_words := ""
 ## The end whose failure shows now (Screen.FAILURE); empty while none does.
 var failure: StringName = &""
 ## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
@@ -136,7 +140,7 @@ func _ready() -> void:
 	ui.plates.hider = _life.hider()
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
 	ui.menu.join_requested.connect(join)
-	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.port()))
+	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.default_port))
 	ui.menu.code_join_requested.connect(join_code)
 	ui.menu.quit_requested.connect(quit)
 	ui.connecting.cancel_requested.connect(leave)
@@ -156,6 +160,7 @@ func _ready() -> void:
 	_world.add_child(_life)
 	_world.add_child(_items)
 	_ready_settings()
+	ui.menu.bind_name(settings)
 	_ready_voice()
 	_ready_controls()
 	if OS.is_debug_build():
@@ -164,9 +169,10 @@ func _ready() -> void:
 		ui.add_child(_overlay)
 	var args := OS.get_cmdline_user_args() if read_command_line else launch_args
 	options = LaunchOptions.parse(args, true)
+	ui.menu.set_default_port(options.port)
 	if not options.problem.is_empty():
 		print("session: %s" % options.problem)
-		ui.menu.set_reason(options.problem)
+		last_words = options.problem
 	elif options.hosting and options.by_code:
 		host_with_code(options.port, options.bind)
 	elif options.hosting:
@@ -174,8 +180,6 @@ func _ready() -> void:
 	elif options.joining:
 		_fill_menu(options.target)
 		join_target(options.target)
-	else:
-		ui.menu.port_box.value = options.port
 
 
 ## The tree outlives this root in tests: give it back the quit it had. The microphone closes
@@ -186,7 +190,7 @@ func _exit_tree() -> void:
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
-## with the reason on the menu, when it could not start.
+## with host-failed shown (its reason in last_words), when it could not start.
 func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
@@ -200,7 +204,8 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 
 ## Hosts a session whose room has a code, through the signalling service of the launch options
 ## (JoinTarget.SERVICE_URL by default); with --signal=lan this game serves it on `port` (TCP),
-## listening on `bind`. False, with the reason on the menu, when it could not start.
+## listening on `bind`. False, with host-failed shown (its reason in last_words), when it could
+## not start.
 func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
@@ -258,7 +263,8 @@ func join_target(target: JoinTarget) -> void:
 	if _client != null:
 		return
 	if not target.problem.is_empty():
-		ui.menu.set_reason(target.problem)
+		print("session: %s" % target.problem)
+		last_words = target.problem
 		return
 	_retry = join_target.bind(target)
 	_own_content = ClientSession.content_of(mode)
@@ -335,11 +341,11 @@ func retry() -> void:
 		again.call()
 
 
-## A failure's Join directly: the main menu's Direct fields, the code kept in its own. #493's Toy
-## menu opens its Direct panel here.
+## A failure's Join directly: the main menu's Direct panel, the address focused, the code kept in
+## its own field (#493).
 func open_direct() -> void:
 	back_to_menu()
-	ui.menu.address_edit.grab_focus()
+	ui.menu.open_direct()
 
 
 ## Ends any session, then the process.
@@ -510,6 +516,7 @@ func _input(event: InputEvent) -> void:
 		return
 	# None open: the Esc menu, over a session only.
 	if _client == null:
+		# No session has no Esc menu; the main menu closes its own open panel (MainMenu._input).
 		return
 	open_esc()
 	get_viewport().set_input_as_handled()
@@ -742,7 +749,7 @@ func _on_host_ended(reason: StringName) -> void:
 	_end_session(reason)
 
 
-## Every end comes here: the sessions, the level and the views go, and the menu says why (with
+## Every end comes here: the sessions, the level and the views go, and last_words keeps why (with
 ## `detail` after the reason's words); a failure shows on the connecting screen first.
 func _end_session(reason: StringName, detail := "") -> void:
 	if _ending or _client == null:
@@ -915,7 +922,7 @@ func _typing() -> bool:
 func shown_voice_panel() -> VoicePanel:
 	if ui.esc_open():
 		return ui.esc.voice if ui.esc.state.selected == EscMenuState.Tab.VOICE else null
-	if ui.screen == GameFlow.Screen.MENU and ui.menu.voice_open():
+	if ui.screen == GameFlow.Screen.MENU and ui.menu.settings_open():
 		return ui.menu.voice
 	return null
 
@@ -933,25 +940,28 @@ func _drop_room() -> void:
 	_room = null
 
 
-## After an end: the menu's line says why, and the end's failure, if it has one, shows first.
+## After an end: its words kept (last_words), and its failure, if it has one, shows first.
 func _show_end(reason: StringName, detail := "", versions := PackedStringArray()) -> void:
 	ui.close_esc()
-	ui.menu.close_voice()
-	var why := EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
-	ui.menu.set_reason("The last session ended: %s." % why)
+	if ui.menu.settings_open():
+		ui.menu.close_panel()
+	last_words = EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
 	var shown := ui.connecting.show_failure(EndReasons.failure_state(reason), versions)
 	failure = reason if shown else &""
 	ui.show_screen(screen())
 	pointer.capture(false)
 
 
-## The menu's field of a join from the command line, so Back finds it there as if typed.
+## The menu's panel and field of a join from the command line, so Back finds them there as if
+## typed: the code, or the address with its port when not the default.
 func _fill_menu(target: JoinTarget) -> void:
 	if target.is_code():
 		ui.menu.code_edit.text = target.code
+		ui.menu.open_panel(MainMenu.Open.CODE, false)
 	elif target.problem.is_empty():
-		ui.menu.address_edit.text = target.address
-		ui.menu.port_box.value = target.port
+		var typed := target.label() if target.port != ui.menu.default_port else target.address
+		ui.menu.address_edit.text = typed
+		ui.menu.open_panel(MainMenu.Open.DIRECT, false)
 
 
 ## The runner's stop file, or its alive file gone stale (a killed runner): quit cleanly.
