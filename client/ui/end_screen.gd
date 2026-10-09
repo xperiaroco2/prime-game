@@ -22,10 +22,11 @@ const SIDE_KEYS: Dictionary[StringName, String] = {
 	&"crew": "end.won_engineers",
 	&"dissidents": "end.won_dissidents",
 }
-## Why the round ended, by the host's reason id (#208 b, #548); any other id hides the line.
-## `all_tasks` takes the round's time as {time} (m:ss).
+## Why the round ended, by the host's reason id: the id of the win condition that ended it
+## (MatchEnded, #208 b, #548); any other id hides the line. `every_task_done` takes the round's
+## time as {time} (m:ss). The deck has no key for `no_crew_present` (ui-0.4.0): hidden, a gap.
 const REASON_KEYS: Dictionary[StringName, String] = {
-	&"all_tasks": "end.reason.all_tasks",
+	&"every_task_done": "end.reason.all_tasks",
 	&"time_up": "end.reason.time_up",
 }
 
@@ -48,8 +49,8 @@ var gap := Control.new()
 var countdown_label := Label.new()
 ## Night's fade while it runs; null otherwise.
 var fade: Tween
-## The host's reason id and the round's length in seconds (show_reason); &"" and -1 until known.
-## MatchEnded carries no reason yet (#548 adds it), so in a game the line stays hidden.
+## The host's reason id and the round's length in seconds (show_reason), from MatchEnded through
+## the model (#548); &"" and -1 until known.
 var reason: StringName = &""
 var round_seconds := -1
 ## The seconds the countdown shows; -1 when End has none.
@@ -107,14 +108,16 @@ func _init() -> void:
 ## `host_tick`: the newest host tick known (-1: none yet).
 func refresh(model: ClientModel, mode: GameMode, host_tick: int) -> void:
 	_show_winner(model.winner, own_team_won(model, mode))
+	if model.ended_by != reason or model.round_seconds != round_seconds:
+		show_reason(model.ended_by, model.round_seconds)
 	var count := count_shown(model, host_tick)
 	if count != _count:
 		_count = count
 		_retext()
 
 
-## Why the round ended: the host's reason id and the round's length in seconds (-1: unknown).
-## #548 brings both in MatchEnded; until then only the previews and the tests call it.
+## Why the round ended: the host's reason id and the round's length in seconds (-1: unknown), as
+## MatchEnded gave them (refresh calls it when the model's differ).
 func show_reason(reason_id: StringName, seconds: int) -> void:
 	reason = reason_id
 	round_seconds = seconds

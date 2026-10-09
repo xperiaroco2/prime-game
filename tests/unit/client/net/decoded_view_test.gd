@@ -94,7 +94,9 @@ func test_the_model_folds_settings_and_placements_as_decoded() -> void:
 	var sets: Dictionary[StringName, PackedStringArray] = {
 		&"banned_task_types": PackedStringArray(["delivery"])
 	}
-	var problems := PackedStringArray(["2 knife marker(s) needed, the map has 0"])
+	var problems: Array[HostText] = [
+		HostText.of(HostText.MARKERS, PackedStringArray(["knife"]), {&"need": 2, &"have": 0})
+	]
 	var map := "res://levels/maps/b.tscn"
 	_harness.send(
 		SettingsChangedEvent.new(numbers, map, 2, Demands.new(null), null, problems, sets)
@@ -106,7 +108,7 @@ func test_the_model_folds_settings_and_placements_as_decoded() -> void:
 	assert_bool(WireSamples.same(model.settings, numbers)).is_true()
 	assert_bool(WireSamples.same(model.id_sets, sets)).is_true()
 	assert_str(model.map).is_equal(map)
-	assert_array(model.shortfalls).is_equal(problems)
+	assert_bool(WireSamples.same(model.shortfalls, HostText.to_dicts(problems))).is_true()
 	assert_vector(model.spots[1]).is_equal(Vector3(4, 0, 4))
 	assert_vector(model.spots[2]).is_equal(Vector3(5, 0, 5))
 

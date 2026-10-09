@@ -144,14 +144,14 @@ func test_a_side_with_no_key_or_no_winner_hides_both_winner_lines() -> void:
 func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	var screen := _screen()
 	screen.refresh(_ended(&"crew", &"crew"), _mode, 100)
-	# MatchEnded carries no reason yet (#548): the line is hidden until one is shown.
+	# A MatchEnded without a reason (a `won` no win condition reported): no line.
 	assert_bool(screen.reason_label.visible).is_false()
 	assert_bool(screen.result.visible).is_false()
-	screen.show_reason(&"all_tasks", 461)
+	screen.show_reason(&"every_task_done", 461)
 	assert_bool(screen.reason_label.visible).is_true()
 	assert_bool(screen.result.visible).is_true()
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
-	screen.show_reason(&"all_tasks", 65)
+	screen.show_reason(&"every_task_done", 65)
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 1:05.")
 	screen.show_reason(&"time_up", -1)
 	assert_str(screen.reason_label.text).is_equal("Time's up and the tasks aren't done.")
@@ -160,6 +160,25 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 		assert_bool(screen.reason_label.visible).is_false()
 		assert_bool(screen.result.visible).is_false()
 		assert_str(screen.reason_label.text).is_empty()
+
+
+## The reason comes with MatchEnded through the model (#548): the condition's id and its time.
+func test_the_reason_follows_the_models_match_ended() -> void:
+	var screen := _screen()
+	var model := _ended(&"crew", &"crew")
+	model.fold(
+		&"MatchEnded", {"side": &"crew", "reason": &"every_task_done", "numbers": {&"time": 461}}
+	)
+	screen.refresh(model, _mode, 100)
+	assert_bool(screen.reason_label.visible).is_true()
+	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
+	model.fold(&"MatchEnded", {"side": &"dissidents", "reason": &"time_up", "numbers": {}})
+	screen.refresh(model, _mode, 100)
+	assert_str(screen.reason_label.text).is_equal("Time's up and the tasks aren't done.")
+	# No deck key for no_crew_present (ui-0.4.0): the line hides.
+	model.fold(&"MatchEnded", {"side": &"dissidents", "reason": &"no_crew_present", "numbers": {}})
+	screen.refresh(model, _mode, 100)
+	assert_bool(screen.reason_label.visible).is_false()
 
 
 func test_the_round_time_is_minutes_and_two_digit_seconds() -> void:
@@ -198,7 +217,7 @@ func test_the_texts_from_code_follow_a_language_switch() -> void:
 	var model := _ended(&"crew", &"crew")
 	model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
 	screen.refresh(model, _mode, 100)
-	screen.show_reason(&"all_tasks", 461)
+	screen.show_reason(&"every_task_done", 461)
 	TranslationServer.set_locale("uk")
 	assert_str(screen.reason_label.text).is_equal("Усі задачі виконано за 7:41.")
 	assert_str(screen.countdown_label.text).is_equal("Повернення в лобі через 3…")
@@ -250,7 +269,7 @@ func test_night_fades_in_over_the_handoffs_time_and_cuts_under_reduced_motion() 
 func test_the_next_end_starts_without_the_last_rounds_reason_or_countdown() -> void:
 	var screen := _screen()
 	screen.refresh(_ended(&"crew", &"crew"), _mode, 100)
-	screen.show_reason(&"all_tasks", 461)
+	screen.show_reason(&"every_task_done", 461)
 	assert_bool(screen.reason_label.visible).is_true()
 	screen.visible = false
 	screen.visible = true

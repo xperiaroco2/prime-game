@@ -77,8 +77,9 @@ var map := ""
 ## The lobby's name the host set (#214), from Welcome and each SettingsChanged; "" until the host
 ## names it: the default, which the UI shows as `lobby.default_name` with host_name().
 var lobby_name := ""
-## What holds all_ready back, as the last SettingsChanged listed it.
-var shortfalls := PackedStringArray()
+## What holds all_ready back, as the last SettingsChanged listed it: host texts (#548), each
+## {id, ids, numbers}, which HostTextView words in this client's language.
+var shortfalls: Array[Dictionary] = []
 ## The last LoadMatch's id; -1 before the first.
 var match_id := -1
 ## Peers whose load the host confirmed for this match.
@@ -106,6 +107,10 @@ var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
 var winner: StringName = &""
+## Why the match ended (MatchEnded, #548): the id of the win condition that ended it, empty when
+## none did or before the end; and the round's play time in whole seconds, -1 when it gave none.
+var ended_by: StringName = &""
+var round_seconds := -1
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed,
 ## invulnerable, held_item, belt_item}).
 var snapshot_tick := -1
@@ -222,7 +227,9 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 			settings = fields["settings"]
 			id_sets = fields["id_sets"]
 			map = fields["map"]
-			shortfalls = fields["shortfalls"]
+			var listed: Array[Dictionary] = []
+			listed.assign(fields["shortfalls"] as Array)
+			shortfalls = listed
 			lobby_name = fields["lobby_name"]
 		&"PhaseChanged":
 			_enter(fields["phase"] as StringName)
@@ -275,6 +282,8 @@ func clear_match() -> void:
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
+	ended_by = &""
+	round_seconds = -1
 	snapshot_tick = -1
 	avatars = {}
 
@@ -352,6 +361,9 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			epoch = fields["epoch"]
 		&"MatchEnded":
 			winner = fields["side"]
+			ended_by = fields.get("reason", &"")
+			var numbers: Dictionary = fields.get("numbers", {})
+			round_seconds = numbers.get(&"time", -1)
 
 
 ## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt

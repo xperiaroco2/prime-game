@@ -5,6 +5,19 @@ extends GdUnitTestSuite
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
 
+var _locale := ""
+
+
+## The host's shortfalls are worded in the current language (#548): English here, whatever the
+## machine's locale.
+func before_test() -> void:
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+
+
+func after_test() -> void:
+	TranslationServer.set_locale(_locale)
+
 
 func test_the_roster_names_the_host_the_own_player_and_who_is_ready() -> void:
 	var mode := load(MODE) as GameMode
@@ -35,7 +48,7 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_bool(panel.settings_editable()).is_true()
 	assert_bool(panel.presets.visible).is_true()
 	assert_bool(panel.preset_label.visible).is_false()
-	assert_str(panel.shortfalls_label.text).contains("4 to 10")
+	assert_str(panel.shortfalls_label.text).is_equal("1 more player to start")
 	assert_str(LobbyPanel.countdown_text(Preview.fake_model(mode, true), -1)).is_equal(
 		"Waiting for everyone"
 	)
