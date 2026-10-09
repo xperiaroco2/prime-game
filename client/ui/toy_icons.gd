@@ -31,6 +31,9 @@ static func texture(icon: StringName) -> Texture2D:
 		made = load(imported) as Texture2D
 	else:
 		made = _rasterised(icon)
+	if made == null:
+		# Once per icon (cached below): an export cut before #520 lands has no pinned copy.
+		push_warning("ToyIcons: no icon '%s' (neither %s nor %s)" % [icon, imported, PINNED % icon])
 	_made[icon] = made
 	return made
 
