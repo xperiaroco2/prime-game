@@ -92,7 +92,9 @@ One batch; each item's options and the failure each leaves are in the design's �
     in `core/content/tutorial/` as the bot scenarios' did in `core/content/scenario/`; ARCHITECTURE §1's `content/`
     row names it. (a) that; (b) the classes in `client/tutorial/`, which `content/` may not name. Recommended (a).
 14. **E65**, one new client-to-host wire row, `NextStage`, so the protocol version goes up by one; the base mode
-    refuses it in every phase. (a) the row; (b) a `HostNode` call with no wire row. Recommended (a).
+    refuses it in every phase. (a) the row; (b) a `HostNode` call with no wire row; (c) host facts only (lesson 6
+    stages while the player is still on the map; an early raise kills the player before lesson 7 shows).
+    Recommended (a).
 15. **The split** (the design's §8): (a) T1 to T4 as proposed, then #492; (b) with the changes you name. Recommended
     (a).
 
