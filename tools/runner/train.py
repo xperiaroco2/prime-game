@@ -1,8 +1,8 @@
 """`merge-train <pr>... --base main [--dry-run] [--recent M]` (#387): merge a list of PRs into `main` one by one.
 
 Since the trust ADR (docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md) a PR merges into `main`
-only with `main` in its head, so each merge leaves the others behind and they go strictly in series. For each PR, in
-the order given, with no manager turn between them:
+only with `main` in its head or behind it with no overlap (#632), so each merge may leave the others behind and they
+go strictly in series. For each PR, in the order given, with no manager turn between them:
 
 1. Plan. Read the PR (`gh`, bounded like every gh call of the runner). Merged already: counted as merged. Skipped
    with the reason: not open, not into `main`, a head that is not a task branch `<area>/<n>-<slug>` (a milestone's
@@ -14,7 +14,9 @@ the order given, with no manager turn between them:
    uncommitted changes, a HEAD that is not the PR's head (commits nobody published, or the PR moved), or a commit
    younger than `--recent` minutes (default RECENT_MINUTES; orchestrate-stage §2.2). The train never touches such a
    worktree.
-2. The way, printed: `main` already in the head: no publish. A history with merge commits (which `publish`'s rebase
+2. The way, printed: `main` already in the head: no publish. Behind `main`, but no path it changes since its fork is
+   one `main` changed since then and GitHub reports it MERGEABLE (merge.behind_reason, the gate's own rule, #632): no
+   publish either; CI runs on `main` after the merge. A history with merge commits (which `publish`'s rebase
    can trip on): `git merge origin/main` in the worktree, the worktree's own `verify`, a plain fast-forward push of
    the task branch (a conflict is aborted; a red verify undoes the merge commit). Otherwise the worktree's own
    `publish` (rebase, verify, push with a lease). A red verify is retried once, logged (a timeout on a busy PC is
@@ -77,7 +79,7 @@ def _sleep(seconds: float) -> None:
 class Plan:
     pr: merge.PullRequest
     worktree: Path
-    way: str  # "up to date", "merge", "publish"
+    way: str  # "up to date", "no overlap", "merge", "publish"
 
 
 @dataclass
@@ -94,10 +96,14 @@ class Outcome:
 
 WAYS = {
     "up to date": "main is already in its head: no publish",
+    "no overlap": "behind main, no file it changes is one main changed since its fork: no publish (CI runs on main)",
     "merge": "its history holds merge commits: merge origin/main into it, verify, push (no rebase, no force)",
     "publish": "publish (rebase on origin/main, verify, push with a lease)",
 }
-DONE = {"up to date": "no publish (main was in its head)", "merge": "origin/main merged in", "publish": "published"}
+DONE = {
+    "up to date": "no publish (main was in its head)", "no overlap": "no publish (behind main, no overlap)",
+    "merge": "origin/main merged in", "publish": "published",
+}
 
 
 # --- the worktrees ----------------------------------------------------------------------------------------------------
@@ -192,6 +198,8 @@ def plan(pr: merge.PullRequest, recent_minutes: int) -> Plan | str:
     tip = merge._sha(f"refs/remotes/{REMOTE}/main")
     if tip and merge._is_ancestor(tip, pr.oid):
         return Plan(pr, wt, "up to date")
+    if tip and not merge.behind_reason(pr, "main", tip, merge.mergeable_state(pr)):  # the gate's rule (#632)
+        return Plan(pr, wt, "no overlap")
     merges = _wt(wt, "rev-list", "--merges", f"{REMOTE}/main..HEAD").out.split()
     return Plan(pr, wt, "merge" if merges else "publish")
 
@@ -334,7 +342,7 @@ def ride(number: int, recent_minutes: int) -> Outcome:
     if isinstance(planned, str):
         return Outcome(number, pr.head, False, planned)
     say(f"train: {pr.label}: in {planned.worktree.as_posix()}; way: {WAYS[planned.way]}")
-    if planned.way != "up to date":
+    if planned.way not in ("up to date", "no overlap"):
         why = by_publish(planned) if planned.way == "publish" else by_merge(planned)
         if why:
             return Outcome(number, pr.head, False, why)
