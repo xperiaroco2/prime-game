@@ -2958,12 +2958,16 @@ the Toy restyle is #490 and the how-to card #254.
   progress line (the HUD has it); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
-  lights that type's zones and their chip (`map.zone_hint.<type>`, else `map.zone_hint`). Words built in code are
+  lights that type's zones, drawn under the room's name, and their chip (`map.zone_hint.<type>`, else
+  `map.zone_hint`; wrapped to its room's width when the words are wider). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
   and plan y = Z: the level piece conventions proposed in PR #611; its id is `metadata/room_id`, else its node name
-  in snake_case. Only `MapData.rooms_of()` reads that shape, so #306's room record changes one function. A task
+  in snake_case; a room repeating an id is left out. Only `MapData.rooms_of()` reads that shape, so #306's room
+  record changes one function. A marker is placed as the host's `MarkerReader` places it (`LevelWorld.transform_in_scene`:
+  the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
+  refuses it); `MapData.SPAWN_GROUP_PREFIX` copies the reader's prefix and a test ties the two. A task
   type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
   (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox declares no rooms yet
   (#306), so on it the map shows the tasks only; the previews use a fake house in `client/dev/screen_preview.gd`.
@@ -2973,12 +2977,13 @@ the Toy restyle is #490 and the how-to card #254.
   no description or NEW, the «?» signal and no focus, the lit zones and chip, the rooms and the pin's place and
   turn; the privacy test: models that differ in other players, items and circles draw the same screen, node by
   node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"),
-  `map_data_test.gd` (rooms by the metadata through parents, zones from markers only, no rooms, the greybox's none,
+  `map_data_test.gd` (rooms by the metadata through parents, zones from markers only, placement as the reader's, no
+  rooms, the greybox's rooms have an area,
   the board's fit), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
   it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
   on Tab; seen failing on the old input map), `controls_test.gd`, `key_label_test.gd`, `controls_panel_test.gd`,
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
-  captures the mouse, Tab does nothing, W still walks, a click stays unhandled, Esc closes only the map, M under the
+  captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
   Esc rule). The `shot`s: `client/dev/map_preview.tscn` and `map_preview_uk.tscn` (Delivery's zones lit); the
   playcheck scenario `map`.
