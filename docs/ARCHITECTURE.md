@@ -2757,7 +2757,9 @@ same without the mark); the look is provisional: the Toy round HUD (#489) restyl
   from its eyes (`RemotePlayerBody.is_watched()`), its eye (the head standing, the lying capsule's middle downed) is
   within `NamePlates.RANGE_M` (10 m, the engineer's value, the one place to change it) of the viewport's camera, the
   plate's point is in front of the camera, and one ray from the camera to the eye meets no level geometry
-  (`SightHider.sees`, the world layer only, so no name is ever drawn through a wall: §4.7.14). The rays run in the
+  (`SightHider.sees`, the world layer only, so no name is ever drawn through a wall: §4.7.14). While the downed
+  camera's `SightHider` is active (`NamePlates.hider`, `LifeView.hider()`), the body's eye must see the player's eye
+  too, so the arm's camera shows no more than standing at the body would (the M4 ADR's §3 item 3). The rays run in the
   physics frame at priority 11, after the bodies moved (-80) and `SightHider` hid (10); each drawn frame centres the
   shown plates on `Camera3D.unproject_position` of the point `ABOVE_HEAD_M` (0.35 m) over the head (over the lying
   capsule downed). A plate of a player who has no body any more is freed.
@@ -2768,12 +2770,16 @@ same without the mark); the look is provisional: the Toy round HUD (#489) restyl
   so only to dissidents) and is not the own player; an engineer's client has no list for its role and never marks
   anyone. `TeammateMark` draws the pack's `teammate-mark.svg` diamond in code, 20 px, tinted with ToyNamePlateText's
   `font_color`, until #520 imports the pack's icons and the handoff's `TextureRect` replaces it.
+- The ray meets only the world layer (1), while a body is hidden by what the level draws: a look a player can hide
+  behind (a partition, a tarp, a shelf) needs a layer-1 collider that covers it, or the plate shows through it
+  (`levels/CLAUDE.md` keeps looks and colliders apart on purpose). Today's levels have only floors.
 Tests: `tests/integration/client/ui/name_plates_test.gd` (a real `AvatarViews` drawing five players from snapshots in
 a `SubViewport` world: plates in sight within 10 m centred over the head; none behind a wall, beyond 10 m, behind the
 camera, for a body hidden or watched, on a hidden layer or for a player who left; the mark for a dissident's teammate
 only and never on an engineer's client; a plate holding the name and nothing else; a downed player's plate over the
-lying body; seen failing without the ray and with a mark for everyone), `tests/unit/client/ui/name_plate_test.gd` (the
-handoff's tree, the name never translated, the mark's tint, `marked` for a dissident, an engineer and the lobby, the
+lying body; a downed camera's plate needing the body's eye to see the player; seen failing without the ray, without
+the hider's ray and with a mark for everyone), `tests/unit/client/ui/name_plate_test.gd` (the
+handoff's tree, the name never translated, the plate shrinking when the theme swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby, the
 layer under every screen on the lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a
 plain plate, a teammate's with the mark, a head over a wall and a player beyond 10 m without one).
 

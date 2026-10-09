@@ -118,6 +118,9 @@ design routes it for M4's client PRs, and since #158 the root routing and the sa
    player or an item is drawn in the world and hidden by the level like what it marks (no `no_depth_test`
    overlays), or it would show through walls what the eye could not; only the fixed, public circles may be marked
    through walls (D10).
+   *Amended 2026-10-09 (#257, the engineer's "line of sight within about 10 m" on 2026-10-03):* a name plate may
+   be a screen-space overlay, if it shows only for a player in range and a world-layer ray from the camera to the
+   player's eye meets no level geometry (ARCHITECTURE §4.7.29); it then meets this item like a depth-tested one.
 6. A dissident's own HUD may name its teammates (`Teammates`, its own knowledge); no other screen names a role.
 7. The attacker gets no hit confirmation beyond the accepted exceptions (a knockdown; a raise stopping in the tick of
    a swing): the client has no `Damaged` of another player and plays no hit sound or effect on the attacker's side.
