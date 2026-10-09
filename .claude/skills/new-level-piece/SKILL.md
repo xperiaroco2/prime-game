@@ -30,7 +30,9 @@ the human's language.
    `docs/ARCHITECTURE.md`). One that does not exist: an `engine-request` issue with the spec from `content/CLAUDE.md`
    (after the human's OK on its text), then continue with a greybox stand-in.
 5. **Write the scene by hand:** one piece per `snake_case.tscn`, `PascalCase` nodes, other pieces instanced rather
-   than copied, CSG greybox. No `uid=` anywhere. Property names from the API dump
+   than copied, CSG greybox. Colliders are `StaticBody3D` on layer 1; a look a player can hide behind (a partition,
+   a tarp, a shelf) needs one covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
+   No `uid=` anywhere. Property names from the API dump
    (`tools/out/godot-api/4.7.2/extension_api.json`). A `Transform3D(...)` in a `.tscn` lists the basis row by row.
 6. **Normalize and check:** `tools\run.cmd normalize <file>`; if it reports a dropped property, fix that line (a typo,
    or a default value to remove) and run it again. Then `tools\run.cmd check`.
