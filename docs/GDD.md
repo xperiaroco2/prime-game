@@ -137,7 +137,7 @@ ADR](decisions/2026-10-09-m7-zone-task.md) (#302, comment 6085059719) and gave i
 - The numbers (ZD7): 10 s in a zone (data, not a lobby setting), radius 1.5 m, height 2.5 m, one zone per subtask
   (the base mode deals 1 zone: a placeholder, "not a decision", #649), yellow; the task's name and the players'
   word "Hold the zone" (Ukrainian UI: «Утримати зону»), described "Stand in the zone until it fills."
-- Where zones stand (ZD10 (a)): placeholders on the greybox (#649); on the House map at the engineer's points (#651).
+- Where zones stand (ZD10 (a)): placeholders on the greybox (#649); on the House map, three provisional points (#651) until the engineer moves them.
 
 ## 9. Meetings and voting
 
