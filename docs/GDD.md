@@ -149,8 +149,8 @@ everyone learns from the task's progress once it is hung.
 **Numbers** (the engineer's starting values, to tune): 5 shots a card.
 
 **Engine parts** ([the photo task ADR](decisions/2026-10-10-photo-task.md) §1, §9): a photo task type with five
-station kinds (the camera, the photo spot, the box of cards, the printer, the board) used through the Generator's
-`Interact(station)`; the host's check of who is in the frame (the camera's view and a sight line from its lens); each
+station kinds (the camera, the photo spot, the box of cards, the printer, the board), all but the photo spot used
+through the Generator's `Interact(station)` (the spot is only where the subject stands); the host's check of who is in the frame (the camera's view and a sight line from its lens); each
 client draws a shot's picture from where the host says everyone stood; memory card and photo items, one player taking
 a card from the box at most once per a short cooldown (a placeholder, as the burger chain's boxes and herb beds);
 station scenes in `levels/stations/` in place of the House's markers; the client's viewfinder, flash and photos. The
