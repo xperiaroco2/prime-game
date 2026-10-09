@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## Esc's menu, the Ready key and the Controls tab (#211) through Input events (#169): a host's Game
-## alone over a LoopbackHub on a simulated clock, in the lobby. Keys go in through
+## alone over a LoopbackHub on a simulated clock, in the lobby; and on the main menu, with no
+## session, Esc leaves the Voice page (#301) and opens no Esc menu. Keys go in through
 ## Input.parse_input_event, which reaches the nodes' _input and _unhandled_input and the action
 ## states headless too (probed on 4.7.2).
 ## Headless Godot keeps no mouse mode, so the game's pointer is a FakePointer.
@@ -190,6 +191,26 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	assert_bool(await _until(_ready_flag_is.bind(game, true))).is_true()
 	game.leave()
 	await get_tree().process_frame
+
+
+func test_on_the_main_menu_esc_leaves_the_voice_page_and_opens_no_esc_menu() -> void:
+	var game := _game([])
+	game.pointer = FakePointer.new()
+	await _frames(2)
+	assert_int(game.screen()).is_equal(S.MENU)
+	game.ui.menu.open_voice()
+	await _frames(2)
+	assert_bool(game.ui.menu.voice.is_visible_in_tree()).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.menu.voice_open()).is_false()
+	assert_bool(game.ui.menu.main_page.is_visible_in_tree()).is_true()
+	assert_bool(game.ui.esc_open()).is_false()
+	# Esc on the menu's rows does nothing.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(game.ui.menu.is_visible_in_tree()).is_true()
 
 
 ## A host's Game alone in the lobby, its pointer a FakePointer, its screens shown.
