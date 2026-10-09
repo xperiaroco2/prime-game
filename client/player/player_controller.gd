@@ -64,6 +64,9 @@ var jump_requested: bool = false
 ## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
 ## captures or frees it; the keys still move the player. Game sets it every frame.
 var mouse_free := false
+## Whether the mouse is captured, which the look needs: Input's mouse mode. Tests replace it, as
+## headless Godot keeps no mouse mode (probed on 4.7.2: CAPTURED reads back as VISIBLE).
+var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 ## Asked before a sprint or a jump, told what each step spent. A PredictedStamina of `rules`
 ## unless set before them.
 var stamina: StaminaSource
@@ -131,7 +134,7 @@ func _physics_process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not reads_device_input or mouse_free:
 		return
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured := mouse_captured.call() as bool
 	var motion := event as InputEventMouseMotion
 	if motion != null and captured:
 		look(

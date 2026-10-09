@@ -156,6 +156,34 @@ func test_esc_closes_the_hosts_question_first_and_then_the_menu() -> void:
 	await get_tree().process_frame
 
 
+func test_under_the_menu_the_mouse_turns_nothing_and_after_it_the_look_is_back() -> void:
+	var game := await _lobby_game(PORT + 6)
+	var player := game.player()
+	# Headless keeps no mouse mode: the controller is told the mouse is captured.
+	player.mouse_captured = func() -> bool: return true
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	var yaw := player.rotation.y
+	_move_mouse()
+	await _frames(1)
+	assert_float(player.rotation.y).is_equal(yaw)
+	_hold(KEY_SPACE, true)
+	_hold(KEY_SHIFT, true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(player.jump_requested).is_false()
+	assert_bool(player.sprint_held).is_false()
+	_hold(KEY_SPACE, false)
+	_hold(KEY_SHIFT, false)
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	_move_mouse()
+	await _frames(1)
+	assert_float(player.rotation.y).is_not_equal(yaw)
+	game.leave()
+	await get_tree().process_frame
+
+
 func test_the_ready_key_sends_what_the_ready_toggle_sends() -> void:
 	var game := await _lobby_game(PORT + 2)
 	assert_bool(_own_ready(game)).is_false()
@@ -309,6 +337,16 @@ func _frames(count: int) -> void:
 func _press(key: Key) -> void:
 	_hold(key, true)
 	_hold(key, false)
+
+
+## A mouse motion of 40 px to the right, as the mouse sends it.
+func _move_mouse() -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(40, 0)
+	motion.screen_relative = Vector2(40, 0)
+	motion.position = Vector2(960, 540)
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
 
 
 ## Presses and releases the left mouse button at `at` (viewport coordinates).

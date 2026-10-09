@@ -6,7 +6,8 @@ extends GdUnitTestSuite
 ## player still walks and a click never recaptures the mouse; Esc closes only the map; under the
 ## Esc menu M does nothing, and a close request closes the map under the menu it opens; the end of
 ## the round closes it, and the next round starts with it closed. #488: a card over the map (a stub
-## registered as #254's will) closes first, on Esc and on M.
+## registered as #254's will) closes first, on Esc and on M; with the map open sprint, jump, the
+## item keys and talk work and the mouse turns no head.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7395
@@ -223,6 +224,50 @@ func test_a_card_over_the_map_closes_first_on_esc_and_on_the_map_key() -> void:
 	await get_tree().process_frame
 
 
+func test_with_the_map_open_the_keys_work_and_the_mouse_turns_nothing() -> void:
+	var game := await _round_game(PORT + 5)
+	var player := game.player()
+	# Headless keeps no mouse mode: the controller is told the mouse is captured.
+	player.mouse_captured = func() -> bool: return true
+	var yaw := player.rotation.y
+	_move_mouse()
+	await _frames(1)
+	(
+		assert_float(player.rotation.y)
+		. override_failure_message("no look without the map")
+		. is_not_equal(yaw)
+	)
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_true()
+	yaw = player.rotation.y
+	_move_mouse()
+	await _frames(1)
+	assert_float(player.rotation.y).is_equal(yaw)
+	assert_bool(game.items().interactions.listening).is_true()
+	_hold(KEY_V, true)
+	await _frames(1)
+	assert_bool(game.sender().listening).is_true()
+	assert_bool(Input.is_action_pressed(&"voice_talk")).is_true()
+	_hold(KEY_V, false)
+	_hold(KEY_SHIFT, true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(player.sprint_held).is_true()
+	_hold(KEY_SHIFT, false)
+	var floor_y := player.global_position.y
+	_hold(KEY_SPACE, true)
+	var top := floor_y
+	for i in 20:
+		await get_tree().physics_frame
+		top = maxf(top, player.global_position.y)
+	_hold(KEY_SPACE, false)
+	assert_float(top).is_greater(floor_y + 0.1)
+	assert_bool(game.ui.map_is_open()).is_true()
+	game.leave()
+	await get_tree().process_frame
+
+
 func _round_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
 	game.pointer = RecordingPointer.new()
@@ -240,6 +285,16 @@ func _round_game(port: int) -> Game:
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.ROUND)).is_true()
 	await _frames(2)
 	return game
+
+
+## A mouse motion of 40 px to the right, as the mouse sends it.
+func _move_mouse() -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.relative = Vector2(40, 0)
+	motion.screen_relative = Vector2(40, 0)
+	motion.position = Vector2(960, 540)
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
 
 
 ## `count` whole frames: process_frame fires before the nodes' _process.
