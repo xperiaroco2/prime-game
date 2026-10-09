@@ -41,7 +41,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots
+from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots, suspend
 from .common import (
     IS_CI,
     IS_WINDOWS,
@@ -1064,15 +1064,33 @@ def append_history(record: dict[str, object]) -> None:
         warn(f"could not append to {HISTORY}: {exc}")
 
 
+def steps_in_flight(ended: set[str]) -> set[str]:
+    """The step each lane was running when the lanes ended in the middle (a suspend, #595): its first step that has not
+    ended, unless that step was still waiting for an AFTER step of another lane, which it never started."""
+    running = set()
+    for names in LANES.values():
+        step = next((name for name in names if name not in ended), None)
+        if step is not None and set(AFTER.get(step, ())) <= ended:
+            running.add(step)
+    return running
+
+
 def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
     """The machine-wide verify slots this run waits on (#185), or None and why: none on CI, none inside a verify."""
     me: dict[str, object] = {"worktree": ROOT.as_posix(), "branch": facts.get("branch")}
     return slots.for_verify(me, ci=IS_CI, inside=bool(os.environ.get(INSIDE_VAR)), say=say)
 
 
-def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> int:
+def main(
+    run_lane: RunLane = run_lane_process,
+    *,
+    fail_fast: bool = False,
+    watch: Callable[[Callable[[float], None], threading.Event], object] = suspend.watch_in_background,
+) -> int:
     """`verify`; with `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
-    are not run, the count check is left out, and the summary and the record say so."""
+    are not run, the count check is left out, and the summary and the record say so. While the lanes run, `watch`
+    (suspend.watch_in_background) calls back once the machine slept (#595): the lanes stop, each step that was running
+    is red with suspend.message, the steps not started are not run, and the run counts as stopped early."""
     started = time.monotonic()
     start_time = datetime.now(UTC)
     before = git_status()
@@ -1088,6 +1106,8 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
     extra: list[StepRun] = []
     count_line, counts = "", {}
     stopped_at: str | None = None  # the red step a --fail-fast run stopped at
+    slept: float | None = None  # the seconds of a suspend that stopped the run (#595)
+    in_flight: set[str] = set()  # the steps the suspend stopped
     taken: slots.Taken | None = None
     slot_line = ""
     if rc == 0:  # a wrong environment makes every later step meaningless
@@ -1107,6 +1127,15 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
             def emit(step: StepRun) -> None:
                 nonlocal stopped_at
                 with printing:
+                    if slept is not None and step.status != "passed":
+                        if step.name not in in_flight:  # it never started, or never would have
+                            runs[step.name] = StepRun(step.name, step.lane, NOT_RUN, 0.0)
+                            return
+                        line = f"{FAIL_LINE}{suspend.message(slept)}: verify stopped this step\n"
+                        step = StepRun(step.name, step.lane, "FAILED", step.seconds, line + step.output, step.detail)
+                        runs[step.name] = step
+                        _print_step(step)
+                        return
                     if stopped_at is not None and step.status != "passed":  # stopped, or red while it was stopped
                         runs[step.name] = StepRun(step.name, step.lane, NOT_RUN, 0.0)
                         return
@@ -1117,11 +1146,29 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
                         say(f"verify: --fail-fast: {step.name} is red, stopping every lane")
                         stop_lanes()
 
-            walls = run_lanes(run_lane, emit, printing)
+            stop_watch = threading.Event()  # set once the lanes ended: a suspend noticed later stops nothing
+
+            def on_suspend(seconds: float) -> None:
+                nonlocal slept
+                with printing:
+                    if stopped_at is not None or slept is not None or stop_watch.is_set():
+                        return
+                    in_flight.update(steps_in_flight(set(runs)))
+                    slept = seconds
+                    say(f"verify: {suspend.message(seconds)}: stopping every lane ({', '.join(sorted(in_flight))})")
+                stop_lanes()
+
+            watch(on_suspend, stop_watch)
+            try:
+                walls = run_lanes(run_lane, emit, printing)
+            finally:
+                with printing:
+                    stop_watch.set()
         for lane, names in LANES.items():
             for name in names:  # its lane never reported it: it failed, or the run stopped before it ended
-                runs.setdefault(name, StepRun(name, lane, "FAILED" if stopped_at is None else NOT_RUN, 0.0))
-        if stopped_at is None:  # a stopped run's runner tests are partial: nothing to count
+                stopped = stopped_at is not None or slept is not None
+                runs.setdefault(name, StepRun(name, lane, NOT_RUN if stopped else "FAILED", 0.0))
+        if stopped_at is None and slept is None:  # a stopped run's runner tests are partial: nothing to count
             problems, count_line, counts = count_after_lanes(run_id)
             if problems:
                 for problem in problems:
@@ -1138,6 +1185,9 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
     not_run = [step.name for step in ordered if step.status == NOT_RUN]
     if stopped_at is not None:
         say(f"  stopped early (--fail-fast): {stopped_at} was red; {len(not_run)} steps not run: {', '.join(not_run)}")
+    if slept is not None:
+        say(f"  stopped early: {suspend.message(slept)} while verify ran; {len(not_run)} steps not run; keep the "
+            "machine awake (docs/MANAGERS.md §4) and run verify again")  # fmt: skip
     if walls:
         say("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in LANES if lane in walls)
             + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip
@@ -1153,7 +1203,14 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
     after = f" (after {waited:.1f}s waiting for a verify slot)" if taken is not None else ""
     over = "; it ran OVER THE LIMIT of verify slots" if taken is not None and taken.over else ""
     early = f", stopped early at {stopped_at} (--fail-fast)" if stopped_at is not None else ""
+    if slept is not None:  # metrics.STOPPED_EARLY: the totals leave a stopped run out
+        early = f", stopped early at {', '.join(sorted(in_flight)) or 'a resume'}: {suspend.message(slept)}"
     say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{early}{after}{over}")
+    stopped_record: dict[str, object] | None = None
+    if stopped_at is not None:
+        stopped_record = {"at": stopped_at, "not_run": not_run}
+    elif slept is not None:  # the steps it stopped are red in "steps", with the suspend as their failure line
+        stopped_record = {"at": None, "suspended": round(slept), "not_run": not_run}
     append_history(
         {
             "start": start_time.isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -1167,7 +1224,7 @@ def main(run_lane: RunLane = run_lane_process, *, fail_fast: bool = False) -> in
             "workers": selftest_workers(),
             "selftest": counts,
             "slot": taken.record() if taken is not None else None,
-            "stopped": {"at": stopped_at, "not_run": not_run} if stopped_at is not None else None,
+            "stopped": stopped_record,
         }
     )
     return 1 if failed else 0

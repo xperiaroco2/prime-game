@@ -7,6 +7,7 @@ test run."""
 
 import ast
 import contextlib
+import inspect
 import io
 import json
 import os
@@ -23,7 +24,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, common, metrics, slots, verify
+from runner import cli, common, metrics, slots, suspend, verify
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = [
@@ -139,6 +140,7 @@ class Verify:
         counted: tuple[list[str], str] = ([], "runner tests: 2 run and 0 skipped of 2; a serial run: 2 run of 2"),
         pool: slots.Pool | None = None,
         fail_fast: bool = False,
+        watch: object = None,
     ) -> tuple[int, str, dict[str, object]]:
         out = io.StringIO()
         with (
@@ -155,7 +157,8 @@ class Verify:
             mock.patch.dict(os.environ),
             contextlib.redirect_stdout(out),
         ):
-            rc = verify.main(run_lane=run_lane, fail_fast=fail_fast)
+            no_watch = lambda _on_suspend, _stop: None  # noqa: E731 - a run without a suspend
+            rc = verify.main(run_lane=run_lane, fail_fast=fail_fast, watch=watch or no_watch)  # type: ignore[arg-type]
         lines = self.history.read_text(encoding="utf-8").splitlines()
         self.test.assertEqual(len(lines), 1, lines)
         return rc, out.getvalue(), json.loads(lines[0])
@@ -882,6 +885,109 @@ class FailFastTest(unittest.TestCase):
         assert parsed is not None
         self.assertEqual(parsed["steps"], {"doctor": ("passed", parsed["steps"]["doctor"][1]), "lint": ("FAILED", 1.0)})
         self.assertEqual((parsed["status"], parsed["stopped"]), ("FAILED", True))
+
+
+class SuspendTest(unittest.TestCase):
+    """#595: a machine that slept stops the run at its resume: the steps it was running are red with the suspend, the
+    rest is not run, and the run counts as stopped early."""
+
+    def tearDown(self) -> None:
+        verify._STOP.clear()
+
+    def test_a_suspend_stops_the_running_steps_red_and_the_rest_is_not_run(self) -> None:
+        ran = {"python": threading.Event(), "godot": threading.Event()}
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            done = names[:1] if lane in ran else ()
+            for name in done:
+                emit(verify.StepRun(name, lane, "passed", 1.0, f"{name} out\n"))
+            if lane in ran:
+                ran[lane].set()
+            verify._STOP.wait(10)  # the lane process runs on until stop_lanes kills it
+            for name in names[len(done) :]:  # as LaneReader.close reports the steps of a killed lane
+                emit(verify.StepRun(name, lane, "FAILED", 0.0, f"  FAIL  the {lane} lane ended before {name} did\n"))
+
+        def watch(on_suspend: object, stop: threading.Event) -> None:
+            def fire() -> None:
+                if all(event.wait(10) for event in ran.values()):
+                    on_suspend(37954.4)  # type: ignore[operator]
+
+            threading.Thread(target=fire, daemon=True).start()
+
+        run = Verify(self)
+        rc, text, record = run.run(run_lane, watch=watch)
+        self.assertEqual(rc, 1)
+        stopped = ["selftest-godot", "signal", "test"]  # each lane's running step; enet still waited for selftest-godot
+        statuses = summary_statuses(text)
+        self.assertEqual({name for name, status in statuses.items() if status == "FAILED"}, set(stopped))
+        self.assertEqual({name for name, status in statuses.items() if status == "passed"}, {"doctor", "lint", "check"})
+        not_run = [name for name in verify.STEP_ORDER if statuses[name] == "not run"]
+        self.assertEqual(len(not_run), len(verify.STEP_ORDER) - 6)
+        said = "the machine slept or was suspended (37954 s)"
+        self.assertIn(f"verify: {said}: stopping every lane (selftest-godot, signal, test)", text)
+        self.assertIn(f"== signal (python lane, 0.0s, FAILED)\n  FAIL  {said}: verify stopped this step\n", text)
+        self.assertIn(f"  stopped early: {said} while verify ran; {len(not_run)} steps not run", text)
+        self.assertEqual(text.splitlines()[-1].split(" in ")[0], "verify: FAILED")
+        self.assertTrue(text.splitlines()[-1].endswith(f"s, stopped early at {', '.join(stopped)}: {said}"), text)
+        self.assertEqual(record["stopped"], {"at": None, "suspended": 37954, "not_run": not_run})
+        steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
+        self.assertEqual(steps["test"]["failure"], f"{said}: verify stopped this step")
+        run.count.assert_not_called()
+        parsed = metrics.parse_verify(text)
+        assert parsed is not None
+        self.assertTrue(parsed["stopped"], "metrics leaves the run out of its totals")
+
+    def test_the_watch_runs_beside_the_lanes_and_stops_with_them(self) -> None:
+        seen: list[threading.Event] = []
+        _rc, _text, record = Verify(self).run(fake_lane(), watch=lambda _on, stop: seen.append(stop))
+        self.assertEqual(len(seen), 1)
+        self.assertTrue(seen[0].is_set())
+        self.assertIsNone(record["stopped"])
+        default = inspect.signature(verify.main).parameters["watch"].default
+        self.assertIs(default, suspend.watch_in_background)
+
+    def test_a_suspend_noticed_after_a_fail_fast_stop_changes_nothing(self) -> None:
+        told = threading.Event()
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "python":
+                emit(verify.StepRun("lint", lane, "FAILED", 1.0, "  FAIL  lint\n"))
+            elif lane == "godot":
+                told.wait(10)  # still running when the suspend is noticed
+
+        def watch(on_suspend: object, stop: threading.Event) -> None:
+            def fire() -> None:
+                verify._STOP.wait(10)  # --fail-fast has stopped the lanes
+                on_suspend(500.0)  # type: ignore[operator]
+                told.set()
+
+            threading.Thread(target=fire, daemon=True).start()
+
+        _rc, text, record = Verify(self).run(run_lane, fail_fast=True, watch=watch)
+        self.assertTrue(told.is_set())
+        self.assertNotIn("slept", text)
+        self.assertEqual(record["stopped"]["at"], "lint")  # type: ignore[index]
+
+    def test_a_suspend_noticed_after_the_lanes_ended_changes_nothing(self) -> None:
+        def watch(on_suspend: object, stop: threading.Event) -> None:
+            def fire() -> None:
+                if stop.wait(10):  # the lanes ended: a tick that was under way when they did
+                    on_suspend(500.0)  # type: ignore[operator]
+
+            threading.Thread(target=fire, daemon=True).start()
+
+        run = Verify(self)
+        rc, text, record = run.run(fake_lane(), watch=watch)
+        self.assertEqual(rc, 0)
+        self.assertNotIn("slept", text)
+        self.assertIsNone(record["stopped"])
+        run.count.assert_called_once()
+
+    def test_the_steps_in_flight_are_each_lanes_first_unended_step_that_could_start(self) -> None:
+        self.assertEqual(verify.steps_in_flight({"doctor"}), {"lint", "check"})
+        self.assertEqual(verify.steps_in_flight({"doctor", "lint", "check"}), {"signal", "test", "selftest-godot"})
+        self.assertEqual(verify.steps_in_flight({"lint", "signal", "check", "test"}), {"selftest", "selftest-godot"})
+        self.assertEqual(verify.steps_in_flight(set(verify.STEP_ORDER)), set())
 
 
 def alive(pid: int) -> bool:
