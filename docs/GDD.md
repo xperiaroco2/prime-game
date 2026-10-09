@@ -410,6 +410,9 @@ Open questions (the engineer's; the ADR's GD items, each with options and a reco
 - "Also on the map screen": no map screen exists; is the task screen meant?
 - Is the 60 s fixed in the data, or a lobby setting?
 - Is there a sound when the charge is done, beside the charge's own?
+- Are the battery and who switched hidden by sight only (every client receives the switches' states and shows them only
+  where its player can see or hear them, as hidden packages today; a modified client could show them all), or should
+  the host send a switch's state only to players near it?
 
 ## 9. Meetings and voting
 
