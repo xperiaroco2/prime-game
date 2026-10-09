@@ -1,7 +1,7 @@
 # Throwing held items (#37): the flight in `core/`, and the engineer's questions
 
 - **Status:** Accepted on 2026-10-09: the engineer took every recommendation (see the update below); being built, 37a
-  to 37c done. The TD items were his
+  and 37b done. The TD items were his
   (game rules and taste: the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier
   (c), "ask and wait"), and no task is opened on a TD item before his answer; the TE items are technical, and each
   recommendation stands until he says otherwise. TE1 is his too, because it revises what two accepted ADRs sketched
@@ -13,12 +13,6 @@
   #641) and 37b (the flight, `FlightTicks` and the rest, #642; ARCHITECTURE §7.1.16). 37b adds one detail the text
   below leaves implicit: the flight keeps its launch tick and `FlightTicks` skips it, because a command at tick L runs
   before tick L's tick systems, so with no pause n is the host tick less L, as a client computes it from `ItemThrown`'s launch tick.
-- **Update 2026-10-10 (37c, #643):** built the `Throw` intent, `ThrowItem`, `ItemThrownEvent` and their wire rows
-  (protocol 12 on `release/m7`). One part this text did not count: the condition `OverFloor` (`no_floor`, TD11 (a)).
-  A refusal inside `ThrowItem` would come after `RuleRunner` stops the thrower's raise and give the client no
-  `Rejected`, so the refusal is a condition, and ModeCheck requires `HoldsItem` and `OverFloor`, not negated, in every
-  rule that holds a `ThrowItem`. So ARCHITECTURE §9.8 counts three part classes for throwing, not two. No change to
-  a TD or TE answer.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
