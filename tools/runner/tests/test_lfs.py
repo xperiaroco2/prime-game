@@ -143,15 +143,15 @@ class AsideTest(unittest.TestCase):
             root = Path(tmp)
             write(root, "art/a.ogg", POINTER)
             write(root, "art/a.ogg.import", "[remap]\n")
-            write(root, "art/b.ttf", POINTER)  # no .import yet: a new asset
-            with lfs.aside(["art/a.ogg", "art/b.ttf"], root):
-                for name in ("art/a.ogg", "art/a.ogg.import", "art/b.ttf"):
+            write(root, "art/b.woff2", POINTER)  # no .import yet: a new asset
+            with lfs.aside(["art/a.ogg", "art/b.woff2"], root):
+                for name in ("art/a.ogg", "art/a.ogg.import", "art/b.woff2"):
                     self.assertFalse((root / name).exists(), name)
                     self.assertTrue((root / lfs.ASIDE / name).is_file(), name)
                 self.assertTrue((root / lfs.ASIDE / ".gdignore").is_file())
             self.assertEqual((root / "art/a.ogg").read_bytes(), POINTER)
             self.assertEqual((root / "art/a.ogg.import").read_text(encoding="utf-8"), "[remap]\n")
-            self.assertEqual((root / "art/b.ttf").read_bytes(), POINTER)
+            self.assertEqual((root / "art/b.woff2").read_bytes(), POINTER)
 
     def test_a_stand_in_is_imported_under_the_committed_import_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -187,12 +187,15 @@ class AsideTest(unittest.TestCase):
             ".glb": b"glTF",
             ".obj": b"v ",
             ".tga": b"\x00\x00\x02",
+            ".ttf": b"\x00\x01\x00\x00",
+            ".otf": b"\x00\x01\x00\x00",
         }
         self.assertEqual(set(lfs.STAND_INS), set(signatures))
         for suffix, data in lfs.STAND_INS.items():
             self.assertTrue(data.startswith(signatures[suffix]), suffix)
             self.assertEqual(lfs.stand_in("art/x" + suffix.upper()), data)
         self.assertIsNone(lfs.stand_in("art/x.ogg"))
+        self.assertEqual(len(lfs.STAND_INS[".ttf"]) % 4, 0)
         self.assertEqual(len(lfs.STAND_INS[".glb"]) % 4, 0)
 
     def test_the_files_come_back_when_the_import_fails(self) -> None:

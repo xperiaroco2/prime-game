@@ -5,6 +5,26 @@
 Third-party assets and code in this repository, with their authors, sources and licenses. Each section comes from
 one file in [docs/credits/](docs/credits/) (docs/AGENT_WORKFLOW.md §10).
 
+## Comfortaa
+
+- **Files:** `assets/ui/comfortaa/**`
+- **Pending:** the engineer adds the font by hand (#520): `Comfortaa[wght].ttf` saved as
+  `assets/ui/comfortaa/comfortaa.ttf`; its source and weights are still open on xperiaroco2/prime-game-ui#44
+- **Author:** The Comfortaa Project Authors (the source repository google/fonts' `ofl/comfortaa/METADATA.pb` names:
+  https://github.com/alexeiva/comfortaa)
+- **Source:** proposed on prime-game-ui#44: https://github.com/google/fonts/tree/main/ofl/comfortaa (one variable
+  file, `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; google/fonts commit `db64f6b`); the commit and the
+  file's SHA-256 are recorded here when it lands
+- **License:** SIL Open Font License 1.1 (https://openfontlicense.org/), Reserved Font Name "Comfortaa"; shipped
+  unmodified; the license text is the folder's `OFL.txt` (https://github.com/google/fonts/blob/main/ofl/comfortaa/OFL.txt)
+- **AI generated:** false
+- **Public repo OK:** true (OFL 1.1)
+
+The game's UI font (prime-game-ui `docs/ui-decisions.md` § Type; the engineer's yes on prime-game-ui#44, 2026-10-07):
+the theme builder (`tools/theme/mapping.json` `font`) makes one `FontVariation` of the file per weight the pack's
+labels use, SemiBold 600 and Bold 700, and the 600 one the theme's default font. Until the file lands, the themes
+have no font and Godot's default draws.
+
 ## GdUnit4
 
 - **Files:** `addons/gdUnit4/**`
@@ -28,6 +48,27 @@ The unit-test framework the runner's `test` command drives. A development tool: 
 The dry run of the art handoff (#519): the first art binary in the game repo, committed through Git LFS with its
 `.import` file and checked by the import check (`docs/ARCHITECTURE.md` §11). Renamed to `kenney_chair.glb`; no game
 scene uses it yet. Not from the art repo: it has no approved asset yet.
+
+## prime-game-ui: the UI pack's icons and Delivery cards
+
+- **Files:** `assets/ui/toy_pack/icons/**`, `assets/ui/toy_pack/cards/**`, `client/ui/theme/pack/icons/**`,
+  `client/ui/theme/pack/cards/**` (the art folders only: a font the pack may ship later in a fonts folder is a third
+  party's and needs its own entry)
+- **Author:** prime-game-ui, the project's UI track (https://github.com/xperiaroco2/prime-game-ui)
+- **Source:** https://github.com/xperiaroco2/prime-game-ui/tree/ui-0.4.0/dist/pack (tag `ui-0.4.0`, commit
+  `d7650db6590d925fc509fa1b2d793fc336c3b37d`; each file's SHA-256 in `client/ui/theme/pack.lock.json`, copied by
+  `tools\run.cmd ui-sync`)
+- **License:** own work of the project: every entry of the pack's `icons/LICENCES.json`, `icons/room/LICENCES.json`
+  and `cards/LICENCES.json` reads `"licence": "own work", "author": "prime-game-ui"` (the UI track's answer on
+  xperiaroco2/prime-game-ui#44: nothing in the pack is a third party's)
+- **AI generated:** true (drawn as SVG markup by the UI track's Claude Code sessions, the card PNGs rendered from
+  those SVGs; no image generator; to be confirmed by the engineer, #520)
+- **Public repo OK:** true (own work; prime-game-ui#44, item 3)
+
+The 17 icons of `icons/`, the 8 room pictograms of `icons/room/` (for the map board) and the Delivery how-to cards
+`cards/delivery-1..4.png` (for the how-to card, #254), imported by Godot from `assets/ui/toy_pack/` at the import
+scale the pack's `assets` list gives (#520); the pinned copy under `client/ui/theme/pack/` (#288) is text Godot does
+not import. Each file's "what" is in its folder's `LICENCES.json`.
 
 ## TwoVoIP
 

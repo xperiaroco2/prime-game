@@ -7,7 +7,7 @@ resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 
 Claude Code cloud session, also a checkout that may lack LFS content), the import never sees a pointer file. aside()
 puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, an empty glTF scene: STAND_INS) under its
 committed `.import` file, so Godot writes the imported file every resource that uses it loads, with its uid; a type
-without a stand-in (a font, Ogg or MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with its `.import`
+without a stand-in (WOFF, Ogg or MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with its `.import`
 file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).
 Locally, with LFS content, ci_pointers() is empty and nothing changes. The credits check needs only the paths, so it
 still covers pointer files. A build (release.yml, with LFS content) runs `check --lfs-content`, which fails on any
@@ -66,6 +66,53 @@ def _wav() -> bytes:
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
+def _sfnt(tables: dict[bytes, bytes]) -> bytes:
+    """An sfnt (TrueType) file of these tables: the directory sorted by tag, each table padded to 4 bytes."""
+    count = len(tables)
+    power = 1 << (count.bit_length() - 1)
+    header = struct.pack(">IHHHH", 0x00010000, count, power * 16, power.bit_length() - 1, count * 16 - power * 16)
+    offset = len(header) + 16 * count
+    directory, body = b"", b""
+    for tag in sorted(tables):
+        data = tables[tag]
+        padded = data + b"\x00" * (-len(data) % 4)
+        checksum = sum(struct.unpack(f">{len(padded) // 4}I", padded)) & 0xFFFFFFFF
+        directory += struct.pack(">4sIII", tag, checksum, offset + len(body), len(data))
+        body += padded
+    return header + directory + body
+
+
+def _ttf() -> bytes:
+    """A minimal TrueType font (#520): one empty glyph (.notdef), 1000 units per em, mapped from no character, named
+    "StandIn". FreeType opens it, so Godot imports it as a FontFile; a font from the pointer file's place draws
+    nothing (headless runs draw nothing anyway)."""
+    name = "StandIn".encode("utf-16-be")
+    return _sfnt(
+        {
+            # version, revision, checkSumAdjustment, magic, flags, unitsPerEm, created, modified, bbox, macStyle,
+            # lowestRecPPEM, fontDirectionHint, indexToLocFormat (short), glyphDataFormat
+            b"head": struct.pack(
+                ">iiIIHHqqhhhhHHhhh", 0x00010000, 0x00010000, 0, 0x5F0F3CF5, 0x000B, 1000, 0, 0, 0, 0, 0, 0, 0, 8, 2,
+                0, 0,
+            ),  # fmt: skip
+            # version, ascender, descender, lineGap, advanceWidthMax, three bearings and extents, caret slope and
+            # offset, four reserved, metricDataFormat, numberOfHMetrics
+            b"hhea": struct.pack(">ihhhHhhhhhhhhhhhH", 0x00010000, 800, -200, 0, 500, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1),
+            # version 1.0, numGlyphs 1, then the maxima (maxZones 2)
+            b"maxp": struct.pack(">i14H", 0x00010000, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0),
+            b"hmtx": struct.pack(">Hh", 500, 0),
+            b"loca": struct.pack(">HH", 0, 0),
+            b"glyf": b"\x00" * 4,
+            # one Windows Unicode BMP subtable, format 4 with only the closing 0xFFFF segment
+            b"cmap": struct.pack(">HHHHI", 0, 1, 3, 1, 12) + struct.pack(">7H5H", 4, 24, 0, 2, 2, 0, 0, 0xFFFF, 0, 0xFFFF, 1, 0),
+            # format 0, one record: Windows, Unicode BMP, en-US, the family name
+            b"name": struct.pack(">HHH", 0, 1, 18) + struct.pack(">6H", 3, 1, 0x409, 1, len(name), 0) + name,
+            # version 3.0 (no glyph names), italic angle, underline position and thickness, not fixed pitch, memory
+            b"post": struct.pack(">iihhIIIII", 0x00030000, 0, -100, 50, 0, 0, 0, 0, 0),
+        }
+    )
+
+
 GLTF = b'{"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"StandIn"}]}'
 
 
@@ -77,8 +124,9 @@ def _glb() -> bytes:
 
 # A stand-in of each type Godot imports from a few bytes, by extension (aside()). The JPEG and the WebP are a 4x4 grey
 # image that Godot 4.7.2 wrote (Image.save_jpg_to_buffer, save_webp_to_buffer, probed for #515): Python has no
-# encoder for them. The other LFS types keep no stand-in (a font, Ogg or MP3 audio, a video, an FBX that needs the
-# FBX2glTF importer, a .blend that needs Blender, files Godot does not import).
+# encoder for them. A font (TTF or OTF, #520: the theme refers to Comfortaa's) is a minimal TrueType file, which
+# FreeType opens whatever the extension. The other LFS types keep no stand-in (WOFF, Ogg or MP3 audio, a video, an FBX
+# that needs the FBX2glTF importer, a .blend that needs Blender, files Godot does not import).
 JPEG = base64.b64decode("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAEAAQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBKKKKAP//Z")
 STAND_INS = {
     ".png": _png(),
@@ -91,6 +139,8 @@ STAND_INS = {
     ".gltf": GLTF,
     ".glb": _glb(),
     ".obj": b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+    ".ttf": _ttf(),
+    ".otf": _ttf(),
 }
 # Where aside() keeps the pointer files during an import: a .gdignore in it makes Godot's scan skip it (as tools/out's
 # own does, common.ensure_out), and tools/out is gitignored, so `git status` sees nothing once the files are back.

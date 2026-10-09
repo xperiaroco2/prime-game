@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## does not set); names are letters only; the committed files are what a fresh build writes (the
 ## stale test, with a planted change that must show); the uid is kept; spot values, the press
 ## motion and the ramp; the large-text theme; the legacy and kept names; the toy base and toggle
-## hints in the themes' metadata (#289). Each check that guards data is also run on a broken copy
-## and must name it.
+## hints in the themes' metadata (#289); the pack's textures as theme icons and the font hook
+## (#520). Each check that guards data is also run on a broken copy and must name it.
 
 const Builder := preload("res://tools/theme/theme_builder.gd")
 const THEME_UID := "uid://c8behqt7jtcn8"
@@ -52,6 +52,7 @@ func test_check_pack_names_what_the_mapping_does_not_cover() -> void:
 		"schema 2 is not in mapping.pack_schemas",
 		"20 stops for 20 steps",
 		"texture bogus is not an icon of HSlider",
+		"texture grabber: res://assets/ui/toy_pack/icons/gone.svg is not imported",
 		"the name is not letters only",
 		"the name is also a legacy or kept name",
 		"member shiny is not in mapping.variation_members",
@@ -141,6 +142,8 @@ func _plant(pack: Dictionary, problem: String) -> void:
 			tokens.erase("bar.health.ramp.stop-20")
 		"texture bogus is not an icon of HSlider":
 			(_variation(pack, "ToySlider")["textures"] as Dictionary)["bogus"] = "x"
+		"texture grabber: res://assets/ui/toy_pack/icons/gone.svg is not imported":
+			(_variation(pack, "ToySlider")["textures"] as Dictionary)["grabber"] = "icons/gone.svg"
 		"the name is not letters only":
 			_rename(pack, "ToyPlate", "ToyPlate2")
 		"the name is also a legacy or kept name":
@@ -267,6 +270,23 @@ func test_the_committed_themes_are_not_stale() -> void:
 	)
 
 
+## Two files of one name in two folders (icons/x.svg, icons/room/x.svg) get two ids in the saved
+## theme (#520 review): one id for both would make the .tres invalid.
+func test_external_ids_differ_for_one_file_name_in_two_folders() -> void:
+	var theme := Theme.new()
+	var first := PlaceholderTexture2D.new()
+	first.resource_path = "res://tests/scratch/ids_a/x.svg"
+	var second := PlaceholderTexture2D.new()
+	second.resource_path = "res://tests/scratch/ids_b/x.svg"
+	theme.set_icon(&"grabber", &"HSlider", first)
+	theme.set_icon(&"arrow", &"OptionButton", second)
+	var path := "res://tests/scratch/ids_theme.tres"
+	Builder.name_external(theme, path)
+	assert_str(first.get_id_for_path(path)).is_not_empty()
+	assert_str(first.get_id_for_path(path)).is_not_equal(second.get_id_for_path(path))
+	assert_str(first.get_id_for_path(path)).is_equal("tests_scratch_ids_a_x_svg")
+
+
 func test_the_uids_are_kept() -> void:
 	var themes: Dictionary = _mapping["themes"]
 	assert_str(str((themes["default"] as Dictionary)["uid"])).is_equal(THEME_UID)
@@ -302,13 +322,30 @@ func test_values_match_the_pack() -> void:
 	assert_object(theme.get_color(&"icon_on", &"ToyMic")).is_equal(Color(1, 0.9569, 0.8863, 1))
 	assert_int(theme.get_constant(&"modulate_arrow", &"ToyDropdown")).is_equal(1)
 	assert_object(theme.get_color(&"font_uneditable_color", &"ToyField")).is_not_null()
-	# No theme icon yet: the pack's textures are deferred to #520 (mapping.json "textures").
+	# The pack's textures are theme icons (#520), loaded from the imported copy at its import scale.
+	var knob := theme.get_icon(&"grabber", &"ToySlider")
+	assert_str(knob.resource_path).is_equal("res://assets/ui/toy_pack/icons/slider-knob.svg")
+	assert_object(knob.get_size()).is_equal(Vector2(28, 28))
+	assert_object(theme.get_icon(&"grabber_highlight", &"ToySlider")).is_same(knob)
+	assert_str(theme.get_icon(&"grabber_disabled", &"ToySlider").resource_path).ends_with(
+		"/slider-knob-disabled.svg"
+	)
+	assert_str(theme.get_icon(&"arrow", &"ToyDropdown").resource_path).ends_with(
+		"/chevron-down.svg"
+	)
+	(
+		assert_str(theme.get_icon(&"radio_unchecked_disabled", &"ToyDropdownList").resource_path)
+		. ends_with("/radio-unchecked.svg")
+	)
+	# Exactly the pack's textures: no other type has an icon but the base types that copy them.
+	var with_icons := []
 	for type_name in theme.get_type_list():
-		(
-			assert_array(Array(theme.get_icon_list(type_name)))
-			. override_failure_message(type_name)
-			. is_empty()
-		)
+		if not theme.get_icon_list(type_name).is_empty():
+			with_icons.append(str(type_name))
+	with_icons.sort()
+	assert_array(with_icons).contains_exactly(
+		["HSlider", "OptionButton", "PopupMenu", "ToyDropdown", "ToyDropdownList", "ToySlider"]
+	)
 
 
 func test_the_press_motion_and_the_ramp() -> void:
@@ -465,20 +502,77 @@ func test_the_base_must_be_the_packs_reference() -> void:
 	assert_str(Builder.base_problem(_pack, width, height)).is_empty()
 
 
-func test_the_font_hook_waits_for_520() -> void:
+func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() -> void:
 	var font: Dictionary = _mapping["font"]
 	assert_str(str(font["family"])).is_equal("Comfortaa")
-	assert_object(font["file"]).is_null()
-	var theme := _committed("default")
-	assert_object(theme.default_font).is_null()
-	# The size is the greybox one until the font lands (#576; test_base_types_share_the_toy_looks).
-	assert_int(theme.default_font_size).is_equal(27)
-	for type_name in theme.get_type_list():
-		(
-			assert_array(Array(theme.get_font_list(type_name)))
-			. override_failure_message(type_name)
-			. is_empty()
+	assert_str(str(font["file"])).is_equal("res://assets/ui/comfortaa/comfortaa.ttf")
+	for key: String in ["default", "large"]:
+		var theme := _committed(key)
+		# The size is the greybox one (#576; test_base_types_share_the_toy_looks).
+		assert_int(theme.default_font_size).is_equal(27)
+		if not ResourceLoader.exists(str(font["file"])):
+			# The engineer adds the TTF by hand (#520): until then no font, Godot's default draws.
+			assert_object(Builder.base_font(_mapping)).is_null()
+			assert_object(theme.default_font).is_null()
+			for type_name in theme.get_type_list():
+				(
+					assert_array(Array(theme.get_font_list(type_name)))
+					. override_failure_message(type_name)
+					. is_empty()
+				)
+			continue
+		var default_font := theme.default_font as FontVariation
+		assert_object(default_font).is_not_null()
+		assert_str(default_font.base_font.resource_path).is_equal(str(font["file"]))
+
+
+func test_the_font_becomes_a_variation_per_label_weight() -> void:
+	var stand_in := ThemeDB.fallback_font
+	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
+	# The OpenType tag itself, not only what the builder's own call returns (#520 review): a text
+	# server that cannot map the name would give both sides the same wrong key.
+	assert_int(wght).is_equal(0x77676874)
+	for text_size: String in ["default", "large"]:
+		var theme := Builder.build_with_font(_pack, _mapping, text_size, stand_in)
+		var body := theme.default_font as FontVariation
+		# The default font is type.body's weight, 600 (SemiBold); bold labels take 700.
+		assert_object(body.base_font).is_same(stand_in)
+		assert_object(body.variation_opentype).is_equal({wght: 600})
+		var bold := theme.get_font(&"font", &"ToyButtonPrimary") as FontVariation
+		assert_object(bold.variation_opentype).is_equal({wght: 700})
+		assert_object(theme.get_font(&"font", &"ToyTextOnDark")).is_not_null()
+		# One object per weight, shared by every label of that weight and by the base types.
+		var weights := {}
+		for type_name in theme.get_type_list():
+			for item in theme.get_font_list(type_name):
+				var variation := theme.get_font(item, type_name) as FontVariation
+				weights[variation.resource_scene_unique_id] = variation
+				assert_object(variation.base_font).is_same(stand_in)
+		assert_array(weights.keys()).contains_exactly_in_any_order(
+			["Comfortaa_wght_600", "Comfortaa_wght_700"]
 		)
+		assert_object(theme.get_font(&"font", &"LineEdit")).is_same(
+			theme.get_font(&"font", &"ToyField")
+		)
+		# Every variation with a label gets the font of its label token's weight.
+		var tokens := _tokens(_pack)
+		var owned := Builder.tokens_by_variation(_pack)
+		for variation_name in Builder.generated_names(_pack):
+			var variation := _variation(_pack, variation_name)
+			var key := "%s.label" % variation["prefix"]
+			if not (owned[variation_name] as Array).has(key):
+				continue
+			var want: int = (tokens[key] as Dictionary)["fontWeight"]
+			var got := theme.get_font(&"font", variation_name) as FontVariation
+			(
+				assert_object(got.variation_opentype)
+				. override_failure_message("%s: %s" % [variation_name, got.variation_opentype])
+				. is_equal({wght: want})
+			)
+	# Without the file, the build writes no font at all.
+	var none := Builder.build_with_font(_pack, _mapping, "default", null)
+	assert_object(none.default_font).is_null()
+	assert_array(Array(none.get_font_list(&"ToyButtonPrimary"))).is_empty()
 
 
 ## Engine items the mapping writes that Godot's default theme does not list for the class (or a

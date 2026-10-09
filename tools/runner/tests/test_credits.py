@@ -151,6 +151,27 @@ class RepoTest(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("`levels/crate.glb` matches no file", errors[0])
 
+    def test_a_pending_entry_may_match_no_file_yet(self) -> None:
+        # A third-party file the engineer adds by hand later (#520, the font): its entry is written first.
+        pending = ENTRY.replace("- **Author:**", "- **Pending:** the file lands by hand (#520)\n- **Author:**")
+        self.entry(pending)
+        self.main()
+        report = credits.check(self.root)
+        self.assertEqual(report.errors, [])
+        # It is named as still waiting, so `check` can print it (a note, not a failure).
+        self.assertEqual(report.pending, ["docs/credits/crates.md"])
+        # Once its files are there the Pending line must go (#520 review): it would keep a stale "still to be added"
+        # in CREDITS.md and silence the stale-glob check for good.
+        write(self.root, "levels/crate.glb", "x")
+        report = credits.check(self.root)
+        self.assertEqual(len(report.errors), 1, report.errors)
+        self.assertIn("docs/credits/crates.md: its files are here: drop the Pending line", report.errors[0])
+        self.assertEqual(report.pending, [])
+        # Without it, it is an ordinary entry: green, and it covers the file.
+        self.entry(ENTRY)
+        self.main()
+        self.assertEqual(credits.check(self.root).errors, [])
+
     def test_a_folder_without_double_star_gets_a_hint(self) -> None:
         self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/props/crate/`"))
         errors = credits.check(self.root).errors

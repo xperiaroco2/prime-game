@@ -143,6 +143,13 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 		for key: String in textures:
 			if not _array(spec, "icons").has(key.replace("-", "_")):
 				problems.append("%s: texture %s is not an icon of %s" % [where, key, cls])
+			elif not ResourceLoader.exists(texture_path(mapping, str(textures[key]))):
+				problems.append(
+					(
+						"%s: texture %s: %s is not imported (tools\\run.cmd ui-sync)"
+						% [where, key, texture_path(mapping, str(textures[key]))]
+					)
+				)
 		if not variation.has("deprecated"):
 			problems.append_array(_hint_problems(variations, variation, where))
 	var owned := tokens_by_variation(pack)
@@ -185,10 +192,33 @@ static func tokens_by_variation(pack: Dictionary) -> Dictionary:
 	return owned
 
 
-## The theme for one text size ("default" or "large"): every live pack variation, the base types
-## (#576), then the legacy names and the kept ones, and the default font size. Deterministic: the
-## same pack and mapping give the same file.
+## The theme for one text size ("default" or "large"): every live pack variation with its icons
+## (#520), the font when it is in the project (#520), the base types (#576), then the legacy names
+## and the kept ones, and the default font size. Deterministic: the same pack, mapping and font
+## give the same file.
 static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> Theme:
+	return build_with_font(pack, mapping, text_size, base_font(mapping))
+
+
+## The font file mapping.font names, or null while it is not in the project: the engineer adds
+## the TTF by hand (#520), and until then the theme has no font, so Godot's default font draws.
+static func base_font(mapping: Dictionary) -> Font:
+	var file: Variant = _dict(mapping, "font").get("file")
+	if not file is String or not ResourceLoader.exists(str(file)):
+		return null
+	return load(str(file)) as Font
+
+
+## The res:// path of a pack texture (a path under the pack, `icons/slider-knob.svg`): its imported
+## copy, which ui-sync lands in mapping.textures.folder (#520).
+static func texture_path(mapping: Dictionary, pack_path: String) -> String:
+	return str(_dict(mapping, "textures").get("folder", "")) + pack_path
+
+
+## build() with `font` as the base font (null: no font items); the tests pass a stand-in.
+static func build_with_font(
+	pack: Dictionary, mapping: Dictionary, text_size: String, font: Font
+) -> Theme:
 	var theme := Theme.new()
 	var variations: Dictionary = _dict(pack, "variations")
 	var classes: Dictionary = _dict(mapping, "classes")
@@ -210,6 +240,9 @@ static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> T
 			theme.set_stylebox(str(states[state]), name, empty)
 		for key: String in owned[name]:
 			_apply_token(theme, pack, mapping, name, spec, key, text_size)
+		_add_icons(theme, mapping, name, _dict(variation, "textures"))
+	if font != null:
+		_add_fonts(theme, pack, mapping, font)
 	_add_base_types(theme, mapping)
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
@@ -246,14 +279,38 @@ static func hints(pack: Dictionary) -> Dictionary:
 
 ## Saves the theme at path and gives the file its fixed uid (a headless save writes none).
 static func write(theme: Theme, path: String, uid_text: String) -> Error:
+	name_external(theme, path)
 	var err := ResourceSaver.save(theme, path)
 	if err != OK or uid_text.is_empty():
 		return err
 	return ResourceSaver.set_uid(path, ResourceUID.text_to_id(uid_text))
 
 
+## Fixed ids for the files the theme refers to (#520: the icons and the font file), in the file
+## saved at `path`: Godot would make each from the path saved to, and the stale test saves
+## elsewhere. The id is the file's path under res:// (`assets_ui_toy_pack_icons_slider-knob_svg`),
+## so two files of one name in two folders get two ids.
+static func name_external(theme: Theme, path: String) -> void:
+	var files: Array[Resource] = []
+	var fonts: Array[Font] = []
+	if theme.default_font != null:
+		fonts.append(theme.default_font)
+	for type_name in theme.get_type_list():
+		for item in theme.get_icon_list(type_name):
+			files.append(theme.get_icon(item, type_name))
+		for item in theme.get_font_list(type_name):
+			fonts.append(theme.get_font(item, type_name))
+	for font in fonts:
+		files.append((font as FontVariation).base_font if font is FontVariation else font)
+	for file in files:
+		if file != null and not file.resource_path.is_empty():
+			var id := file.resource_path.trim_prefix("res://").replace("/", "_").replace(".", "_")
+			file.set_id_for_path(path, id)
+
+
 ## The text a theme saves to, its header without the uid: what the stale test compares.
 static func text_of(theme: Theme, scratch_path: String) -> String:
+	name_external(theme, scratch_path)
 	var err := ResourceSaver.save(theme, scratch_path)
 	if err != OK:
 		return "save failed: %s" % error_string(err)
@@ -622,6 +679,58 @@ static func _add_legacy(theme: Theme, pack: Dictionary, mapping: Dictionary) -> 
 				box.set(property, changes[property])
 			box.resource_scene_unique_id = "%s_%s" % [name, item]
 			theme.set_stylebox(item, name, box)
+
+
+## A variation's textures as theme icons (#520): the pack's key in snake case (`grabber-highlight`
+## is HSlider's `grabber_highlight`), the texture from the imported copy, in key order.
+static func _add_icons(
+	theme: Theme, mapping: Dictionary, name: String, textures: Dictionary
+) -> void:
+	var keys := textures.keys()
+	keys.sort()
+	for key: String in keys:
+		var path := texture_path(mapping, str(textures[key]))
+		theme.set_icon(key.replace("-", "_"), name, load(path) as Texture2D)
+
+
+## The font (#520): one FontVariation of `font` per weight the labels use, on the variable font's
+## `axis` (Comfortaa ships one file, wght 300 to 700), as the `item` of each variation with a label
+## and, at the weight of the mapping's `default` token, the theme's default font. Each is one
+## sub-resource, `<family>_<axis>_<weight>`.
+static func _add_fonts(theme: Theme, pack: Dictionary, mapping: Dictionary, font: Font) -> void:
+	var spec: Dictionary = _dict(mapping, "font")
+	var item := str(spec.get("item", "font"))
+	var tokens: Dictionary = _dict(pack, "tokens")
+	var variations: Dictionary = _dict(pack, "variations")
+	var classes: Dictionary = _dict(mapping, "classes")
+	var owned := tokens_by_variation(pack)
+	var by_weight := {}
+	for name in generated_names(pack):
+		var variation: Dictionary = _dict(variations, name)
+		var key := "%s.label" % variation.get("prefix")
+		if not _dict(classes, str(variation.get("class", ""))).has("label"):
+			continue
+		if not (owned[name] as Array).has(key):
+			continue
+		var weight := _int(_dict(tokens, key).get("fontWeight", 0))
+		theme.set_font(item, name, _weighted(by_weight, font, spec, weight))
+	var default_weight := _int(_dict(tokens, str(spec.get("default", ""))).get("fontWeight", 0))
+	theme.default_font = _weighted(by_weight, font, spec, default_weight)
+
+
+## The FontVariation of `font` at `weight`, made once per theme.
+static func _weighted(
+	by_weight: Dictionary, font: Font, spec: Dictionary, weight: int
+) -> FontVariation:
+	if not by_weight.has(weight):
+		var axis := str(spec.get("axis", "wght"))
+		var variation := FontVariation.new()
+		variation.base_font = font
+		var tag := TextServerManager.get_primary_interface().name_to_tag(axis)
+		variation.variation_opentype = {tag: weight}
+		variation.resource_scene_unique_id = "%s_%s_%d" % [spec.get("family"), axis, weight]
+		by_weight[weight] = variation
+	return by_weight[weight] as FontVariation
 
 
 ## Each base type (#576) under its engine class's name: every item its `from` variation holds, the

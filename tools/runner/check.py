@@ -309,6 +309,8 @@ def main(files: list[str] | None = None, lfs_content: bool = False) -> int:
             bad(line)
     else:
         ok(f"credits ({credits.count(credit_report.entries)}; every LFS asset outside addons/ credited)")
+    for path in credit_report.pending:
+        warn(f"credits: {path} is Pending: its files have not landed yet")
 
     if not project_check(files, lfs.ci_pointers()):
         failed = True

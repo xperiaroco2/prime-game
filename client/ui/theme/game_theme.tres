@@ -1,5 +1,12 @@
 [gd_resource type="Theme" format=3 uid="uid://c8behqt7jtcn8"]
 
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/chevron-down.svg" id="assets_ui_toy_pack_icons_chevron-down_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-checked-disabled.svg" id="assets_ui_toy_pack_icons_radio-checked-disabled_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-checked.svg" id="assets_ui_toy_pack_icons_radio-checked_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/radio-unchecked.svg" id="assets_ui_toy_pack_icons_radio-unchecked_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/slider-knob-disabled.svg" id="assets_ui_toy_pack_icons_slider-knob-disabled_svg"]
+[ext_resource type="Texture2D" path="res://assets/ui/toy_pack/icons/slider-knob.svg" id="assets_ui_toy_pack_icons_slider-knob_svg"]
+
 [sub_resource type="StyleBoxFlat" id="ToySlider_focus"]
 content_margin_left = 3.0
 content_margin_top = 3.0
@@ -3077,6 +3084,9 @@ EscTab/base_type = &"ToyMenuItem"
 EscTabs/base_type = &"VBoxContainer"
 EscTabs/constants/separation = 10
 HBoxContainer/constants/separation = 7
+HSlider/icons/grabber = ExtResource("assets_ui_toy_pack_icons_slider-knob_svg")
+HSlider/icons/grabber_disabled = ExtResource("assets_ui_toy_pack_icons_slider-knob-disabled_svg")
+HSlider/icons/grabber_highlight = ExtResource("assets_ui_toy_pack_icons_slider-knob_svg")
 HSlider/styles/focus = SubResource("ToySlider_focus")
 HSlider/styles/grabber_area = SubResource("ToySlider_grabber_area")
 HSlider/styles/grabber_area_highlight = SubResource("ToySlider_grabber_area_highlight")
@@ -3121,6 +3131,7 @@ OptionButton/constants/arrow_margin = 16
 OptionButton/constants/h_separation = 8
 OptionButton/constants/modulate_arrow = 1
 OptionButton/font_sizes/font_size = 22
+OptionButton/icons/arrow = ExtResource("assets_ui_toy_pack_icons_chevron-down_svg")
 OptionButton/styles/disabled = SubResource("ToyDropdown_disabled")
 OptionButton/styles/focus = SubResource("ToyDropdown_focus")
 OptionButton/styles/hover = SubResource("ToyDropdown_hover")
@@ -3140,6 +3151,10 @@ PopupMenu/constants/item_end_padding = 16
 PopupMenu/constants/item_start_padding = 8
 PopupMenu/constants/v_separation = 16
 PopupMenu/font_sizes/font_size = 22
+PopupMenu/icons/radio_checked = ExtResource("assets_ui_toy_pack_icons_radio-checked_svg")
+PopupMenu/icons/radio_checked_disabled = ExtResource("assets_ui_toy_pack_icons_radio-checked-disabled_svg")
+PopupMenu/icons/radio_unchecked = ExtResource("assets_ui_toy_pack_icons_radio-unchecked_svg")
+PopupMenu/icons/radio_unchecked_disabled = ExtResource("assets_ui_toy_pack_icons_radio-unchecked_svg")
 PopupMenu/styles/hover = SubResource("ToyDropdownList_hover")
 PopupMenu/styles/panel = SubResource("ToyDropdownList_panel")
 PopupMenu/styles/separator = SubResource("ToyDropdownList_separator")
@@ -3455,6 +3470,7 @@ ToyDropdown/constants/arrow_margin = 16
 ToyDropdown/constants/h_separation = 8
 ToyDropdown/constants/modulate_arrow = 1
 ToyDropdown/font_sizes/font_size = 22
+ToyDropdown/icons/arrow = ExtResource("assets_ui_toy_pack_icons_chevron-down_svg")
 ToyDropdown/styles/disabled = SubResource("ToyDropdown_disabled")
 ToyDropdown/styles/focus = SubResource("ToyDropdown_focus")
 ToyDropdown/styles/hover = SubResource("ToyDropdown_hover")
@@ -3470,6 +3486,10 @@ ToyDropdownList/constants/item_end_padding = 16
 ToyDropdownList/constants/item_start_padding = 8
 ToyDropdownList/constants/v_separation = 16
 ToyDropdownList/font_sizes/font_size = 22
+ToyDropdownList/icons/radio_checked = ExtResource("assets_ui_toy_pack_icons_radio-checked_svg")
+ToyDropdownList/icons/radio_checked_disabled = ExtResource("assets_ui_toy_pack_icons_radio-checked-disabled_svg")
+ToyDropdownList/icons/radio_unchecked = ExtResource("assets_ui_toy_pack_icons_radio-unchecked_svg")
+ToyDropdownList/icons/radio_unchecked_disabled = ExtResource("assets_ui_toy_pack_icons_radio-unchecked_svg")
 ToyDropdownList/styles/hover = SubResource("ToyDropdownList_hover")
 ToyDropdownList/styles/panel = SubResource("ToyDropdownList_panel")
 ToyDropdownList/styles/separator = SubResource("ToyDropdownList_separator")
@@ -3791,6 +3811,9 @@ ToySettingRowValue/colors/font_shadow_color = Color(0, 0, 0, 0)
 ToySettingRowValue/font_sizes/font_size = 22
 ToySettingRowValue/styles/normal = SubResource("StyleBoxEmpty_empty")
 ToySlider/base_type = &"HSlider"
+ToySlider/icons/grabber = ExtResource("assets_ui_toy_pack_icons_slider-knob_svg")
+ToySlider/icons/grabber_disabled = ExtResource("assets_ui_toy_pack_icons_slider-knob-disabled_svg")
+ToySlider/icons/grabber_highlight = ExtResource("assets_ui_toy_pack_icons_slider-knob_svg")
 ToySlider/styles/focus = SubResource("ToySlider_focus")
 ToySlider/styles/grabber_area = SubResource("ToySlider_grabber_area")
 ToySlider/styles/grabber_area_highlight = SubResource("ToySlider_grabber_area_highlight")

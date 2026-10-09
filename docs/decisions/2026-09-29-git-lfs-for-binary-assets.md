@@ -79,3 +79,8 @@ bandwidth on `verify`.
   `Check LFS content` (`tools/run.sh check --lfs-content`) after its checkout (`lfs: true`) and the pinned toolchain
   (the runner's Python), before `Export`; a pointer file fails the run with its path. `test_export.py`'s
   `ReleaseWorkflowTest` (in `verify`) keeps the step there.
+
+## Amendment 2026-10-09: fonts get a stand-in (#520)
+TTF and OTF fonts now have a stand-in too (`lfs.STAND_INS`: a minimal TrueType font), so in CI they no longer go
+aside with their `.import` file as the decision above says: the generated theme refers to the font, and without a
+stand-in a pointer-file TTF broke every user of the theme. `test_lfs.py`'s `RealPointerTest` imports it.

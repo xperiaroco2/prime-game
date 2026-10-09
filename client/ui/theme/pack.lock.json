@@ -1,11 +1,6 @@
 {
   "commit": "d7650db6590d925fc509fa1b2d793fc336c3b37d",
-  "deferred": {
-    "cards/delivery-1.png": "1ec1cc493d4d6914e97c1402f95b4034c0db0360a0319791760b794c4ec33406",
-    "cards/delivery-2.png": "908f06d9590e9fbe7dd39f1f96f48c2480ead92dac21d22182cd5d4d3b775edf",
-    "cards/delivery-3.png": "317c2cc59ad15027804ad9452b2666a3825d742c9482b3f5605bc97acc119511",
-    "cards/delivery-4.png": "6ad3198cde63c2250a0c233360a06ce34751039cb000563d71ab9d052c142d0e"
-  },
+  "deferred": {},
   "files": {
     "cards/LICENCES.json": "a8434cbb416d0c4efa7f70be3f86b389aee9ae428e6b07bfd872af99da0d5d9f",
     "icons/LICENCES.json": "a26508fab129c1555268057307f6233b1d27b36ee754c5b6ba876d93ae8bd97f",
@@ -36,6 +31,37 @@
     "icons/swatch-disc.svg": "e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506",
     "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a",
     "toy.pack.json": "46879ba540c46c6a60c8fbad1d7fef2b0446b61e757b46df3a5ee9ca3c3575e9"
+  },
+  "imported": {
+    "cards/delivery-1.png": "1ec1cc493d4d6914e97c1402f95b4034c0db0360a0319791760b794c4ec33406",
+    "cards/delivery-2.png": "908f06d9590e9fbe7dd39f1f96f48c2480ead92dac21d22182cd5d4d3b775edf",
+    "cards/delivery-3.png": "317c2cc59ad15027804ad9452b2666a3825d742c9482b3f5605bc97acc119511",
+    "cards/delivery-4.png": "6ad3198cde63c2250a0c233360a06ce34751039cb000563d71ab9d052c142d0e",
+    "icons/check.svg": "075bc05d17706a82166f60f442a4cb5f46a4570c5ae01caf963a1666224e22a9",
+    "icons/chevron-down.svg": "79f4e00556440671049e289a5fc78eb1605fbbc722b02d0dc44ac08b17ac996b",
+    "icons/chevron-left.svg": "44982e3c824e0b0d4d1b24763f8b51ad52501587b41e8fc126d99a7ef8adc4ef",
+    "icons/chevron-right.svg": "0032c16ed1887d8bcc9f1316d6dd1453f3b34f005c0264365c62168c84a5e7b0",
+    "icons/item.svg": "800e70dc493f2ebf6c316331bf9ac5cb82826b70fa055eca7e163999e4a5dc7a",
+    "icons/knife.svg": "8156a7f6ce007004248796d727c4a5f38278222de086b2f5772a9c4373ac23ba",
+    "icons/lock.svg": "622e11ffbb6007ed7c8eaa63165983a4000d7feae313bf8b8013066ff6ffeb06",
+    "icons/mic-off.svg": "da1f7a81faaf56245e99c862262fb88ff0e9033f1cd321088188c168c13cd8d9",
+    "icons/mic.svg": "96f7eacda66740f0358cd2ab8e8f9087e277f059daa1887da0003b47a3ab2990",
+    "icons/pointer.svg": "a0b1e80c4df6e2659c9ac310524d29af344c1c035d5fc530ae9602b8d1d51862",
+    "icons/radio-checked-disabled.svg": "518f36304fce3c853f8b85510945ee7981bb7b378bc0cda4793c15c45dcfb426",
+    "icons/radio-checked.svg": "fff005fb9b75eaf625e6a8a134b989cfbabb27de3fe99e091070689be03e3fcf",
+    "icons/radio-unchecked.svg": "540c714a466513f24525fa3630bd79c03a4e3508b117bf5f45bf58144c2ddc25",
+    "icons/room/hall.svg": "9a5ebd3c938993bd27d4eb36a2949939454e6b8780e996756b133869a589847d",
+    "icons/room/kitchen.svg": "60a22bc5ddb2751b30080a890fe4f53ff7ad730be5ac3d84ed387a3856fdf862",
+    "icons/room/lab.svg": "e43e2905f3f5013c800889db9a68659af612bfb002151b01bfb35699fab6f724",
+    "icons/room/lounge.svg": "d6f878ce6d1b8496e02d4fbea598a30a20d908c536cfe09086e43a20a6d8d494",
+    "icons/room/office.svg": "fcc41a4dfd11ead86e01796fbecae7f09be370575f0c9d424308e746a19f26ca",
+    "icons/room/server.svg": "687039795850bd115715bd70d55616f01897646dab94bfd4fc793d4ec23123e7",
+    "icons/room/storage.svg": "c0a7507fa025503edad4c9cb695748814f9975e072310c5e5faedf1f8f6aed63",
+    "icons/room/workshop.svg": "e087b0c2d33a5d3eaf97f88196ef82d32ca41553ce889a2be5116a0aa69fdc35",
+    "icons/slider-knob-disabled.svg": "cdab927fe1fdca684baad29ec81e14061fddca607e30b1aa8149d7d98d565d19",
+    "icons/slider-knob.svg": "bcbe3f04441b873af09c7be72007ffab2f816fe1c5524137a07097bbb36888da",
+    "icons/swatch-disc.svg": "e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506",
+    "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a"
   },
   "repo": "xperiaroco2/prime-game-ui",
   "tag": "ui-0.4.0"

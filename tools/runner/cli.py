@@ -518,8 +518,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="pin the UI pack of prime-game-ui at a tag into client/ui/theme/pack/; no tag: verify it offline",
         description="Pin the UI track's pack (xperiaroco2/prime-game-ui, dist/pack/ at a tag ui-<semver>, #288): its "
         "JSON and SVG files land byte for byte in client/ui/theme/pack/ under a .gdignore, and "
-        "client/ui/theme/pack.lock.json records the repo, tag, commit and each file's sha256. Binaries (card art, "
-        "a font) are not landed: the lock lists them under deferred for #520. The pack is checked (format, a known "
+        "client/ui/theme/pack.lock.json records the repo, tag, commit and each file's sha256. Every asset of the "
+        "pack's assets list (icons, card art) also lands in assets/ui/toy_pack/, which Godot imports, each SVG at "
+        "the pack's svg_scale (#520); another binary is listed under deferred. The pack is checked (format, a known "
         "schema, version = the tag, assets' sha256) before anything is written. With no tag, or --check, it "
         "verifies the pinned copy offline; a tag already pinned and intact is not fetched again unless --force. "
         "Then regenerate the theme: run tools/theme/build_theme.gd --headless.",
