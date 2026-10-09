@@ -107,7 +107,7 @@ static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: 
 	var left := countdowns.respawn_left_s(tick)
 	if left >= 0.0:
 		shown.lines.append("Respawn in %d s" % ceili(left))
-	# Whom it watches is the HUD's "Spectating <name>" (HudText, #168).
+	# Whom it watches is the HUD's "Watching: <name>" (HudText, dead.watching; #168, #489).
 	if local.watching != 0:
 		shown.lines.append("%s and %s: next and previous" % [local.next_key, local.previous_key])
 	else:

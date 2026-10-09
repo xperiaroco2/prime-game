@@ -2027,9 +2027,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
   | Life | Controller | Camera | Inputs | HUD |
   |---|---|---|---|---|
-  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role |
+  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | clock, own role, health, stamina, mic, hand and belt (#489, §4.7.37; the destination and task progress moved to the world marker and the map) |
   | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
-  | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Spectating <name>" and the target's hand and belt items (#168); nothing else of the target's |
+  | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Watching: <name>" (§4.7.37) and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
   (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
@@ -2057,7 +2057,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   event of it.
   From a living target's eyes the spectator sees what the target's own screen shows (#168): its body and head
   hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
-  body hidden; the HUD says "Spectating <name>" over those public slots (§4.7, The HUD).
+  body hidden; the HUD says "Watching: <name>" over those public slots (§4.7.37).
   The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
 - **What the dead hear** (V11): no voice (the host routes none, and the client plays none while dead); the world's
   sounds around the target (from M5-5 the listener is `Ears`, at the target's eye or its body's head, §6); lift music
@@ -2101,6 +2101,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
   and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
   destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
+  **Superseded by #489** (§4.7.37): the Toy HUD shows no teammates, task progress, destination swatch or hint, and
+  while dead only "Watching: <name>" over the watched player's slots (no clock or own role).
   **The task screen** (Tab), for the living, the downed and the dead: each task of the
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
