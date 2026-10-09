@@ -17,17 +17,12 @@ extends TaskType
 ## and so is done.
 ##
 ## The check (on_fact, on item_rested): a package of an undone subtask resting on the ground inside
-## its circle's cylinder (rests_in) is delivered: locked (PickUp gets `unavailable`), its circle
-## done, its subtask done. A held package never counts: holding raises no item_rested.
+## its circle's cylinder (StationState.contains) is delivered: locked (PickUp gets `unavailable`),
+## its circle done, its subtask done. A held package never counts: holding raises no item_rested.
 ##
 ## Emits: StationPlaced, ItemSpawned (everyone) in the deal; PackageDelivered, TaskState and
 ## TaskProgress (everyone) on a delivery. Raises item_rested (spawn) in the deal and subtask_done
 ## on a delivery.
-
-## How far below its circle's floor a rest position still counts: float noise between a floor the
-## host's physics finds and a hand-placed marker, not a tolerance for a raised marker (§9.6).
-## A placeholder, not a decision.
-const FLOOR_SLACK_M := 0.001
 
 
 ## Delivery's task state (§9.1): per subtask, in order, its package, its circle and whether it is
@@ -110,7 +105,7 @@ func on_fact(ctx: MatchContext) -> void:
 		if index < 0 or task_state.done[index]:
 			continue
 		var station: StationState = ctx.state.stations.get(task_state.circles[index])
-		if station == null or not rests_in(item.position, station):
+		if station == null or not station.contains(item.position):
 			return
 		item.where = ItemState.Where.LOCKED
 		station.done = true
@@ -118,23 +113,6 @@ func on_fact(ctx: MatchContext) -> void:
 		ctx.emit(PackageDeliveredEvent.new(item.id, station.id))
 		Tasks.subtask_done(ctx, task, {"subtask": index, "item": item.id})
 		return
-
-
-## Whether a package resting at `at` is inside `station`'s cylinder (#79): the circle stands on
-## the floor at its marker, `radius_m` wide and `height_m` tall. `at` is the item's rest position,
-## the one point core/ knows of an item: the centre of its base on the surface it rests on, as
-## WorldQuery placed it (§7.1), not the centre of its mesh. Inside means within the radius
-## horizontally, edge included, and from the circle's floor (the marker's height) up to floor +
-## height, both included, the floor with FLOOR_SLACK_M of float noise below it: a package on a
-## crate inside the circle counts, one on a floor below the marker or above the cylinder does not.
-func rests_in(at: Vector3, station: StationState) -> bool:
-	var flat := Vector2(at.x - station.position.x, at.z - station.position.z)
-	var rise := at.y - station.position.y
-	return (
-		flat.length() <= station.kind.radius_m
-		and rise >= -FLOOR_SLACK_M
-		and rise <= station.kind.height_m
-	)
 
 
 ## As many `circle` and `package` markers as packages, and as many palette colours as circles:
@@ -200,7 +178,7 @@ func _fits(ctx: MatchContext, count: int) -> bool:
 ## `count` circles on distinct random markers, in spawn-point order, with distinct random colours.
 func _place_circles(ctx: MatchContext, count: int) -> Array[StationState]:
 	var spots := ctx.layout.positions(circle.spawn_tag)
-	var markers := _pick(spots.size(), count, ctx.rng(circles_rng))
+	var markers := Tasks.pick(spots.size(), count, ctx.rng(circles_rng))
 	var colours := RngStreams.shuffled_indices(circle.palette.size(), ctx.rng(circles_rng))
 	var placed: Array[StationState] = []
 	for i in count:
@@ -211,15 +189,8 @@ func _place_circles(ctx: MatchContext, count: int) -> Array[StationState]:
 ## `count` packages on distinct random free markers, in spawn-point order.
 func _place_packages(ctx: MatchContext, count: int) -> Array[ItemState]:
 	var spots := Items.free_markers(ctx, package.spawn_tag)
-	var markers := _pick(spots.size(), count, ctx.rng(packages_rng))
+	var markers := Tasks.pick(spots.size(), count, ctx.rng(packages_rng))
 	var placed: Array[ItemState] = []
 	for i in count:
 		placed.append(ctx.state.add_item(package, spots[markers[i]]))
 	return placed
-
-
-## `count` distinct indices of `available`, drawn from `rng`, in ascending (level) order.
-static func _pick(available: int, count: int, rng: RandomNumberGenerator) -> PackedInt32Array:
-	var chosen := RngStreams.shuffled_indices(available, rng).slice(0, count)
-	chosen.sort()
-	return chosen

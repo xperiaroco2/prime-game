@@ -161,31 +161,6 @@ func test_a_package_above_the_cylinder_does_not_count() -> void:
 	assert_bool(circle.done).is_false()
 
 
-func test_the_cylinder_includes_its_edges_and_nothing_beyond() -> void:
-	var delivery := FixtureDeliveryModes.delivery_of(FixtureDeliveryModes.basic())
-	var circle := StationState.new(1, delivery.circle, Vector3(4, 1, -3), Color.RED)
-	var inside: Array[Vector3] = [
-		Vector3(4, 1, -3),
-		Vector3(4, 0.9995, -3),
-		Vector3(5, 1, -3),
-		Vector3(4, 1, -2),
-		Vector3(4.6, 2, -2.3),
-		Vector3(4, 3, -3),
-		Vector3(3, 3, -3),
-	]
-	for at: Vector3 in inside:
-		assert_bool(delivery.rests_in(at, circle)).override_failure_message(str(at)).is_true()
-	var outside: Array[Vector3] = [
-		Vector3(5.01, 1, -3),
-		Vector3(4.8, 1, -2.3),
-		Vector3(4, 0.99, -3),
-		Vector3(4, 3.01, -3),
-		Vector3(4, -1, -3),
-	]
-	for at: Vector3 in outside:
-		assert_bool(delivery.rests_in(at, circle)).override_failure_message(str(at)).is_false()
-
-
 func test_another_packages_circle_does_not_count() -> void:
 	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(2), [P1])
 	var task := FixtureDeliveryModes.task_of(game)
