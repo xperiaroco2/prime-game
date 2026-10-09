@@ -2272,7 +2272,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   rebuilt by `set_mode`) in the row right under the name, out of the settings box: the two things that name the
   match side by side. Its label is plain "Map" until the UI deck has a key for it. `Game.change_map` sends it.
   Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
-  `game_map_choice_test.gd` (every `Game` loads the host's map).
+  `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s: `esc_lobby_preview.tscn` and
+  `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
