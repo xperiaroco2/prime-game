@@ -3,10 +3,11 @@ extends GdUnitTestSuite
 ## ScrollContainer (with their popup, inner field and scroll bar) and set no type variation on
 ## them. The generated theme styles those classes under their own name from the pack's Toy looks
 ## (tools/theme/mapping.json `base_types`), and gives the text no type sizes (a bare Label, Button,
-## CheckBox) its default font size, so at gui/theme/default_theme_scale 1 none of them is drawn at
-## Godot's default size. Each item is resolved through a live control under GameUi's themes, as a
-## screen resolves it. A source test lists every engine control class client/ui/ builds: each is
-## a base type, or named here with what it still takes from Godot's default theme.
+## CheckBox) its default font size, so their size does not hang on gui/theme/default_theme_scale
+## (held at 1.6667 for the gaps named below). Each item is resolved through a live control under
+## GameUi's themes, as a screen resolves it. A source test lists every engine control class
+## client/ui/ builds: each is a base type, or named here with what it still takes from Godot's
+## default theme.
 
 const Boundary := preload("res://tests/unit/client/app/client_boundary_test.gd")
 const Builder := preload("res://tools/theme/theme_builder.gd")
