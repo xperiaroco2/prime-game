@@ -117,6 +117,63 @@ Open questions:
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
 
+### Photo (#687)
+The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
+are the engineer's (#687, chat of 2026-10-10); the engine parts and the questions still open are in
+[the photo task ADR](decisions/2026-10-10-photo-task.md).
+
+**Intent.** "For now the simplest possible thing": one player stands at the photo spot, another takes the shot with a
+flash; the photo travels to be printed and is hung in the darkroom, and it counts only if a person is really in it.
+Closer to a real photography process where it helps. Later, not now: special poses or gestures the photo must show.
+
+**Rules.**
+- The photo is a task type, like the others. One hung photo with a person in it is one subtask; the host sets how
+  many in the lobby settings (every task type has such a setting, #256).
+- The camera stands on a tripod in the photo zone (the gazebo, north-west), facing the photo spot. It takes two: one
+  player stands on the spot, another uses the camera. Using the camera enters a viewfinder view: the player looks
+  through it and sees the frame; a press takes the shot, with a flash.
+- The path: the camera records onto a memory card; the card is carried to the computer and printer in the study (the
+  second floor), where the photos are printed; a printed photo is carried to the darkroom (the basement) and hung on
+  its board. (The engineer leaned to this path "for game design", noting that walking around with printed photos is
+  less like the real process; a more natural touch stays open, below.)
+- A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot.
+- A hung photo counts only if a person is really in it; one without a person does not count.
+- A card holds 5 shots; once they are used, a new card is taken in storage (the balance is to be tuned).
+- Tasks are shared, and only living players do subtasks (#79); a dissident plays the same character under the same
+  rules, and a two-handed item stops a use (busy hands), as for the Generator (#679).
+
+**Hidden information.** Whether a person is in a photo is decided by the host from where everyone stood at the moment
+of the shot, never from a player's picture. A photo shows its picture to whoever sees it; whether it counted
+everyone learns from the task's progress once it is hung.
+
+**Numbers** (the engineer's starting values, to tune): 5 shots a card.
+
+**Engine parts** ([the photo task ADR](decisions/2026-10-10-photo-task.md) §1, §9): a photo task type with five
+station kinds (the camera, the photo spot, the box of cards, the printer, the board) used through the Generator's
+`Interact(station)`; the host's check of who is in the frame (the camera's view and a sight line from its lens); each
+client draws a shot's picture from where the host says everyone stood; memory card and photo items; station scenes in
+`levels/stations/` in place of the House's markers; the client's viewfinder, flash and photos. The issues follow from
+the ADR's split.
+
+Open questions (the engineer's; #687's open items and the ADR's PD items, each with options and a recommendation):
+- Who counts as a person in the photo: any living player, a dissident too? Standing on the spot, or anywhere in the
+  frame? Does the same player count for several photos?
+- The printing: does one visit print every shot on the card? Does printing take time? Is the card used up or carried
+  back?
+- The cards in storage: unlimited? Does the first card lie at the photo zone? Can a player hold a card and a photo at
+  once (hands, the belt)?
+- A photo without a person once hung: can it be taken down again? Can a dissident take a good photo off the board?
+- A more natural touch: for example the darkroom as where photos develop before they count.
+- The default photo count and its range; the camera's view (how wide, how far a person still counts); how near a
+  player must stand to use a station; the task's name, its description and the lobby label of its setting.
+- Is the camera fixed on the spot, or can the shooter turn it? Does the card stay with the shooter, or go into the
+  camera?
+- After the task is done, do the camera, the printer and the board stop working?
+- Is a photo's content hidden by sight only (every client could know which shots have a person, as hidden packages
+  today), or should the host hide it until the photo is hung?
+- Does the photo task play on the greybox too, and does every match deal it?
+- The flash and the sounds (the shutter, the printer).
+
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
 shared and only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4),
