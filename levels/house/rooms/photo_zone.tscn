@@ -1,0 +1,111 @@
+[gd_scene format=3 uid="uid://bgu42omlmsppo"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+
+[sub_resource type="BoxShape3D" id="Shape_1"]
+size = Vector3(10, 0.04, 10)
+
+[sub_resource type="BoxShape3D" id="Shape_2"]
+size = Vector3(10, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="Shape_3"]
+size = Vector3(0.1, 1, 10)
+
+[sub_resource type="BoxShape3D" id="Shape_4"]
+size = Vector3(0.1, 1, 3)
+
+[sub_resource type="BoxShape3D" id="Shape_5"]
+size = Vector3(10, 0.2, 10)
+
+[sub_resource type="BoxMesh" id="Mesh_1"]
+material = ExtResource("1_greybox")
+size = Vector3(10, 0.04, 10)
+
+[sub_resource type="BoxMesh" id="Mesh_2"]
+material = ExtResource("1_greybox")
+size = Vector3(10, 1, 0.1)
+
+[sub_resource type="BoxMesh" id="Mesh_3"]
+material = ExtResource("1_greybox")
+size = Vector3(0.1, 1, 10)
+
+[sub_resource type="BoxMesh" id="Mesh_4"]
+material = ExtResource("1_greybox")
+size = Vector3(0.1, 1, 3)
+
+[sub_resource type="BoxMesh" id="Mesh_5"]
+material = ExtResource("1_greybox")
+size = Vector3(10, 0.2, 10)
+
+[node name="PhotoZone" type="Node3D" unique_id=450689993]
+metadata/size_m = Vector2i(10, 10)
+
+[node name="Body" type="StaticBody3D" parent="." unique_id=451755482]
+
+[node name="Floor1" type="CollisionShape3D" parent="Body" unique_id=661165236]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, -0.04, 5)
+shape = SubResource("Shape_1")
+
+[node name="Wall1" type="CollisionShape3D" parent="Body" unique_id=1076424988]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 0.05)
+shape = SubResource("Shape_2")
+
+[node name="Wall2" type="CollisionShape3D" parent="Body" unique_id=1985248051]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 9.95)
+shape = SubResource("Shape_2")
+
+[node name="Wall3" type="CollisionShape3D" parent="Body" unique_id=970963388]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.5, 5)
+shape = SubResource("Shape_3")
+
+[node name="Wall4" type="CollisionShape3D" parent="Body" unique_id=1537131757]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.95, 0.5, 1.5)
+shape = SubResource("Shape_4")
+
+[node name="Wall5" type="CollisionShape3D" parent="Body" unique_id=1055109780]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.95, 0.5, 8.5)
+shape = SubResource("Shape_4")
+
+[node name="Ceiling" type="CollisionShape3D" parent="Body" unique_id=1315257529]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.7, 5)
+shape = SubResource("Shape_5")
+
+[node name="Looks" type="Node3D" parent="." unique_id=36379337]
+
+[node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=940514188]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, -0.04, 5)
+mesh = SubResource("Mesh_1")
+
+[node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=1599752473]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 0.05)
+mesh = SubResource("Mesh_2")
+
+[node name="Wall2" type="MeshInstance3D" parent="Looks" unique_id=360301713]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.5, 9.95)
+mesh = SubResource("Mesh_2")
+
+[node name="Wall3" type="MeshInstance3D" parent="Looks" unique_id=180628037]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.5, 5)
+mesh = SubResource("Mesh_3")
+
+[node name="Wall4" type="MeshInstance3D" parent="Looks" unique_id=1122047343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.95, 0.5, 1.5)
+mesh = SubResource("Mesh_4")
+
+[node name="Wall5" type="MeshInstance3D" parent="Looks" unique_id=1293226114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.95, 0.5, 8.5)
+mesh = SubResource("Mesh_4")
+
+[node name="Ceiling" type="MeshInstance3D" parent="Looks" unique_id=1524435722]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.7, 5)
+mesh = SubResource("Mesh_5")
+
+[node name="Doors" type="Node3D" parent="." unique_id=170898782]
+
+[node name="Door1" type="Marker3D" parent="Doors" unique_id=437129043]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 5)
+
+[node name="Stations" type="Node3D" parent="." unique_id=1092835069]
+
+[node name="PoseScreen" type="Marker3D" parent="Stations" unique_id=813501668]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 5)

@@ -1,0 +1,230 @@
+[gd_scene format=3 uid="uid://cisslecv6fw6b"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+
+[sub_resource type="BoxShape3D" id="Shape_1"]
+size = Vector3(20, 0.04, 8)
+
+[sub_resource type="BoxShape3D" id="Shape_2"]
+size = Vector3(1.8, 0.246, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_3"]
+size = Vector3(1.8, 0.492, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_4"]
+size = Vector3(1.8, 0.738, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_5"]
+size = Vector3(1.8, 0.985, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_6"]
+size = Vector3(1.8, 1.231, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_7"]
+size = Vector3(1.8, 1.477, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_8"]
+size = Vector3(1.8, 1.723, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_9"]
+size = Vector3(1.8, 1.969, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_10"]
+size = Vector3(1.8, 2.215, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_11"]
+size = Vector3(1.8, 2.462, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_12"]
+size = Vector3(1.8, 2.708, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_13"]
+size = Vector3(1.8, 2.954, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_14"]
+size = Vector3(1.8, 3.2, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_1"]
+material = ExtResource("1_greybox")
+size = Vector3(20, 0.04, 8)
+
+[sub_resource type="BoxMesh" id="Mesh_2"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 0.246, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_3"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 0.492, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_4"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 0.738, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_5"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 0.985, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_6"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 1.231, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_7"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 1.477, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_8"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 1.723, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_9"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 1.969, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_10"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 2.215, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_11"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 2.462, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_12"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 2.708, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_13"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 2.954, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_14"]
+material = ExtResource("1_greybox")
+size = Vector3(1.8, 3.2, 0.3)
+
+[node name="Terrace" type="Node3D" unique_id=1156316829]
+metadata/size_m = Vector2i(20, 8)
+
+[node name="Body" type="StaticBody3D" parent="." unique_id=2111050460]
+
+[node name="Floor1" type="CollisionShape3D" parent="Body" unique_id=1618150092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.04, 4)
+shape = SubResource("Shape_1")
+
+[node name="Stairs1Step1" type="CollisionShape3D" parent="Body" unique_id=217715583]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.123, 1.25)
+shape = SubResource("Shape_2")
+
+[node name="Stairs1Step2" type="CollisionShape3D" parent="Body" unique_id=199871359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.246, 1.55)
+shape = SubResource("Shape_3")
+
+[node name="Stairs1Step3" type="CollisionShape3D" parent="Body" unique_id=1778044076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.369, 1.85)
+shape = SubResource("Shape_4")
+
+[node name="Stairs1Step4" type="CollisionShape3D" parent="Body" unique_id=542040877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.492, 2.15)
+shape = SubResource("Shape_5")
+
+[node name="Stairs1Step5" type="CollisionShape3D" parent="Body" unique_id=2004352595]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.615, 2.45)
+shape = SubResource("Shape_6")
+
+[node name="Stairs1Step6" type="CollisionShape3D" parent="Body" unique_id=1333106021]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.738, 2.75)
+shape = SubResource("Shape_7")
+
+[node name="Stairs1Step7" type="CollisionShape3D" parent="Body" unique_id=360217397]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.862, 3.05)
+shape = SubResource("Shape_8")
+
+[node name="Stairs1Step8" type="CollisionShape3D" parent="Body" unique_id=1455888177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.985, 3.35)
+shape = SubResource("Shape_9")
+
+[node name="Stairs1Step9" type="CollisionShape3D" parent="Body" unique_id=229189407]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.108, 3.65)
+shape = SubResource("Shape_10")
+
+[node name="Stairs1Step10" type="CollisionShape3D" parent="Body" unique_id=1289346490]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.231, 3.95)
+shape = SubResource("Shape_11")
+
+[node name="Stairs1Step11" type="CollisionShape3D" parent="Body" unique_id=1524864385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.354, 4.25)
+shape = SubResource("Shape_12")
+
+[node name="Stairs1Step12" type="CollisionShape3D" parent="Body" unique_id=776492412]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.477, 4.55)
+shape = SubResource("Shape_13")
+
+[node name="Stairs1Step13" type="CollisionShape3D" parent="Body" unique_id=1339985876]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.6, 4.85)
+shape = SubResource("Shape_14")
+
+[node name="Looks" type="Node3D" parent="." unique_id=1822175899]
+
+[node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=1915173328]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, -0.04, 4)
+mesh = SubResource("Mesh_1")
+
+[node name="Stairs1Step1" type="MeshInstance3D" parent="Looks" unique_id=967088451]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.123, 1.25)
+mesh = SubResource("Mesh_2")
+
+[node name="Stairs1Step2" type="MeshInstance3D" parent="Looks" unique_id=942011448]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.246, 1.55)
+mesh = SubResource("Mesh_3")
+
+[node name="Stairs1Step3" type="MeshInstance3D" parent="Looks" unique_id=1765724099]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.369, 1.85)
+mesh = SubResource("Mesh_4")
+
+[node name="Stairs1Step4" type="MeshInstance3D" parent="Looks" unique_id=2102307788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.492, 2.15)
+mesh = SubResource("Mesh_5")
+
+[node name="Stairs1Step5" type="MeshInstance3D" parent="Looks" unique_id=1473222614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.615, 2.45)
+mesh = SubResource("Mesh_6")
+
+[node name="Stairs1Step6" type="MeshInstance3D" parent="Looks" unique_id=1527785467]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.738, 2.75)
+mesh = SubResource("Mesh_7")
+
+[node name="Stairs1Step7" type="MeshInstance3D" parent="Looks" unique_id=1400620285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.862, 3.05)
+mesh = SubResource("Mesh_8")
+
+[node name="Stairs1Step8" type="MeshInstance3D" parent="Looks" unique_id=858683609]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0.985, 3.35)
+mesh = SubResource("Mesh_9")
+
+[node name="Stairs1Step9" type="MeshInstance3D" parent="Looks" unique_id=1776506502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.108, 3.65)
+mesh = SubResource("Mesh_10")
+
+[node name="Stairs1Step10" type="MeshInstance3D" parent="Looks" unique_id=597344112]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.231, 3.95)
+mesh = SubResource("Mesh_11")
+
+[node name="Stairs1Step11" type="MeshInstance3D" parent="Looks" unique_id=1983894364]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.354, 4.25)
+mesh = SubResource("Mesh_12")
+
+[node name="Stairs1Step12" type="MeshInstance3D" parent="Looks" unique_id=319331462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.477, 4.55)
+mesh = SubResource("Mesh_13")
+
+[node name="Stairs1Step13" type="MeshInstance3D" parent="Looks" unique_id=1204560271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 1.6, 4.85)
+mesh = SubResource("Mesh_14")
+
+[node name="Doors" type="Node3D" parent="." unique_id=289734503]
+
+[node name="Door1" type="Marker3D" parent="Doors" unique_id=1951184610]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 8)
+
+[node name="Stations" type="Node3D" parent="." unique_id=1701009396]
+
+[node name="TerraceTable" type="Marker3D" parent="Stations" unique_id=1011750443]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 4)
