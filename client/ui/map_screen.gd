@@ -162,10 +162,15 @@ func open_howto(type: StringName) -> bool:
 
 
 ## Closes the how-to card, if one is open; the focus it had goes (it was opened with the mouse:
-## the «?» takes no focus until #488 moves Space out of ui_accept).
+## the «?» takes no focus until #488 moves Space out of ui_accept). A focus outside the card (the
+## Esc menu, which opens before the map closes) stays.
 func close_howto() -> void:
 	if howto == null:
 		return
+	var viewport := get_viewport()
+	var focused := viewport.gui_get_focus_owner() if viewport != null else null
+	if focused != null and howto.is_ancestor_of(focused):
+		viewport.gui_release_focus()
 	howto_center.remove_child(howto)
 	howto.queue_free()
 	howto = null
@@ -174,9 +179,6 @@ func close_howto() -> void:
 	howto_center.visible = false
 	for each: Control in [tasks_panel, board]:
 		each.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
-	var viewport := get_viewport()
-	if viewport != null:
-		viewport.gui_release_focus()
 
 
 func howto_open() -> bool:

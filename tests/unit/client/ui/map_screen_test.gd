@@ -133,6 +133,26 @@ func test_esc_or_the_map_key_closes_only_the_card_and_so_does_hiding_the_map() -
 	await get_tree().process_frame
 
 
+func test_closing_the_card_drops_its_own_focus_only() -> void:
+	# The Esc menu opens before the map closes (GameUi.open_esc): its focus must stay.
+	var screen := _screen(_round_model())
+	var outside := Button.new()
+	add_child(outside)
+	auto_free(outside)
+	screen.open_howto(&"delivery")
+	outside.grab_focus()
+	screen.close_howto()
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(outside)
+	screen.open_howto(&"delivery")
+	var close := HowtoCardView.face_of(screen.howto).close_button
+	close.focus_mode = Control.FOCUS_ALL
+	close.grab_focus()
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(close)
+	screen.close_howto()
+	assert_object(get_viewport().gui_get_focus_owner()).is_null()
+	await get_tree().process_frame
+
+
 func test_lighting_a_type_shows_its_zones_and_their_chip_only() -> void:
 	var screen := _screen(_round_model())
 	assert_array(_lit_rooms(screen)).is_empty()
