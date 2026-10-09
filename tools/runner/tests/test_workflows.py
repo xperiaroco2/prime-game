@@ -27,7 +27,8 @@ too), and #470's digests (the reviewers' and the test reviewer's digest of the i
 summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay phrase
 nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
 the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
-launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone).
+launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone)
+and #572's line on reading a log by search, never whole.
 #605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
 tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
 gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
@@ -1466,6 +1467,8 @@ class PipelineV2Test(unittest.TestCase):
                         "mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch "
                         "worktree could not be removed",
                         "run them in the foreground as before",
+                        "Read a log by search, never whole",  # #572: verify and publish point to their whole output
+                        "`tools/out/logs/verify-output.log`",
                     ):
                         self.assertIn(text, paragraph)
                     # #555: the Bash tool's timeout outlasts the step plus the start-up before it, and every number of
@@ -2609,7 +2612,8 @@ class QuickTaskTest(unittest.TestCase):
         prompt = event["prompt"]
         for want in ("at most 60 tool calls", "tools/run.sh lint", "tools/run.sh check", "git push -u origin tooling/7-x",
                      "gh pr create --base release/m5", "Closes #7", "timeout 180 gh pr checks", "At most two fix rounds",
-                     "the attribution line your system reminder gives for commits", STASH_RULE.replace("Never use ", "No ")):
+                     "the attribution line your system reminder gives for commits", STASH_RULE.replace("Never use ", "No "),
+                     "Read a log by search, never whole"):  # #572
             self.assertIn(want, prompt)
         self.assertNotIn("tools/run.sh verify", prompt)
         self.assertNotIn("publish`", prompt)

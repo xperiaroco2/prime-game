@@ -163,6 +163,15 @@ class RealGitTest(unittest.TestCase):
         self.verify.assert_called_once()
         self.assertFalse(self.skipped())
 
+    def test_its_verify_is_quiet_unless_publish_is_verbose(self) -> None:
+        # #572: publish --verbose passes it on; by default its verify prints its red steps' lines and its summary.
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.assertEqual(publish.main(), 0)
+        self.commit(self.work, "g.txt", "more\n", "more")
+        self.assertEqual(publish.main(verbose=True), 0)
+        self.assertEqual([c.kwargs["verbose"] for c in self.verify.call_args_list], [False, True])
+
     def test_each_unmet_condition_verifies(self) -> None:
         self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
         self.commit(self.work, "g.txt", "mine\n", "mine")

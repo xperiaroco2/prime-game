@@ -45,7 +45,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   checkout's (`-ui`: ui, `-art`: art), else untracked (the engineer's reserve). A session of your track listed as
   untracked (a kickoff without the line, or with a translated name): count it with `--session <id>=<track>`.
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
-  <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
+  <your session id> --compact --verbose` (whole lines; the default cuts them at 400 characters) in a text block, written
+  straight into the comment's body file, not read (at most ten lines: time and API list $ per task and in total, the %
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
   `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
   running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
