@@ -1295,7 +1295,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `- **Public repo OK:**`, each `true` or `false` first (the art manifest's `ai_generated` and `public_repo_ok`,
   #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`. A file the engineer
   adds by hand later gets its entry first with `- **Pending:** <what lands, and how>`: its globs may match no file
-  yet (#520, the Comfortaa font).
+  yet (#520, the Comfortaa font); `check` warns about it, and fails once every glob matches a file until the line
+  goes.
   `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
   `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of

@@ -17,7 +17,8 @@ docs/credits/<asset-slug>.md:
 LFS asset also carries the art manifest's provenance (#519): `AI generated` and `Public repo OK`, each `true` or
 `false` first (a note may follow), and a public repo takes only `Public repo OK: true`. An entry with a non-empty
 `- **Pending:** ...` (what lands, and how) may name files that are not in the repo yet: a third-party file the
-engineer adds by hand later, whose entry and settings are written first (#520, the font).
+engineer adds by hand later, whose entry and settings are written first (#520, the font). `check` names each such
+entry in a warning; once every glob of it matches a file, the Pending line must go (an error until it does).
 """
 
 from __future__ import annotations
@@ -65,6 +66,7 @@ class Report:
     errors: list[str] = field(default_factory=list)
     entries: int = 0
     assets: int = 0
+    pending: list[str] = field(default_factory=list)  # entries whose files have not all landed yet
 
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
@@ -257,6 +259,14 @@ def check(root: Path = ROOT) -> Report:
             report.errors.append(f"{entry.path}: Files: `{glob}` matches no file in the repo ({hint})")
     for entry in entries:
         regexes = [regex for owner, _, regex in patterns if owner is entry]
+        if entry.fields.get(PENDING):
+            if regexes and all(any(regex.fullmatch(name) for name in files) for regex in regexes):
+                report.errors.append(
+                    f"{entry.path}: its files are here: drop the Pending line (and record what landed, as its"
+                    " Pending line says)"
+                )
+            else:
+                report.pending.append(entry.path)
         covered = [asset for asset in assets if any(regex.fullmatch(asset) for regex in regexes)]
         if covered:
             report.errors += provenance_problems(entry, covered)
