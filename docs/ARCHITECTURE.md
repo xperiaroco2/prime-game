@@ -15,7 +15,7 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7) and how-to cards (§4.7.34), whose data classes are part of the content API | the content API only | engineer (#518) |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
 | `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -3124,7 +3124,7 @@ Every task type has a **how-to card**: 3 to 4 wordless frames, one action each, 
 designer's answers on #254: cards for task types first, a calm tone; the engineer's ui-0.4.0 note: no captions, only
 the title and `howto.label`; the 2026-10-05 text decision: no NEW mark, no "new task" line). It shows in three places:
 the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HUD.
-- **Content data** (`client/ui/HowtoCard`, `HowtoFrame`): an id, a title deck key and its frames; a frame is a
+- **Content data** (`HowtoCard`, `HowtoFrame`: content-API data classes in `core/content/howto/`, §9.3, as the bot scenarios', so `content/` names only the content API, §1): an id, a title deck key and its frames; a frame is a
   picture (a `res://` PNG path of the UI pack) or, until its art is drawn, the words of a deck key (`{key}` filled
   with an action's bound key through `KeyLabel`), and the finish frame is the last (`done`, ToyHowtoFrameDone). A
   task type's card is `content/howto/tasks/<id>.tres`, the Guide's basics `content/howto/basics/<id>.tres` (the
@@ -4438,6 +4438,7 @@ phase classes come in the task each row names.
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
+| How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.34 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;

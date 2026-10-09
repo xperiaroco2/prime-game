@@ -4,7 +4,8 @@ extends Resource
 ## each, like an airline safety card, under a title and the corner label `howto.label`. Content
 ## data per task type (`content/howto/tasks/<task type id>.tres`) and per basic of the Esc menu's
 ## Guide (`content/howto/basics/<id>.tres`); HowtoCards finds them, HowtoCardView draws one. Not
-## a rule: the host never reads it, so it is not part of the mode or its content hash.
+## a rule: the host never reads it, so it is not part of the mode or its content hash. A
+## content-API data class (ARCHITECTURE §9.3), as BotScenario: content/ names only the content API.
 
 const MIN_FRAMES := 3
 const MAX_FRAMES := 4
