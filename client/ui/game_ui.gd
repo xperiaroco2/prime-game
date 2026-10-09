@@ -3,7 +3,8 @@ extends CanvasLayer
 ## The `Ui` layer of the game (ARCHITECTURE §4.7): one screen at a time as GameFlow says, and Esc's
 ## menu over it; in the lobby the lobby HUD (the keys' hint, the roster), whose Ready and settings
 ## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the task screen while Tab
-## (`task_screen`) is held. It shows what the own ClientModel and the client's own mode hold; the
+## (`task_screen`) is held; under them, in the lobby and the round, the name plates over the
+## others' heads (#257). It shows what the own ClientModel and the client's own mode hold; the
 ## game connects the screens' signals.
 ##
 ## Every screen is styled only through one shared Theme, THEME (the M4 manager's decision of
@@ -15,6 +16,8 @@ extends CanvasLayer
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
 
+## The name plates over the others' heads (#257), under every screen: the lobby and the round.
+var plates := NamePlates.new()
 var menu := MainMenu.new()
 var connecting := ConnectingScreen.new()
 ## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
@@ -48,7 +51,7 @@ func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
 	for each: Control in [
-		menu, connecting, lobby_hud, loading, pregame, hud, life, tasks, end, esc
+		plates, menu, connecting, lobby_hud, loading, pregame, hud, life, tasks, end, esc
 	]:
 		_style(each)
 		add_child(each)
@@ -64,6 +67,7 @@ func _process(_delta: float) -> void:
 ## The screen of `which`; the round shows the HUD.
 func show_screen(which: GameFlow.Screen) -> void:
 	screen = which
+	plates.visible = which == GameFlow.Screen.LOBBY or which == GameFlow.Screen.ROUND
 	menu.visible = which == GameFlow.Screen.MENU
 	connecting.visible = which == GameFlow.Screen.CONNECTING
 	lobby_hud.visible = which == GameFlow.Screen.LOBBY

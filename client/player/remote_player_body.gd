@@ -115,6 +115,11 @@ func set_watched(watched: bool) -> void:
 	_shell.visible = _shell.visible and not watched
 
 
+## Whether the spectate camera looks out of this player's eyes (set_watched).
+func is_watched() -> bool:
+	return _watched
+
+
 ## The point SightHider casts its ray at: the capsule's middle, or the lying capsule's.
 func sight_point() -> Vector3:
 	var up := rules.capsule_radius_m if _downed else rules.capsule_height_m * 0.5
