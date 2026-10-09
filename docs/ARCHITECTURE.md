@@ -1311,8 +1311,8 @@ and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a de
 A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
-the wire tells bot 1 which peer is bot i: a name is no id (a bot's `Hello` asks for none, so the host names it
-`Player<n>`, §3.5), and over ENet the clients choose
+the wire tells bot 1 which peer is bot i: a name is no id (a wire bot's `Hello` asks for none, so the host names it
+`Player<n>`, §3.5; the core runner's bots ask for `bot<i>`, which the host keeps), and over ENet the clients choose
 their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
 `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
 runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
