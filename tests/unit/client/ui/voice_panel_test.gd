@@ -167,6 +167,28 @@ func test_each_change_sends_its_signal_and_showing_sends_none() -> void:
 	)
 
 
+## The main menu's Settings panel (#493) is cream: on_light() inks every text and puts each check
+## box's words beside it, the logic as before.
+func test_on_light_inks_the_texts_and_keeps_each_check_box_working() -> void:
+	var panel: VoicePanel = auto_free(VoicePanel.new())
+	panel.on_light()
+	for label: Label in [panel.unavailable_label, panel.echo_label, panel.headset_label]:
+		assert_str(String(label.theme_type_variation)).is_equal("ToyTextOnLight")
+	assert_str(String(panel.notice_label.theme_type_variation)).is_equal("Shortfalls")
+	for check: CheckBox in [panel.denoise_check, panel.tone_check, panel.mute_check]:
+		assert_str(check.text).is_empty()
+		var row := check.get_parent() as HBoxContainer
+		assert_str(String(row.theme_type_variation)).is_equal("ToyRowEight")
+		var words := row.get_child(1) as Label
+		assert_str(String(words.theme_type_variation)).is_equal("ToyTextOnLight")
+	var noise := panel.denoise_check.get_parent().get_child(1) as Label
+	assert_str(noise.text).contains("RNNoise")
+	panel.denoise_toggled.connect(func(on: bool) -> void: _got.append(["denoise", on]))
+	panel.show_facts(_shown())
+	panel.denoise_check.button_pressed = false
+	assert_array(_got).contains_exactly([["denoise", false]])
+
+
 func _shown() -> VoicePanel.Shown:
 	var shown := VoicePanel.Shown.new()
 	shown.available = true

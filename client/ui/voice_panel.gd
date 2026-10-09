@@ -142,6 +142,31 @@ func _init() -> void:
 	add_child(debug_box)
 
 
+## The look on a light (cream) panel, the main menu's Settings panel (#493) until #491's Settings
+## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight), and each check
+## box's words beside it in ink (a CheckBox has no light variation in the pack). The logic stays.
+func on_light() -> void:
+	for label: Label in _labels(self):
+		match label.theme_type_variation:
+			&"":
+				label.theme_type_variation = &"ToyTextOnLight"
+			&"Title":
+				label.theme_type_variation = &"ToyTitleOnLight"
+	for check: CheckBox in [denoise_check, tone_check, mute_check]:
+		var holder := check.get_parent()
+		var at := check.get_index()
+		var row := HBoxContainer.new()
+		row.theme_type_variation = &"ToyRowEight"
+		holder.remove_child(check)
+		row.add_child(check)
+		var words := UiParts.styled_label(check.text, &"ToyTextOnLight")
+		words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(words)
+		check.text = ""
+		holder.add_child(row)
+		holder.move_child(row, at)
+
+
 ## Shows `facts`; a control the player is not moving takes its value without a signal.
 func show_facts(facts: Shown) -> void:
 	unavailable_label.visible = not facts.available
@@ -194,6 +219,16 @@ func _on_device(index: int) -> void:
 
 func _on_mode(index: int) -> void:
 	mode_picked.emit(mode_button.get_item_id(index) as UserSettings.Mode)
+
+
+## Every Label under `root`.
+static func _labels(root: Node) -> Array[Label]:
+	var found: Array[Label] = []
+	for child: Node in root.get_children():
+		if child is Label:
+			found.append(child as Label)
+		found.append_array(_labels(child))
+	return found
 
 
 static func _text(text: String) -> Label:
