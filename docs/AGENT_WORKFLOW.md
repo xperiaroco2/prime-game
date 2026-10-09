@@ -453,7 +453,8 @@ Rules for every workflow run:
   cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
   publisher gets the report whole but its commits, changed paths and verify tail (`git log`, `git diff --name-only`
   and its own `publish` give them), each review finding's severity, file, line and problem with its fix only on a
-  blocker or major and no reviewer's verdict, and a preamble without the reading rule for code, the Godot-windows line
+  blocker or major and no reviewer's verdict, and a preamble without the reading rule for code (its agent type
+  carries it), the Godot-windows line (kept in a visual run, whose publisher may rerun `playcheck`)
   and the game-rule line (#696: 28.8k characters at the median of 39 publishers from 2026-10-07 to 09, about 23.3k
   re-rendered with the cuts), and of a `plan_review` run only the plan's summary, its comment's link and the
   critique (the whole plan is that comment on the issue, #469, and stays in the journal); and

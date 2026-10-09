@@ -967,7 +967,7 @@ class PipelineV2Test(unittest.TestCase):
         # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
         # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
         # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too,
-        # but issue-task's publisher (#696: its agent type and root CLAUDE.md say how to read; pr-rebase's keep it).
+        # but issue-task's publisher (#696: its task-publisher agent type carries the line).
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
@@ -1381,9 +1381,13 @@ class PipelineV2Test(unittest.TestCase):
         for event in calls(on, "implement"):
             self.assertIn(PLAYCHECK_LINE, event["prompt"])
             self.assertNotIn(GODOT_LINE, event["prompt"])
-        # #696: the publisher's preamble has neither line (it opens no Godot window).
-        for event in calls(on, "publish") + calls(off, "publish"):
+        # #696: the publisher of a run that is not visual has no Godot-windows line (it opens none); a visual run's
+        # publisher keeps the playcheck one, since it may rerun a scenario.
+        for event in calls(off, "publish"):
             self.assertNotIn(PLAYCHECK_LINE, event["prompt"])
+            self.assertNotIn(GODOT_LINE, event["prompt"])
+        for event in calls(on, "publish"):
+            self.assertIn(PLAYCHECK_LINE, event["prompt"])
             self.assertNotIn(GODOT_LINE, event["prompt"])
         implement = calls(on, "implement")[0]
         self.assertIn("`tools\\run.cmd playcheck <scenario>`", implement["prompt"])
@@ -2041,9 +2045,10 @@ class PublisherCopyTest(unittest.TestCase):
         test_review = calls(result, "test-review")[0]["prompt"]
         self.assertIn(f"Fresh reviewers found: {json.dumps(reviews['review:code'] + reviews['review:netcode'] + [{'reviewer': 'r', 'verdict': 'ok', 'findings': []}], separators=(',', ':'))}", test_review)
 
-    def test_the_publishers_preamble_leaves_out_three_lines(self) -> None:
-        # The reading rule for code, no Godot windows and the game-rule line: every other line of the shared rules
-        # stays, in order, for both publishers (the full one and the one a mutants exit 2 stops).
+    def test_the_publishers_preamble_leaves_out_its_unused_lines(self) -> None:
+        # The reading rule for code (the task-publisher agent type carries it), the Godot-windows line
+        # (unless the run is visual: its publisher may rerun playcheck) and the game-rule line: every other line of
+        # the shared rules stays, in order, for both publishers (the full one and the one a mutants exit 2 stops).
         stopped = {"available": True, "exit_2": True, "findings": [], "mutants": []}
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
@@ -2051,20 +2056,25 @@ class PublisherCopyTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", **OFF), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stopped]}}),
         ]
-        dropped = (READ_RULE, GODOT_LINE, PLAYCHECK_LINE, GAME_RULE)
-        for result in run_jobs(jobs):
+        dropped = [
+            (READ_RULE, GODOT_LINE, GAME_RULE),
+            (READ_RULE, GAME_RULE),  # visual: the playcheck line stays
+            (READ_RULE, GODOT_LINE, GAME_RULE),  # lean off: the same prompt as a lean run (#332)
+            (READ_RULE, GODOT_LINE, GAME_RULE),
+        ]
+        for result, gone in zip(run_jobs(jobs), dropped):
             self.assertIsNone(result["error"])
             rules = calls(result, "implement")[0]["prompt"].split("\n\n")[0].splitlines()
-            self.assertEqual(sum(any(line.startswith(d) for d in dropped) for line in rules), 3, rules)
             publish = calls(result, "publish")
             self.assertEqual(len(publish), 1)
-            with self.subTest(publisher=publish[0]["prompt"].split("\n\n")[1][:40]):
+            with self.subTest(publisher=publish[0]["prompt"].split("\n\n")[1][:40], dropped=len(gone)):
                 got = publish[0]["prompt"].split("\n\n")[0].splitlines()
-                self.assertEqual(got, [line for line in rules if not any(line.startswith(d) for d in dropped)])
+                self.assertEqual(got, [line for line in rules if not any(line.startswith(d) for d in gone)])
+                self.assertEqual(len(rules) - len(got), len(gone), rules)
         self.assertIn("Task: report a stopped run of issue #7", calls(result, "publish")[0]["prompt"])
 
 
-SHA = "0123456789abcdef0123456789abcdef01234567"
+SHA ="0123456789abcdef0123456789abcdef01234567"
 SHORT_PLAN = "The plan, in short (the whole plan is the plan agent's comment on the issue,"
 COMMENT = "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1"
 MAPPED = {

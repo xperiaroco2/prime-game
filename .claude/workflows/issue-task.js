@@ -268,11 +268,13 @@ const RULE_LINES = [
   A.decisions ? `- The engineer's standing decisions for this work:\n${A.decisions}` : '',
 ].filter(Boolean)
 const RULES = RULE_LINES.join('\n')
-// #696: the publisher's preamble leaves out three lines it never uses (about 1.5k characters; its median launch
-// prompt was 28.8k in #470's table): the reading rule for code (its lean agent type and root CLAUDE.md say how to
-// read), no Godot windows (it runs check, publish and CI, nothing that opens one) and the game-rule line (it fixes
-// review findings, and the implementer's needs_engineer reaches it in full).
-const PUB_RULES = RULE_LINES.filter(l => ![READ_RULE, GODOT_RULE, GAME_RULE].includes(l)).join('\n')
+// #696: the publisher's preamble leaves out lines it never uses (about 1.5k characters; its median launch prompt was
+// 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it; lean must change only
+// the agent type, so a lean-off publisher goes without it too, and lean off is only a resume of a pre-#458 run), no Godot windows unless the run is visual (it runs check, publish and
+// CI, nothing that opens one; a visual publisher may rerun playcheck, so it keeps the line) and the game-rule line
+// (it fixes review findings, and the implementer's needs_engineer reaches it in full).
+const PUB_DROPS = [READ_RULE, GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
+const PUB_RULES = RULE_LINES.filter(l => !PUB_DROPS.includes(l)).join('\n')
 
 // #470: the implementer's summary is capped (3,552 characters on average in the token audit of 2026-10-06, written
 // once and read by every later agent): a few lines on what changed and why; the why of each choice goes in decisions.
