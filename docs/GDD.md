@@ -213,6 +213,87 @@ Open questions (the engineer's):
 - Does every match deal both Delivery and the zone task, or one of them at random?
 - Where do zones stand on the maps (the [House map](design/house-map.md)'s task stations, its §6, include none), and how do they look?
 
+### Cooking (#682)
+The House map's burger chain ([House map](design/house-map.md) §2, decision 6; its stations in §6). The rules below
+are the engineer's (#682, chat of 2026-10-10, and his answers on #682); the engine parts and the questions still open
+are in [the cooking ADR](decisions/2026-10-10-cooking-task.md). "Cooking" is a working name.
+
+**Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
+kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
+the far south-west corner of the yard and carried back (the long meat run is intended); the herb is picked in the
+greenhouse, where a board decodes the order's herb icon.
+
+**Rules.**
+- Cooking is a task type, like Delivery and the Generator. One burger (one order) is one subtask; the host sets the
+  count in the lobby settings (every task type has its own subtask count, #256). Default: 1.
+- Every order hangs on the kitchen's order board from the round's start. It shows the bun and the patty as pictures,
+  and the herb as an icon that only the greenhouse's herb board decodes; the icon-to-herb mapping is new each round.
+- Kinds: 3 buns, 3 patties, 5 herbs. The patties are not named after animals: they are told apart by look (for
+  example a light one and a red one), so a player may read them as vegetarian.
+- Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds one,
+  like any one-handed item.
+- Boxes: one per kind, 3 bun boxes and 3 patty boxes, starting in storage. A box is a two-handed item that gives its
+  ingredient wherever it stands, storage included: one per press of E, without limit, to anyone. A player may take a
+  patty straight from storage, or carry the box to the kitchen so nobody steals it (worth it when several orders need
+  the same kind).
+- The herb beds: a player presses E at a bed and gets one herb in the hand, without limit, and may then do anything
+  with it.
+- The grill takes one patty at a time. A patty put on it fries for 10 s; then there are 5 s to take it off; left
+  longer it burns: black and unusable. A fried patty stays fried.
+- Assembly on a plate: each order has its own place in the kitchen with a plate already standing on it, not carried.
+  A player with an ingredient in the hand presses E on the plate and the ingredient goes on it (a patty on a bun goes
+  into the bun). The order of the layers does not matter.
+- Each ingredient is checked against that place's order at once: a wrong one shows a red outline and can be taken
+  back; a right one shows a green outline and can no longer be taken.
+- A burger is done on the spot, once its bun, patty and herb are all green on its place.
+- Sabotage: a dissident may take a box and hide it; the others must search for it (the same play as hiding a
+  package). Beyond that, the rules above already let anyone take items, burn a patty or put a wrong ingredient on a
+  plate.
+- A dissident plays by the same rules as an engineer, and only living players do subtasks (#79; vision revision 1,
+  V4). Busy hands, as for the Generator: a player holding a two-handed item (a box, a package) cannot use the grill,
+  a bed or a plate, nor take from a box.
+
+**Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
+board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+
+**Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
+goes and looks (the open-knowledge pillar, §1); the code is shown nowhere else, so an order's herb is known only by
+reading both boards. What lies on a plate, red or green, is seen at the plate; the burgers done show on the HUD and
+the task screen.
+
+**Numbers** (the engineer's starting values, to tune): 1 burger by default (the maximum still open); 3 buns, 3 patties,
+5 herbs; fry 10 s, then 5 s before it burns.
+
+**Engine parts** ([the cooking ADR](decisions/2026-10-10-cooking-task.md) §1, §8): a Cooking task type whose deal
+hangs the orders and draws the round's herb code, with its places, grill, beds and boards as stations; the
+Generator's station-use intent (`Interact`) also naming an item, for the boxes; an item source that makes a new
+ingredient on every take, with a cap per kind so a spam cannot run the game out of items; a patty whose kind changes
+on the grill; items held by the grill and the plates; station scenes in `levels/stations/` in place of the House's
+markers; the client's boards, plates with their outlines, grill and sounds. The issues follow from the ADR's split.
+
+Open questions (the engineer's; the ADR's CD items, each with options and a recommendation):
+- The burger count's maximum (#682's open item).
+- The looks of the buns, the patties and the boxes; the five herbs' looks and names and the five icons; the item
+  names, the lobby setting's label, and whether "Cooking" stays (#682's open item).
+- A two-handed box and a herb at once (#682's open item: no, by the Generator's busy-hands rule, unless the engineer
+  says otherwise).
+- E both takes from a box and would pick it up: does a tap take an ingredient and holding E pick the box up, or does
+  another key pick it up?
+- With one item in the hand and one on the belt, is a take refused?
+- "Without limit": once one kind has a cap of items in the world (against spam), does the oldest loose one come to the
+  taker?
+- The grill: does only a raw patty go on, does one taken off early stay raw, and does E on a busy grill take the patty
+  off?
+- The plate: does anything wrong go on red (a raw or burnt patty, a second bun), or is a raw or burnt patty refused?
+- Does only E put an ingredient on a plate, or anything that comes to rest there?
+- How does a place show which order is its: a number, listed on the board?
+- May two orders share a kind?
+- Does the task screen list the orders too, or only the board?
+- Does each herb bed always grow the same herb?
+- Which sounds, and a ring over the grill that fills to fried and then to burnt?
+- Does Cooking play on the greybox too, and does every match deal it (the Generator's same question)?
+- How near must a player stand to use a cooking station?
+
 ## 9. Meetings and voting
 
 Dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md): no game mode has meetings. The questions
