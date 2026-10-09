@@ -301,21 +301,22 @@ silent; a test keeps it so.
   the round's `PhaseChanged` its clock end. No win condition is checked in the pregame: a leave that empties the
   crew there is seen by the round's entry, in the same step (`Match._finish_step`), before any of its ticks.
 - **The client** (`GameFlow.Screen.PREGAME`, `client/ui/pregame_screen.gd`): chosen by the own copy's `PhaseSpec`,
-  its class `PregamePhase`, never by the phase's name. A dark backdrop (`EndBackdrop`, the greybox end screen's before #498), the copy
-  deck's `pregame.your_role` and the own role's display name from the own mode; nothing of any other player. Frozen
-  as Loading and End, and the mouse kept as in Loading (#517). A greybox: the Toy role reveal is #496.
+  its class `PregamePhase`, never by the phase's name. The Toy role reveal (#496, §4.7.39): on the opaque Night, "Your
+  role", the own role on the title plate, its generic goal and, for a dissident, its teammates' names (the engineer
+  on #175); nothing of any other player's role. At the round's start Night fades out over the HUD. Frozen as Loading
+  and End, and the mouse kept as in Loading (#517).
 - **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175). None exists yet, so
-  none plays; whoever adds them plays them on the pregame screen only, where nobody hears anybody.
-- **Not decided here:** a fade between the screens, the teammates on the screen (the deck's `pregame.teammate`).
+  none plays; whoever adds them plays them on the pregame screen only (its `role_revealed` hook), where nobody hears
+  anybody.
 Tests: `tests/unit/match/phases/pregame_phase_test.gd` (the last `LoadAck` enters it with roles dealt and no clock;
 the round, `RoundStarted` and the clock on its end tick; each peer's own `RoleAssigned` only; a dropped `MoveClaim`
 and `not_accepted` for the rest; no win check before the round's entry; a leave as Round's; a connection refused;
 its `seconds` bounds; a mode with no `pregame_done` row refused), `tests/unit/voice/voice_by_phase_test.gd` (nobody
 heard on any pregame tick with everyone within 2 m; its radius 0), `tests/unit/content/content_modes_test.gd` (the
 data, the rows, and the real mode's pregame ticks silent with the clock still), `game_flow_test.gd` and
-`screens_test.gd` (the screen, frozen, the mouse kept, no word on the microphone), the chaos bots (the oracle's
-`pregame` row; quiet phases from the mode's voice rules; the hostile speaks in the pregame, and no honest bot may
-decode it). How it looks: `tools\run.cmd shot client/dev/pregame_preview.tscn`.
+`screens_test.gd` (the screen, frozen, the mouse kept, no word on the microphone), `pregame_screen_test.gd`
+(§4.7.39), the chaos bots (the oracle's `pregame` row; quiet phases from the mode's voice rules; the hostile speaks
+in the pregame, and no honest bot may decode it). How it looks: the `shot`s of §4.7.39.
 
 ## 4. Protocol
 
@@ -1850,7 +1851,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
-| Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
+| Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
@@ -3253,8 +3254,8 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
 - **Not built here:** separate CanvasLayers per the handoff's layer table (the screens stay children of one `Ui`
-  layer, in the same order); the font (#520: Godot's default until the TTF lands); the Toy downed screen (#497),
-  the role reveal (#496) and the tutorial, which reuse these nodes.
+  layer, in the same order); the font (#520: Godot's default until the TTF lands); the Toy downed screen (#497)
+  and the tutorial, which reuse these nodes. The role reveal (§4.7.39) fades out over them.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
   and the raise in its place, a dissident's and an engineer's HUD equal but the role, the spectator's watched name
   and slots and nothing else; the map's tests of §4.7.33), `hud_layout_test.gd` (the handoff's tree, anchors,
@@ -3329,6 +3330,44 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
   text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
   scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
+
+#### 4.7.39 Built in #496 (M6.2), the pregame role reveal in the Toy style
+`PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
+prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
+for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
+(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER) > `Role`
+ToyTitlePlate, and `Text` (ToyColumnSixteen) > `Goal` (ToyTextOnDark) and `Team` (ToyTextMutedOnDark), both 1152 px
+wide, wrapped. Pack variations only, no override.
+- **What it shows** (from the own `ClientModel` and the own mode only): the own role as its deck key
+  (`HudText.role_key`: `crew` is `role.engineer`, `dissident` `role.dissident`; a role the deck lacks, its display
+  name); its goal, `role.goal.engineer` or `role.goal.dissident` by `GOAL_KEYS` (the engineer's provisional generic
+  lines on #175; a role not there shows no goal, no text is invented); and `pregame.teammate` with `{names}`, the
+  roster names of the own role's `Teammates` but the own player, in the host's order, joined with ", "
+  (`team_of`), set with `tr()` and `format()` (`auto_translate_mode` DISABLED, rebuilt on
+  `NOTIFICATION_TRANSLATION_CHANGED`). The host sends `Teammates` only to a role that knows them (§5), so an
+  Engineer, and a dissident with no teammates, get no team line. It reads `model.role`, `model.teammates[model.role]`,
+  `model.own_peer` and `model.roster` only (a source test holds it): never another role's entry. Before
+  `RoleAssigned` only Night shows. No word about the microphone or hearing.
+- **Behaviour.** `GameUi` calls `reveal()` on every Pregame frame. When the screen turns from Pregame to Round,
+  `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
+  the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
+  match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
+  it at once. To draw over the HUD it is now `GameUi`'s child after the HUD, the life panel and the map (under the
+  post game screen and the Esc menu). Every Control ignores the mouse and takes no focus; the pregame is frozen
+  and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
+- **Role sounds.** `role_revealed(role)` is emitted once per pregame when the own role shows: the hook for #213's
+  one sound per role. No sound asset exists and its source is not chosen, so nothing is connected (a follow-up).
+- **Not built here.** The handoff's black-screen CanvasLayer 6 (as §4.7.31); the role sounds; the Esc menu's Role
+  tab (#491).
+Tests: `tests/unit/client/ui/pregame_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
+minimum sizes; the pack's variations only; engineer, dissident with teammates, dissident alone, before the role, a
+role with no key; it reads only the own role and Teammates (the source's model fields; another role's Teammates
+name nobody); the language switch; no focus or input; the fade, its cut under reduced motion; the hook once per
+pregame; `GameUi`'s lift into the round, its layer order and the cut on another screen), `screens_test.gd` and
+`input_rules_test.gd`. The `shot`s, at `--size 1920x1080 --frames 60`: `client/dev/pregame_preview.tscn` (engineer),
+`pregame_dissident_preview.tscn` (with a teammate), `pregame_alone_preview.tscn`, `pregame_after_preview.tscn` (Night
+frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
+`pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
 
 #### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
 The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the

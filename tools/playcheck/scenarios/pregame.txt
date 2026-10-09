@@ -1,8 +1,9 @@
 # The silent pregame (#213) in the game's real windows. Window 1 hosts and is forced to be the
-# dissident. After loading both windows show the pregame screen, black with the own role's name
-# and nothing about the microphone, and keep the pointer captured as the lobby left it (#517); 3 s
-# later the round begins by itself and the HUD shows the role. The pregame shots come right after
-# its text, well within its 3 s.
+# dissident. After loading both windows show the Toy role reveal (#496): black, the own role on its
+# plate and its goal, nothing about the microphone, the pointer kept captured as the lobby left it
+# (#517); 3 s later the round begins by itself, the black fades out over the HUD (0.4 s) and the HUD
+# shows the role. The pregame shots come right after its text, well within its 3 s; the host shoots
+# the round as the fade begins and once it is over.
 players 2
 windows 2
 role 1 dissident
@@ -24,6 +25,8 @@ shot pregame_host
 wait screen round timeout=10
 wait text hud.role has Dissident
 shot round_after_pregame_host
+frames 60
+shot round_lifted_host
 
 window 2
 wait phase lobby
