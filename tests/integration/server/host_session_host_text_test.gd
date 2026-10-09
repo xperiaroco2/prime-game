@@ -53,15 +53,15 @@ func test_every_client_gets_the_reason_the_match_ended() -> void:
 	_h.pump_frames(4)
 	# The fixture's win condition is named after its side; no clock ran, so no time.
 	var reason := mode.win_conditions[0].id
+	var none: Dictionary[StringName, int] = {}
+	var want := {"side": &"crew", "reason": reason, "numbers": none}
 	for client: ClientSession in _h.clients:
 		assert_str(String(client.model.winner)).is_equal("crew")
 		assert_str(String(client.model.ended_by)).is_equal(String(reason))
 		assert_int(client.model.round_seconds).is_equal(-1)
 		var ended := client.view.events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_bool(
-			WireSamples.same(ended[0].fields, {"side": &"crew", "reason": reason, "numbers": {}})
-		)
+		assert_bool(WireSamples.same(ended[0].fields, want)).is_true()
 		assert_array(_h.mismatches(client)).is_empty()
 
 
