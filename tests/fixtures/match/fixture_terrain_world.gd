@@ -43,3 +43,16 @@ func stand_floor_below(point: Vector3) -> Vector3:
 		if under != NO_FLOOR and (found == NO_FLOOR or under.y > found.y):
 			found = Vector3(point.x, under.y, point.z)
 	return found
+
+
+## FlatWorldQuery's sweep, then each platform as a solid block from the ground to its top.
+func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	var stop := super.sweep(from, to, radius)
+	if stop == from:
+		return from
+	var blocks: Array[AABB] = []
+	for platform: AABB in platforms:
+		var bottom := minf(floor_y, platform.position.y)
+		var block_size := Vector3(platform.size.x, platform.position.y - bottom, platform.size.z)
+		blocks.append(AABB(Vector3(platform.position.x, bottom, platform.position.z), block_size))
+	return sweep_boxes(from, stop, radius, blocks)
