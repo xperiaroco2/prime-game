@@ -3058,12 +3058,14 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
 - **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
   the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `Game._typing()`
   alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
-  runs, since a handled key still reads as pressed in `Input`. With the map open the keys work and the look stops
+  runs, since a handled key still reads as pressed in `Input`; and `Game._talk_blocked` keeps it shut after the
+  typing stops until the talk key has been let go once (a V that ended the capture is still held). With the map open the keys work and the look stops
   (`mouse_free`). The lobby HUD, the round HUD and the life panel take no mouse (the destination row, the life
   panel's column and bar were PASS or STOP); the pregame takes no input, as the post game screen (its backdrop,
   centre and column were STOP or PASS); the connecting screen's backdrop stops the mouse (§4.7.32).
-- **Keys on screen** (rule 7): `KeyLabel.is_wide(label)` and `is_wide_action(action)`: a keycap is wide when its
-  label is longer than one character, so Space, Shift, Tab and Esc, and whatever a rebind gives (Ctrl, F5, LMB).
+- **Keys on screen** (rule 7): `KeyLabel.is_wide(physical)` and `is_wide_action(action)`: a keycap is wide for
+  exactly the physical keys Space, Shift, Tab and Esc, wherever a rebind puts them; Ctrl, Enter, F5 and the mouse
+  words stay normal until a screen shows one (a placeholder, not a decision).
   The keycap builders (#492, #497) take the theme's wide size from it. Esc has no deck key (`key.esc`): it shows as
   the literal "Esc" where it is fixed.
 - **Look in tests.** Headless Godot keeps no mouse mode (CAPTURED reads back VISIBLE, probed on 4.7.2), so
@@ -3073,7 +3075,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   actions; seen failing on the builtin list), `tests/unit/client/ui/ui_overlays_test.gd` (the order, one per press,
   a closed or freed overlay skipped, the map key closes only a card), `game_ui_overlays_test.gd` (the main menu's
   page only on the main menu, the question before the menu, the map key), `input_rules_test.gd` (the HUDs and the
-  pregame take no mouse and no focus; seen failing on four parts), `key_label_test.gd` (wide keycaps follow a
+  pregame take no mouse and no focus; seen failing on four parts), `key_label_test.gd` (the four wide keycaps follow a
   rebind), `tests/unit/client/app/controls_test.gd` (the 16 actions with the issue's deck keys and defaults),
   `tests/integration/client/app/esc_menu_input_test.gd` (the host's question closes first, a capture before the
   menu, no look, jump or sprint under the menu and the look back after it; seen failing on the old `Game._input`
