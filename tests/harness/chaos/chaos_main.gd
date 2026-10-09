@@ -130,7 +130,8 @@ static func summary(run: ChaosRun) -> String:
 	return (
 		(
 			"  %d chaos commands answered as ARCHITECTURE says, %d Rejected to the hostile %s;"
-			+ " the host's rejects: hostile %s, malformed peer %s"
+			+ " the host's rejects: hostile %s, malformed peer %s;"
+			+ " the hostile's claims while alive in the round %d"
 		)
 		% [
 			checked,
@@ -138,5 +139,6 @@ static func summary(run: ChaosRun) -> String:
 			reasons,
 			run.ledger.named(run.hostile_peer()),
 			run.ledger.named(run.malformed.peer),
+			run.hostile.round_alive_claims if run.hostile != null else 0,
 		]
 	)

@@ -730,6 +730,10 @@ func _check_chaos_counts() -> void:
 		failures.append("chaos: the hostile's session ended (%s)" % _hostile_client.end_reason)
 	if hostile_rejected.is_empty():
 		failures.append("chaos: the hostile decoded no Rejected")
+	# Over the loopback only, where a seed replays exactly: over WebRTC seed 7 sent none (188001 sent
+	# 13), a network-timing case not looked into; the summary line prints the count there too.
+	if not over_network and hostile != null and hostile.round_alive_claims == 0:
+		failures.append("chaos: no hostile MoveClaim went out while it was alive in the round")
 
 
 ## Over ENet: under each reason a malformed packet names, the host counted at most the chaos
