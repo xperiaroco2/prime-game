@@ -3481,7 +3481,8 @@ there would not follow from the commands.
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
   exactly, launch tick) goes to everyone; nothing in it is hidden (§5). The snapshot stays avatars only (§4.3): the
   thrower's client predicts the arc at the key press, and every other client draws it from `ItemThrown` on its
-  avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10). The
+  avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
+  sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
 - **Open for the engineer:** strength and range (TD1), which items (TD2), what a thrown item does to a player (TD3),
   whether a thrown package counts in its circle (TD4, recommended: yes, by the rule), where an item may come to rest

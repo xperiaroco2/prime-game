@@ -161,6 +161,11 @@ drawn time reaches the stop, then shows a short fall. A rest that is not below t
 arc at once at the rest. The view of an item in flight joins `SightHider.GROUP` as every item view does (ARCHITECTURE
 §4.7.10), so the downed camera's arm does not show an arc that the body's eye could not see. Sounds: one at the launch
 (an asset the engineer picks, as for #144's sounds) and `ItemPlaced`'s at the rest, once the drawn item gets there.
+Both follow the M4 client ADR's §3 checklist: the launch sound goes through `SoundChooser` at the origin, cut beyond
+`HEARING_RANGE_M` of the listener and muffled behind the level like every world sound (item 10), and the item in flight
+is an ordinary depth-tested `ItemView`, with no trail, outline or `no_depth_test` overlay (item 5). Prevents:
+`ItemThrown` reaches everyone with an origin, so an uncut launch sound, or an arc drawn through walls, would tell every
+crew client where a dissident just threw a package to hide it, the leak item 10 was written for.
 
 **The wire and who sees what (TE6).** A `Throw` row (C→H, the next free intent kind: RELIABLE, `seq: u32`,
 `facing: vec3`) and an `ItemThrown` row (H→C, the next free event kind: `item: item`, `peer: peer`, `origin: vec3`,
@@ -186,7 +191,8 @@ the capsule); a throw replayed from its log. Integration, in `server/`: `HostWor
 `tests/fixtures/levels/wall_ledge_crate.tscn` (the wall, the ledge, the low crate), and on a new fixture level beside
 it with a gap narrower than the sphere and a low ceiling (a sweep through the gap stops; one that starts inside the
 ceiling answers `from`), and a step under a low ceiling (the sphere at the eye of a capsule pressed against a wall
-starts clear of it with the margin; one at the eye `Items.eye_of` gives a thrower at the step's foot answers `from`). Client: the claim's twin sent before a `Throw`; the predicted arc against `core/`'s points.
+starts clear of it with the margin; one at the eye `Items.eye_of` gives a thrower at the step's foot answers `from`). Client: the claim's twin sent before a `Throw`; the predicted arc against `core/`'s points; a `sound_chooser_test`
+case that plays no launch sound for an `ItemThrown` beyond the hearing range.
 Bots: a `Throw(towards, pitch)` step, and a scenario that throws a package into its circle (under TD4 (b): next to it,
 then puts it down). The leak test compares `ItemThrown` exactly, as every event; no new invariant is needed, since
 nothing in it is hidden. A playtest by a human checks the feel: TD1's numbers and TE5's arcs.
@@ -202,7 +208,7 @@ ADR](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)'s task size).
 | 37b | `core/`, the flight: `ItemState.Where.FLYING` and the flight it keeps, the arc's static function, `FlightTicks` with the world and player contacts, the rest through `Items.place` with the new cause `Items.THROWN` and the no-floor fallback, every reader of `where` (`ItemOnGround`, `Items.free_markers`, Delivery, the snapshot's items); the cause added to both lists of causes in `tests/unit/net/messages/wire_core_test.gd` (the id check and `test_the_items_causes_are_every_string_name_constant_of_items`); unit tests that put an item in flight directly | 37a; TD3, TD4, TD8, TD9, TD11, TD12 | M |
 | 37c | `core/` and `net/`, the throw: the `Throw` intent in `Intents` and `Intents.PLAYER_ACTIONS`, the `ThrowItem` effect with its bounds, `ItemThrownEvent` (everyone), the mode checks (`FlightTicks` listed, the radius against the capsule); in the same task the wire, since `wire_core_test` requires a row for every intent and a row and a sample for every event a peer receives: `WireSchema`'s `Throw` and `ItemThrown` rows, their samples in `wire_samples.gd`, the protocol bump; ARCHITECTURE §4.1, §4.2, §4.3 and §9.4's rows | 37b; TD1, TD2, TD6, TD10 | M |
 | 37d | `client/net/`, the bots: the chaos rows (§4.6.5.3: `ChaosHostile`'s `Throw` shapes, refused as `not_accepted` while no phase accepts it), `ClientModel`'s fold of `ItemThrown`, the claim's twin before `Throw`, the bots' `Throw` step, `ScenarioBot`'s copy of `ItemState.Where` (`tests/harness/scenario_bot.gd`) and its fold of `ItemThrown` and `ItemPlaced` with the cause `thrown` | 37c | M |
-| 37e | `client/`: the throw key (TD7), the prediction, the arcs on the avatars' timeline, the stop and the fall, the hide at a phase change, `SightHider`'s group, the sounds' hooks, a `shot` preview on a fixture mode with a `Throw` rule (the base mode gets its rule only in 37f) | 37d | M |
+| 37e | `client/`: the throw key (TD7), the prediction, the arcs on the avatars' timeline, the stop and the fall, the hide at a phase change, `SightHider`'s group, the sounds' hooks (the launch sound through `SoundChooser`, cut beyond its range; no trail or overlay on the item in flight), a `shot` preview on a fixture mode with a `Throw` rule (the base mode gets its rule only in 37f) | 37d | M |
 | 37f | `content/`, `levels/` (the engineer's word, provisional under the MVP-content ADR): the base mode's `Throw` rule with the engineer's numbers, `FlightTicks` in Round, Round's allowlist, with outside `content/` in the same change §3.2's Round row, `ChaosOracle.ACCEPTS` and the hostile's expected outcome for `Throw` in Round (§4.6.5.3: a change of §3.2's table changes them with it, or `bots --chaos` goes red); TD5's level convention in `levels/CLAUDE.md`; a bot scenario that throws a package; then the playtest | 37c, 37d; TD5 and TD1's numbers | S |
 
 Every task leaves `verify --full` green on its own, `tests/unit/net/messages/wire_core_test.gd` among it: that test pins
