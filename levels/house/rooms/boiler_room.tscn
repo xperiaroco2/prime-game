@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://bpnumhegeongv"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://bhp0a0jdcwgo2" path="res://levels/kit/greybox_floor_base.tres" id="2_floor"]
+[ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="4_door"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(10, 0.2, 12)
@@ -44,6 +46,10 @@ size = Vector3(0.1, 3, 7.3)
 material = ExtResource("1_greybox")
 size = Vector3(0.1, 0.85, 1.4)
 
+[sub_resource type="BoxMesh" id="Jamb_1"]
+material = ExtResource("4_door")
+size = Vector3(0.12, 2.15, 0.12)
+
 [node name="BoilerRoom" type="Node3D" unique_id=1770753057]
 metadata/size_m = Vector2i(10, 12)
 
@@ -81,6 +87,7 @@ shape = SubResource("Shape_6")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=59278931]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, -0.1, 6)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
 
 [node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=2047159094]
@@ -105,7 +112,23 @@ mesh = SubResource("Mesh_5")
 
 [node name="Lintel1" type="MeshInstance3D" parent="Looks" unique_id=109591133]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.95, 2.575, 4)
+material_override = ExtResource("4_door")
 mesh = SubResource("Mesh_6")
+
+[node name="Jamb1" type="MeshInstance3D" parent="Looks" unique_id=278127956]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.94, 1.075, 3.24)
+mesh = SubResource("Jamb_1")
+
+[node name="Jamb2" type="MeshInstance3D" parent="Looks" unique_id=1128512264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.94, 1.075, 4.76)
+mesh = SubResource("Jamb_1")
+
+[node name="Name" type="Label3D" parent="." unique_id=1650612783]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.4, 6)
+billboard = 1
+text = "Boiler room"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=1650672305]
 

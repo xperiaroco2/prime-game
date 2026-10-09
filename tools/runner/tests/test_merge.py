@@ -819,8 +819,16 @@ class CommandTest(MergeCase):
         self.repo.push(branch)
         return branch
 
-    def release_moves_on_github(self) -> str:
-        """Another PR merged on GitHub: a commit on the remote's release/m1 that this checkout has not fetched."""
+    def release_moves_on_github(self, files: dict[str, str | None] | None = None) -> str:
+        """Another PR merged on GitHub: a commit on the remote's release/m1 that this checkout has not fetched; with
+        files, one that changes them."""
+        if files:
+            _git(self.repo.work, "fetch", "-q", "origin")
+            _git(self.repo.work, "switch", "-q", "-C", "other", "origin/release/m1")
+            commit = self.repo.commit(files, "another merge")
+            self.repo.push("other:release/m1")
+            _git(self.repo.work, "switch", "-q", "main")
+            return commit
         remote = self.repo.tmp / "remote.git"
         tip = _git(remote, "rev-parse", "refs/heads/release/m1")
         tree = _git(remote, "rev-parse", f"{tip}^{{tree}}")
@@ -864,15 +872,33 @@ class CommandTest(MergeCase):
 
     def test_a_head_behind_the_release_branch_is_refused_with_the_reason(self) -> None:
         # CI tested the head's own tree; with release/m1 moved on, the tree that would land was never tested.
+        # Here release/m1 changed the PR's own file (#632: else it merges, below).
         self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
-        moved = self.release_moves_on_github()
+        moved = self.release_moves_on_github({"core/a.gd": "extends Object\n"})
         for dry_run in (True, False):
             with self.subTest(dry_run=dry_run), self.assertRaises(Failure) as caught:
                 merge.merge(7, base="release/m1", dry_run=dry_run)
             self.assertIn(f"#7 is behind release/m1 (origin/release/m1 {moved[:10]} is not in its head, so CI did "
-                          "not test the tree that would land): rebase it with publish", str(caught.exception))  # fmt: skip
+                          "not test the tree that would land) and release/m1 changed 1 of its files since its fork: "
+                          "core/a.gd: rebase it with publish", str(caught.exception))  # fmt: skip
             self.assertIn("Nothing was changed", str(caught.exception))
         self.assertEqual((self.repo.remote("release/m1"), self.gh.merges, self.verified), (moved, [], []))
+
+    def test_a_head_behind_the_release_branch_with_no_overlap_merges(self) -> None:
+        branch = self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
+        self.release_moves_on_github({"core/z.gd": "extends Node\n"})
+        self.assertEqual(merge.merge(7, base="release/m1", dry_run=True), 0)
+        gate = "gate: CI green, behind by 1 commit, no overlap: merged; CI runs on release/m1, no local verify"
+        self.assertIn(f"gate: #7 would merge into release/m1 through GitHub ({gate[6:]})", self.printed[-1])
+        self.gh.prs[7]["mergeable"] = "CONFLICTING"
+        with self.assertRaises(Failure) as caught:
+            merge.merge(7, base="release/m1")
+        self.assertIn("GitHub does not report it MERGEABLE (CONFLICTING)", str(caught.exception))
+        self.gh.prs[7]["mergeable"] = "MERGEABLE"
+        self.assertEqual(merge.merge(7, base="release/m1"), 0)
+        self.assertIn(f"wave: merged #7 ({branch}) into release/m1 as ", self.printed[-1])
+        self.assertIn(f"through GitHub; {gate} (CI tests the push)", self.printed[-1])
+        self.assertEqual((len(self.gh.merges), self.verified), (1, []))
 
     def test_a_head_that_contains_the_release_tip_is_not_behind(self) -> None:
         # The tip moved first and the task was cut from it: up to date.
@@ -1141,9 +1167,19 @@ class MainGateTest(MergeCase):
         self.assertIn("#30 is closed, not open", str(caught.exception))
         self.assertEqual(self.gh.merges, [])
 
+    def main_changes_on_github(self, files: dict[str, str | None]) -> str:
+        """Another PR that changed files merged on GitHub: main moves on the remote."""
+        _git(self.repo.work, "fetch", "-q", "origin")
+        _git(self.repo.work, "switch", "-q", "-C", "other", "origin/main")
+        commit = self.repo.commit(files, "another merge")
+        self.repo.push("other:main")
+        _git(self.repo.work, "switch", "-q", "main")
+        return commit
+
     def test_refuses_a_head_behind_main_and_a_moved_head(self) -> None:
         branch = self.pr(31, {"core/a.gd": "extends Node\n"})
-        self.main_moves_on_github()  # another PR merged after #31 was published: its CI tested another tree
+        # Another PR that changed #31's file merged after #31 was published: its CI tested another tree.
+        self.main_changes_on_github({"core/a.gd": "extends Object\n"})
         self.assert_refused(31, "behind main (origin/main ", dry_run=False)
         self.gh.prs.pop(31)
         _git(self.repo.work, "fetch", "-q", "origin")
@@ -1155,6 +1191,48 @@ class MainGateTest(MergeCase):
         self.repo.push(branch)  # GitHub still reports the old head
         _git(self.repo.work, "switch", "-q", "main")
         self.assert_refused(32, "origin/core/32-task is not at the PR's head", dry_run=False)
+
+    def test_a_head_behind_main_with_no_overlap_merges_and_ci_runs_on_main(self) -> None:
+        # #632: main's new commits change no file of the PR's, GitHub reports it mergeable and its CI is green.
+        branch = self.pr(33, {"core/a.gd": "extends Node\n"})
+        self.main_changes_on_github({"core/z.gd": "extends Node\n"})
+        self.main_changes_on_github({"core/y.gd": "extends Node\n"})
+        rc, text = self.verdict(33)
+        self.assertEqual(rc, 0, text)
+        gate = "gate: CI green, behind by 2 commits, no overlap: merged; CI runs on main, no exception, nothing open"
+        self.assertIn(f"gate: #33 would merge into main ({gate[6:]})", text)
+        self.assertEqual(self.gh.merges, [])
+        self.assertEqual(merge.merge(33, base="main"), 0)
+        self.assertEqual(len(self.gh.merges), 1)
+        self.assertTrue(self.printed[-1].startswith(f"wave: merged #33 ({branch}) into main as "), self.printed[-1])
+        self.assertIn(f"through GitHub; {gate}", self.printed[-1])
+        self.assertEqual(self.verified, [])
+
+    def test_a_head_behind_main_with_an_overlap_is_refused_with_the_paths(self) -> None:
+        self.pr(34, {"core/a.gd": "extends Node\n", "core/b.gd": "extends Node\n", "core/c.gd": "extends Node\n"})
+        self.main_changes_on_github({"core/c.gd": "extends Object\n", "core/a.gd": "extends Object\n",
+                                     "core/z.gd": "extends Node\n"})  # fmt: skip
+        self.assert_refused(34, "behind main (origin/main ")
+        text = self.assert_refused(34, "", dry_run=False)
+        self.assertIn("is not in its head, so CI did not test the tree that would land) and main changed 2 of its "
+                      "files since its fork: core/a.gd, core/c.gd: rebase it with publish", text)  # fmt: skip
+
+    def test_a_head_behind_main_that_github_does_not_call_mergeable_is_refused(self) -> None:
+        self.pr(35, {"core/a.gd": "extends Node\n"})
+        self.main_changes_on_github({"core/z.gd": "extends Node\n"})
+        with mock.patch.object(merge, "MERGEABLE_WAIT", 0.0):
+            for state in ("UNKNOWN", "CONFLICTING"):
+                with self.subTest(state):
+                    self.gh.prs[35]["mergeable"] = state
+                    self.assert_refused(35, "behind main (origin/main ", dry_run=False)
+                    self.assertIn(f"GitHub does not report it MERGEABLE ({state})", "\n".join(self.printed))
+
+    def test_a_head_behind_main_with_no_overlap_but_red_ci_is_refused(self) -> None:
+        self.pr(36, {"core/a.gd": "extends Node\n"})
+        self.main_changes_on_github({"core/z.gd": "extends Node\n"})
+        self.gh.checks[36] = [{"name": "verify", "state": "FAILURE", "bucket": "fail"}]
+        text = self.assert_refused(36, "CI is not green on its head: verify: FAILURE", dry_run=False)
+        self.assertNotIn("behind main", text)  # the rule passed; CI alone refuses it
 
     def test_main_moving_after_the_gate_refuses_the_merge(self) -> None:
         self.pr(30, {"core/a.gd": "extends Node\n"})

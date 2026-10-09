@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://b0c8q1r7dbhah"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://bib0m4txugg2i" path="res://levels/kit/greybox_floor_house.tres" id="2_floor"]
+[ext_resource type="Material" uid="uid://dxbmpmed3oh4f" path="res://levels/kit/greybox_door.tres" id="4_door"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(8, 0.2, 8)
@@ -50,6 +52,22 @@ size = Vector3(0.1, 3, 3.3)
 [sub_resource type="BoxMesh" id="Mesh_7"]
 material = ExtResource("1_greybox")
 size = Vector3(0.1, 0.85, 1.4)
+
+[sub_resource type="BoxMesh" id="Jamb_1"]
+material = ExtResource("4_door")
+size = Vector3(0.12, 2.15, 0.12)
+
+[sub_resource type="BoxMesh" id="Jamb_2"]
+material = ExtResource("4_door")
+size = Vector3(0.12, 2.15, 0.12)
+
+[sub_resource type="BoxMesh" id="Jamb_3"]
+material = ExtResource("4_door")
+size = Vector3(0.12, 2.15, 0.12)
+
+[sub_resource type="BoxMesh" id="Jamb_4"]
+material = ExtResource("4_door")
+size = Vector3(0.12, 2.15, 0.12)
 
 [node name="Hallway" type="Node3D" unique_id=1557384486]
 metadata/size_m = Vector2i(8, 8)
@@ -112,6 +130,7 @@ shape = SubResource("Shape_7")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=1467187284]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.1, 4)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
 
 [node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=345201318]
@@ -124,6 +143,7 @@ mesh = SubResource("Mesh_3")
 
 [node name="Lintel1" type="MeshInstance3D" parent="Looks" unique_id=1785339541]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.575, 0.05)
+material_override = ExtResource("4_door")
 mesh = SubResource("Mesh_4")
 
 [node name="Wall3" type="MeshInstance3D" parent="Looks" unique_id=1492734451]
@@ -136,6 +156,7 @@ mesh = SubResource("Mesh_5")
 
 [node name="Lintel2" type="MeshInstance3D" parent="Looks" unique_id=519603709]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.575, 7.95)
+material_override = ExtResource("4_door")
 mesh = SubResource("Mesh_4")
 
 [node name="Wall5" type="MeshInstance3D" parent="Looks" unique_id=65493196]
@@ -148,6 +169,7 @@ mesh = SubResource("Mesh_6")
 
 [node name="Lintel3" type="MeshInstance3D" parent="Looks" unique_id=473979902]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 2.575, 4)
+material_override = ExtResource("4_door")
 mesh = SubResource("Mesh_7")
 
 [node name="Wall7" type="MeshInstance3D" parent="Looks" unique_id=1132974472]
@@ -160,7 +182,47 @@ mesh = SubResource("Mesh_6")
 
 [node name="Lintel4" type="MeshInstance3D" parent="Looks" unique_id=538822536]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.95, 2.575, 4)
+material_override = ExtResource("4_door")
 mesh = SubResource("Mesh_7")
+
+[node name="Jamb1" type="MeshInstance3D" parent="Looks" unique_id=1351753086]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.24, 1.075, 0.06)
+mesh = SubResource("Jamb_1")
+
+[node name="Jamb2" type="MeshInstance3D" parent="Looks" unique_id=1520771165]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.76, 1.075, 0.06)
+mesh = SubResource("Jamb_1")
+
+[node name="Jamb3" type="MeshInstance3D" parent="Looks" unique_id=1680701342]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.24, 1.075, 7.94)
+mesh = SubResource("Jamb_2")
+
+[node name="Jamb4" type="MeshInstance3D" parent="Looks" unique_id=1032794317]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.76, 1.075, 7.94)
+mesh = SubResource("Jamb_2")
+
+[node name="Jamb5" type="MeshInstance3D" parent="Looks" unique_id=266591489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 1.075, 3.24)
+mesh = SubResource("Jamb_3")
+
+[node name="Jamb6" type="MeshInstance3D" parent="Looks" unique_id=1202434152]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 1.075, 4.76)
+mesh = SubResource("Jamb_3")
+
+[node name="Jamb7" type="MeshInstance3D" parent="Looks" unique_id=566022382]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.94, 1.075, 3.24)
+mesh = SubResource("Jamb_4")
+
+[node name="Jamb8" type="MeshInstance3D" parent="Looks" unique_id=1713730795]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.94, 1.075, 4.76)
+mesh = SubResource("Jamb_4")
+
+[node name="Name" type="Label3D" parent="." unique_id=248888293]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.4, 4)
+billboard = 1
+text = "Hallway"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=1023510760]
 

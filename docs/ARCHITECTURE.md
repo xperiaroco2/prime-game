@@ -1837,7 +1837,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
-  with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
+  with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
+  sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and the mode has
+  two or more maps); the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
@@ -4381,8 +4383,9 @@ comment 6085251071), in the base mode's data since #649: 10 s (200 ticks), a `zo
 height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
 per subtask; the base mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
 placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
-he moves them, #302 comment 6085904317): the generator hall (44, −3.2, 37), the garden (52, 0, 20) and the landing
-(30, 3.2, 41), one per floor but the attic, whose sloped roof leaves no clear spot.
+he moves them, #302 comment 6085904317): the yard (48, 0, 37), the garden (52, 0, 20) and the landing (30, 3.2, 41).
+None in the attic, whose sloped roof leaves no clear spot, and none in the basement, where the scenarios' flat fake
+finds no floor (§9.7; #681 moved the generator hall's (44, −3.2, 37) up to the yard).
 - Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
   distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
   `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
@@ -4415,7 +4418,8 @@ Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), 
 `MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
 provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.24).
 Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
-every map of the base mode), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
+every map of the base mode, each read in the host's collision world since #681, and the flat fake shown hiding a spawn
+point beside an upstairs zone), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
 `dissident_works_a_zone_alone` (§9.7), `tests/unit/tasks/zone_deal_test.gd`
 (the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
 and a slow claimer's, the clock's
@@ -4587,7 +4591,14 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
     declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
     error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat, marker-only
-    lobby and map (§9.6). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
+    lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, its first
+    map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
+    four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
+    still read every map's markers through the flat fake, so those maps must read there without an error: no
+    station marker (a delivery circle or a zone, #681) below y = 0 (it would find no floor) and no two markers of
+    different tags at one (x, z) (the fake puts every station marker at y = 0). `content_modes_test.gd` reads them
+    so; ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.

@@ -7,6 +7,7 @@ extends GdUnitTestSuite
 const ROOM := "res://tests/fixtures/levels/platform_room.tscn"
 const LEVEL := "res://tests/fixtures/levels/wall_ledge_crate.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const NEAR := Vector3(1e-3, 1e-3, 1e-3)
 
 
@@ -63,7 +64,9 @@ func test_a_circle_with_no_floor_in_the_host_s_world_is_reported() -> void:
 	assert_vector(circles[0]).is_equal_approx(Vector3.ZERO, NEAR)
 
 
-func test_2j_s_flat_levels_read_the_same_as_with_the_flat_fake() -> void:
+func test_the_scenarios_flat_levels_read_the_same_as_with_the_flat_fake() -> void:
+	# Only the levels the scenarios play on must match the flat fake (§9.7); the mode's other
+	# maps (the House, #626) are read in the host's world alone, without errors.
 	var mode := load(BASE_MODE) as GameMode
 	var world := HostWorldQuery.for_mode(mode)
 	assert_array(Array(world.errors)).is_empty()
@@ -71,7 +74,7 @@ func test_2j_s_flat_levels_read_the_same_as_with_the_flat_fake() -> void:
 	var flat := MarkerReader.read_levels(mode, FlatWorldQuery.new())
 	assert_array(Array(host.errors)).is_empty()
 	assert_array(host.layouts.keys()).is_equal(flat.layouts.keys())
-	for path: String in flat.layouts:
+	for path: String in ScenarioLevels.of(mode):
 		var want := flat.layouts[path]
 		var got := host.layouts[path]
 		assert_array(got.tags()).is_equal(want.tags())

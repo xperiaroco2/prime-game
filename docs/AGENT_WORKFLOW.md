@@ -221,7 +221,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
-   can leak) or `tests/harness/` (the information-leak test) changed; plus
+   can leak) or `tests/harness/` (the information-leak test) changed (the workflows leave out a diff whose only such
+   paths are under `client/ui/`, the screens: §7.1, #606); plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
@@ -400,11 +401,23 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A small task (the
   issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
-  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
-  net/ client/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge` (the
-  definition of done's review step, §4.2, is then CI alone for any other diff). A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
+  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/ net/
+  client/ voice/ tests/harness/` (`code-reviewer` alone when those paths are all under `client/ui/`, #606), and the
+  manager merges it at once when its result says `ready_to_merge` (the definition of done's review step, §4.2, is then
+  CI alone for any other diff). `issue-task`'s
+  review chain follows the change's risk (#606, [ADR
+  amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the implementer, a path under `core/
+  server/ net/ client/ voice/ tests/harness/` (but `client/ui/`, the screens: the engineer's answer 2b,
+  [#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)), no changed paths, a design task
+  or the arg `tier: "full"` gets today's full chain (the How above, unchanged); any other diff the light one
+  (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher), which drops `skeptic` even when
+  passed, `plan_review` on a `content`, `level` or `tooling` branch, and on a `client/ui/` diff the netcode review and
+  `test_review` (no other light diff ever routed them).
+  A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
-  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
+  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158); a diff whose only
+  such paths are under `client/ui/` gets none in either script (#606: `issue-task`'s light tier, `quick-task`'s
+  `NETCODE` rule), and the result says so.
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
   read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
@@ -463,7 +476,8 @@ Rules for every workflow run:
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
   publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not resume (+1; none
-  for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review: true`: a second
+  for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is
+  under `client/ui/`, the light tier, #606). `second_review: true`: a second
   `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1). `skeptic: true` or a
   number: a read-only agent tries to refute each blocker or major finding before the publisher (a number caps the
   agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
@@ -568,7 +582,11 @@ Rules for every workflow run:
     engineer's go, which also clears its content-area paths and ADRs; and any top-level item, or sub-heading or bold
     label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
     pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
-    inside HTML comments do not count. **No local `verify`:** with `main` in the head, the merged tree is the head's
+    inside HTML comments do not count. A head behind its base (here or `release/m<k>`, the shared check) still passes
+    when no path it changes since its fork is one the base changed since then and GitHub reports it MERGEABLE (#632):
+    it merges with "behind by N commits, no overlap: merged; CI runs on <base>" in its `wave:` line, `merge-train`
+    publishes no such PR, and an overlap is refused with its paths. **No local `verify`:** with `main` in the head,
+    the merged tree is the head's
     own, which `publish` verified on Windows and CI (on `refs/pull/<n>/merge`) on Linux; a local run would hold a verify
     slot 12 to 14 minutes per merge for nothing. `merge-check` rows that involve the PR and PRs stacked on it print as
     `gate: note:` lines and never refuse: the partner is behind `main` afterwards (the gate refuses it until its
@@ -1575,7 +1593,9 @@ under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.jso
 id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
 with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
+`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run, per review tier (#606: light, full, or
+unknown before #606 or with no publisher, read from the publisher's prompt; runs, wall time, review phase, API list $;
+`tiers` in `metrics.json`, and `--run` names a run's tier) and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
 issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
 `review:code-control` and `ab-judge`; any other is "other"),
@@ -1595,7 +1615,10 @@ continuations), API calls, those over 200k of context and their API list $, agai
 the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
 `<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
 `metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
-compact "task medians" line), the Sonnet implementer trial (#560: per trial task, against the
+compact "task medians" line), the tool output per implementer (#572: the characters of its tool calls' text outputs
+and the part of the runner commands agents run in loops, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
+in tokens; per task `impl_outputs` in `metrics.json`, one pair per implementer that made a tool call; their medians at
+the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
 and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
 [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
@@ -1625,9 +1648,11 @@ average or 300k peak, with run, issue, calls, average and peak: an agent that ca
 pays for it on each; also at the end of the compact summary's first line and as `--run`'s last line, which lists the
 heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
-the % of the week, `verify` medians): the manager pastes
-`metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
+lines, plus a note line when one was cut (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
+the % of the week, `verify` medians), each cut at 400 characters unless `--verbose` (#572; `metrics.md` holds them
+whole, and a last line says so when one was cut): the manager writes
+`metrics --since <wave start> --compact --verbose` (the lines whole: a wave comment is the durable record) straight into the
+comment's `--body-file`, without reading it. The % of the week counts cache reads at the central
 weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
 0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
 range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
@@ -1681,10 +1706,16 @@ there is no default) `of <budget>% this week; plan to date <budget x days since 
 every session's total, which the manager holds against the weekly counter (`get_usage`), with the untracked share and
 its three largest sessions (a kickoff whose `Track:` line was left out or translated shows there). That total covers
 only the three checkouts: the counter also counts the account's sessions elsewhere (another project folder, a replay,
-another machine), so the two differ by more than the conversion's error. The last line names the checkouts read (each
-one's folder keys and worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so
-is its track's line when no session here has that track (`all` lists it too): its spend is unknown, never 0%.
-`tracks.json` lists them under `checkouts`.
+another machine), so the two differ by more than the conversion's error. **`--since` is the moment the counter last
+restarted, not always the scheduled reset** (#677): a reset by hand (the engineer's spare reset, 2026-10-08 12:25 UTC,
+counter 1%) restarts the counter, and `--since` the scheduled reset then reads 103% against the counter's 31% (every
+message id counted once, no response in two files; against the counter's 99% at 11:48 UTC just before that reset, the
+same `metrics` read 95.9%, so the conversion holds). After a reset by hand, pass its time as `--since`; the plan to
+date then counts the days from it and runs low until the next scheduled reset (that week is shorter than 7 days), so
+hold a track's % against its budget directly. The last line names the checkouts read (each one's folder keys and
+worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so is its track's line
+when no session here has that track (`all` lists it too): its spend is unknown, never 0%. `tracks.json` lists them
+under `checkouts`.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
 named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
 own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
@@ -1752,11 +1783,20 @@ tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export
 `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
-`tools/out/gdunit/`. `lint`, `check` and `wait` are quiet by default (#590): a summary when green, a capped
-excerpt with the exit code and the log's path when red (`lint` and `check` keep their whole output in
-`tools/out/logs/<command>-output.log`, written as it runs, `wait` points to the job's own log; `--verbose` prints the
-whole output; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch
-changes always print); read a log by search (grep the failing test), never whole. Outside a Claude Code session (a human's PowerShell) the runner
+`tools/out/gdunit/`. The commands agents run in loops are quiet by default (#590, #572; `--verbose` prints the whole
+output): a summary when green, a capped excerpt (about 4 KB) with the exit code and the log's path when red. `lint`,
+`check`, `merge-check` and `merge` keep their whole output in `tools/out/logs/<command>-output.log`, written as it
+runs; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch changes
+always print; `merge-check` lists only the rows that flag something and counts the clean ones; `merge` leaves out its
+`ok` progress lines (its verdict, `wave:` line and exit code are unchanged; the log's path follows them). `merge` and
+`merge-check` write `merge-<pr>-output.log` and `merge-check-<PRs>-output.log`, one per run, so managers merging at
+once keep their own. `verify` (and `publish`, which runs it) writes its whole output to
+`tools/out/logs/verify-output.log` (the run before it stays as `verify-output.prev.log`: a retry in the same worktree
+keeps the red run) and prints each red step's failure lines and the summary
+block, whole, with that path in it; CI's `verify --full` stays verbose (its job log is the only log there). `wait`
+points to the job's own log; `metrics --compact` cuts each summary line at 400 characters (`metrics.md` has them
+whole). Read a log by search (grep the failing test or `FAIL`), never whole: a log read whole is carried on every
+later call. Outside a Claude Code session (a human's PowerShell) the runner
 takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
@@ -1799,8 +1839,9 @@ since `verify-history.jsonl` survives only in the live worktrees): `verify` 455 
 s), the Godot lane 452 s against 527 s, the Python lane 212 s against 336 s, `selftest` 144 s against 265 s, and `test`
 beside the new lane 123 s against 130 s. If `test` turns flaky under the extra load (see its red rate in `metrics`),
 `AFTER["selftest-godot"] = ("check", "test")` puts the lane after `test` again. Every step runs and any red step fails
-it; each step's output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`).
-After the lanes: the
+it; each step's output goes whole to `tools/out/logs/verify-output.log` when the step ends (`== <step> (<lane> lane,
+<seconds>, <status>)`), and a red step's failure lines to the terminal too (quiet by default, §11.15; `--verbose` and
+CI print every step whole). After the lanes: the
 clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
 it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
 `selftest --group python|godot` runs one group without it). The

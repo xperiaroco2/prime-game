@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bsnkppfg7lnxf"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://bal42cbq2wxl5" path="res://levels/kit/greybox_floor_path.tres" id="2_floor"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(10, 0.02, 12)
@@ -22,7 +23,15 @@ shape = SubResource("Shape_1")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=1435245407]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, -0.05, 6)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
+
+[node name="Name" type="Label3D" parent="." unique_id=1631472026]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.4, 6)
+billboard = 1
+text = "Driveway"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=907868760]
 

@@ -3,9 +3,12 @@ extends GdUnitTestSuite
 ## ZE9; #649): Hold the zone with the engineer's provisional numbers and names (#302 comment
 ## 6085251071), its `zones` setting, the greybox's fit at the most zones and packages, and ZE9's
 ## spacing on every map of the base mode (`fixture_zone_spacing.gd`, which the House map's
-## marker test shares, #651). The wall and ceiling clearance is a level convention
-## (`levels/CLAUDE.md`), checked by a `shot`, and on House by its marker test too. Like the mode
-## check, this test loads `content/` on purpose (§9.6).
+## marker test shares, #651). Every map is read as the host reads it, in its own collision world,
+## as `tests/integration/levels/house_markers_test.gd` reads House (#681): the scenarios' flat
+## fake puts House's storeys on one floor, which hides a spawn point beside an upstairs zone. The
+## wall and ceiling clearance is a level convention (`levels/CLAUDE.md`), checked by a `shot`,
+## and on House by its marker test too. Like the mode check, this test loads `content/` on
+## purpose (§9.6).
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -97,11 +100,56 @@ func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:
 	assert_array(Array(faults)).has_size(1)
 
 
+func test_the_suite_reads_house_s_storeys_at_their_own_height() -> void:
+	# Guards `_layouts`: read through the scenarios' flat fake, every zone snaps to y = 0, so House's
+	# upstairs zone (the landing's) would sit at the ground floor and a flat read would pass (#681).
+	var mode := _mode()
+	var zone := Spacing.zone_task(mode).zone
+	var house := _layouts(mode)["res://levels/house/house.tscn"]
+	var top := 0.0
+	for at: Vector3 in house.positions(zone.spawn_tag):
+		top = maxf(top, at.y)
+	assert_float(top).override_failure_message("House's zones were read flat").is_greater(
+		zone.height_m
+	)
+
+
+func test_the_flat_fake_would_hide_a_spawn_point_beside_an_upstairs_zone() -> void:
+	# Why this suite reads every map in the host's world (#681): the scenarios' flat fake snaps a
+	# station marker to its one floor at y = 0 but leaves a spawn point at its storey's height, so
+	# a zone 2 m from a spawn point upstairs looks a storey away and is not compared. Read with
+	# the storey's own floor (a flat world at y = 3.2, as the host's would answer), it is a fault.
+	var mode := _mode()
+	var zone := Spacing.zone_task(mode).zone
+	var circle := Spacing.circle(mode)
+	var tags := MarkerReader.floor_tags_of(mode)
+	var storey: Node3D = auto_free(Node3D.new())
+	_add_marker(storey, zone.spawn_tag, Vector3(0, 3.7, 2))
+	_add_marker(storey, &"round_player", Vector3(0, 3.2, 0))
+	var flat := MarkerReader.read(storey, "upstairs", FlatWorldQuery.new(), tags)
+	var host := MarkerReader.read(storey, "upstairs", FlatWorldQuery.new(3.2), tags)
+	assert_array(Array(flat.errors + host.errors)).is_empty()
+	assert_array(Array(Spacing.faults("flat", flat.layout, zone, circle))).is_empty()
+	assert_array(Array(Spacing.faults("host", host.layout, zone, circle))).has_size(1)
+
+
 func _mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
 
 
+## The layouts of the mode's levels as the host reads them, each in its own collision world
+## (HostWorldQuery.for_mode, as HostSession builds it), so every marker keeps its storey. The
+## scenarios' flat fake (§9.7) would read House's storeys as one floor (#681): see the test above.
 func _layouts(mode: GameMode) -> Dictionary[String, LevelLayout]:
-	var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	var world := HostWorldQuery.for_mode(mode)
+	assert_array(Array(world.errors)).is_empty()
+	var levels := MarkerReader.read_levels(mode, world)
 	assert_array(Array(levels.errors)).is_empty()
 	return levels.layouts
+
+
+static func _add_marker(root: Node3D, tag: StringName, at: Vector3) -> void:
+	var marker := Marker3D.new()
+	marker.position = at
+	marker.add_to_group(MarkerReader.GROUP_PREFIX + tag, true)
+	root.add_child(marker)

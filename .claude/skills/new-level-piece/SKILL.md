@@ -31,7 +31,8 @@ the human's language.
    `docs/ARCHITECTURE.md`). One that does not exist: an `engine-request` issue with the spec from `content/CLAUDE.md`
    (after the human's OK on its text), then continue with a greybox stand-in.
 5. **Write the scene by hand:** one piece per `snake_case.tscn`, `PascalCase` nodes, other pieces instanced rather
-   than copied, box-mesh greybox with the shared material. No `uid=` anywhere. Property names from the API dump
+   than copied, box-mesh greybox with `levels/kit/`'s role materials; a room gets a `Label3D` `Name` on its root
+   with its design-doc name. No `uid=` anywhere. Property names from the API dump
    (`tools/out/godot-api/4.7.2/extension_api.json`). A `Transform3D(...)` in a `.tscn` lists the basis row by row.
 6. **Normalize and check:** `tools\run.cmd normalize <file>`; if it reports a dropped property, fix that line (a typo,
    or a default value to remove) and run it again. Then `tools\run.cmd check`.

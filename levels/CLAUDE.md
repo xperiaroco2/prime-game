@@ -12,15 +12,17 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
 - **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
   - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map),
-    `props/`, `kit/` (wrappers of the art kit's GLBs); `lobby/` and `greybox/` stay;
+    `props/`, `kit/` (wrappers of the art kit's GLBs; until then the greybox role materials); `lobby/` and `greybox/` stay;
   - one grid with the art kit: whole metres, 2 m and 1 m wall modules, 3.2 m floor to floor (Y -3.2, 0, 3.2; an
     attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
   - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
     plan x = X, plan y = Z, no rotation;
   - a room declares `metadata/size_m = Vector2i(w, d)`, its door openings as `Marker3D` children of `Doors`, its
     stations as instanced station scenes; a test checks the map against the design doc's room table.
-- Greybox with box meshes (CSG where a shape needs it) and one shared neutral material until the art kit lands;
-  the kit's GLBs then replace the greybox inside the same piece. The look comes from the art track (xperiaroco2/prime-game-art).
+- Greybox with box meshes (CSG where a shape needs it) and `levels/kit/`'s role materials (walls, a floor per zone,
+  stairs, door frames) plus a `Label3D` `Name` on each room's root with its design-doc name, until the art kit
+  lands (#658); the kit's GLBs then replace
+  the greybox inside the same piece. The look comes from the art track (xperiaroco2/prime-game-art).
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
   `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1
@@ -28,7 +30,9 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle`, `spawn_zone`). A marker in two such groups is a load error. The host reads them in scene-tree
-  order.
+  order. The bot scenarios read every map through a flat fake (floor at y = 0, ARCHITECTURE §9.7): on a map with
+  several levels no station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two
+  markers of different tags at one (x, z).
 - **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
   ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
   below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
@@ -41,14 +45,14 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     tests each zone's cylinder against the host's collision world (no wall, ceiling or furniture inside, flat floor
     under it, #651);
   - keeps **ZE9's distances**, which `tests/unit/content/zone_content_test.gd` checks on every map of the base
-    mode: any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least its
-    radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
+    mode, read in the host's collision world (#681): any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least
+    its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
     are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
 - Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
   start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
-  "not a decision" (#649); House's three (the generator hall, the garden, the landing) are #651's placeholders until
-  the engineer moves them.
+  "not a decision" (#649); House's three (the yard, the garden, the landing) are #651's placeholders until
+  the engineer moves them (#681 moved the generator hall's up to the yard).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).

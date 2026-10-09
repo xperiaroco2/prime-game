@@ -77,6 +77,38 @@ func test_each_room_of_the_doc_is_placed_at_its_position_with_its_size() -> void
 		assert_str(node.scene_file_path).is_equal(ROOMS + _snake(room.name) + ".tscn")
 
 
+func test_each_room_shows_its_doc_name() -> void:
+	# The greybox's floating names (#658): a playtest finds its way by them until the art lands.
+	var placed := _placed(_map())
+	for room in _doc_rooms():
+		var node: Node3D = placed.get(_pascal(room.name))
+		if node == null:
+			continue
+		var label := node.get_node_or_null(^"Name") as Label3D
+		(
+			assert_object(label)
+			. override_failure_message("%s has no Name label" % room.name)
+			. is_not_null()
+		)
+		if label == null:
+			continue
+		assert_str(label.text).is_equal(room.name)
+		(
+			assert_bool(label.visible)
+			. override_failure_message("%s's name is hidden" % room.name)
+			. is_true()
+		)
+		var at := label.position
+		var inside := (
+			at.x >= 0 and at.x <= room.size.x and at.z >= 0 and at.z <= room.size.y and at.y > 0
+		)
+		(
+			assert_bool(inside)
+			. override_failure_message("%s's name floats at %s" % [room.name, at])
+			. is_true()
+		)
+
+
 func test_the_map_places_only_the_doc_s_rooms_each_once() -> void:
 	var names: Array[String] = []
 	for node in _rooms_of(_map()):

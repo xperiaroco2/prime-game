@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## M7-Z5; ZD10 (a), provisional until the engineer moves them) keep ZE9's spacing, fit the mode
 ## at the most zones and packages, and each zone's cylinder stands on flat floor clear of walls,
 ## ceilings and furniture (the convention in `levels/CLAUDE.md`, checked here in the host's
-## collision world; a `shot` still shows it). The map is not in the base mode's list yet (#623):
-## the scenarios' fake world is one flat floor.
+## collision world; a `shot` still shows it). The House is the base mode's second map (#626); the
+## scenarios play only its flat first map (ARCHITECTURE §9.7), whose fake world is one flat floor.
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"
@@ -38,7 +38,9 @@ func test_the_markers_are_the_engineer_s_counts() -> void:
 	assert_int(layout.count(&"circle")).is_equal(10)
 	assert_int(layout.count(&"knife")).is_equal(4)
 	assert_int(layout.count(&"respawn")).is_equal(4)
-	# #651's provisional points, one per floor but the attic (#302 comment 6085904317).
+	# #651's provisional points (#302 comment 6085904317): the yard and the garden on the ground
+	# floor, the landing upstairs; none in the basement, where the scenarios' flat fake finds no
+	# floor (#681).
 	assert_int(layout.count(&"zone")).is_equal(3)
 
 

@@ -34,7 +34,10 @@ taken in a `main` that has them.
   #107 himself); otherwise it needs CI green on a head that contains `origin/release/m<k>`, merges through GitHub,
   confirms the PR merged and prints one `wave:` line: paste it into the wave comment. A **behind** head is refused
   with the reason: send it to `publish --base release/m<k>` (or `pr-rebase`), wait for its CI, merge again; so merges
-  into one release branch go in series, each leaving the others behind. CI runs on the push to `release/**`: if it
+  into one release branch go in series, each leaving the others behind. A behind head whose files do not overlap the
+  base's new commits and that GitHub reports MERGEABLE merges anyway, into `release/m<k>` or `main` (#632: "behind by
+  N commits, no overlap" in its `wave:` line; `merge-train` publishes no such PR); an overlap is refused with its
+  paths. CI runs on the push to `release/**`: if it
   goes red, fix it with a task before the next wave. Never type its git steps by hand.
 - **Taking `main` in** (the engineer's answer N2): when the tooling track's manager says on your plan issue that
   `main` has a change the stage should take in, run `tools\run.cmd merge --sync-main --base release/m<k>` at the

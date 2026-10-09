@@ -27,7 +27,12 @@ too), and #470's digests (the reviewers' and the test reviewer's digest of the i
 summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay phrase
 nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
 the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
-launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone).
+launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone)
+and #572's line on reading a log by search, never whole.
+#605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
+tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
+gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
+return value.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -43,7 +48,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from runner import wait
+from runner import metrics, wait
 from runner.common import ROOT, force_rmtree, node_bin
 
 WORKFLOWS = ROOT / ".claude" / "workflows"
@@ -1183,6 +1188,8 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("Task: report a stopped run of issue #7", publish)
         self.assertIn("publish nothing", publish)
         self.assertNotIn("gh pr create", publish)
+        # metrics reads the tier from this prompt too (#606 review), so a stopped full run is not "unknown".
+        self.assertEqual(metrics.REVIEW_TIER.search(publish).group(1), "full")
         self.assertIn("mutants exited 2 in the test review", exit_2["returned"]["stopped"])
         # A resume would replay the cached exit 2 and stop again, so the result names the way on.
         self.assertIn("relaunch issue-task (not a resume", exit_2["returned"]["stopped"])
@@ -1460,6 +1467,8 @@ class PipelineV2Test(unittest.TestCase):
                         "mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch "
                         "worktree could not be removed",
                         "run them in the foreground as before",
+                        "Read a log by search, never whole",  # #572: verify and publish point to their whole output
+                        "`tools/out/logs/verify-output.log`",
                     ):
                         self.assertIn(text, paragraph)
                     # #555: the Bash tool's timeout outlasts the step plus the start-up before it, and every number of
@@ -1504,7 +1513,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
         ):
@@ -2233,6 +2242,7 @@ class CheckpointTest(unittest.TestCase):
             self.assertEqual([g[0] for g in got], [w[0] for w in want])
             self.assertEqual(got[:-1], want[:-1])
             self.assertNotIn("handoffs", result["returned"])
+            self.assertNotIn("checkpoint", result["returned"])  # #597: no key, so a launch or resume without it shows
             self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "handoff" in e["message"]])
         self.assertNotIn(RULE_HEAD, json.dumps(want))
 
@@ -2241,6 +2251,9 @@ class CheckpointTest(unittest.TestCase):
             off, on = run_jobs([("issue-task.js", dict(ARGS, **extra), self.PATHS), ("issue-task.js", dict(ARGS, checkpoint=True, **extra), self.PATHS)])
             with self.subTest(**{k: str(v) for k, v in extra.items()}):
                 self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
+                # #597: the compact result shows checkpoint: true, and with it the handoffs, 0 too.
+                self.assertEqual((on["returned"]["checkpoint"], on["returned"]["handoffs"]), (True, 0))
+                self.assertFalse({"checkpoint", "handoffs"} & set(off["returned"]))
                 for a, b in zip(agents(off), agents(on)):
                     if not a["label"].startswith("implement"):
                         self.assertEqual((a["opts"], a["prompt"]), (b["opts"], b["prompt"]), a["label"])
@@ -2249,10 +2262,15 @@ class CheckpointTest(unittest.TestCase):
                     self.assertEqual(len(rule), 1)
                     self.assertEqual(without_rule(b["prompt"]), a["prompt"])
                     self.assertTrue(b["prompt"].index(RULE_HEAD) < b["prompt"].index("Do NOT publish"))
-                    for words in ("`<total_tokens>N tokens left</total_tokens>`", "B minus N, exactly", "B = your first N plus 30,000", "at or below 14,850,000", "after 60 tool calls",
+                    # #597: measured by a runner command, never by arithmetic on the harness's reminder; the backstop
+                    # holds whatever ctx printed, and past 200k "only the final verify left" no longer lets it finish.
+                    for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000`", "every ~15 tool calls and after each verify", "When it prints HANDOFF NOW",
+                                  "or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript)",
+                                  "If only the final verify and the return are left, finish instead, unless ctx printed past 200,000.",
                                   "a7/handoff-1.md", "done (", "left (", "decisions (", "gotchas (", "verify state (",
                                   "leave no background job", "handoff: the note's absolute path"):  # fmt: skip
                         self.assertIn(words, rule[0])
+                    self.assertNotIn("total_tokens", rule[0])
                     self.assertEqual("visual" in extra, "playcheck {available: false" in rule[0])
                     o_off, o_on = options(a), options(b)
                     self.assertEqual(o_on["schema"]["properties"].pop("handoff"), {"type": "string"})
@@ -2290,6 +2308,7 @@ class CheckpointTest(unittest.TestCase):
         self.assertNotIn('"handoff":', pub)
         out = result["returned"]
         self.assertEqual((out["handoffs"], out["verify_green"], out["summary"]), (1, True, "the whole branch"))
+        self.assertIs(out["checkpoint"], True)
         self.assertNotIn("stopped", out)
 
     def test_at_most_two_handoffs(self) -> None:
@@ -2324,6 +2343,156 @@ class CheckpointTest(unittest.TestCase):
         self.assertFalse(calls(red, "publish"))
 
 
+# #606: issue-task's review tier by the change's risk. Each light path alone is light; each full path, alone or with
+# light ones, makes the run full.
+# A path no rule lists is light (the manager's notes for #606: "otherwise light"; the issue's table said full for
+# "anything else", the ADR amendment says which and why): project.godot and CI's workflow pin that default.
+# client/ui/ is light, the rest of client/ full (the engineer's answer 2b on #302, comment 6085059719): a folder or a
+# file whose name only starts with "ui" is not client/ui/.
+LIGHT_PATHS = ["docs/AGENT_WORKFLOW.md", "content/roles/x.tres", "levels/rooms/x.tscn", "tools/runner/start.py",
+               "tests/unit/match/vote_test.gd", "addons/x/plugin.cfg", ".claude/workflows/issue-task.js",
+               "project.godot", ".github/workflows/ci.yml", "tests/integration/net/x_test.gd",
+               "client/ui/hud_text.gd", "client/ui/theme/game_theme.tres", "tests/unit/client/ui/screens_test.gd"]  # fmt: skip
+FULL_PATHS = ["core/match/vote.gd", "server/host_session.gd", "net/protocol/codec.gd", "client/hud/hud.gd",
+              "voice/mixer.gd", "tests/harness/bots/leak_check.gd", "client/player/first_person_camera.gd",
+              "client/physics_layers.gd", "client/ui_kit/x.gd", "client/ui.gd"]  # fmt: skip
+# Every option the light tier drops, passed at once, with a major finding for the skeptic to check.
+ALL_OPTIONS = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True}
+TIER_LINE = "Review tier (#606): "
+
+
+def tier_of(result: dict) -> str:
+    """The tier the publisher's prompt names (the line metrics.REVIEW_TIER reads), checked against the result's."""
+    (pub,) = calls(result, "publish")
+    line = next(x for x in pub["prompt"].split("\n\n") if x.startswith(TIER_LINE))
+    tier = line[len(TIER_LINE):].split(" ")[0]
+    assert tier == result["returned"]["tier"], (line, result["returned"]["tier"])
+    return tier
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class ReviewTierTest(unittest.TestCase):
+    """issue-task.js (#606): the full chain only where a mistake becomes a cheat, a desync or a leak."""
+
+    def test_the_diff_chooses_the_tier_and_the_worst_path_wins(self) -> None:
+        cases = [({}, [p], "light") for p in LIGHT_PATHS]
+        cases += [({}, [p], "full") for p in FULL_PATHS]
+        cases += [({}, LIGHT_PATHS + [p], "full") for p in FULL_PATHS]  # one full path among light ones: full
+        cases += [({}, LIGHT_PATHS, "light"), ({}, [], "full")]  # no changed paths returned: unknown, so full
+        cases += [({"branch": "docs/7-x", "design": True}, ["docs/x.md"], "full")]
+        cases += [({"tier": "full"}, LIGHT_PATHS, "full"), ({"tier": None}, ["docs/x.md"], "light")]
+        results = run_jobs([("issue-task.js", dict(ARGS, **args), {"paths": paths}) for args, paths, _ in cases])
+        for (args, paths, want), result in zip(cases, results):
+            with self.subTest(args=args, paths=paths):
+                self.assertIsNone(result["error"])
+                self.assertEqual(tier_of(result), want)
+                self.assertTrue(any(f"review tier {want} (" in e["message"] for e in result["events"] if e["kind"] == "log"))
+        forced = results[-2]
+        self.assertIn("Review tier (#606): full (forced by the launch (tier: full))", calls(forced, "publish")[0]["prompt"])
+
+    def test_the_light_tier_drops_the_optional_agents_even_when_passed(self) -> None:
+        light, godot, full = run_jobs([
+            ("issue-task.js", dict(ARGS, **ALL_OPTIONS), {"paths": ["docs/x.md", "tools/runner/x.py"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **ALL_OPTIONS), {"paths": ["content/roles/x.tres"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **ALL_OPTIONS), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ])  # fmt: skip
+        for result in (light, godot, full):
+            self.assertIsNone(result["error"])
+        self.assertEqual([e["label"] for e in agents(light)], ["implement:#7", "review:code:#7", "publish:#7"])
+        self.assertEqual([e["label"] for e in agents(godot)], ["implement:#7", "review:code:#7", "review:godot-api:#7", "publish:#7"])
+        for result in (light, godot):
+            out = result["returned"]
+            self.assertEqual((out["tier"], out["tier_skipped"]), ("light", ["plan_review", "test_review", "second_review", "skeptic"]))
+            self.assertNotIn("skeptic", out)
+            # The publisher fixes the major unchecked, and the prompt says what the light chain dropped.
+            pub = calls(result, "publish")[0]["prompt"]
+            self.assertIn("the light chain ran, code-reviewer", pub)
+            self.assertIn("dropped although the launch passed them: plan_review, test_review, second_review, skeptic", pub)
+            self.assertNotIn("Skeptics tried to refute", pub)
+            self.assertTrue(any("plan_review skipped: the branch's area tooling" in e["message"] for e in result["events"] if e["kind"] == "log"))
+        # The full tier keeps today's chain: every option passed runs.
+        labels = [e["label"] for e in agents(full)]
+        for want in ("plan:#7", "review:plan:#7", "review:netcode:#7", "review:netcode-second:#7", "test-review:#7", "skeptic:#7"):
+            self.assertIn(want, labels)
+        self.assertEqual(full["returned"]["tier"], "full")
+        self.assertNotIn("tier_skipped", full["returned"])
+        self.assertIn("skeptic", full["returned"])
+
+    def test_a_client_ui_diff_is_light_and_drops_the_netcode_and_test_reviews(self) -> None:
+        # Before 2b every client/ path routed the netcode review (#158) and was production code for test_review; in the
+        # light tier client/ui/ gets neither, and the rest of client/ keeps both.
+        ui, mixed = run_jobs([
+            ("issue-task.js", dict(ARGS, branch="client/7-x", **ALL_OPTIONS), {"paths": ["client/ui/hud.gd", "docs/x.md"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", **ALL_OPTIONS), {"paths": ["client/ui/hud.gd", "client/player/p.gd"], "findings": [MAJOR]}),
+        ])  # fmt: skip
+        for result in (ui, mixed):
+            self.assertIsNone(result["error"])
+        self.assertEqual([e["label"] for e in agents(ui)], ["plan:#7", "review:plan:#7", "implement:#7", "review:code:#7", "review:godot-api:#7", "publish:#7"])
+        # The netcode review the paths route (§4.2) is listed as dropped, so the result and the PR body say it did not run.
+        self.assertEqual((ui["returned"]["tier"], ui["returned"]["tier_skipped"]), ("light", ["netcode_review", "test_review", "second_review", "skeptic"]))
+        self.assertIn("; the netcode review its paths route (AGENT_WORKFLOW §4.2) did not run: its only client/ paths are under client/ui/; dropped although the launch passed them: test_review, second_review, skeptic.", calls(ui, "publish")[0]["prompt"])
+        why = "the light review tier (#606): the diff's only production code is under client/ui/"
+        self.assertEqual(ui["returned"]["test_review"], {"skipped": why})
+        pub = calls(ui, "publish")[0]["prompt"]
+        self.assertIn("Review tier (#606): light (no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/)", pub)
+        self.assertIn(f"The test review (test_review) was skipped: {why}.", pub)
+        self.assertEqual(mixed["returned"]["tier"], "full")
+        self.assertIn("Review tier (#606): full (the diff touches client/player/p.gd)", calls(mixed, "publish")[0]["prompt"])
+        labels = [e["label"] for e in agents(mixed)]
+        for want in ("review:netcode:#7", "review:netcode-second:#7", "test-review:#7", "skeptic:#7"):
+            self.assertIn(want, labels)
+
+    def test_plan_review_follows_the_branch_area_before_the_diff_exists(self) -> None:
+        cases = [
+            ("core/7-x", {}, ["docs/x.md"], True, "light", ["skeptic"]),  # a full area plans; the light diff drops the skeptic
+            ("tooling/7-x", {}, ["core/x.gd"], False, "full", ["plan_review"]),  # a light area skips; the diff is full
+            ("content/7-x", {}, ["content/x.tres"], False, "light", ["plan_review", "skeptic"]),
+            ("level/7-x", {}, ["levels/x.tscn"], False, "light", ["plan_review", "skeptic"]),
+            ("tooling/7-x", {"tier": "full"}, ["docs/x.md"], True, "full", None),  # forced: plans and keeps the skeptic
+            ("docs/7-x", {"design": True}, ["docs/x.md"], True, "full", None),
+        ]
+        jobs = [("issue-task.js", dict(ARGS, branch=b, plan_review=True, skeptic=True, **a), {"paths": p, "findings": [MAJOR]})
+                for b, a, p, *_ in cases]  # fmt: skip
+        for (branch, args, paths, plans, tier, skipped), result in zip(cases, run_jobs(jobs)):
+            with self.subTest(branch=branch, args=args, paths=paths):
+                self.assertIsNone(result["error"])
+                self.assertEqual(bool(calls(result, "plan:")), plans)
+                self.assertEqual(bool(calls(result, "review:plan:")), plans)
+                self.assertEqual(bool(calls(result, "skeptic:")), tier == "full")
+                self.assertEqual(result["returned"]["tier"], tier)
+                self.assertEqual(result["returned"].get("tier_skipped"), skipped)
+
+    def test_ab_review_and_visual_still_run_in_the_light_tier(self) -> None:
+        (result,) = run_jobs([("issue-task.js", dict(ARGS, ab_review=True, models={"code": "sonnet"}), {"paths": ["tools/x.py"], "findings": [MINOR]})])
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["returned"]["tier"], "light")
+        self.assertTrue(calls(result, "review:code-control:"))
+        self.assertTrue(calls(result, "ab-judge:"))
+
+    def test_a_red_implementer_still_reports_its_tier(self) -> None:
+        (result,) = run_jobs([("issue-task.js", ARGS, {"queues": {"implement": [implemented(["docs/x.md"], verify_green=False)]}})])
+        self.assertIsNone(result["error"])
+        self.assertIn("stopped", result["returned"])
+        self.assertEqual(result["returned"]["tier"], "light")
+
+    def test_only_the_full_tier_can_be_forced(self) -> None:
+        bad = [{"tier": "light"}, {"tier": "auto"}, {"tier": True}, {"tier": ""}, {"tier": "Full"}]
+        for args, result in zip(bad, run_jobs([("issue-task.js", dict(ARGS, **a), {}) for a in bad])):
+            with self.subTest(args=args):
+                self.assertIn("issue-task: args.tier must be 'full'", result["error"] or "")
+                self.assertFalse(agents(result))
+
+    def test_issue_task_uses_quick_tasks_netcode_rule(self) -> None:
+        # One rule for the netcode review in both scripts (a workflow script imports nothing, so the regex is copied):
+        # issue-task's full tier is quick-task's netcode review; quick-task also reviews client/ui/, with code-reviewer.
+        def rule(name: str, const: str) -> str:
+            text = (WORKFLOWS / name).read_text(encoding="utf-8")
+            return next(line for line in text.splitlines() if line.startswith(f"const {const} = ")).split(" = ", 1)[1]
+
+        self.assertEqual(rule("issue-task.js", "REVIEWED"), rule("quick-task.js", "NETCODE"))
+        self.assertEqual(rule("quick-task.js", "REVIEWED"), r"/^(core|server|net|client|voice|tests\/harness)\//")
+
+
 def quick(paths: list[str], **extra) -> dict:
     """The quick agent's result (#608): a PR with CI green unless extra says otherwise."""
     pr = {"pr_url": "https://github.com/o/r/pull/9", "pr_number": 9, "ci_green": True, "changed_paths": paths, "summary": "s"}
@@ -2335,7 +2504,7 @@ QUICK_FIELDS = {"n", "pr_url", "ci_green", "reviewed", "ready_to_merge", "needs_
 
 @unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
 class QuickTaskTest(unittest.TestCase):
-    """quick-task.js (#608): one agent to a PR, reviewers only for a diff under core/ server/ net/ voice/ tests/harness/."""
+    """quick-task.js (#608): one agent to a PR, reviewers only for a diff under core/ server/ net/ client/ voice/ tests/harness/."""
 
     def run_quick(self, *cases: tuple[dict, dict]) -> list[dict]:
         return run_jobs([("quick-task.js", dict(ARGS, **args), stub) for args, stub in cases])
@@ -2353,7 +2522,7 @@ class QuickTaskTest(unittest.TestCase):
         self.assertEqual((out["pr_url"], out["pr"], out["ci_green"], out["needs_engineer"]), ("https://github.com/o/r/pull/9", 9, True, []))
 
     def test_a_core_or_netcode_diff_gets_both_reviewers(self) -> None:
-        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "client/hud/hud.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
+        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "client/hud/hud.gd", "client/ui_kit/k.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
         cases.append(({}, {"queues": {"publish": [quick([])]}}))  # no paths returned: unknown, so reviewed
         for result in self.run_quick(*cases):
             with self.subTest(why=result["returned"]["reviewed"]["why"]):
@@ -2362,6 +2531,27 @@ class QuickTaskTest(unittest.TestCase):
                 self.assertEqual(reviewers, [("review:code:#7", "code-reviewer"), ("review:netcode:#7", "netcode-security-reviewer")])
                 self.assertTrue(result["returned"]["reviewed"]["done"])
                 self.assertTrue(result["returned"]["ready_to_merge"])
+
+    def test_a_client_ui_diff_gets_the_code_reviewer_alone(self) -> None:
+        # #606: the engineer's answer 2b (#302, comment 6085059719) made client/ui/ light in issue-task, where light keeps
+        # code-reviewer; quick-task gives the screens the same one reviewer, never none. A path outside client/ui/ under
+        # client/ (client/ui_kit/ only starts with "ui") brings the netcode review back.
+        ui, mixed, kit = self.run_quick(
+            ({}, {"findings": [MAJOR], "queues": {"publish": [quick(["client/ui/hud.gd", "docs/x.md"])], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
+            ({}, {"queues": {"publish": [quick(["client/ui/hud.gd", "client/player/p.gd"])]}}),
+            ({}, {"queues": {"publish": [quick(["client/ui_kit/k.gd"])]}}),
+        )  # fmt: skip
+        self.assertIsNone(ui["error"])
+        self.assertEqual([(e["label"], options(e)["agentType"]) for e in agents(ui)[1:2]], [("review:code:#7", "code-reviewer")])
+        self.assertFalse(calls(ui, "review:netcode"))
+        self.assertEqual(ui["returned"]["reviews"], [{"by": "code-reviewer", "findings": 1, "serious": 1}])
+        self.assertIn("code-reviewer alone, no netcode review (#606)", ui["returned"]["reviewed"]["why"])
+        self.assertEqual(len(calls(ui, "fix")), 1)  # a major from the one reviewer still gets the fix agent
+        self.assertTrue(ui["returned"]["ready_to_merge"])
+        for result in (mixed, kit):
+            self.assertIsNone(result["error"])
+            self.assertTrue(calls(result, "review:netcode"))
+            self.assertNotIn("code-reviewer alone", result["returned"]["reviewed"]["why"])
 
     def test_a_blocker_or_major_gets_one_fix_agent_and_gates_the_merge(self) -> None:
         core = quick(["core/match/vote.gd"])
@@ -2422,7 +2612,8 @@ class QuickTaskTest(unittest.TestCase):
         prompt = event["prompt"]
         for want in ("at most 60 tool calls", "tools/run.sh lint", "tools/run.sh check", "git push -u origin tooling/7-x",
                      "gh pr create --base release/m5", "Closes #7", "timeout 180 gh pr checks", "At most two fix rounds",
-                     "the attribution line your system reminder gives for commits", STASH_RULE.replace("Never use ", "No ")):
+                     "the attribution line your system reminder gives for commits", STASH_RULE.replace("Never use ", "No "),
+                     "Read a log by search, never whole"):  # #572
             self.assertIn(want, prompt)
         self.assertNotIn("tools/run.sh verify", prompt)
         self.assertNotIn("publish`", prompt)
