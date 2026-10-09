@@ -20,6 +20,9 @@ const STOP_RAISE := &"StopRaise"
 const GIVE_UP := &"GiveUp"
 ## A living player swaps its hand and belt items (M4-5, vision revision 1: Two hands).
 const SWAP := &"Swap"
+## A living player throws its hand item along `facing` (#37, the throwing ADR's TE4): the host
+## takes only the facing; the origin, the speed and the arc are its own (ThrowItem).
+const THROW := &"Throw"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -36,12 +39,13 @@ const ALL: Array[StringName] = [
 	STOP_RAISE,
 	GIVE_UP,
 	SWAP,
+	THROW,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
 ## none of them, not even the host under HOST (Match._accepts, vision revision 1).
 const PLAYER_ACTIONS: Array[StringName] = [
-	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP
+	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW
 ]
 
 ## Commands server/ originates from what the transport reports; not intents, never rejected.
@@ -93,6 +97,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	STOP_RAISE: {},
 	GIVE_UP: {},
 	SWAP: {},
+	THROW: {"facing": TYPE_VECTOR3},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 }

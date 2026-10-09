@@ -166,6 +166,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"InSight": [true, true, item],
 		&"ItemOnGround": [false, true, item],
 		&"NoneAlive": [false, false, none],
+		&"OverFloor": [true, false, none],
 		&"StaminaCost": [true, false, none],
 		&"TargetDowned": [false, true, none],
 		&"TargetInReach": [true, true, none],

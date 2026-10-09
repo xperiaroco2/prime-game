@@ -11,7 +11,7 @@ extends RefCounted
 ##   on the later of the delivery and the zone (every task done); it stays two seconds into End;
 ## - bot 4 is the "hostile but valid" chaos peer's own bot: it gets ready, walks into the zone,
 ##   stands there a second, then **freezes** (the zone task ADR's freeze row, ZE10): for FREEZE_S
-##   (200 ticks) its client sends no claim while it polls on, and then one claim spends the stored
+##   (190 ticks) its client sends no claim while it polls on, and then one claim spends the stored
 ##   credit to walk AWAY at once. ChaosRun holds its claims in both runs and checks that the zone
 ##   gained at most ZoneTask.STALE_TICKS (10) from the silence. Then it is downed (and with
 ##   `until_dead` dead, once the knockdown time runs out), and the match ends before it gets up or
@@ -42,10 +42,18 @@ const WAIT_AT_CIRCLE_S := 45.0
 const ZONE := &"zone"
 ## How long bot 4 stands counted in the zone before it freezes.
 const SETTLE_S := 1.0
-## The freeze: 200 host ticks without a claim (the ADR's freeze row).
-const FREEZE_S := 10.0
-## Where bot 4's one claim after the freeze takes it: about 30 m from the greybox's zones, within
-## the 45 m that 200 ticks of walking cover, and clear of every marker.
+## The freeze (the ADR's freeze row): 190 host ticks without a claim, MovementRule.PUSH_TICKS (the
+## lost-claim tolerance of §7.1) under MovementRule.MAX_TICK_CREDIT. The claim after it covers the
+## silence, a tick more as the freeze starts between two client ticks, and any claims the fault
+## shim dropped just before it (10% of LATEST over WebRTC). With a 200-tick freeze it covered 201
+## ticks over WebRTC (#674, seed 7): past the credit, so corrected, and bot 4 stood corrected in
+## the zone for the rest of the round (its script adopts no Correction outside a placement: ChaosRun
+## takes each for a chaos claim's), which held back every hostile claim.
+const FREEZE_TICKS := MovementRule.MAX_TICK_CREDIT - MovementRule.PUSH_TICKS
+const FREEZE_S := FREEZE_TICKS * 1.0 / Ticks.RATE
+## Where bot 4's one claim after the freeze takes it: about 30 m or more from the greybox's zones
+## (39.6 m from the one the scenario's seed deals, at (-9, 0, 7)), within the 42.75 m that the
+## freeze's 190 ticks of walking cover, and clear of every marker.
 const AWAY := Vector3(20, 0, -20)
 ## The name of bot 4's freeze step (ChaosRun holds its claims while it is the current step).
 const FREEZE := &"freeze"

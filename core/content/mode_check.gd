@@ -13,7 +13,11 @@ extends RefCounted
 ## no ChannelTicks, so the channel would never complete and a raise would pause a knockdown for
 ## good (M4-4); a ChannelEffect outside an action (a reaction, a row's actions), which has no player
 ## to run it, or in a rule that lacks a condition the effect requires (RaiseDowned: TargetDowned);
-## a reaction or a win condition holding a condition that reads the actor
+## a phase that accepts an intent whose rule throws an item (a ThrowItem) that lists no
+## FlightTicks, so the item would never fly (#643); a ThrowItem outside an action, or in a rule
+## that lacks HoldsItem or OverFloor, so a belt item could be thrown or a throw over no floor
+## leave its item in the air (the throwing ADR, TD11); a required condition only counts when it is
+## not negated; a reaction or a win condition holding a condition that reads the actor
 ## (Condition.reads_actor_state: HoldsItem, InReach, Cooldown, ...), which tests no player there
 ## (actor 0): a cost of that kind always refuses, so the reaction would never run (#283) or the
 ## win condition never hold, and any other passes always or never (#299); a reaction or a win
@@ -258,6 +262,7 @@ func _check_owner(
 				errors.append("%s: rule %s negates a cost" % [owner, rule.trigger])
 			gated = gated or condition.gates_on_role()
 		_check_channel_rule(owner, rule, Array(triggers) == Array(Intents.ALL))
+		_check_throw_rule(owner, rule, Array(triggers) == Array(Intents.ALL))
 		if gated and _has_channel and Array(triggers) == Array(Intents.ALL):
 			warnings.append(
 				(
@@ -311,9 +316,42 @@ func _check_channel_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 				)
 
 
+## A ThrowItem of `rule`: only in an action (a rule on an intent: a throw is a player's), and
+## with every condition class it requires (ThrowItem.required_conditions: HoldsItem, OverFloor),
+## so no mode throws a belt item or throws over no floor, where the item could hang in the air.
+func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
+	for effect: RuleEffect in rule.effects:
+		if not effect is ThrowItem:
+			continue
+		if not on_intent:
+			errors.append(
+				(
+					"%s: rule %s throws an item, which only a player's intent can throw"
+					% [owner, rule.trigger]
+				)
+			)
+		for required: Script in (effect as ThrowItem).required_conditions():
+			if not _has_condition(rule, required):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s throws an item, which requires the condition %s, which it lacks"
+							% [owner, rule.trigger, required.get_global_name()]
+						)
+					)
+				)
+
+
+## Whether `rule` holds a condition of `condition_class` that is not negated: a negated one
+## passes exactly where the required one would refuse.
 static func _has_condition(rule: Rule, condition_class: Script) -> bool:
 	for condition: Condition in rule.conditions:
-		if condition != null and is_instance_of(condition, condition_class):
+		if (
+			condition != null
+			and not condition.negate
+			and is_instance_of(condition, condition_class)
+		):
 			return true
 	return false
 
@@ -322,7 +360,7 @@ static func _has_condition(rule: Rule, condition_class: Script) -> bool:
 static func _any_channel(mode: GameMode) -> bool:
 	for intent: StringName in Intents.ALL:
 		for rule: Rule in _actions_on(mode, intent):
-			if rule != null and _starts_channel(rule):
+			if rule != null and _holds_effect(rule, ChannelEffect):
 				return true
 	return false
 
@@ -378,12 +416,19 @@ func _check_ticking(mode: GameMode) -> void:
 			)
 
 
-## A row's actions run with no actor, so a ChannelEffect among them is an error.
+## A row's actions run with no actor, so a ChannelEffect or a ThrowItem among them is an error.
 func _check_rows(mode: GameMode) -> void:
 	for row: Transition in mode.transitions:
 		if row == null:
 			continue
 		for action: RuleEffect in row.actions:
+			if action is ThrowItem:
+				errors.append(
+					(
+						"row %s, %s throws an item, which only a player's intent can throw"
+						% [row.from, row.outcome]
+					)
+				)
 			if action is ChannelEffect:
 				errors.append(
 					(
@@ -431,7 +476,18 @@ func _check_phases(mode: GameMode) -> void:
 					% [spec.id, knocks_down]
 				)
 			)
-		var channels := _channeling(mode, spec)
+		var throws := _running(mode, spec, ThrowItem)
+		if not throws.is_empty() and not _lists(spec, FlightTicks):
+			errors.append(
+				(
+					(
+						"phase %s accepts %s, which throws an item, but lists no FlightTicks:"
+						+ " the item would hang where it left the hand"
+					)
+					% [spec.id, throws]
+				)
+			)
+		var channels := _running(mode, spec, ChannelEffect)
 		if not channels.is_empty() and not _lists(spec, ChannelTicks):
 			errors.append(
 				(
@@ -541,23 +597,24 @@ static func _lists(spec: PhaseSpec, system_class: Script) -> bool:
 	return false
 
 
-## The intents `spec` accepts whose rules hold an effect that starts a channel (a ChannelEffect),
-## each once, in order.
-static func _channeling(mode: GameMode, spec: PhaseSpec) -> Array[StringName]:
+## The intents `spec` accepts whose rules (the mode's, a role's, an item kind's) hold an effect of
+## `effect_class` (a ChannelEffect: starts a channel; a ThrowItem: throws an item), each once, in
+## order.
+static func _running(mode: GameMode, spec: PhaseSpec, effect_class: Script) -> Array[StringName]:
 	var found: Array[StringName] = []
 	for entry: AcceptSpec in spec.accepts:
 		if entry == null or found.has(entry.intent):
 			continue
 		for rule: Rule in _actions_on(mode, entry.intent):
-			if rule != null and _starts_channel(rule):
+			if rule != null and _holds_effect(rule, effect_class):
 				found.append(entry.intent)
 				break
 	return found
 
 
-static func _starts_channel(rule: Rule) -> bool:
+static func _holds_effect(rule: Rule, effect_class: Script) -> bool:
 	for effect: RuleEffect in rule.effects:
-		if effect is ChannelEffect:
+		if effect != null and is_instance_of(effect, effect_class):
 			return true
 	return false
 

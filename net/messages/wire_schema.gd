@@ -13,9 +13,11 @@ extends RefCounted
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
 ## 9 since #429 added MoveClaimReliable (kind 14).
-## 11 since #647 added ZoneProgress (kind 66). 10 is release/m6.2's (#550, Hello's `name`), not on
-## this line yet: two tables must never share a number, so whichever lands second takes the next.
-const VERSION := 11
+## 11 since #647 added ZoneProgress (kind 66); 12 since #643 added Throw (kind 15) and ItemThrown
+## (kind 67). release/m6.2 has its own 10 (#550, Hello's `name`) and 11 (#214, the lobby's name),
+## not on this line yet, so 11 already names two tables: whichever release reaches main second
+## renumbers its own bumps above the other's highest.
+const VERSION := 12
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -221,6 +223,7 @@ static func _intents() -> Array[WireRow]:
 		_up(12, &"GiveUp", 4, [_seq()]),
 		_up(13, &"Swap", 4, [_seq()]),
 		twin,
+		_up(15, &"Throw", 16, [_seq(), _vec3("facing")]),
 	]
 
 
@@ -384,6 +387,19 @@ static func _events() -> Array[WireRow]:
 				_u16("ticks"),
 				_u16("needed"),
 				_bool("counting"),
+				_of("tick", _tick())
+			]
+		),
+		_down(
+			67,
+			&"ItemThrown",
+			46,
+			[
+				_item("item"),
+				_peer("peer"),
+				_vec3("origin"),
+				_vec3("velocity"),
+				_vec3("gravity"),
 				_of("tick", _tick())
 			]
 		),
