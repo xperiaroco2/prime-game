@@ -405,7 +405,8 @@ Open questions (the engineer's; #688's "Open" and the ADR's RD items, each with 
 - After the last part: can the lift still be raised?
 - The task's name and description, and the lobby label of its subtask count.
 - Does car repair play on the greybox too, and does every match deal it?
-- The sounds: the lift's motor, the drop, the fitting?
+- The sounds: the lift's motor, the drop, a part taken and fitted? Should a sound play while a fit runs? The holder at
+  the panel would hear it through the wall and know someone is under the car.
 - Is "no view of who is under the car" hidden by sight only (every client receives every player's position, as
   today, and the level's walls hide the space under the car from the panel; a modified client could show it), or
   should the host stop sending those positions to the holder?
