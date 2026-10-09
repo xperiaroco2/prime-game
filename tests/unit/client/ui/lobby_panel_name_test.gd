@@ -123,5 +123,14 @@ func test_the_title_is_the_hosts_name_or_the_default() -> void:
 	assert_str(LobbyPanel.lobby_title(model)).is_equal("Лобі: Player1")
 
 
+func test_no_host_in_the_roster_gives_no_default_name() -> void:
+	var model := _model(false)
+	model.roster.erase(NetTransport.HOST_ID)
+	assert_str(LobbyPanel.default_name(model)).is_empty()
+	assert_str(LobbyPanel.lobby_title(model)).is_empty()
+	_panel.refresh(model, -1, false)
+	assert_str(_panel.name_edit.placeholder_text).is_empty()
+
+
 func _model(as_host: bool) -> ClientModel:
 	return Preview.fake_model(load(MODE) as GameMode, as_host)

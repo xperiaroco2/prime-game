@@ -176,9 +176,13 @@ static func lobby_title(model: ClientModel) -> String:
 	return model.lobby_name if not model.lobby_name.is_empty() else default_name(model)
 
 
-## The default lobby name: `lobby.default_name` with the host's name.
+## The default lobby name: `lobby.default_name` with the host's name, or "" while the roster has no
+## host (never "'s lobby"), as ConnectingScreen.set_lobby does.
 static func default_name(model: ClientModel) -> String:
-	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": model.host_name()})
+	var host := model.host_name()
+	if host.is_empty():
+		return ""
+	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": host})
 
 
 ## The countdown in words, or that the start waits for everyone.
