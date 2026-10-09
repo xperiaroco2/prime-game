@@ -19,6 +19,27 @@ const PACKAGE := 7
 const KNIFE := 3
 const CIRCLE := 2
 const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
+## The fake house's rooms (fake_level): id, north-west corner, size in metres.
+const FAKE_ROOMS: Array[Array] = [
+	[&"storage", Vector3(-20, 0, -16), Vector2i(12, 10)],
+	[&"hall", Vector3(-8, 0, -16), Vector2i(16, 10)],
+	[&"kitchen", Vector3(8, 0, -16), Vector2i(12, 10)],
+	[&"lab", Vector3(-20, 0, -6), Vector2i(14, 12)],
+	[&"office", Vector3(-6, 0, -6), Vector2i(12, 12)],
+	[&"lounge", Vector3(6, 0, -6), Vector2i(14, 12)],
+]
+## The fake house's markers: group and position.
+const FAKE_MARKERS: Array[Array] = [
+	["spawn_package", Vector3(-17, 0, -13)],
+	["spawn_package", Vector3(-12, 0, -9)],
+	["spawn_package", Vector3(-15, 0, 2)],
+	["spawn_circle", Vector3(14, 0, -11)],
+	["spawn_round_player", Vector3(-2, 0, -11)],
+	["spawn_round_player", Vector3(2, 0, -11)],
+]
+## The own player's place in the fake house (the hall) and its heading, radians from north.
+const FAKE_OWN_PLACE := Vector3(0, 0, -10)
+const FAKE_OWN_HEADING := 0.6
 
 @export var preview := Preview.MENU
 ## The preview shows the host's view (its settings, Esc's confirmation).
@@ -230,3 +251,24 @@ static func fold_round(model: ClientModel, with_items := true) -> void:
 	model.fold(&"ItemSpawned", {"item": KNIFE, "kind": &"knife", "position": Vector3(1, 0, -1)})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": KNIFE})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": PACKAGE, "belted": KNIFE})
+
+
+## A fake house for the map screen (#253): dev only, numbers that are not decisions. Six rooms by
+## PR #611's convention (a Node3D with `metadata/size_m`, its origin the north-west corner), the
+## packages' markers in the storage and the lab, a circle's marker in the kitchen and the round's
+## spawn points in the hall. The caller frees it.
+static func fake_level() -> Node3D:
+	var level := Node3D.new()
+	level.name = "FakeHouse"
+	for room: Array in FAKE_ROOMS:
+		var node := Node3D.new()
+		node.name = String(room[0] as StringName).to_pascal_case()
+		node.position = room[1] as Vector3
+		node.set_meta(MapData.SIZE_KEY, room[2])
+		level.add_child(node)
+	for marker: Array in FAKE_MARKERS:
+		var spot := Marker3D.new()
+		spot.position = marker[1] as Vector3
+		spot.add_to_group(StringName(marker[0] as String), true)
+		level.add_child(spot)
+	return level
