@@ -1560,7 +1560,15 @@ sections named:
    player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
    The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
    velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
-   walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last);
+   walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
+   Over the loopback, `ChaosRun` fails a run in which no hostile claim went out while its client knew it alive in
+   the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 13 to 27 over seeds 188001 to
+   188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot silence class 5
+   unseen. Over a network it only prints the count: over WebRTC seed 7 sent none (188001 sent 13), not looked into.
+   The run does not play the freeze with refused claims (a far claim, a past-credit tick or another epoch sent
+   during the freeze, hoping each `Correction` keeps the claim young): `MovementRule.claim_age` reads only an
+   accepted claim, covered by `movement_rule_claim_age_test.gd` (a refused claim does not renew it), not end to
+   end;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
 7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
