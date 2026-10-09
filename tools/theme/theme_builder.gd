@@ -637,9 +637,9 @@ static func _add_base_types(theme: Theme, mapping: Dictionary) -> void:
 		if row.has("from"):
 			var from := str(row["from"])
 			for kind in Theme.DATA_TYPE_MAX:
-				var names := theme.get_theme_item_list(kind, from)
-				names.sort()
-				for item in names:
+				var item_names := theme.get_theme_item_list(kind, from)
+				item_names.sort()
+				for item in item_names:
 					theme.set_theme_item(kind, item, cls, theme.get_theme_item(kind, item, from))
 		_set_literal_items(theme, cls, row)
 	var engine_variations: Dictionary = _dict(mapping, "engine_variations")
