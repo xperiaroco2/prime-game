@@ -1,7 +1,7 @@
 class_name ConnectingScreen
 extends Control
 ## The black screen of a join, its failures and the map loading (prime-game-ui's s3 handoff at
-## ui-0.4.0, #494; ARCHITECTURE §4.7.29), node for node as drawn: under Night (opaque, it takes the
+## ui-0.4.0, #494; ARCHITECTURE §4.7.30), node for node as drawn: under Night (opaque, it takes the
 ## mouse) one of three parts shows.
 ## - JOIN (Connecting): the spinner, the title and the step (JoinProgress), a code join's code and
 ##   the time since Join, and Cancel, focused; Game makes Esc do the same.
@@ -144,6 +144,7 @@ func show_join(code: String, step: JoinProgress.Step) -> void:
 	_lobby = ""
 	set_elapsed(0)
 	set_step(step)
+	_retext_title()
 	_show_part(Part.JOIN)
 
 

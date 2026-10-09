@@ -234,6 +234,11 @@ func test_the_title_names_the_lobby_once_known_and_follows_the_language() -> voi
 	TranslationServer.set_locale(Languages.ENGLISH)
 	assert_str(_screen.title_label.text).is_equal("Connecting…")
 
+	# A later join does not keep the earlier lobby's name.
+	_screen.set_lobby("X")
+	assert_str(_screen.title_label.text).is_equal("Connecting to “X”…")
+	_screen.show_join("K7M2QX", JoinProgress.Step.FINDING)
+	assert_str(_screen.title_label.text).is_equal("Connecting…")
 
 func test_the_version_lines_show_only_on_fail_version_when_both_are_known() -> void:
 	var lines := PackedStringArray(["13 (a1b2c3)", "12 (9f8e7d)"])
