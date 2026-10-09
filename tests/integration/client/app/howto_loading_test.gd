@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## The loading screen's how-to card in the game (#254): a host's Game alone over a LoopbackHub on a
 ## simulated clock, as map_input_test.gd. Its first loading shows Delivery's card instead of the
 ## players and the tip and counts it; a player who saw it twice, or who completed Delivery, gets
-## the tip; a banned type shows no card. The completion itself (the task's counter at its total)
-## is HowtoProgress.follow's, tests/unit/client/app/howto_progress_test.gd.
+## the tip; a task finished in the round completes its type, so the next loading shows the tip
+## (Game._process follows the model); a banned type shows no card. The completion's rule itself
+## (the task's counter at its total) is HowtoProgress.follow's, howto_progress_test.gd.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7425
@@ -49,6 +50,30 @@ func test_after_two_shows_or_a_completion_the_loading_shows_the_tip() -> void:
 	game = await _round_game(PORT + 2, veteran)
 	assert_array(_loading_states).is_equal([&"load"])
 	assert_int(game.howto.loading_shown(&"delivery")).is_equal(0)
+	game.leave()
+	await get_tree().process_frame
+
+
+func test_a_task_finished_in_the_round_completes_its_type_for_the_next_loading() -> void:
+	var game := await _round_game(PORT + 4, HowtoProgress.new())
+	assert_array(_loading_states).is_equal([&"load-card"])
+	var model := game.client().model
+	assert_bool(model.tasks.is_empty()).is_false()
+	var id: int = model.tasks.keys()[0]
+	var task: ClientModel.Task = model.tasks[id]
+	assert_str(String(task.type)).is_equal("delivery")
+	assert_bool(game.howto.completed(&"delivery")).is_false()
+	# The round's task reaches its total in the model the game reads, as its TaskState would.
+	model.fold(
+		&"TaskState", {"task": id, "type": task.type, "done": task.total, "total": task.total}
+	)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(game.howto.completed(&"delivery")).is_true()
+	_loading_states.clear()
+	game.ui.show_screen(S.LOADING)
+	assert_array(_loading_states).is_equal([&"load"])
+	assert_int(game.howto.loading_shown(&"delivery")).is_equal(1)
 	game.leave()
 	await get_tree().process_frame
 
