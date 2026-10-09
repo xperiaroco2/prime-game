@@ -39,6 +39,13 @@ var _code := ""
 var _code_row := HBoxContainer.new()
 ## The lobby's name as the model last had it: a submit of the same name sends nothing.
 var _lobby_name := ""
+## A name the host sent that the model does not show yet (its SettingsChanged is a round trip
+## away): the field keeps it, so it never flicks back to the old name, and a second submit of it
+## sends nothing. Settled once the model's name moves off `_name_at_send` or the host may no longer
+## change it.
+var _pending := ""
+var _awaiting := false
+var _name_at_send := ""
 
 
 func _init() -> void:
@@ -118,13 +125,16 @@ func refresh(model: ClientModel, host_tick: int, may_change: bool) -> void:
 	countdown_label.text = countdown_text(model, host_tick)
 	_may_change = may_change
 	_lobby_name = model.lobby_name
+	if _awaiting and (not may_change or _lobby_name != _name_at_send):
+		_awaiting = false
+	var shown := _pending if _awaiting else _lobby_name
 	name_edit.editable = may_change
 	name_edit.placeholder_text = default_name(model)
 	# Refreshed every frame: never over what the host is typing. A player's read-only field can
 	# hold the focus too (a click, the keyboard), and still follows every rename.
 	var typing := may_change and (name_edit.has_focus() or name_edit.is_editing())
-	if not typing and name_edit.text != _lobby_name:
-		name_edit.text = _lobby_name
+	if not typing and name_edit.text != shown:
+		name_edit.text = shown
 	read_only_label.visible = not may_change
 	shortfalls_label.visible = not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
@@ -203,9 +213,13 @@ func _submit_name() -> void:
 	var wanted := LobbyName.clean(name_edit.text)
 	if name_edit.text != wanted:
 		name_edit.text = wanted
-	if wanted != _lobby_name:
-		_lobby_name = wanted
-		lobby_name_changed.emit(wanted)
+	if wanted == (_pending if _awaiting else _lobby_name):
+		return
+	if not _awaiting:
+		_name_at_send = _lobby_name
+	_pending = wanted
+	_awaiting = true
+	lobby_name_changed.emit(wanted)
 
 
 func _banned(id: StringName) -> PackedStringArray:

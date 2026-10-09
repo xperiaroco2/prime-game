@@ -64,6 +64,27 @@ func test_a_player_reads_the_name_and_sends_nothing() -> void:
 	assert_str(_panel.name_edit.text).is_equal("Den")
 
 
+func test_a_sent_name_stays_in_the_field_until_the_host_echoes_it() -> void:
+	var model := _model(true)
+	_panel.refresh(model, -1, true)
+	_panel.name_edit.text = "Den"
+	_panel.name_edit.focus_exited.emit()
+	assert_array(_sent).is_equal(["Den"])
+	# The echo is a round trip away: the next frames keep the sent name, and leaving the field
+	# again (say after Enter) sends it no second time.
+	_panel.refresh(model, -1, true)
+	assert_str(_panel.name_edit.text).is_equal("Den")
+	_panel.name_edit.focus_exited.emit()
+	assert_array(_sent).is_equal(["Den"])
+	model.lobby_name = "Den"
+	_panel.refresh(model, -1, true)
+	assert_str(_panel.name_edit.text).is_equal("Den")
+	# Once the model has moved, a later rename by anyone shows again.
+	model.lobby_name = "Attic"
+	_panel.refresh(model, -1, true)
+	assert_str(_panel.name_edit.text).is_equal("Attic")
+
+
 func test_a_players_focused_field_still_follows_a_rename() -> void:
 	var model := _model(false)
 	model.lobby_name = "Den"
