@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## The UI's base resolution (#287): the screens are laid out on a 1920x1080 canvas, the size the
 ## UI pack's mock-ups and Toy tokens are drawn at (one mock-up px is one Godot px), stretched to
 ## the window (`canvas_items`, `expand`). The window still opens at Godot's old default of
-## 1152x648, and until the generated theme (#288) replaces the greybox one, Godot's default theme
-## is scaled by 1920/1152 so the controls it draws keep their apparent size.
+## 1152x648, and Godot's default theme is scaled by 1920/1152 so the controls it draws keep their
+## apparent size. The generated theme covers the bare fields, dropdowns, sliders and scroll bars
+## since #576, but CheckBox's box, SpinBox's arrows and the bare Buttons' padding still come from
+## the default theme, so the scale stays until they have looks or the engineer accepts the gaps.
 
 const BASE := Vector2i(1920, 1080)
 const START_WINDOW := Vector2i(1152, 648)

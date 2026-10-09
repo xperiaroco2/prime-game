@@ -1,5 +1,62 @@
 [gd_resource type="Theme" format=3 uid="uid://c8behqt7jtcn8"]
 
+[sub_resource type="StyleBoxFlat" id="ToySlider_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+expand_margin_left = 5.0
+expand_margin_top = 5.0
+expand_margin_right = 5.0
+expand_margin_bottom = 5.0
+
+[sub_resource type="StyleBoxFlat" id="ToySlider_grabber_area"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.1647, 0.1216, 0.2, 1)
+border_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxFlat" id="ToySlider_grabber_area_highlight"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.1647, 0.1216, 0.2, 1)
+border_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxFlat" id="ToySlider_slider"]
+content_margin_left = 0.0
+content_margin_top = 5.0
+content_margin_right = 0.0
+content_margin_bottom = 5.0
+bg_color = Color(0.8627, 0.8118, 0.8941, 1)
+border_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
 [sub_resource type="StyleBoxFlat" id="LifeBar_background"]
 content_margin_left = 267.0
 content_margin_top = 5.0
@@ -11,6 +68,198 @@ corner_radius_top_left = 999
 corner_radius_top_right = 999
 corner_radius_bottom_right = 999
 corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxFlat" id="ToyField_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+expand_margin_left = -3.0
+expand_margin_top = -3.0
+expand_margin_right = -3.0
+expand_margin_bottom = -3.0
+
+[sub_resource type="StyleBoxFlat" id="ToyField_normal"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyField_read_only"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_disabled"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9529, 0.9294, 0.9647, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.3922, 0.3373, 0.4353, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_focus"]
+content_margin_left = 3.0
+content_margin_top = 3.0
+content_margin_right = 3.0
+content_margin_bottom = 3.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
+expand_margin_left = -3.0
+expand_margin_top = -3.0
+expand_margin_right = -3.0
+expand_margin_bottom = -3.0
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_hover"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_hover_pressed"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_normal"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdown_pressed"]
+content_margin_left = 16.0
+content_margin_top = 10.0
+content_margin_right = 16.0
+content_margin_bottom = 10.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdownList_hover"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.9137, 0.8745, 0.9412, 1)
+border_color = Color(0, 0, 0, 0)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdownList_panel"]
+content_margin_left = 7.0
+content_margin_top = 7.0
+content_margin_right = 7.0
+content_margin_bottom = 7.0
+bg_color = Color(1, 0.9569, 0.8863, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.1647, 0.1216, 0.2, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="ToyDropdownList_separator"]
+content_margin_left = 0.0
+content_margin_top = 2.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0, 0, 0, 0)
+draw_center = false
+border_width_top = 2
+border_color = Color(0.1647, 0.1216, 0.2, 1)
 
 [sub_resource type="StyleBoxFlat" id="ToyBackdrop_panel"]
 content_margin_left = 0.0
@@ -1249,198 +1498,6 @@ corner_radius_top_right = 999
 corner_radius_bottom_right = 999
 corner_radius_bottom_left = 999
 
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_disabled"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9529, 0.9294, 0.9647, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.3922, 0.3373, 0.4353, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_focus"]
-content_margin_left = 3.0
-content_margin_top = 3.0
-content_margin_right = 3.0
-content_margin_bottom = 3.0
-bg_color = Color(0, 0, 0, 0)
-draw_center = false
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 9
-corner_radius_top_right = 9
-corner_radius_bottom_right = 9
-corner_radius_bottom_left = 9
-expand_margin_left = -3.0
-expand_margin_top = -3.0
-expand_margin_right = -3.0
-expand_margin_bottom = -3.0
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_hover"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9137, 0.8745, 0.9412, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_hover_pressed"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9137, 0.8745, 0.9412, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_normal"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(1, 1, 1, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdown_pressed"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9137, 0.8745, 0.9412, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdownList_hover"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0.9137, 0.8745, 0.9412, 1)
-border_color = Color(0, 0, 0, 0)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdownList_panel"]
-content_margin_left = 7.0
-content_margin_top = 7.0
-content_margin_right = 7.0
-content_margin_bottom = 7.0
-bg_color = Color(1, 0.9569, 0.8863, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyDropdownList_separator"]
-content_margin_left = 0.0
-content_margin_top = 2.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0, 0, 0, 0)
-draw_center = false
-border_width_top = 2
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-
-[sub_resource type="StyleBoxFlat" id="ToyField_focus"]
-content_margin_left = 3.0
-content_margin_top = 3.0
-content_margin_right = 3.0
-content_margin_bottom = 3.0
-bg_color = Color(0, 0, 0, 0)
-draw_center = false
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 9
-corner_radius_top_right = 9
-corner_radius_bottom_right = 9
-corner_radius_bottom_left = 9
-expand_margin_left = -3.0
-expand_margin_top = -3.0
-expand_margin_right = -3.0
-expand_margin_bottom = -3.0
-
-[sub_resource type="StyleBoxFlat" id="ToyField_normal"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(1, 1, 1, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
-[sub_resource type="StyleBoxFlat" id="ToyField_read_only"]
-content_margin_left = 16.0
-content_margin_top = 10.0
-content_margin_right = 16.0
-content_margin_bottom = 10.0
-bg_color = Color(0.9529, 0.9294, 0.9647, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.3922, 0.3373, 0.4353, 1)
-corner_radius_top_left = 12
-corner_radius_top_right = 12
-corner_radius_bottom_right = 12
-corner_radius_bottom_left = 12
-
 [sub_resource type="StyleBoxFlat" id="ToyHowtoFrame_panel"]
 content_margin_left = 13.0
 content_margin_top = 13.0
@@ -2587,63 +2644,6 @@ corner_radius_top_right = 12
 corner_radius_bottom_right = 12
 corner_radius_bottom_left = 12
 
-[sub_resource type="StyleBoxFlat" id="ToySlider_focus"]
-content_margin_left = 3.0
-content_margin_top = 3.0
-content_margin_right = 3.0
-content_margin_bottom = 3.0
-bg_color = Color(0, 0, 0, 0)
-draw_center = false
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.1647, 0.1216, 0.2, 1)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-expand_margin_left = 5.0
-expand_margin_top = 5.0
-expand_margin_right = 5.0
-expand_margin_bottom = 5.0
-
-[sub_resource type="StyleBoxFlat" id="ToySlider_grabber_area"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0.1647, 0.1216, 0.2, 1)
-border_color = Color(0, 0, 0, 0)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-
-[sub_resource type="StyleBoxFlat" id="ToySlider_grabber_area_highlight"]
-content_margin_left = 0.0
-content_margin_top = 0.0
-content_margin_right = 0.0
-content_margin_bottom = 0.0
-bg_color = Color(0.1647, 0.1216, 0.2, 1)
-border_color = Color(0, 0, 0, 0)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-
-[sub_resource type="StyleBoxFlat" id="ToySlider_slider"]
-content_margin_left = 0.0
-content_margin_top = 5.0
-content_margin_right = 0.0
-content_margin_bottom = 5.0
-bg_color = Color(0.8627, 0.8118, 0.8941, 1)
-border_color = Color(0, 0, 0, 0)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-
 [sub_resource type="StyleBoxFlat" id="ToySlot_panel"]
 content_margin_left = 7.0
 content_margin_top = 7.0
@@ -3055,6 +3055,8 @@ expand_margin_right = 36.0
 expand_margin_bottom = 4.0
 
 [resource]
+default_font_size = 27
+CheckBox/constants/h_separation = 7
 DebugMargin/base_type = &"MarginContainer"
 DebugMargin/constants/margin_bottom = 13
 DebugMargin/constants/margin_left = 13
@@ -3074,6 +3076,11 @@ EscShade/base_type = &"ToyBackdrop"
 EscTab/base_type = &"ToyMenuItem"
 EscTabs/base_type = &"VBoxContainer"
 EscTabs/constants/separation = 10
+HBoxContainer/constants/separation = 7
+HSlider/styles/focus = SubResource("ToySlider_focus")
+HSlider/styles/grabber_area = SubResource("ToySlider_grabber_area")
+HSlider/styles/grabber_area_highlight = SubResource("ToySlider_grabber_area_highlight")
+HSlider/styles/slider = SubResource("ToySlider_slider")
 HudCrosshair/base_type = &"Label"
 HudCrosshair/font_sizes/font_size = 40
 HudHint/base_type = &"ToyHudCaption"
@@ -3085,6 +3092,7 @@ HudMargin/constants/margin_top = 27
 HudPanel/base_type = &"ToyPlate"
 HudText/base_type = &"ToyTextOnDark"
 HudTitle/base_type = &"ToyTitleOnDark"
+Label/constants/line_spacing = 5
 LifeBar/base_type = &"ToyBarProgress"
 LifeBar/styles/background = SubResource("LifeBar_background")
 LifeMargin/base_type = &"MarginContainer"
@@ -3092,16 +3100,55 @@ LifeMargin/constants/margin_bottom = 160
 LifePanel/base_type = &"ToyPlate"
 LifeText/base_type = &"ToyTextOnDark"
 LifeTitle/base_type = &"ToyTitleOnDark"
+LineEdit/colors/caret_color = Color(0.1647, 0.1216, 0.2, 1)
+LineEdit/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+LineEdit/colors/font_placeholder_color = Color(0.3922, 0.3373, 0.4353, 1)
+LineEdit/colors/font_selected_color = Color(0.1647, 0.1216, 0.2, 1)
+LineEdit/colors/font_uneditable_color = Color(0.1647, 0.1216, 0.2, 1)
+LineEdit/colors/selection_color = Color(1, 0.7608, 0.2275, 1)
+LineEdit/font_sizes/font_size = 22
+LineEdit/styles/focus = SubResource("ToyField_focus")
+LineEdit/styles/normal = SubResource("ToyField_normal")
+LineEdit/styles/read_only = SubResource("ToyField_read_only")
 LoadingBackdrop/base_type = &"ToyBackdropNight"
+OptionButton/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+OptionButton/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+OptionButton/colors/font_focus_color = Color(0.1647, 0.1216, 0.2, 1)
+OptionButton/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+OptionButton/colors/font_hover_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+OptionButton/colors/font_pressed_color = Color(0.1647, 0.1216, 0.2, 1)
+OptionButton/constants/arrow_margin = 16
+OptionButton/constants/h_separation = 8
+OptionButton/constants/modulate_arrow = 1
+OptionButton/font_sizes/font_size = 22
+OptionButton/styles/disabled = SubResource("ToyDropdown_disabled")
+OptionButton/styles/focus = SubResource("ToyDropdown_focus")
+OptionButton/styles/hover = SubResource("ToyDropdown_hover")
+OptionButton/styles/hover_pressed = SubResource("ToyDropdown_hover_pressed")
+OptionButton/styles/normal = SubResource("ToyDropdown_normal")
+OptionButton/styles/pressed = SubResource("ToyDropdown_pressed")
 PanelMargin/base_type = &"MarginContainer"
 PanelMargin/constants/margin_bottom = 30
 PanelMargin/constants/margin_left = 30
 PanelMargin/constants/margin_right = 30
 PanelMargin/constants/margin_top = 30
+PopupMenu/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
+PopupMenu/colors/font_disabled_color = Color(0.3922, 0.3373, 0.4353, 1)
+PopupMenu/colors/font_hover_color = Color(0.1647, 0.1216, 0.2, 1)
+PopupMenu/constants/h_separation = 8
+PopupMenu/constants/item_end_padding = 16
+PopupMenu/constants/item_start_padding = 8
+PopupMenu/constants/v_separation = 16
+PopupMenu/font_sizes/font_size = 22
+PopupMenu/styles/hover = SubResource("ToyDropdownList_hover")
+PopupMenu/styles/panel = SubResource("ToyDropdownList_panel")
+PopupMenu/styles/separator = SubResource("ToyDropdownList_separator")
 ScreenColumn/base_type = &"VBoxContainer"
 ScreenColumn/constants/separation = 17
+ScrollContainer/constants/scrollbar_h_separation = 8
 Shortfalls/base_type = &"Label"
 Shortfalls/colors/font_color = Color(1, 0.75, 0.4, 1)
+SpinBoxInnerLineEdit/base_type = &"LineEdit"
 TaskDescription/base_type = &"ToyTextMutedOnDark"
 TaskPanel/base_type = &"ToyPlate"
 TaskRow/base_type = &"ToyTextOnDark"
@@ -3880,6 +3927,13 @@ ToyTitlePlate/colors/font_color = Color(0.1647, 0.1216, 0.2, 1)
 ToyTitlePlate/colors/font_shadow_color = Color(0, 0, 0, 0)
 ToyTitlePlate/font_sizes/font_size = 96
 ToyTitlePlate/styles/normal = SubResource("ToyTitlePlate_normal")
+VBoxContainer/constants/separation = 7
+VScrollBar/styles/grabber = SubResource("ToyScrollBar_grabber")
+VScrollBar/styles/grabber_highlight = SubResource("ToyScrollBar_grabber_highlight")
+VScrollBar/styles/grabber_pressed = SubResource("ToyScrollBar_grabber_pressed")
+VScrollBar/styles/scroll = SubResource("ToyScrollBar_scroll")
+VScrollBar/styles/scroll_focus = SubResource("ToyScrollBar_scroll_focus")
+VSeparator/constants/separation = 7
 metadata/toy_hints = {
 "bases": {
 "ToyButtonDanger": {

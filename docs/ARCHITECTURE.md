@@ -2172,8 +2172,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
   and hint under it. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
-  variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
-  screens name variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
+  variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
+  gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the screens name
+  variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
   the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
@@ -2547,9 +2548,11 @@ ADR's §6 check the rest.
   the screens keep their apparent size: the theme's font sizes, container margins and separations and its style
   boxes' content margins (not the corner radii); the layout widths in `client/ui/` code (the menu's fields,
   `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug
-  overlay's inset, the dev test room's overlay box); and Godot's default theme, which draws the controls no
-  variation styles yet (fields, spin boxes, sliders, scroll bars; the buttons are Toy ones since #289), through
-  `gui/theme/default_theme_scale` = 1.6667. Whoever makes the generated theme cover those controls sets it back to 1.
+  overlay's inset, the dev test room's overlay box). Godot's default theme, which drew the controls no variation
+  styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), is scaled by
+  `gui/theme/default_theme_scale` = 1.6667. Since #576 the generated theme covers the fields, dropdowns, sliders and
+  scroll bars, but the scale stays 1.6667 until the rest (CheckBox's box, SpinBox's arrows, the bare Buttons'
+  padding) has a look or the engineer accepts the gaps (§4.7.30).
 - Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
   start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
   `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
@@ -2571,17 +2574,17 @@ ADR's §6 check the rest.
   the Toy components' code reads; the mapping names which items are custom and which bound items Godot's default
   theme leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
 - `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
-  state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion stop the
-  build) and builds the `Theme` in memory; each StyleBox has the sub-resource id `<Variation>_<item>`, so a
-  regenerated file differs only where a value did. `build_theme.gd` also stops when the pack differs from its lock
-  or the project's UI base is not the pack's `reference` (1920x1080, #287), which the tests also hold.
-- What it writes: type variations only, the pack's live ones (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
-  ToyHowtoCaption are deprecated and skipped), no base-type item and no default font or size, so Godot's default
-  theme (scaled by #287's `gui/theme/default_theme_scale`) still draws a plain control. #289 styles through
-  variations only: a later issue makes the generated theme cover the base controls and sets that scale back to 1
-  (a `project.godot` hunk, so after #208 and #211). Each theme also carries the pack's `base` and `toggle` hints as
-  its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme is a whole theme that differs only in
-  font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`): `GameUi.set_large_text` swaps to it.
+  state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion, a bad
+  base type, §4.7.30, stop the build) and builds the `Theme` in memory; each StyleBox has the sub-resource id
+  `<Variation>_<item>`, so a regenerated file differs only where a value did. `build_theme.gd` also stops when the
+  pack differs from its lock or the project's UI base is not the pack's `reference` (1920x1080, #287), which the
+  tests also hold.
+- What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
+  ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
+  engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); no default font (#520). Each theme also carries
+  the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
+  is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
+  `GameUi.set_large_text` swaps to it.
 - Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
   HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudHint → ToyHudCaption (not
   in the issue's list: a hint reads below HudText); HudTitle, Title, EndTitle, LifeTitle → ToyTitleOnDark;
@@ -2599,7 +2602,8 @@ ADR's §6 check the rest.
   fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the
   committed copy against its lock); `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted
   gap named, a StyleBox state missing a field too; every mapped engine item and icon name in the class reference, with
-  a planted typo and a custom item that shadows an engine one; names letters only; the committed themes equal a fresh
+  a planted typo and a custom item that shadows an engine one; names letters only and no engine class but the base
+  types (#576); the committed themes equal a fresh
   build, which is deterministic, seen failing on a planted stale value; the uids; spot values, the press motion and
   the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
   failing on a probe at 1152). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
@@ -2797,6 +2801,54 @@ the hider's ray and with a mark for everyone), `tests/unit/client/ui/name_plate_
 handoff's tree, the name never translated, the plate shrinking when the theme swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby, the
 layer under every screen on the lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a
 plain plate, a teammate's with the mark, a head over a wall and a player beyond 10 m without one).
+
+#### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls
+- The screens build bare `LineEdit` (the menu's code and address), `SpinBox` (the port, the lobby's numbers),
+  `OptionButton` (the Voice tab's microphone and mode), `HSlider` (its threshold and volumes) and `ScrollContainer`
+  (the Esc menu's pages), with no type variation, so Godot's default theme drew them. `tools/theme/mapping.json`
+  `base_types` now styles those classes under their own name: `from` copies every item of a live, parentless pack
+  variation of that very class, the same objects (a StyleBox stays one sub-resource `<Variation>_<item>`): LineEdit
+  ← ToyField, OptionButton ← ToyDropdown, PopupMenu (its list) ← ToyDropdownList, HSlider ← ToySlider, VScrollBar
+  ← ToyScrollBar, ScrollContainer ← ToyScroll. A row's literal items, and the theme's `default_font_size` (27, which
+  a control takes when no type of its chain has a `font_size`: bare Label, Button, CheckBox, ProgressBar), are
+  #287's greybox values for what the pack has no look for (Godot's default × 5/3; not a design decision): Label
+  `line_spacing` 5, CheckBox `h_separation` 7, VBoxContainer, HBoxContainer and VSeparator `separation` 7. The dev
+  test room's overlay, the one Control outside `GameUi`, takes `GameUi.THEME`.
+- How Godot 4.7.2 looks a theme item up (seen in probes, the plan review of #576): for each theme owner up the tree,
+  every type of the control's chain (its variation's chain, then its class and parents), and only then Godot's
+  default theme; so a row on a class also restyles its subclasses (a Button row would beat Godot's own CheckBox
+  look). `check_pack` refuses a row on no engine Control or Window class, an unknown member, a `from` that is not a
+  live parentless variation of that class, and any item that would replace one the default theme sets on an
+  engine subclass (read from its item lists: `Theme.has_font_size` is true for every type of a theme with a default
+  font size) unless a row of that subclass gives it too. The chain comes from the theme that names the control's
+  variation: SpinBox's field is a SpinBoxLineEdit with the engine's variation SpinBoxInnerLineEdit, which the default
+  theme does not name, so it found the theme's default font size before the LineEdit row; the mapping's
+  `engine_variations` names it a thin variation of LineEdit.
+- Left on Godot's default theme (listed in `base_controls_test.gd`; the screen issues #489-#498 and the UI track
+  decide): the bare Buttons' StyleBoxes (the lobby's Copy and Ready, the Controls tab's keys), CheckBox's icons and
+  StyleBoxes, SpinBox's arrows, the voice meter's ProgressBar boxes, the bare PanelContainers' panel (no margins),
+  the icons the pack's `textures` give with #520 (the slider's grabber, the dropdown's arrow, the list's radio
+  icons), the Esc menu's VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks
+  (ink fill on a lavender track): on the Esc menu's dark panel their filled part and grabber barely show until the
+  screen moves to a light panel. Large text grows the bare fields and dropdowns (their Toy sizes) but not the
+  default size, which the pack has no large value for.
+- So `gui/theme/default_theme_scale` stays 1.6667 (§4.7.24). At 1 (the first build of #576, shots in its PR) those
+  gaps shrank to about 60% in a 1152x648 window: the host's unchecked "Delivery" ban box on the dark Esc Lobby tab
+  could no longer be seen, SpinBox's arrows became 6 px chevrons, the check icons 8 px, the key buttons' padding
+  7 → 4, the VSeparator fainter, and the HUD's hint sat about 6 px lower (`Hud` centres it before it is in the tree,
+  so its first height is the default theme's line). The base types are searched before the default theme, so they
+  hold under either scale; setting it to 1 waits for looks for those gaps or the engineer's word.
+- Tests: `tests/unit/client/ui/base_controls_test.gd` (live controls under both themes: a bare LineEdit and a
+  SpinBox's field take ToyField's StyleBoxes, size and colour, an OptionButton and its list ToyDropdown's and
+  ToyDropdownList's, an HSlider and a ScrollContainer's bar ToySlider's and ToyScrollBar's; bare text and spacing keep
+  the greybox sizes and a variation still wins; a CheckBox and a Button keep Godot's own boxes; large text, pinned;
+  every engine control class `client/ui/` builds is a base type or named with its gap, a planted TextEdit named;
+  seen failing on the old theme and, for the field's size, without `engine_variations`);
+  `tests/unit/tools/theme_builder_test.gd` (each planted bad row named, a Button row shadowing CheckBox too, and a
+  subclass row covering it; the base types share the variations' objects in both themes; a base type's literal item
+  in the class reference, a planted typo named); `base_resolution_test.gd` (the scale, 1.6667). The `shot`s of every
+  preview in `client/dev/` before and after: only the Esc menu's tabs and the main menu's fields change (PR of
+  #576).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

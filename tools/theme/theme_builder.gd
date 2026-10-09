@@ -20,6 +20,8 @@ const INT_FIELDS: Array[String] = [
 	"corner_radius_bottom_right",
 	"corner_radius_bottom_left",
 ]
+## What a mapping.base_types row may hold (#576): a pack variation to copy, or literal items.
+const BASE_TYPE_MEMBERS: Array[String] = ["from", "constants", "font_sizes", "colors"]
 
 
 static func load_json(path: String) -> Dictionary:
@@ -56,6 +58,14 @@ static func generated_names(pack: Dictionary) -> PackedStringArray:
 	for name: String in variations:
 		if not _dict(variations, name).has("deprecated"):
 			names.append(name)
+	names.sort()
+	return names
+
+
+## The engine classes the theme styles under their own name (mapping.base_types, #576), sorted:
+## a bare control of such a class takes the Toy look with no variation set.
+static func base_type_names(mapping: Dictionary) -> PackedStringArray:
+	var names := PackedStringArray(_dict(mapping, "base_types").keys())
 	names.sort()
 	return names
 
@@ -147,6 +157,7 @@ static func check_pack(pack: Dictionary, mapping: Dictionary) -> PackedStringArr
 				problems.append("variation %s: token %s %s" % [name, key, problem])
 		problems.append_array(_ramp_problems(pack, variation, owned[name] as Array))
 	problems.append_array(_legacy_problems(pack, mapping))
+	problems.append_array(_base_type_problems(pack, mapping))
 	return problems
 
 
@@ -174,8 +185,9 @@ static func tokens_by_variation(pack: Dictionary) -> Dictionary:
 	return owned
 
 
-## The theme for one text size ("default" or "large"): every live pack variation, then the legacy
-## names and the kept ones. Deterministic: the same pack and mapping give the same file.
+## The theme for one text size ("default" or "large"): every live pack variation, the base types
+## (#576), then the legacy names and the kept ones, and the default font size. Deterministic: the
+## same pack and mapping give the same file.
 static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> Theme:
 	var theme := Theme.new()
 	var variations: Dictionary = _dict(pack, "variations")
@@ -198,8 +210,11 @@ static func build(pack: Dictionary, mapping: Dictionary, text_size: String) -> T
 			theme.set_stylebox(str(states[state]), name, empty)
 		for key: String in owned[name]:
 			_apply_token(theme, pack, mapping, name, spec, key, text_size)
+	_add_base_types(theme, mapping)
 	_add_legacy(theme, pack, mapping)
 	_add_kept(theme, mapping)
+	if mapping.has("default_font_size"):
+		theme.default_font_size = _int(mapping["default_font_size"])
 	var meta := str(_dict(mapping, "hints").get("meta", ""))
 	if not meta.is_empty():
 		theme.set_meta(StringName(meta), hints(pack))
@@ -413,6 +428,119 @@ static func _legacy_problems(pack: Dictionary, mapping: Dictionary) -> PackedStr
 	return problems
 
 
+## A base_types row names an engine Control (or Window: PopupMenu) class and copies a live pack
+## variation of that very class with no parent, or gives literal items; and none of its items may
+## replace what Godot's default theme gives an engine subclass. A theme on a node is searched
+## through a control's whole type chain before Godot's default theme is, so a Button row would
+## restyle every CheckBox (the plan review of #576, seen in a probe).
+static func _base_type_problems(pack: Dictionary, mapping: Dictionary) -> PackedStringArray:
+	var problems := PackedStringArray()
+	var variations: Dictionary = _dict(pack, "variations")
+	var rows: Dictionary = _dict(mapping, "base_types")
+	for cls: String in rows:
+		var where := "base type %s" % cls
+		var row: Dictionary = _dict(rows, cls)
+		var themed := (
+			ClassDB.class_exists(cls)
+			and (ClassDB.is_parent_class(cls, "Control") or ClassDB.is_parent_class(cls, "Window"))
+		)
+		if not themed:
+			problems.append("%s: not an engine Control or Window class" % where)
+			continue
+		if row.is_empty():
+			problems.append("%s: neither from nor an item" % where)
+		for member: String in row:
+			if not BASE_TYPE_MEMBERS.has(member):
+				problems.append(
+					"%s: member %s is not one of %s" % [where, member, BASE_TYPE_MEMBERS]
+				)
+		if row.has("from"):
+			var from := str(row["from"])
+			if not _is_live(variations, from, cls):
+				problems.append("%s: %s is not a live pack variation of %s" % [where, from, cls])
+			elif _dict(variations, from).get("parent") != null:
+				problems.append(
+					"%s: %s has a parent, whose items the copy would miss" % [where, from]
+				)
+		problems.append_array(_shadow_problems(mapping, cls, where))
+	var engine_variations: Dictionary = _dict(mapping, "engine_variations")
+	var regex := RegEx.create_from_string(NAME_PATTERN)
+	var taken: Array = (
+		variations.keys() + _dict(mapping, "legacy").keys() + _dict(mapping, "keep").keys()
+	)
+	for name: String in engine_variations:
+		var base := str(engine_variations[name])
+		if regex.search(name) == null or ClassDB.class_exists(name) or taken.has(name):
+			problems.append(
+				"engine variation %s: not letters only, an engine class or a name in use" % name
+			)
+		if not rows.has(base):
+			problems.append("engine variation %s: %s is not a base type" % [name, base])
+	var size: Variant = mapping.get("default_font_size")
+	if size != null and _int(size) <= 0:
+		problems.append("default_font_size: %s is not a size" % size)
+	return problems
+
+
+## The items of a base_types row's class that would hide the default theme's own item of an
+## engine subclass (or a class between the two), walking up from each subclass: a row of a class
+## on the way (this theme's, so searched first) covers its items from there up.
+static func _shadow_problems(mapping: Dictionary, cls: String, where: String) -> PackedStringArray:
+	var found := {}
+	var rows: Dictionary = _dict(mapping, "base_types")
+	var items := base_type_items(mapping, cls)
+	var default := ThemeDB.get_default_theme()
+	var subclasses := Array(ClassDB.get_inheriters_from_class(cls))
+	subclasses.sort()
+	for sub: String in subclasses:
+		var covered := {}
+		var type := sub
+		while not type.is_empty() and type != cls:
+			if rows.has(type):
+				var own := base_type_items(mapping, type)
+				for kind: String in own:
+					for item: String in own[kind]:
+						covered["%s %s" % [kind, item]] = true
+			for kind: String in items:
+				for item: String in items[kind]:
+					var key := "%s %s" % [kind, item]
+					if not covered.has(key) and _default_has(default, kind, item, type):
+						found["%s: its %s would replace the default theme's on %s" % [where, key, type]] = true
+			type = ClassDB.get_parent_class(type)
+	return PackedStringArray(found.keys())
+
+
+## The items a base_types row writes, by kind: for `from`, every engine item the mapping can write
+## for the class (a superset of what the variation holds); then its literal items.
+static func base_type_items(mapping: Dictionary, cls: String) -> Dictionary:
+	var row: Dictionary = _dict(_dict(mapping, "base_types"), cls)
+	var items := {"styles": [], "colors": [], "constants": [], "font_sizes": [], "icons": []}
+	if row.has("from"):
+		var engine := engine_items(mapping, cls)
+		for kind: String in engine:
+			(items[kind] as Array).append_array(engine[kind] as Array)
+	for kind: String in ["constants", "font_sizes", "colors"]:
+		(items[kind] as Array).append_array(_dict(row, kind).keys())
+	return items
+
+
+## Whether `theme` sets the item on `type` itself: its lists, since Theme.has_font_size is also
+## true for every type of a theme with a default font size (Godot's default theme has one).
+static func _default_has(theme: Theme, kind: String, item: String, type: String) -> bool:
+	match kind:
+		"styles":
+			return theme.get_stylebox_list(type).has(item)
+		"colors":
+			return theme.get_color_list(type).has(item)
+		"constants":
+			return theme.get_constant_list(type).has(item)
+		"font_sizes":
+			return theme.get_font_size_list(type).has(item)
+		"icons":
+			return theme.get_icon_list(type).has(item)
+	return false
+
+
 static func _apply_token(
 	theme: Theme,
 	pack: Dictionary,
@@ -496,20 +624,50 @@ static func _add_legacy(theme: Theme, pack: Dictionary, mapping: Dictionary) -> 
 			theme.set_stylebox(item, name, box)
 
 
+## Each base type (#576) under its engine class's name: every item its `from` variation holds, the
+## same objects (a StyleBox stays one sub-resource, `<Variation>_<item>`), then its literal items.
+## Then the engine's own variations (mapping.engine_variations, SpinBox's SpinBoxInnerLineEdit) as
+## thin variations of a base type: Godot takes a control's type chain from the theme that names
+## its variation, and from its default theme the inner field would find this theme's default font
+## size before the LineEdit row (seen in a probe).
+static func _add_base_types(theme: Theme, mapping: Dictionary) -> void:
+	var rows: Dictionary = _dict(mapping, "base_types")
+	for cls in base_type_names(mapping):
+		var row: Dictionary = _dict(rows, cls)
+		if row.has("from"):
+			var from := str(row["from"])
+			for kind in Theme.DATA_TYPE_MAX:
+				var item_names := theme.get_theme_item_list(kind, from)
+				item_names.sort()
+				for item in item_names:
+					theme.set_theme_item(kind, item, cls, theme.get_theme_item(kind, item, from))
+		_set_literal_items(theme, cls, row)
+	var engine_variations: Dictionary = _dict(mapping, "engine_variations")
+	var names := engine_variations.keys()
+	names.sort()
+	for name: String in names:
+		theme.set_type_variation(name, str(engine_variations[name]))
+
+
 static func _add_kept(theme: Theme, mapping: Dictionary) -> void:
 	var keep: Dictionary = _dict(mapping, "keep")
 	for name: String in keep:
 		var entry: Dictionary = _dict(keep, name)
 		theme.set_type_variation(name, str(entry.get("base")))
-		var constants: Dictionary = _dict(entry, "constants")
-		for item: String in constants:
-			theme.set_constant(item, name, _int(constants[item]))
-		var sizes: Dictionary = _dict(entry, "font_sizes")
-		for item: String in sizes:
-			theme.set_font_size(item, name, _int(sizes[item]))
-		var colours: Dictionary = _dict(entry, "colors")
-		for item: String in colours:
-			theme.set_color(item, name, _colour({"rgba": colours[item]}))
+		_set_literal_items(theme, name, entry)
+
+
+## The constants, font sizes and colours an entry of `keep` or `base_types` writes as they are.
+static func _set_literal_items(theme: Theme, name: String, entry: Dictionary) -> void:
+	var constants: Dictionary = _dict(entry, "constants")
+	for item: String in constants:
+		theme.set_constant(item, name, _int(constants[item]))
+	var sizes: Dictionary = _dict(entry, "font_sizes")
+	for item: String in sizes:
+		theme.set_font_size(item, name, _int(sizes[item]))
+	var colours: Dictionary = _dict(entry, "colors")
+	for item: String in colours:
+		theme.set_color(item, name, _colour({"rgba": colours[item]}))
 
 
 ## A token's record at a text size: the large mode's own record where it has one.
