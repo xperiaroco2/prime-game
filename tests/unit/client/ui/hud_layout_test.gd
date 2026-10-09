@@ -48,7 +48,11 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["Slots/Hand/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
 		["Slots/Hand/Center/Row/ItemName", "Label", &"ToySlotText"],
 		["Slots/Belt", "PanelContainer", &"ToySlot"],
+		["Slots/Belt/Center", "CenterContainer", &""],
+		["Slots/Belt/Center/Row", "HBoxContainer", &"ToyRowEight"],
+		["Slots/Belt/Center/Row/Icon", "TextureRect", &""],
 		["Slots/Belt/Center/Row/Name", "Label", &"ToySlotTextEmpty"],
+		["Slots/Belt/Center/Row/ItemName", "Label", &"ToySlotText"],
 		["Raising", "PanelContainer", &"ToyPlate"],
 		["Raising/Bar", "ProgressBar", &"ToyBarProgress"],
 		["Spectate", "PanelContainer", &"ToyPlate"],
@@ -162,7 +166,8 @@ func test_empty_shows_the_slot_names_and_aim() -> void:
 		assert_bool(slot.item_label.visible).is_false()
 	assert_float(hud.health.fill.value).is_equal(0.8)
 	assert_float(hud.stamina.fill.value).is_equal(0.9)
-	# The mic on: `mic` tinted icon_on.
+	# The mic on: `mic` tinted icon_on (never no glyph at all).
+	assert_object(hud.mic_icon.texture).is_not_null()
 	assert_object(hud.mic_icon.texture).is_same(ToyIcons.texture(&"mic"))
 	assert_object(hud.mic_icon.self_modulate).is_equal(
 		GameUi.THEME.get_color(&"icon_on", &"ToyMic")
@@ -245,6 +250,7 @@ func test_the_mic_off_is_mic_off_tinted_icon_off() -> void:
 	shown.mic = false
 	hud.show_hud(shown)
 	assert_bool(hud.shows_mic_on()).is_false()
+	assert_object(hud.mic_icon.texture).is_not_null()
 	assert_object(hud.mic_icon.texture).is_same(ToyIcons.texture(&"mic-off"))
 	assert_object(hud.mic_icon.self_modulate).is_equal(
 		GameUi.THEME.get_color(&"icon_off", &"ToyMic")
