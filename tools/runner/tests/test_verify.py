@@ -933,9 +933,7 @@ class SuspendTest(unittest.TestCase):
         steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
         self.assertEqual(steps["test"]["failure"], f"{said}: verify stopped this step")
         run.count.assert_not_called()
-        parsed = metrics.parse_verify(text)
-        assert parsed is not None
-        self.assertTrue(parsed["stopped"], "metrics leaves the run out of its totals")
+        self.assertIsNone(metrics.parse_verify(text), "metrics counts none of the steps the sleep made red")
 
     def test_the_watch_runs_beside_the_lanes_and_stops_with_them(self) -> None:
         seen: list[threading.Event] = []
@@ -982,6 +980,59 @@ class SuspendTest(unittest.TestCase):
         self.assertNotIn("slept", text)
         self.assertIsNone(record["stopped"])
         run.count.assert_called_once()
+
+    def test_a_suspend_noticed_after_the_last_step_ended_changes_nothing(self) -> None:
+        # The lanes' threads are still being joined: every step has ended, so the count check and the pass stand.
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            for name in names:
+                emit(verify.StepRun(name, lane, "passed", 1.0, f"{name} out\n"))
+
+        def watch(on_suspend: object, stop: threading.Event) -> None:
+            def fire() -> None:
+                time.sleep(0.2)
+                on_suspend(500.0)  # type: ignore[operator]
+
+            fired.append(threading.Thread(target=fire))
+
+        fired: list[threading.Thread] = []
+        run = Verify(self)
+
+        def late_lanes(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            run_lane(lane, names, emit)
+            if lane == "godot":
+                fired[0].start()
+                fired[0].join()  # run_lanes has not returned yet when the suspend is told
+
+        rc, text, record = run.run(late_lanes, watch=watch)
+        self.assertEqual(rc, 0)
+        self.assertNotIn("slept", text)
+        self.assertIsNone(record["stopped"])
+        run.count.assert_called_once()
+
+    def test_stop_lanes_firmly_falls_back_to_kill_and_repeats_while_a_lane_process_lives(self) -> None:
+        proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], stdout=subprocess.DEVNULL)
+        self.addCleanup(proc.wait)
+        self.addCleanup(proc.kill)
+        with verify._LIVE_LOCK:
+            verify._LIVE.add(proc)
+        self.addCleanup(verify._LIVE.discard, proc)
+        calls: list[int] = []
+        slept: list[float] = []
+
+        def refused(target: subprocess.Popen[bytes]) -> None:
+            calls.append(target.pid)
+            raise OSError("a process cannot start right after a wake")  # taskkill, STATUS_DLL_INIT_FAILED
+
+        def sleep(seconds: float) -> None:
+            slept.append(seconds)
+            proc.wait(timeout=10)  # Popen.kill ended it, though the lane's thread has not reported it yet
+            with verify._LIVE_LOCK:
+                verify._LIVE.discard(proc)  # as run_lane_process does when its process ends
+
+        with mock.patch.object(verify, "stop_lane", refused):
+            verify.stop_lanes_firmly(tries=4, gap=1.0, sleep=sleep)
+        self.assertEqual((len(calls), slept), (1, [1.0]))
+        self.assertIsNotNone(proc.poll())
 
     def test_the_steps_in_flight_are_each_lanes_first_unended_step_that_could_start(self) -> None:
         self.assertEqual(verify.steps_in_flight({"doctor"}), {"lint", "check"})

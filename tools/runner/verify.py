@@ -525,6 +525,38 @@ def stop_lanes() -> None:
         stop_lane(proc)
 
 
+# After a resume (#595) stop_lanes is repeated up to STOP_TRIES times, STOP_GAP seconds apart, until no lane process
+# lives: in the first seconds after a wake Windows may still refuse to start `taskkill`.
+STOP_TRIES = 6
+STOP_GAP = 5.0
+
+
+def stop_lanes_firmly(
+    tries: int = STOP_TRIES, gap: float = STOP_GAP, sleep: Callable[[float], None] = time.sleep
+) -> None:
+    """stop_lanes for a run that must not go on (a resume from sleep, #595): each lane process is stopped in a thread
+    of its own, so a stop that hangs or fails (OSError) does not keep the others alive, and the stop is repeated
+    while a lane process lives, falling back to Popen.kill for the lane process itself."""
+    _STOP.set()
+
+    def stop_quietly(proc: subprocess.Popen[bytes]) -> None:
+        try:
+            stop_lane(proc)
+        except OSError:
+            with contextlib.suppress(OSError):
+                proc.kill()
+
+    for attempt in range(tries):
+        with _LIVE_LOCK:
+            live = list(_LIVE)
+        if not live:
+            return
+        for proc in live:
+            threading.Thread(target=stop_quietly, args=(proc,), daemon=True).start()
+        if attempt + 1 < tries:
+            sleep(gap)
+
+
 def run_lane_process(
     lane: str,
     names: tuple[str, ...],
@@ -1153,10 +1185,13 @@ def main(
                 with printing:
                     if stopped_at is not None or slept is not None or stop_watch.is_set():
                         return
-                    in_flight.update(steps_in_flight(set(runs)))
+                    running = steps_in_flight(set(runs))
+                    if not running:  # every step ended, only the lane threads are being joined: nothing to stop
+                        return
+                    in_flight.update(running)
                     slept = seconds
                     say(f"verify: {suspend.message(seconds)}: stopping every lane ({', '.join(sorted(in_flight))})")
-                stop_lanes()
+                stop_lanes_firmly()
 
             watch(on_suspend, stop_watch)
             try:
