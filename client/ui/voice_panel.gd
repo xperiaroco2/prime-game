@@ -1,7 +1,7 @@
 class_name VoicePanel
 extends VBoxContainer
 ## The Voice settings (the M5 ADR §1.7, D11, D15): the Esc menu's Voice tab in every screen with
-## the Esc menu, and the main menu's Voice page before any session (#301), one instance each: the
+## the Esc menu, and the main menu's Settings panel before any session (#301), one each: the
 ## microphone (the Windows default, then each device; no Off entry: Off is a mode), the mode (voice
 ## activity, the default; push-to-talk with its key; Off), the voice-activity threshold with a live
 ## meter of the microphone's peak, RNNoise, the four volume sliders (Master, Voice, Effects, Music),
@@ -142,6 +142,36 @@ func _init() -> void:
 	add_child(debug_box)
 
 
+## The look on a light (cream) panel, the main menu's Settings panel (#493) until #491's Settings
+## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight; the microphone
+## notice too, as the pack has no warning text for a light panel and Shortfalls' amber is
+## unreadable on cream), and each check box's words beside it in ink (a CheckBox has no light
+## variation in the pack); a click on the words toggles the box, as on a CheckBox with text.
+## The logic stays.
+func on_light() -> void:
+	for label: Label in _labels(self):
+		match label.theme_type_variation:
+			&"", &"Shortfalls":
+				label.theme_type_variation = &"ToyTextOnLight"
+			&"Title":
+				label.theme_type_variation = &"ToyTitleOnLight"
+	for check: CheckBox in [denoise_check, tone_check, mute_check]:
+		var holder := check.get_parent()
+		var at := check.get_index()
+		var row := HBoxContainer.new()
+		row.theme_type_variation = &"ToyRowEight"
+		holder.remove_child(check)
+		row.add_child(check)
+		var words := UiParts.styled_label(check.text, &"ToyTextOnLight")
+		words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		words.mouse_filter = Control.MOUSE_FILTER_STOP
+		words.gui_input.connect(_on_words_input.bind(check))
+		row.add_child(words)
+		check.text = ""
+		holder.add_child(row)
+		holder.move_child(row, at)
+
+
 ## Shows `facts`; a control the player is not moving takes its value without a signal.
 func show_facts(facts: Shown) -> void:
 	unavailable_label.visible = not facts.available
@@ -194,6 +224,23 @@ func _on_device(index: int) -> void:
 
 func _on_mode(index: int) -> void:
 	mode_picked.emit(mode_button.get_item_id(index) as UserSettings.Mode)
+
+
+## A left click on a check box's words (on_light) toggles it, its toggled signal included.
+static func _on_words_input(event: InputEvent, check: CheckBox) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		check.button_pressed = not check.button_pressed
+
+
+## Every Label under `root`.
+static func _labels(root: Node) -> Array[Label]:
+	var found: Array[Label] = []
+	for child: Node in root.get_children():
+		if child is Label:
+			found.append(child as Label)
+		found.append_array(_labels(child))
+	return found
 
 
 static func _text(text: String) -> Label:

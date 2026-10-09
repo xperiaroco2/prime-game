@@ -14,7 +14,7 @@ enum Session {
 }
 
 enum Screen {
-	MENU,  ## address, port, Host, Join, Quit, and why the last session ended
+	MENU,  ## the main menu (#493): the name, Host, Join, Join by address, Settings, Quit
 	CONNECTING,  ## the spinner, the step, the code and the time since Join, Cancel (#494)
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded

@@ -14,9 +14,10 @@ extends CanvasLayer
 ## text swaps it for THEME_LARGE, the same theme with larger text (#289; Settings > Accessibility,
 ## #491, calls set_large_text).
 ##
-## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main menu's
-## page, the map, a card over the map, the Esc menu and its question to the host register here;
-## the how-to card over the map (#254, `howto_card`: UiOverlays.CARD, the map key closing it too).
+## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main
+## menu's open panel, the map, a card over the map, the Esc menu and its question to the host
+## register here; the how-to card over the map (#254, `howto_card`: UiOverlays.CARD, the map key
+## closing it too).
 
 ## The map and tasks screen opened (the game frees the mouse; the tutorial's `map_opened`).
 signal map_opened
@@ -74,7 +75,7 @@ func _init() -> void:
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
 	close_esc()
-	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_voice)
+	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_panel)
 	overlays.add(&"map", UiOverlays.MAP, map_is_open, close_map)
 	# The how-to card over the map (#254): Esc and the map key close it before the map.
 	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
@@ -214,9 +215,10 @@ func esc_open() -> bool:
 	return esc.is_open()
 
 
-## The main menu's Voice page, only while the main menu shows (its page stays set under a session).
+## The main menu's open panel (code, Direct or Settings, #493), only while the main menu shows (its
+## panel stays set under a session).
 func _menu_panel_open() -> bool:
-	return screen == GameFlow.Screen.MENU and menu.voice_open()
+	return screen == GameFlow.Screen.MENU and menu.panel_open()
 
 
 ## The map shows while open in the round; it hides the crosshair. The first frame it shows has

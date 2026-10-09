@@ -257,20 +257,26 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await get_tree().process_frame
 
 
-func test_on_the_main_menu_esc_leaves_the_voice_page_and_opens_no_esc_menu() -> void:
+## #493 (#488 rule 2, the `menu_panel` overlay): Esc closes the open panel, the code, Direct and
+## Settings ones, and gives the focus back to its item; no Esc menu opens with no session.
+func test_on_the_main_menu_esc_closes_the_open_panel_and_opens_no_esc_menu() -> void:
 	var game := _game([])
 	game.pointer = FakePointer.new()
 	await _frames(2)
 	assert_int(game.screen()).is_equal(S.MENU)
-	game.ui.menu.open_voice()
-	await _frames(2)
-	assert_bool(game.ui.menu.voice.is_visible_in_tree()).is_true()
-	_press(KEY_ESCAPE)
-	await _frames(2)
-	assert_bool(game.ui.menu.voice_open()).is_false()
-	assert_bool(game.ui.menu.main_page.is_visible_in_tree()).is_true()
-	assert_bool(game.ui.esc_open()).is_false()
-	# Esc on the menu's rows does nothing.
+	var menu := game.ui.menu
+	for item: Button in [menu.settings_item, menu.join_item, menu.direct_item]:
+		item.button_pressed = true
+		await _frames(2)
+		assert_str(String(game.ui.menu.state())).is_not_equal("main")
+		_press(KEY_ESCAPE)
+		await _frames(2)
+		assert_str(String(game.ui.menu.state())).is_equal("main")
+		assert_bool(item.button_pressed).is_false()
+		assert_object(get_viewport().gui_get_focus_owner()).is_same(item)
+		assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(game.ui.menu.voice.is_visible_in_tree()).is_false()
+	# Esc on the menu with no panel open does nothing.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_false()
@@ -284,7 +290,7 @@ func test_esc_cancels_a_join_and_leaves_a_failure_for_the_menu() -> void:
 	game.pointer = FakePointer.new()
 	await _frames(2)
 	game.ui.menu.address_edit.text = "127.0.0.1:%d" % (PORT + 9)
-	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.port())
+	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.default_port)
 	assert_int(game.screen()).is_equal(S.CONNECTING)
 	_press(KEY_ESCAPE)
 	assert_object(game.client()).is_null()
@@ -293,7 +299,7 @@ func test_esc_cancels_a_join_and_leaves_a_failure_for_the_menu() -> void:
 	assert_bool(game.ui.esc_open()).is_false()
 	assert_str(game.ui.menu.address_edit.text).is_equal("127.0.0.1:%d" % (PORT + 9))
 	# Nobody listens there: the join fails, and its failure shows with Try again focused.
-	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.port())
+	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.default_port)
 	assert_bool(await _until(func() -> bool: return game.screen() == S.FAILURE)).is_true()
 	await _frames(2)
 	assert_bool(game.ui.connecting.failure.is_visible_in_tree()).is_true()

@@ -10,6 +10,9 @@ const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
 ## A code as the lobby and the connecting screen show one (SignalCodec's alphabet).
 const PREVIEW_CODE := "K7M2QX"
+## The main menu's samples (#493's handoff): the code typed in code-ready, Direct's address.
+const PREVIEW_MENU_CODE := "K7Q2XR"
+const PREVIEW_ADDRESS := "192.168.0.12"
 ## The version lines of fail-version (JoinProgress.version_text), made up for the preview.
 const PREVIEW_HOST_VERSION := "13 (a1b2c3)"
 const PREVIEW_OWN_VERSION := "12 (9f8e7d)"
@@ -74,6 +77,9 @@ const FAKE_OWN_HEADING := 0.6
 ## The Guide tab's selected card (Preview.ESC with esc_tab GUIDE, #254): a basic's id or a task
 ## type's; empty keeps the Guide's own first pick.
 @export var guide_card: StringName = &""
+## The main menu's state (Preview.MENU; #493): main, code, code-ready, direct or settings
+## (Preview.MENU_VOICE shows settings).
+@export var menu_state: StringName = &"main"
 
 
 func _ready() -> void:
@@ -92,14 +98,9 @@ func _ready() -> void:
 	ui.lobby_hud.show_code(code_line)
 	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
 	match preview:
-		Preview.MENU:
-			ui.menu.set_reason(
-				"The last session ended: %s." % EndReasons.words(DisconnectingEvent.LOAD_DEADLINE)
-			)
+		Preview.MENU, Preview.MENU_VOICE:
 			ui.show_screen(GameFlow.Screen.MENU)
-		Preview.MENU_VOICE:
-			ui.show_screen(GameFlow.Screen.MENU)
-			ui.menu.open_voice()
+			show_menu_state(ui.menu, &"settings" if preview == Preview.MENU_VOICE else menu_state)
 			ui.menu.voice.show_facts(fake_voice(not voice_unavailable))
 		Preview.CONNECTING:
 			ui.show_screen(show_s3_state(ui.connecting, s3_state))
@@ -183,6 +184,26 @@ static func show_s3_state(screen: ConnectingScreen, state: StringName) -> GameFl
 			screen.show_failure(state, versions)
 			return GameFlow.Screen.FAILURE
 	return GameFlow.Screen.CONNECTING
+
+
+## The main menu in `state` with the handoff's samples (#493): the own name, the code typed in
+## code-ready, the address in direct.
+static func show_menu_state(menu: MainMenu, state: StringName) -> void:
+	var settings := UserSettings.new()
+	var ukrainian := TranslationServer.get_locale() == Languages.UKRAINIAN
+	settings.player_name = "Олена" if ukrainian else "Olena"
+	menu.bind_name(settings)
+	match state:
+		&"code", &"code-ready":
+			menu.open_panel(MainMenu.Open.CODE)
+			if state == &"code-ready":
+				menu.code_edit.text = PREVIEW_MENU_CODE
+				menu.refresh_buttons()
+		&"direct":
+			menu.address_edit.text = PREVIEW_ADDRESS
+			menu.open_panel(MainMenu.Open.DIRECT)
+		&"settings":
+			menu.open_panel(MainMenu.Open.SETTINGS)
 
 
 ## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,
