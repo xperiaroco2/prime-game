@@ -389,6 +389,10 @@ everyone.
 **Numbers** (the engineer's starting values, to tune): 3 active switches by default (2 to 4, a host setting); the charge
 takes 60 s in all; sounds carry 12 m.
 
+**Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the task screen,
+"Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in
+the content PR).
+
 **Engine parts** ([the Generator ADR](decisions/2026-10-10-generator-task.md) §1, §8): a Generator task type with two
 station kinds (a switch, the generator's button) and its charge on the host's clock; `Interact(station)`, the first
 use of a fixed station, with busy hands, reach and sight as each station kind's rule; two public events (a switch, the
@@ -396,7 +400,7 @@ button) and the zone task's progress event for the charge; station scenes in `le
 markers; the client's panel, sounds and the charge on the task screen. The issues follow from the ADR's split.
 
 Open questions (the engineer's; the ADR's GD items, each with options and a recommendation):
-- The task screen's description, and whether the working name "Charge the generator" stays (#679's open item).
+- The lobby label of the switch-count setting.
 - Which switches are active: drawn each round, or fixed by the map?
 - Does the shared progress count the switches' subtasks only at full charge?
 - Do the panel's bars say which switch is off, or only how many are on?
