@@ -73,6 +73,45 @@ func test_check_pack_names_what_the_mapping_does_not_cover() -> void:
 		)
 
 
+func test_check_pack_names_a_bad_base_type() -> void:
+	# Each planted mapping.base_types row (#576) and the problem it must cause.
+	var cases := {
+		"base type Bogus: not an engine Control or Window class": {"Bogus": {"from": "ToyField"}},
+		"base type Node3D: not an engine Control or Window class":
+		{"Node3D": {"constants": {"separation": 7}}},
+		"base type LineEdit: neither from nor an item": {"LineEdit": {}},
+		"base type LineEdit: member look is not one of": {"LineEdit": {"look": "ToyField"}},
+		"base type HSlider: ToyField is not a live pack variation of HSlider":
+		{"HSlider": {"from": "ToyField"}},
+		"base type Label: ToyHowtoCaption is not a live pack variation of Label":
+		{"Label": {"from": "ToyHowtoCaption"}},
+		"base type Button: ToyButtonPrimary has a parent": {"Button": {"from": "ToyButtonPrimary"}},
+		"base type Button: its styles normal would replace the default theme's on CheckBox":
+		{"Button": {"from": "ToyButtonPrimary"}},
+		"BoxContainer: its constants separation would replace the default theme's on VBoxContainer":
+		{"BoxContainer": {"constants": {"separation": 7}}},
+	}
+	for want: String in cases:
+		var broken: Dictionary = _mapping.duplicate(true)
+		(broken["base_types"] as Dictionary).merge(cases[want] as Dictionary, true)
+		var problems := "\n".join(Builder.check_pack(_pack, broken))
+		(
+			assert_str(problems)
+			. override_failure_message("planted: %s\ngot: %s" % [want, problems])
+			. contains(want)
+		)
+	# A subclass's own row covers the item, so a row on the parent hides nothing there.
+	var covered: Dictionary = _mapping.duplicate(true)
+	var separation := {"constants": {"separation": 7}}
+	(covered["base_types"] as Dictionary).merge(
+		{"BoxContainer": separation, "HBoxContainer": separation, "VBoxContainer": separation}, true
+	)
+	assert_str("\n".join(Builder.check_pack(_pack, covered))).not_contains("on VBoxContainer")
+	var sized: Dictionary = _mapping.duplicate(true)
+	sized["default_font_size"] = 0
+	assert_array(Builder.check_pack(_pack, sized)).contains(["default_font_size: 0 is not a size"])
+
+
 ## Breaks a copy of the pack the way the problem it must cause names.
 func _plant(pack: Dictionary, problem: String) -> void:
 	var tokens := _tokens(pack)

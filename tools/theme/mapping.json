@@ -11,7 +11,9 @@
     "font": "Comfortaa ships with #520 (the font file and its licence). file null: the builder sets only font_size; when #520 lands the font it fills file and the builder sets a FontVariation (weight from each label's fontWeight) and line_spacing from the font's metrics.",
     "textures": "The pack's textures (slider knobs, the dropdown arrow, the radio icons) are SVGs under the pack's .gdignore, so Godot cannot load them from there: #520 imports them into an imported folder under the same sha256 lock and then the builder sets them as theme icons. Until then the builder only checks each texture key against the class's icons below.",
     "hints": "The pack's `base` (the toy base Panel under a raised face, per context) and `toggle` (the selected partner) are not theme items: the builder writes them into each theme's metadata `toy_hints` ({bases: {variation: {context: base}}, toggles: {variation: selected}}), which client/ui/toy_hints.gd reads for ToyRaised and ToyToggle (#289).",
-    "deprecated": "Variations the pack marks deprecated (ToyChipNew, ToyChipNewText, ToyHowtoCaption) are not written: no screen uses them and they leave the pack at its next major release."
+    "deprecated": "Variations the pack marks deprecated (ToyChipNew, ToyChipNewText, ToyHowtoCaption) are not written: no screen uses them and they leave the pack at its next major release.",
+    "base_types": "Engine classes the theme styles under their own name (#576), so a bare control the screens build (a LineEdit with no theme_type_variation) has a look: `from` copies every item of a live pack variation of that very class (the same StyleBox objects), and constants, font_sizes and colors give literal items. A theme on a node is searched through a control's whole type chain before Godot's default theme, so a row on a class with engine subclasses would also restyle them (a Button row every CheckBox): the builder refuses a row item that would replace the default theme's own item on a subclass. The literal rows are #287's greybox values (Godot's default x 5/3, rounded) for the classes the pack has no look for, so they keep their apparent size at gui/theme/default_theme_scale 1. Not a design decision.",
+    "default_font_size": "The theme's default font size, which a control takes when no type in its chain has a font_size (bare Label, Button, CheckBox, ProgressBar): #287's greybox size, Godot's 16 x 5/3. The same in the large-text theme: the pack has no large value for it. Not a design decision."
   },
   "pack_schemas": [1],
   "pack": "res://client/ui/theme/pack/toy.pack.json",
@@ -227,5 +229,6 @@
     "PanelMargin": {"base": "MarginContainer", "constants": {"margin_bottom": 30, "margin_left": 30, "margin_right": 30, "margin_top": 30}},
     "ScreenColumn": {"base": "VBoxContainer", "constants": {"separation": 17}},
     "Shortfalls": {"base": "Label", "colors": {"font_color": [1, 0.75, 0.4, 1]}}
-  }
+  },
+  "base_types": {}
 }
