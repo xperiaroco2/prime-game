@@ -2629,7 +2629,7 @@ ADR's §6 check the rest.
 - What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
   engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); the pack's textures as icons and, once its file is
-  in the project, the font (§4.7.34). Each theme also carries
+  in the project (since #684), the font (§4.7.34). Each theme also carries
   the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
   is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
   `GameUi.set_large_text` swaps to it.
@@ -2642,8 +2642,8 @@ ADR's §6 check the rest.
   unreadable on the Esc menu's dark panel. The names the issue does not map (the containers' margins and separations,
   DebugText, HudCrosshair, Shortfalls) keep their greybox values at #287's sizes in the mapping's `keep`.
 - Built in #520 (§4.7.34): the theme icons from the pack's `textures` (an imported copy of the pack's assets under
-  the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per label weight, the file
-  itself waiting for the engineer).
+  the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per label weight); the file
+  landed in #684.
 - Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, a
   binary outside the assets list deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
   fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the
@@ -3052,20 +3052,21 @@ the Toy restyle is #490 and the how-to card #254 (§4.7.36).
 - **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms wait for the map (#253,
   through MapData); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
-- **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, which the engineer adds by
-  hand (a third-party asset; its source and weights are open on prime-game-ui#44, which proposes google/fonts'
-  variable `Comfortaa[wght].ttf`). While it is not in the project the themes have no font, so Godot's default draws.
-  Once it is, `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's
-  `fontWeight` on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`),
-  sets it as the `font` of each variation with a label, and type.body's weight as the theme's default font; the base
-  types copy it. `line_spacing` from the font's metrics is not built: CI imports a stand-in font (§4.7.21, `lfs`'s TTF
-  and OTF stand-in), whose metrics differ, so a metric-derived value would make the stale test fail there.
-  `docs/credits/comfortaa.md` is `Pending` (AGENT_WORKFLOW §10) until the file lands.
+- **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, added in #684 (google/fonts'
+  variable `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; a Git LFS file; proposed on prime-game-ui#44).
+  `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's `fontWeight`
+  on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`), sets it as the
+  `font` of each variation with a label, and type.body's weight (`Comfortaa_wght_600`) as the theme's default font;
+  the base types copy it. The committed themes carry both. A checkout without the file builds themes with no font, so
+  Godot's default draws. `line_spacing` from the font's metrics is not built: CI imports a stand-in font (§4.7.21,
+  `lfs`'s TTF and OTF stand-in), whose metrics differ, so a metric-derived value would make the stale test fail
+  there. The credits entry `docs/credits/comfortaa.md` is complete; the OFL text ships as
+  `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`).
 - Tests: `tools/runner/tests/test_ui_sync.py` (the imported copy, its scales and a re-sync that keeps Godot's
   `.import`, an asset the pack lists but does not ship, each problem verify names: a missing, changed or extra file,
   an LFS pointer by its oid, a wrong or missing scale, an asset not imported; the committed copy);
   `tests/unit/tools/theme_builder_test.gd` (the icons and their size, exactly the six types with icons, a texture
-  that is not imported named; no font while the file is absent, and with Godot's fallback font as a stand-in a
+  that is not imported named; no font in a checkout without the file, and with Godot's fallback font as a stand-in a
   FontVariation per label weight shared by every label and base type); `base_controls_test.gd` (a bare slider,
   dropdown and list draw the pack's icons); `name_plate_test.gd` (the mark's texture and tint);
   `test_credits.py` (a Pending entry, seen failing without the change); `test_lfs.py` (the TTF and OTF stand-ins
