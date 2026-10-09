@@ -483,8 +483,8 @@ class WaiterTest(SlotsCase):
         self.assertEqual([p.name for p in self.where.iterdir() if p.name.startswith(slots.WAITER_PREFIX)], [])
 
 
-class StatusTest(SlotsCase):
-    """#416: `slots --status`."""
+class StatusCase(SlotsCase):
+    """The `status` helper of the tests of `slots --status`; it has no test of its own."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -511,6 +511,10 @@ class StatusTest(SlotsCase):
                           resumed=read_resume)  # fmt: skip
         self.assertEqual(rc, 0)
         return out
+
+
+class StatusTest(StatusCase):
+    """#416: `slots --status`."""
 
     def test_an_empty_folder_shows_free_slots_and_no_waiters(self) -> None:
         out = self.status()
@@ -630,7 +634,7 @@ class StatusTest(SlotsCase):
         self.assertIn("  none (no limit)", out)
 
 
-class SleptHolderTest(StatusTest):
+class SleptHolderTest(StatusCase):
     """#595: a holder from before the machine last slept is stale in `slots --status`, and not counted as held."""
 
     def hold(self, slot: int, since: datetime, asleep: float | None) -> None:
