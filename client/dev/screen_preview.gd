@@ -18,6 +18,8 @@ const PREVIEW_HOST_VERSION := "13 (a1b2c3)"
 const PREVIEW_OWN_VERSION := "12 (9f8e7d)"
 ## The round's fake facts (M4-8): the match clock's end, the package, the knife and its circle.
 const ROUND_END_TICK := 100 + 20 * 271
+## The pregame's `after` (#496): the round's first second, its clock at the handoff's 09:57.
+const AFTER_END_TICK := 100 + 20 * 597
 const PACKAGE := 7
 const KNIFE := 3
 const CIRCLE := 2
@@ -83,6 +85,12 @@ const FAKE_OWN_HEADING := 0.6
 ## The main menu's state (Preview.MENU; #493): main, code, code-ready, direct or settings
 ## (Preview.MENU_VOICE shows settings).
 @export var menu_state: StringName = &"main"
+## The pregame (Preview.PREGAME, #496): the own role (`crew`, the Engineer, or `dissident`); a
+## dissident with peer 3 as its teammate unless `pregame_alone`; `pregame_after` starts the
+## round, so the black fades out over the empty HUD of its first second (the `after` state).
+@export var pregame_role: StringName = &"crew"
+@export var pregame_alone := false
+@export var pregame_after := false
 
 
 func _ready() -> void:
@@ -120,9 +128,15 @@ func _ready() -> void:
 				ui.show_loading_card(howto_card)
 		Preview.PREGAME:
 			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
-			model.fold(&"RoleAssigned", {"role": &"dissident"})
-			model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
+			fold_pregame(model, pregame_role, not pregame_alone)
 			ui.show_screen(GameFlow.Screen.PREGAME)
+			if pregame_after:
+				ui.refresh(model, mode, 100, hosting)
+				model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": AFTER_END_TICK})
+				ui.show_screen(GameFlow.Screen.ROUND)
+				var first := HudText.Local.new()
+				first.mic = true
+				ui.refresh_round(model, mode, 100, first)
 		Preview.END:
 			model.fold(&"RoleAssigned", {"role": &"crew"})
 			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
@@ -259,6 +273,17 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 		)
 	)
 	return model
+
+
+## The deal into the pregame on top of fake_model (#496), as the host sends it: the own `role`,
+## for a dissident Teammates with peer 3 (`with_mate`) or alone, then the pregame's PhaseChanged.
+static func fold_pregame(model: ClientModel, role: StringName, with_mate := true) -> void:
+	model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
+	model.fold(&"RoleAssigned", {"role": role})
+	if role == &"dissident":
+		var peers := [model.own_peer, 3] if with_mate else [model.own_peer]
+		model.fold(&"Teammates", {"role": role, "peers": PackedInt32Array(peers)})
+	model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
 
 
 ## The round on top of fake_model (M4-8): the own player (peer 1) a dissident with peer 3, a
