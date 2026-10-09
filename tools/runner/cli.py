@@ -620,6 +620,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="--compact: print each summary line whole (default: cut at 400 characters; metrics.md has them whole)",
+    )
+    p.add_argument(
         "--track",
         nargs="+",
         action="extend",
@@ -938,7 +943,7 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
+                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run, verbose=args.verbose,
             )
         if args.command == "wave":
             from . import wave

@@ -231,7 +231,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import agents_check
-from .common import OUT, ROOT, Failure, run, say, warn
+from .common import LINE_CAP, OUT, ROOT, Failure, cut_line, run, say, shown, warn
 
 TOKEN_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 SHORT = {
@@ -328,6 +328,8 @@ GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to
 # A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
 CACHE_TTL = 300
 BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
+# The runner commands whose output #572 made quiet, as CMD_KINDS names them: their share of an implementer's tool output.
+RUNNER_OUTPUT_KINDS = frozenset({"wait", "publish", "verify", "selftest", "test", "check", "lint"})
 # #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
 LATENCY_CLASSES = (
     ("shell-background", "shell calls started in the background (start-up only)"),
@@ -1145,6 +1147,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
                         text = text_of(b.get("content"))
+                        call["out"] = len(text)  # #572: what the call's output adds to every later call's context
                         if call["code"] and not call.get("counted"):
                             call["counted"] = True
                             count_code_read(call["code"], text, code_seen, code_reads)
@@ -1235,6 +1238,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
+        # #572: the characters of its tool outputs (text; an image counts 0), and those of the runner's commands
+        "tool_output": sum(c.get("out", 0) for c in calls),
+        "runner_output": sum(c.get("out", 0) for c in calls if c["kind"] in RUNNER_OUTPUT_KINDS),
         "latency": [(k, c["t1"] - c["t0"]) for c in calls if c["t1"] and (k := latency_class(c))]
         + [("wait", c["t1"] - c["t0"] - c["polled"]) for c in calls if c["t1"] and c.get("polled") is not None],
         "kinds": dict(kinds),
@@ -1745,6 +1751,7 @@ def per_task(r: dict) -> dict:
         "impl_calls": impl["api_calls"],
         "over200_calls": impl["over200"],
         "over200_usd": impl["over200_usd"],
+        "impl_outputs": impl["outputs"],
     }
 
 
@@ -1760,6 +1767,13 @@ def implementer_context(r: dict) -> dict:
         "over200": sum(x["data"].get("high_ctx", {}).get("calls", 0) for x in impls),
         "over200_usd": sum(x["data"].get("high_ctx", {}).get("usd", 0.0) for x in impls),
         "usd": sum(usd(x["data"]["tokens"]) for x in impls),
+        # #572: each implementer's tool output and its runner commands' part, in tokens (characters / CHARS_PER_TOKEN);
+        # one that made no tool call (an attempt that died at once) is left out
+        "outputs": [
+            [x["data"].get("tool_output", 0) / CHARS_PER_TOKEN, x["data"].get("runner_output", 0) / CHARS_PER_TOKEN]
+            for x in impls
+            if x["data"].get("tool_calls")
+        ],
     }
 
 
@@ -3776,6 +3790,10 @@ def compact_lines(
                      f"{calls:.0f} tool calls; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
                      f"({fmt_usd(sum(p.get('over200_usd', 0.0) for p in tasks))}), "
                      f"{sum(p.get('handoffs', 0) for p in tasks)} handoffs (#559)")  # fmt: skip
+        outputs = [pair for p in tasks for pair in p.get("impl_outputs", [])]
+        if outputs:  # #572: compare a wave before a change with one after it
+            lines[-1] += (f"; tool output per implementer median {fmt_k(med([o[0] for o in outputs]))} tokens, "
+                          f"runner commands {fmt_k(med([o[1] for o in outputs]))} (#572)")  # fmt: skip
         if quality:
             lines.append(quality["compact"])
     diet = instruction_compact(instructions) if instructions else None
@@ -4299,6 +4317,7 @@ def main(
     track: list[str] | None = None,
     budget: list[float] | None = None,
     run_ids: list[str] | None = None,
+    verbose: bool = False,
 ) -> int:
     if run_ids:
         if track or budget or sessions or since or until or ci or compact or out:
@@ -4360,8 +4379,10 @@ def main(
     with io.open(folder / "metrics.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)
         f.write("\n")
-    if compact:
-        say("\n".join(summary))  # only the summary: the manager pastes it into a wave comment as it is
+    if compact:  # only the summary; quiet (#572): each line cut at LINE_CAP unless verbose, metrics.md has it whole
+        say("\n".join(summary if verbose else [cut_line(line) for line in summary]))
+        if not verbose and any(len(line) > LINE_CAP for line in summary):
+            say(f"(lines over {LINE_CAP} characters cut; whole: {shown(folder / 'metrics.md')}, or --verbose)")
     else:
         say("\n".join([*md, "## Summary", "", *summary]))
         say(f"\nmetrics: wrote {folder / 'metrics.md'} and metrics.json")
