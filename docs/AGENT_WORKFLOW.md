@@ -1808,6 +1808,19 @@ whole run. Never for the run that gates: the green verify that the definition of
 `verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
 stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
 (`AfterTest`, `FailFastTest`, `LaneTermTest`, whose stopped lane with a live child runs on Linux and macOS only).
+**A machine that slept (#595):** on 2026-10-08 the laptop slept from 20:59:58Z to 07:21:15Z (Modern Standby) and each
+verify in flight reported a step of about 38,000 s, ending after the resume: a Windows wait (the lane timer) does not
+count a sleep, while `time.monotonic` (QueryPerformanceCounter) and the wall clock do; on Linux the monotonic clock
+stops and the wall clock jumps. So a thread of `verify` (`suspend.Watch`, `tools/runner/suspend.py`) reads both clocks
+every 5 s while the lanes run; a gap of 120 s or more between two reads (`SUSPEND_GAP`: a loaded PC delays a thread by
+seconds; a shorter sleep is survived) stops every lane at once, as `--fail-fast` does: each lane's running step
+(`steps_in_flight`: not one still waiting for its `AFTER` step) is red with the first line `the machine slept or was
+suspended (<n> s): verify stopped this step`, its `failure` in the record; the rest is `not run`; the end line adds `,
+stopped early at <steps>: the machine slept or was suspended (<n> s)` (so `metrics` leaves the run out of its totals),
+and the record's `stopped` is {`at`: null, `suspended`: n, `not_run`}. `wait` reads the same two clocks at its polls:
+after such a gap it reads the log once more and, with the job still running, prints `wait: the machine slept or was
+suspended (<n> s) during this wait; ...` before its still-running line (124). Tests:
+`tools/runner/tests/test_suspend.py` (injected clocks), `SuspendTest` in `test_verify.py`, `test_wait.py`.
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
 at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
@@ -1878,8 +1891,13 @@ scratch folder), runs its own steps after the log's `load: running` line, and le
 `wait <log>`.
 **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
 one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
-machine-wide: a run already in a slot finishes there, a run already waiting joins the window.
-Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
+machine-wide: a run already in a slot finishes there, a run already waiting joins the window. Since #595 a holder file
+records how long the machine had slept since its boot (`suspend.asleep_seconds`: Windows' interrupt time minus its
+unbiased interrupt time, which Modern Standby stops too; Linux' `CLOCK_BOOTTIME` minus `CLOCK_MONOTONIC`), and
+`--status` marks a live holder STALE, not held, when the machine slept 120 s or more since it took its slot, or, for a
+holder file without the counter (an older runner), when it took its slot before the System log's last resume from
+sleep (Kernel-Power 507 with `SleepEntered` true, or 107): such a verify stops at the resume, an older one may hang.
+Tests: `tools/runner/tests/test_slots.py` (`SleptHolderTest`), `tools/runner/tests/test_load.py`.
 The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
 then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
 quiet window), its `seconds` leave the wait out, and the summary's last
