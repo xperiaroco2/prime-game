@@ -3349,7 +3349,8 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   place, so a live counter never takes a «?»'s focus.
 - **Zones.** Lighting a type adds `Zone<Type>` (ToyMapZone, no mouse) as the first child of each lit room, so it
   fills the room under its pictogram and name; the tag sits 12 px under the first lit room, its left edge on the
-  room's, on one line, wrapped only where it would pass the board's right edge. The hovered row lights its type, else
+  room's, on one line, wrapped only where it would pass the board's right edge, and above the room where it would pass
+  the rooms' bottom (a lit room in the lowest row, large text). The hovered row lights its type, else
   the «?» with the keyboard's focus (`has_focus(true)`: a focus a mouse press gave is hidden and lights nothing).
 - **Focus.** `Help` is `FOCUS_ALL`. Nothing has the focus on open; with none, the first `ui_down` or `ui_up` (the
   arrows and the d-pad only, §4.7.35) focuses the first «?» in `MapScreen._unhandled_input`, and Godot moves it from
