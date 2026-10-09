@@ -3779,8 +3779,7 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
 The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
 `docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
 `check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
-at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`). Its
-number skips 39 and 40, held for #525 and #548 (as #490's note said).
+at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
 - **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
   `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Status` ToyPlate (top centre, 40 px
   down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
