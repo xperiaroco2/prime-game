@@ -115,7 +115,9 @@ ends when the own client leaves.
 - **`gather` has no level** and the mode no `lobby_level` (E72), so the room loads once, as the map, and nothing
   loads before it. A joiner there has no marker to stand on: `JoinRules` today looks for a `lobby_player` marker in
   the current phase's level and records a match error for each join when there is none (`ctx.layout` is null at no
-  level), so T1 makes a join at no level stand at the origin, with no error. Nobody sees that spot (`gather` sends
+  level), so T1 makes a join at no level stand at the origin, with no error. The rule keys on the phase spec's level
+being `PhaseSpec.Level.NONE`, never on `ctx.layout` being null: `Match._layout_of` also returns null for a lobby
+level whose layout failed to load, and that case must still record its match error (a unit test holds it). Nobody sees that spot (`gather` sends
   no snapshots) and the deal's `PlacePlayers` moves everyone. The client shows the loading screen until the room
   is in (E69), which also keeps the own player frozen (`GameFlow.frozen`) while it has no floor.
 - **No `Use`** in any phase: the knife of lesson 3 swings at nobody (`not_accepted`), so the player cannot knock a
@@ -143,7 +145,7 @@ Each is a content-API part in `core/` with its own unit tests and a §9.4 entry,
 | `ReportOutcome` | effect (listed in §9.4.2 since 2a, "with the first mechanic that needs it"; `MatchContext.report_outcome` exists) | reports `outcome` in the current phase | `outcome` | the outcome (no peer sees it, §9.2) |
 | `KnockDown` | transition action | knocks down one present living player through `LifeRules.knock_down`; with `then_die`, `LifeRules.die` at once | `pick`: the host's player, or the n-th other present player in peer-id order (from 1); `then_die` | `KnockedDown` (everyone), `Correction` (the downed); with `then_die`: `Died` (everyone), the drop's `ItemPlaced` (death, everyone); facts `player_died`, `item_rested` |
 | `PlacePlayers`, `ordered` | a setting of an existing transition action | the players in peer-id order onto the tag's markers in level order, with no draw (the host's player, peer 1, on the first) | `ordered` (false: today's draw) | as today: `PlayersPlaced`, `Correction` |
-| a join at no level (E72) | the `Lobby` phase class's join (`JoinRules`) | in a phase that plays at no level, the joiner stands at the origin with no match error; a lobby level with no `lobby_player` marker still errs as today, and a lobby whose markers are all taken still puts the joiner on the first one | none | as today: `Welcome`, `PlayerJoined` |
+| a join at no level (E72) | the `Lobby` phase class's join (`JoinRules`) | in a phase whose spec's level is `PhaseSpec.Level.NONE` (never "the layout is null", which a lobby whose layout failed to load also has), the joiner stands at the origin with no match error; a lobby level with no `lobby_player` marker still errs as today, and a lobby whose markers are all taken still puts the joiner on the first one | none | as today: `Welcome`, `PlayerJoined` |
 
 No new event and no new audience: every event above is one the life and item rules already emit (ARCHITECTURE
 §4.2), so the information-leak test's audiences and the client's folds hold as they are. A `pick` that names nobody
