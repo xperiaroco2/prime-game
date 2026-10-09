@@ -1785,7 +1785,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
-| no session | main menu: address, port, Host, Join, Quit, and why the last session ended | none | none |
+| no session | main menu: address, port, Host, Join, Voice (its Voice page, #301), Quit, and why the last session ended | none | none |
 | connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
@@ -2352,6 +2352,16 @@ a follow-up on #144 and #145):
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
   the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
   line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
+- **The main menu's Voice page** (#301, the follow-up of #220's Esc-only tab): `MainMenu`'s Voice entry swaps its
+  rows for a second `VoicePanel` (the same class, in the Esc page's room) and Back; Esc on the menu returns too and
+  opens no Esc menu. `Game` wires both panels to its one `VoiceControl` and feeds the one on screen
+  (`Game.shown_voice_panel`), so a pick there is saved in this window's `UserSettings` and opens under the mark as in
+  the tab. With no `ClientSession` the sender still captures and gates for the meter (its `may_speak` is false
+  without a model, and it has no `send`), so nothing leaves; the menu shows its rows again when a session ends.
+  Tests: `tests/unit/client/ui/main_menu_test.gd`, `game_voice_test.gd` (a pick on the page saved and opened under
+  the mark; the meter with no session, nothing sent even to a send of the test's own; both seen failing with the
+  page unwired or `may_speak` true without a model), `esc_menu_input_test.gd` (Esc leaves the page, seen failing
+  without it). `shot`: `client/dev/menu_voice_preview.tscn`.
 - Tests: `tests/unit/voice/voice_capture_test.gd`, `voice_gate_test.gd` (an empty frame while closed empties the
   pre-roll; the threshold clamped above 0; each seen failing first), `tests/unit/client/voice/voice_sender_test.gd`
   (seen failing on a planted widening: no life check, no drain while unspeakable; and, #241, a knockdown and its
@@ -2903,7 +2913,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
   `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
   one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
-  with its reason; the fields keep what was typed.
+  with its reason; the fields keep what was typed. Voice (#301) swaps the rows for the Voice page (§4.7.17), Back or
+  Esc returns.
 - **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
   code, before `found`), connecting, joined (connected, before `Welcome`). **The version check** is the joiner's
   `WebRtcTransport`'s (`expect_protocol`, `expect_content`, which `JoinTarget.transport` sets): a `found` naming
@@ -3159,7 +3170,9 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
   the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
   microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
-  microphone privacy) show in the Voice tab.
+  microphone privacy) show in the Voice tab. The same panel is the main menu's Voice page (#301, §4.7.17), so the
+  microphone is picked and the meter checked before hosting or joining; with no session the capture and the gate
+  run for the meter and nothing is sent.
 - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
   and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
   frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
@@ -3215,7 +3228,7 @@ Effects, the lift music on Music, its −14 dB now the bus default); four slider
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
 the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-`VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
+`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Voice page (#301). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
 (M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
 
 #### 6.5.6 No talking indicator in M5 (D14, the engineer's answer)
