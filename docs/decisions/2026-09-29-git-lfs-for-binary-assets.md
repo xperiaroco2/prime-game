@@ -51,7 +51,8 @@ bandwidth on `verify`.
   `class_name` that uses the asset loads, in `check` and in the later `test`, `bots` and `game` steps (they find it
   in `.godot/imported/`). The pointer and the committed `.import` go back as they were (bytes and times, so the
   import stays current), and the `.import` a new asset's import wrote is removed again. A type without a stand-in
-  (a font, Ogg or MP3 audio, a video, FBX, `.blend`) goes aside with its `.import` file. Hiding every pointer was
+  (a font, Ogg or MP3 audio, a video, FBX, `.blend`) goes aside with its `.import` file (#520 later gave TTF and OTF
+  fonts a stand-in: the theme refers to the font). Hiding every pointer was
   the first build: a class that preloads a texture then broke every script that uses the class, with an error that
   names neither file.
 - **The project check drops what a pointer file causes**, in one summary line (`skip  N LFS pointer files skipped
