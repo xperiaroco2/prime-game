@@ -234,11 +234,12 @@ dissidents, no crew present only once every crew member left, End widens nothing
 - A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **A return** (M7, designed in #73, [ADR](decisions/2026-10-09-returning-players-keep-their-number.md); proposed, not
-  built): a client sends a random return key in `Hello`, kept in its settings file; the host binds a new key to the
-  joiner's number, and a later `Hello` with that key, while no present player holds the number, gets the number back
-  instead of the next one. Only where joins are allowed (Lobby, Countdown): every other phase still refuses joins, so a
-  player who left a round returns in the next lobby. The key reaches no other peer (§5); the name and the colour
-  follow #550's and #551's rules as for any joiner.
+  built): a client sends a return key in `Hello`, made from a random secret in its settings file and the room code or
+  address it joins (so a key one host learns works nowhere else); the host binds a new key to the joiner's number,
+  and a later `Hello` with that key, while no present player holds the number, gets the number back instead of the
+  next one. Only where joins are allowed (Lobby, Countdown): every other phase still refuses joins, so a player who
+  left a round returns in the next lobby. The key reaches no other peer (§5); the name and the colour follow #550's
+  and #551's rules as for any joiner.
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
 
