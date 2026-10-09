@@ -2247,7 +2247,8 @@ the downed camera at or below eye height, never through the level, and showing n
 eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
 public circles only, the destination marker of D10 (b) included; a zone's fill, which tells that a living player
-stands there, is depth-tested like the zone, with no marker, label or HUD line, §4.7.24); a role named only on its
+stands there, is depth-tested like the zone and hidden by the downed camera's sight hiding, with no marker, label or
+HUD line, §4.7.24); a role named only on its
 own player's screen (a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
@@ -2507,18 +2508,27 @@ ZD11 (b) and ZE8, as the engineer answered them on #302).
   next event's `tick` sets it right.
 - **The look** (ZD11 (b), greybox placeholders until the art pass): `ZoneViews` (`client/world/`, under `ItemWorld`
   beside `CircleViews`) draws each zone at its station's position as a faint flat disc of the zone's radius, a ring
-  (`TorusMesh`) at that radius and a fill: a second flat disc scaled from the centre, its radius the share of the time
-  counted, hidden while empty. All three are unshaded, translucent, in `StationPlaced`'s colour (the palette is the
-  data's: yellow, provisional, #302) and sorted disc, fill, ring by `render_priority`. A done zone is full and dimmed
-  (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery circle's cylinder.
-- **The render checklist** (the M4 ADR's §3, items 5 and 10): every material is depth-tested (no `no_depth_test`), so
+  (`TorusMesh` squashed to a band about 1 cm tall, resting on the fill) at that radius and a fill: a second flat disc
+  scaled from the centre, its radius the share of the time counted, hidden while empty. All three are unshaded,
+  translucent, in `StationPlaced`'s colour (the palette is the data's: yellow, provisional, #302) and ordered disc,
+  fill, ring among themselves by a small `sorting_offset` each (2 cm apart), with `render_priority` left at 0 so they
+  sort by camera distance against every other translucent object, the delivery circles' cylinders included. A done
+  zone is full and dimmed (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery
+  circle's cylinder.
+- **The render checklist** (the M4 ADR's §3): every material is depth-tested (no `no_depth_test`; items 5 and 10), so
   the fill never shows through walls; there is no through-walls marker, label or HUD line for zones and no zone
-  sound (ZD11; sounds come later, within the hearing range). The task screen is unchanged: its rows are `TaskState`s.
+  sound (ZD11; sounds come later, within the hearing range). Item 3: the fill tells that a living player stands in the
+  zone, as an avatar does, so it sits under a `FillSight` holder in `SightHider.GROUP` (its sight point the zone's
+  centre 10 cm up): while the downed camera is in use it shows only where the body's eye could see that point. The
+  holder's `visible` is `SightHider`'s; the fill inside keeps its own (empty or not). The disc and the ring are the
+  zone's fixed, public place, like the level, and stay drawn. The task screen is unchanged: its rows are `TaskState`s.
 - Tests: `tests/unit/client/net/client_model_test.gd` (the fold), `tests/unit/client/world/zone_views_test.gd` (which
   kinds are zones; the fill extrapolated, still, capped, done, never running backwards),
   `tests/integration/client/world/zone_views_test.gd` (the parts' sizes and colour, no circle for a zone, the fill
   following `ZoneProgress` and the host tick, the done look, every part depth-tested: seen failing with a planted
-  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted). The `shot`s:
+  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted; the flat ring and the parts' sort order;
+  the fill hidden behind a wall by `SightHider` while the disc and the ring stay: seen failing without the group,
+  reverted). The `shot`s:
   `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
   `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
   `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
