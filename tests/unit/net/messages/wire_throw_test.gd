@@ -28,23 +28,25 @@ func test_the_points_from_a_decoded_item_thrown_are_the_ones_flight_ticks_sweeps
 	var gravity: Vector3 = decoded.fields["gravity"]
 	var launch: int = decoded.fields["tick"]
 	assert_bool(Samples.same(decoded.fields, seen[0].to_dict())).is_true()
-	var before := world.sweeps.size()
+	var sweeps_before := world.sweeps.size()
 	var flown := 0
-	while item.is_in_flight():
+	for _step: int in 200:
+		if not item.is_in_flight():
+			break
 		FixtureModes.run_ticks(game, 1)
 		var n := game.ticked_through() - launch
 		# The launch tick moves nothing: after tick L + k the flight has swept k segments.
-		assert_int(world.sweeps.size() - before).is_equal(n)
+		assert_int(world.sweeps.size() - sweeps_before).is_equal(n)
 		if n == 0:
 			continue
 		flown = n
-		var sweep: Array = world.sweeps[before + n - 1]
+		var sweep: Array = world.sweeps[sweeps_before + n - 1]
 		assert_vector(sweep[0] as Vector3).is_equal(
 			ItemFlight.point(origin, velocity, gravity, n - 1)
 		)
 		assert_vector(sweep[1] as Vector3).is_equal(ItemFlight.point(origin, velocity, gravity, n))
-		assert_int(game.ticked_through()).is_less(launch + 200)
 	# A whole flight, up and down to the floor, not one tick of it.
+	assert_bool(item.is_in_flight()).is_false()
 	assert_int(flown).is_greater(20)
 	assert_int(item.where).is_equal(ItemState.Where.GROUND)
 

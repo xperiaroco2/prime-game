@@ -46,8 +46,8 @@ func test_a_throw_needs_holds_item_and_over_floor_not_negated() -> void:
 		var mode := FixtureThrowModes.basic()
 		var throw_rule: Rule = mode.actions[mode.actions.size() - 1]
 		throw_rule.conditions.remove_at(missing)
-		var name := "HoldsItem" if missing == 0 else "OverFloor"
-		_expect(mode, "rule Throw throws an item, which requires the condition %s" % name)
+		var condition_name := "HoldsItem" if missing == 0 else "OverFloor"
+		_expect(mode, "rule Throw throws an item, which requires the condition %s" % condition_name)
 	var negated := FixtureThrowModes.basic()
 	var rule: Rule = negated.actions[negated.actions.size() - 1]
 	rule.conditions[1].negate = true
