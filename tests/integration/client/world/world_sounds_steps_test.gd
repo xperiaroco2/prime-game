@@ -130,6 +130,24 @@ func test_the_local_player_steps_never_muffled_and_not_while_downed() -> void:
 	assert_int(_sounds.steps()).is_equal(standing)
 
 
+func test_the_local_player_steps_on_stairs_where_the_floor_flag_flickers() -> void:
+	# Climbing a stair's edge is_on_floor() is false for frames at a time; the cadence must not
+	# restart each time (code review).
+	_world.add_stairs(30)
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.move_input = Vector2(0, 1)
+	var off_floor := 0
+	for i: int in 120:
+		await get_tree().physics_frame
+		if not player.is_on_floor():
+			off_floor += 1
+	assert_float(player.global_position.y).is_greater(3.0)
+	assert_int(off_floor).is_greater(0)
+	assert_int(_sounds.steps()).is_greater_equal(3)
+
+
 ## PEER's snapshots for `frames` physics frames, one a tick: from `from` moving at `velocity`
 ## (m/s), each claiming `claimed`; `downed` as the snapshot says.
 func _walk(

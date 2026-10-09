@@ -9,8 +9,9 @@ extends Node3D
 ## M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the muffled Effects bus's
 ## low-pass), and stays so to its end.
 ##
-## Footsteps (#525), each physics frame: of the local player while it is living and on the floor,
-## from how far it moved; of every other player this client draws while the model knows it living
+## Footsteps (#525), each physics frame: of the local player while it is living,
+## from how far it moved (is_on_floor() flickers on stairs: only FootstepSurface's ray decides the
+## floor); of every other player this client draws while the model knows it living
 ## (not downed, dead or gone), from how far its interpolated pose moved (never a claimed
 ## velocity). FootstepCadence says when a step falls; SoundChooser.step cuts it beyond the hearing
 ## range before any ray; FootstepSurface's ray down finds the floor's surface, and no floor (a
@@ -86,7 +87,7 @@ func position_of(peer: int) -> Variant:
 
 func _physics_process(delta: float) -> void:
 	var walking: Dictionary[int, Vector3] = {}
-	if player != null and player.is_inside_tree() and player.is_living() and player.is_on_floor():
+	if player != null and player.is_inside_tree() and player.is_living():
 		walking[0] = player.global_position
 	if model != null and avatars != null:
 		for peer: int in model.avatars:
