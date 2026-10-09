@@ -48,6 +48,52 @@ The dry run of the art handoff (#519): the first art binary in the game repo, co
 `.import` file and checked by the import check (`docs/ARCHITECTURE.md` §11). Renamed to `kenney_chair.glb`; no game
 scene uses it yet. Not from the art repo: it has no approved asset yet.
 
+## Kenney Impact Sounds: footsteps
+
+- **Files:** `assets/audio/kenney_impact_sounds/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/impact-sounds (Impact Sounds 1.0, `kenney_impact-sounds.zip`, downloaded
+  2026-10-09; the zip's SHA-256 `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The footsteps of #525: `Audio/footstep_<surface>_000.ogg` to `_004.ogg` for the surfaces concrete, wood, carpet and
+grass (20 files, Ogg Vorbis, stereo 44.1 kHz), under their own names. Played by `SfxSet` (`client/audio/`), five
+variants a surface; the engineer's verdicts from sfx-check's listening page go to `assets/audio/sfx-verdicts.json`.
+
+## Kenney Interface Sounds: the UI click
+
+- **Files:** `assets/audio/kenney_interface_sounds/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/interface-sounds (Interface Sounds 1.0, `kenney_interface-sounds.zip`,
+  downloaded 2026-10-09; the zip's SHA-256 `f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The click of a Toy button press (#525; Ogg Vorbis, mono 44.1 kHz), renamed (the pack's name, then ours):
+`click_001.ogg` `click_1.ogg`, `tick_001.ogg` `click_2.ogg`, `tick_002.ogg` `click_3.ogg`. Played by `UiSounds`
+(`client/ui/`) through `SfxSet`; the engineer's verdicts go to `assets/audio/sfx-verdicts.json`. The pack's
+`click_002.ogg` is also the Ogg stand-in for LFS pointer files in CI (`tools/runner/lfs.py`, the LFS ADR's
+amendment of 2026-10-10); it is not a game asset.
+
+## Kenney RPG Audio: the item sounds
+
+- **Files:** `assets/audio/kenney_rpg_audio/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/rpg-audio (RPG Audio, `kenney_rpg-audio.zip`, downloaded 2026-10-09; the
+  zip's SHA-256 `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The swing, pick-up and put-down sounds of #525 (Ogg Vorbis, stereo 48 kHz), renamed after the sound they play (the
+pack's name, then ours): `knifeSlice.ogg` `swing_1.ogg`, `knifeSlice2.ogg` `swing_2.ogg`, `handleSmallLeather.ogg`
+`pick_up_1.ogg`, `handleSmallLeather2.ogg` `pick_up_2.ogg`, `cloth3.ogg` `pick_up_3.ogg`, `dropLeather.ogg`
+`put_down_1.ogg`, `bookPlace1.ogg` `put_down_2.ogg`, `bookPlace3.ogg` `put_down_3.ogg`. No door sound: the game has
+no door (#525). Played by `SfxSet` (`client/audio/`); the engineer's verdicts go to `assets/audio/sfx-verdicts.json`.
+
 ## prime-game-ui: the UI pack's icons and Delivery cards
 
 - **Files:** `assets/ui/toy_pack/icons/**`, `assets/ui/toy_pack/cards/**`, `client/ui/theme/pack/icons/**`,
