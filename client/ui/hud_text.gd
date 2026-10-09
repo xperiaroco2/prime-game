@@ -3,19 +3,17 @@ extends RefCounted
 ## What the round's HUD shows (ARCHITECTURE §4.7.37, #489; M4-8 first), pure: from the own
 ## ClientModel, the client's own copy of the mode, the estimated host tick and what the game knows
 ## locally (the predicted stamina, the item under the crosshair, whether the own voice is heard, the
-## own raise's progress, whom a dead player watches). The Toy HUD (prime-game-ui `ui-0.4.0`
-## `docs/handoff/s07-hud.md`) draws it: texts are copy deck keys (#208) or data.
+## own raise's progress). The Toy HUD (prime-game-ui `ui-0.4.0` `docs/handoff/s07-hud.md`) draws
+## it: texts are copy deck keys (#208) or data.
 ##
 ## Only the own player's facts: the time left, its own role, its health and stamina as fractions,
 ## its microphone, its hand and belt, the item its crosshair is on and the raise it runs. Never a
 ## key, walking or running, a player list, who knocked it down, a destination or task progress (the
-## handoff), no other player's role, health or slots, no own invulnerability read-out (the
-## engineer's answer 2 on PR #167).
+## handoff), no other player's role, health or slots. The respawn's protection is LifeHud's chip.
 ##
-## While the own player is dead it spectates (#168): the watched player's name and its hand and belt
-## items (public: everyone sees them in 3D), nothing else of the HUD (the handoff s09's `dead`: no
-## time, role, bars or mic); none of the target's health, stamina, role, teammates or private events
-## (the M4 ADR's §3 item 2).
+## The downed and the dead (the handoff s09, #497; LifeScreen draws the rest): downed, only the
+## microphone shows; dead (spectating, #168) nothing of the HUD shows (no time, role, bars, slots or
+## mic), so nothing of the watched player's either (the M4 ADR's §3 item 2): its name is LifeHud's.
 
 ## The copy deck's key of each role the base mode has, by role id (#208); a role not named here
 ## shows its display name.
@@ -34,8 +32,6 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 	&"package": &"item",
 	&"knife": &"knife",
 }
-## The copy deck's "Watching: {name}" (the handoff s09's `dead.watching`).
-const WATCHING_KEY := "dead.watching"
 
 
 ## What the HUD knows besides the model and the mode.
@@ -49,8 +45,6 @@ class Local:
 	var mic := false
 	## The own raise's progress (LifeView.raise_shown()), 0 to 1; negative for none.
 	var raising := -1.0
-	## The peer a dead player watches (LifeView.target()); 0 for none.
-	var watching := 0
 	## The own body's place for the map screen (#253): whether it has one (the dead have none), the
 	## place, and the heading in radians clockwise from north (-Z) seen from above.
 	var placed := false
@@ -79,14 +73,16 @@ class Shown:
 	var time := ""
 	## The own role's deck key (or display name); "" hides the chip.
 	var role := ""
-	## Health, stamina and the microphone show (the own player in the round, not spectating).
+	## The vitals' column shows (the own player in the round, not spectating): the microphone and,
+	## when `bars`, health and stamina (not while downed).
 	var vitals := false
+	var bars := false
 	## Health and stamina, 0 to 1.
 	var health := 1.0
 	var stamina := 1.0
 	## Whether anyone hears the own player.
 	var mic := false
-	## The hand and belt show (the own ones, or a spectated player's).
+	## The own hand and belt show.
 	var slots := false
 	var hand := Slot.new()
 	var belt := Slot.new()
@@ -94,20 +90,23 @@ class Shown:
 	var aim := ""
 	## The own raise's progress, 0 to 1; negative hides the bar (it replaces Aim).
 	var raising := -1.0
-	## The name of whom a dead player watches; "" hides the plate.
-	var watching := ""
 
 
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
 	var shown := Shown.new()
 	if spectates(model):
-		_spectated(shown, model, mode, local.watching)
+		return shown
+	if model.life_of(model.own_peer) == ClientModel.Life.DOWNED:
+		# The handoff s09's `down` and `raise`: the plates and the microphone (off) alone.
+		shown.vitals = true
+		shown.mic = local.mic
 		return shown
 	var left := GameFlow.seconds_left(model.end_tick, floori(host_tick))
 	if left >= 0:
 		shown.time = clock_text(left)
 	shown.role = role_key(model, mode)
 	shown.vitals = true
+	shown.bars = true
 	shown.health = health_of(model, mode)
 	shown.stamina = stamina_of(local, mode)
 	shown.mic = local.mic
@@ -172,13 +171,3 @@ static func slot_of(model: ClientModel, mode: GameMode, item_id: int) -> Slot:
 	slot.icon = ITEM_ICONS.get(item.kind, &"")
 	slot.two_handed = kind != null and kind.is_two_handed()
 	return slot
-
-
-## The spectator's HUD: whom it watches and that player's public slots; nothing for nobody.
-static func _spectated(shown: Shown, model: ClientModel, mode: GameMode, target: int) -> void:
-	if target == 0:
-		return
-	shown.watching = LifeHud.name_of(model, target)
-	shown.slots = true
-	shown.hand = slot_of(model, mode, model.hand_item(target))
-	shown.belt = slot_of(model, mode, model.belt_item(target))

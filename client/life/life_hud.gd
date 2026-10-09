@@ -1,32 +1,46 @@
 class_name LifeHud
 extends RefCounted
-## What the life panel shows (ARCHITECTURE §4.7, the own player by life), as words: pure, from the
-## own ClientModel, the own LifeCountdowns at the estimated host tick and the life view's own state
-## (whom a dead player watches, how long the give-up key has been held, whether the crosshair is on
-## a downed player within reach, and the keys bound now, KeyLabel's, so every prompt follows a
-## rebind, #211). Greybox wording, placeholders until the UI milestone (#150).
+## What the downed, dead and respawn screen shows (LifeScreen, #497; ARCHITECTURE §4.7.38, the UI
+## handoff s09), as data: pure, from the own ClientModel, the own LifeCountdowns at the estimated
+## host tick and the life view's own state (whom a dead player watches, how long the give-up key
+## has been held, and the give-up key bound now, KeyLabel's, so the line follows a rebind, #211).
+## The screen turns it into the deck's words (#208).
 ##
-## - Living: the raise it runs and its progress; "Hold <interact> to raise" over a downed player in
-##   reach.
-##   No own invulnerability read-out (the engineer's answer 2 on PR #167: a later buffs UI may
-##   show it); other players' invulnerable shell (D8) stays.
-## - Downed: the knockdown countdown (paused while raised), who raises them and the raise's
-##   progress, and "Hold <give_up> to give up" with the hold's progress (F by default, #211).
-## - Dead: the respawn countdown and the keys that cycle the target (the HUD names whom they
-##   watch, #168): nothing of the target's (no health, stamina, role or private event).
+## - Downed (`down`, `down-holding`): the bleed-out time left, as a fraction of the mode's knockdown
+##   and as m:ss, and the give-up hold's progress with its key.
+## - Raised (`raise`): the raiser's name and the raise's progress (the knockdown is paused).
+## - Dead: the time to respawn as m:ss and the watched player's name; nothing of the target's (no
+##   health, stamina, role or private event), and no key (the tutorial teaches them).
+## - Living after a respawn (`back`): the protection's whole seconds left, 3, 2, 1; nothing after a
+##   raise, as drawn.
+## Never who knocked the player down: the model does not say, and nothing here asks.
+
+## What the screen shows: nothing, the downed plates, the raise or the spectator's plate.
+enum State { NONE, DOWN, RAISE, DEAD }
 
 
-## One panel's content; an empty title shows no panel.
+## One state of the screen; a default one shows nothing.
 class Shown:
 	extends RefCounted
-	var title := ""
-	var lines := PackedStringArray()
-	## From 0 to 1, or a negative number for no bar.
-	var progress := -1.0
-	var progress_label := ""
+	var state := State.NONE
+	## DOWN: the bleed-out time left as a fraction of the mode's knockdown (1 to 0) and as m:ss.
+	var bleed := 0.0
+	var time_left := ""
+	## DOWN: the give-up hold's progress (0 at rest, 1 gives up) and the give-up key's label.
+	var give_up := 0.0
+	var give_up_key := "F"
+	## RAISE: the raiser's name and the raise's progress, 0 to 1.
+	var raiser := ""
+	var raise := 0.0
+	## DEAD: the time to respawn as m:ss ("" when none runs) and whom the player watches ("" for
+	## nobody).
+	var respawn := ""
+	var watching := ""
+	## Living after a respawn: the protection's whole seconds left; 0 hides the chip.
+	var protected := 0
 
 
-## The life view's own state the panel shows besides the model and the countdowns.
+## The life view's own state the screen shows besides the model and the countdowns.
 class Local:
 	extends RefCounted
 	## The peer a dead player watches; 0 for none.
@@ -34,93 +48,64 @@ class Local:
 	## Seconds the give-up key has been held, and how long it must be.
 	var give_up_held_s := 0.0
 	var give_up_hold_s := 1.0
-	## The crosshair is on a downed player the host would let this player raise.
-	var can_raise := false
-	## The labels of the keys bound now (KeyLabel.of_action): give_up, interact (the raise),
-	## spectate_next and spectate_previous. The defaults are the project's, the mouse buttons in
-	## the deck's words.
+	## The label of the give_up key bound now (KeyLabel.of_action); the project's default F.
 	var give_up_key := "F"
-	var raise_key := "E"
-	var next_key := KeyLabel.word(&"key.mouse_left")
-	var previous_key := KeyLabel.word(&"key.mouse_right")
 
-	## The labels of the keys bound now, from the InputMap and the keyboard layout.
+	## The label of the give-up key bound now, from the InputMap and the keyboard layout.
 	func read_keys() -> void:
 		give_up_key = KeyLabel.of_action(&"give_up")
-		raise_key = KeyLabel.of_action(&"interact")
-		next_key = KeyLabel.of_action(&"spectate_next")
-		previous_key = KeyLabel.of_action(&"spectate_previous")
 
 
 static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local) -> Shown:
 	var shown := Shown.new()
-	var own := model.own_peer
-	match model.life_of(own):
+	match model.life_of(model.own_peer):
 		ClientModel.Life.ALIVE:
-			_living(shown, model, countdowns, tick, local)
+			var protection := countdowns.protection_left_s(tick)
+			shown.protected = ceili(protection) if protection > 0.0 else 0
 		ClientModel.Life.DOWNED:
 			_downed(shown, model, countdowns, tick, local)
-		ClientModel.Life.DEAD:
-			_dead(shown, countdowns, tick, local)
+		ClientModel.Life.DEAD, ClientModel.Life.LEFT:
+			shown.state = State.DEAD
+			var left := countdowns.respawn_left_s(tick)
+			shown.respawn = clock_text(ceili(left)) if left >= 0.0 else ""
+			shown.watching = name_of(model, local.watching) if local.watching != 0 else ""
 	return shown
-
-
-static func _living(
-	shown: Shown, model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local
-) -> void:
-	var raising := countdowns.raising()
-	var progress := countdowns.raise_progress(tick)
-	if raising != 0 and progress >= 0.0:
-		shown.title = "Raising %s" % name_of(model, raising)
-		shown.progress = progress
-		shown.progress_label = "Keep holding %s" % local.raise_key
-		return
-	if local.can_raise:
-		shown.title = "Downed player"
-		shown.lines.append("Hold %s to raise" % local.raise_key)
 
 
 static func _downed(
 	shown: Shown, model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local
 ) -> void:
-	shown.title = "Knocked down"
-	var left := countdowns.knockdown_left_s(tick)
-	if left >= 0.0:
-		var paused := " (paused)" if countdowns.knockdown_paused() else ""
-		shown.lines.append("Dying in %d s%s" % [ceili(left), paused])
 	var raiser := model.raiser_of(model.own_peer)
-	var progress := countdowns.raise_progress(tick)
 	if raiser != 0:
-		shown.lines.append("Being raised by %s" % name_of(model, raiser))
-		if progress >= 0.0:
-			shown.progress = progress
-			shown.progress_label = ""
+		shown.state = State.RAISE
+		shown.raiser = name_of(model, raiser)
+		shown.raise = maxf(0.0, countdowns.raise_progress(tick))
 		return
-	if local.give_up_held_s > 0.0:
-		shown.progress = clampf(local.give_up_held_s / local.give_up_hold_s, 0.0, 1.0)
-		shown.progress_label = "Giving up"
-	shown.lines.append(give_up_line(local.give_up_key))
+	shown.state = State.DOWN
+	var left := countdowns.knockdown_left_s(tick)
+	shown.bleed = maxf(0.0, countdowns.knockdown_fraction(tick))
+	shown.time_left = clock_text(ceili(left)) if left >= 0.0 else ""
+	if local.give_up_hold_s > 0.0:
+		shown.give_up = clampf(local.give_up_held_s / local.give_up_hold_s, 0.0, 1.0)
+	shown.give_up_key = local.give_up_key
 
 
-static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: Local) -> void:
-	shown.title = "Dead"
-	var left := countdowns.respawn_left_s(tick)
-	if left >= 0.0:
-		shown.lines.append("Respawn in %d s" % ceili(left))
-	# Whom it watches is the HUD's "Watching: <name>" (HudText, dead.watching; #168, #489).
-	if local.watching != 0:
-		shown.lines.append("%s and %s: next and previous" % [local.next_key, local.previous_key])
-	else:
-		shown.lines.append("Nobody to watch")
+## Seconds as m:ss ("0:10", "1:05"), the downed and dead plates' times.
+static func clock_text(seconds: int) -> String:
+	var whole := maxi(seconds, 0)
+	return "%d:%02d" % [floori(whole / 60.0), whole % 60]
 
 
-## The downed player's prompt with the bound key: the deck's `downed.give_up_hold` in English
-## ("Hold {key} to give up"), in every language, as the rest of this greybox panel ("Knocked down",
-## "Giving up"): translated alone it would make the default panel mixed. Known gap (§4.7.28): a key
-## rebound to Space or a mouse button reads in the current language inside it; the Toy downed
-## screen (#497) shows the whole sentence through tr().
-static func give_up_line(key: String) -> String:
-	return "Hold {key} to give up".format({"key": key})
+## The deck's `downed.give_up_hold` sentence (translated) split at its `{key}`: the words before
+## and after the keycap, each through strip_edges() (the row's gap and the keycap's padding stand
+## in for the spaces); an empty piece is hidden. A sentence without `{key}` is all before it.
+static func give_up_pieces(sentence: String) -> PackedStringArray:
+	var at := sentence.find("{key}")
+	if at < 0:
+		return PackedStringArray([sentence.strip_edges(), ""])
+	var before := sentence.substr(0, at).strip_edges()
+	var after := sentence.substr(at + "{key}".length()).strip_edges()
+	return PackedStringArray([before, after])
 
 
 ## A player's roster name, or "Player <id>" once it left the roster.

@@ -192,7 +192,8 @@ func raise_shown(tick: float) -> float:
 	return countdowns.raise_progress(tick)
 
 
-## What the life panel shows now, at the estimated host tick `tick`.
+## What the downed, dead and respawn screen shows now (LifeScreen, #497), at the estimated host
+## tick `tick`.
 func hud(tick: float) -> LifeHud.Shown:
 	if model == null or countdowns == null:
 		return LifeHud.Shown.new()
@@ -200,7 +201,6 @@ func hud(tick: float) -> LifeHud.Shown:
 	local.watching = _target if _is_dead() else 0
 	local.give_up_held_s = _give_up_held_s
 	local.give_up_hold_s = GIVE_UP_HOLD_S
-	local.can_raise = _own_life() == ClientModel.Life.ALIVE and _raise_peer != 0
 	local.read_keys()
 	return LifeHud.of(model, countdowns, tick, local)
 

@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## `docs/handoff/s07-hud.md`: names, classes, variations, anchors, offsets, grow directions, size
 ## flags and minimum sizes), every node ignoring the mouse and focus, the health fill's ramp stop
 ## (0.22, 0.8, 1.0), and each state the handoff draws: empty, pack, tired, hurt, mate, raising
-## (the mate state's name plate: name_plate_test.gd), large text and a dead spectator's plate.
+## (the mate state's name plate: name_plate_test.gd), large text; and s09's: the downed see the mic
+## alone, the dead nothing (#497).
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -18,7 +19,7 @@ func before() -> void:
 
 func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	var hud := await _hud()
-	# [path, class, variation] of every node the handoff lists (Spectate: s09's, Watching only).
+	# [path, class, variation] of every node the handoff lists.
 	var nodes: Array[Array] = [
 		["Timer", "PanelContainer", &"ToyPlate"],
 		["Timer/Time", "Label", &"ToyTimer"],
@@ -55,9 +56,6 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["Slots/Belt/Center/Row/ItemName", "Label", &"ToySlotText"],
 		["Raising", "PanelContainer", &"ToyPlate"],
 		["Raising/Bar", "ProgressBar", &"ToyBarProgress"],
-		["Spectate", "PanelContainer", &"ToyPlate"],
-		["Spectate/V", "VBoxContainer", &"ToyColumnFour"],
-		["Spectate/V/Watching", "Label", &"ToyTitleOnDark"],
 	]
 	for node: Array in nodes:
 		var found := hud.get_node_or_null(node[0] as String) as Control
@@ -65,12 +63,12 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		assert_str(found.get_class()).override_failure_message(node[0] as String).is_equal(node[1])
 		assert_str(found.theme_type_variation).is_equal(node[2])
 	assert_array(hud.slots.get_children()).is_equal([hud.hand, hud.belt])
-	# Texts: the deck's keys; data (time, the watched name) never translated (#208).
+	# Texts: the deck's keys; data (the time) never translated (#208).
 	assert_str(_label(hud, "Vitals/Health/Cap/Text").text).is_equal("hud.health")
 	assert_str(_label(hud, "Vitals/Stamina/Cap/Text").text).is_equal("hud.stamina")
 	assert_str(_label(hud, "Slots/Hand/Center/Row/Name").text).is_equal("hud.slot.hand")
 	assert_str(_label(hud, "Slots/Belt/Center/Row/Name").text).is_equal("hud.slot.belt")
-	for data: Label in [hud.time_label, hud.watching_label]:
+	for data: Label in [hud.time_label]:
 		assert_int(data.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 
 
@@ -88,7 +86,6 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 		[hud.vitals, Vector4(0, 1, 0, 1), Vector4(40, -40, 40, -40), end, begin],
 		[hud.slots, Vector4(1, 1, 1, 1), Vector4(-40, -40, -40, -40), begin, begin],
 		[hud.raising, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 38, 0, 38), both, both],
-		[hud.spectate, Vector4(0.5, 0, 0.5, 0), Vector4(0, 40, 0, 40), both, end],
 	]
 	for row: Array in placed:
 		var node: Control = row[0]
@@ -159,7 +156,6 @@ func test_empty_shows_the_slot_names_and_aim() -> void:
 	assert_bool(hud.aim.visible).is_true()
 	assert_str(hud.aim_label.text).is_equal("item.package")
 	assert_bool(hud.raising.visible).is_false()
-	assert_bool(hud.spectate.visible).is_false()
 	for slot: HudSlot in [hud.hand, hud.belt]:
 		assert_bool(slot.name_label.visible).is_true()
 		assert_bool(slot.icon.visible).is_false()
@@ -257,19 +253,24 @@ func test_the_mic_off_is_mic_off_tinted_icon_off() -> void:
 	)
 
 
-func test_a_spectator_sees_the_watched_name_and_slots_only() -> void:
+func test_the_downed_see_the_mic_alone_and_a_spectator_nothing() -> void:
+	# The handoff s09 (#497): `down` keeps Vitals/Mic (off) only; `dead` hides all of the HUD.
 	var hud := await _hud()
 	var model := Preview.fake_model(_mode, true)
 	Preview.fold_round(model)
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	hud.show_hud(HudText.of(model, _mode, 100, HudText.Local.new()))
+	assert_bool(hud.mic.is_visible_in_tree()).is_true()
+	assert_bool(hud.shows_mic_on()).is_false()
+	var downed_hidden: Array[Control] = [
+		hud.timer, hud.role, hud.health_box, hud.stamina_box, hud.slots, hud.aim, hud.raising
+	]
+	for hidden: Control in downed_hidden:
+		assert_bool(hidden.is_visible_in_tree()).override_failure_message(hidden.name).is_false()
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
-	var local := HudText.Local.new()
-	local.watching = 3
-	hud.show_hud(HudText.of(model, _mode, 100, local))
-	assert_bool(hud.spectate.visible).is_true()
-	assert_str(hud.watching_label.text).is_equal(tr("dead.watching").format({"name": "Player3"}))
-	for hidden: Control in [hud.timer, hud.role, hud.vitals, hud.aim, hud.raising]:
-		assert_bool(hidden.visible).override_failure_message(hidden.name).is_false()
-	assert_bool(hud.slots.visible).is_true()
+	hud.show_hud(HudText.of(model, _mode, 100, HudText.Local.new()))
+	for hidden: Control in [hud.timer, hud.role, hud.vitals, hud.slots, hud.aim, hud.raising]:
+		assert_bool(hidden.is_visible_in_tree()).override_failure_message(hidden.name).is_false()
 
 
 func test_large_text_keeps_the_sizes_and_shrinks_back() -> void:

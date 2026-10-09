@@ -141,8 +141,15 @@ class GameView:
 				found = ["%.2f" % bar.value, bar.is_visible_in_tree()]
 			"hud.crosshair":
 				found = ["", hud.cross.is_visible_in_tree()]
-			"life.bar":
-				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
+			"life.bleed":
+				var bleed := ui.life.bleed
+				found = ["%.2f" % bleed.fill.value, bleed.is_visible_in_tree()]
+			"life.raise":
+				found = ["%.2f" % ui.life.raise_bar.value, ui.life.raise_bar.is_visible_in_tree()]
+			"life.hold":
+				found = ["%.2f" % ui.life.hold_bar.value, ui.life.hold_bar.is_visible_in_tree()]
+			"life.give_up":
+				found = [ui.life.give_up_text(), ui.life.give_up.is_visible_in_tree()]
 			"esc.tabs":
 				var names := PackedStringArray()
 				for button: Button in ui.esc.tab_buttons.values():
@@ -167,9 +174,11 @@ class GameView:
 			"hud.role": ui.hud.role_label,
 			"hud.clock": ui.hud.time_label,
 			"hud.aim": ui.hud.aim_label,
-			"hud.spectating": ui.hud.watching_label,
+			"life.watching": ui.life.watching_label,
 			"life.title": ui.life.title_label,
-			"life.lines": ui.life.lines_label,
+			"life.left": ui.life.left_label,
+			"life.respawn": ui.life.respawn_label,
+			"life.protected": ui.life.protect_label,
 			"lobby.hint": ui.lobby_hud.hint_label,
 			"lobby.roster": ui.lobby_hud.roster_label,
 			"lobby.countdown": ui.lobby_hud.countdown_label,

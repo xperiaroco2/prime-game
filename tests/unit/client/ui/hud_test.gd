@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## fake ClientModel and the client's own mode only: the time, the own role's key, the own health
 ## and stamina as fractions, the microphone, the own hand and belt, the item under the crosshair
 ## and the own raise; nothing of another player, no player list, destination or task progress;
-## a dead spectator's watched name and that player's public slots (#168). When the map and tasks
-## screen shows (#253; its own words and its privacy rule: map_screen_test.gd). How the Hud draws
-## it: hud_layout_test.gd and the `shot`s of client/dev/hud_preview.tscn.
+## the downed see the mic alone and a dead spectator nothing (the handoff s09, #497). When the map
+## and tasks screen shows (#253; its own words and its privacy rule: map_screen_test.gd). How the
+## Hud draws it: hud_layout_test.gd and the `shot`s of client/dev/hud_preview.tscn.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -42,7 +42,7 @@ func test_the_hud_shows_the_own_time_role_vitals_and_slots() -> void:
 	assert_bool(shown.belt.two_handed).is_false()
 	assert_str(shown.aim).is_empty()
 	assert_float(shown.raising).is_negative()
-	assert_str(shown.watching).is_empty()
+	assert_bool(shown.bars).is_true()
 
 
 func test_the_timer_is_mm_ss_and_holds_the_widest_time() -> void:
@@ -114,9 +114,10 @@ func test_aim_names_the_item_under_the_crosshair_and_the_raise_replaces_it() -> 
 	assert_str(HudText.of(model, _mode, NOW, local).aim).is_empty()
 
 
-func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() -> void:
-	# #168: the own player (peer 1) holds the package with the knife on its belt and dies; it
-	# watches Player2, who holds a knife and wears an unknown kind ("wrench") on its belt.
+func test_a_dead_spectator_sees_nothing_of_the_hud() -> void:
+	# The handoff s09's `dead` (#497): the Spectate plate (LifeScreen) is the only UI; the HUD shows
+	# none of the spectator's own time, role, vitals, mic, aim, raise or slots, and none of the
+	# watched player's slots either (#168 showed them until s9 was settled).
 	var model := _round_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
@@ -125,15 +126,13 @@ func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() 
 	local.aim = Preview.KNIFE
 	local.mic = true
 	local.raising = 0.5
-	local.watching = 2
 	var shown := HudText.of(model, _mode, NOW, local)
-	assert_str(shown.watching).is_equal("Player2")
-	assert_bool(shown.slots).is_true()
-	assert_str(shown.hand.item).is_equal("item.knife")
-	assert_str(shown.belt.item).is_equal("wrench")
-	# None of the spectator's own vitals, aim, raise, role or time (the handoff s09's `dead`).
 	assert_bool(shown.vitals).is_false()
+	assert_bool(shown.bars).is_false()
 	assert_bool(shown.mic).is_false()
+	assert_bool(shown.slots).is_false()
+	assert_bool(shown.hand.is_empty()).is_true()
+	assert_bool(shown.belt.is_empty()).is_true()
 	assert_str(shown.aim).is_empty()
 	assert_float(shown.raising).is_negative()
 	assert_str(shown.role).is_empty()
@@ -141,37 +140,37 @@ func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() 
 
 
 func test_a_dead_spectator_sees_nothing_private_of_the_target() -> void:
-	# The M4 ADR's §3 item 2: no health, stamina, role, teammates or private event of the target,
-	# whatever the own model holds (here its own SelfStatus, role and teammates).
+	# The M4 ADR's §3 item 2: no health, stamina, role, teammates, items or private event of the
+	# target, whatever the own model holds (here its own SelfStatus, role and teammates).
 	var model := _round_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
 	var local := HudText.Local.new()
 	local.stamina = 61.2
-	local.watching = 2
 	var shown := HudText.of(model, _mode, NOW, local)
-	for word: String in ["role", "dissident", "engineer", "player3"]:
+	for word: String in ["role", "dissident", "engineer", "player2", "player3", "wrench", "knife"]:
 		assert_str(_fields(shown).to_lower()).not_contains(word)
-	# Nobody to watch: no name and no slots at all.
-	local.watching = 0
-	var alone := HudText.of(model, _mode, NOW, local)
-	assert_str(alone.watching).is_empty()
-	assert_bool(alone.slots).is_false()
 
 
-func test_the_living_and_the_downed_see_their_own_slots_whatever_is_watched() -> void:
+func test_the_living_see_their_own_hud_and_the_downed_the_mic_alone() -> void:
 	var model := _round_model()
 	_arm_player2(model)
 	var local := HudText.Local.new()
-	local.watching = 2
+	local.mic = true
 	var living := HudText.of(model, _mode, NOW, local)
-	assert_str(living.watching).is_empty()
+	assert_bool(living.bars).is_true()
 	assert_str(living.hand.item).is_equal("item.package")
+	# The handoff s09's `down` (#497): the downed plates and the mic, nothing else of the HUD.
 	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	local.mic = false
 	var downed := HudText.of(model, _mode, NOW, local)
-	assert_str(downed.watching).is_empty()
-	assert_str(downed.belt.item).is_equal("item.knife")
-	assert_float(downed.health).is_equal_approx(0.75, 0.0001)
+	assert_bool(downed.vitals).is_true()
+	assert_bool(downed.bars).is_false()
+	assert_bool(downed.mic).is_false()
+	assert_bool(downed.slots).is_false()
+	assert_str(downed.time).is_empty()
+	assert_str(downed.role).is_empty()
+	assert_str(downed.aim).is_empty()
 
 
 func test_the_map_shows_in_the_round_while_open_only() -> void:
@@ -273,7 +272,6 @@ func _fields(shown: HudText.Shown) -> String:
 		shown.slots,
 		shown.aim,
 		shown.raising,
-		shown.watching
 	]
 	for slot: HudText.Slot in [shown.hand, shown.belt]:
 		parts.append_array([slot.item, slot.icon, slot.two_handed])

@@ -84,6 +84,13 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	await get_tree().process_frame
 	assert_bool(_pair.host.ui.hud.raising.visible).is_true()
 	assert_bool(_pair.host.ui.hud.aim.visible).is_false()
+	# The raised joiner's screen (#497): the raiser's name and the raise's bar, no giving up.
+	var raised_screen := _pair.client.ui.life
+	var raised_by := tr("downed.raised_by").format({"name": "Player1"})
+	assert_str(raised_screen.title_label.text).is_equal(raised_by)
+	assert_bool(raised_screen.raise_bar.is_visible_in_tree()).is_true()
+	assert_bool(raised_screen.give_up.visible).is_false()
+	assert_bool(raised_screen.bleed.visible).is_false()
 	# Raised, the joiner tries to crawl away with sprint and jumps: it stays where it lay.
 	downed.move_input = Vector2(0.0, 1.0)
 	downed.sprint_held = true
@@ -109,8 +116,11 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(life.hider().is_active()).is_false()
 	var tick := float(_pair.client.avatars().host_tick())
 	assert_float(life.countdowns.invulnerable_left_s(tick)).is_between(2.0, 3.0)
-	# No own invulnerability read-out (the engineer's answer 2 on PR #167).
-	assert_str(life.hud(tick).title).is_empty()
+	# No protection chip after a raise (the downed screen's `back` is the respawn's, #497), and no
+	# downed plate any more.
+	var back := life.hud(tick)
+	assert_int(back.state).is_equal(LifeHud.State.NONE)
+	assert_int(back.protected).is_equal(0)
 	assert_float(_pair.host.life().raise_shown(tick)).is_negative()
 	_pair.host.life().release_raise()
 	await _pair.stop()
@@ -152,15 +162,22 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	var camera_at := life.spectate_camera().global_position
 	assert_vector(camera_at).is_equal_approx(eye, Vector3.ONE * 0.01)
 	var shown := life.hud(float(_pair.client.avatars().host_tick()))
-	assert_str(shown.title).is_equal("Dead")
-	# The HUD names the target, and shows none of the spectator's own numbers (#168). Game._process
-	# writes the HUD: the second process_frame comes after a _process that saw the death (#222).
+	assert_int(shown.state).is_equal(LifeHud.State.DEAD)
+	assert_str(shown.watching).is_equal("Player1")
+	# The Spectate plate names the target with the respawn's time, and the HUD shows nothing: none
+	# of the spectator's own numbers, none of the target's slots (#168, #497). Game._process writes
+	# the screens: the second process_frame comes after a _process that saw the death (#222).
 	await get_tree().process_frame
 	await get_tree().process_frame
+	var screen := _pair.client.ui.life
+	var watching := tr("dead.watching").format({"name": "Player1"})
+	assert_str(screen.watching_label.text).is_equal(watching)
+	assert_bool(screen.spectate.is_visible_in_tree()).is_true()
+	assert_bool(screen.respawn_label.visible).is_true()
+	assert_bool(screen.downed.visible).is_false()
 	var hud := _pair.client.ui.hud
-	assert_str(hud.watching_label.text).is_equal(tr("dead.watching").format({"name": "Player1"}))
-	assert_bool(hud.spectate.visible).is_true()
 	assert_bool(hud.vitals.visible).is_false()
+	assert_bool(hud.slots.visible).is_false()
 	# The target goes down: a new first target, the downed host, watched from above its body.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE
@@ -184,6 +201,13 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	assert_bool(seen.is_invulnerable()).is_true()
 	assert_int(session.corrections).is_equal(0)
 	assert_int(session.placements).is_equal(3)
+	# Back (#497): the HUD returns and the protection chip counts the mode's 3 s.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(screen.protect.visible).is_true()
+	assert_bool(screen.spectate.visible).is_false()
+	assert_bool(hud.health_box.is_visible_in_tree()).is_true()
+	assert_bool(hud.slots.visible).is_true()
 	await _pair.stop()
 
 

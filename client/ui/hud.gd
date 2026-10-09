@@ -11,8 +11,8 @@ extends Control
 ## - `Vitals` (bottom left): health (its fill coloured by the ramp's stop, ToyBar), stamina and the
 ##   microphone (on: `mic` tinted `icon_on`; off: `mic-off` tinted `icon_off`).
 ## - `Slots` (bottom right): the hand, always the active slot, and the belt (HudSlot).
-## - `Spectate` (top centre, while dead): the handoff s09's plate naming whom the player
-##   watches; the watched player's hand and belt stay in Slots (#168).
+## Downed, only the microphone shows; dead, nothing (the handoff s09, #497: LifeScreen draws the
+## downed, spectating and respawn plates over it).
 ## Styled only through the shared theme's variations (no override; a size constant read into
 ## `custom_minimum_size` with UiParts.sized); every node ignores the mouse and takes no focus. Texts
 ## are deck keys (#208); the time and names are data (`auto_translate_mode` DISABLED). It reads
@@ -48,8 +48,6 @@ var hand := HudSlot.new("Hand", &"ToySlotActive", "hud.slot.hand", &"ToySlotText
 var belt := HudSlot.new("Belt", &"ToySlot", "hud.slot.belt", &"ToyTextOnDark")
 var raising := PanelContainer.new()
 var raising_bar := ProgressBar.new()
-var spectate := PanelContainer.new()
-var watching_label := UiParts.styled_label("", &"ToyTitleOnDark")
 ## The crosshair, Aim and Raising show; off while the map covers the middle or the player is not
 ## living.
 var aiming := true:
@@ -61,7 +59,7 @@ var role_hidden := false:
 		role_hidden = value
 		role.visible = not role_hidden and not _shown.role.is_empty()
 
-## The last state shown (the translation change rebuilds the watched name's line from it).
+## The last state shown.
 var _shown := HudText.Shown.new()
 
 
@@ -72,7 +70,6 @@ func _init() -> void:
 	_build_middle()
 	_build_vitals()
 	_build_slots()
-	_build_spectate()
 	for node: Node in find_children("*", "Control", true, false):
 		(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
 		(node as Control).focus_mode = Control.FOCUS_NONE
@@ -90,6 +87,8 @@ func show_hud(shown: HudText.Shown) -> void:
 	role.visible = not role_hidden and not shown.role.is_empty()
 	role_label.text = shown.role
 	vitals.visible = shown.vitals
+	health_box.visible = shown.bars
+	stamina_box.visible = shown.bars
 	health.set_fraction(shown.health)
 	stamina.set_fraction(shown.stamina)
 	mic_icon.texture = ToyIcons.texture(&"mic" if shown.mic else &"mic-off")
@@ -99,8 +98,6 @@ func show_hud(shown: HudText.Shown) -> void:
 	belt.show_slot(shown.belt)
 	aim_label.text = shown.aim
 	raising_bar.value = maxf(0.0, shown.raising)
-	spectate.visible = not shown.watching.is_empty()
-	_write_watching()
 	_show_middle()
 
 
@@ -114,24 +111,11 @@ func set_aiming(on: bool) -> void:
 	_show_middle()
 
 
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_TRANSLATION_CHANGED:
-		_write_watching()
-
-
 ## The crosshair, and Aim or Raising under it, while aiming.
 func _show_middle() -> void:
 	cross.visible = aiming
 	raising.visible = aiming and _shown.raising >= 0.0
 	aim.visible = aiming and not raising.visible and not _shown.aim.is_empty()
-
-
-## "Watching: <name>": a key with a placeholder, set from code (auto_translate_mode DISABLED).
-func _write_watching() -> void:
-	if _shown.watching.is_empty():
-		watching_label.text = ""
-		return
-	watching_label.text = tr(HudText.WATCHING_KEY).format({"name": _shown.watching})
 
 
 func _tint_mic() -> void:
@@ -236,23 +220,6 @@ func _build_slots() -> void:
 	_pin(slots, Control.PRESET_BOTTOM_RIGHT, corner, GROW_DIRECTION_BEGIN, GROW_DIRECTION_BEGIN)
 	slots.add_child(hand)
 	slots.add_child(belt)
-
-
-## The handoff s09's `Spectate` plate, its `Watching` line only (the respawn countdown stays on the
-## life panel until the Toy downed screen, #497).
-func _build_spectate() -> void:
-	spectate.name = "Spectate"
-	spectate.theme_type_variation = &"ToyPlate"
-	var top := Vector2(0, EDGE)
-	_pin(spectate, Control.PRESET_CENTER_TOP, top, GROW_DIRECTION_BOTH, GROW_DIRECTION_END)
-	var column := VBoxContainer.new()
-	column.name = "V"
-	column.theme_type_variation = &"ToyColumnFour"
-	watching_label.name = "Watching"
-	watching_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	watching_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	column.add_child(watching_label)
-	spectate.add_child(column)
 
 
 ## Adds `node` anchored at `preset` with all four offsets at `at` (a point: the node takes its

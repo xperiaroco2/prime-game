@@ -7,7 +7,13 @@ extends Node3D
 ## - `tired`: stamina at 0.18; `hurt`: health at 0.22;
 ## - `mate`: a dissident with a knife on the belt looking at a teammate (the name plate's mark);
 ## - `raising`: holding Interact on a downed teammate (the raise bar in place of Aim);
-## - `dead`: spectating a teammate (the handoff s09's plate and the watched player's slots).
+## and the handoff s09's (`docs/handoff/s09-downed.md`, #497), drawn by the game's LifeScreen from
+## LifeHud over the same HUD:
+## - `downed`: 3 s into the mode's 10 s knockdown (the bleed-out bar at 0.7, "0:07"), the mic off;
+## - `holding`: the same, the give-up key held 0.45 s of its 1 s;
+## - `raised`: the teammate raising the player, 0.6 of the way;
+## - `dead`: spectating the teammate, 6 s after the death (back in 0:24);
+## - `back`: respawned this tick, empty hands, stamina full: the protection chip counts 3.
 ## The samples are the handoff's: 07:22 left, health 0.8, stamina 0.9, the microphone on. Dev only:
 ## nothing here reaches the game.
 
@@ -22,7 +28,20 @@ const MATE_AT := Vector3(-1.4, 0.0, -4.0)
 const LYING := 31
 const TICK_USEC := 50000
 
-@export_enum("empty", "pack", "tired", "hurt", "mate", "raising", "dead") var state := "empty"
+@export_enum(
+	"empty",
+	"pack",
+	"tired",
+	"hurt",
+	"mate",
+	"raising",
+	"downed",
+	"holding",
+	"raised",
+	"dead",
+	"back"
+)
+var state := "empty"
 ## The language of the words (Languages.ENGLISH or UKRAINIAN) and the large-text theme (#289).
 @export var language := Languages.ENGLISH
 @export var large_text := false
@@ -58,6 +77,7 @@ func _ready() -> void:
 	ui.plates.avatars = _avatars
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_model, mode, NOW, _local())
+	ui.life.show_hud(_life(mode))
 
 
 ## The fake round of `state`, seen by Player1 (peer 1).
@@ -71,6 +91,8 @@ func _fake_round(mode: GameMode) -> ClientModel:
 		model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([1, MATE])})
 	model.roster[MATE].name = "Тарас" if language == Languages.UKRAINIAN else "Taras"
 	var health := 22000 if state == "hurt" else 80000
+	if state == "back":
+		health = mode.player_rules.health * Ticks.THOUSANDTHS
 	model.fold(&"SelfStatus", {"health": health, "stamina": 90000, "sprint_available": true})
 	var at := Vector3(0.4, 0.0, -1.5)
 	model.fold(&"ItemSpawned", {"item": LYING, "kind": &"package", "position": at})
@@ -83,21 +105,62 @@ func _fake_round(mode: GameMode) -> ClientModel:
 			model.fold(&"Swapped", {"peer": 1})
 		"dead":
 			model.fold(&"ItemPickedUp", {"peer": MATE, "item": LYING})
-			model.fold(&"Died", {"peer": 1, "position": Vector3(3, 0, 2)})
+	for event: Array in _life_events(mode):
+		model.fold(event[1] as StringName, event[2] as Dictionary)
 	return model
 
 
 func _local() -> HudText.Local:
 	var local := HudText.Local.new()
 	local.stamina = 18.0 if state == "tired" else 90.0
-	local.mic = true
+	if state == "back":
+		local.stamina = _full_stamina()
+	# Nobody hears a downed or dead player (VoiceSender.live()).
+	local.mic = state not in ["downed", "holding", "raised", "dead"]
 	if state in ["empty", "tired", "hurt"]:
 		local.aim = LYING
 	if state == "raising":
 		local.raising = 0.6
+	return local
+
+
+## The own life's events of `state`, [seconds before NOW, name, fields] each (the handoff's
+## samples: the knockdown 3 s ago, the raise 0.6 of the way, the death 6 s ago, the respawn now).
+func _life_events(mode: GameMode) -> Array[Array]:
+	var knocked := {"peer": 1, "position": Vector3(3, 0, 2)}
+	var raise := {"raiser": MATE, "target": 1}
+	var raise_s := LifeCountdowns.raise_seconds_of(mode)
+	match state:
+		"downed", "holding":
+			return [[3.0, &"KnockedDown", knocked]]
+		"raised":
+			return [[3.0, &"KnockedDown", knocked], [0.6 * raise_s, &"RaiseStarted", raise]]
+		"dead":
+			return [[6.0, &"Died", knocked]]
+		"back":
+			return [[30.0, &"Died", knocked], [0.0, &"Respawned", knocked]]
+	return []
+
+
+## What the downed, dead and respawn screen shows in `state` (LifeHud, as LifeView feeds it).
+func _life(mode: GameMode) -> LifeHud.Shown:
+	var countdowns := LifeCountdowns.new(mode.player_rules, LifeCountdowns.raise_seconds_of(mode))
+	for event: Array in _life_events(mode):
+		var ago: float = event[0]
+		var tick := NOW - ago * Ticks.RATE
+		countdowns.on_event(event[1] as StringName, event[2] as Dictionary, 1, tick)
+	var local := LifeHud.Local.new()
+	local.read_keys()
+	if state == "holding":
+		local.give_up_held_s = 0.45
 	if state == "dead":
 		local.watching = MATE
-	return local
+	return LifeHud.of(_model, countdowns, NOW, local)
+
+
+## The mode's full stamina in points.
+func _full_stamina() -> float:
+	return float((load(MODE) as GameMode).player_rules.stamina)
 
 
 ## The teammate at its spot, facing the camera, in the snapshot of `tick`.

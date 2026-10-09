@@ -54,7 +54,10 @@ func test_the_label_follows_a_rebind() -> void:
 	controls.bind(&"give_up", key)
 	controls.apply()
 	assert_str(KeyLabel.of_action(&"give_up")).is_equal("K")
-	assert_str(LifeHud.give_up_line(KeyLabel.of_action(&"give_up"))).is_equal("Hold K to give up")
+	# The downed screen's keycap (#497) reads the binding now.
+	var life := LifeHud.Local.new()
+	life.read_keys()
+	assert_str(life.give_up_key).is_equal("K")
 	assert_str(LobbyHud.hint()).contains("F: ready")
 	controls.bind(&"ready", key)
 	controls.apply()
