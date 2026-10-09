@@ -656,10 +656,12 @@ const LIGHT = TIER === 'light'
 // The agents the launch passed that this run's tier dropped (#606). Light removes the skeptic and plan_review; on a
 // client/ui/ diff it removes the netcode review (the `!LIGHT` guard below) and test_review too, which every other
 // light diff never routed (no netcode path, no production code). test_review and second_review are listed so the
-// result says why.
+// result says why, and netcode_review where a path routes it (only client/ui/ in the light tier), so the PR says that
+// the review AGENT_WORKFLOW §4.2 routes for a client/ change did not run.
+const NETCODE_PATH = /^(core|server|net|client|tests\/harness)\//
 const TIER_SKIPPED = [
-  PLAN_SKIPPED && 'plan_review', LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review',
-  LIGHT && SKEPTICS > 0 && 'skeptic',
+  PLAN_SKIPPED && 'plan_review', LIGHT && (impl.changed_paths || []).some(p => NETCODE_PATH.test(p)) && 'netcode_review',
+  LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review', LIGHT && SKEPTICS > 0 && 'skeptic',
 ].filter(Boolean)
 log(`#${N}: review tier ${TIER} (${TIER_WHY})${TIER_SKIPPED.length ? `; skipped: ${TIER_SKIPPED.join(', ')}` : ''}${PLAN_SKIPPED && !LIGHT ? '; the plan was skipped by the branch\'s area, but the diff is full: the full review runs' : ''}`)
 const SKEPTIC_LIMIT = LIGHT ? 0 : SKEPTICS
@@ -683,7 +685,7 @@ if (impl.verify_green) {
   // hand found a major there. client/ renders public data, and a rendering leak is an information leak (#158: the M4
   // manager ran this review by hand on #154 twice, and both runs found real problems).
   // The light tier (#606) has no netcode review: only a client/ui/ diff gets here with a client path.
-  const netcode = !LIGHT && (DESIGN || !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p)))
+  const netcode = !LIGHT && (DESIGN || !paths.length || paths.some(p => NETCODE_PATH.test(p)))
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
@@ -890,7 +892,7 @@ const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== un
 const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
 // #606: the tier in the publisher's prompt, for the PR and for `metrics` (a run's return value is not journaled, so
 // metrics.REVIEW_TIER reads this line from the publisher's transcript); the publisher stopped by mutants gets it too.
-const TIER_FACT = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.length ? `; dropped although the launch passed them: ${TIER_SKIPPED.join(', ')}` : ''}.`
+const TIER_FACT = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.includes('netcode_review') ? '; the netcode review its paths route (AGENT_WORKFLOW §4.2) did not run: its only client/ paths are under client/ui/' : ''}${TIER_SKIPPED.some(x => x !== 'netcode_review') ? `; dropped although the launch passed them: ${TIER_SKIPPED.filter(x => x !== 'netcode_review').join(', ')}` : ''}.`
 const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's verification section.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants

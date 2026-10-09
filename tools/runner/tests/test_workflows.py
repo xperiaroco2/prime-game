@@ -2415,7 +2415,9 @@ class ReviewTierTest(unittest.TestCase):
         for result in (ui, mixed):
             self.assertIsNone(result["error"])
         self.assertEqual([e["label"] for e in agents(ui)], ["plan:#7", "review:plan:#7", "implement:#7", "review:code:#7", "review:godot-api:#7", "publish:#7"])
-        self.assertEqual((ui["returned"]["tier"], ui["returned"]["tier_skipped"]), ("light", ["test_review", "second_review", "skeptic"]))
+        # The netcode review the paths route (§4.2) is listed as dropped, so the result and the PR body say it did not run.
+        self.assertEqual((ui["returned"]["tier"], ui["returned"]["tier_skipped"]), ("light", ["netcode_review", "test_review", "second_review", "skeptic"]))
+        self.assertIn("; the netcode review its paths route (AGENT_WORKFLOW §4.2) did not run: its only client/ paths are under client/ui/; dropped although the launch passed them: test_review, second_review, skeptic.", calls(ui, "publish")[0]["prompt"])
         why = "the light review tier (#606): the diff's only production code is under client/ui/"
         self.assertEqual(ui["returned"]["test_review"], {"skipped": why})
         pub = calls(ui, "publish")[0]["prompt"]
