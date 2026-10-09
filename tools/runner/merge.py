@@ -75,6 +75,11 @@ verify, CI tests the push (the wave-boundary sync of the engineer's N2 answer; a
 nothing to undo). The fresh reviews' gate (no open blocker or major) stays the manager's call, for both bases.
 `--dry-run` stops before the merge.
 
+Both commands are quiet by default (#572, common.quiet; `--verbose` prints it all): the whole output goes to
+tools/out/logs/merge-check-output.log or merge-output.log. merge-check prints the tables' flagged rows, a count of the
+clean ones and the verdict (clean_rows_counted); merge drops its `ok` progress lines; the verdict, the `wave:` line and
+the exit code are the same. `wave` calls `check` itself and gets every line, as before.
+
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
 checkout and from any worktree (test_merge.py). Typed by hand, `git worktree remove` of the scratch worktree would ask
@@ -105,10 +110,12 @@ from .common import (
     bad,
     ensure_out,
     ok,
+    quiet,
     remove_own_user_dir,
     run,
     say,
     warn,
+    without_ok,
     worktree_user_dir,
 )
 
@@ -1236,6 +1243,38 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
 # --- scratch worktrees, verify, trial ---------------------------------------------------------------------------------
 
 
+def clean_rows_counted(lines: list[str]) -> list[str]:
+    """merge-check's quiet lines (#572): in each table the rows whose textual and semantic cells are both `clean` are
+    counted on a line after it, not listed; a table with no other row is that one line; the `ok` progress lines go."""
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if not lines[i].startswith("|"):
+            if not lines[i].startswith("  ok    "):
+                out.append(lines[i])
+            i += 1
+            continue
+        j = i
+        while j < len(lines) and lines[j].startswith("|"):
+            j += 1
+        head, rows = lines[i : i + 2], lines[i + 2 : j]
+        flagged = [row for row in rows if [cell.strip() for cell in row.strip("|").split("|")[-2:]] != ["clean"] * 2]
+        clean = len(rows) - len(flagged)
+        if flagged:
+            out += head + flagged
+            if clean:
+                out.append(f"{clean} more clean (--verbose lists them)")
+        else:
+            out.append(f"{clean} check{'s' if clean != 1 else ''}, all clean (--verbose lists them)")
+        i = j
+    return out
+
+
+def check_command(numbers: list[int], base: str | None = None, trial: bool = False, verbose: bool = False) -> int:
+    """`merge-check`: check, quiet unless verbose (#572); the verdict and the line after it (across bases) always."""
+    return quiet("merge-check", lambda: check(numbers, base, trial), verbose, brief=clean_rows_counted, keep_end=2)
+
+
 def _remove(path: Path) -> None:
     res = _git("worktree", "remove", "--force", str(path), timeout=REMOVE_TIMEOUT)
     if res.rc != 0 or res.timed_out:
@@ -1466,6 +1505,13 @@ def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool 
         + ("" if confirmed else "; GitHub did not show it merged yet")
     )
     return 0
+
+
+def merge_command(
+    number: int | None, base: str, sync_main: bool = False, dry_run: bool = False, verbose: bool = False
+) -> int:
+    """`merge`: merge, quiet unless verbose (#572): without its `ok` progress lines; the `wave:` line, last, always."""
+    return quiet("merge", lambda: merge(number, base, sync_main, dry_run), verbose, brief=without_ok, keep_end=1)
 
 
 def _sync_main(base: str, dry_run: bool = False) -> int:

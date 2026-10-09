@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import check, cli, common, lint, metrics, verify, wait
+from runner import check, cli, common, lint, merge, metrics, publish, verify, wait, wave
 
 GREEN_LINT = [
     "lint",
@@ -234,6 +234,133 @@ class LintCheckWiringTest(unittest.TestCase):
             cli.main(["wait", "x.log", "--verbose"])
             cli.main(["wait", "x.log"])
         self.assertEqual([c.kwargs["verbose"] for c in wait_main.call_args_list], [True, False])
+
+
+CLEAN_CHECK = [
+    "merge-check",
+    "  ok    fetched origin",
+    "  ok    2 open PRs: release/m6.2 (2)",
+    "",
+    "### release/m6.2 (origin/release/m6.2 at 38f028f84c): #663, #664",
+    "",
+    "| check | textual | semantic |",
+    "|---|---|---|",
+    "| #663 onto release/m6.2 | clean | clean |",
+    "| #664 onto release/m6.2 | clean | clean |",
+    "| #663 + #664 | clean | clean |",
+    "",
+    "merge-check: clean (0 textual conflicts and 0 overlaps in 3 checks)",
+]
+RED_CHECK = [
+    *CLEAN_CHECK[:10],
+    "| #663 + #664 | conflict: a.gd | clean |",
+    "",
+    "### across bases (main, release/m6.2): pairs that both change files under tools/ (textual: the files both change)",
+    "",
+    "| check | shared files | textual | semantic |",
+    "|---|---|---|---|",
+    "| #663 + #700 | tools/x.py | clean | clean |",
+    "| #664 + #700 | tools/x.py | clean | overlap: `f` |",
+    "",
+    "#664 + #700:",
+    "- `f` changed in tools/x.py:3, used in tools/y.py:9",
+    "",
+    "merge-check: 1 textual conflicts and 1 overlaps in 5 checks. Order the merges so ...",
+    "Across bases: name the pair on both tracks' plan issues; ...",
+]
+
+
+class QuietMergeTest(unittest.TestCase):
+    """merge-check and merge quiet (#572): merge-check's clean rows counted, merge's ok lines left out; the verdict,
+    the wave: line and the exit code as before; --verbose and wave get every line."""
+
+    setUp = QuietTest.setUp  # the logs in a temporary folder
+    body = QuietTest.body
+    log = QuietTest.log
+
+    def check_with(self, lines: list[str], rc: int):  # type: ignore[no-untyped-def]
+        return mock.patch.object(merge, "check", side_effect=lambda *_a, **_k: self.body(lines, rc)())
+
+    def test_clean_rows_are_counted_and_a_clean_table_is_one_line(self) -> None:
+        self.assertEqual(merge.clean_rows_counted(CLEAN_CHECK), [
+            "merge-check", "", "### release/m6.2 (origin/release/m6.2 at 38f028f84c): #663, #664", "",
+            "3 checks, all clean (--verbose lists them)", "",
+            "merge-check: clean (0 textual conflicts and 0 overlaps in 3 checks)",
+        ])  # fmt: skip
+        red = merge.clean_rows_counted(RED_CHECK)
+        self.assertIn("| #663 + #664 | conflict: a.gd | clean |", red)
+        self.assertIn("| #664 + #700 | tools/x.py | clean | overlap: `f` |", red)
+        self.assertNotIn("| #663 onto release/m6.2 | clean | clean |", red)
+        self.assertNotIn("| #663 + #700 | tools/x.py | clean | clean |", red)
+        self.assertEqual(red.count("| check | textual | semantic |"), 1)
+        self.assertIn("2 more clean (--verbose lists them)", red)
+        self.assertIn("1 more clean (--verbose lists them)", red)
+        self.assertEqual(merge.clean_rows_counted(CLEAN_CHECK[6:9]), ["1 check, all clean (--verbose lists them)"])
+        self.assertIn("- `f` changed in tools/x.py:3, used in tools/y.py:9", red)
+
+    def test_a_clean_merge_check_prints_the_verdict_and_the_log_path(self) -> None:
+        with self.check_with(CLEAN_CHECK, 0):
+            rc, out = printed(merge.check_command, [], None)
+        lines = out.splitlines()
+        self.assertEqual(rc, 0)
+        self.assertEqual(lines[-2], CLEAN_CHECK[-1])
+        self.assertIn("full output: tools/out/logs/merge-check-output.log", lines[-1])
+        self.assertNotIn("| #663 + #664 | clean | clean |", out)
+        self.assertIn("| #663 + #664 | clean | clean |", self.log("merge-check"))
+
+    def test_a_red_merge_check_keeps_its_flagged_rows_its_verdict_and_its_exit_code(self) -> None:
+        with self.check_with(RED_CHECK, 1):
+            rc, out = printed(merge.check_command, [], None)
+        lines = out.splitlines()
+        self.assertEqual(rc, 1)
+        self.assertEqual(lines[-3:-1], RED_CHECK[-2:])
+        self.assertTrue(lines[-1].startswith("merge-check: FAILED, exit=1; full output: "))
+        self.assertIn("| #663 + #664 | conflict: a.gd | clean |", lines)
+
+    def test_verbose_merge_check_prints_every_line(self) -> None:
+        with self.check_with(CLEAN_CHECK, 0):
+            _rc, out = printed(merge.check_command, [], None, verbose=True)
+        self.assertEqual(out.splitlines(), CLEAN_CHECK)
+
+    def test_merge_drops_its_ok_lines_and_keeps_its_wave_line(self) -> None:
+        lines = ["merge #5 --base main", "  ok    #5: the gate passed; merging through GitHub at abc",
+                 "wave: merged #5 (tooling/5-x) into main as 123 through GitHub; gate: CI green"]  # fmt: skip
+        with mock.patch.object(merge, "merge", side_effect=lambda *_a, **_k: self.body(lines, 0)()):
+            rc, out = printed(merge.merge_command, 5, "main")
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.splitlines()[:-1], [lines[0], lines[2]])
+        self.assertIn("full output: tools/out/logs/merge-output.log", out.splitlines()[-1])
+
+    def test_a_refused_merge_raises_as_before_after_its_excerpt(self) -> None:
+        def refuse(*_a: object, **_k: object) -> int:
+            common.say("merge #5 --base release/m6")
+            raise common.Failure("#5 is a draft. Nothing was changed.")
+
+        with mock.patch.object(merge, "merge", side_effect=refuse), self.assertRaises(common.Failure):
+            printed(merge.merge_command, 5, "release/m6")
+        with mock.patch.object(merge, "merge", side_effect=refuse):
+            rc, out = printed(cli.main, ["merge", "5", "--base", "release/m6"])
+        self.assertEqual(rc, 1)
+        self.assertEqual(out.splitlines()[-1], "  FAIL  #5 is a draft. Nothing was changed.")
+
+    def test_the_cli_passes_verbose_on(self) -> None:
+        with mock.patch.object(merge, "check_command", return_value=0) as check_command:
+            cli.main(["merge-check"])
+            cli.main(["merge-check", "--verbose"])
+        self.assertEqual([c.kwargs["verbose"] for c in check_command.call_args_list], [False, True])
+        with mock.patch.object(merge, "merge_command", return_value=0) as merge_command:
+            cli.main(["merge", "5", "--base", "main"])
+            cli.main(["merge", "5", "--base", "main", "--verbose"])
+        self.assertEqual([c.kwargs["verbose"] for c in merge_command.call_args_list], [False, True])
+        with mock.patch.object(publish, "main", return_value=0) as publish_main:
+            cli.main(["publish"])
+            cli.main(["publish", "--verbose"])
+        self.assertEqual([c.kwargs["verbose"] for c in publish_main.call_args_list], [False, True])
+
+    def test_wave_still_reads_every_line_of_merge_check(self) -> None:
+        with self.check_with(CLEAN_CHECK, 0):
+            found = wave.capture_merge_check(lambda numbers, base: merge.check(numbers, base=base), "main")
+        self.assertEqual(found.verdict, CLEAN_CHECK[-1])
 
 
 STEPS = [f"  passed  step{n:<10} {n}.0s" for n in range(3)]

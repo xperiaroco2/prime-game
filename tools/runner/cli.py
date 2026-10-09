@@ -358,6 +358,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
     )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print every row and progress line (default: the rows that flag something, a count of the clean ones "
+        "and the verdict; the whole output is in tools/out/logs/merge-check-output.log)",
+    )
     p = sub.add_parser(
         "merge",
         help="merge a PR into release/<x> or main through GitHub when its gate passes (CI green on an up-to-date head), "
@@ -371,6 +377,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
     p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
     p.add_argument("--dry-run", action="store_true", help="print the gate's verdict and merge nothing")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the progress lines too (default: the gate's notes, refusals and verdict, the wave: line last; the "
+        "whole output is in tools/out/logs/merge-output.log)",
+    )
     p = sub.add_parser(
         "merge-train",
         help="merge PRs into main one by one: publish each in its worktree (a red verify retried once), wait for its "
@@ -823,11 +835,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "merge-check":
             from . import merge
 
-            return merge.check(args.prs, base=args.base, trial=args.trial)
+            return merge.check_command(args.prs, base=args.base, trial=args.trial, verbose=args.verbose)
         if args.command == "merge":
             from . import merge
 
-            return merge.merge(args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run)
+            return merge.merge_command(
+                args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run, verbose=args.verbose
+            )
         if args.command == "merge-train":
             from . import train
 
