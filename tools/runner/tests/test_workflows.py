@@ -2239,6 +2239,7 @@ class CheckpointTest(unittest.TestCase):
             self.assertEqual([g[0] for g in got], [w[0] for w in want])
             self.assertEqual(got[:-1], want[:-1])
             self.assertNotIn("handoffs", result["returned"])
+            self.assertNotIn("checkpoint", result["returned"])  # #597: no key, so a launch or resume without it shows
             self.assertFalse([e for e in result["events"] if e["kind"] == "log" and "handoff" in e["message"]])
         self.assertNotIn(RULE_HEAD, json.dumps(want))
 
@@ -2247,6 +2248,9 @@ class CheckpointTest(unittest.TestCase):
             off, on = run_jobs([("issue-task.js", dict(ARGS, **extra), self.PATHS), ("issue-task.js", dict(ARGS, checkpoint=True, **extra), self.PATHS)])
             with self.subTest(**{k: str(v) for k, v in extra.items()}):
                 self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
+                # #597: the compact result shows checkpoint: true, and with it the handoffs, 0 too.
+                self.assertEqual((on["returned"]["checkpoint"], on["returned"]["handoffs"]), (True, 0))
+                self.assertFalse({"checkpoint", "handoffs"} & set(off["returned"]))
                 for a, b in zip(agents(off), agents(on)):
                     if not a["label"].startswith("implement"):
                         self.assertEqual((a["opts"], a["prompt"]), (b["opts"], b["prompt"]), a["label"])
@@ -2255,10 +2259,15 @@ class CheckpointTest(unittest.TestCase):
                     self.assertEqual(len(rule), 1)
                     self.assertEqual(without_rule(b["prompt"]), a["prompt"])
                     self.assertTrue(b["prompt"].index(RULE_HEAD) < b["prompt"].index("Do NOT publish"))
-                    for words in ("`<total_tokens>N tokens left</total_tokens>`", "B minus N, exactly", "B = your first N plus 30,000", "at or below 14,850,000", "after 60 tool calls",
+                    # #597: measured by a runner command, never by arithmetic on the harness's reminder; the backstop
+                    # holds whatever ctx printed, and past 200k "only the final verify left" no longer lets it finish.
+                    for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000`", "every ~15 tool calls and after each verify", "When it prints HANDOFF NOW",
+                                  "or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript)",
+                                  "If only the final verify and the return are left, finish instead, unless ctx printed past 200,000.",
                                   "a7/handoff-1.md", "done (", "left (", "decisions (", "gotchas (", "verify state (",
                                   "leave no background job", "handoff: the note's absolute path"):  # fmt: skip
                         self.assertIn(words, rule[0])
+                    self.assertNotIn("total_tokens", rule[0])
                     self.assertEqual("visual" in extra, "playcheck {available: false" in rule[0])
                     o_off, o_on = options(a), options(b)
                     self.assertEqual(o_on["schema"]["properties"].pop("handoff"), {"type": "string"})
@@ -2296,6 +2305,7 @@ class CheckpointTest(unittest.TestCase):
         self.assertNotIn('"handoff":', pub)
         out = result["returned"]
         self.assertEqual((out["handoffs"], out["verify_green"], out["summary"]), (1, True, "the whole branch"))
+        self.assertIs(out["checkpoint"], True)
         self.assertNotIn("stopped", out)
 
     def test_at_most_two_handoffs(self) -> None:

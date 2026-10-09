@@ -111,15 +111,15 @@ export const meta = {
 //                 findings that name the same defect; `metrics` scores the runs from the journal. Nothing to judge
 //                 (neither reviewer found anything): no judge. +2 agents (+1 with nothing to judge)
 //   checkpoint    true (#559; opt-in, off until the engineer's yes after a measurement): an implementer past 150,000
-//                 tokens of context hands over to a fresh one. It reads its context from the harness's reminder
-//                 `<total_tokens>N tokens left` after each tool result (the budget B, 15,000,000, less N is the context:
-//                 282 of 283 readings exact on 2026-10-08) or, seeing none, stops after 60 tool calls; it commits, writes
+//                 tokens of context hands over to a fresh one. It measures its context with `tools/run.sh ctx` (#597:
+//                 its own transcript's last API call; HANDOFF NOW at 150,000) every ~15 tool calls and after each
+//                 verify, and hands over after 60 tool calls in any case; it commits, writes
 //                 a note (done, left, decisions, gotchas, verify state) to a<n>/handoff-<k>.md in the scratchpad and
 //                 returns handoff, the note's path. A fresh implementer, labelled implement:#<n>#<k> (k = 2, 3) with the
 //                 same type, effort and model, continues from the note and the worktree; at most 2 handoffs (the third
 //                 implementer cannot hand over). The implementer's result is then the last one's with the union of the
 //                 decisions, needs_engineer, proposed_issues, provisional_content and commits, and the compact result
-//                 gains handoffs. Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
+//                 shows checkpoint: true and handoffs (#597). Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
@@ -596,18 +596,18 @@ if (PLAN_REVIEW && !PLAN_SKIPPED) {
   log(`#${N}: planned; the critique found ${(critique.findings || []).length} finding(s)`)
 }
 
-// checkpoint (#559): the context at which an implementer hands over, read from the harness's `<total_tokens>` reminder
-// (its budget, 15,000,000 on 2026-10-08, less N is the context of the call before it), the tool-call backstop where
-// no reminder shows, and the most handoffs per task. Implementer k (0 first) is labelled implement:#N, then
+// checkpoint (#559): the context at which an implementer hands over, measured by `tools/run.sh ctx` from its own
+// transcript (#597: the rule's reminder arithmetic never fired on #561's run), the context past which "only the final
+// verify left" no longer lets it finish, the unconditional tool-call backstop, and the most handoffs per task. Implementer k (0 first) is labelled implement:#N, then
 // implement:#N#2 and #3 (metrics.role_of reads both as the implementer; never :2). Off, implement(0, null) is today's
 // agent call byte for byte; on, only the rule paragraph and the schema's handoff key are added to it.
 const HANDOFF_AT = 150000
-const HANDOFF_BUDGET = 15000000
+const HANDOFF_HARD = 200000
 const HANDOFF_CALLS = 60
 const HANDOFF_MAX = 2
 const thousands = x => String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 const HANDOFF_SCHEMA = { ...IMPL_SCHEMA, properties: { ...IMPL_SCHEMA.properties, handoff: { type: 'string' } } }
-const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under ${thousands(HANDOFF_AT)} tokens. After each tool result a system reminder \`<total_tokens>N tokens left</total_tokens>\` shows N. Your context is B minus N, exactly, where B is the budget, ${thousands(HANDOFF_BUDGET)} on these runs (your first reading is B less your first call's context, so it lies within 100,000 below B; if your first reading does not, take B = your first N plus 30,000). Once N is at or below B minus ${thousands(HANDOFF_AT)} (at or below ${thousands(HANDOFF_BUDGET - HANDOFF_AT)} with that B), or after ${HANDOFF_CALLS} tool calls if you see no such reminder, hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to ${SCRATCH}/handoff-${k + 1}.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "handed over"} (only the implementer that finishes runs playcheck)' : ''}. If only the final verify and the return are left, finish instead. A fresh implementer of the same kind continues from your note and the worktree (at most ${HANDOFF_MAX} handoffs per task).`
+const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under ${thousands(HANDOFF_AT)} tokens. Measure it, never estimate it: run \`cd ${WTB} && tools/run.sh ctx --at ${HANDOFF_AT} --hard ${HANDOFF_HARD}\` every ~15 tool calls and after each verify (each \`wait\` that ends one); it reads your own transcript and prints your context. When it prints HANDOFF NOW, or after ${HANDOFF_CALLS} tool calls in any case (whatever ctx printed, also when it found no transcript), hand over: finish the step in hand; leave no background job (verify, mutants) running: wait for it and keep its log path and result; commit (a WIP commit is fine); start nothing new; write a note to ${SCRATCH}/handoff-${k + 1}.md in your scratchpad with done (each commit, a line), left (the acceptance criteria not met yet, then the next step), decisions (each with its why, and how each critique finding was settled), gotchas (what cost you time, what to avoid) and verify state (the last verify's result and log path, and whether the tree changed since). Then return the structured result with complete false, verify_green and verify_tail as they stand, and handoff: the note's absolute path${VISUAL ? ', and playcheck {available: false, pngs: [], notes: "handed over"} (only the implementer that finishes runs playcheck)' : ''}. If only the final verify and the return are left, finish instead, unless ctx printed past ${thousands(HANDOFF_HARD)}. A fresh implementer of the same kind continues from your note and the worktree (at most ${HANDOFF_MAX} handoffs per task).`
 const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
 const implement = (k, note) => agent([
   RULES,
@@ -818,7 +818,9 @@ const brief = (stopped, pub, extra) => {
   }
   Object.assign(out, pick(impl, ['verify_green', 'complete']))
   out.summary = line(impl.summary)
-  if (handedOver.length) out.handoffs = handedOver.length
+  // #597: a launch (or resume) with checkpoint says so, with its handoffs, 0 too; no key: it ran without. Off adds
+  // nothing: CompactResultTest's size guard (a tenth of the whole results) has no room for checkpoint: false.
+  if (CHECKPOINT) Object.assign(out, { checkpoint: true, handoffs: handedOver.length })
   // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
   // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
   if (!pub) {
