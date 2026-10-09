@@ -2930,9 +2930,10 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It stays in the `Ui` layer under the Esc
   menu, not on the handoff's black-screen CanvasLayer 6: the Esc menu (layer 4 in that table) opens in Loading, and a
   layer 6 would hide it (the engineer chose this in PR #637 until the black screens share a layer, as §4.7.31's post game screen does).
-- **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until #214 sends the lobby's name
-  (`set_lobby(typed, host_name)`: `connect.connecting` with the typed name, or `lobby.default_name` with the host's
-  name), the step from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
+- **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until the host's `Welcome` brings
+  the lobby's name (#214, §3.5: Game's `_refresh_join` then calls `set_lobby(model.lobby_name, model.host_name())`,
+  `connect.connecting` with the typed name, or `lobby.default_name` with the host's name; a Welcome in the Lobby
+  swaps to the lobby screen in that frame, so the named title shows at most briefly), the step from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
   `UiParts.sized`, 42 under large text) and the time since Join (m:ss, Game's `_refresh_join`); a Direct join and a
   host show no code row and no address. The spinner turns once a second about its centre, half as fast under
   `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the

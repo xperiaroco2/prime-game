@@ -271,11 +271,17 @@ func test_the_name_in_the_settings_is_the_name_the_game_asks_for() -> void:
 	assert_array(names).contains_exactly(["Player1", "Діма", "Діма 2"])
 	# The host's Lobby tab names the lobby (#214): Game sends it cleaned (a pasted zero-width
 	# character would make the wire refuse it), and every model has it.
+	# Once welcomed, the connecting screen's title names the lobby: the default, then the host's.
 	for game: Game in games:
 		assert_str(game.client().model.lobby_name).is_empty()
 		assert_str(game.client().model.host_name()).is_equal("Player1")
+		assert_str(game.ui.connecting.title_label.text).contains("Player1")
 	host.ui.esc.lobby.lobby_name_changed.emit("Dima's" + String.chr(0x200B) + " den")
 	assert_bool(await _until(games, _lobby_name_is.bind(games, "Dima's den"))).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for game: Game in games:
+		assert_str(game.ui.connecting.title_label.text).contains("Dima's den")
 	two.leave()
 	one.leave()
 	host.leave()

@@ -802,9 +802,12 @@ func _found_versions(reason: StringName) -> PackedStringArray:
 
 ## A join under way: the connecting screen's step and the time since Join. Then the room's code to
 ## whoever knows it: the host from its room (waiting for the service, then the code, or a line
-## saying none is coming), a code joiner the code it typed, a Direct joiner none.
+## saying none is coming), a code joiner the code it typed, a Direct joiner none. Once welcomed,
+## the title names the lobby (#214: the host's answer carries its name).
 func _refresh_join() -> void:
 	var webrtc := _join_transport as WebRtcTransport
+	if _client.is_welcomed():
+		ui.connecting.set_lobby(_client.model.lobby_name, _client.model.host_name())
 	if _target != null and not _client.is_welcomed():
 		var found := webrtc.found_protocol if webrtc != null else -1
 		var connected := _join_transport.own_id() != 0
