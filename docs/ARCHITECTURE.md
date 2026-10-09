@@ -1266,7 +1266,9 @@ Each `ClientModel.Item` holds its holder and whether it is
 (the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
 `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
-Tests: `client_model_test.gd`.
+`ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
+(the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
+else changes them (no prediction). Tests: `client_model_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
 A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
@@ -2113,7 +2115,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   physics step at priority 1, after the avatars and the player moved and before `SightHider` (10) casts, so a view
   out of the body's eye's sight is never drawn for a frame. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
-  over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's).
+  over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's). It leaves out a
+  zone, which `ZoneViews` (§4.7.24) draws.
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
   the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
@@ -2243,8 +2246,9 @@ M4 client PR: only the own model, the interpolated poses and the own mode; spect
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
-public circles only, the destination marker of D10 (b) included); a role named only on its own player's screen
-(a dissident's teammates on theirs); no hit confirmation for
+public circles only, the destination marker of D10 (b) included; a zone's fill, which tells that a living player
+stands there, is depth-tested like the zone, with no marker, label or HUD line, §4.7.24); a role named only on its
+own player's screen (a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
 follows the M5 ADR's checklist (its §3; §6 below).
@@ -2476,8 +2480,8 @@ host-only Back to lobby, the lobby's cleared ready flags after End and a second 
 
 #### 4.7.23 Tests
 The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
-`SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
-`tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
+`SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts, a zone's fill),
+unit-tested headless in `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
 sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
 level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall,
 and an item visible from the arm's end but not from the pivot is hidden;
@@ -2486,6 +2490,38 @@ the two-client push runs over the loopback with the interpolation delay. Key eve
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest.
+
+#### 4.7.24 Built in M7-Z4 (#650), the zones, their fill and the done look
+The client side of the zone task (§9.5.17; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
+ZD11 (b) and ZE8, as the engineer answered them on #302).
+- **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
+  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out and draws every other station kind as before.
+- **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
+  `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
+  start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
+  not heard of never shows a fill that runs and then jumps back.
+- **The fill** is pure (`ZoneViews.ticks_at(station, now)` and `fill(station, now)`): the event's `ticks`, plus the
+  host ticks since its `tick` while it counts, capped at `needed`; a host tick behind the event or unknown (-1) adds
+  nothing; a done zone is full; a zone with no `ZoneProgress` yet is empty. `now` is `AvatarViews.host_tick()`, the
+  estimate the match clock reads; between two events the fill errs by at most the host's window (5 ticks), and the
+  next event's `tick` sets it right.
+- **The look** (ZD11 (b), greybox placeholders until the art pass): `ZoneViews` (`client/world/`, under `ItemWorld`
+  beside `CircleViews`) draws each zone at its station's position as a faint flat disc of the zone's radius, a ring
+  (`TorusMesh`) at that radius and a fill: a second flat disc scaled from the centre, its radius the share of the time
+  counted, hidden while empty. All three are unshaded, translucent, in `StationPlaced`'s colour (the palette is the
+  data's: yellow, provisional, #302) and sorted disc, fill, ring by `render_priority`. A done zone is full and dimmed
+  (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery circle's cylinder.
+- **The render checklist** (the M4 ADR's §3, items 5 and 10): every material is depth-tested (no `no_depth_test`), so
+  the fill never shows through walls; there is no through-walls marker, label or HUD line for zones and no zone
+  sound (ZD11; sounds come later, within the hearing range). The task screen is unchanged: its rows are `TaskState`s.
+- Tests: `tests/unit/client/net/client_model_test.gd` (the fold), `tests/unit/client/world/zone_views_test.gd` (which
+  kinds are zones; the fill extrapolated, still, capped, done, never running backwards),
+  `tests/integration/client/world/zone_views_test.gd` (the parts' sizes and colour, no circle for a zone, the fill
+  following `ZoneProgress` and the host tick, the done look, every part depth-tested: seen failing with a planted
+  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted). The `shot`s:
+  `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
+  `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
+  `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -4268,7 +4304,8 @@ Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, an
 event that depended on a role would reveal it (§9.2, ZD3).
 Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
 (M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
-`MovementRule.claim_age` and `credit_gain`; no `.tres` yet (M7-Z3). Tests: `tests/unit/tasks/zone_deal_test.gd`
+`MovementRule.claim_age` and `credit_gain`; no `.tres` yet (M7-Z3); the client's zones, their fill and the done look
+in #650 (M7-Z4, §4.7.24). Tests: `tests/unit/tasks/zone_deal_test.gd`
 (the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
 and a slow claimer's, the clock's
 last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
@@ -4490,7 +4527,7 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.17; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
+| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.17; the client's look in #650, M7-Z4, §4.7.24; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), proposed, §7.1.16) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2); its numbers are the engineer's (TD1) | two: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, and the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
