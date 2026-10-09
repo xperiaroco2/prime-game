@@ -199,10 +199,10 @@ class LintTest(unittest.TestCase):
             mock.patch.object(refs, "check", return_value=bad) as checked,
             contextlib.redirect_stdout(io.StringIO()),
         ):
-            self.assertEqual(lint.main(), 1)
+            self.assertEqual(lint.main(verbose=True), 1)
             checked.assert_called_once()
             checked.reset_mock()
-            self.assertEqual(lint.main(files=["core"]), 0)
+            self.assertEqual(lint.main(files=["core"], verbose=True), 0)
             checked.assert_not_called()
 
     def test_the_repo_resolves(self) -> None:
