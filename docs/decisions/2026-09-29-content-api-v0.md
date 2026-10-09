@@ -116,8 +116,10 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   if #36 wants them. Resurrection (#34) as an item needs two part classes (`BodyInFront`, `Revive`; three with a
   `Uses` limit) and one event class (`Revived`), so it misses the letter of "at most one class": a body is a new
   target and a revival a new public fact. Physics throwing (#37) needs a `Throw` intent, a flying item state and
-  `server/` physics, because a throw is a new verb and the flight is `server/`'s. The meetings mode (#35) is several
-  parts (`Interact`, voting, a tally, a meeting voice rule, phase classes) and a `who` setting on `PlacePlayers`.
+  `server/` physics, because a throw is a new verb and the flight is `server/`'s (note of 2026-10-09: #37's design,
+  [proposed](2026-10-09-throwing-held-items.md), runs the flight in `core/` instead, its TE1). The meetings mode
+  (#35) is several parts (`Interact`, voting, a tally, a meeting voice rule, phase classes) and a `who` setting on
+  `PlacePlayers`.
   None changes `Match` or the phase loop. Every new event class or intent also costs a wire row (M3) and client
   presentation (M4).
 - **Stage 2 keeps #32's split (2a to 2j), and #30's dependency lines stay true, because 2a now builds what the
