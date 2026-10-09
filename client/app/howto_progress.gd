@@ -59,8 +59,11 @@ func loading_pick(types: Array[StringName]) -> StringName:
 	return &""
 
 
-## The loading screen showed `type`'s card; written at once.
+## The loading screen showed `type`'s card; written at once. Counted on top of the file as it is
+## now, so another window's showings add up with this one's.
 func note_loading_shown(type: StringName) -> void:
+	if not path.is_empty():
+		_merge_file()
 	_shown[type] = loading_shown(type) + 1
 	write()
 
@@ -84,6 +87,26 @@ func read() -> Error:
 	_completed.clear()
 	if path.is_empty():
 		return ERR_FILE_NOT_FOUND
+	return _merge_file()
+
+
+## Writes the progress, merged first with the file as it is now: another window of this PC (the
+## `host` and `join` dev commands each read the file at start) may have written since this one
+## read it, so a show count takes the larger and a completion stays.
+func write() -> Error:
+	if path.is_empty():
+		return OK
+	_merge_file()
+	var file := ConfigFile.new()
+	for type: StringName in _shown:
+		file.set_value(String(type), SHOWN, _shown[type])
+	for type: StringName in _completed:
+		file.set_value(String(type), COMPLETED, true)
+	return file.save(path)
+
+
+## Folds the file's progress into this one: the larger show count, any completion.
+func _merge_file() -> Error:
 	var file := ConfigFile.new()
 	var code := file.load(path)
 	if code != OK:
@@ -91,20 +114,9 @@ func read() -> Error:
 	for section: String in file.get_sections():
 		var type := StringName(section)
 		var shown: Variant = file.get_value(section, SHOWN, 0)
-		if shown is int and (shown as int) > 0:
+		if shown is int and (shown as int) > loading_shown(type):
 			_shown[type] = shown as int
 		var done: Variant = file.get_value(section, COMPLETED, false)
 		if done is bool and done:
 			_completed[type] = true
 	return OK
-
-
-func write() -> Error:
-	if path.is_empty():
-		return OK
-	var file := ConfigFile.new()
-	for type: StringName in _shown:
-		file.set_value(String(type), SHOWN, _shown[type])
-	for type: StringName in _completed:
-		file.set_value(String(type), COMPLETED, true)
-	return file.save(path)

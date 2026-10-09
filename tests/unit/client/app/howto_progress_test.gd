@@ -79,6 +79,28 @@ func test_it_is_kept_under_user_across_runs() -> void:
 	assert_str(HowtoProgress.FILE).is_equal("user://howto.cfg")
 
 
+func test_two_windows_of_one_pc_keep_each_others_progress() -> void:
+	var host := HowtoProgress.new(PATH)
+	host.read()
+	var joiner := HowtoProgress.new(PATH)
+	joiner.read()
+	host.note_loading_shown(&"delivery")
+	var model := ClientModel.new(null)
+	_task(model, 1, &"switches", 1, 1)
+	joiner.follow(model)
+	joiner.note_loading_shown(&"delivery")
+	var back := HowtoProgress.new(PATH)
+	back.read()
+	assert_int(back.loading_shown(&"delivery")).is_equal(2)
+	assert_bool(back.completed(&"switches")).is_true()
+	# The host never read the joiner's completion or showing, and writes them back all the same.
+	host.note_loading_shown(&"delivery")
+	back.read()
+	assert_int(back.loading_shown(&"delivery")).is_equal(3)
+	assert_bool(back.completed(&"switches")).is_true()
+	assert_bool(host.completed(&"switches")).is_true()
+
+
 func test_a_damaged_file_reads_as_nothing_seen() -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	file.store_string('[delivery]\nloading_shown="many"\ncompleted="yes"\n')

@@ -3150,7 +3150,8 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
   (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`). Tasks are
   shared (#79) and no event names who did a subtask, so this is what the client can see. A `Game` with no command
-  line keeps it in memory.
+  line keeps it in memory. Each write merges the file as it is (another window of the PC, `host` and `join`, may have
+  written): a showing counts on top of the file's count, a completion stays.
 - **The Guide** (`client/ui/GuidePanel`, s5's `guide`): a Guide tab after Resume in every screen, the lobby
   included (`EscMenuState.Tab.GUIDE`, its label the deck's `esc.tab.guide`); the basics' chips and one chip per task
   type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
