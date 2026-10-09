@@ -1769,7 +1769,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
-  with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
+  with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
+  sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and the mode has
+  two or more maps); the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
