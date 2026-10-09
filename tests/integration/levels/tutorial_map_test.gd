@@ -17,7 +17,7 @@ func test_the_map_places_one_room_at_the_origin() -> void:
 	var room := map.get_child(0) as Node3D
 	assert_str(room.scene_file_path).is_equal(ROOM)
 	assert_bool(room.transform.is_equal_approx(Transform3D.IDENTITY)).is_true()
-	assert_object(room.get_meta(&"size_m")).is_equal(Vector2i(12, 10))
+	assert_vector(room.get_meta(&"size_m") as Vector2i).is_equal(Vector2i(12, 10))
 	assert_str((room.get_node(^"Name") as Label3D).text).is_equal("Tutorial")
 
 

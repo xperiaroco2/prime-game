@@ -5285,7 +5285,7 @@ provisional under the MVP content ADR, for the engineer's approval. The solo ses
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
 `docs/design/tutorial.md` §2.3 and a match from `gather` to the respawn in `death_stage`
 (`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
-(`tests/unit/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
+(`tests/integration/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
 `NextStage`, waits past the 10 s knockdown while bot 2 stays down, raises it, sends `NextStage` again, dies at once
 and respawns; nobody else dies; expects `none`) in the core runner and in `tools\run.cmd bots`.
 
@@ -5356,7 +5356,7 @@ levels/
   This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
   `content/` or `levels/`. Only the mode check (§9.1) with the content tests beside it (`tests/unit/content/`, and
-  `tests/unit/levels/` for a map against its design) and the scenarios load them, so a change to `content/` can
+  `tests/integration/levels/` for a map against its design) and the scenarios load them, so a change to `content/` can
   break a scenario or a content test, which is what they are for, and never a part's unit test.
 
 ### 9.7 Bot scenarios
