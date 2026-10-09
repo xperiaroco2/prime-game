@@ -124,7 +124,7 @@ INT_RE = re.compile(r"-?[0-9]+")
 FLOAT_RE = re.compile(r"-?[0-9]+\.[0-9]+")
 LIVES = ("alive", "downed", "dead", "left")
 # GameFlow.Screen in client/app/game_flow.gd, lower case.
-SCREENS = ("menu", "connecting", "lobby", "loading", "pregame", "round", "end")
+SCREENS = ("menu", "connecting", "lobby", "loading", "pregame", "round", "end", "failure")
 # The event fields that name a player (ScenarioPlay.PLAYER_FIELDS): the scenario writes the player's number.
 PLAYER_FIELDS = ("peer", "raiser", "target")
 ACTIONS = ("press", "hold", "release")
