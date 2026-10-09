@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cmiydwk470r4o"]
+
+[ext_resource type="Script" uid="uid://6dducxbjbdxm" path="res://client/dev/zones_preview.gd" id="1_preview"]
+
+[node name="ZonesPreview" type="Node3D" unique_id=499762105]
+script = ExtResource("1_preview")
