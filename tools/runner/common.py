@@ -109,7 +109,8 @@ def cap_lines(lines: list[str], cap: int, more: str, keep_end: int = 0) -> list[
     """The lines that fit in `cap` bytes (each cut at LINE_CAP characters); when some are left out, one line says how
     many and ends with `more`. The last `keep_end` lines always print (an outcome line comes last: publish's push,
     a merge-train's count), so the cut falls in the middle and the cap counts them first."""
-    tail = [cut_line(line) for line in lines[len(lines) - keep_end :]] if 0 < keep_end else []
+    start = max(0, len(lines) - keep_end)  # keep_end over len(lines): every line is a last line
+    tail = [cut_line(line) for line in lines[start:]] if 0 < keep_end else []
     head = lines[: len(lines) - len(tail)]
     budget = cap - line_bytes(tail)
     kept: list[str] = []

@@ -119,6 +119,10 @@ class QuietTest(unittest.TestCase):
         self.assertLessEqual(common.line_bytes(kept), 1000 + 60)
         self.assertEqual(common.cap_lines(lines[:3], 1000, "see the log", keep_end=1), lines[:3])
 
+    def test_cap_lines_keeps_every_line_when_keep_end_is_more_than_there_are(self) -> None:
+        lines = ["a" * 300, "b" * 300]
+        self.assertEqual(common.cap_lines(lines, 100, "see the log", keep_end=3), lines)
+
     def test_a_very_long_line_is_cut(self) -> None:
         _, out = printed(common.quiet, "lint", self.body(["lint", "  FAIL  " + "q" * 5000, "lint: FAILED"], 1))
         self.assertLess(len(out), 1000)
