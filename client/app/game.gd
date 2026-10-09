@@ -139,6 +139,7 @@ func _ready() -> void:
 	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
@@ -286,6 +287,15 @@ func set_ready(on: bool) -> void:
 func change_setting(id: StringName, value: Variant) -> void:
 	if _client != null:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+
+
+## The host names the lobby (#214): "" asks for the default again. Cleaned as the host will, so a
+## pasted invisible character never makes the send fail.
+func change_lobby_name(text: String) -> void:
+	if _client != null:
+		_client.send_intent(
+			Intents.CHANGE_SETTINGS, {"settings": {}, "lobby_name": LobbyName.clean(text)}
+		)
 
 
 ## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it
