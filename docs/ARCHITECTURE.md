@@ -1662,8 +1662,9 @@ covers its teleport, far-future, stale and wrong-phase twins, #429), the debug k
 113, 127, 128, 200, 255). A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
 in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it. Since #214 the hostile's
-`ChangeSettings` also carries a `lobby_name`, and `ChaosRun` fails a run that ends with the lobby named (only the
-host may name it, and the host's bot never does).
+`ChangeSettings` also carries a `lobby_name`: a non-host rename is caught by the oracle's `not_accepted` check of
+`ChangeSettings` (`From.HOST`), and `ChaosRun` also fails a run that ends with the lobby named (only the host may
+name it, and the host's bot never does), a backstop not yet seen failing.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
