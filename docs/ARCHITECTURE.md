@@ -3307,7 +3307,8 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   panel, no Esc menu), `game_voice_test.gd` (the Settings panel's pick and meter), `game_code_join_test.gd` (Join
   directly opens the Direct panel; a mistyped code never leaves the field) and `game_loop_test.gd` (Back to the
   Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
-  text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR.
+  text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
+  scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
