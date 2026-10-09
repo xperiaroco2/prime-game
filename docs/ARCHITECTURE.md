@@ -1626,8 +1626,7 @@ freeze and the claim coverage check over every transport (#674, 2026-10-10) a se
 simulated); `--seed 188001 --runs 10`, `--seed 1 --runs 10` and `--long --seed 5 --runs 2` passed (12 to 24 hostile
 claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--transport webrtc` seed 7 three times
 (18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). The
-night job `chaos` runs ten seeds of
-`--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
 `HostSession` taking no budget failed on the
