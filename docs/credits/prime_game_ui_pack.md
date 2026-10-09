@@ -1,6 +1,8 @@
 # prime-game-ui: the UI pack's icons and Delivery cards
 
-- **Files:** `assets/ui/toy_pack/**`, `client/ui/theme/pack/**`
+- **Files:** `assets/ui/toy_pack/icons/**`, `assets/ui/toy_pack/cards/**`, `client/ui/theme/pack/icons/**`,
+  `client/ui/theme/pack/cards/**` (the art folders only: a font the pack may ship later in a fonts folder is a third
+  party's and needs its own entry)
 - **Author:** prime-game-ui, the project's UI track (https://github.com/xperiaroco2/prime-game-ui)
 - **Source:** https://github.com/xperiaroco2/prime-game-ui/tree/ui-0.4.0/dist/pack (tag `ui-0.4.0`, commit
   `d7650db6590d925fc509fa1b2d793fc336c3b37d`; each file's SHA-256 in `client/ui/theme/pack.lock.json`, copied by
