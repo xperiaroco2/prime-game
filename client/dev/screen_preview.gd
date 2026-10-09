@@ -3,7 +3,8 @@ extends Node
 ## fed by a fake ClientModel folded from events written here, as a host would send them. Dev only:
 ## nothing here reaches the game.
 
-enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS, PREGAME }
+## New previews go last: the preview scenes save the numbers.
+enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS, PREGAME, MENU_VOICE }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
@@ -24,7 +25,7 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 @export var esc_tab := EscMenuState.Tab.LOBBY
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
-## The Voice tab (M5-6) as without the voice addon.
+## The Voice tab (M5-6), or the main menu's Voice page (#301), as without the voice addon.
 @export var voice_unavailable := false
 ## The Controls tab (#211) with Map and tasks on V, Talk's key: both rows marked "Same key". The
 ## preview's controls stay in memory and the InputMap untouched.
@@ -50,6 +51,10 @@ func _ready() -> void:
 				"The last session ended: %s." % EndReasons.words(DisconnectingEvent.LOAD_DEADLINE)
 			)
 			ui.show_screen(GameFlow.Screen.MENU)
+		Preview.MENU_VOICE:
+			ui.show_screen(GameFlow.Screen.MENU)
+			ui.menu.open_voice()
+			ui.menu.voice.show_facts(fake_voice(not voice_unavailable))
 		Preview.CONNECTING:
 			ui.connecting.set_target(JoinProgress.target_text(JoinTarget.of_code(PREVIEW_CODE)))
 			ui.connecting.set_step(JoinProgress.step_text(true, -1, false))
