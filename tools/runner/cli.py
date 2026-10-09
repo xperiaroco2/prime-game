@@ -63,7 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
         "of rules, skills and agents, and the relative links in skills.",
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
-    p.add_argument("--verbose", action="store_true", help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in tools/out/logs/lint-output.log)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/lint-output.log)",
+    )
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
 
     p = sub.add_parser(
@@ -81,7 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="only fail on any Git LFS pointer file (a checkout without LFS content), with no Godot: a build's check "
         "before its export",
     )
-    p.add_argument("--verbose", action="store_true", help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in tools/out/logs/check-output.log)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/check-output.log)",
+    )
 
     p = sub.add_parser(
         "test",
@@ -174,7 +184,12 @@ def build_parser() -> argparse.ArgumentParser:
         "it instead of verifying again)",
     )
     p.add_argument("--max", type=int, default=180, metavar="S", help="seconds to wait, 1 to 180 (default 180)")
-    p.add_argument("--verbose", action="store_true", help="print the job's whole summary (default: at most about 1.5 KB when it passed, 4 KB when it failed, with the failing lines)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the job's whole summary (default: at most about 1.5 KB when it passed, 4 KB when it failed, "
+        "with the failing lines)",
+    )
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
