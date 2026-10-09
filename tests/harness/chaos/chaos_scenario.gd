@@ -1,7 +1,10 @@
 class_name ChaosScenario
 extends RefCounted
 ## The honest match the chaos peers play in (ARCHITECTURE §9.7's steps, built in code: it is the
-## chaos run's fixture, not content). Four bots of the base mode, one package:
+## chaos run's fixture, not content). Four bots of the base mode, one package, and Delivery alone:
+## the setup bans the zone task with `tasks` 1 (ZE7, #649), so the one delivery still wins the match
+## and no zone counts a chaos peer's stale claims (the zone task ADR's freeze row is a unit test,
+## `tests/unit/tasks/zone_rules_test.gd`):
 ## - bot 1, the host's own client, takes a knife, knocks bot 4 down with two hits and waits for the
 ##   end;
 ## - bot 2 takes the package to its circle, waits there until bot 4 is downed (with `until_dead`,
@@ -23,6 +26,8 @@ const HOSTILE := 4
 const BOTS := 4
 const SEED := 488_000_000_001
 const MODE := "res://content/modes/base_mode.tres"
+## The base mode's zone task, banned in the setup (#649).
+const ZONE_TASK := "hold_the_zone"
 const TIME_LIMIT_S := 90.0
 ## How long bot 3 stays into End after the match ended, so the chaos peers send there too.
 const END_WAIT_S := 2.0
@@ -37,7 +42,8 @@ static func build(swapped := false, until_dead := false) -> BotScenario:
 	scenario.mode = load(MODE) as GameMode
 	scenario.session_seed = SEED
 	scenario.bots = BOTS
-	scenario.settings = {&"packages": 1}
+	scenario.settings = {&"packages": 1, &"tasks": 1}
+	scenario.id_sets = {&"banned_task_types": PackedStringArray([ZONE_TASK])}
 	var dissident := 3 if swapped else 1
 	var crew := 1 if swapped else 3
 	scenario.forced_roles = {dissident: &"dissident", crew: &"crew", 2: &"crew", HOSTILE: &"crew"}
