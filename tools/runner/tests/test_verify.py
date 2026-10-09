@@ -549,6 +549,25 @@ class QuietTest(unittest.TestCase):
                          ["== doctor (FAILED)", "  FAIL  Godot 4.6 found, 4.7.2 pinned"])  # fmt: skip
         self.assertEqual(summary_rows(text), [("FAILED", "doctor")])
 
+    def test_a_second_run_keeps_the_first_runs_whole_output_as_prev(self) -> None:
+        """merge-train retries a red verify in the same worktree (#572 review): attempt 1's output must survive."""
+        run = Verify(self)
+        run.run(red_lane({"lint": RED_LINT}), full=False, verbose=False)
+        first = self.log(run)
+        run.history.unlink()  # the helper reads one record per run
+        run.run(red_lane({}), full=False, verbose=False)
+        self.assertEqual((run.logs / "verify-output.prev.log").read_text(encoding="utf-8"), first)
+        self.assertIn("  FAIL  core/a.gd:5", first)
+        self.assertNotIn("  FAIL  core/a.gd:5", self.log(run))
+        self.assertIsNone(verify._SPLIT)
+
+    def test_a_nested_quiet_run_restores_the_outer_split(self) -> None:
+        outer = mock.sentinel.outer
+        with mock.patch.object(verify, "_SPLIT", outer):
+            run = Verify(self)
+            run.run(red_lane({}), full=False, verbose=False)
+            self.assertIs(verify._SPLIT, outer)
+
     def test_a_dirty_tree_after_the_run_prints_the_files_it_left(self) -> None:
         run = Verify(self)
         rc, text, _record = run.run(red_lane({}), status=[set(), {"?? left.txt"}], full=False, verbose=False)

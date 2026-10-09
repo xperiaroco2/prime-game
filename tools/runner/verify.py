@@ -1251,13 +1251,18 @@ def main(
     verbose: bool = False,
 ) -> int:
     """`verify`, quiet unless `verbose` (#572): the whole output goes to tools/out/logs/verify-output.log as it is
-    printed, the terminal gets each red step's excerpt and the summary block (Split). An exception (Ctrl+C, a crash)
-    prints one line with the log's path and goes on up unchanged."""
+    printed (the run before it is kept as verify-output.prev.log), the terminal gets each red step's excerpt and the
+    summary block (Split). An exception (Ctrl+C, a crash) prints one line with the log's path and goes on up
+    unchanged."""
     global _SPLIT
     if verbose:
         return _verify(run_lane, full, fail_fast, watch)
     ensure_out()
     log = quiet_log("verify")
+    if log.exists():  # a retry in the same worktree (merge-train) keeps the red run's whole output one run longer
+        with contextlib.suppress(OSError):
+            os.replace(log, log.with_name("verify-output.prev.log"))
+    previous = _SPLIT
     with log.open("w", encoding="utf-8") as handle:
         split = Split(handle, sys.stdout, where_line(log))
         _SPLIT = split
@@ -1268,7 +1273,7 @@ def main(
             split.show([f"verify: stopped by {type(exc).__name__}; {split.where}"])
             raise
         finally:
-            _SPLIT = None
+            _SPLIT = previous
 
 
 def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int:
