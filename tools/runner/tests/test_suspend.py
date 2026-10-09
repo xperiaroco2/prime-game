@@ -155,6 +155,20 @@ class LastResumeTest(unittest.TestCase):
         failed = subprocess.CompletedProcess([], 15007, "", "channel not found")
         self.assertIsNone(suspend.last_resume(lambda *_a, **_k: failed))
 
+    @unittest.skipUnless(IS_WINDOWS, "the System log is Windows'")
+    def test_the_real_system_log_accepts_the_query(self) -> None:
+        # A query wevtutil rejects (a nonzero exit) would make last_resume answer None for ever, unseen.
+        seen: list[subprocess.CompletedProcess[str]] = []
+
+        def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            done = subprocess.run(command, **kwargs)  # type: ignore[call-overload]
+            seen.append(done)
+            return done
+
+        resumed = suspend.last_resume(run)
+        self.assertEqual(seen[0].returncode, 0, seen[0].stderr)  # also 0 when no event matches
+        self.assertTrue(resumed is None or resumed.tzinfo is UTC)
+
     @unittest.skipIf(IS_WINDOWS, "elsewhere there is no System log")
     def test_no_system_log_elsewhere(self) -> None:
         self.assertIsNone(suspend.last_resume(lambda *_a, **_k: self.fail("no process")))
