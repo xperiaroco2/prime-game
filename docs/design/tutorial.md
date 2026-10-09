@@ -147,7 +147,9 @@ Each is a content-API part in `core/` with its own unit tests and a §9.4 entry,
 
 No new event and no new audience: every event above is one the life and item rules already emit (ARCHITECTURE
 §4.2), so the information-leak test's audiences and the client's folds hold as they are. A `pick` that names nobody
-present (fewer players than n) is a rule error, logged, and nothing happens.
+present (fewer players than n), or a `then_die` whose `LifeRules.die` errs, is a rule error recorded during the row,
+so the session ends (ARCHITECTURE §4.5.11: `HostSession` ends it on a new row error); T1's unit test asserts the
+row error count.
 
 ## 3. The lesson runner (E63, E64)
 The runner is client code that watches what the own client already knows and moves the plates on. It reads only the
