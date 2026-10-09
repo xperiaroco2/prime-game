@@ -231,14 +231,14 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
 - **Rooms in the level data.** The room record (#306) gives each room its id, names and sign; this file's names are
   working names until then.
 - **Ideas from the sketch, not decided.** The sketch described these, but the engineer has not decided them; they stay
-  out of the rules until he does:
-  - the generator charges only while all active switches are on at the same time;
+  out of the rules until he does (the generator's two he decided on 2026-10-09, in #679 and [GDD](../GDD.md) §8: it
+  charges only while every switch is on, and anyone may switch any active switch on or off):
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
   - the lift control has no view of who is under the car;
   - how dissidents interfere with each chain (a wrong herb or part, letting the lift go, a wrong pose or a spoiled
-    shot, switching the generator's switches off; for the burgers he decided it in #682: a dissident may hide a box,
-    and the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
+    shot; for the burgers he decided it in #682: a dissident may hide a box, and the rules let anyone burn a patty
+    or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
   - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
     [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).
