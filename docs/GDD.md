@@ -118,23 +118,26 @@ Open questions:
 - How does a task look in first-person 3D?
 
 ### Zone task (#36)
-A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
-shared and only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4),
-so the downed never count, and the dead have no avatar (there are no ghosts). The options, with a recommendation for
-each question: [the zone task ADR](decisions/2026-10-09-m7-zone-task.md) (ZD1 to ZD11).
-
-Open questions (the engineer's):
-- Is the time earned by standing in the zone, or by holding a key there?
-- Does leaving the zone pause its time or reset it?
-- Can several players share a zone, and does it fill faster with more of them?
-- Does a living dissident standing in a zone count, as any living player does a subtask today?
-- Is each subtask one zone, with every zone open from the start?
-- Does everyone see each zone's progress as it fills, or only when it is done?
-- Does anything but leaving stop a zone: a hit, carrying something?
-- How long, how big and how many zones, in which colours; the task's name and description; and does "zone" clash
-  with "the zones where items may appear" (§1) and with the House map's photo zone and chill zone ([House map](design/house-map.md) §2, §4)?
-- Does every match deal both Delivery and the zone task, or one of them at random?
-- Where do zones stand on the maps (the [House map](design/house-map.md)'s task stations, its §6, include none), and how do they look?
+A second task type from #36: stand in a zone for N seconds. Tasks are shared and only living players do subtasks
+(#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4), so the downed never count, and the dead
+have no avatar (there are no ghosts). The engineer took every recommendation of [the zone task
+ADR](decisions/2026-10-09-m7-zone-task.md) (#302, comment 6085059719) and gave its starting numbers (comment
+6085251071); all are provisional, for the first playtest, and live in data:
+- The time is earned by standing in the zone, with no key (ZD1 (a)).
+- Leaving pauses the zone: it keeps its time (ZD2 (a)).
+- Several players share a zone, and it fills no faster with more of them (ZD4 (a)).
+- Any living player counts, a dissident too (ZD3 (a)).
+- Each subtask is one zone, every zone open from the start (ZD5 (a)).
+- Everyone sees each zone fill as it fills (ZD6 (a)), on a look of its own, not the delivery circle's, with no
+  marker through walls (ZD11 (b)).
+- Only where living players stand matters: a hit that does not knock down, carrying or using stops nothing; a
+  knockdown does (ZD9 (a)).
+- Every match deals both Delivery and the zone task (ZD8 (a)): the lobby's `tasks` is 2 (1 to 2); the host may ban
+  one type and lower `tasks` to 1.
+- The numbers (ZD7): 10 s in a zone (data, not a lobby setting), radius 1.5 m, height 2.5 m, one zone per subtask
+  (the base mode deals 1 zone: a placeholder, "not a decision", #649), yellow; the task's name and the players'
+  word "Hold the zone" (Ukrainian UI: «Утримати зону»), described "Stand in the zone until it fills."
+- Where zones stand (ZD10 (a)): placeholders on the greybox (#649); on the House map at the engineer's points (#651).
 
 ## 9. Meetings and voting
 
