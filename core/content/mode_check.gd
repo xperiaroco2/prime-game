@@ -340,7 +340,7 @@ func _check_stations(mode: GameMode) -> void:
 		if type == null:
 			continue
 		for property: Dictionary in type.get_property_list():
-			if (property["usage"] as int) & PROPERTY_USAGE_STORAGE == 0:
+			if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
 				continue
 			var name: String = property["name"]
 			var value: Variant = type.get(name)
