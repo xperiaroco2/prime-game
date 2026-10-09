@@ -16,8 +16,9 @@ extends RefCounted
 ##   teleports it next to the item, which the host corrects: reach is measured from the host's
 ##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
-## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, nothing a
-## race could turn into an action.
+## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, Throw only
+## while no phase accepts it (its facings: ChaosFrames.THROW_FACINGS; 37f, #646, which opens Round
+## to it, changes this with ChaosOracle), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -123,6 +124,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.PICK_UP,
 		Intents.PUT_DOWN,
 		Intents.USE,
+		Intents.THROW,
 		Intents.SWAP,
 		Intents.STOP_RAISE,
 		Intents.RAISE,
@@ -136,9 +138,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var args := _args_of(intent)
 	var item: int = args.get("item", ChaosOracle.NO_ITEM)
 	# Only a resting item is far (FAR_M): a carried one may be next to it, where a claim is a step.
-	var resting := (
-		item != ChaosOracle.NO_ITEM and _client.model.items[item].holder == ClientModel.NO_HOLDER
-	)
+	var resting := item != ChaosOracle.NO_ITEM and _client.model.items[item].rests()
 	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE and not _quiet():
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
@@ -160,6 +160,9 @@ func _args_of(intent: StringName) -> Dictionary:
 			args = {"item": _item_to_pick()}
 		Intents.PUT_DOWN, Intents.USE:
 			args = {"facing": Vector3.FORWARD}
+		Intents.THROW:
+			var facings := ChaosFrames.THROW_FACINGS
+			args = {"facing": facings[rng.randi_range(0, facings.size() - 1)]}
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
@@ -198,7 +201,7 @@ func _item_to_pick() -> int:
 		var item: ClientModel.Item = _client.model.items[id]
 		if item.holder != ClientModel.NO_HOLDER and item.holder != _bot.peer:
 			carried.append(id)
-		elif item.holder == ClientModel.NO_HOLDER and not item.delivered:
+		elif item.rests() and not item.delivered:
 			if item.position.distance_to(_bot.position) > FAR_M:
 				far.append(id)
 	var roll := rng.randf()

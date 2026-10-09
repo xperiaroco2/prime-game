@@ -113,3 +113,28 @@ func test_everything_a_chaos_transport_sends_is_in_its_outbox_in_order() -> void
 	assert_bool(sent[0].frame_valid).is_true()
 	assert_object(sent[1]).is_same(raw)
 	assert_array(_client.take_outbox()).is_empty()
+
+
+func test_every_throw_facing_encodes_and_decodes_to_the_same_bits() -> void:
+	# §4.6.5.3: the hostile's Throw shapes, the finite facing extremes among them; a facing the
+	# encoder refused would be skipped by the hostile without a word, so each must encode.
+	assert_array(ChaosFrames.THROW_FACINGS).contains_exactly(
+		[Vector3.FORWARD, Vector3.ZERO, Vector3(1e-30, 0, 0), Vector3(1e38, 0, 0)]
+	)
+	var kind := _schema.kind_of(Intents.THROW)
+	for facing: Vector3 in ChaosFrames.THROW_FACINGS:
+		assert_bool(facing.is_finite()).is_true()
+		var packet := ChaosFrames.message(
+			_schema, Intents.THROW, {"facing": facing}, ChaosFrames.CHAOS_SEQ
+		)
+		assert_object(packet).override_failure_message(str(facing)).is_not_null()
+		assert_str(packet.label).is_equal("intent Throw")
+		assert_int(kind).is_equal(15)
+		assert_int(packet.lane).is_equal(NetKindTable.Lane.RELIABLE)
+		var decoded := _schema.decode(kind, packet.bytes.slice(NetFrame.HEADER_BYTES))
+		(
+			assert_bool(decoded.fields["facing"] == facing)
+			. override_failure_message(str(facing))
+			. is_true()
+		)
+		assert_int(decoded.seq).is_equal(ChaosFrames.CHAOS_SEQ)

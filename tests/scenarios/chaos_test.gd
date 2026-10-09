@@ -316,3 +316,41 @@ func _first_words(schema: WireSchema, crew_peer: int) -> Dictionary:
 	chaos_log.stop()
 	var labels: Array = packets.map(func(packet: ChaosFrames.Packet) -> String: return packet.label)
 	return {"packets": packets, "labels": labels, "errors": chaos_log.errors()}
+
+
+func test_the_oracle_refuses_throw_in_every_phase_and_life_state_whatever_the_facing() -> void:
+	# §4.6.5.3: no phase of the base mode accepts Throw until its rule (37f, #646, which changes
+	# this test with ChaosOracle.ACCEPTS); a refused Throw is answered, never dropped in silence.
+	var living := PlayerState.new(4, "Player4")
+	var downed := PlayerState.new(4, "Player4")
+	downed.life = PlayerState.Life.DOWNED
+	var dead := PlayerState.new(4, "Player4")
+	dead.life = PlayerState.Life.DEAD
+	var host := PlayerState.new(1, "Player1")
+	for phase: StringName in ChaosOracle.ACCEPTS:
+		assert_bool(ChaosOracle.ACCEPTS[phase].has(Intents.THROW)).is_false()
+		for player: PlayerState in [living, downed, dead, host, null]:
+			var peer := 1 if player == host else 4
+			for facing: Vector3 in ChaosFrames.THROW_FACINGS:
+				var answer := ChaosOracle.answer(
+					Intents.THROW, {"facing": facing}, peer, phase, player, 0
+				)
+				(
+					assert_str(str(answer))
+					. override_failure_message("%s %s %s" % [phase, peer, facing])
+					. is_equal("not_accepted")
+				)
+
+
+func test_the_hostile_throws_with_each_facing_and_only_those() -> void:
+	var hostile := ChaosHostile.new(null, null, WireSchema.game(true), Callable(), null, 188001)
+	var seen: Dictionary[Vector3, int] = {}
+	for _i in 64:
+		var facing: Vector3 = hostile._args_of(Intents.THROW)["facing"]
+		(
+			assert_bool(ChaosFrames.THROW_FACINGS.has(facing))
+			. override_failure_message(str(facing))
+			. is_true()
+		)
+		seen[facing] = seen.get(facing, 0) + 1
+	assert_int(seen.size()).is_equal(ChaosFrames.THROW_FACINGS.size())

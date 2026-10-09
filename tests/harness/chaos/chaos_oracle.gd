@@ -28,6 +28,9 @@ const OUT_OF_REACH := &"out_of_reach"
 ## rest position), checked after ItemOnGround and before InSight.
 const PICK_UP_REACH_M := 2.0
 ## The base mode's allowlist (§3.2): phase -> intent -> who may send it (From bits).
+## Throw has no row in any phase yet: Round accepts it from the living only with the base mode's
+## Throw rule (37f, #646), which adds its row here and its reasons to _rule (empty_hand, no_floor)
+## with the hostile's expected outcome; until then every hostile Throw is `not_accepted`.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
