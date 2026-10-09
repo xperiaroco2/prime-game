@@ -60,7 +60,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
 - Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`, generated from the UI pack,
   never edited by hand; UI px on the 1920x1080 base, ARCHITECTURE §4.7.24-25): a type variation per look, no `add_theme_*_override`,
-  `Color(...)` or font size in a screen's code; a source test holds it. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
+  `Color(...)` or font size in a screen's code; a source test holds it. A bare base control takes its class's row (mapping `base_types`, §4.7.29); a new bare control class needs a row or a named gap in `base_controls_test.gd`. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
 - A key on screen is `KeyLabel`'s (the binding now, on the player's layout), never a letter in a string (#211).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
