@@ -336,6 +336,27 @@ func test_the_wire_takes_exactly_the_characters_player_names_keeps() -> void:
 	assert_array(Array(differ)).is_empty()
 
 
+## Every character a name may hold (is_name_char: noncharacters, the private-use planes and all)
+## encodes and decodes back to itself, 16 to a name, with no engine error: a character Godot's
+## UTF-8 decoder changes on the way (it drops U+FEFF) would make a good client's Hello fail
+## silently.
+func test_every_name_character_round_trips() -> void:
+	var batch := ""
+	var failed := PackedInt32Array()
+	for code: int in range(0, 0x110000):
+		if WireField.is_name_char(code):
+			batch += String.chr(code)
+		if batch.length() == PlayerNames.MAX_CHARS or (code == 0x10FFFF and not batch.is_empty()):
+			var hello := {"version": WireSchema.VERSION, "content": 1, "name": batch}
+			var message := WireMessage.new(&"Hello", hello)
+			var decoded := _schema.decode(WireSchema.HELLO, _schema.encode(message))
+			if decoded == null or decoded.fields["name"] != batch:
+				failed.append(code)
+			batch = ""
+	assert_array(Array(failed)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
 ## A Hello of this version whose name is `name_bytes`, written by hand.
 func _hello_with_name_bytes(name_bytes: PackedByteArray) -> PackedByteArray:
 	var payload := PackedByteArray()
