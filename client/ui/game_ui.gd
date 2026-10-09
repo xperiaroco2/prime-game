@@ -64,7 +64,7 @@ func _init() -> void:
 
 func _process(_delta: float) -> void:
 	if reads_device_input:
-		show_tasks(not esc_open() and Input.is_action_pressed(&"task_screen"))
+		show_tasks(not esc_open() and Input.is_action_pressed(&"map"))
 
 
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per

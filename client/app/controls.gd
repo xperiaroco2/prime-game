@@ -50,7 +50,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"use": &"control.use",
 	&"put_down": &"control.put_down",
 	&"swap": &"control.swap",
-	&"task_screen": &"control.map",
+	&"map": &"control.map",
 	&"give_up": &"control.give_up",
 	&"ready": &"control.ready",
 	&"voice_talk": &"control.talk",
@@ -61,7 +61,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 ## Ready (Game._unhandled_input); the round reads the item keys and the raise while living
 ## (ItemInteractions, LifeView), the crawl while downed (no sprint, no jump: PlayerController), the
 ## give-up while downed and the spectate buttons while dead (LifeView), and the map on any life
-## (GameUi). Talk sends while the own life is living, in the lobby too, whose VoiceRule hears
+## (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule hears
 ## (VoiceSender.may_speak).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": Phase.LOBBY | Phase.ALIVE | Phase.DOWNED,
@@ -74,7 +74,7 @@ const PHASES: Dictionary[StringName, int] = {
 	&"use": Phase.ALIVE,
 	&"put_down": Phase.ALIVE,
 	&"swap": Phase.ALIVE,
-	&"task_screen": Phase.ALIVE | Phase.DOWNED | Phase.DEAD,
+	&"map": Phase.ALIVE | Phase.DOWNED | Phase.DEAD,
 	&"give_up": Phase.DOWNED,
 	&"ready": Phase.LOBBY,
 	&"voice_talk": Phase.LOBBY | Phase.ALIVE,

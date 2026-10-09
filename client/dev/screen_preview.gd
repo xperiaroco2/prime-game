@@ -127,7 +127,7 @@ func _ready() -> void:
 			if controls_clash:
 				var key := InputEventKey.new()
 				key.physical_keycode = KEY_V
-				ui.esc.controls.controls.bind(&"task_screen", key)
+				ui.esc.controls.controls.bind(&"map", key)
 				ui.esc.controls.refresh()
 		Preview.ROUND, Preview.TASKS:
 			fold_round(model, true)
