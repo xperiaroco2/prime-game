@@ -1855,8 +1855,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   level the look (§4.7.13).
 - **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
   · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
-  lobby's name (the host's to edit, #214, §4.7.11), the roster, the Ready toggle and the settings; the `ready` key
-  (F, a placeholder) toggles Ready without the menu.
+  lobby's name (the host's to edit, #214, §4.7.11) with the map's picker right under it (#694), the roster, the
+  Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
@@ -2268,6 +2268,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default) for
   the lobby HUD (#495). Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
   `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
+- #694 (main's #627 taken into the slice) puts the map's picker (`LobbyPanel.map_picker`, built once, its items
+  rebuilt by `set_mode`) in the row right under the name, out of the settings box: the two things that name the
+  match side by side. Its label is plain "Map" until the UI deck has a key for it. `Game.change_map` sends it.
+  Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
+  `game_map_choice_test.gd` (every `Game` loads the host's map).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that

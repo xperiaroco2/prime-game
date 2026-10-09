@@ -88,6 +88,28 @@ func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() ->
 	assert_array(sent).is_equal([mode.maps[1]])
 
 
+func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_list() -> void:
+	# #694: the map pick beside the lobby's name (#214), not among the settings; a second set_mode
+	# replaces the maps, and one pick sends one map.
+	var mode := load(MODE) as GameMode
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	var name_row := panel.name_edit.get_parent()
+	var map_row := panel.map_picker.get_parent()
+	assert_object(name_row.get_parent()).is_same(panel)
+	assert_object(map_row.get_parent()).is_same(panel)
+	assert_int(map_row.get_index()).is_equal(name_row.get_index() + 1)
+	assert_bool(panel.settings_box.is_ancestor_of(panel.map_picker)).is_false()
+	panel.set_mode(mode)
+	assert_int(panel.map_picker.item_count).is_equal(mode.maps.size())
+	var sent: Array[String] = []
+	panel.map_changed.connect(func(map: String) -> void: sent.append(map))
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	panel.map_picker.item_selected.emit(1)
+	assert_array(sent).is_equal([mode.maps[1]])
+
+
 func test_a_mode_with_one_map_shows_it_with_nothing_to_pick() -> void:
 	var mode := (load(MODE) as GameMode).duplicate() as GameMode
 	mode.maps = PackedStringArray([mode.maps[0]])
