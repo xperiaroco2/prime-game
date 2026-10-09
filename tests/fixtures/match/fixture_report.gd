@@ -1,6 +1,6 @@
 class_name FixtureReport
 extends RuleEffect
-## Reports the outcome `outcome`, as ReportOutcome will (no MVP use yet).
+## Reports the outcome `outcome` with the argument "from a rule", as ReportOutcome does (#599).
 
 @export var outcome: StringName = &"go"
 
