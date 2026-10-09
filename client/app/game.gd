@@ -8,8 +8,11 @@ extends Node
 ## Hosting: HostNode.host() on an EnetTransport (Direct), or on a WebRtcTransport that opens a room
 ## with a code at the signalling service (the M6 design §2.3; --signal=lan serves a LanSignalling
 ## here), then the own ClientSession on its own_client. Joining: a JoinTarget (a code or an
-## address) hands over its transport, and the connecting screen names the step and the target;
-## a code join ends early when the service's `found` names another version (JoinProgress). The
+## address) hands over its transport, and the connecting screen shows the step, a code join's code
+## and the time since Join; a code join ends early when the service's `found` names another
+## version (JoinProgress). A failed join or session shows its failure there (EndReasons'
+## failure_state, #494) until Back, Try again (the same join, or the host again) or Join directly;
+## the player's own leaving goes straight to the menu, whose fields keep the code and address. The
 ## lobby shows the room's code to whoever knows it: the host from its transport, a joiner the code
 ## it typed (the M6 design §3). Everything shown comes from the own ClientModel
 ## and the client's own copy of the mode: the host's player reads nothing of the host's session
@@ -57,6 +60,8 @@ var clock := Callable()
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
 var last_reason: StringName = &""
+## The end whose failure shows now (Screen.FAILURE); empty while none does.
+var failure: StringName = &""
 ## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
 ## and drive the player's wish fields themselves (headless runs have no input).
 var device_input := true
@@ -84,6 +89,10 @@ var _room: CodeRoom
 ## What this client joined, and the transport it joins with; null for a host or no session.
 var _target: JoinTarget
 var _join_transport: NetTransport
+## When the join started (Time.get_ticks_msec), for the connecting screen's time since Join.
+var _join_started_ms := 0
+## Starts the last join or host again the same way: a failure's Try again.
+var _retry := Callable()
 ## This game's content hash, for the version check against `found`.
 var _own_content := 0
 var _client: ClientSession
@@ -125,6 +134,9 @@ func _ready() -> void:
 	ui.menu.code_join_requested.connect(join_code)
 	ui.menu.quit_requested.connect(quit)
 	ui.connecting.cancel_requested.connect(leave)
+	ui.connecting.back_requested.connect(back_to_menu)
+	ui.connecting.retry_requested.connect(retry)
+	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
 	ui.esc.resume_requested.connect(close_esc)
@@ -150,6 +162,7 @@ func _ready() -> void:
 	elif options.hosting:
 		host(options.port, options.bind)
 	elif options.joining:
+		_fill_menu(options.target)
 		join_target(options.target)
 	else:
 		ui.menu.port_box.value = options.port
@@ -167,6 +180,7 @@ func _exit_tree() -> void:
 func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
+	_retry = host.bind(port, bind)
 	var transport := _new_transport()
 	var enet := transport as EnetTransport
 	if enet != null:
@@ -180,6 +194,7 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
+	_retry = host_with_code.bind(port, bind)
 	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
 	if service.is_empty():
 		_cannot_host(
@@ -211,6 +226,7 @@ func _host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	_host = node
 	_host.ended.connect(_on_host_ended)
 	add_child(_host)
+	ui.connecting.show_join("", JoinProgress.Step.CONNECTING)
 	_start_client(_host.own_client)
 	print("%s %s on %s:%d" % [LaunchOptions.HOSTING, mode.resource_path.get_file(), bind, port])
 	return true
@@ -234,6 +250,7 @@ func join_target(target: JoinTarget) -> void:
 	if not target.problem.is_empty():
 		ui.menu.set_reason(target.problem)
 		return
+	_retry = join_target.bind(target)
 	_own_content = ClientSession.content_of(mode)
 	var transport := (
 		_new_transport()
@@ -243,7 +260,10 @@ func join_target(target: JoinTarget) -> void:
 	_start_client(transport)
 	_target = target
 	_join_transport = transport
-	ui.connecting.set_target(JoinProgress.target_text(target))
+	_join_started_ms = Time.get_ticks_msec()
+	ui.connecting.show_join(
+		target.code if target.is_code() else "", JoinProgress.step(target.is_code(), -1, false)
+	)
 	print("session: joining %s" % target.label())
 	if transport.join(target.join_address(), target.port) != OK:
 		_end_session(
@@ -279,6 +299,28 @@ func leave() -> void:
 		_end_session(EndReasons.CLOSED)
 	elif _client != null:
 		_client.leave()
+
+
+## A failure's Back (or Esc): the main menu, its fields as they were (the code or address kept).
+func back_to_menu() -> void:
+	failure = &""
+	ui.show_screen(screen())
+
+
+## A failure's Try again: the last join to the same target, or the host started again the same
+## way (host-failed).
+func retry() -> void:
+	var again := _retry
+	back_to_menu()
+	if again.is_valid():
+		again.call()
+
+
+## A failure's Join directly: the main menu's Direct fields, the code kept in its own. #493's Toy
+## menu opens its Direct panel here.
+func open_direct() -> void:
+	back_to_menu()
+	ui.menu.address_edit.grab_focus()
 
 
 ## Ends any session, then the process.
@@ -394,6 +436,8 @@ func _process(_delta: float) -> void:
 	if _client != null:
 		_refresh_join()
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+		if now == GameFlow.Screen.LOADING:
+			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
@@ -413,6 +457,15 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not event.is_action_pressed(&"ui_cancel"):
+		return
+	# Esc on the connecting screen is its Cancel, on a failure its Back (#494).
+	var now := screen()
+	if now == GameFlow.Screen.FAILURE or now == GameFlow.Screen.CONNECTING:
+		if now == GameFlow.Screen.FAILURE:
+			back_to_menu()
+		else:
+			leave()
+		get_viewport().set_input_as_handled()
 		return
 	if _client == null:
 		# The main menu's Voice page goes back to the menu (#301); no session has no Esc menu.
@@ -501,7 +554,7 @@ func _hud_local() -> HudText.Local:
 
 func _session_state() -> GameFlow.Session:
 	if _client == null:
-		return GameFlow.Session.NONE
+		return GameFlow.Session.NONE if failure.is_empty() else GameFlow.Session.FAILED
 	return GameFlow.Session.WELCOMED if _client.is_welcomed() else GameFlow.Session.CONNECTING
 
 
@@ -513,6 +566,7 @@ func _new_transport() -> NetTransport:
 
 func _start_client(transport: NetTransport) -> void:
 	_ending = false
+	failure = &""
 	_client = ClientSession.new(transport, mode, _schema, settings.player_name)
 	_client.welcomed.connect(_on_welcomed)
 	_client.corrected.connect(_on_corrected)
@@ -631,7 +685,7 @@ func _on_host_ended(reason: StringName) -> void:
 
 
 ## Every end comes here: the sessions, the level and the views go, and the menu says why (with
-## `detail` after the reason's words).
+## `detail` after the reason's words); a failure shows on the connecting screen first.
 func _end_session(reason: StringName, detail := "") -> void:
 	if _ending or _client == null:
 		return
@@ -639,6 +693,7 @@ func _end_session(reason: StringName, detail := "") -> void:
 	last_reason = reason
 	if detail.is_empty():
 		detail = _found_detail(reason)
+	var versions := _found_versions(reason)
 	print("session: ended: %s%s" % [EndReasons.text(reason), ": " + detail if detail else ""])
 	if _host != null:
 		# Leaving the tree closes the session: every client sees host_lost.
@@ -667,7 +722,7 @@ func _end_session(reason: StringName, detail := "") -> void:
 	if _player != null:
 		_player.queue_free()
 		_player = null
-	_show_menu(reason, detail)
+	_show_end(reason, detail, versions)
 	_ending = false
 
 
@@ -684,15 +739,27 @@ func _found_detail(reason: StringName) -> String:
 	return JoinProgress.found_detail(reason, found, webrtc.found_content, own, _own_content)
 
 
-## A join under way: the connecting screen's step. Then the room's code to whoever knows it: the
-## host from its room (waiting for the service, then the code, or a line saying none is coming),
-## a code joiner the code it typed, a Direct joiner none.
+## The host's and this game's version for the connecting screen's failure, when a code join ended
+## on the service's `found`; empty otherwise (a Rejected Hello names no version).
+func _found_versions(reason: StringName) -> PackedStringArray:
+	var webrtc := _join_transport as WebRtcTransport
+	if webrtc == null:
+		return PackedStringArray()
+	return JoinProgress.found_versions(
+		reason, webrtc.found_protocol, webrtc.found_content, WireSchema.VERSION, _own_content
+	)
+
+
+## A join under way: the connecting screen's step and the time since Join. Then the room's code to
+## whoever knows it: the host from its room (waiting for the service, then the code, or a line
+## saying none is coming), a code joiner the code it typed, a Direct joiner none.
 func _refresh_join() -> void:
 	var webrtc := _join_transport as WebRtcTransport
 	if _target != null and not _client.is_welcomed():
 		var found := webrtc.found_protocol if webrtc != null else -1
 		var connected := _join_transport.own_id() != 0
-		ui.connecting.set_step(JoinProgress.step_text(_target.is_code(), found, connected))
+		ui.connecting.set_step(JoinProgress.step(_target.is_code(), found, connected))
+		ui.connecting.set_elapsed(floori((Time.get_ticks_msec() - _join_started_ms) / 1000.0))
 	var code := ""
 	if _room != null:
 		code = _room.code()
@@ -822,7 +889,7 @@ func shown_voice_panel() -> VoicePanel:
 func _cannot_host(why: String) -> void:
 	print("session: cannot host: %s" % why)
 	last_reason = EndReasons.CANNOT_HOST
-	_show_menu(EndReasons.CANNOT_HOST, why)
+	_show_end(EndReasons.CANNOT_HOST, why)
 
 
 ## The code host's room and its own signalling go with its session.
@@ -832,13 +899,25 @@ func _drop_room() -> void:
 	_room = null
 
 
-func _show_menu(reason: StringName, detail := "") -> void:
+## After an end: the menu's line says why, and the end's failure, if it has one, shows first.
+func _show_end(reason: StringName, detail := "", versions := PackedStringArray()) -> void:
 	ui.close_esc()
 	ui.menu.close_voice()
 	var why := EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
 	ui.menu.set_reason("The last session ended: %s." % why)
-	ui.show_screen(GameFlow.Screen.MENU)
+	var shown := ui.connecting.show_failure(EndReasons.failure_state(reason), versions)
+	failure = reason if shown else &""
+	ui.show_screen(screen())
 	pointer.capture(false)
+
+
+## The menu's field of a join from the command line, so Back finds it there as if typed.
+func _fill_menu(target: JoinTarget) -> void:
+	if target.is_code():
+		ui.menu.code_edit.text = target.code
+	elif target.problem.is_empty():
+		ui.menu.address_edit.text = target.address
+		ui.menu.port_box.value = target.port
 
 
 ## The runner's stop file, or its alive file gone stale (a killed runner): quit cleanly.

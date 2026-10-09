@@ -12,18 +12,24 @@ func test_the_steps_of_a_code_join_and_a_direct_one() -> void:
 	assert_int(P.step(true, 7, true)).is_equal(P.Step.JOINED)
 	assert_int(P.step(false, -1, false)).is_equal(P.Step.CONNECTING)
 	assert_int(P.step(false, -1, true)).is_equal(P.Step.JOINED)
-	assert_str(P.step_text(true, -1, false)).is_equal("Finding the game")
-	assert_str(P.step_text(false, -1, false)).is_equal("Connecting")
-	assert_str(P.step_text(true, 3, true)).contains("Joined")
 
 
-func test_the_connecting_screen_names_what_the_player_typed() -> void:
-	assert_str(P.target_text(JoinTarget.of_code("k7m2qx"))).is_equal(
-		"Joining the game with code K7M2QX"
+func test_the_version_lines_name_the_hosts_then_the_own_only_for_found_s_mismatch() -> void:
+	# #494's fail-version: "<protocol> (<first six hex digits of the content hash>)".
+	var own := SignalCodec.content_text(2).left(6)
+	var host := SignalCodec.content_text(1).left(6)
+	assert_array(P.found_versions(&"wrong_version", 6, 2, 7, 2)).is_equal(
+		PackedStringArray(["6 (%s)" % own, "7 (%s)" % own])
 	)
-	assert_str(P.target_text(JoinTarget.of_direct("10.0.0.2", 24600))).is_equal(
-		"Joining 10.0.0.2:24600"
+	assert_array(P.found_versions(&"wrong_content", 7, 1, 7, 2)).is_equal(
+		PackedStringArray(["7 (%s)" % host, "7 (%s)" % own])
 	)
+	# Not found's own mismatch (a Rejected Hello, no found yet, another reason): no lines.
+	assert_array(P.found_versions(&"wrong_content", 6, 1, 7, 2)).is_empty()
+	assert_array(P.found_versions(&"wrong_version", -1, 0, 7, 2)).is_empty()
+	assert_array(P.found_versions(&"full", 7, 1, 7, 2)).is_empty()
+	assert_array(P.found_versions(&"", 7, 2, 7, 2)).is_empty()
+	assert_str(P.version_text(12, 0)).is_equal("12 (000000)")
 
 
 func test_the_version_check_waits_for_found_then_compares_protocol_then_content() -> void:

@@ -10,6 +10,9 @@ const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
 ## A code as the lobby and the connecting screen show one (SignalCodec's alphabet).
 const PREVIEW_CODE := "K7M2QX"
+## The version lines of fail-version (JoinProgress.version_text), made up for the preview.
+const PREVIEW_HOST_VERSION := "13 (a1b2c3)"
+const PREVIEW_OWN_VERSION := "12 (9f8e7d)"
 ## The round's fake facts (M4-8): the match clock's end, the package, the knife and its circle.
 const ROUND_END_TICK := 100 + 20 * 271
 const PACKAGE := 7
@@ -39,6 +42,9 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 @export var end_winner: StringName = &"crew"
 @export var end_reason: StringName = &"all_tasks"
 @export var end_round_seconds := 461
+## The connecting screen's state (Preview.CONNECTING; #494): finding, connecting-direct, joined,
+## a failure's (ConnectingScreen.FAILURES), or load (Preview.LOADING shows load).
+@export var s3_state: StringName = &"finding"
 
 
 func _ready() -> void:
@@ -67,9 +73,7 @@ func _ready() -> void:
 			ui.menu.open_voice()
 			ui.menu.voice.show_facts(fake_voice(not voice_unavailable))
 		Preview.CONNECTING:
-			ui.connecting.set_target(JoinProgress.target_text(JoinTarget.of_code(PREVIEW_CODE)))
-			ui.connecting.set_step(JoinProgress.step_text(true, -1, false))
-			ui.show_screen(GameFlow.Screen.CONNECTING)
+			ui.show_screen(show_s3_state(ui.connecting, s3_state))
 		Preview.LOBBY:
 			model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": 160})
 			ui.show_screen(GameFlow.Screen.LOBBY)
@@ -77,8 +81,8 @@ func _ready() -> void:
 			model.fold(&"PhaseChanged", {"phase": &"loading", "end_tick": -1})
 			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
 			model.fold(&"PlayerLoaded", {"peer": 1})
-			model.fold(&"PlayerLoaded", {"peer": 2})
 			ui.show_screen(GameFlow.Screen.LOADING)
+			ui.connecting.set_load_fraction(0.62)
 		Preview.PREGAME:
 			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
 			model.fold(&"RoleAssigned", {"role": &"dissident"})
@@ -113,6 +117,28 @@ func _ready() -> void:
 			local.hint = "E: pick up Knife"
 			ui.refresh_round(model, mode, 100, local)
 	ui.refresh(model, mode, 100, hosting)
+
+
+## The connecting screen in `state` as the handoff's samples draw it (#494): a code join 4 s in,
+## a Direct one 2 s in, joined 9 s in with the host's lobby name; a failure, the version one with
+## both versions. Returns the screen to show.
+static func show_s3_state(screen: ConnectingScreen, state: StringName) -> GameFlow.Screen:
+	match state:
+		&"finding":
+			screen.show_join(PREVIEW_CODE, JoinProgress.Step.FINDING)
+			screen.set_elapsed(4)
+		&"connecting-direct":
+			screen.show_join("", JoinProgress.Step.CONNECTING)
+			screen.set_elapsed(2)
+		&"joined":
+			screen.show_join(PREVIEW_CODE, JoinProgress.Step.JOINED)
+			screen.set_lobby("", "Olena")
+			screen.set_elapsed(9)
+		_:
+			var versions := PackedStringArray([PREVIEW_HOST_VERSION, PREVIEW_OWN_VERSION])
+			screen.show_failure(state, versions)
+			return GameFlow.Screen.FAILURE
+	return GameFlow.Screen.CONNECTING
 
 
 ## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,
