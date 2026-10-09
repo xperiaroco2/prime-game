@@ -1751,8 +1751,10 @@ tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export
 `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
-`tools/out/gdunit/`. Outside a Claude Code session (a human's PowerShell) the runner takes the machine paths from the
-Claude settings (§2).
+`tools/out/gdunit/`. `lint`, `check` and `wait` are quiet by default (#590): a summary when green, a capped
+excerpt with the exit code and the log's path when red (the whole output is in `tools/out/logs/<command>-output.log`,
+`--verbose` prints it all); read a log by search (grep the failing test), never whole. Outside a Claude Code session
+(a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
 A plain `verify` runs only `doctor --quick`, `lint` and `check` (one lane each, at once) and the clean-tree check,
