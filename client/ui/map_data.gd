@@ -48,13 +48,16 @@ static func from_level(level: Node, mode: GameMode) -> MapData:
 	data.rooms = rooms_of(level)
 	if mode == null:
 		return data
+	var markers: Array[Node] = level.find_children("*", "Marker3D", true, false)
 	for type: TaskType in mode.task_types:
 		if type == null:
 			continue
 		var lit: Array[StringName] = []
 		for tag: StringName in type.item_spawn_tags():
-			for marker: Node in level.find_children("*", "Marker3D", true, false):
+			for marker: Node in markers:
 				if not marker.is_in_group(StringName(SPAWN_GROUP_PREFIX + tag)):
+					continue
+				if _spawn_groups_of(marker) > 1:
 					continue
 				var room := data.room_at(plan_of(_placed(marker as Node3D, level).origin))
 				if room != null and not lit.has(room.id):
@@ -70,6 +73,7 @@ static func from_level(level: Node, mode: GameMode) -> MapData:
 ## The rooms under `level`, in scene-tree order (the room reader of #253 until #306's record).
 static func rooms_of(level: Node) -> Array[Room]:
 	var found: Array[Room] = []
+	var taken: Array[StringName] = []
 	var nodes: Array[Node] = [level]
 	nodes.append_array(level.find_children("*", "Node3D", true, false))
 	for node: Node in nodes:
@@ -85,6 +89,10 @@ static func rooms_of(level: Node) -> Array[Room]:
 		else:
 			continue
 		var id := StringName(str(room.get_meta(ID_KEY, String(room.name).to_snake_case())))
+		if taken.has(id):
+			push_warning("MapData: the room %s repeats the id %s, left out" % [room.get_path(), id])
+			continue
+		taken.append(id)
 		var corner := plan_of(_placed(room, level).origin)
 		found.append(Room.new(id, Rect2(corner, size)))
 	return found
@@ -136,13 +144,22 @@ func to_board(plan_point: Vector2, board: Vector2) -> Vector2:
 	return offset + (plan_point - area.position) * scale
 
 
-## `node`'s transform relative to `root`, through its Node3D parents (in the tree or not).
+## `node`'s transform in the level scene `root`, as the host's MarkerReader places a marker
+## (LevelWorld.transform_in_scene, which client/ may not name): through its Node3D parents up to and
+## including `root`, and no further than a top_level node.
 static func _placed(node: Node3D, root: Node) -> Transform3D:
-	var placed := Transform3D.IDENTITY
-	var at: Node = node
-	while at != null and at != root:
-		var spatial := at as Node3D
-		if spatial != null:
-			placed = spatial.transform * placed
-		at = at.get_parent()
+	var placed := node.transform
+	var current := node
+	while not current.top_level and current != root and current.get_parent() is Node3D:
+		current = current.get_parent() as Node3D
+		placed = current.transform * placed
 	return placed
+
+
+## How many spawn groups `marker` is in; the host's MarkerReader refuses more than one.
+static func _spawn_groups_of(marker: Node) -> int:
+	var count := 0
+	for group: StringName in marker.get_groups():
+		if String(group).begins_with(SPAWN_GROUP_PREFIX):
+			count += 1
+	return count

@@ -20,7 +20,7 @@ func test_rooms_come_from_the_size_metadata_in_tree_order_with_their_ids() -> vo
 	var wing := Node3D.new()
 	wing.position = Vector3(100, 0, 0)
 	level.add_child(wing)
-	var storage := _room(wing, "Storage", Vector3(-10, 0, -8), Vector2i(6, 4))
+	_room(wing, "Storage", Vector3(-10, 0, -8), Vector2i(6, 4))
 	var named := _room(level, "SomeNode", Vector3(2, 3.2, 5), Vector2(3, 2))
 	named.set_meta(MapData.ID_KEY, &"lab")
 	var plain := Node3D.new()
@@ -32,7 +32,6 @@ func test_rooms_come_from_the_size_metadata_in_tree_order_with_their_ids() -> vo
 	assert_that(data.rooms[0].rect).is_equal(Rect2(90, -8, 6, 4))
 	assert_str(String(data.rooms[1].id)).is_equal("lab")
 	assert_that(data.rooms[1].rect).is_equal(Rect2(2, 5, 3, 2))
-	assert_object(storage).is_not_null()
 
 
 func test_a_task_types_zones_are_the_rooms_holding_a_marker_of_its_items_tag() -> void:
@@ -63,10 +62,62 @@ func test_a_level_without_rooms_or_no_level_draws_nothing() -> void:
 	assert_float(data.scale_for(Vector2(800, 600))).is_equal(0.0)
 
 
-func test_the_greybox_declares_no_room_until_306() -> void:
-	# Pins today's base: the greybox has no room records (#306 adds them), so its map is empty.
+func test_every_room_of_the_greybox_has_an_area() -> void:
+	# Holds before #306 (no room) and after it (rooms): a room with no area could draw nothing.
 	var level: Node = auto_free((load(GREYBOX) as PackedScene).instantiate())
-	assert_array(MapData.rooms_of(level)).is_empty()
+	for room: MapData.Room in MapData.rooms_of(level):
+		(
+			assert_bool(room.rect.has_area())
+			. override_failure_message("the room %s of the greybox has no area" % room.id)
+			. is_true()
+		)
+
+
+func test_the_spawn_group_prefix_is_the_host_readers() -> void:
+	# client/ may not name MarkerReader, so MapData copies its prefix; a change there would
+	# silently light no zone while the tests above, which use the literal group, stay green.
+	assert_str(MapData.SPAWN_GROUP_PREFIX).is_equal(MarkerReader.GROUP_PREFIX)
+
+
+func test_a_room_repeating_an_id_is_left_out() -> void:
+	var level: Node3D = auto_free(Node3D.new())
+	_room(level, "Hall", Vector3.ZERO, Vector2i(4, 4))
+	var wing := Node3D.new()
+	level.add_child(wing)
+	_room(wing, "Hall", Vector3(10, 0, 0), Vector2i(4, 4))
+	var copy := _room(level, "Other", Vector3(20, 0, 0), Vector2i(4, 4))
+	copy.set_meta(MapData.ID_KEY, &"hall")
+	var rooms := MapData.rooms_of(level)
+	assert_int(rooms.size()).is_equal(1)
+	assert_that(rooms[0].rect).is_equal(Rect2(0, 0, 4, 4))
+
+
+func test_a_marker_is_placed_as_the_hosts_reader_places_it() -> void:
+	# A level root off the origin counts; a top_level holder is placed by its own transform alone
+	# (LevelWorld.transform_in_scene); a marker in two spawn groups is the reader's load error.
+	var level: Node3D = auto_free(Node3D.new())
+	level.position = Vector3(100, 0, 0)
+	_room(level, "Left", Vector3.ZERO, Vector2i(10, 10))
+	_room(level, "Right", Vector3(100, 0, 0), Vector2i(10, 10))
+	var holder := Node3D.new()
+	holder.top_level = true
+	holder.position = Vector3(4, 0, 3)
+	level.add_child(holder)
+	var marker := Marker3D.new()
+	marker.add_to_group(&"spawn_package", true)
+	holder.add_child(marker)
+	var data := MapData.from_level(level, _mode)
+	# The root's X of 100 puts "Left" at 100..110 and "Right" at 200..210; the top_level holder at
+	# (4, 3) lies in neither, so it lights nothing, as the host spawns the package at (4, 0, 3).
+	assert_that(data.rooms[0].rect).is_equal(Rect2(100, 0, 10, 10))
+	assert_array(Array(data.zone_of(&"delivery"))).is_empty()
+	holder.top_level = false
+	holder.position = Vector3(4, 0, 3)
+	assert_array(Array(MapData.from_level(level, _mode).zone_of(&"delivery"))).contains_exactly(
+		["left"]
+	)
+	marker.add_to_group(&"spawn_other", true)
+	assert_array(Array(MapData.from_level(level, _mode).zone_of(&"delivery"))).is_empty()
 
 
 func test_the_board_fits_the_rooms_centred_with_one_scale() -> void:
