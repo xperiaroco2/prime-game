@@ -138,7 +138,8 @@ func test_more_players_than_the_maximum_name_how_many_too_many() -> void:
 	game.start(0)
 	for peer: int in [P1, P2, P3]:
 		FixtureBaseMode.join(game, peer)
-	mode.max_players = 1
+	# Above the fixture's minimum of 1, so a count against the minimum would show (#548 mutants).
+	mode.max_players = 2
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"map": FixtureBaseMode.MAP})
 	var changed := game.view_of(P3).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
 	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
@@ -146,7 +147,7 @@ func test_more_players_than_the_maximum_name_how_many_too_many() -> void:
 			{
 				"id": &"players_many",
 				"ids": PackedStringArray(),
-				"numbers": {&"count": 2, &"min": 1, &"max": 1}
+				"numbers": {&"count": 1, &"min": 1, &"max": 2}
 			}
 		]
 	)
