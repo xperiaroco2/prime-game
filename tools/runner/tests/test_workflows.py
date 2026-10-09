@@ -966,7 +966,8 @@ class PipelineV2Test(unittest.TestCase):
     def test_every_agent_gets_the_reading_line(self) -> None:
         # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
         # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
-        # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too.
+        # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too,
+        # but issue-task's publisher (#696: its agent type and root CLAUDE.md say how to read; pr-rebase's keep it).
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
@@ -985,6 +986,9 @@ class PipelineV2Test(unittest.TestCase):
                 labels.add(event["label"].rsplit(":#", 1)[0])
                 with self.subTest(workflow=name, agent=event["label"]):
                     found = [line for line in event["prompt"].splitlines() if line.startswith(READ_RULE)]
+                    if name == "issue-task.js" and event["label"].startswith("publish"):
+                        self.assertEqual(found, [])
+                        continue
                     self.assertEqual(len(found), 1, found)
                     lines.add(found[0])
         self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
@@ -1374,8 +1378,12 @@ class PipelineV2Test(unittest.TestCase):
             self.assertNotIn("playcheck", event["prompt"])
             if "agentType" not in options(event):
                 self.assertIn(GODOT_LINE, event["prompt"])
-        for event in calls(on, "implement") + calls(on, "publish"):
+        for event in calls(on, "implement"):
             self.assertIn(PLAYCHECK_LINE, event["prompt"])
+            self.assertNotIn(GODOT_LINE, event["prompt"])
+        # #696: the publisher's preamble has neither line (it opens no Godot window).
+        for event in calls(on, "publish") + calls(off, "publish"):
+            self.assertNotIn(PLAYCHECK_LINE, event["prompt"])
             self.assertNotIn(GODOT_LINE, event["prompt"])
         implement = calls(on, "implement")[0]
         self.assertIn("`tools\\run.cmd playcheck <scenario>`", implement["prompt"])
@@ -1904,11 +1912,8 @@ class DigestTest(unittest.TestCase):
         # Lists with nothing in them stay out; the summary, complete and the paths are always there.
         for event in calls(plain, "review:") + calls(plain, "test-review"):
             self.assertEqual(report_of(event["prompt"]), {"summary": "s", "complete": True, "changed_paths": ["core/x.gd"]})
-        # The publisher still gets the whole report: the PR and the handoff carry its rationale, what is left and the
-        # verify tail.
-        publish = calls(result, "publish")[0]["prompt"]
-        self.assertIn(f"The implementer reported: {json.dumps(FULL_IMPL, ensure_ascii=False, separators=(',', ':'))}", publish)
-        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+        # The publisher gets its own copy (PublisherCopyTest), not the reviewers' digest.
+        self.assertNotIn(REPORT, calls(result, "publish")[0]["prompt"])
 
     def test_the_implementers_summary_is_capped(self) -> None:
         jobs = [
@@ -1968,6 +1973,95 @@ class DigestTest(unittest.TestCase):
             # In the definition of done's order: docs, publish, the PR, CI, the handoff, the board.
             marks = ["- Docs:", "- `tools\\run.cmd publish", "- PR: `gh pr create", "- `gh pr checks", "- The handoff comment", "- `tools\\run.cmd board move"]
             self.assertEqual([steps.index(m) for m in marks], sorted(steps.index(m) for m in marks))
+
+
+# #696: the publisher's own copies of the report and the reviews, and the three preamble lines it goes without.
+PUB_REPORT = (
+    "The implementer reported (its commits, changed paths and verify tail left out: `git log`, `git diff --name-only` "
+    "and your `publish` give them): "
+)
+PUB_REVIEWS = "Fresh reviewers found (each finding's fix only on a blocker or major): "
+GAME_RULE = "- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it."
+NIT = {"severity": "nit", "file": "docs/x.md", "problem": "p3", "fix": "f3"}
+
+
+def json_after(prompt: str, marker: str) -> object:
+    """The JSON a prompt carries after marker, up to the paragraph's end, parsed."""
+    start = prompt.index(marker) + len(marker)
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class PublisherCopyTest(unittest.TestCase):
+    def test_the_publisher_gets_the_report_without_what_git_and_publish_give(self) -> None:
+        # The implementer's rationale reaches the PR whole (summary, decisions, left, needs_engineer, proposed issues,
+        # provisional content, playcheck); its commits, changed paths and verify tail do not (about 1.7k characters at
+        # the median, #470's table).
+        shots = {"available": True, "pngs": ["D:/x/01.png"]}
+        stub = {"paths": FULL_IMPL["changed_paths"], "queues": {"implement": [dict(FULL_IMPL, playcheck=shots)]}}
+        result = run_one("issue-task.js", {"branch": "client/7-x", "visual": "spectate"}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        drops = ("commits", "changed_paths", "verify_tail")
+        want = {k: v for k, v in dict(FULL_IMPL, playcheck=shots).items() if k not in drops}
+        got = json_after(publish, PUB_REPORT)
+        self.assertEqual(got, want)
+        self.assertEqual(list(got), list(want))  # whole, in the report's order: nothing cut to a line
+        for text in ("step ok", "abc1234 feat(core)", '"verify_tail"', '"changed_paths"'):
+            self.assertNotIn(text, publish)
+        self.assertNotIn("The implementer reported: ", publish)
+        # Where the PR's verify tail comes from now.
+        self.assertIn(
+            'the verification commands and the verify tail (from your `publish`; when it skipped verify on an identical '
+            'tree, the "verify summary" block at the end of tools/out/logs/verify-output.log)',
+            publish,
+        )
+        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+
+    def test_the_publisher_gets_each_findings_fix_only_on_a_blocker_or_major(self) -> None:
+        # The reviewers' verdicts and the fix text of a minor or nit stay with the reviewers (1.5k to 2k characters).
+        reviews = {
+            "review:code": [{"reviewer": "code-reviewer", "verdict": LONG, "findings": [BLOCKER, MINOR, NIT]}],
+            "review:netcode": [{"reviewer": "netcode-security-reviewer", "verdict": "ok", "findings": [MAJOR]}],
+        }
+        stub = {"paths": ["core/match/vote.gd"], "queues": reviews}
+        result = run_one("issue-task.js", {"branch": "core/7-x", "test_review": True}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        bare = lambda f: {k: v for k, v in f.items() if k != "fix"}  # noqa: E731
+        self.assertEqual(
+            json_after(publish, PUB_REVIEWS),
+            [
+                {"reviewer": "code-reviewer", "findings": [BLOCKER, bare(MINOR), bare(NIT)]},
+                {"reviewer": "netcode-security-reviewer", "findings": [MAJOR]},
+                {"reviewer": "r", "findings": []},  # the godot-api-checker, a .gd path
+            ],
+        )
+        self.assertNotIn('"verdict"', publish)
+        self.assertNotIn("Fresh reviewers found: ", publish)
+        # The test reviewer still reads the reviews whole.
+        test_review = calls(result, "test-review")[0]["prompt"]
+        self.assertIn(f"Fresh reviewers found: {json.dumps(reviews['review:code'] + reviews['review:netcode'] + [{'reviewer': 'r', 'verdict': 'ok', 'findings': []}], separators=(',', ':'))}", test_review)
+
+    def test_the_publishers_preamble_leaves_out_three_lines(self) -> None:
+        # The reading rule for code, no Godot windows and the game-rule line: every other line of the shared rules
+        # stays, in order, for both publishers (the full one and the one a mutants exit 2 stops).
+        stopped = {"available": True, "exit_2": True, "findings": [], "mutants": []}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", visual="spectate"), {"paths": ["client/hud/hud.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **OFF), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stopped]}}),
+        ]
+        dropped = (READ_RULE, GODOT_LINE, PLAYCHECK_LINE, GAME_RULE)
+        for result in run_jobs(jobs):
+            self.assertIsNone(result["error"])
+            rules = calls(result, "implement")[0]["prompt"].split("\n\n")[0].splitlines()
+            self.assertEqual(sum(any(line.startswith(d) for d in dropped) for line in rules), 3, rules)
+            publish = calls(result, "publish")
+            self.assertEqual(len(publish), 1)
+            with self.subTest(publisher=publish[0]["prompt"].split("\n\n")[1][:40]):
+                got = publish[0]["prompt"].split("\n\n")[0].splitlines()
+                self.assertEqual(got, [line for line in rules if not any(line.startswith(d) for d in dropped)])
+        self.assertIn("Task: report a stopped run of issue #7", calls(result, "publish")[0]["prompt"])
 
 
 SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -2304,7 +2398,9 @@ class CheckpointTest(unittest.TestCase):
         self.assertIn('"needs_engineer":["n1"]', report)
         pub = calls(result, "publish")[0]["prompt"]
         self.assertIn(f'"handoffs":["{NOTE}"]', pub)
-        self.assertIn('"commits":["c1","c2"]', pub)
+        self.assertIn('"decisions":["d1","d2"]', pub)
+        # #696: the joined commits stay in the journal; the publisher reads them from `git log`.
+        self.assertNotIn('"commits":', pub)
         self.assertNotIn('"handoff":', pub)
         out = result["returned"]
         self.assertEqual((out["handoffs"], out["verify_green"], out["summary"]), (1, True, "the whole branch"))
