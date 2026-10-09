@@ -2,7 +2,7 @@ class_name ItemWorld
 extends Node3D
 ## M4-8's part of the round under World (ARCHITECTURE §4.7): the items (ItemViews), the circles
 ## and the destination marker (CircleViews), the item keys and the crosshair's target
-## (ItemInteractions) and the placeholder world sounds (WorldSounds), all from the own ClientModel,
+## (ItemInteractions) and the world sounds (WorldSounds), all from the own ClientModel,
 ## the interpolated poses and the client's own copy of the mode. It also gives the HUD what the
 ## model does not hold (`hud_local`): the predicted stamina and the item under the crosshair.
 
