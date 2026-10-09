@@ -28,6 +28,9 @@ summary cap, the publisher's plan summary and inline finish-task steps), and #56
 nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
 the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
 launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone).
+#605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
+tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
+gate, no local `verify --full`).
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
