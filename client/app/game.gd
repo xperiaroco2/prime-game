@@ -474,7 +474,8 @@ func _process(_delta: float) -> void:
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
 		GameHowto.follow(self, now)
-		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
+		var tick := _avatars.host_tick()
+		ui.refresh_round(_client.model, mode, tick, _hud_local(tick))
 	OverlayFeed.refresh(_overlay, _client, _host, _avatars, _sender, _voices)
 	_refresh_voice()
 	_apply_player_flags(now)
@@ -591,11 +592,14 @@ func _welcomed_model() -> ClientModel:
 	return _client.model if _client != null and _client.is_welcomed() else null
 
 
-## What the HUD knows besides the model: the predicted stamina and the crosshair's hint (ItemWorld),
-## and whom a dead player watches (LifeView, #168).
-func _hud_local() -> HudText.Local:
+## What the HUD knows besides the model: the predicted stamina and the item under the crosshair
+## (ItemWorld), whom a dead player watches (LifeView, #168), the own raise's progress at the
+## estimated host tick `tick` and whether anyone may hear the own player (#489).
+func _hud_local(tick: float) -> HudText.Local:
 	var local := _items.hud_local()
 	local.watching = _life.target()
+	local.raising = _life.raise_shown(tick)
+	local.mic = _sender.live()
 	if _player != null and not _player_dead():
 		local.placed = true
 		local.position = _player.global_position

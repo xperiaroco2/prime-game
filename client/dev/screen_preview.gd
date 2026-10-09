@@ -146,7 +146,7 @@ func _ready() -> void:
 			ui.show_screen(GameFlow.Screen.ROUND)
 			var local := HudText.Local.new()
 			local.stamina = 62.0
-			local.hint = "E: pick up Knife"
+			local.mic = true
 			local.placed = true
 			local.position = FAKE_OWN_PLACE
 			local.heading = FAKE_OWN_HEADING

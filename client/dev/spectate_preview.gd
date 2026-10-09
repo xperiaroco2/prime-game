@@ -3,8 +3,9 @@ extends Node3D
 ## sees while it watches Player2 from its eyes. The camera stands at Player2's eye with its look,
 ## Player2's own body hidden (`set_watched`) and its knife in the spectate camera's first-person
 ## hand, as Player2's own screen shows it; Player3 stands ahead with the package in both hands. The
-## HUD says "Spectating Player2" over Player2's hand and belt, with none of Player1's own slots,
-## numbers or hints; the life panel shows the respawn countdown. Dev only: nothing here reaches the
+## HUD says "Watching: Player2" with Player2's hand and belt, with none of Player1's own slots,
+## numbers, role or aim (Player1's own aim is set, to show it stays hidden); the life panel shows
+## the respawn countdown. Dev only: nothing here reaches the
 ## game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
@@ -48,7 +49,7 @@ func _ready() -> void:
 	ui.show_screen(GameFlow.Screen.ROUND)
 	var local := HudText.Local.new()
 	local.stamina = 40.0
-	local.hint = "E: pick up Knife"
+	local.aim = Preview.KNIFE
 	local.watching = 2
 	ui.refresh_round(model, mode, floori(NOW), local)
 	ui.life.show_hud(_life_hud(mode, model))

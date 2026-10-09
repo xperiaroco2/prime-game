@@ -74,6 +74,16 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	_pair.host.life().press_raise()
 	assert_bool(await _until(func() -> bool: return downed.held)).is_true()
 	assert_int(_pair.host.life().countdowns.raising()).is_equal(joiner)
+	# The raiser's HUD bar (#489): the downed player's own raise bar's value, at any one tick; the
+	# raised player's HUD shows none. Game._process writes the HUD (#222).
+	var at := float(_pair.host.avatars().host_tick())
+	assert_float(_pair.host.life().raise_shown(at)).is_between(0.0, 1.0)
+	assert_float(_pair.host.life().raise_shown(at)).is_equal(life.countdowns.raise_progress(at))
+	assert_float(life.raise_shown(at)).is_negative()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(_pair.host.ui.hud.raising.visible).is_true()
+	assert_bool(_pair.host.ui.hud.aim.visible).is_false()
 	# Raised, the joiner tries to crawl away with sprint and jumps: it stays where it lay.
 	downed.move_input = Vector2(0.0, 1.0)
 	downed.sprint_held = true
@@ -101,6 +111,7 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_float(life.countdowns.invulnerable_left_s(tick)).is_between(2.0, 3.0)
 	# No own invulnerability read-out (the engineer's answer 2 on PR #167).
 	assert_str(life.hud(tick).title).is_empty()
+	assert_float(_pair.host.life().raise_shown(tick)).is_negative()
 	_pair.host.life().release_raise()
 	await _pair.stop()
 
@@ -147,9 +158,9 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var hud := _pair.client.ui.hud
-	assert_str(hud.spectating_label.text).is_equal("Spectating Player1")
-	assert_bool(hud.spectating_label.visible).is_true()
-	assert_bool(hud.health_label.visible or hud.stamina_label.visible).is_false()
+	assert_str(hud.watching_label.text).is_equal(tr("dead.watching").format({"name": "Player1"}))
+	assert_bool(hud.spectate.visible).is_true()
+	assert_bool(hud.vitals.visible).is_false()
 	# The target goes down: a new first target, the downed host, watched from above its body.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE

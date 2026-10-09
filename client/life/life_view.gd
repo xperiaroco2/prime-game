@@ -181,6 +181,17 @@ func ears() -> Ears:
 	return _ears
 
 
+## The own raise's progress for the HUD's raise bar (#489) at the estimated host tick `tick`:
+## 0 to 1 while the living own player raises someone, the downed player's raise bar's value;
+## negative otherwise.
+func raise_shown(tick: float) -> float:
+	if model == null or countdowns == null or _own_life() != ClientModel.Life.ALIVE:
+		return LifeCountdowns.NONE
+	if countdowns.raising() == 0:
+		return LifeCountdowns.NONE
+	return countdowns.raise_progress(tick)
+
+
 ## What the life panel shows now, at the estimated host tick `tick`.
 func hud(tick: float) -> LifeHud.Shown:
 	if model == null or countdowns == null:

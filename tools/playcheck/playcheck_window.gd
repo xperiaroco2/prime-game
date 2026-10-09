@@ -123,7 +123,23 @@ class GameView:
 		if labels.has(field):
 			var label := labels[field]
 			found = [label.atr(label.text), label.is_visible_in_tree()]
+		var hud := ui.hud
 		match field:
+			"hud.health":
+				found = ["%.2f" % hud.health.fill.value, hud.health_box.is_visible_in_tree()]
+			"hud.stamina":
+				found = ["%.2f" % hud.stamina.fill.value, hud.stamina_box.is_visible_in_tree()]
+			"hud.mic":
+				found = ["on" if hud.shows_mic_on() else "off", hud.mic.is_visible_in_tree()]
+			"hud.hand":
+				found = _slot(hud.hand)
+			"hud.belt":
+				found = _slot(hud.belt)
+			"hud.raising":
+				var bar := hud.raising_bar
+				found = ["%.2f" % bar.value, bar.is_visible_in_tree()]
+			"hud.crosshair":
+				found = ["", hud.cross.is_visible_in_tree()]
 			"life.bar":
 				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
 			"esc.tabs":
@@ -138,22 +154,19 @@ class GameView:
 				found = [kind, hand != null and hand.is_visible_in_tree() and not kind.is_empty()]
 		return found
 
+	## [the item's name as drawn, shown while the slot is shown and holds an item] of a HUD slot.
+	func _slot(slot: HudSlot) -> Array:
+		var item := slot.shown_item()
+		return [slot.atr(item), slot.is_visible_in_tree() and not item.is_empty()]
+
 	## The fields that are one Label each: its text, shown while it is visible in the tree.
 	func _labels() -> Dictionary[String, Label]:
 		var ui := game.ui
 		return {
 			"hud.role": ui.hud.role_label,
-			"hud.teammates": ui.hud.teammates_label,
-			"hud.clock": ui.hud.clock_label,
-			"hud.progress": ui.hud.progress_label,
-			"hud.health": ui.hud.health_label,
-			"hud.stamina": ui.hud.stamina_label,
-			"hud.hand": ui.hud.hand_label,
-			"hud.belt": ui.hud.belt_label,
-			"hud.spectating": ui.hud.spectating_label,
-			"hud.destination": ui.hud.destination_label,
-			"hud.hint": ui.hud.hint_label,
-			"hud.crosshair": ui.hud.crosshair,
+			"hud.clock": ui.hud.time_label,
+			"hud.aim": ui.hud.aim_label,
+			"hud.spectating": ui.hud.watching_label,
 			"life.title": ui.life.title_label,
 			"life.lines": ui.life.lines_label,
 			"lobby.hint": ui.lobby_hud.hint_label,

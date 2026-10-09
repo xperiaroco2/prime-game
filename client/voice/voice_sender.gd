@@ -132,6 +132,15 @@ func may_speak() -> bool:
 	return may_speak_of(model, mode)
 
 
+## Whether anyone may hear the own player now, the HUD's microphone (#489): a microphone open, the
+## player may be heard (may_speak), and in push-to-talk the talk key held. Not whether it is
+## talking: voice activity counts as on while the microphone is open (no talking indicator, D14).
+func live() -> bool:
+	if not is_open() or not may_speak():
+		return false
+	return gate.mode != VoiceGate.Mode.PUSH_TO_TALK or _talk_held()
+
+
 ## Whether a player whose own client holds `own_model` and `own_mode` may be heard now: welcomed,
 ## its own life fold living, and the current phase's voice rule hearing someone in the client's
 ## own copy of the mode (a phase with no voice rule hears nobody, E41). False with either null.
