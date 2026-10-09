@@ -1,5 +1,6 @@
-"""ui-sync (#288): pinning the UI pack from a fixture git repository built here (a JSON, two SVGs, a PNG, tags),
-the offline verify of a pinned copy and each problem it names, atomicity on a bad pack, and the committed copy."""
+"""ui-sync (#288, #520): pinning the UI pack from a fixture git repository built here (a JSON, two SVGs, a PNG, a
+font outside the assets list, tags), the imported copy of the assets with each SVG's import scale, the offline verify
+of a pinned copy and each problem it names, atomicity on a bad pack, and the committed copy."""
 
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="
 # A CRLF in a source blob must reach the copy byte for byte: no checkout, so no line-ending conversion.
 SVG_CRLF = b'<svg xmlns="http://www.w3.org/2000/svg">\r\n<circle r="1"/>\r\n</svg>\r\n'
 PNG = b"\x89PNG\r\n\x1a\n" + bytes(range(64))
+TTF = b"\x00\x01\x00\x00" + bytes(range(32))
 
 
 def pack_json(version: str, schema: int = 1, svg_sha: str | None = None) -> bytes:
@@ -29,7 +31,12 @@ def pack_json(version: str, schema: int = 1, svg_sha: str | None = None) -> byte
         "variations": {},
         "assets": [
             {"path": "cards/a.png", "kind": "card-art", "sha256": hashlib.sha256(PNG).hexdigest()},
-            {"path": "icons/a.svg", "kind": "icon", "sha256": svg_sha or hashlib.sha256(SVG).hexdigest()},
+            {
+                "path": "icons/a.svg",
+                "kind": "icon",
+                "sha256": svg_sha or hashlib.sha256(SVG).hexdigest(),
+                "svg_scale": 1.17,
+            },
             {"path": "icons/room/b.svg", "kind": "icon", "sha256": hashlib.sha256(SVG_CRLF).hexdigest()},
         ],
     }
@@ -62,6 +69,7 @@ class Fixture:
             "dist/pack/icons/room/b.svg": SVG_CRLF,
             "dist/pack/icons/LICENCES.json": b'{"a.svg": "own work"}\n',
             "dist/pack/cards/a.png": PNG,
+            "dist/pack/fonts/x.ttf": TTF,
             "README.md": b"not in the pack\n",
         }
         self.commit("ui-9.9.9", files)
@@ -108,8 +116,13 @@ class Fixture:
     def lock_path(self) -> Path:
         return self.root / ui_sync.LOCK
 
+    @property
+    def imported(self) -> Path:
+        return self.root / ui_sync.IMPORTED
+
     def snapshot(self) -> dict[str, bytes]:
         paths = [p for p in self.dest.rglob("*") if p.is_file()] + [self.lock_path]
+        paths += [p for p in self.imported.rglob("*") if p.is_file()]
         return {p.relative_to(self.root).as_posix(): p.read_bytes() for p in paths}
 
 
@@ -123,7 +136,7 @@ class SyncTest(unittest.TestCase):
         cls.fx.close()
 
     def setUp(self) -> None:
-        for path in (self.fx.dest, self.fx.lock_path):
+        for path in (self.fx.dest, self.fx.lock_path, self.fx.imported):
             if path.is_dir():
                 force_rmtree(path)
             elif path.exists():
@@ -143,7 +156,20 @@ class SyncTest(unittest.TestCase):
             sorted(lock["files"]), ["icons/LICENCES.json", "icons/a.svg", "icons/room/b.svg", "toy.pack.json"]
         )
         self.assertEqual(lock["files"]["icons/a.svg"], hashlib.sha256(SVG).hexdigest())
-        self.assertEqual(lock["deferred"], {"cards/a.png": hashlib.sha256(PNG).hexdigest()})
+        self.assertFalse((self.fx.dest / "fonts" / "x.ttf").exists())
+        self.assertEqual(lock["deferred"], {"fonts/x.ttf": hashlib.sha256(TTF).hexdigest()})
+        self.assertEqual(sorted(lock["imported"]), ["cards/a.png", "icons/a.svg", "icons/room/b.svg"])
+        self.assertEqual(lock["imported"]["cards/a.png"], hashlib.sha256(PNG).hexdigest())
+        self.assertEqual((self.fx.imported / "cards" / "a.png").read_bytes(), PNG)
+        self.assertEqual((self.fx.imported / "icons" / "room" / "b.svg").read_bytes(), SVG_CRLF)
+        self.assertFalse((self.fx.imported / "fonts").exists())
+        self.assertFalse((self.fx.imported / ".gdignore").exists())
+        # Each SVG gets the pack's import scale (1 when it gives none); a PNG's .import is Godot's to write.
+        a_import = (self.fx.imported / "icons" / "a.svg.import").read_text(encoding="utf-8")
+        self.assertIn("svg/scale=1.17\n", a_import)
+        b_import = (self.fx.imported / "icons" / "room" / "b.svg.import").read_text(encoding="utf-8")
+        self.assertIn("svg/scale=1.0\n", b_import)
+        self.assertFalse((self.fx.imported / "cards" / "a.png.import").exists())
         on_disk = json.loads(self.fx.lock_path.read_text(encoding="utf-8"))
         self.assertEqual(on_disk, lock)
         self.assertNotIn(b"\r", self.fx.lock_path.read_bytes())
@@ -155,7 +181,12 @@ class SyncTest(unittest.TestCase):
         first = self.fx.snapshot()
         self.fx.sync("ui-9.9.9")
         self.assertEqual(self.fx.snapshot(), first)
+        stale = self.fx.imported / "icons" / "gone.svg"
+        stale.write_bytes(SVG)
+        Path(str(stale) + ".import").write_bytes(b"[remap]\n")
         self.fx.sync("ui-9.9.10")
+        self.assertFalse(stale.exists())
+        self.assertFalse(Path(str(stale) + ".import").exists())
         self.assertFalse((self.fx.dest / "icons" / "LICENCES.json").exists())
         self.assertTrue((self.fx.dest / "icons" / "c.svg").exists())
         self.assertEqual(ui_sync.verify(self.fx.root), [])
@@ -175,6 +206,22 @@ class SyncTest(unittest.TestCase):
             commit="a" * 40, files={"toy.pack.json": pack_json("9.9.9", svg_sha="0" * 64), "icons/a.svg": SVG}
         )
         with self.assertRaisesRegex(Failure, "icons/a.svg: sha256 .* differs from the pack's assets record"):
+            ui_sync.plan("ui-9.9.9", fetched)
+
+    def test_a_resync_keeps_godots_import_file_and_sets_only_the_scale(self) -> None:
+        self.fx.sync("ui-9.9.9")
+        path = self.fx.imported / "icons" / "a.svg.import"
+        godot = (
+            '[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\nuid="uid://b1"\n\n[params]\n\n'
+            "compress/mode=0\nsvg/scale=2.0\neditor/scale_with_editor_scale=false\n"
+        )
+        path.write_text(godot, encoding="utf-8")
+        self.fx.sync("ui-9.9.9")
+        self.assertEqual(path.read_text(encoding="utf-8"), godot.replace("svg/scale=2.0", "svg/scale=1.17"))
+
+    def test_an_asset_the_pack_lists_but_does_not_ship_is_refused(self) -> None:
+        fetched = ui_sync.Fetched(commit="a" * 40, files={"toy.pack.json": pack_json("9.9.9"), "icons/a.svg": SVG})
+        with self.assertRaisesRegex(Failure, "cards/a.png: in the pack's assets record but not in dist/pack/"):
             ui_sync.plan("ui-9.9.9", fetched)
 
     def test_the_tag_must_be_ui_semver(self) -> None:
@@ -233,6 +280,7 @@ class VerifyTest(unittest.TestCase):
 
     def setUp(self) -> None:
         force_rmtree(self.fx.dest)
+        force_rmtree(self.fx.imported)
         for rel, data in self.good.items():
             path = self.fx.root / rel
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -304,14 +352,44 @@ class VerifyTest(unittest.TestCase):
         self.edit_lock({"files": lock["files"]})
         self.assertRegex(self.problems(), r"icons/a.svg: a pack asset missing from the lock")
 
-    def test_a_binary_asset_that_is_not_deferred(self) -> None:
-        self.edit_lock({"deferred": {}})
-        self.assertRegex(self.problems(), r"cards/a.png: a pack asset neither landed nor listed under deferred")
+    def test_an_asset_that_is_not_imported(self) -> None:
+        lock = json.loads(self.fx.lock_path.read_text(encoding="utf-8"))
+        del lock["imported"]["cards/a.png"]
+        self.edit_lock({"imported": lock["imported"]})
+        (self.fx.imported / "cards" / "a.png").unlink()
+        self.assertRegex(self.problems(), r"cards/a.png: a pack asset missing from the imported copy")
+
+    def test_an_imported_file_missing_changed_or_extra(self) -> None:
+        png = self.fx.imported / "cards" / "a.png"
+        png.unlink()
+        self.assertRegex(self.problems(), r"cards/a.png: in the lock's imported but missing from assets/ui/toy_pack")
+        png.write_bytes(PNG + b"x")
+        self.assertRegex(self.problems(), r"cards/a.png: sha256 under assets/ui/toy_pack differs from the lock")
+        png.write_bytes(PNG)
+        (self.fx.imported / "icons" / "extra.svg").write_bytes(SVG)
+        self.assertRegex(self.problems(), r"icons/extra.svg: under assets/ui/toy_pack but not in the lock's imported")
+
+    def test_an_lfs_pointer_counts_by_its_oid(self) -> None:
+        def pointer(digest: str) -> bytes:
+            return f"version https://git-lfs.github.com/spec/v1\noid sha256:{digest}\nsize 72\n".encode("ascii")
+
+        png = self.fx.imported / "cards" / "a.png"
+        png.write_bytes(pointer(hashlib.sha256(PNG).hexdigest()))
+        self.assertEqual(self.problems(), "")
+        png.write_bytes(pointer("0" * 64))
+        self.assertRegex(self.problems(), r"cards/a.png: sha256 under assets/ui/toy_pack differs from the lock")
+
+    def test_an_svg_import_without_the_packs_scale(self) -> None:
+        path = self.fx.imported / "icons" / "a.svg.import"
+        path.write_text(path.read_text(encoding="utf-8").replace("svg/scale=1.17", "svg/scale=1.0"), encoding="utf-8")
+        self.assertRegex(self.problems(), r"icons/a.svg: .import svg/scale=1.0, the pack's svg_scale is 1.17")
+        path.unlink()
+        self.assertRegex(self.problems(), r"icons/a.svg: no .import file under assets/ui/toy_pack")
 
     def test_a_deferred_file_on_disk(self) -> None:
-        (self.fx.dest / "cards").mkdir()
-        (self.fx.dest / "cards" / "a.png").write_bytes(PNG)
-        self.assertRegex(self.problems(), r"cards/a.png: deferred \(a binary\) but present")
+        (self.fx.dest / "fonts").mkdir()
+        (self.fx.dest / "fonts" / "x.ttf").write_bytes(TTF)
+        self.assertRegex(self.problems(), r"fonts/x.ttf: deferred \(a binary\) but present")
 
     def test_unknown_lock_keys_and_a_bad_commit(self) -> None:
         self.edit_lock({"commit": "HEAD", "extra": 1})
@@ -327,7 +405,9 @@ class CommittedCopyTest(unittest.TestCase):
         lock = ui_sync.read_lock(ROOT)
         assert lock is not None
         self.assertEqual(lock["tag"], "ui-0.4.0")
-        self.assertTrue(lock["deferred"], "the card art is deferred to #520")
+        self.assertEqual(lock["deferred"], {}, "#520 imports the card art")
+        self.assertIn("cards/delivery-1.png", lock["imported"])
+        self.assertIn("icons/room/lab.svg", lock["imported"])
 
     def test_the_command_is_registered(self) -> None:
         args = cli.build_parser().parse_args(["ui-sync", "ui-0.4.0", "--force", "--source", "D:/x"])
