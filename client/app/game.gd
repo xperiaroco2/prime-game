@@ -348,8 +348,8 @@ func open_esc() -> void:
 	pointer.capture(false)
 
 
-## Esc again, or Resume: the menu closes; in the lobby, Loading and the round the mouse is captured
-## again.
+## Esc again with no question open on it (its Resume), or Resume: the menu closes; in the lobby,
+## Loading and the round the mouse is captured again.
 func close_esc() -> void:
 	ui.close_esc()
 	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
@@ -493,26 +493,22 @@ func _input(event: InputEvent) -> void:
 			leave()
 		get_viewport().set_input_as_handled()
 		return
-	if ui.map_is_open():
-		# Esc closes the map first (#488's rule 2); the Esc menu never opens over it.
-		ui.close_map()
+	# Then the open overlay on top, only that one (#488 rule 2): a card, the map, the host's
+	# question, the Esc menu (its Resume), the main menu's Voice page (#301). A key capture in
+	# Settings > Controls took its Esc in its own _input already.
+	if ui.overlays.close_top() != &"":
 		get_viewport().set_input_as_handled()
 		return
+	# None open: the Esc menu, over a session only.
 	if _client == null:
-		# The main menu's Voice page goes back to the menu (#301); no session has no Esc menu.
-		if screen() == GameFlow.Screen.MENU and ui.menu.voice_open():
-			ui.menu.close_voice()
-			get_viewport().set_input_as_handled()
 		return
-	if ui.esc_open():
-		close_esc()
-	else:
-		open_esc()
+	open_esc()
 	get_viewport().set_input_as_handled()
 
 
 ## The Ready key, while the player walks in the lobby, and the map key (#253), which opens and
-## closes the map in the round on any life; neither under the Esc menu (gameplay input).
+## closes the map in the round on any life, or closes a card over it (#488); neither under the Esc
+## menu (gameplay input).
 func _unhandled_input(event: InputEvent) -> void:
 	if ui.esc_open():
 		return
@@ -524,8 +520,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		and event.is_action_pressed(&"map")
 		and screen() == GameFlow.Screen.ROUND
 		and _client != null
+		and ui.press_map_key()
 	):
-		ui.toggle_map()
 		get_viewport().set_input_as_handled()
 
 

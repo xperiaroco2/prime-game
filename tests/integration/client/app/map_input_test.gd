@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## frees the mouse, M again closes it and captures it; Tab does nothing; with the map open the
 ## player still walks and a click never recaptures the mouse; Esc closes only the map; under the
 ## Esc menu M does nothing, and a close request closes the map under the menu it opens; the end of
-## the round closes it, and the next round starts with it closed.
+## the round closes it, and the next round starts with it closed. #488: a card over the map (a stub
+## registered as #254's will) closes first, on Esc and on M.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7395
@@ -37,6 +38,18 @@ class RecordingPointer:
 		return true
 
 
+## A how-to card over the map as #254 registers it (UiOverlays.CARD, the map key closing it).
+class StubCard:
+	extends RefCounted
+	var open := false
+
+	func is_open() -> bool:
+		return open
+
+	func close() -> void:
+		open = false
+
+
 func before_test() -> void:
 	_hub = LoopbackHub.new()
 	_now = 1000000
@@ -45,7 +58,9 @@ func before_test() -> void:
 
 func after_test() -> void:
 	# Input's action states are global: nothing stays held for the next suite.
-	for action: StringName in [&"move_forward", &"map", &"ui_cancel"]:
+	for action: StringName in [
+		&"move_forward", &"map", &"ui_cancel", &"sprint", &"jump", &"voice_talk"
+	]:
 		Input.action_release(action)
 
 
@@ -167,6 +182,47 @@ func test_the_end_of_the_round_closes_the_map_and_the_next_round_starts_closed()
 
 
 ## A host's Game alone in the round of a one-minute match, its screens shown.
+func test_a_card_over_the_map_closes_first_on_esc_and_on_the_map_key() -> void:
+	var game := await _round_game(PORT + 4)
+	var pointer := game.pointer as RecordingPointer
+	var card := StubCard.new()
+	game.ui.overlays.add(&"howto_card", UiOverlays.CARD, card.is_open, card.close, true)
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_true()
+	# One press, one overlay: Esc closes the card, the map stays.
+	card.open = true
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(card.open).is_false()
+	assert_bool(game.ui.map_is_open()).is_true()
+	assert_bool(game.ui.esc_open()).is_false()
+	# M closes only the card too.
+	card.open = true
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(card.open).is_false()
+	assert_bool(game.ui.map_is_open()).is_true()
+	# Then Esc closes the map, and the next Esc opens the menu.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_false()
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(pointer.captured()).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	# Under the Esc menu the map key closes nothing, not even a card.
+	card.open = true
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(card.open).is_true()
+	assert_bool(game.ui.map_is_open()).is_false()
+	card.open = false
+	game.leave()
+	await get_tree().process_frame
+
+
 func _round_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
 	game.pointer = RecordingPointer.new()

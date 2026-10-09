@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Esc's menu, the Ready key and the Controls tab (#211) through Input events (#169): a host's Game
 ## alone over a LoopbackHub on a simulated clock, in the lobby; and on the main menu, with no
-## session, Esc leaves the Voice page (#301) and opens no Esc menu. Keys go in through
+## session, Esc leaves the Voice page (#301) and opens no Esc menu. One Esc closes one overlay
+## (#488): the host's question before the menu, a key capture before the menu. Keys go in through
 ## Input.parse_input_event, which reaches the nodes' _input and _unhandled_input and the action
 ## states headless too (probed on 4.7.2).
 ## Headless Godot keeps no mouse mode, so the game's pointer is a FakePointer.
@@ -36,7 +37,7 @@ func before_test() -> void:
 
 func after_test() -> void:
 	# Input's action states are global: nothing stays held for the next suite.
-	for action: StringName in [&"move_forward", &"ready", &"ui_cancel"]:
+	for action: StringName in [&"move_forward", &"ready", &"ui_cancel", &"jump", &"sprint"]:
 		Input.action_release(action)
 	# The InputMap is global too: a rebind in the Controls tab must not outlive its test.
 	Controls.new().apply()
@@ -122,6 +123,39 @@ func test_under_the_menu_held_keys_are_released_and_gameplay_keys_ignored() -> v
 	await get_tree().process_frame
 
 
+func test_esc_closes_the_hosts_question_first_and_then_the_menu() -> void:
+	var game := await _lobby_game(PORT + 5)
+	game.pointer.capture(true)
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	game.ui.esc.press(EscMenuState.Tab.LEAVE)
+	await _frames(1)
+	assert_bool(game.ui.esc.state.asking()).is_true()
+	# One Esc: the question goes, back to the default tab; the menu stays, the mouse free.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_bool(game.ui.esc.state.asking()).is_false()
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
+	assert_bool(game.pointer.captured()).is_false()
+	assert_object(game.client()).is_not_null()
+	# The next one closes the menu and captures the mouse again.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(game.pointer.captured()).is_true()
+	# The window's close button asks too: Esc takes the question back first.
+	game.notification(Node.NOTIFICATION_WM_CLOSE_REQUEST)
+	await _frames(2)
+	assert_bool(game.ui.esc.state.asking()).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_bool(game.ui.esc.state.asking()).is_false()
+	game.leave()
+	await get_tree().process_frame
+
+
 func test_the_ready_key_sends_what_the_ready_toggle_sends() -> void:
 	var game := await _lobby_game(PORT + 2)
 	assert_bool(_own_ready(game)).is_false()
@@ -158,6 +192,8 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await _frames(2)
 	assert_bool(panel.is_capturing()).is_false()
 	assert_bool(game.ui.esc_open()).is_true()
+	# One Esc, one overlay (#488): the capture's, the tab still Controls.
+	assert_object(game.ui.esc.page()).is_same(panel)
 	assert_str(panel.key_buttons[&"ready"].text).is_equal("F")
 	panel.key_buttons[&"ready"].pressed.emit()
 	_press(KEY_K)
