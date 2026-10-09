@@ -4346,7 +4346,9 @@ must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The enginee
 comment 6085251071), in the base mode's data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
 height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
 per subtask; the base mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
-placeholders, "not a decision" (§9.6); House's are #651's.
+placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
+he moves them, #302 comment 6085904317): the generator hall (44, −3.2, 37), the garden (52, 0, 20) and the landing
+(30, 3.2, 41), one per floor but the attic, whose sloped roof leaves no clear spot.
 - Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
   distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
   `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
@@ -4386,7 +4388,10 @@ and a slow claimer's, the clock's
 last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
 trip), `zone_role_swap_test.gd` (two roles swapped emit the same task events; planted "counts the crew only", it
 failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movement/movement_rule_claim_age_test.gd`,
-`tests/unit/content/mode_check_stations_test.gd`; fixtures `tests/fixtures/tasks/fixture_zone_modes.gd`.
+`tests/unit/content/mode_check_stations_test.gd`; fixtures `tests/fixtures/tasks/fixture_zone_modes.gd`. House's zones
+(#651): `tests/integration/levels/house_markers_test.gd` (ZE9's spacing through the shared
+`tests/fixtures/tasks/fixture_zone_spacing.gd`, the fit at the most zones, each cylinder on flat floor clear of walls and
+ceilings in the host's collision world, and a zone by a wall or over the stairs refused).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
@@ -4652,7 +4657,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it |
-| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the maps are M7-Z3 and M7-Z5 |
+| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the greybox's zones (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |

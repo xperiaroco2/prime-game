@@ -38,3 +38,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.46, 22)
 
 [node name="Knife4" type="Marker3D" parent="Markers" unique_id=1331936887 groups=["spawn_knife"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.04, 8)
+
+[node name="Zone02" type="Marker3D" parent="Markers" unique_id=929376803 groups=["spawn_zone"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.5, 18)

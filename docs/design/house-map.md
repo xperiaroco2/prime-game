@@ -168,6 +168,9 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
 | Car repair | Lift control (proposal: no view of who is under the car) | 0 | 57, 46 | Garage |
+| Zone task | A zone (placeholder until the engineer moves it, #651) | -1 | 44, 37 | Generator hall |
+| Zone task | A zone (placeholder, #651) | 0 | 52, 20 | Garden |
+| Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
 | Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
