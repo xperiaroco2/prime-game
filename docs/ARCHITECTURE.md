@@ -1846,7 +1846,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   level the look (§4.7.13).
 - **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
   · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
-  lobby's name (the host's to edit, #214, §4.7.11), the roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
+  lobby's name (the host's to edit, #214, §4.7.11), the roster, the Ready toggle and the settings; the `ready` key
+  (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only

@@ -3,8 +3,7 @@ extends MatchEvent
 ## A joiner's accepted Hello (ARCHITECTURE §3.5, §4.2): its peer id, spawn point and epoch, and
 ## the public facts of the lobby it arrives in: the roster with names and ready flags, the
 ## settings and the map, the phase, the other players' positions and the lobby's name (#214). It
-## holds nothing hidden
-## (§5): in Lobby and Countdown nobody has a role, and everyone is alive.
+## holds nothing hidden (§5): in Lobby and Countdown nobody has a role, and everyone is alive.
 ## Audience: only the joiner.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
