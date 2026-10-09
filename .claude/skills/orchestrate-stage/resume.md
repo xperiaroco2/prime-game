@@ -1,8 +1,8 @@
 # Failed runs and resumes (orchestrate-stage)
 
 Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when a result has `stopped`, `published` or
-`ci_green` false or `not_fixed` items, when a workflow threw, and after a crash, a PC restart, a plan limit or in a
-new session with runs to take over.
+`ci_green` false or `not_fixed` items, when a workflow threw, and after a crash, a PC restart, a sleep, a plan limit
+or in a new session with runs to take over; and before a night.
 
 ## 4. On each completion (continued from the skill's §4): when something failed
 When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
@@ -32,6 +32,14 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   each run's args from the latest wave comment on the plan issue (§6), confirm with the human that the old session
   is closed, and launch `issue-task` afresh with those args; the implementer finds earlier commits and uncommitted
   files through `git status`, the publisher an existing PR through `gh pr list`.
+- **Keep the machine awake** (#595): on 2026-10-08 the laptop slept from 20:59Z to 07:21Z; every verify in flight hung,
+  the keep-alive timer never fired and the night's queue never launched. Before work that must outlast the engineer's
+  presence, call the desktop app's `request_keep_awake` tool (`until: "session_idle"`) and ask in your For-you for the
+  lid open, mains power and sleep "never" on mains (a closed lid or a manual sleep still sleeps; his power settings
+  stay his). A verify (publish's, merge's too) the machine slept through stops red at the resume: its running steps
+  say "the machine slept or was suspended (<n> s)", and `wait` says so. Not the change's red: relaunch the run fresh
+  with that line in `notes`. `slots --status` marks a slot holder from before the sleep STALE: launch as if it were
+  free.
 - A plan limit: with `autoContinueAtUsageLimit` on, a workflow's agents wait for the reset and continue on their
   own; otherwise they fail and you resume after the reset. While you wait, the keep-alive (the skill's §7) is your
   only timer.
