@@ -270,6 +270,23 @@ func test_the_committed_themes_are_not_stale() -> void:
 	)
 
 
+## Two files of one name in two folders (icons/x.svg, icons/room/x.svg) get two ids in the saved
+## theme (#520 review): one id for both would make the .tres invalid.
+func test_external_ids_differ_for_one_file_name_in_two_folders() -> void:
+	var theme := Theme.new()
+	var first := PlaceholderTexture2D.new()
+	first.resource_path = "res://tests/scratch/ids_a/x.svg"
+	var second := PlaceholderTexture2D.new()
+	second.resource_path = "res://tests/scratch/ids_b/x.svg"
+	theme.set_icon(&"grabber", &"HSlider", first)
+	theme.set_icon(&"arrow", &"OptionButton", second)
+	var path := "res://tests/scratch/ids_theme.tres"
+	Builder.name_external(theme, path)
+	assert_str(first.get_id_for_path(path)).is_not_empty()
+	assert_str(first.get_id_for_path(path)).is_not_equal(second.get_id_for_path(path))
+	assert_str(first.get_id_for_path(path)).is_equal("tests_scratch_ids_a_x_svg")
+
+
 func test_the_uids_are_kept() -> void:
 	var themes: Dictionary = _mapping["themes"]
 	assert_str(str((themes["default"] as Dictionary)["uid"])).is_equal(THEME_UID)

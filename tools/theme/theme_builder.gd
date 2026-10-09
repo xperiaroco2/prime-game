@@ -288,7 +288,8 @@ static func write(theme: Theme, path: String, uid_text: String) -> Error:
 
 ## Fixed ids for the files the theme refers to (#520: the icons and the font file), in the file
 ## saved at `path`: Godot would make each from the path saved to, and the stale test saves
-## elsewhere. The id is the file's name (`slider-knob_svg`).
+## elsewhere. The id is the file's path under res:// (`assets_ui_toy_pack_icons_slider-knob_svg`),
+## so two files of one name in two folders get two ids.
 static func name_external(theme: Theme, path: String) -> void:
 	var files: Array[Resource] = []
 	var fonts: Array[Font] = []
@@ -303,7 +304,8 @@ static func name_external(theme: Theme, path: String) -> void:
 		files.append((font as FontVariation).base_font if font is FontVariation else font)
 	for file in files:
 		if file != null and not file.resource_path.is_empty():
-			file.set_id_for_path(path, file.resource_path.get_file().replace(".", "_"))
+			var id := file.resource_path.trim_prefix("res://").replace("/", "_").replace(".", "_")
+			file.set_id_for_path(path, id)
 
 
 ## The text a theme saves to, its header without the uid: what the stale test compares.
