@@ -13,7 +13,8 @@ extends BotsRunner
 ## 4. an intent the phase or the rules refuse: exactly Rejected(seq, reason) to its sender, the
 ##    reason ChaosOracle's, nothing else emitted (no state change), no reject counted;
 ## 5. a hostile MoveClaim: a Correction (new epoch, the old position) or a silent drop by §7.1 and
-##    E15, the position unchanged, never Rejected;
+##    E15, the position unchanged, never Rejected; and bot 4's own claims never corrected
+##    (ChaosHonestClaims, #693);
 ## 6. repeated, replayed and out-of-order seqs: each copy answered by the rule, echoing its seq
 ##    (4 and 5 check every copy);
 ## 7. no honest bot decodes a frame of the malformed peer, nor of the hostile while it is downed or
@@ -77,6 +78,8 @@ var freeze_gained := -1
 ## The hostile claims _hostile_quiet held back in the round while the host had bot 4 alive, by
 ## reason (the QUIET_ constants): the claim coverage check's failure names them.
 var quiet_held: Dictionary[String, int] = {}
+## The host's answers to bot 4's honest claims (#693).
+var honest_claims := ChaosHonestClaims.new()
 
 var _hostile_client: BotClient
 var _hostile_budget := ChaosBudget.new()
@@ -453,7 +456,8 @@ func _is_chaos_answer(event_name: StringName, fields: Dictionary, bot: ScenarioB
 			hostile_rejected.append("%d %s" % [seq, fields["reason"]])
 			return true
 	elif event_name == &"Correction" and _hostile_client.corrections > _corrections_seen:
-		# Not a placement's (ClientSession counts those apart): a chaos claim's.
+		# Not a placement's (ClientSession counts those apart): a chaos claim's, as the host never
+		# corrects an honest one (ChaosHonestClaims fails the run if it does, #693).
 		_corrections_seen = _hostile_client.corrections
 		return true
 	return false
@@ -467,6 +471,10 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 			_check_claim(command, slice)
 		else:
 			_check_intent(command, slice)
+	elif command != null:
+		var corrected := honest_claims.check(command, slice, hostile_peer(), chaos_seed)
+		if not corrected.is_empty():
+			failures.append(corrected)
 	for emitted: EmittedEvent in slice:
 		var welcome := emitted.event as WelcomeEvent
 		if welcome != null:
@@ -594,6 +602,8 @@ func _check_after() -> void:
 	super()
 	if freeze_gained < 0:
 		failures.append("bot 4 never ended its freeze in the zone")
+	if honest_claims.count == 0:
+		failures.append("chaos: no honest MoveClaim of bot 4 reached the host")
 	var label := "malformed peer"
 	failures.append_array(leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(

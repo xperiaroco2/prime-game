@@ -199,6 +199,38 @@ func test_the_claim_after_the_freeze_fits_its_credit_with_lost_claims() -> void:
 	assert_int(silent + 1 + lost).is_less_equal(MovementRule.MAX_TICK_CREDIT)
 
 
+## #693: bot 4's script adopts no Correction outside a placement (each is taken for a chaos
+## claim's), so the run checks the host's answer to each of its honest claims instead: a Correction
+## of one fails the run, naming the seed; another peer's Correction or no answer passes, and a
+## chaos claim or another peer's claim is not checked here.
+func test_a_correction_of_the_hostile_bots_honest_claim_fails_naming_the_seed() -> void:
+	var claims := ChaosHonestClaims.new()
+	var at := Vector3(20, 0, -20)
+	var fields := {"epoch": 2, "client_tick": 372, "position": at, "velocity": Vector3(1, 0, 0)}
+	var honest := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, fields)
+	assert_int(ChaosFrames.claim_shape(honest.args)).is_equal(-1)
+	var corrected: Array[EmittedEvent] = [_correction_to(4, 3)]
+	var found := claims.check(honest, corrected, 4, 7)
+	assert_str(found).contains("chaos seed 7: the host corrected an honest claim of bot 4")
+	assert_str(found).contains("client tick 372")
+	var none: Array[EmittedEvent] = []
+	assert_str(claims.check(honest, none, 4, 7)).is_empty()
+	var to_another: Array[EmittedEvent] = [_correction_to(5, 3)]
+	assert_str(claims.check(honest, to_another, 4, 7)).is_empty()
+	assert_int(claims.count).is_equal(3)
+	var tagged := fields.duplicate()
+	tagged["velocity"] = Vector3(0, ChaosFrames.CLAIM_TAG + ChaosFrames.Claim.TELEPORT, 0)
+	var chaos := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, tagged)
+	assert_int(ChaosFrames.claim_shape(chaos.args)).is_equal(ChaosFrames.Claim.TELEPORT)
+	assert_str(claims.check(chaos, corrected, 4, 7)).is_empty()
+	var from_bot_1 := MatchCommand.new(Intents.MOVE_CLAIM, 1, 300, fields)
+	var to_bot_1: Array[EmittedEvent] = [_correction_to(1, 3)]
+	assert_str(claims.check(from_bot_1, to_bot_1, 4, 7)).is_empty()
+	# Before bot 4 has a peer id (hostile_peer 0), nothing is bot 4's.
+	assert_str(claims.check(honest, corrected, 0, 7)).is_empty()
+	assert_int(claims.count).is_equal(3)
+
+
 func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> void:
 	var schema := WireSchema.game(true)
 	# Bot 2 lost its join (#483): its peer id is 0, which no ForceRole may name.
@@ -215,6 +247,12 @@ func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> vo
 	assert_int(force_role.expect if force_role != null else -1).is_equal(
 		NetRejects.Reason.BAD_PAYLOAD
 	)
+
+
+## The host's Correction to `peer` (MovementRule._correct's answer to a refused claim).
+func _correction_to(peer: int, epoch: int) -> EmittedEvent:
+	var correction := CorrectionEvent.new(peer, epoch, Vector3(-9, 0, 7), Vector3.ZERO)
+	return EmittedEvent.new(300, correction, PackedInt32Array([peer]), false)
 
 
 ## What a connected malformed peer sends in its first START_AFTER_FRAMES frames, bot 2's peer being

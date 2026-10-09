@@ -48,7 +48,8 @@ const SETTLE_S := 1.0
 ## shim dropped just before it (10% of LATEST over WebRTC). With a 200-tick freeze it covered 201
 ## ticks over WebRTC (#674, seed 7): past the credit, so corrected, and bot 4 stood corrected in
 ## the zone for the rest of the round (its script adopts no Correction outside a placement: ChaosRun
-## takes each for a chaos claim's), which held back every hostile claim.
+## takes each for a chaos claim's), which held back every hostile claim. Since #693 such a
+## Correction of an honest claim fails the run (ChaosHonestClaims).
 const FREEZE_TICKS := MovementRule.MAX_TICK_CREDIT - MovementRule.PUSH_TICKS
 const FREEZE_S := FREEZE_TICKS * 1.0 / Ticks.RATE
 ## Where bot 4's one claim after the freeze takes it: about 30 m or more from the greybox's zones
