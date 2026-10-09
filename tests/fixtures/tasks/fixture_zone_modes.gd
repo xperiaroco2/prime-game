@@ -16,14 +16,16 @@ extends RefCounted
 ## EndMatch and ResetMatch) with ZoneTask in place of Delivery and TaskTicks in Round.
 ##
 ## layouts(): the fixture lobby and map (round_player markers at (10 + i, 0, 5)) plus `zone`
-## markers, by default SPOTS: the first on player 1's spot, the second on player 4's, 3 m apart.
+## markers, by default SPOTS: two zones 3 m apart (their cylinders touch), far from the players'
+## and the respawn markers. A test puts a player where it needs it (put) before its first claim,
+## as a placement would, and from then on moves it with claims only.
 
 const RADIUS_M := 1.5
 const HEIGHT_M := 2.5
 const SECONDS := 1.0
 const NEEDED := 20
-## Default zone markers: (10, 0, 5) is where PlacePlayers puts peer 1, (13, 0, 5) peer 4's spot.
-const SPOTS: Array[Vector3] = [Vector3(10, 0, 5), Vector3(13, 0, 5)]
+## Default zone markers.
+const SPOTS: Array[Vector3] = [Vector3(0, 0, 20), Vector3(3, 0, 20)]
 ## A walking step a tick: under the walk speed (0.225 m a tick) and its slack.
 const STEP_M := 0.2
 
@@ -138,6 +140,12 @@ static func zone_of(game: Match, index: int) -> StationState:
 ## The ticks zone `index` counted so far.
 static func ticks_of(game: Match, index: int) -> int:
 	return state_of(game).ticks[index]
+
+
+## Puts `peer` at `at`, as a placement would (its position only): a test does it before the
+## player's first claim of the epoch, whose travel the movement rule measures from there.
+static func put(game: Match, peer: int, at: Vector3) -> void:
+	game.state.player(peer).position = at
 
 
 ## One tick: each of `peers` claims where the host has it, then the tick runs.
