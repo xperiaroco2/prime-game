@@ -3280,14 +3280,17 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
 - **The Direct panel.** Address takes host or host:port (`JoinTarget.of_direct`); Join and Enter are unplugged while
   it does not parse (an empty field included), so no typed problem reaches `Game`; the port line names the default
   (`join.port`, the launch options' `--port`). Host hosts over ENet on the port typed after the address, else the
-  default (`typed_port`). A command-line join fills its panel (`Game._fill_menu`) so Back finds it there.
+  default (`typed_port`); Host is off while the typed port is not one (`JoinTarget.port_problem`), never quietly on
+  the default. A command-line join fills its panel (`Game._fill_menu`) so Back finds it there; a `--join=` that does
+  not parse waits in the Direct field with Join off, the menu's only sign of it.
 - **The name row** binds to `UserSettings.player_name` (`bind_name`, #550): each change is cleaned by `PlayerNames`
   and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
   player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
   "never empty, else the system user name" predates.
 - **The Settings panel.** `settings_page` is the one seam #491's Settings scene (shared with the Esc menu, opened on
   Sound and voice) replaces: today `_build_settings()` returns the #301 `VoicePanel` in a ToyScroll, in its light
-  look (`VoicePanel.on_light()`: ink labels, each check box's words beside it; the logic unchanged, its words still
+  look (`VoicePanel.on_light()`: ink labels, the microphone notice too, as the pack has no warning text on light;
+  each check box's words beside it, a click on them toggling it; the logic unchanged, its words still
   #150's greybox English). `Game` feeds it as before (`shown_voice_panel`, `settings_open()`). It opens at its top:
   `follow_focus` scrolls to the focused first row before the panel's first sort, with the old sizes (290 px down
   under large text), so the menu scrolls it back once the focus has landed.
