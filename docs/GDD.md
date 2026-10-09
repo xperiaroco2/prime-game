@@ -375,8 +375,8 @@ back, switch it on, and return to press the button again.
 - Every action has a sound: a switch, the button, the charge.
 - Busy hands: a player holding a two-handed item (a package) cannot use a switch or the button: they put it down, use
   it, and pick it up again.
-- A dissident is the same character as an engineer (the crew role, id `crew`), under the same rules; only the win
-  condition differs. Either side may switch any active switch on or off and press the button, and play the other's
+- A dissident plays the same character as an engineer (role `crew`), under the same rules; only the win condition
+  differs. Either side may switch any active switch on or off and press the button, and play the other's
   part.
 
 **Hidden information.** Everyone sees the charge percentage, on the task screen too. The battery is seen only at the
