@@ -6,7 +6,11 @@ extends RefCounted
 ## round starts walks back and forth between a point near the middle and one further out on its own
 ## spoke, so the bots cross and every snapshot moves; then it waits for the end. The round lasts the
 ## run's seconds (`clock_s`, ForceClock, a debug command) and ends by time up, which the base mode's
-## win conditions give to the dissidents: nobody delivers a package or swings a knife.
+## win conditions give to the dissidents: nobody delivers a package or swings a knife. It deals the
+## default draw, both task types since #649 (ZD8 (a)): with 10 bots each of the greybox's four zone
+## markers (z = 7) lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one
+## spoke crosses it and the run measures ZoneProgress too; a zone done on the way wins nothing
+## while every package rests where it spawned.
 
 const MODE := "res://content/modes/base_mode.tres"
 ## A fixed seed: the same deal, spawns and walks every run.

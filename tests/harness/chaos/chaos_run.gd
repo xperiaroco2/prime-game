@@ -66,6 +66,9 @@ var chaos_log := ChaosLog.new()
 var checked: Dictionary[int, int] = {}
 ## The hostile's Rejected answers as it decoded them, "seq reason", in order.
 var hostile_rejected := PackedStringArray()
+## The host ticks the zone gained from bot 4's freeze, after its last accepted claim (-1 before
+## the freeze ended): at most ZoneTask.STALE_TICKS (the zone task ADR's freeze row, ZE10).
+var freeze_gained := -1
 
 var _hostile_client: BotClient
 var _hostile_budget := ChaosBudget.new()
@@ -91,6 +94,12 @@ var _host_rtc: BotWebRtc
 var _transports_made := 0
 var _real_start_usec := -1
 var _warm_up: WebRtcWarmUp
+## During bot 4's freeze: the host tick of its last accepted claim, the zone's ticks a frame ago,
+## and what it gained since that claim in frames with no other living player inside.
+var _freeze_claim_tick := -2
+var _freeze_prev := 0
+var _freeze_gain := 0
+var _freezing := false
 
 
 func _init(
@@ -278,6 +287,7 @@ func _join_host(bot: ScenarioBot) -> String:
 		hostile = ChaosHostile.new(
 			bot, _hostile_client, schema, joined["send_raw"] as Callable, budget, chaos_seed
 		)
+		hostile.quiet = _hostile_quiet
 	return ""
 
 
@@ -361,6 +371,7 @@ func play_frame(at_tick: int) -> void:
 			malformed.poll()
 			return
 	super(at_tick)
+	_watch_freeze()
 	malformed.poll()
 	if chaos_mode == Mode.CHAOS and failures.is_empty():
 		var claimed := _hostile_client.last_claim_tick() != _claimed_tick
@@ -573,6 +584,8 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 
 func _check_after() -> void:
 	super()
+	if freeze_gained < 0:
+		failures.append("bot 4 never ended its freeze in the zone")
 	var label := "malformed peer"
 	failures.append_array(leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(
@@ -717,6 +730,10 @@ func _check_chaos_counts() -> void:
 		failures.append("chaos: the hostile's session ended (%s)" % _hostile_client.end_reason)
 	if hostile_rejected.is_empty():
 		failures.append("chaos: the hostile decoded no Rejected")
+	# Over the loopback only, where a seed replays exactly: over WebRTC seed 7 sent none (188001 sent
+	# 13), a network-timing case not looked into; the summary line prints the count there too.
+	if not over_network and hostile != null and hostile.round_alive_claims == 0:
+		failures.append("chaos: no hostile MoveClaim went out while it was alive in the round")
 
 
 ## Over ENet: under each reason a malformed packet names, the host counted at most the chaos
@@ -824,3 +841,109 @@ static func _describe(slice: Array[EmittedEvent]) -> String:
 			)
 		)
 	return ", ".join(parts)
+
+
+## With claims_after_moves the clients claim after the bots moved; bot 4 sends none while it is
+## frozen (ChaosScenario.FREEZE), in both runs, and keeps polling.
+func claim_clients() -> void:
+	if not _frozen():
+		super()
+		return
+	_claims_due = false
+	for bot: ScenarioBot in bots:
+		var client: BotClient = clients.get(bot.number)
+		if bot.number != HOSTILE and client != null and not client.is_ended():
+			client.claim(now_usec)
+
+
+## Whether bot 4's current step is its freeze.
+func _frozen() -> bool:
+	return bots.size() >= HOSTILE and ChaosScenario.is_freeze(bots[HOSTILE - 1].current_step())
+
+
+## No hostile claim in the round until bot 4 has walked away from its freeze, nor near a zone: a
+## Correction puts it back where it last stood, which its walks (one in flight as a walk starts
+## too) or the zone's count would show every honest bot, unlike the baseline's. Standing still
+## afterwards, downed or dead, it claims as before.
+func _hostile_quiet() -> bool:
+	if game == null or bots.size() < HOSTILE:
+		return false
+	var bot := bots[HOSTILE - 1]
+	if game.phase_id() == &"round" and bot.step_index <= ChaosScenario.away_index(bot.steps):
+		return true
+	var player := game.state.player(peers.peer_of(HOSTILE))
+	if player == null:
+		return false
+	# Its last move, or the standing claim after it, not yet accepted (the bot's claim goes out
+	# after this frame's chaos): a hostile LATEST claim now would supersede it.
+	var behind := Vector2(player.position.x - bot.position.x, player.position.z - bot.position.z)
+	if not player.velocity.is_zero_approx() or behind.length() > 0.01:
+		return true
+	return _near_zone(player.position)
+
+
+## Whether `at` is within a zone's radius plus 1 m, horizontally.
+func _near_zone(at: Vector3) -> bool:
+	for id: int in game.state.stations:
+		var station := game.state.stations[id]
+		if station.kind == null or station.kind.id != ChaosScenario.ZONE:
+			continue
+		var apart := Vector2(at.x - station.position.x, at.z - station.position.z)
+		if apart.length() <= station.kind.radius_m + 1.0:
+			return true
+	return false
+
+
+## While bot 4 is frozen, the zone's ticks since its last accepted claim; when the freeze ends,
+## the check of the freeze row: at most ZoneTask.STALE_TICKS.
+func _watch_freeze() -> void:
+	if game == null or freeze_gained >= 0:
+		return
+	var ticks := _zone_ticks()
+	if _frozen():
+		var tick := game.ticked_through()
+		var age := MovementRule.claim_age(game.state, peers.peer_of(HOSTILE), tick)
+		var claimed := tick - age if age >= 0 else -1
+		if claimed != _freeze_claim_tick:
+			_freeze_claim_tick = claimed
+			_freeze_gain = 0
+		elif _freezing and not _other_inside():
+			_freeze_gain += ticks - _freeze_prev
+		_freeze_prev = ticks
+		_freezing = true
+		return
+	if not _freezing:
+		return
+	freeze_gained = _freeze_gain
+	if freeze_gained > ZoneTask.STALE_TICKS:
+		failures.append(
+			(
+				"the zone gained %d ticks from bot 4's freeze, at most %d"
+				% [freeze_gained, ZoneTask.STALE_TICKS]
+			)
+		)
+
+
+## Whether a living player but bot 4 stands in a zone: bot 2 may carry its package across one.
+func _other_inside() -> bool:
+	var bot4_peer := peers.peer_of(HOSTILE)
+	for id: int in game.state.stations:
+		var station := game.state.stations[id]
+		if station.kind == null or station.kind.id != ChaosScenario.ZONE:
+			continue
+		for peer: int in game.state.peers():
+			var player := game.state.player(peer)
+			if peer != bot4_peer and player != null and player.is_alive():
+				if station.contains(player.position):
+					return true
+	return false
+
+
+## The ticks the match's one zone counted so far (0 before the deal).
+func _zone_ticks() -> int:
+	for id: int in game.state.tasks:
+		var task := game.state.tasks[id]
+		if task.type is ZoneTask:
+			var state := task.state as ZoneTask.State
+			return state.ticks[0] if state.ticks.size() > 0 else 0
+	return 0

@@ -36,8 +36,13 @@ const NEAR_CLAIM_CHANCE := 0.5
 const VOICE_COUNTER := 500_000
 
 var rng := RandomNumberGenerator.new()
+## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
+var quiet := Callable()
 ## Intent name -> how many it sent; the malformed shapes and claim shapes sent; for the report.
 var sent: Dictionary[String, int] = {}
+## The hostile MoveClaims that went out while its client knew it was alive in the round: ChaosRun
+## fails a run with none, so a quiet rule (ChaosRun._hostile_quiet) cannot silence class 5 unseen.
+var round_alive_claims := 0
 
 var _client: BotClient
 var _bot: ScenarioBot
@@ -134,7 +139,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var resting := (
 		item != ChaosOracle.NO_ITEM and _client.model.items[item].holder == ClientModel.NO_HOLDER
 	)
-	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
+	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE and not _quiet():
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
 	_send(packet)
@@ -222,7 +227,12 @@ func _raise_target() -> int:
 
 func _claim() -> void:
 	var shape := rng.randi_range(0, ChaosFrames.RANDOM_CLAIMS - 1) as ChaosFrames.Claim
-	_claim_at(shape, _bot.position)
+	if not _quiet():
+		_claim_at(shape, _bot.position)
+
+
+func _quiet() -> bool:
+	return quiet.is_valid() and quiet.call()
 
 
 func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
@@ -230,7 +240,9 @@ func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
 		shape, _schema, _client.model.epoch, maxi(_client.last_claim_tick(), 0), at, _claims
 	)
 	_claims += 1
-	_send(packet)
+	var alive := _client.model.life_of(_bot.peer) == ClientModel.Life.ALIVE
+	if _send(packet) and alive and _client.model.phase == &"round":
+		round_alive_claims += 1
 
 
 ## A malformed frame, while the host's window holds fewer than MALFORMED_CAP of its own; never a
@@ -264,9 +276,12 @@ func _count_of_malformed() -> int:
 	return count
 
 
-func _send(packet: ChaosFrames.Packet) -> void:
+## Whether the packet went out.
+func _send(packet: ChaosFrames.Packet) -> bool:
 	if packet == null:
 		push_error("chaos: the encoder refused a chaos message")
-		return
-	if _send_raw.call(packet) as bool:
-		sent[packet.label] = sent.get(packet.label, 0) + 1
+		return false
+	if not (_send_raw.call(packet) as bool):
+		return false
+	sent[packet.label] = sent.get(packet.label, 0) + 1
+	return true

@@ -31,6 +31,7 @@
 [ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="28_package"]
 [ext_resource type="Script" uid="uid://bmxheu4k3re0j" path="res://core/tasks/task_ticks.gd" id="29_task_ticks"]
 [ext_resource type="Resource" uid="uid://b5eyuq0do4t6h" path="res://content/tasks/delivery.tres" id="30_delivery"]
+[ext_resource type="Resource" uid="uid://bmjt7j51i3kgr" path="res://content/tasks/hold_the_zone.tres" id="30_zone"]
 [ext_resource type="Script" uid="uid://b72xlahbbwwql" path="res://core/voice/proximity_voice.gd" id="31_proximity"]
 [ext_resource type="Script" uid="uid://dttee25uvdp0o" path="res://core/voice/silent_voice.gd" id="32_silent"]
 [ext_resource type="Script" uid="uid://mkjryqwnegvx" path="res://core/voice/round_voice.gd" id="33_round_voice"]
@@ -350,9 +351,9 @@ max_value = 60
 script = ExtResource("2_setting")
 id = &"tasks"
 display_name = "Tasks"
-default_value = 1
+default_value = 2
 min_value = 1
-max_value = 1
+max_value = 2
 
 [sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")
@@ -367,6 +368,14 @@ display_name = "Packages (Delivery)"
 default_value = 6
 min_value = 1
 max_value = 10
+
+[sub_resource type="Resource" id="Setting_zones"]
+script = ExtResource("2_setting")
+id = &"zones"
+display_name = "Zones (Hold the zone)"
+default_value = 1
+min_value = 1
+max_value = 1
 
 [sub_resource type="Resource" id="Setting_dissidents"]
 script = ExtResource("2_setting")
@@ -477,7 +486,7 @@ actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResour
 script = ExtResource("1_mode")
 min_players = 1
 max_players = 10
-settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_zones"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
@@ -485,7 +494,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResour
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap")])
-task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("30_zone")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"

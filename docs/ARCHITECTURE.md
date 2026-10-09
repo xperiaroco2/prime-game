@@ -1495,8 +1495,15 @@ two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_bel
 now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
 `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
 **#647 (M7-Z1)** added `ZoneProgress` to both `TASK_EVENTS` lists; its plant (declared to the zone's first player
-inside only) waits for a scenario that plays zones (M7-Z3, the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
-§7).
+inside only) waited for a scenario that plays zones (M7-Z3, the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
+§7). **#649 (M7-Z3)** planted it (`ZoneProgressEvent.audience()` as `Audience.only` of the first living player
+`ZoneTask` counted in the zone): `bots crew_works_every_zone zone_paused_by_a_knockdown dissident_works_a_zone_alone`
+and the core runner's `scenarios_test.gd` failed on `ScenarioInvariants` alone (`invariant at tick 118: ZoneProgress
+reached [2], not every present player [1, 2, 3]`; every MVP scenario, which bans the zone task, passed); with
+`ZoneProgress` out of `ScenarioInvariants.TASK_EVENTS` and `crew_works_every_zone`'s dissident waiting for
+`TaskProgress` instead (so every script ends and the leak test runs), `LeakCheck` failed on its own (`bot 1 and bot 2
+decoded different task events in match 0`, besides `decoded ZoneProgress, an event for one peer with no int
+peer`). Reverted.
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
@@ -1513,8 +1520,9 @@ fails that sweep).
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
-`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
-package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
+default draw of one package and one zone since #649; bot 4 walks into the zone and freezes, bot 1 then knocks it
+down, bot 2 delivers and bot 3 holds the zone) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -1544,7 +1552,23 @@ sections named:
    `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
    the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
    position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
-   a new baseline, checked as one tick and corrected: either answer passes;
+   a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
+   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 200 ticks while
+   it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
+   then one claim spends the stored credit to walk about 30 m away; `ChaosRun` checks on the host's state that the
+   zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
+   player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
+   The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
+   velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
+   walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
+   Over the loopback, `ChaosRun` fails a run in which no hostile claim went out while its client knew it alive in
+   the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 13 to 27 over seeds 188001 to
+   188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot silence class 5
+   unseen. Over a network it only prints the count: over WebRTC seed 7 sent none (188001 sent 13), not looked into.
+   The run does not play the freeze with refused claims (a far claim, a past-credit tick or another epoch sent
+   during the freeze, hoping each `Correction` keeps the claim young): `MovementRule.claim_age` reads only an
+   accepted claim, covered by `movement_rule_claim_age_test.gd` (a refused claim does not renew it), not end to
+   end;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
 7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
@@ -1589,7 +1613,9 @@ the encoder refuses with an error line).
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
 step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
-`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
+`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. With the zone and bot 4's freeze (#649,
+2026-10-09) a seed's three runs are 1830 frames (30.5 s simulated, about 11 s); `--seed 1 --runs 10`, `--seed
+188001`, `--long --seed 5`, `--enet --seed 7` and `--transport webrtc --seed 188001` passed. The night job `chaos` runs ten seeds of
 `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
@@ -4035,10 +4061,13 @@ Settings:
 - Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
   there (the engineer's answer on #49): players, the match settings and the phase settings. The Godot saver drops
   a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
-- players 1 to 10. Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
-  number of the mode's task types; #79); `banned_task_types` (a set of task types, empty; with one type nothing can
-  be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision"); `dissidents` 1 (0 to
-  9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+- players 1 to 10. Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 2 (1 to 2, the
+  number of the mode's task types; #79; 2 since #649, ZD8 (a): every match deals Delivery and the zone task);
+  `banned_task_types` (a set of task types, empty; a ban that leaves fewer types than `tasks` needs the lower
+  `tasks` in the same change); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision");
+  `zones`, the zone task's subtasks, 1 (1 to 1: the engineer's one zone, and the palette's one colour allows no
+  more; the bounds a placeholder, "not a decision", #649); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal);
+  `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed crawl at 1 m/s (`crawl_speed_mps`, 0.1 to the
@@ -4054,8 +4083,8 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
-  present, time up.
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery, Hold
+  the zone (§9.5.17). Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise`,
@@ -4078,7 +4107,8 @@ accepted intent that no rule handles. 2f (#62) added Delivery to the task types 
 LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
 between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
-shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. Tests: the mode check of 2a,
+shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
+the task types, the `zones` setting and `tasks` 2 (1 to 2). Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
@@ -4307,11 +4337,16 @@ Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/m
 #### 9.5.17 Zone task (task type)
 What it does: one shared task of `zones` zones (#36); a zone is done once living players have stood in it for
 `seconds` in all, and a subtask is a zone. Nobody owns the task: any living player of any role works any zone. The
-second task type, beside Delivery (§9.5.4); its `core/` part is built, its data is not yet (M7-Z3).
+second task type, beside Delivery (§9.5.4). In the base mode (#649): `content/tasks/hold_the_zone.tres`, id
+`hold_the_zone`, "Hold the zone" (the players' word; the Ukrainian UI's «Утримати зону» once the client is
+translated), described "Stand in the zone until it fills."
 Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
 the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
-must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302): 10 s,
-radius 1.5 m, height 2.5 m, one zone per subtask, yellow, spawn tag `zone`; they land in data in M7-Z3.
+must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302
+comment 6085251071), in the base mode's data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
+height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
+per subtask; the base mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
+placeholders, "not a decision" (§9.6); House's are #651's.
 - Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
   distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
   `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
@@ -4341,8 +4376,11 @@ Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, an
 event that depended on a role would reveal it (§9.2, ZD3).
 Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
 (M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
-`MovementRule.claim_age` and `credit_gain`; no `.tres` yet (M7-Z3); the client's zones, their fill and the done look
-in #650 (M7-Z4, §4.7.24). Tests: `tests/unit/tasks/zone_deal_test.gd`
+`MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
+provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.24).
+Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
+every map of the base mode), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
+`dissident_works_a_zone_alone` (§9.7), `tests/unit/tasks/zone_deal_test.gd`
 (the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
 and a slow claimer's, the clock's
 last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
@@ -4357,11 +4395,12 @@ content/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   tasks/delivery.tres              with its circle station inside it
+  tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
-  greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers
+  greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle, respawn and zone markers
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the
@@ -4377,8 +4416,10 @@ levels/
   markers along z = −12 and 10 `circle` markers along z = 12 (4 m apart, so no package spawns in a circle), and
   4 `knife` markers along z = −5: every tag for 10 players at the default settings and at the most packages. M4-3
   (#139) adds 4 `respawn` markers at (±14, 0, ±5), each with 1 m free (placeholders, under the MVP content ADR, for
-  the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. The
-  content test checks that fit and that both levels are flat, which the scenarios' fake world assumes.
+  the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. #649 adds 4
+  `zone` markers at (−9, 0, 7), (−3, 0, 7), (3, 0, 7) and (9, 0, 7) (placeholders, "not a decision", ZD10 (a)),
+  which keep ZE9's distances. The content test checks that fit and that both levels are flat, which the scenarios'
+  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing.
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
@@ -4391,7 +4432,7 @@ levels/
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
   scene-tree order, the level order of §3.3 (`MarkerReader`, 2j): each where the scene puts it, through its
   `Node3D` parents; a marker in two `spawn_` groups, a `spawn_` group on a node that is not a `Marker3D` and a
-  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`) are snapped
+  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
   This convention is provisional until 4e settles it with the designer (§10).
@@ -4518,7 +4559,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6.1).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
-    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10).
+    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
+    (`PerfScenario`) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
+    zone markers lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one spoke crosses it and the
+    run meters `ZoneProgress` too.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -4557,6 +4601,17 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
+  M7-Z3 (#649; the zone task ADR's §7): every scenario above bans the zone task with `tasks` 1 in its setup's one
+  `ChangeSettings` (ZE7), so it deals Delivery alone. Three play the zone, each expecting `crew`:
+  `crew_works_every_zone` (the default draw with one package: a crew bot delivers it, another walks to `station(zone,
+  1)` and holds it until its `ZoneProgress` at 200 ticks, and the crew wins on the second subtask),
+  `zone_paused_by_a_knockdown` (Delivery banned: the crew bot holds the zone from 1.2 m short of its centre, on its
+  approach side; the dissident strikes it from 1 m further out, outside the zone and inside the knife's reach, and
+  knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
+  the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
+  it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
+  inside the raise's 2 m reach; the zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
+  a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each

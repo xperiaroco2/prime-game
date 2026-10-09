@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## The House map carries what the base mode asks of a map (ARCHITECTURE §9.4, §9.6): read by the
 ## host's marker reader in the host's world of the map, its markers raise no error (each delivery
 ## circle stands on a floor, no marker has two tags) and the layout check of a mode that plays on
-## it finds nothing missing for the mode's maximum of players. The map is not in the base mode's
-## list yet (#623): the scenarios' fake world is one flat floor.
+## it finds nothing missing for the mode's maximum of players but the zone task's `zone` markers,
+## which #651 (M7-Z5) places at the engineer's points (ZD10 (a)); until then a House match needs the
+## zone type banned. The map is not in the base mode's list yet (#623): the scenarios' fake world is
+## one flat floor.
 
 const MAP := "res://levels/house/house.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -19,7 +21,10 @@ func test_a_mode_playing_on_the_house_finds_every_marker_it_needs() -> void:
 	mode.lobby_level = ""
 	mode.maps = PackedStringArray([MAP])
 	var layouts: Dictionary[String, LevelLayout] = {MAP: _read(mode).layout}
-	assert_array(Array(LayoutCheck.run(mode, layouts))).is_empty()
+	# Hold the zone joined the base mode in #649 (ZD8 (a)); House's zones are #651's.
+	assert_array(Array(LayoutCheck.run(mode, layouts))).contains_exactly(
+		["%s has no zone marker, which the row loading, all_loaded places on" % MAP]
+	)
 
 
 func test_the_markers_are_the_engineer_s_counts() -> void:

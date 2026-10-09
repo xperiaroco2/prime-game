@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## map can hold. Also the base mode's data that 2b settles: its numbers, and ResetMatch
 ## before PlacePlayers on `End -> Lobby`; the deal that 2c adds: the actions of the
 ## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
-## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
+## row run by a match entering the round (roles, both task types, knives, placement); and its voice
 ## rules (2i); its win conditions in order, StartClock ending the deal's row, EndMatch on
 ## `Round, won -> End`, and a whole match from the lobby to the end and back, twice (2h). One of
 ## the two tests that load `content/` (§9.6).
@@ -316,7 +316,7 @@ func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
 
 func test_entering_the_round_runs_the_whole_deal() -> void:
 	# The base mode's own data from the lobby into the round, 4 players at the default settings
-	# (1 dissident, 1 task, 6 packages, 2 knives).
+	# (1 dissident; 2 tasks: Delivery's 6 packages and Hold the zone's 1 zone; 2 knives).
 	var mode := _base_mode()
 	var layouts := _layouts_for(mode)
 	var map := layouts[mode.maps[0]]
@@ -350,9 +350,12 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		var teammates := game.view_of(peer).events_named(&"Teammates").size()
 		assert_int(teammates).is_equal(1 if role == &"dissident" else 0)
 	assert_int(dissidents.size()).is_equal(1)
-	# Delivery drawn by DealTasks: one shared task, 6 circles and 6 packages; then 2 knives.
-	assert_int(game.state.tasks.size()).is_equal(1)
-	assert_int(game.state.stations.size()).is_equal(6)
+	# Both task types drawn by DealTasks (#649, ZD8 (a)): Delivery's 6 circles and 6 packages,
+	# then Hold the zone's 1 zone on a `zone` marker; then 2 knives.
+	assert_int(game.state.tasks.size()).is_equal(2)
+	assert_int(game.state.stations.size()).is_equal(7)
+	var zone := FixtureZoneModes.zone_of(game, 0)
+	assert_bool(Array(map.positions(&"zone")).has(zone.position)).is_true()
 	var kinds: Dictionary[StringName, int] = {}
 	var taken: Dictionary[Vector3, int] = {}
 	for id: int in game.state.items:
@@ -364,10 +367,10 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 	assert_dict(kinds).is_equal({&"package": 6, &"knife": 2})
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(6)
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(7)
 		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
 		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
-			{"done": 0, "total": 6}
+			{"done": 0, "total": 7}
 		)
 		# No package spawned inside its own circle: markers lie 10 m apart.
 		assert_array(view.events_named(&"PackageDelivered")).is_empty()
@@ -378,7 +381,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_bool(Array(map.positions(&"round_player")).has(at)).is_true()
 		assert_bool(spots.has(at)).is_false()
 		spots.append(at)
-	# The row's order: roles, Delivery's deal, the knives, then placement.
+	# The row's order: roles, Delivery's deal, the zone's, the knives, then placement.
 	var deal_events: Array[StringName] = [
 		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]
@@ -399,6 +402,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 				"RoleAssigned",
 				"StationPlaced",
 				"ItemSpawned(package)",
+				"StationPlaced",
 				"TaskProgress",
 				"ItemSpawned(knife)",
 				"PlayersPlaced",
@@ -503,9 +507,10 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 
 
 func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> void:
-	# The base mode's own data, 4 players at the default settings: the crew delivers the 6
-	# packages and wins; the host returns to the lobby, shortens the round to 1 minute, and the
-	# second match runs out of time with every package where it spawned: the dissidents win.
+	# The base mode's own data, 4 players at the default settings: the crew holds the zone and
+	# delivers the 6 packages and wins; the host returns to the lobby, shortens the round to 1
+	# minute, and the second match runs out of time with every package where it spawned and the
+	# zone empty: the dissidents win.
 	var mode := _base_mode()
 	var peers: Array[int] = [1, 2, 3, 4]
 	var game := _base_round(mode, peers)
@@ -513,6 +518,11 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
 	var crew := FixtureDealModes.players_of(game, &"crew")
 	assert_int(crew.size()).is_equal(3)
+	var zone := FixtureZoneModes.zone_of(game, 0)
+	FixtureZoneModes.walk(game, crew[0], zone.position)
+	FixtureZoneModes.hold(game, [crew[0]], FixtureZoneModes.zone_task_of(mode).needed_ticks())
+	assert_bool(zone.done).is_true()
+	assert_str(game.phase_id()).is_equal("round")
 	var task := FixtureDeliveryModes.task_of(game)
 	for index in 6:
 		var package := FixtureDeliveryModes.package_of(game, task, index)
@@ -524,6 +534,9 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 		var view := game.view_of(peer)
 		assert_dict(view.events_named(&"RoundStarted")[0].to_dict()).is_equal({"start_tick": start})
 		assert_int(view.events_named(&"PackageDelivered").size()).is_equal(6)
+		var progress := view.events_named(&"ZoneProgress")
+		var last_progress := (progress[progress.size() - 1] as ZoneProgressEvent).to_dict()
+		assert_int(last_progress["ticks"]).is_equal(10 * Ticks.RATE)
 		var ended := view.events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
 		assert_dict(ended[0].to_dict()).is_equal({"side": &"crew"})

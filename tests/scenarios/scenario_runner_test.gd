@@ -318,8 +318,9 @@ func test_a_station_target_is_the_n_th_station_of_its_kind_the_bot_was_told_of()
 	assert_int(circles.size()).is_greater_equal(2)
 	var at: Vector3 = bot.stations[circles[1]]
 	assert_float(Vector2(bot.position.x - at.x, bot.position.z - at.z).length()).is_less(0.01)
-	# A kind it was told of no station of, or an index past its stations: it cannot know.
-	for target: ScenarioTarget in [_station(&"zone", 1), _station(&"circle", 99)]:
+	# A kind it was told of no station of (the base mode deals zones too since #649), or an index
+	# past its stations: it cannot know.
+	for target: ScenarioTarget in [_station(&"no_such_kind", 1), _station(&"circle", 99)]:
 		var lost := StepWalkTo.new()
 		lost.target = target
 		lost.stop_m = 0.0
