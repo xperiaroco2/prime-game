@@ -160,7 +160,7 @@ the snapshot's facing already shows. The `gravity` field spares a remote client 
 thrower's own prediction does that lookup anyway. It is the acceleration as a `vec3` (straight down), not a plain
 `f32`: `core/` computes the arc in `Vector3`s, whose components are single precision, so the field round-trips
 exactly as E6 needs, while the codec refuses an `f32` field holding a data value such as 0.1, which no single
-precision number holds (`WireField._is_plain`). The `Items` causes gain `thrown` (3d's table-against-core test), the
+precision number holds (`WireField._is_plain`). The `Items` causes gain `thrown` (`wire_core_test` pins the list), the
 protocol version rises, and the chaos bots cover `Throw` (`ChaosHostile._refused`, `ChaosOracle`). `server/`
 originates no new command: ARCHITECTURE §3.3 drops `ItemRested` from its list, and the flight's geometry reaches the
 command log as `WorldQuery` answers, as every other rule's does.
@@ -185,12 +185,16 @@ ADR](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)'s task size).
 
 | Issue | What | Depends on | Size |
 |---|---|---|---|
-| 37a | `core/` and `server/`: `WorldQuery.sweep` in the port, `FlatWorldQuery`, `RecordingWorldQuery`, `ReplayWorldQuery`, and `HostWorldQuery`'s sphere answer with the start check; integration tests on the two fixture levels (TE7) | TE1 (a), TE2 | S |
-| 37b | `core/`, the flight: `ItemState.Where.FLYING` and the flight it keeps, the arc's static function, `FlightTicks` with the world and player contacts, the rest through `Items.place` with the cause `thrown` and the no-floor fallback, every reader of `where` (`ItemOnGround`, `Items.free_markers`, Delivery, the snapshot's items); unit tests that put an item in flight directly | 37a; TD3, TD4, TD8, TD9, TD11, TD12 | M |
-| 37c | `core/`, the throw: the `Throw` intent in `Intents` and `Intents.PLAYER_ACTIONS`, the `ThrowItem` effect with its bounds, `ItemThrownEvent` (everyone), the mode checks (`FlightTicks` listed, the radius against the capsule), ARCHITECTURE §4.1, §4.2 and §9.4's rows | 37b; TD1, TD2, TD6, TD10 | S |
-| 37d | `net/`, `client/net/`, the bots: the `Throw` and `ItemThrown` rows, the cause id, the protocol bump, the chaos rows (§4.6.5.3), `ClientModel`'s fold of `ItemThrown`, the claim's twin before `Throw`, the bots' `Throw` step | 37c | M |
-| 37e | `client/`: the throw key (TD7), the prediction, the arcs on the avatars' timeline, the stop and the fall, the hide at a phase change, `SightHider`'s group, the sounds' hooks, a `shot` preview | 37d | M |
-| 37f | `content/`, `levels/` (the engineer's word, provisional under the MVP-content ADR): the base mode's `Throw` rule with the engineer's numbers, `FlightTicks` in Round, Round's allowlist, TD5's level convention in `levels/CLAUDE.md`, a bot scenario that throws a package; then the playtest | 37c, 37d; TD5 and TD1's numbers | S |
+| 37a | `core/` and `server/`: `WorldQuery.sweep` in the port, `FlatWorldQuery`, `RecordingWorldQuery`, `ReplayWorldQuery`, the test worlds `tests/fixtures/world/fixture_level_world.gd` and `tests/fixtures/match/fixture_terrain_world.gd` (without their own answer a flight in them would pass through their geometry), and `HostWorldQuery`'s sphere answer with the start check; integration tests on the two fixture levels (TE7); ARCHITECTURE §4.5.9's "The answers" and §7.1.1's list of questions | TE1 (a), TE2 | S |
+| 37b | `core/`, the flight: `ItemState.Where.FLYING` and the flight it keeps, the arc's static function, `FlightTicks` with the world and player contacts, the rest through `Items.place` with the new cause `Items.THROWN` and the no-floor fallback, every reader of `where` (`ItemOnGround`, `Items.free_markers`, Delivery, the snapshot's items); the cause added to both lists of causes in `tests/unit/net/messages/wire_core_test.gd` (the id check and `test_the_items_causes_are_every_string_name_constant_of_items`); unit tests that put an item in flight directly | 37a; TD3, TD4, TD8, TD9, TD11, TD12 | M |
+| 37c | `core/` and `net/`, the throw: the `Throw` intent in `Intents` and `Intents.PLAYER_ACTIONS`, the `ThrowItem` effect with its bounds, `ItemThrownEvent` (everyone), the mode checks (`FlightTicks` listed, the radius against the capsule); in the same task the wire, since `wire_core_test` requires a row for every intent and a row and a sample for every event a peer receives: `WireSchema`'s `Throw` and `ItemThrown` rows, their samples in `wire_samples.gd`, the protocol bump; ARCHITECTURE §4.1, §4.2, §4.3 and §9.4's rows | 37b; TD1, TD2, TD6, TD10 | M |
+| 37d | `client/net/`, the bots: the chaos rows (§4.6.5.3: `ChaosHostile`'s `Throw` shapes, refused as `not_accepted` while no phase accepts it), `ClientModel`'s fold of `ItemThrown`, the claim's twin before `Throw`, the bots' `Throw` step, `ScenarioBot`'s copy of `ItemState.Where` (`tests/harness/scenario_bot.gd`) and its fold of `ItemThrown` and `ItemPlaced` with the cause `thrown` | 37c | M |
+| 37e | `client/`: the throw key (TD7), the prediction, the arcs on the avatars' timeline, the stop and the fall, the hide at a phase change, `SightHider`'s group, the sounds' hooks, a `shot` preview on a fixture mode with a `Throw` rule (the base mode gets its rule only in 37f) | 37d | M |
+| 37f | `content/`, `levels/` (the engineer's word, provisional under the MVP-content ADR): the base mode's `Throw` rule with the engineer's numbers, `FlightTicks` in Round, Round's allowlist, with outside `content/` in the same change §3.2's Round row, `ChaosOracle.ACCEPTS` and the hostile's expected outcome for `Throw` in Round (§4.6.5.3: a change of §3.2's table changes them with it, or `bots --chaos` goes red); TD5's level convention in `levels/CLAUDE.md`; a bot scenario that throws a package; then the playtest | 37c, 37d; TD5 and TD1's numbers | S |
+
+Every task leaves `verify --full` green on its own, `tests/unit/net/messages/wire_core_test.gd` among it: that test pins
+every intent and peer-bound event to a wire row and a sample, and every `Items` cause to the list it holds, so a task
+that adds one of those adds its row, sample or list entry too.
 
 They run in that order, one after another, except the last two: 37e (`client/`) and 37f (`content/`, `levels/`)
 touch different folders and can run side by side. If the engineer takes TE1 (b) instead, 37a becomes `server/`'s
