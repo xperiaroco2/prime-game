@@ -53,8 +53,9 @@ func target() -> int:
 	return _target
 
 
-## What the crosshair would do, for the HUD, with the interact key bound now (E by default,
-## KeyLabel, #211); empty for nothing.
+## What the crosshair would do, with the interact key bound now (E by default, KeyLabel, #211);
+## empty for nothing. The HUD reads `target()` since #489 (it shows no keys); this is kept for
+## its tests and a later tutorial (#492).
 func hint() -> String:
 	var item: ClientModel.Item = model.items.get(_target) if model != null else null
 	if item == null:
