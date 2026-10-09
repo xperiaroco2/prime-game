@@ -700,7 +700,8 @@ def run_lanes(
 # selftest 144 s, the lane 212 s, which ends it near the first network run, and `test` beside it no slower, 123 s
 # against 130 s); a smaller one keeps a quarter (1 on CI's 4-vCPU runner, where the Python lane ends about 230 s
 # before the Godot lane anyway). A `selftest` outside a verify lane (CI's minimum-Python job, a 4-vCPU runner with
-# nothing beside it) takes every logical CPU of a small machine (#603); a big one keeps half for the other sessions.
+# nothing beside it) takes every logical CPU of a small machine (#603); a big one keeps half for the other sessions,
+# but never fewer workers than a smaller machine gets alone (8 CPUs: 7).
 WORKER_SHARE = 2
 SMALL_WORKER_SHARE = 4
 BIG_MACHINE = 8
@@ -709,7 +710,8 @@ BIG_MACHINE = 8
 def selftest_workers(cpus: int | None = None, alone: bool = False) -> int:
     count = cpus if cpus is not None else os.cpu_count() or 1
     if count >= BIG_MACHINE:
-        return max(1, count // WORKER_SHARE)
+        # Alone, never fewer than a smaller machine gets (7 of 8, 7 of 14), while 16 still give 8.
+        return max(count // WORKER_SHARE, min(count, BIG_MACHINE - 1)) if alone else count // WORKER_SHARE
     return count if alone else max(1, count // SMALL_WORKER_SHARE)
 
 

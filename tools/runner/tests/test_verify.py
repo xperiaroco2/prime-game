@@ -1685,8 +1685,11 @@ class SelftestTest(unittest.TestCase):
 
     def test_alone_a_small_machine_gives_every_cpu_a_big_one_still_half(self) -> None:
         # #603: CI's minimum-Python job (4 vCPUs, nothing beside it) runs on 4 workers; the PC keeps 8 of 16.
-        cpus = (1, 2, 4, 6, 7, 8, 16, 32)
-        self.assertEqual([verify.selftest_workers(n, alone=True) for n in cpus], [1, 2, 4, 6, 7, 4, 8, 16])
+        # A bigger machine never gets fewer than a smaller one (#603 review: 8 CPUs gave 4, 7 gave 7).
+        cpus = (1, 2, 4, 6, 7, 8, 9, 14, 15, 16, 32)
+        expected = [1, 2, 4, 6, 7, 7, 7, 7, 7, 8, 16]
+        self.assertEqual([verify.selftest_workers(n, alone=True) for n in cpus], expected)
+        self.assertEqual(expected, sorted(expected))
 
     def test_selftest_in_a_verify_lane_shares_the_machine_and_alone_does_not(self) -> None:
         # `all` runs the selftest-godot group beside the Python one, so outside a lane it is not alone either.
