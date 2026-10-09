@@ -398,7 +398,10 @@ Rules for every workflow run:
   saved workflow `issue-task` (`.claude/workflows/issue-task.js`: implementer → fresh reviewers chosen from the
   changed paths → publisher; `design: true` for a docs-only design task) with `args` (issue, worktree, branch, base,
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
-  (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A session runs a
+  (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A small task (the
+  issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
+  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
+  net/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge`. A session runs a
   saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).

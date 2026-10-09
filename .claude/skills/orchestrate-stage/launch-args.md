@@ -55,3 +55,14 @@ implementer ends red. Every agent writes temporary files only under the scratchp
 Notes that worked: say which PR a needed file comes from if it is unmerged ("build with fixtures, fetch and rebase
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
 in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
+
+## quick-task (#608)
+A task whose issue says `Size: XS` or `S`, one logical change and no design (a rename, a text or value change, a docs
+fix) goes to `quick-task` (`.claude/workflows/quick-task.js`) instead of `issue-task`, after `start` as usual. Args:
+`{n, title, wt, branch, base, notes}`, and `models: {quick: "opus"}` only for a harder one (default Sonnet). One
+`task-publisher` agent makes the change, runs `lint` and `check`, pushes, opens the PR and waits for CI (at most two
+fix rounds); only a diff under `core/ server/ net/ voice/ tests/harness/` adds `code-reviewer` and
+`netcode-security-reviewer` and, on a blocker or major, one fix agent (1 to 4 agents). When the result says
+`ready_to_merge` (CI green, no blocker or major open, nothing for the engineer), merge at once:
+`tools/run.sh merge <pr> --base <base>`; otherwise act on `needs_engineer` and `stopped`. Not for a design task,
+Size M or larger, or a new mechanic.
