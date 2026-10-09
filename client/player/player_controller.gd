@@ -61,6 +61,9 @@ var move_input: Vector2 = Vector2.ZERO
 var sprint_held: bool = false
 ## Set when jump is pressed; the next physics step consumes it, jumping or not.
 var jump_requested: bool = false
+## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
+## captures or frees it; the keys still move the player. Game sets it every frame.
+var mouse_free := false
 ## Asked before a sprint or a jump, told what each step spent. A PredictedStamina of `rules`
 ## unless set before them.
 var stamina: StaminaSource
@@ -126,7 +129,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not reads_device_input:
+	if not reads_device_input or mouse_free:
 		return
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	var motion := event as InputEventMouseMotion
