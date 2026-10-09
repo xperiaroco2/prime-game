@@ -19,8 +19,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     plan x = X, plan y = Z, no rotation;
   - a room declares `metadata/size_m = Vector2i(w, d)`, its door openings as `Marker3D` children of `Doors`, its
     stations as instanced station scenes; a test checks the map against the design doc's room table.
-- Greybox with CSG and one shared neutral material until the art kit lands; the kit's GLBs then replace the CSG
-  inside the same piece. The look comes from the art track (xperiaroco2/prime-game-art).
+- Greybox with box meshes (CSG where a shape needs it) and one shared neutral material until the art kit lands;
+  the kit's GLBs then replace the greybox inside the same piece. The look comes from the art track (xperiaroco2/prime-game-art).
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
   `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1

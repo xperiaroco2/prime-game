@@ -54,9 +54,10 @@ Replacing a room is replacing one instance in the map.
 
 ### Looks and collision
 - Collision as `levels/CLAUDE.md` already says: `StaticBody3D` with `CollisionShape3D` on layer 1, in each kit piece
-  and each station; CSG for looks only.
-- Until the art kit lands, a piece is greyboxed with CSG and one shared neutral material. The kit's GLBs then replace
-  the CSG inside the same piece, and the map does not change.
+  and each station; meshes (and CSG, if used) for looks only.
+- Until the art kit lands, a piece is greyboxed with box meshes (`MeshInstance3D` with a `BoxMesh`, as
+  `levels/greybox/` does; CSG where a shape needs it) and one shared neutral material. The kit's GLBs then replace
+  the greybox inside the same piece, and the map does not change.
 
 ### A check
 A test reads the map scene and its design doc's room table and fails when a room's position or size differs, so the
