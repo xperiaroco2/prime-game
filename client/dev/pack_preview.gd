@@ -80,8 +80,11 @@ func _column(language: String) -> Control:
 	for room in ROOMS:
 		var cell := HBoxContainer.new()
 		cell.add_child(_icon("icons/room/%s.svg" % room, ink))
-		var name_text := _text(language, "room." + room)
-		cell.add_child(_label(room if name_text.is_empty() else name_text, &"ToyMapRoomText"))
+		# A room the copy deck has no name for yet shows its key (`room.server`): no copy yet, not
+		# an untranslated word (#520 review); the names are the deck's (#253).
+		var key := "room." + room
+		var name_text := _text(language, key)
+		cell.add_child(_label(key if name_text.is_empty() else name_text, &"ToyMapRoomText"))
 		rooms.add_child(cell)
 	box.add_child(rooms)
 	var icons := HBoxContainer.new()
