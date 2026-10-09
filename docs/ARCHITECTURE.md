@@ -2244,10 +2244,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
   `LobbyName.MAX_CHARS` characters) that the host edits and everyone else reads (not editable), its placeholder
   the default (`LobbyPanel.default_name`: `lobby.default_name` with `ClientModel.host_name()`). The page is
-  refreshed every frame, so the field takes the model's name only while it has no focus (the host's typing stays),
-  and it sends only on submit or when it loses focus, cleaned (`LobbyName.clean`: a pasted invisible character
-  would make the wire refuse the whole intent) and only when it differs from the model's: no `ChangeSettings` per
-  keystroke, each of which the host would answer with a `SettingsChanged` to everyone. `Game.change_lobby_name`
+  refreshed every frame, so the host's field takes the model's name only while it has no focus (the host's typing
+  stays; a player's read-only field follows every rename, focused or not), and it sends only on submit or when it
+  loses focus, cleaned (`LobbyName.clean`: a pasted invisible character would make the wire refuse the whole
+  intent) and only when it differs from the model's or from a name already sent: no `ChangeSettings` per
+  keystroke, each of which the host would answer with a `SettingsChanged` to everyone. A sent name stays in the
+  field until the model's name moves (its echo is a round trip away), so it never flicks back to the old one; with
+  no host in the roster the default is "" (never "'s lobby"). `Game.change_lobby_name`
   sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default) for
   the lobby HUD (#495). Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
   `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
