@@ -1,8 +1,8 @@
 # The map and tasks screen on M (#253) in the game's real window. Window 1 hosts alone (the base
 # mode plays with one). In the round M opens the map: the pointer is freed and the crosshair hides;
-# the tasks list their counters (the greybox has no rooms until #306, so no board shows). Tab does
-# nothing. M again closes it and the pointer is captured again; with the map open Esc closes only
-# the map, never opening the Esc menu over it.
+# the tasks list their counters (the greybox has no rooms until #306, so no board shows).
+# M again closes it and the pointer is captured again; with the map open Esc closes only the map,
+# never opening the Esc menu over it.
 players 1
 windows 1
 

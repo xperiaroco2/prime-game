@@ -38,7 +38,7 @@ const FAKE_MARKERS: Array[Array] = [
 	["spawn_round_player", Vector3(2, 0, -11)],
 ]
 ## The own player's place in the fake house (the hall) and its heading, radians from north.
-const FAKE_OWN_PLACE := Vector3(0, 0, -10)
+const FAKE_OWN_PLACE := Vector3(-5, 0, -8)
 const FAKE_OWN_HEADING := 0.6
 
 @export var preview := Preview.MENU
