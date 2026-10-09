@@ -152,7 +152,7 @@ countdown changes no scene and places nobody.
   re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `knives`, `spawns`), named in the data of the part that
+  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `knives`, `spawns`), named in the data of the part that
   draws (§9.4), gets its own `RandomNumberGenerator`, seeded by a fixed mixing function of the match seed and the
   purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the name; not `String.hash()`, whose
   algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
@@ -165,7 +165,9 @@ countdown changes no scene and places nobody.
   different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
   once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
-  bound to a random circle of its own, whose colour it takes (`tasks`). Then each task's `TaskState` (its id, type and
+  bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.17): one task
+  of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
+  *i* is subtask *i* in station-id order. Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
   every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
@@ -620,6 +622,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
+| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.17): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress` |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
@@ -642,7 +645,7 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
-(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
+(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #647 (M7-Z1): `ZoneProgress`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -772,6 +775,7 @@ directive has no row, because it reaches no peer.
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
 | 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
+| 66 | `ZoneProgress` | `station: station`, `ticks: u16`, `needed: u16`, `counting: bool`, `tick: tick` (audience *everyone*, #647; ZE4 and ZE6 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); `needed` is at most 12,000, 600 s) | 11; 11 |
 
 #### 4.3.5 State and voice
 
@@ -800,8 +804,10 @@ The rules of the table:
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
   `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), and is 9 since #429 added `MoveClaimReliable` (14);
-  M4's protocol PRs each set
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), and is
+  11 on `release/m7` since #647 added `ZoneProgress` (66): `release/m6.2` already speaks 10 (#550, `Hello`'s `name`)
+  with another table, so whichever of the two releases lands on `main` second meets a conflict on the constant and
+  takes the next number. M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1486,6 +1492,9 @@ stood erased its last move tick, so a `WalkTo` after a step answered within the 
 two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
 now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
 `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+**#647 (M7-Z1)** added `ZoneProgress` to both `TASK_EVENTS` lists; its plant (declared to the zone's first player
+inside only) waits for a scenario that plays zones (M7-Z3, the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
+§7).
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
@@ -2706,7 +2715,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
-  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`); no
+  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
+  and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -3298,6 +3308,27 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   An accepted claim stores a unit facing (`MovementRule.stored_facing`): a claim with no direction keeps the last
   one, one straight up or down keeps the last yaw, and the pitch is clamped to ±89° (`MAX_PITCH_DEG`). Tests:
   `tests/unit/movement/movement_rule_test.gd`.
+- The claim's age (#647; ZE10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)):
+  `MovementRule.claim_age(state, peer, now)` is how many host ticks old the player's last accepted claim is at host
+  tick `now` (0 in its own tick), from the record's `claimed_tick`, or -1 when the position is no claim of the
+  current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn), until the epoch's first
+  accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
+  record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
+  keeps the last one's age, and a revive keeps the epoch. The zone task counts a player only while it is at most
+  `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a client that stops claiming (a
+  freeze, or a modified client that goes on polling) stops counting 10 ticks after its last claim. Its companion
+  `MovementRule.credit_gain(state, peer, now)` is how many ticks of credit the player stores at `now` above the
+  least an accepted claim of its epoch left it (the credit not yet topped up counted in, the cap not; -1 as
+  `claim_age`); the record keeps that least as `least_credit`, reset by a placement. An honest client claims one
+  tick of its own clock per host tick, so it stays near 0 (lost claims raise it until the next claim covers them; a
+  frozen host's backlog is spent in the tick it arrives). A modified client that claims one client tick every 10
+  host ticks keeps `claim_age` under 10 but stores 9 ticks a claim (the netcode review of #647): the zone task
+  counts a player only while `credit_gain` is at most `PUSH_TICKS` too, so the credit stored while standing in a
+  zone, whether silent or claiming slowly, cannot buy more than 10 ticks of zone time and travel at once. Spending
+  credit lowers the least, so credit spent and stored again counts as well. A respawn inside a
+  zone therefore counts from its first claim after the respawn, about a round trip later, not from the respawn
+  tick (a deviation from the ADR's §4 row, which the zone task ADR records). Tests:
+  `tests/unit/movement/movement_rule_claim_age_test.gd`.
 
 #### 7.1.6 Pushing apart (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions")
 Living
@@ -3434,7 +3465,8 @@ never counts, because it is not at rest. A circle is an invisible cylinder stand
 (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
 placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
 included, and from the marker's height up to that plus the height, both included (1 mm below the marker
-still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
+still counts: float noise between a physics floor and a hand-placed marker): `StationState.contains`, the one
+cylinder test of a station, which the zone task asks with a player's feet (§9.5.17, #647). The rest position is the one
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (a
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
@@ -3530,7 +3562,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
   a stateless definition, and what changes has one of three homes:
   - **`MatchState`** (§3.1), for what outlives a phase: players (with their hand and belt items, M4-5); items (kind,
     where: on the ground, in a hand, on a belt or locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
-    and alone reads and writes (Delivery: which subtasks are done; #36: the time in the zone per subtask); stations;
+    and alone reads and writes (Delivery: which subtasks are done; the zone task, #647: the ticks counted per zone); stations;
     **bodies** (peer → rest position, written by `LifeRules.die` before `player_died`, from the death until the
     respawn (`LifeRules.respawn`, M4-3) or the leave; M4-2); two tables keyed by names from the data,
     **cooldowns** (the tick at which a player last paid a key, such as `hit`) and **counters** (an integer per player
@@ -3728,7 +3760,8 @@ phase classes come in the task each row names.
   and `TaskProgress` (everyone; `Tasks.progress` counts the subtasks done and in total over every task), then raises
   `subtask_done`. `Tasks.announce` emits every task's `TaskState` in id order; `DealTasks` calls it after the deal. `Tasks.all_done` is "every task done"
   for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
-  `Delivery.State`) is the example for #36. `StationKind.radius_m` and `height_m` have a neutral default of 0,
+  `Delivery.State`) and the zone task (`core/tasks/zone_task.gd`, `ZoneTask.State`, #647) are the two task types.
+  `StationState.contains` is the one cylinder test of a station, which both ask. `StationKind.radius_m` and `height_m` have a neutral default of 0,
   which the mode check refuses: the data sets them.
 - **Win** (`core/win/`, 2h #64): the win conditions' parts `AllSubtasksDone`, `NoneAlive` and `ClockEnded`, and the
   transition actions `StartClock` and `EndMatch`. `Match` itself counts the clock and raises `clock_ended` (2a);
@@ -3755,9 +3788,9 @@ phase classes come in the task each row names.
   was left in `PlayerState.knockdown_left` (M4-4), so `LifeTicks` sees no deadline then. A later weapon
   or a trap calls `damage`; the class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
 - **Channels** (`core/channel/`, M4-4 #140): an action that takes time, the generic primitive the raise uses and
-  any later timed action reuses (#36's zone task may not: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
-  recommends counting presence in its own tick, standing being no action, ZD1 (a), open; with ZD1 (b) it is a
-  `ChannelEffect`). A `ChannelEffect` (an effect, abstract)
+  any later timed action reuses (the zone task does not: it counts presence in its own tick, standing being no
+  action, ZD1 (a) of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), the engineer's answer on #302; built
+  in #647). A `ChannelEffect` (an effect, abstract)
   starts a `Channel` (state: its effect, the rule it came from, actor, target, start tick, ticks done and needed) for
   its actor on the intent's `target`
   (`Channels.target_of`: the channel's target while it runs, else the intent's, when the intent declares one);
@@ -3889,7 +3922,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 |---|---|---|---|---|---|
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
-| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36's zone task, designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)) | none | the task types' events | 2f (#62) |
+| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.17, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
@@ -4028,21 +4061,22 @@ palette: 10 distinct colours, provisional, one per package at the most `packages
   colour is what players see. The mode check refuses a circle station kind and a package item kind with the same
   spawn tag.
 - Check, on `item_rested`: a package of an undone subtask that rests on the ground inside its circle's cylinder
-  (`Delivery.rests_in`, §7.1.14: its rest position within the radius horizontally, and from the marker's height up to
+  (`StationState.contains`, §7.1.14, since #647; `Delivery.rests_in` before: its rest position within the radius horizontally, and from the marker's height up to
   that plus the height, edges included) is delivered: locked (no longer interactive), its circle done, its subtask
   done; then `PackageDelivered`, `TaskState` (M4-5), `TaskProgress` and `subtask_done` (detail: the subtask's index
   and its package), in that order. Any other item in a circle, or a package in another package's circle, does nothing.
 
 Produces: `StationPlaced` and `ItemSpawned` (with the circle and colour) in id order, `PackageDelivered`, `TaskState`
 (its task's subtasks done and in total), `TaskProgress` (the subtasks done and in total, over every task); `item_rested` (spawn), `subtask_done`. Its task
-state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick.
+state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick; the zone task
+(§9.5.17, #647) is the task type that ticks.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
 shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
-private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder; a done subtask is never delivered
-again), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
+private task event), `tests/unit/tasks/delivery_test.gd` (the check; a done subtask is never delivered again; the cylinder's
+edges moved with the test to `tests/unit/match/station_state_test.gd` in #647), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
 `tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
 `TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's mode
 check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
@@ -4196,6 +4230,51 @@ The downed never jump: a new jump of theirs is corrected (§7.1.7 The crawl, M4-
 Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
+
+#### 9.5.17 Zone task (task type)
+What it does: one shared task of `zones` zones (#36); a zone is done once living players have stood in it for
+`seconds` in all, and a subtask is a zone. Nobody owns the task: any living player of any role works any zone. The
+second task type, beside Delivery (§9.5.4); its `core/` part is built, its data is not yet (M7-Z3).
+Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
+the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
+must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302): 10 s,
+radius 1.5 m, height 2.5 m, one zone per subtask, yellow, spawn tag `zone`; they land in data in M7-Z3.
+- Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
+  distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
+  `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
+  error, as Delivery's deal; the fit check refuses such a lobby first. N = 0: a task with no subtasks, done.
+- Demands: N `zone` markers and N palette colours.
+- Tick (`TaskTicks`, Round in the base mode; `ModeCheck` refuses a ticking task type that no phase lists it in): for
+  each undone zone in station-id order, it counts when a player, in peer-id order, is living (life ALIVE, any role,
+  ZD3), stands in its cylinder (`StationState.contains` with the feet of its last accepted claim) and that claim is at
+  most 10 host ticks old with at most 10 ticks of credit stored since (`MovementRule.claim_age` and `credit_gain`
+  at most `PUSH_TICKS`, ZE10, §7.1.5). A counting zone gains one
+  tick, however many stand in it (ZD4); leaving pauses it and it keeps its ticks (ZD2). At `seconds` converted once
+  (`Ticks.from_seconds`, at least 1 tick) it is done: `ZoneProgress` first, then `Tasks.subtask_done` (ZE5).
+  Nothing else stops or resets it (ZD9): carrying, using, swapping, a raise, a hit that does not knock down. A
+  knockdown stops it in its own tick (the hit and `LifeTicks` run before `TaskTicks`); a respawn inside counts from
+  its first claim after the respawn (the placement's epoch).
+- Mode checks (ZE3, `ModeCheck`): two station kinds of the mode's task types with one id or one spawn tag, or one kind
+  held by two task types, are refused (stations take markers without asking whether one stands there).
+
+Produces: `StationPlaced` (everyone) in the deal; `ZoneProgress` (everyone, §4.2) when a zone's counting changed
+since its last one, at most once per zone per `ZoneTask.WINDOW_TICKS` (5, "not a decision"; a change inside the
+window goes out at its end with that tick's state, even when counting is back where it was), and on a done zone, in
+its own tick, before its task's `TaskState` and `TaskProgress`; `subtask_done` (detail: the subtask's index and its
+station). Its task state (`ZoneTask.State`): per subtask its station, its ticks, whether it counts, whether it is
+done, and its last `ZoneProgress` tick with whether its counting changed since. The state lives in `MatchState`
+(the phase object dies with Round), so Round's end stops the count and `ResetMatch` clears it.
+Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, and counting reads no role: a public
+event that depended on a role would reveal it (§9.2, ZD3).
+Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
+(M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
+`MovementRule.claim_age` and `credit_gain`; no `.tres` yet (M7-Z3). Tests: `tests/unit/tasks/zone_deal_test.gd`
+(the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
+and a slow claimer's, the clock's
+last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
+trip), `zone_role_swap_test.gd` (two roles swapped emit the same task events; planted "counts the crew only", it
+failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movement/movement_rule_claim_age_test.gd`,
+`tests/unit/content/mode_check_stations_test.gd`; fixtures `tests/fixtures/tasks/fixture_zone_modes.gd`.
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
@@ -4411,7 +4490,7 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), proposed: its game rules wait for the engineer's ZD1 to ZD11) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
+| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.17; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), proposed, §7.1.16) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2); its numbers are the engineer's (TD1) | two: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, and the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
@@ -4422,10 +4501,11 @@ bodies. It changes the intent catalogue (§4.1) and the owners once; after it, a
 most one effect.
 
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
-progress and a public "zone done" share `ZoneProgress`); with ZD1 (a), its recommendation and still open, its time
-runs in its task state, not on the channel primitive (§9.3), since standing is no action (with ZD1 (b) it runs on
-the channel). Delivery's cylinder test moves to `StationState` unchanged, so both
-types share one. The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
+progress and a public "zone done" share `ZoneProgress`), and as built in #647; with ZD1 (a), the engineer's answer,
+its time runs in its task state, not on the channel primitive (§9.3), since standing is no action. Delivery's
+cylinder test moved to `StationState` unchanged, so both types share one. Beyond the paper test it needed two
+helpers outside the parts: `MovementRule.claim_age` and `credit_gain` (§7.1.5), so a stale claim, or credit stored
+while standing, stops counting (ZE10). The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
 target, a timed action needed a new
 primitive (the channel) and the raise three public events and three intents. With them in place, a resurrection at
 a body (#34) is two or three part classes and one event class: a body is again a new kind of target, and a
@@ -4443,7 +4523,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it |
-| The zone task's game rules, numbers, names, maps and look (ZD1 to ZD11 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8): how its time is earned, pause or reset on leaving, who counts, shared zones, live progress | #36, the engineer; M7-Z1 needs ZD1 to ZD6, ZD9 and ZD7's "data or lobby setting" for the time |
+| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the maps are M7-Z3 and M7-Z5 |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |

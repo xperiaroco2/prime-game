@@ -2,7 +2,8 @@ class_name TaskType
 extends ContentPart
 ## How tasks are dealt and done (ARCHITECTURE §9.3): a class with settings, not composed rules,
 ## because a task type's deal and its check depend on each other. A new task type is one script:
-## this class with its TaskState as an inner class. The MVP's is Delivery (2f).
+## this class with its TaskState as an inner class. The MVP's is Delivery (2f); ZoneTask
+## (#647) is the second, and the first that ticks.
 ##
 ## Tasks are shared (the engineer's decision of 2026-09-30, #79): nobody owns a task, and any
 ## living player does any subtask. A match deals at most one task of each type: DealTasks draws

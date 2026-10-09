@@ -1,8 +1,8 @@
 class_name Tasks
 extends RefCounted
 ## What every task type does when one of its subtasks is done (ARCHITECTURE §4.2, §9.2): the
-## public progress, the task's and the match's, and the fact `subtask_done`. Delivery calls it; so
-## will #36's zone task. The task type marks the subtask done in its own task state first. Tasks
+## public progress, the task's and the match's, and the fact `subtask_done`. Delivery and ZoneTask
+## call it. The task type marks the subtask done in its own task state first. Tasks
 ## are shared (#79): no task has an owner, so nothing here is private. DealTasks announces every
 ## task's state after the deal (announce()).
 
@@ -52,3 +52,11 @@ static func subtask_done(ctx: MatchContext, task: MatchTask, detail: Variant) ->
 	fact.task = task.id
 	fact.detail = detail
 	ctx.raise_fact(fact)
+
+
+## `count` distinct indices of `available`, drawn from `rng`, in ascending (level) order: the
+## markers a task type places its stations or items on (Delivery, ZoneTask). Draws one shuffle.
+static func pick(available: int, count: int, rng: RandomNumberGenerator) -> PackedInt32Array:
+	var chosen := RngStreams.shuffled_indices(available, rng).slice(0, count)
+	chosen.sort()
+	return chosen

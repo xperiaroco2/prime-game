@@ -21,11 +21,14 @@ extends RefCounted
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
 ## carries an item), else the condition finds no target and its answer never changes (#379);
-## two rules on one trigger in one owner; a number outside its part's bounds; an id
-## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
-## whose event goes to everyone, which reveals the actor's role (§9.2); in a mode with a channel,
-## any role-owned or role-gated action, since applying it stops its actor's channel publicly (a
-## raiser's RaiseStopped) while a refused one stops nothing (§9.2).
+## two rules on one trigger in one owner; two station kinds among the task types with one id or
+## one spawn tag, one kind held twice included (stations take markers without asking whether one
+## stands there, and Demands keys palettes by the kind's id); a task type that ticks (#36's zone
+## task) in a mode where no phase lists TaskTicks, so it would never count; a number outside its
+## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
+## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2); in a
+## mode with a channel, any role-owned or role-gated action, since applying it stops its actor's
+## channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -61,6 +64,8 @@ func _check_mode(mode: GameMode) -> void:
 	_check_unique("task type", _ids(mode.task_types))
 	_check_unique("phase", _ids(mode.phases))
 	_walk(mode, "mode", mode, {})
+	_check_stations(mode)
+	_check_ticking(mode)
 	_check_rules(mode)
 	_check_rows(mode)
 	_check_phases(mode)
@@ -320,6 +325,57 @@ static func _any_channel(mode: GameMode) -> bool:
 			if rule != null and _starts_channel(rule):
 				return true
 	return false
+
+
+## Two station kinds of the mode's task types with one id or one spawn tag (ZE3 of the zone task
+## ADR): each task type places its stations on markers of its kind's tag without asking whether a
+## station stands there already, so two kinds on one tag would share spots, and Demands counts
+## palette colours per kind id. One entry per StationKind property of a task type, not per kind:
+## one kind held by two properties (a zone and a circle) would share spots the same way.
+func _check_stations(mode: GameMode) -> void:
+	var paths: Array[String] = []
+	var kinds: Array[StationKind] = []
+	for i in mode.task_types.size():
+		var type := mode.task_types[i]
+		if type == null:
+			continue
+		for property: Dictionary in type.get_property_list():
+			if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
+				continue
+			var name: String = property["name"]
+			var value: Variant = type.get(name)
+			if value is StationKind:
+				paths.append("mode.task_types[%d].%s" % [i, name])
+				kinds.append(value as StationKind)
+	for i in kinds.size():
+		for j in range(i + 1, kinds.size()):
+			var pair := "%s and %s" % [paths[i], paths[j]]
+			if kinds[i] == kinds[j]:
+				errors.append("%s hold one station kind, %s" % [pair, kinds[i].id])
+				continue
+			if not kinds[i].id.is_empty() and kinds[i].id == kinds[j].id:
+				errors.append("%s: two station kinds with the id %s" % [pair, kinds[i].id])
+			if not kinds[i].spawn_tag.is_empty() and kinds[i].spawn_tag == kinds[j].spawn_tag:
+				errors.append(
+					(
+						"%s: station kinds %s and %s share spawn tag %s"
+						% [pair, kinds[i].id, kinds[j].id, kinds[i].spawn_tag]
+					)
+				)
+
+
+## A task type that ticks (TaskType.has_tick: #36's zone task) where no phase lists TaskTicks:
+## its tick would never run, so its subtasks could never be done and every round would end by
+## time up.
+func _check_ticking(mode: GameMode) -> void:
+	for spec: PhaseSpec in mode.phases:
+		if spec != null and _lists(spec, TaskTicks):
+			return
+	for type: TaskType in mode.task_types:
+		if type != null and type.has_tick():
+			errors.append(
+				"task type %s ticks, but no phase lists TaskTicks: it would never run" % type.id
+			)
 
 
 ## A row's actions run with no actor, so a ChannelEffect among them is an error.
