@@ -99,6 +99,51 @@ func test_a_correction_outside_a_placement_fails() -> void:
 	assert_str(theirs).contains("Correction outside a placement")
 
 
+func test_the_bot_s_where_is_a_copy_of_item_state_s() -> void:
+	# The bot folds the core's places by name; a reorder or a new place must show up here.
+	assert_dict(ScenarioBot.Where).is_equal(ItemState.Where)
+
+
+func test_a_thrown_item_flies_unknown_until_its_flight_ends() -> void:
+	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
+	var package := _target(ScenarioTarget.Kind.PACKAGE)
+	package.index = 1
+	var lay := Vector3(1, 0, 1)
+	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", lay))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7))).is_empty()
+	assert_int(bot.held).is_equal(7)
+	var origin := Vector3(1, 1.4, 1)
+	var thrown := ItemThrownEvent.new(
+		7, bot.peer, origin, Vector3(0, 2, -5), Vector3(0, -9.8, 0), 40
+	)
+	assert_str(_receive(bot, thrown)).is_empty()
+	assert_int(bot.held).is_equal(-1)
+	assert_int(bot.items[7]["where"]).is_equal(ScenarioBot.Where.FLYING)
+	# Neither its old place nor where it left the hand: a step aimed at it cannot know.
+	assert_vector(bot.where_is(package)).is_equal(Vector3.INF)
+	var rest := Vector3(1, 0, -3)
+	assert_str(_receive(bot, ItemPlacedEvent.new(7, rest, Items.THROWN))).is_empty()
+	assert_int(bot.items[7]["where"]).is_equal(ScenarioBot.Where.GROUND)
+	assert_vector(bot.where_is(package)).is_equal(rest)
+
+
+func test_another_player_s_throw_leaves_the_bot_s_hands_alone() -> void:
+	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
+	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", Vector3.ZERO))).is_empty()
+	assert_str(_receive(bot, ItemSpawnedEvent.new(8, &"package", Vector3.ONE))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7, 8))).is_empty()
+	var other := bot.peer + 1
+	var flight := ItemThrownEvent.new(9, other, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 3)
+	assert_str(_receive(bot, flight)).is_empty()
+	assert_int(bot.held).is_equal(7)
+	assert_int(bot.belted).is_equal(8)
+	# Its own belted item thrown (a belt never throws today; the fold still lets it go).
+	var belted := ItemThrownEvent.new(8, bot.peer, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 4)
+	assert_str(_receive(bot, belted)).is_empty()
+	assert_int(bot.belted).is_equal(-1)
+	assert_int(bot.held).is_equal(7)
+
+
 func test_the_invariants_catch_a_leak() -> void:
 	# A wrong audience (§5): Teammates to a crew member, another player's SelfStatus.
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new(), _round()]]))
