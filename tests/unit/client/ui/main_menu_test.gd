@@ -364,6 +364,20 @@ func test_direct_joins_an_address_that_parses_and_hosts_on_the_typed_port() -> v
 	_menu.address_edit.text = ""
 	host.pressed.emit()
 	assert_array(hosts).contains_exactly([7777, 7010, 7020, 7777])
+	# A typed port that is not one turns Host off, not quietly onto the default (#493 review);
+	# an address that does not parse leaves it on (hosting needs none).
+	for typed: String in ["1.2.3.4:99999", ":abc", "[::1]x"]:
+		_menu.address_edit.text = typed
+		_menu.address_edit.text_changed.emit(typed)
+		assert_bool(host.disabled).override_failure_message(typed).is_true()
+		host.pressed.emit()
+	for typed: String in ["bad name!", "bad name!:7030", ""]:
+		_menu.address_edit.text = typed
+		_menu.address_edit.text_changed.emit(typed)
+		assert_bool(host.disabled).override_failure_message(typed).is_false()
+	host.pressed.emit()
+	assert_array(hosts).contains_exactly([7777, 7010, 7020, 7777, 7777])
+	assert_int(MainMenu.typed_port("1.2.3.4:99999", 7777)).is_equal(-1)
 	assert_bool(_menu.address_edit.context_menu_enabled).is_false()
 
 

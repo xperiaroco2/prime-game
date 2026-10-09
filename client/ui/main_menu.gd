@@ -186,9 +186,11 @@ static func code_text(typed: String) -> String:
 	return kept.left(SignalCodec.CODE_LENGTH)
 
 
-## The port Direct's Host hosts on: the one typed after the address, else `fallback`.
+## The port Direct's Host hosts on: the one typed after the address, else `fallback`; -1 when
+## the typed port is not one (Host is off then, not quietly on `fallback`).
 static func typed_port(typed: String, fallback: int) -> int:
-	return JoinTarget.of_direct(typed, fallback).port
+	var target := JoinTarget.of_direct(typed, fallback)
+	return -1 if target.port_problem else target.port
 
 
 ## Every text set from code again, in the language now.
@@ -206,11 +208,13 @@ func set_default_port(port: int) -> void:
 	retext()
 
 
-## The Join buttons as the fields allow: a whole code, an address that parses.
+## The buttons as the fields allow: Join a whole code or an address that parses, Host a port
+## that parses or none.
 func refresh_buttons() -> void:
 	(code_join.face as Button).disabled = not SignalCodec.is_code(code_edit.text)
 	var target := JoinTarget.of_direct(address_edit.text, default_port)
 	(direct_join.face as Button).disabled = not target.problem.is_empty()
+	(direct_host.face as Button).disabled = target.port_problem
 
 
 func _show(which: Open) -> void:
@@ -383,12 +387,7 @@ func _build_direct_panel() -> void:
 	direct_join = _raised_button("Join", "join.connect", &"ToyButtonPrimary", _join_direct)
 	direct_join.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(direct_join)
-	direct_host = _raised_button(
-		"Host",
-		"menu.host",
-		&"ToyButtonSecondary",
-		func() -> void: host_requested.emit(typed_port(address_edit.text, default_port))
-	)
+	direct_host = _raised_button("Host", "menu.host", &"ToyButtonSecondary", _host_direct)
 	buttons.add_child(direct_host)
 	_ghost(direct_back, buttons)
 
@@ -505,6 +504,12 @@ func _join_code() -> void:
 func _join_direct() -> void:
 	if not (direct_join.face as Button).disabled:
 		join_requested.emit(address_edit.text.strip_edges(), default_port)
+
+
+func _host_direct() -> void:
+	var port := typed_port(address_edit.text, default_port)
+	if port > 0:
+		host_requested.emit(port)
 
 
 func _on_code_changed(typed: String) -> void:
