@@ -64,9 +64,10 @@ EXIT_LINE = re.compile(r"^exit=(\d+)$")
 FAILING_LINE = re.compile(r"^\s*(FAIL|ERROR)\b|Traceback|AssertionError|\bFAILED\b")
 FAILING_SHOWN = 12
 # The end line of a verify summary block: what follows it in a publish log (git push's lines, "ok pushed", "publish:
-# done") is the outcome the agent waits for, capped on its own so the block stays whole for `metrics` (parse_verify).
+# done") is the outcome the agent waits for. The block gets the cap less AFTER_MIN bytes (it stays whole for `metrics`
+# (parse_verify) when it fits), the lines after it what the block left, never less than AFTER_MIN.
 VERIFY_END_LINE = re.compile(r"^verify: (passed|FAILED)\b")
-AFTER_CAP = 1500
+AFTER_MIN = 300
 # The last lines a summary without a verify end line always keeps (a merge-train's count, the end of a mutants run).
 END_LINES = 6
 # How old a passed verify may be for `publish` to push on it instead of verifying again (#471): a verify that ran two
@@ -140,14 +141,15 @@ def quiet_report(lines: list[str], code: int, whole: str) -> list[str]:
     """What a finished job prints by default (#590): its summary, at most SUCCESS_CAP bytes when it passed; when it
     failed at most FAILURE_CAP, the summary and then the first failing lines of its log. Lines over the cap are cut
     from the middle (a line says how many, with `whole`, the log's path): the verify end line and the last lines
-    always print, and the lines after a verify block (publish's push) have their own AFTER_CAP."""
+    always print, and the lines after a verify block (publish's push) share the cap with it (AFTER_MIN)."""
     cap = SUCCESS_CAP if code == 0 else FAILURE_CAP
     more = f"whole log: {whole}"
     summary = summary_lines(lines)
     ends = [i for i, line in enumerate(summary) if VERIFY_END_LINE.match(line)]
     if ends:
         block, after = summary[: ends[-1] + 1], summary[ends[-1] + 1 :]
-        report = cap_lines(block, cap, more, keep_end=1) + cap_lines(after, AFTER_CAP, more, keep_end=3)
+        kept = cap_lines(block, cap - (AFTER_MIN if after else 0), more, keep_end=1)
+        report = kept + cap_lines(after, max(cap - line_bytes(kept), AFTER_MIN), more, keep_end=3)
     else:
         report = cap_lines(summary, cap, more, keep_end=END_LINES)
     if code != 0:

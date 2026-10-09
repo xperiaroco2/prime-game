@@ -245,6 +245,16 @@ class QuietWaitTest(unittest.TestCase):
         self.assertEqual(out[: len(block)], block)  # whole, for metrics.parse_verify
         self.assertEqual(out[-3:-1], ["  ok    pushed tooling/590-x at 0123456789 (new)", "publish: done"])
         self.assertIsNotNone(metrics.parse_verify("\n".join(out)))
+        self.assertLessEqual(len("\n".join(out[:-1]).encode()), common.SUCCESS_CAP + 200)  # one cap for both parts
+
+    def test_a_red_publish_with_a_long_push_stays_under_4_kb(self) -> None:
+        block = ["verify summary", *STEPS, "  FAILED  lint   1.0s", "verify: FAILED in 3.0s"]
+        push = [f"        remote: line {n} " + "r" * 100 for n in range(60)] + ["  FAIL  push refused", "publish: stopped"]
+        rc, out = self.wait([*block, *push, "exit=1"])
+        self.assertEqual(rc, 1)
+        self.assertEqual(out[: len(block)], block)
+        self.assertEqual(out[-3:-1], ["  FAIL  push refused", "publish: stopped"])
+        self.assertLessEqual(len("\n".join(out[:-1]).encode()), common.FAILURE_CAP + 200)
 
     def test_a_summary_without_a_verify_end_line_keeps_its_last_lines(self) -> None:
         summary = ["merge-train summary", *[f"  merged  #{n} " + "m" * 80 for n in range(30)]]
