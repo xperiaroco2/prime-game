@@ -3,22 +3,22 @@ extends RefCounted
 ## Game modes and drivers for the unit tests of a thrown item's flight (core/items/, §7.1.16),
 ## built in code on FixtureItemModes.basic() (a part's unit tests never load `content/`, §9.6).
 ##
-## basic(throw): the item fixture mode (PickUp, PutDown, kinds `package` and `tool`, the note
+## basic(effect): the item fixture mode (PickUp, PutDown, kinds `package` and `tool`, the note
 ## "rested <item> <cause> <position>" on item_rested) whose `Use` with an item in hand runs
 ## `throw` (FixtureThrow: 10 m/s by default), and whose Round lists FlightTicks after LifeTicks.
 ## The fixture capsule: radius 0.4 m, height 1.8 m, eye at 1.6 m.
 ##
-## with_throw(mode, throw): the same `Use` rule and FlightTicks added to another fixture mode built
+## with_throw(mode, effect): the same `Use` rule and FlightTicks added to another fixture mode built
 ## on FixtureItemModes.basic() (FixtureDeliveryModes.basic(), for a thrown package).
 
 
-static func basic(throw: FixtureThrow = null) -> GameMode:
-	return with_throw(FixtureItemModes.basic(), throw)
+static func basic(effect: FixtureThrow = null) -> GameMode:
+	return with_throw(FixtureItemModes.basic(), effect)
 
 
-static func with_throw(mode: GameMode, throw: FixtureThrow = null) -> GameMode:
-	var effect := throw if throw != null else FixtureThrow.new()
-	mode.actions.append(FixtureModes.rule(Intents.USE, [HoldsItem.new()], [effect]))
+static func with_throw(mode: GameMode, effect: FixtureThrow = null) -> GameMode:
+	var thrown_by := effect if effect != null else FixtureThrow.new()
+	mode.actions.append(FixtureModes.rule(Intents.USE, [HoldsItem.new()], [thrown_by]))
 	mode.find_phase(&"round").tick_systems.append(FlightTicks.new())
 	return mode
 

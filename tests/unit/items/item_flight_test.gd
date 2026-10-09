@@ -21,6 +21,7 @@ func test_a_point_one_second_out_is_exact() -> void:
 	# Numbers float32 holds exactly: s = 1, so p = o + v + g / 2.
 	var at := ItemFlight.point(Vector3(0, 2, 0), Vector3(4, 0, 0), Vector3(0, -8, 0), Ticks.RATE)
 	assert_vector(at).is_equal(Vector3(4, -2, 0))
+	@warning_ignore("integer_division")
 	var half := ItemFlight.point(
 		Vector3(0, 2, 0), Vector3(4, 0, 0), Vector3(0, -8, 0), Ticks.RATE / 2
 	)
@@ -54,7 +55,7 @@ func test_flying_comes_after_belt() -> void:
 func test_only_a_flying_item_is_in_flight_and_none_is_carried() -> void:
 	var item := ItemState.new(1, null, Vector3.ZERO)
 	for where: int in ItemState.Where.values():
-		item.where = where
+		item.where = where as ItemState.Where
 		assert_bool(item.is_in_flight()).is_equal(where == ItemState.Where.FLYING)
 	item.where = ItemState.Where.FLYING
 	assert_bool(item.is_carried()).is_false()
