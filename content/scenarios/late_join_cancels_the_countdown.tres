@@ -74,6 +74,12 @@ script = ExtResource("3_ptuwj")
 mode = ExtResource("1_l6oby")
 session_seed = 444000000004
 bots = 3
+settings = Dictionary[StringName, int]({
+&"tasks": 1
+})
+id_sets = Dictionary[StringName, PackedStringArray]({
+&"banned_task_types": PackedStringArray("hold_the_zone")
+})
 scripts = Array[ExtResource("4_ftr04")]([SubResource("Resource_11j4s"), SubResource("Resource_vdsol"), SubResource("Resource_kp14q")])
 expected_ends = Array[StringName]([&"none"])
 time_limit_s = 30.0

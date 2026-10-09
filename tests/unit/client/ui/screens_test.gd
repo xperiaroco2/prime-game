@@ -36,7 +36,8 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_str(panel.shortfalls_label.text).contains("4 to 10")
 	assert_str(panel.countdown_label.text).is_equal("Waiting for everyone")
 	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
-	assert_int(boxes.size()).is_equal(5)
+	# match_duration, tasks, packages, zones (#649), dissidents, knives.
+	assert_int(boxes.size()).is_equal(6)
 	(boxes[0] as SpinBox).value = 3
 	assert_array(sent).is_equal([[&"match_duration", 3]])
 

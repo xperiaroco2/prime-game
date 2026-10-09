@@ -344,6 +344,12 @@ script = ExtResource("3_q40l0")
 mode = ExtResource("1_1chuq")
 session_seed = 411000000001
 bots = 4
+settings = Dictionary[StringName, int]({
+&"tasks": 1
+})
+id_sets = Dictionary[StringName, PackedStringArray]({
+&"banned_task_types": PackedStringArray("hold_the_zone")
+})
 forced_roles = Dictionary[int, StringName]({
 4: &"dissident"
 })

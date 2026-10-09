@@ -164,7 +164,11 @@ script = ExtResource("3_71ojc")
 mode = ExtResource("1_uwg1f")
 session_seed = 466000000006
 settings = Dictionary[StringName, int]({
-&"packages": 10
+&"packages": 10,
+&"tasks": 1
+})
+id_sets = Dictionary[StringName, PackedStringArray]({
+&"banned_task_types": PackedStringArray("hold_the_zone")
 })
 scripts = Array[ExtResource("4_xk2kj")]([SubResource("Resource_ua3fo")])
 expected_ends = Array[StringName]([&"none"])
