@@ -404,6 +404,8 @@ Open questions (the engineer's; #688's "Open" and the ADR's RD items, each with 
 - Does a hit that does not knock down drop the car (as it stops a raise), and does it stop a fit? Does a stopped fit
   start again from zero?
 - After the last part: can the lift still be raised?
+- Does the car drop and kill when its holder leaves the match or loses the connection, and when the round ends while
+  it is up?
 - The task's name and description, and the lobby label of its subtask count.
 - Does car repair play on the greybox too, and does every match deal it?
 - The sounds: the lift's motor, the drop, a part taken and fitted? Should a sound play while a fit runs? The holder at
