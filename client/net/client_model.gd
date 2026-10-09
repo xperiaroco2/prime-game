@@ -2,10 +2,10 @@ class_name ClientModel
 extends RefCounted
 ## What one client knows now (ARCHITECTURE §4.6), folded from the events and snapshots it decoded:
 ## its peer id and epoch, the phase, the roster, the settings, the items with every player's hand
-## and belt, the stations (a zone's progress too), the tasks and bodies, each player's life (E25),
-## the avatars of the newest snapshot and its own SelfStatus. Built only from what the host sent
-## this client, never from core/ state (invariant 2). The game mode is the client's own copy, read
-## for where each phase plays.
+## and belt and their flights (§7.1.16), the stations (a zone's progress too), the tasks and
+## bodies, each player's life (E25), the avatars of the newest snapshot and its own SelfStatus.
+## Built only from what the host sent this client, never from core/ state (invariant 2). The game
+## mode is the client's own copy, read for where each phase plays.
 ##
 ## A match's facts (items, stations, bodies, role, tasks, avatars and the like) are cleared on
 ## LoadMatch and on entering the lobby: a new level holds none of the old ones. A snapshot sent
@@ -40,6 +40,22 @@ class Item:
 	var station := -1
 	var colour := Color.WHITE
 	var delivered := false
+	## In flight (§7.1.16): from its ItemThrown until its ItemPlaced (cause `thrown`) or
+	## PackageDelivered. The launch exactly as the event carries it, so a client draws the arc
+	## from the same vectors the host's flight uses (37e): the thrower, the origin, velocity and
+	## gravity, and the launch tick L (the point at host tick t is the arc's at t - L). While it
+	## flies, `position` is the origin, a stand-in: the item rests nowhere (rests() is false).
+	var flying := false
+	var thrower := NO_HOLDER
+	var flight_origin := Vector3.ZERO
+	var flight_velocity := Vector3.ZERO
+	var flight_gravity := Vector3.ZERO
+	var flight_tick := 0
+
+	## Lies in the world at `position`: nobody carries it and it is not in flight (a delivered
+	## package rests in its circle).
+	func rests() -> bool:
+		return holder == NO_HOLDER and not flying
 
 
 ## One task as its TaskState tells it (E30): the task screen's row.
@@ -315,12 +331,16 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			if item != null:
 				item.holder = NO_HOLDER
 				item.belted = false
+				item.flying = false
 				item.position = fields["position"]
+		&"ItemThrown":
+			_fold_throw(fields)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:
 				item.holder = NO_HOLDER
 				item.belted = false
+				item.flying = false
 				item.delivered = true
 			var station: Station = stations.get(fields["station"] as int)
 			if station != null:
@@ -376,6 +396,24 @@ func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
 	if belted != null:
 		belted.holder = peer
 		belted.belted = true
+
+
+## A throw (§7.1.16): the item leaves its thrower's hand and flies, its launch kept exactly as
+## sent, until its ItemPlaced or PackageDelivered ends the flight. A phase change ends no flight
+## here: the host pauses one in a phase without FlightTicks, and hiding it then is the view's (37e).
+func _fold_throw(fields: Dictionary) -> void:
+	var item: Item = items.get(fields["item"] as int)
+	if item == null:
+		return
+	item.holder = NO_HOLDER
+	item.belted = false
+	item.flying = true
+	item.thrower = fields["peer"]
+	item.flight_origin = fields["origin"]
+	item.flight_velocity = fields["velocity"]
+	item.flight_gravity = fields["gravity"]
+	item.flight_tick = fields["tick"]
+	item.position = item.flight_origin
 
 
 ## The item `peer` carries in the hand (`on_belt` false) or on the belt, or -1.
