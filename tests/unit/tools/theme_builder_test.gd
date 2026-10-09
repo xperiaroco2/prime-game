@@ -512,6 +512,9 @@ func test_the_committed_themes_have_the_font_only_once_it_is_in_the_project() ->
 func test_the_font_becomes_a_variation_per_label_weight() -> void:
 	var stand_in := ThemeDB.fallback_font
 	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
+	# The OpenType tag itself, not only what the builder's own call returns (#520 review): a text
+	# server that cannot map the name would give both sides the same wrong key.
+	assert_int(wght).is_equal(0x77676874)
 	for text_size: String in ["default", "large"]:
 		var theme := Builder.build_with_font(_pack, _mapping, text_size, stand_in)
 		var body := theme.default_font as FontVariation
