@@ -46,7 +46,7 @@ export const meta = {
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
