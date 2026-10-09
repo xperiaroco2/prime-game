@@ -4269,7 +4269,8 @@ def tracks_main(
 ) -> int:
     """`metrics --track`: the tracks' spend since the reset (--since) against their budgets (module docstring)."""
     if not since:
-        raise Failure("--track needs --since <the weekly reset> (ISO 8601): the week's spend counts from it")
+        raise Failure("--track needs --since <the moment the counter last restarted> (ISO 8601): "
+                      "the week's spend counts from it")
     t_since = parse_time(since)
     t_until = parse_time(until) if until else time.time()
     if t_since >= t_until:
