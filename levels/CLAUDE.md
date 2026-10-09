@@ -45,8 +45,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     tests each zone's cylinder against the host's collision world (no wall, ceiling or furniture inside, flat floor
     under it, #651);
   - keeps **ZE9's distances**, which `tests/unit/content/zone_content_test.gd` checks on every map of the base
-    mode, read in the host's collision world (#681): any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least its
-    radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
+    mode, read in the host's collision world (#681): any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least
+    its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
     are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
 - Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
