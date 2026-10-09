@@ -1,7 +1,8 @@
 # Throwing held items (#37): the flight in `core/`, and the engineer's questions
 
-- **Status:** Proposed on 2026-10-09 for the engineer's review on the design PR. Nothing here is built. The TD items
-  are his (game rules and taste: the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier
+- **Status:** Accepted on 2026-10-09: the engineer took every recommendation (see the update below); being built, 37a
+  and 37b done. The TD items were his
+  (game rules and taste: the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier
   (c), "ask and wait"), and no task is opened on a TD item before his answer; the TE items are technical, and each
   recommendation stands until he says otherwise. TE1 is his too, because it revises what two accepted ADRs sketched
   for #37. Where a technical choice also decides what players see (bounces, a running throw, where an item with no
