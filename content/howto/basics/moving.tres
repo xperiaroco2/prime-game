@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="HowtoCard" format=3 uid="uid://cfwblnkyabquw"]
+
+[ext_resource type="Script" uid="uid://cetfr522fmpdv" path="res://client/ui/howto_card.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://bhqxouukqa5pa" path="res://client/ui/howto_frame.gd" id="2_frame"]
+
+[sub_resource type="Resource" id="HowtoFrame_1"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.move.title"
+
+[sub_resource type="Resource" id="HowtoFrame_2"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.pick_up.title"
+
+[sub_resource type="Resource" id="HowtoFrame_3"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.put_down.title"
+
+[sub_resource type="Resource" id="HowtoFrame_4"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.hand_belt.title"
+
+[resource]
+script = ExtResource("1_card")
+id = &"moving"
+title = &"guide.moving"
+frames = Array[ExtResource("2_frame")]([SubResource("HowtoFrame_1"), SubResource("HowtoFrame_2"), SubResource("HowtoFrame_3"), SubResource("HowtoFrame_4")])
