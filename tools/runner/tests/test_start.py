@@ -532,24 +532,32 @@ class StartTest(unittest.TestCase):
         target.mkdir()
         self.project(target)
         self.work = source
-        (source / ".godot").mkdir(parents=True)
+        cache = self.main_cache()
+        (cache / "shader_cache").mkdir()
+        (cache / "shader_cache" / "big.bin").write_bytes(b"x")
         self.assertFalse(start.seed_import_cache(source, target), "no project.godot in the source")
         self.project(source, '"4.8", "Forward Plus"')
-        cache = source / ".godot"
-        (cache / "global_script_class_cache.cfg").write_text("list=[]\n", encoding="utf-8")
-        (cache / "runner_import.stamp").write_text("1.0\n", encoding="ascii")
         self.assertFalse(start.seed_import_cache(source, target), "another Godot minor")
+        (source / "project.godot").write_text('config/name="Other"\nconfig/features=PackedStringArray("4.7", "Forward Plus")\n', encoding="utf-8")
+        self.assertFalse(start.seed_import_cache(source, target), "another project")
         self.project(source)
         (cache / "runner_import.stamp").unlink()
         self.assertFalse(start.seed_import_cache(source, target), "a cache the runner did not make")
         (cache / "runner_import.stamp").write_text("1.0\n", encoding="ascii")
         self.assertFalse((target / ".godot").exists())
         self.assertTrue(start.seed_import_cache(source, target))
+        self.assertTrue((target / ".godot" / "imported" / "a.png-1.md5").is_file())
+        self.assertFalse((target / ".godot" / "shader_cache").exists(), "an import does not need the shader cache")
         self.assertFalse(start.seed_import_cache(source, target), "the target has its own cache now")
-        with mock.patch.object(start.shutil, "copytree", side_effect=OSError("busy")):
-            force_rmtree(str(target / ".godot"))
+        force_rmtree(str(target / ".godot"))
+
+        def half_copy(src: Path, dst: Path, **_: object) -> None:  # the editor wrote meanwhile
+            (dst / "imported").mkdir(parents=True)
+            raise OSError("busy")
+
+        with mock.patch.object(start.shutil, "copytree", side_effect=half_copy):
             self.assertFalse(start.seed_import_cache(source, target), "a copy error skips silently")
-        self.assertFalse((target / ".godot").exists())
+        self.assertFalse((target / ".godot").exists(), "a half copy is removed")
 
     def test_include_keeps_the_engineer_here(self) -> None:
         self.write("f.txt", "edited\n")

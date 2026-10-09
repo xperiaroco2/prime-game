@@ -316,8 +316,10 @@ def create_worktree(number: int, branch: str, dry_run: bool, parent: str = BASE)
 # source changed (the .md5 files under .godot/imported/), so a copy of the main checkout's cache makes that import
 # incremental. Only a cache the runner made (its stamp and class cache are there, so the pinned Godot made it,
 # common.check_godot_version) for the same project (project.godot's name and features, the latter naming the Godot
-# minor) is copied, without the stamp: check.freshness then still imports once in the new worktree.
-SEED_SKIP = ("runner_import.stamp",)
+# minor) is copied, without the stamp (check.freshness then still imports once in the new worktree) and without the
+# shader cache, which an import does not need and which can be large.
+SEED_STAMP = "runner_import.stamp"
+SEED_SKIP = (SEED_STAMP, "shader_cache")
 PROJECT_KEYS_RE = re.compile(r"^config/(name|features)=.*$", re.MULTILINE)
 
 
@@ -333,7 +335,7 @@ def seed_import_cache(source: Path, target: Path) -> bool:
     """Copy source/.godot to target/.godot when the target has none and both are the same project; True if copied.
     Anything else (no cache, another project or Godot minor, a copy error) skips silently: the import runs as before."""
     cache, dest = source / ".godot", target / ".godot"
-    if dest.exists() or not (cache / "global_script_class_cache.cfg").is_file() or not (cache / SEED_SKIP[0]).is_file():
+    if dest.exists() or not (cache / "global_script_class_cache.cfg").is_file() or not (cache / SEED_STAMP).is_file():
         return False
     keys = _project_keys(source)
     if keys is None or keys != _project_keys(target):
