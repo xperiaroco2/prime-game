@@ -652,7 +652,8 @@ log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.
 const [TIER, TIER_WHY] = tierOf(impl.changed_paths || [])
 const LIGHT = TIER === 'light'
 // The agents the launch passed that this run's tier dropped (#606). In the light tier test_review and second_review
-// would not run anyway (no production path, no netcode review); they are listed so the result says why.
+// would not run anyway (no production path, no netcode review); they are listed so the result says why. What light
+// really removes is the skeptic and plan_review (the `!LIGHT` guard on second_review below only restates that).
 const TIER_SKIPPED = [
   PLAN_SKIPPED && 'plan_review', LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review',
   LIGHT && SKEPTICS > 0 && 'skeptic',

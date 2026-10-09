@@ -55,8 +55,9 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
 - The compact result (#386) stays small: `CompactResultTest` bounds it.
 - `issue-task.js`'s review tier (#606): the implementer's changed paths choose, the worst winning. `full` (a path
   under `core/ server/ net/ client/ voice/ tests/harness/`, quick-task's `REVIEWED` copied; no paths; a design task;
-  the arg `tier: 'full'`) runs the whole chain; `light` drops `test_review`, `second_review` and `skeptic`, and
-  `plan_review` by the branch's area. `ReviewTierTest` covers it.
+  the arg `tier: 'full'`) runs the whole chain; `light` drops `skeptic`, and `plan_review` by the branch's area. It
+  lists `test_review` and `second_review` as dropped too, but those were already path-gated and never ran on a light
+  diff: compare tiers in `metrics` by the skeptic and the plan. `ReviewTierTest` covers it.
 - `tools\run.cmd metrics` and `wave` read each agent's role from its label (`metrics.role_of`): `implement:#<n>`,
   `review:code:#<n>` and the like, with a suffix `#<k>` for a later agent of the same role (issue-task's checkpoint
   continuations, `implement:#<n>#2`; pr-rebase's `fix:#<n>#2`). A suffix `:<k>` makes the label unknown ("other").
