@@ -284,6 +284,12 @@ func test_the_code_field_takes_only_the_alphabet_upper_case_and_six_at_most() ->
 	await _frames(1)
 	assert_str(_menu.code_edit.text).is_equal("K7M2QX")
 	assert_bool((_menu.code_join.face as Button).disabled).is_false()
+	# A key typed into the full field is refused; the last character stays (#493 review).
+	_menu.code_edit.caret_column = 0
+	_menu.code_edit.insert_text_at_caret("a")
+	await _frames(1)
+	assert_str(_menu.code_edit.text).is_equal("K7M2QX")
+	assert_int(_menu.code_edit.caret_column).is_equal(0)
 
 
 func test_join_takes_a_whole_code_and_enter_joins_only_then() -> void:

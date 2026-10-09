@@ -523,13 +523,17 @@ func _on_code_rejected(rest: String) -> void:
 	_take_rejected.call_deferred()
 
 
+## Only what fits the room the field has left: a key typed into a full field is refused, as a
+## full field refuses it, and never pushes the last character out.
 func _take_rejected() -> void:
-	if _rejected.is_empty():
+	var room := SignalCodec.CODE_LENGTH - code_text(code_edit.text).length()
+	var taken := code_text(_rejected).left(maxi(room, 0))
+	_rejected = ""
+	if taken.is_empty():
 		return
 	var caret := code_edit.caret_column
-	var whole := code_edit.text.left(caret) + _rejected + code_edit.text.substr(caret)
-	var before := code_text(code_edit.text.left(caret) + _rejected)
-	_rejected = ""
+	var whole := code_edit.text.left(caret) + taken + code_edit.text.substr(caret)
+	var before := code_text(code_edit.text.left(caret) + taken)
 	code_edit.text = code_text(whole)
 	code_edit.caret_column = mini(before.length(), code_edit.text.length())
 	refresh_buttons()
