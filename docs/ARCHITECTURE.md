@@ -3450,7 +3450,7 @@ have the player in the air), and §7.1.5's notes on the stamina prediction. Test
 `tests/unit/net/messages/wire_schema_test.gd`.
 
 #### 7.1.16 Throws (designed in #37; proposed, not built)
-The [throwing ADR](decisions/2026-10-09-throwing-held-items.md) is proposed: the engineer's answers to its TD1 to TD8
+The [throwing ADR](decisions/2026-10-09-throwing-held-items.md) is proposed: the engineer's answers to its TD1 to TD12
 and TE1 are pending, and this section follows each recommendation. The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
@@ -3459,7 +3459,7 @@ there would not follow from the commands.
   role or the mode (§9.2): `HoldsItem`, then the effect `ThrowItem` (speed, gravity, radius, longest flight: the
   engineer's numbers). The client sends only its facing; a non-finite or zero facing takes the last accepted claim's,
   as `Strike` does (§7.1.10). The host launches from `Items.eye_of` (the floor below the last accepted position plus
-  the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity. Prevents: a throw
+  the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity (TD10). Prevents: a throw
   farther than the rule, from somewhere else, or through a wall. `Throw` is one of `Intents.PLAYER_ACTIONS`, so the
   dead never throw and the client sends its claim's twin right before it (§7.1.15).
 - **The flight.** The item is `FLYING`. Each later tick, `FlightTicks` sweeps the arc's segment between two ticks'
@@ -3469,13 +3469,13 @@ there would not follow from the commands.
   the world. `server/` answers with `intersect_shape`, then `cast_motion`, which ignores a shape the sphere starts
   in. The mode check keeps the throw's sphere inside the player's capsule at the eye, so a thrower pressed against a
   wall can still throw away from it. A living player other than the thrower stops it too (their capsule at the last
-  accepted position, as hits read it); the downed are flown over. Prevents: an item through a crack or a ceiling, and
+  accepted position, as hits read it); the downed are flown over (TD12). Prevents: an item through a crack or a ceiling, and
   a landing that differs between two runs of the same commands.
 - **The rest.** At the first contact the item drops to `floor_below` of the stop point and rests through
   `Items.place` with the cause `thrown`: `ItemPlaced`, then `item_rested`, so the delivery check (§7.1.14) runs as
   for any rest. That rest is the base point on the floor (the engineer's answer on PR #82, recorded on #37). A flight
   past the longest flight stops at its last point. With no floor below the stop, the item rests at the thrower's feet
-  at the throw (the origin less the eye height) and the match logs an error, as for a drop (§7.1.13): a level with a
+  at the throw (the origin less the eye height; TD11) and the match logs an error, as for a drop (§7.1.13): a level with a
   hole. Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
   exactly, launch tick) goes to everyone; nothing in it is hidden (§5). The snapshot stays avatars only (§4.3): the
@@ -3484,7 +3484,9 @@ there would not follow from the commands.
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
 - **Open for the engineer:** strength and range (TD1), which items (TD2), what a thrown item does to a player (TD3),
   whether a thrown package counts in its circle (TD4, recommended: yes, by the rule), where an item may come to rest
-  (TD5), a cost (TD6), the key (TD7) and catching (TD8). The proposed issues 37a to 37f are in the ADR.
+  (TD5), a cost (TD6), the key (TD7), catching (TD8), stop and drop or bounces (TD9), whether a running throw goes
+  farther (TD10, recommended: no), where an item with no floor below rests (TD11) and whether the downed stop an item
+  (TD12). The proposed issues 37a to 37f are in the ADR.
 
 ## 8. Debug tooling
 
@@ -4428,7 +4430,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
-| Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching (TD1 to TD8 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
+| Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Designed in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), proposed): a return key per settings file, the old number back in the lobby only, nothing else restored; P1, P3, P4, P9, P11, P12, P13 and the split wait for the engineer. Proposed: 73-A and 73-B in M7 after #550 and #551; a return into a running round only as its own design (73-D) |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
