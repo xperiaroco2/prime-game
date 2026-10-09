@@ -1824,21 +1824,21 @@ and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A p
 (§7.1). A second job, `python-min` (#349), sets up the pinned minimum Python (`pins --get python_min`, 3.11), checks it
 runs that version, compiles every runner file and runs `selftest --group python` (221 s on CI on 2026-10-09, 120 s of
 it one test waiting out a child that `kill_tree` never killed on Linux, fixed in #603; alone on its runner it takes
-all 4 vCPUs since #603; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated minimum, and
-3.12-only code broke `verify` in a cloud
-session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
-merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
-first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python lane
-(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner tests
-that start no Godot, in worker processes: half the logical CPUs on a machine with at least 8, so 8
-on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most of them),
-else a quarter and at least one, 1 on CI; a `selftest` outside a verify lane takes every CPU of a smaller machine.
-Since #603 each worker runs a class's tests in batches, in their serial order with the class's fixtures once, as a
-serial run has them (before, each test ran alone and rebuilt its class's fixtures); a class is cut so no batch holds
-more than the last run's seconds over workers times 4, longest batches first; on Windows the tests' own processes
-are the cost: about 8,000 a run, mostly git, which on the PC kept all 16 logical CPUs busy at 8 workers, Defender's
-scan about 2 of them, and 16 workers ran slower, #603), the Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and
-`stall` (the headless ENet runs of `net/`, below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
+all 4 vCPUs since #603; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated
+minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). It is a required check of `main` like
+`verify` (§8.5), so neither `merge` nor a human's merge button takes a PR while it is red. `verify` (#179) runs
+`doctor --quick` first (red: nothing else runs), then three lanes at once, each a process of its own and serial
+inside: the Python lane (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then
+`selftest`: the runner tests that start no Godot, in worker processes: half the logical CPUs on a machine with at
+least 8, so 8 on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside
+most of them), else a quarter and at least one, 1 on CI; `selftest --group python` outside a verify lane takes every
+CPU of a smaller machine and at least 7 of a bigger one. Since #603 each worker runs a class's tests in batches, in
+their serial order with the class's fixtures once, as a serial run has them (before, each test ran alone and rebuilt
+its class's fixtures); a class is cut so no batch holds more than the last run's seconds over workers times 4,
+longest batches first; on Windows the tests' own processes are the cost: about 8,000 a run, mostly git, which on the
+PC kept all 16 logical CPUs busy at 8 workers, Defender's scan about 2 of them, and 16 workers ran slower, #603), the
+Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and `stall` (the headless ENet runs of `net/`,
+below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
 `webrtc-silence`, `bots`, `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot
 lane (`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
 starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process every
