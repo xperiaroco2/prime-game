@@ -253,12 +253,34 @@ def ensure_import() -> None:
 SCRIPT_WARNING = re.compile(r"^  warn  res://")
 
 
+def changed_scripts() -> list[str]:
+    """The .gd files this branch changes against origin/main or has uncommitted, sorted; none when git cannot tell
+    (a shallow CI checkout)."""
+    paths: set[str] = set()
+    diff = common.git("-c", "core.quotePath=false", "diff", "--name-only", "origin/main...HEAD", timeout=30)
+    if diff.rc == 0:
+        paths.update(line.strip() for line in diff.lines)
+    for line in git_status():
+        path = line[3:].strip().strip('"')
+        paths.add(path.split(" -> ")[-1])
+    return sorted(path for path in paths if path.endswith(".gd"))
+
+
+def script_warnings(changed: list[str]) -> re.Pattern[str]:
+    """The script warnings a quiet check counts: every one but those in a changed file, which an agent just edited
+    and the API checker reads (#590 review), so they always print."""
+    if not changed:
+        return SCRIPT_WARNING
+    return re.compile(r"^  warn  res://(?!(?:" + "|".join(re.escape(path) for path in changed) + r"):)")
+
+
 def main(files: list[str] | None = None, lfs_content: bool = False, verbose: bool = False) -> int:
-    """Quiet unless `verbose` (#590): a summary on success (script warnings counted, not listed), a capped excerpt
-    and the log's path on failure."""
+    """Quiet unless `verbose` (#590): a summary on success (script warnings counted, not listed, but for the files
+    this branch changes), a capped excerpt and the log's path on failure."""
     if lfs_content:
         return require_lfs_content()
-    return quiet("check", lambda: check_all(files), verbose, bulk=SCRIPT_WARNING)
+    bulk = SCRIPT_WARNING if verbose else script_warnings(changed_scripts())
+    return quiet("check", lambda: check_all(files), verbose, bulk=bulk)
 
 
 def check_all(files: list[str] | None) -> int:

@@ -176,13 +176,42 @@ class LintCheckWiringTest(unittest.TestCase):
         self.assertEqual([call.args[2] for call in quiet.call_args_list], [False, True])
 
     def test_check_main_is_quiet_unless_verbose_and_counts_script_warnings(self) -> None:
-        with mock.patch.object(check, "quiet", return_value=0) as quiet:
+        with mock.patch.object(check, "quiet", return_value=0) as quiet, mock.patch.object(
+            check, "changed_scripts", return_value=[]
+        ):
             check.main()
             check.main(verbose=True)
         self.assertEqual([call.args[2] for call in quiet.call_args_list], [False, True])
         self.assertIs(quiet.call_args.kwargs["bulk"], check.SCRIPT_WARNING)
         self.assertTrue(check.SCRIPT_WARNING.match(SCRIPT_WARNING.format(n=1)))
         self.assertFalse(check.SCRIPT_WARNING.match("  warn  NOT STARTED: godot"))
+
+    def test_a_quiet_check_never_counts_the_warnings_of_a_file_the_branch_changes(self) -> None:
+        mine = "  warn  res://client/mine.gd:7: The local variable \"x\" is declared but never used. (UNUSED_VARIABLE)"
+        with mock.patch.object(check, "quiet", return_value=0) as quiet, mock.patch.object(
+            check, "changed_scripts", return_value=["client/mine.gd", "net/b+c.gd"]
+        ):
+            check.main()
+        bulk = quiet.call_args.kwargs["bulk"]
+        self.assertTrue(bulk.match(SCRIPT_WARNING.format(n=1)))  # client/a.gd: counted
+        self.assertFalse(bulk.match(mine))
+        self.assertFalse(bulk.match("  warn  res://net/b+c.gd:1: x"))
+        self.assertTrue(bulk.match("  warn  res://client/mine.gd.uid:1: x"))  # another file
+        self.assertFalse(bulk.match("  warn  NOT STARTED: godot"))
+
+    def test_changed_scripts_are_the_branchs_and_the_uncommitted_gd_files(self) -> None:
+        diff = common.Result(0, "client/a.gd\ndocs/x.md\n", False, 0.0)
+        status = {" M net/b.gd", "?? tests/new_test.gd", "R  old.gd -> core/moved.gd", " M tools/x.py"}
+        with mock.patch.object(common, "git", return_value=diff), mock.patch.object(
+            check, "git_status", return_value=status
+        ):
+            self.assertEqual(
+                check.changed_scripts(), ["client/a.gd", "core/moved.gd", "net/b.gd", "tests/new_test.gd"]
+            )
+        with mock.patch.object(common, "git", return_value=common.Result(128, "fatal", False, 0.0)), mock.patch.object(
+            check, "git_status", return_value=set()
+        ):
+            self.assertEqual(check.changed_scripts(), [])
 
     def test_verify_runs_lint_and_check_verbose(self) -> None:
         with mock.patch.object(verify.lint, "main", return_value=0) as lint_main:
