@@ -2171,12 +2171,14 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
   id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
-  and hint under it. **The shared theme:**
+  and hint under it. **Superseded by #253** (§4.7.31): the map and tasks screen `MapScreen`, opened and closed on M
+  (the action `map`); Tab has no action. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
   gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the screens name
   variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
-  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab; since #253 `map`, on M) are in
+  `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2186,7 +2188,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
   first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
   margin) and `item_views_test.gd`. The `shot`s:
-  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
+  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn` (since #253 `map_preview.tscn`), `items_preview.tscn`
+  and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds (by ear on `sfx-check --page`'s listening page, AGENT_WORKFLOW
   §11.25).
@@ -2549,7 +2552,7 @@ ADR's §6 check the rest.
   base times 5/3, rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so
   the screens keep their apparent size: the theme's font sizes, container margins and separations and its style
   boxes' content margins (not the corner radii); the layout widths in `client/ui/` code (the menu's fields,
-  `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `TaskScreen.TEXT_WIDTH`, `Hud.SWATCH_SIZE`, the debug
+  `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `Hud.SWATCH_SIZE`, the debug
   overlay's inset, the dev test room's overlay box). Godot's default theme, which drew the controls no variation
   styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), is scaled by
   `gui/theme/default_theme_scale` = 1.6667. Since #576 the generated theme covers the fields, dropdowns, sliders and
@@ -2930,6 +2933,55 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   connecting screen, `fail-no-room` and Back with the code kept, `fail-service` and Join directly). The look: a `shot`
   of each state in en and uk, default and large text, from `client/dev/screen_preview.gd` (`s3_state`, `language`,
   `large_text`) in the PR.
+#### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
+The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
+the designer, 2026-10-03, on #253). Its look is provisional (Toy variations already in the theme, no overrides);
+the Toy restyle is #490 and the how-to card #254.
+- **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
+  for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
+  any life. A saved binding under the old name reads as an unknown action and keeps the default. `Game` reads it in
+  `_unhandled_input` on the round's screen only, never under the Esc menu (whose Controls tab captures keys).
+- **One open state.** `GameUi` holds whether the map is open (`open_map`, `close_map`, `toggle_map`, `map_is_open`;
+  the signals `map_opened`, the tutorial's hook, and `map_closed`). It opens only in the round with no Esc menu;
+  any other screen closes it, so a new round starts with it closed; `open_esc` closes it after the menu opened, so
+  the two never show together (a close request while hosting too). Esc with the map open closes only the map
+  (#488's rule 2). While it shows the crosshair hides.
+- **The mouse.** Opening frees the mouse (`Game._on_map_opened`); closing captures it again only in the round, with
+  no Esc menu and the window focused, as closing the Esc menu does. `PlayerController.mouse_free` (set every frame
+  from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
+  put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
+  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take no focus, since
+  Space jumps and is also `ui_accept` until #488 moves it.
+- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task by id with its name (`task.<id>`, else the
+  mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)` (#254
+  connects the card); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
+  progress line (the HUD has it); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
+  the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
+  (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
+  lights that type's zones and their chip (`map.zone_hint.<type>`, else `map.zone_hint`). Words built in code are
+  set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
+- **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
+  of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
+  and plan y = Z: the level piece conventions proposed in PR #611; its id is `metadata/room_id`, else its node name
+  in snake_case. Only `MapData.rooms_of()` reads that shape, so #306's room record changes one function. A task
+  type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
+  (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox declares no rooms yet
+  (#306), so on it the map shows the tasks only; the previews use a fake house in `client/dev/screen_preview.gd`.
+- **Privacy** (the M4 ADR's §3 item 4 as amended): the screen reads the model's tasks and clock and the own place
+  only; never another player's place, an item's or a circle's.
+- Tests: `tests/unit/client/ui/map_screen_test.gd` (rows, counters and names in English and Ukrainian and a switch,
+  no description or NEW, the «?» signal and no focus, the lit zones and chip, the rooms and the pin's place and
+  turn; the privacy test: models that differ in other players, items and circles draw the same screen, node by
+  node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"),
+  `map_data_test.gd` (rooms by the metadata through parents, zones from markers only, no rooms, the greybox's none,
+  the board's fit), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
+  it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
+  on Tab; seen failing on the old input map), `controls_test.gd`, `key_label_test.gd`, `controls_panel_test.gd`,
+  and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
+  captures the mouse, Tab does nothing, W still walks, a click stays unhandled, Esc closes only the map, M under the
+  Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
+  Esc rule). The `shot`s: `client/dev/map_preview.tscn` and `map_preview_uk.tscn` (Delivery's zones lit); the
+  playcheck scenario `map`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -4194,7 +4246,7 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` the task screen shows (M4-5; the mode check refuses an empty one) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253, the how-to card of #254 will); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.31) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
@@ -4425,7 +4477,8 @@ palette: 10 distinct colours, provisional, one per package at the most `packages
 `packages` (its own subtasks setting: 1 to 10, default 6, a placeholder); RNG purposes `circles_rng`,
 `packages_rng`, `tasks_rng` (`circles`, `packages`, `tasks`). One circle per package, fixed, not a setting.
 `description` (M4-5, the task screen): "Carry each package to the circle of its colour. Packages take both hands."
-(provisional wording, "not a decision").
+(provisional wording, "not a decision"). `item_spawn_tags()` (#253): its package kind's spawn tag (`package`), so the
+map screen lights the rooms that hold a `package` marker, never a circle's.
 - Deal (when `DealTasks` draws it): N packages and N circles, N the `packages` setting, whatever the player count.
   Circles on distinct random `circle` markers with distinct random palette colours (`circles`), packages on
   distinct random free `package` markers (`packages`; `Items.free_markers`), then each package, in id order,
