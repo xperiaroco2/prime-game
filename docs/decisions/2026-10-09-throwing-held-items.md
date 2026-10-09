@@ -80,7 +80,7 @@ no key is proposed.
 | **TE3** | How the flight is computed | Follows TD9 (the rule is the engineer's). Under TD9 (a): a closed-form arc swept segment by segment, ended at the first contact, then one `floor_below`; under TD9 (b): the same, plus the contact normal from one more answer (`get_rest_info`'s `normal`) and a restitution per bounce, and a rest test (a speed under some threshold) | The model below, under TD9 (a): each point computed from the launch, so no error adds up, and a client can compute the same points |
 | **TE4** | The intent and how the host validates it | `Throw(facing)` and the rule; below | The host takes only the facing from the client. Prevents: a throw farther than the rule, from somewhere else, or through a wall |
 | **TE5** | What clients draw | (a) the thrower's client predicts the arc at the key press; the others draw it from `ItemThrown` on the timeline they draw avatars on; (b) the snapshot carries every item in flight; (c) no prediction | **(a)**, below. (b) breaks E3 (the snapshot holds avatars only, under the 1024-byte unreliable cap) and is still a round trip late for the thrower. (c): the thrower's own item leaves its hand a round trip after the press (over the internet, often 50 to 150 ms), on the one action whose result the player watches |
-| **TE6** | The wire and who sees what | Two rows and a cause; below | `ItemThrown` goes to everyone: nothing in it is hidden |
+| **TE6** | The wire and who sees what | Two rows and a cause; below | `ItemThrown` goes to everyone: nothing in it is hidden while the `Throw` rule belongs to the item kind or the mode |
 | **TE7** | Tests | Below | Each rule of this design has a test that fails without it |
 
 **The flight (TE3, under TD9 (a)).** On the launch tick L the item leaves the hand into a new state, `ItemState.Where.FLYING`
@@ -140,7 +140,9 @@ budget. It goes to the first `Throw` rule of the hand item's kind, the actor's r
 with none, `nothing_to_do`. The rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), TD6's costs if any, and a
 new effect, `ThrowItem`, whose settings are the speed, the gravity, the radius and the longest flight (TD1; the radius
 moves to `ItemKind` if one mode rule must throw kinds of different sizes). The host takes only the facing from the
-client: a non-finite or zero facing takes the last accepted claim's, as `Strike` does. The origin, the speed and the
+client: a facing whose normalized vector is not a unit vector takes the last accepted claim's (a unit facing,
+`MovementRule`), as `Strike` does; that covers a non-finite or zero facing, and a finite one whose squared length
+underflows (components near 1e-30) or overflows (near 1e38) in single precision. The origin, the speed and the
 gravity are the host's, and the thrower's own velocity is not added (TD10 (a)), so the range never depends on a claim. Each
 prevents a hacked client's throw: farther than the rule (the speed is data), from somewhere else (the origin is the
 host's eye, the floor below the last accepted position plus the eye height, so a jump does not raise it, as for a
@@ -171,7 +173,10 @@ crew client where a dissident just threw a package to hide it, the leak item 10 
 `facing: vec3`) and an `ItemThrown` row (H→C, the next free event kind: `item: item`, `peer: peer`, `origin: vec3`,
 `velocity: vec3`, `gravity: vec3`, `tick: tick`, the launch tick). `ItemThrown`'s audience is everyone: the item was
 in a hand that everyone sees, and items are public (ARCHITECTURE §5); the velocity gives away the thrower's look, which
-the snapshot's facing already shows. The `gravity` field spares a remote client a second copy of the rule lookup; the
+the snapshot's facing already shows. That holds while
+the `Throw` rule belongs to the item kind or the mode: a role-owned `Throw` rule with its own speed or gravity would
+put the thrower's role into the velocity and the gravity, as exact numbers (ARCHITECTURE §9.2, "A public event can
+reveal its rule's owner"; `Match` validation warns about it). The `gravity` field spares a remote client a second copy of the rule lookup; the
 thrower's own prediction does that lookup anyway. It is the acceleration as a `vec3` (straight down), not a plain
 `f32`: `core/` computes the arc in `Vector3`s, whose components are single precision, so the field round-trips
 exactly as E6 needs, while the codec refuses an `f32` field holding a data value such as 0.1, which no single
@@ -195,7 +200,7 @@ starts clear of it with the margin; one at the eye `Items.eye_of` gives a throwe
 case that plays no launch sound for an `ItemThrown` beyond the hearing range.
 Bots: a `Throw(towards, pitch)` step, and a scenario that throws a package into its circle (under TD4 (b): next to it,
 then puts it down). The leak test compares `ItemThrown` exactly, as every event; no new invariant is needed, since
-nothing in it is hidden. A playtest by a human checks the feel: TD1's numbers and TE5's arcs.
+nothing in it is hidden; the refusal shapes (unit and chaos) include the two facing extremes above. A playtest by a human checks the feel: TD1's numbers and TE5's arcs.
 
 ### Proposed issues
 The manager opens them after the engineer's answers; the last column is each one's `Size:` line. Each is cut to what an

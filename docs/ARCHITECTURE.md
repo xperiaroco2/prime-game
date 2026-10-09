@@ -3457,8 +3457,9 @@ and TE1 are pending, and this section follows each recommendation. The flight ru
 there would not follow from the commands.
 - **The intent.** `Throw(facing)`, from the living in Round, goes to the first `Throw` rule of the hand item, the
   role or the mode (§9.2): `HoldsItem`, then the effect `ThrowItem` (speed, gravity, radius, longest flight: the
-  engineer's numbers). The client sends only its facing; a non-finite or zero facing takes the last accepted claim's,
-  as `Strike` does (§7.1.10). The host launches from `Items.eye_of` (the floor below the last accepted position plus
+  engineer's numbers). The client sends only its facing; a facing that does not normalize to a unit vector (non-finite,
+  zero, or one whose squared length underflows or overflows) takes the last accepted claim's, as `Strike` does
+  (§7.1.10). The host launches from `Items.eye_of` (the floor below the last accepted position plus
   the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity (TD10). Prevents: a throw
   farther than the rule, from somewhere else, or through a wall. `Throw` is one of `Intents.PLAYER_ACTIONS`, so the
   dead never throw and the client sends its claim's twin right before it (§7.1.15).
@@ -3479,7 +3480,8 @@ there would not follow from the commands.
   (§7.1.13): a level with a hole. A thrower over no floor is refused (`no_floor`), and the item stays in the hand.
   Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
-  exactly, launch tick) goes to everyone; nothing in it is hidden (§5). The snapshot stays avatars only (§4.3): the
+  exactly, launch tick) goes to everyone; nothing in it is hidden (§5) while the rule
+  belongs to the item kind or the mode (a role-owned one reveals the role, §9.2). The snapshot stays avatars only (§4.3): the
   thrower's client predicts the arc at the key press, and every other client draws it from `ItemThrown` on its
   avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
   sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
