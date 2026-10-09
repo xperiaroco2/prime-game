@@ -3310,9 +3310,11 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   `tests/unit/movement/movement_rule_test.gd`.
 - The claim's age (#647; ZE10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)):
   `MovementRule.claim_age(state, peer, now)` is how many host ticks old the player's last accepted claim is at host
-  tick `now` (0 in its own tick), from the record's `accepted_tick`, or -1 when the position is no claim of the
+  tick `now` (0 in its own tick), from the record's `claimed_tick`, or -1 when the position is no claim of the
   current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn), until the epoch's first
-  claim; a refused claim's `Correction` keeps the last one's age, and a revive keeps the epoch. The zone task counts a
+  accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
+  record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
+  keeps the last one's age, and a revive keeps the epoch. The zone task counts a
   player only while it is at most `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a
   client that stops claiming (a freeze, or a modified client that goes on polling) stops counting 10 ticks after
   its last claim, so the credit it stores meanwhile cannot buy zone time and travel at once. A respawn inside a

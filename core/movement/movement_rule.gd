@@ -154,6 +154,9 @@ class Motion:
 	## The host tick of the last accepted claim or placement: how stale the position is that
 	## another player's push allowance measures from (_near_living_player).
 	var accepted_tick := -1
+	## The host tick of the last accepted claim in this epoch, -1 before the first: what claim_age
+	## measures from. A placement is no claim, and neither is a refused claim that follows it.
+	var claimed_tick := -1
 
 
 ## One MoveClaim's fields, read and checked for type and finiteness.
@@ -320,6 +323,7 @@ static func _accept(
 	motion.credit -= checked.covered
 	motion.rebase = false
 	motion.accepted_tick = ctx.tick
+	motion.claimed_tick = ctx.tick
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.facing = stored_facing(claim.facing, player.facing)
@@ -436,10 +440,11 @@ static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
 ## How many host ticks old `peer`'s last accepted claim is at host tick `now` (0 in the tick the
 ## claim was accepted), or -1 when its position is not a claim of its current epoch: no player, no
 ## record, or a placement since (PlacePlayers, a knockdown, a respawn: the position is the host's
-## until the epoch's first claim is accepted). A refused claim's Correction keeps the age of the
-## last accepted one. The zone task counts a player only while this is at most PUSH_TICKS (ZE10 of
-## the zone task ADR): a client that stops claiming stops counting, and the credit it stores
-## meanwhile cannot buy zone time and travel at once.
+## until the epoch's first claim is accepted, and a refused or malformed first claim does not end
+## that). A refused claim's Correction keeps the age of the last accepted one. The zone task counts
+## a player only while this is at most PUSH_TICKS (ZE10 of the zone task ADR): a client that stops
+## claiming stops counting, and the credit it stores meanwhile cannot buy zone time and travel at
+## once.
 static func claim_age(state: MatchState, peer: int, now: int) -> int:
 	var player := state.player(peer)
 	if player == null:
@@ -448,9 +453,9 @@ static func claim_age(state: MatchState, peer: int, now: int) -> int:
 		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
 	)
 	var motion: Motion = table.by_peer.get(peer)
-	if motion == null or motion.epoch != player.epoch or motion.accepted_tick < 0:
+	if motion == null or motion.epoch != player.epoch or motion.claimed_tick < 0:
 		return -1
-	return maxi(0, now - motion.accepted_tick)
+	return maxi(0, now - motion.claimed_tick)
 
 
 ## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
@@ -542,6 +547,7 @@ static func _after_placement(
 	motion.rebase = false
 	motion.jumps = 0
 	motion.accepted_tick = now
+	motion.claimed_tick = -1
 	player.on_floor = true
 	player.claim_tick = -1
 	player.sprint_held = false

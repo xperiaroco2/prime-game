@@ -52,3 +52,28 @@ func test_a_placement_makes_it_minus_one_until_the_epochs_first_claim() -> void:
 	assert_int(MovementRule.claim_age(game.state, P1, game.ticked_through())).is_equal(-1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	assert_int(MovementRule.claim_age(game.state, P1, game.ticked_through())).is_equal(0)
+
+
+func test_a_refused_or_malformed_first_claim_after_a_placement_leaves_it_minus_one() -> void:
+	# The first claim of a new epoch resets the record (_after_placement) before it is read or
+	# checked: a refused one bumps the epoch with its Correction, but the position is still the
+	# host's placement, so no age starts (the netcode review of #647).
+	for refused: Dictionary in [{"far": true}, {"client_tick": "late"}]:
+		var game := FixtureMoves.in_round([P1, P2])
+		FixtureMoves.step(game, P1, Vector3.ZERO)
+		var ctx := MatchContext.new(game)
+		ctx.state = game.state
+		ctx.mode = game.mode
+		ctx.world = FlatWorldQuery.new()
+		ctx.tick = game.ticked_through() + 1
+		LifeRules.knock_down(ctx, P1)
+		var corrected := FixtureMoves.corrections(game, P1).size()
+		if refused.has("far"):
+			FixtureMoves.step(game, P1, EAST * 30)
+		else:
+			FixtureMoves.step(game, P1, Vector3.ZERO, refused)
+		assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(corrected + 1)
+		FixtureModes.run_ticks(game, 1)
+		assert_int(MovementRule.claim_age(game.state, P1, game.ticked_through())).is_equal(-1)
+		FixtureMoves.step(game, P1, Vector3.ZERO)
+		assert_int(MovementRule.claim_age(game.state, P1, game.ticked_through())).is_equal(0)
