@@ -833,7 +833,7 @@ The rules of the table:
   checked by the mode check (3e): role ids, side ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
   reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
   `RejectReasons`, `CountdownCancelledEvent`'s reasons, the `Items` causes (`put_down`, `swap`, `death`, `leave`,
-  `spawn`). An id that neither covers is a bug that the encoder refuses and logs.
+  `spawn`, `thrown`). An id that neither covers is a bug that the encoder refuses and logs.
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
@@ -3503,9 +3503,9 @@ fallback, and at the death the items then drop at the body (`Items.place_carried
 
 #### 7.1.14 Delivery
 The rule is "the package rests inside its circle, however it got there". So one check runs whenever
-an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
-`core/` finds at the end of its flight (§7.1.16, proposed in #37; whether a thrown package counts is the engineer's
-TD4 there). A package resting inside its own circle is delivered: it
+an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and a throw, whose rest
+`core/` finds at the end of its flight (§7.1.16; the flight built in #642, the cause `thrown`; a thrown package
+counts, the engineer's TD4 (a): `tests/unit/tasks/delivery_throw_test.gd`). A package resting inside its own circle is delivered: it
 stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
 never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
 (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
@@ -3535,9 +3535,12 @@ have the player in the air), and §7.1.5's notes on the stamina prediction. Test
 (a lossy link end to end), `tests/unit/movement/movement_rule_claim_loss_test.gd`,
 `tests/unit/net/messages/wire_schema_test.gd`.
 
-#### 7.1.16 Throws (designed in #37; proposed, not built)
-The [throwing ADR](decisions/2026-10-09-throwing-held-items.md) is proposed: the engineer's answers to its TD1 to TD12
-and TE1 are pending, and this section follows each recommendation. The flight runs in `core/` (TE1 (a)), not in
+#### 7.1.16 Throws (designed in #37; the flight built in #642, the throw itself not yet)
+The [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD1 to TD12 and TE1 are answered: the engineer took
+every recommendation ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719); TD1's
+speed and the provisional gravity, radius and longest flight in the next two comments there), and this section follows
+them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `ItemThrown` and its wire
+rows (37c), the client (37d, 37e) and the base mode's rule (37f) are still to come. The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
 there would not follow from the commands.
@@ -3557,14 +3560,34 @@ there would not follow from the commands.
   in. The mode check keeps the throw's sphere inside the player's capsule at the eye, with a margin, so a thrower pressed against a
   wall can still throw away from it. A living player other than the thrower stops it too (their capsule at the last
   accepted position, as hits read it); the downed are flown over (TD12). Prevents: an item through a crack or a ceiling, and
-  a landing that differs between two runs of the same commands.
+  a landing that differs between two runs of the same commands. **Built in #642:** `ItemState.Where.FLYING` (after
+  `BELT`) keeps an `ItemFlight` (`core/items/item_flight.gd`): o, v, g, the ticks flown n, the fallback f, and what the
+  throw's rule sets at the launch: the thrower's id, the radius, the longest flight in ticks and the launch tick L
+  (`Items.launch` stamps it). The item's `position` is o while it flies. `ItemFlight.point(o, v, g, n)` is the one arc
+  function. `FlightTicks` (`core/items/flight_ticks.gd`, §9.4) skips the launch tick, since a command at L runs before
+  L's tick systems: after tick L + k of a phase that lists it, n is k, the point a client computes as p(t − L). A
+  segment the world's sweep cuts short (any answer other than its end) is a contact. The players are tested on the part
+  of the segment the world leaves, so the earlier of a wall and a player ends it (`FlightTicks.contact_fraction`: the
+  capsule's side, then the balls at its axis' ends). An invulnerable living player stops an item too: a stop is not
+  damage. The thrower is flown through for the whole flight, wherever it stands. Points are never stored: n and the
+  three vectors are the whole state.
 - **The rest.** At the first contact the item drops to `floor_below` of the stop point and rests through
   `Items.place` with the cause `thrown`: `ItemPlaced`, then `item_rested`, so the delivery check (§7.1.14) runs as
   for any rest. That rest is the base point on the floor (the engineer's answer on PR #82, recorded on #37). A flight
   past the longest flight stops at its last point. With no floor below the stop, the item rests where the thrower stood (TD11):
   on `floor_below` of the thrower's feet, asked once at the throw and logged, and the match logs an error, as for a drop
   (§7.1.13): a level with a hole. A thrower over no floor is refused (`no_floor`), and the item stays in the hand.
-  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
+  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach. **Built in #642:**
+  `FlightTicks` rests the item through `Items.place` with `Items.THROWN` (`place` clears the flight), at
+  `floor_below(Items.lifted(stop))`, else at the flight's fallback with an error logged. `Items.fallback_rest(ctx,
+  feet)` is the fallback's question, for 37c's `ThrowItem` to ask at the launch. A fallback that is itself no floor
+  (37c refuses such a throw) rests the item at the stop, with its own error. Readers of `where`: `ItemOnGround`
+  rejects an item in flight as `unavailable`, `Items.take` and Delivery act only on the ground, the snapshot's items
+  in `core/` show `FLYING` at o, and `Items.free_markers` counts no flying item. Tests: `tests/unit/items/item_flight_test.gd`,
+  `flight_ticks_test.gd`, `items_test.gd` (the launch and the readers), `tests/unit/tasks/delivery_throw_test.gd`,
+  and the cause in both lists of `tests/unit/net/messages/wire_core_test.gd`. A flight is put in flight by a test's
+  `Use` (`FixtureThrow`, for `ThrowItem`); the test that the points decoded from `ItemThrown` equal `FlightTicks`'
+  is 37c's (#643), with the event.
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
   exactly, launch tick) goes to everyone; nothing in it is hidden (§5) while the rule
   belongs to the item kind or the mode (a role-owned one reveals the role, §9.2). The snapshot stays avatars only (§4.3): the
@@ -3572,11 +3595,11 @@ there would not follow from the commands.
   avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
   sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
-- **Open for the engineer:** strength and range (TD1), which items (TD2), what a thrown item does to a player (TD3),
-  whether a thrown package counts in its circle (TD4, recommended: yes, by the rule), where an item may come to rest
-  (TD5), a cost (TD6), the key (TD7), catching (TD8), stop and drop or bounces (TD9), whether a running throw goes
-  farther (TD10, recommended: no), where an item with no floor below rests (TD11) and whether the downed stop an item
-  (TD12). The proposed issues 37a to 37f are in the ADR.
+- **The engineer's answers** (all as recommended, #302): strength and range (TD1 (a); 10 m/s, provisional), which
+  items (TD2), what a thrown item does to a player (TD3 (b): stops and drops at its feet, no damage), a thrown package
+  counts in its circle (TD4 (a)), where an item may come to rest (TD5), a cost (TD6), the key (TD7), no catching
+  (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
+  thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
 ## 8. Debug tooling
 
@@ -3697,7 +3720,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; later thrown, at the end of its flight (§7.1.16, proposed in #37). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`; later `thrown`), the rest position |
+| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`), the rest position |
 | `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), before its hand and belt items drop | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before its hand and belt items drop | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
@@ -3775,7 +3798,7 @@ phase classes come in the task each row names.
   `MatchState.newcomers` for the connected peers not yet players and `MatchState.joins` for the `Player<n>` names
   (§3.5); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT, and `life_deadline`, M4-2), settings and
-  `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5), tasks (`MatchTask`: its task type and `TaskState`,
+  `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5; flying with its `ItemFlight`, #642), tasks (`MatchTask`: its task type and `TaskState`,
   no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and
   `reset_match` for `ResetMatch`.
 - server/ and the tests drive `Match`: `Match.new(mode, seed, world, layouts, content_hash)` (the host's content
@@ -3799,7 +3822,10 @@ phase classes come in the task each row names.
   `player_died`), `drop_carried` (a leaving player's items to the floor below its last accepted
   position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
-  `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
+  `Items.SPAWN`), plus, for a throw (#642, §7.1.16), `launch` (the item leaves the hand or belt into its flight) and
+  `fallback_rest` (the floor below the thrower's feet); `FlightTicks` rests it through `place` with `Items.THROWN`.
+  `free_markers` counts no item in flight. The causes are constants there. Each condition names its own rejection
+  reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62; shared since #79): a task type marks a subtask done in its own task state, then
   calls `Tasks.subtask_done(ctx, task, detail)`, which emits that task's `TaskState` event (`TaskStateEvent`, not
   the task type's `TaskState` class; M4-5, E30: `Tasks.state_of`)
@@ -3858,7 +3884,7 @@ phase classes come in the task each row names.
 | Rule | trigger → conditions → effects; an **action** is a rule on an intent, a **reaction** a rule on a fact | `Rule` | inside its owner | PickUp, PutDown, the knife's Use, Raise, StopRaise, GiveUp |
 | Condition, cost | *only if*; a cost is also paid | `Condition`, `Cost` subclasses | inside a rule or a win condition | §9.4 |
 | Effect, transition action | *what happens*; a transition action is an effect that a transition row runs, with no actor | `RuleEffect` subclasses | inside a rule or a row | §9.4 |
-| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, TaskTicks |
+| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, FlightTicks, TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
@@ -3968,6 +3994,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 |---|---|---|---|---|---|
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
+| `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight | none | `ItemPlaced`, and what the rules on `item_rested` emit | 37b (#642, `core/items/flight_ticks.gd`) |
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.17, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
@@ -4540,7 +4567,7 @@ costs outside it.
 | Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.17; the client's look in #650, M7-Z4, §4.7.24; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
-| Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), proposed, §7.1.16) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2); its numbers are the engineer's (TD1) | two: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, and the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
+| Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), its answers given on #302, §7.1.16; the flying state, the arc and `FlightTicks` built in #642) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2); its numbers are the engineer's (TD1) | two: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, and the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
 
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
 world by id, and owners for fixed interactables (a marker kind in `levels/`, such as a meeting button) and for
@@ -4576,7 +4603,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
-| Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
+| Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (10 m/s), the item's radius (0.15 m) and the longest flight (3 s) are provisional, for the first playtest | the engineer, at the playtest; 37a and 37b (#641, #642) are built, 37c to 37f follow |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Designed in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), proposed): a return key per settings file, the old number back in the lobby only, nothing else restored; P1, P3, P4, P9, P11, P12, P13 and the split wait for the engineer. Proposed: 73-A and 73-B in M7 after #550 and #551; a return into a running round only as its own design (73-D) |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |

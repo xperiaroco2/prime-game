@@ -6,6 +6,12 @@
   recommendation stands until he says otherwise. TE1 is his too, because it revises what two accepted ADRs sketched
   for #37. Where a technical choice also decides what players see (bounces, a running throw, where an item with no
   floor rests, the downed in the way), that part is a TD item of its own (TD9 to TD12), and the TE item only follows it.
+- **Update 2026-10-09:** the engineer took every recommendation, TE1 (a) and TD1 to TD12 as recommended
+  ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)), with TD1's speed and the
+  provisional gravity, item radius and longest flight in the next two comments there. Built: 37a (`WorldQuery.sweep`,
+  #641) and 37b (the flight, `FlightTicks` and the rest, #642; ARCHITECTURE §7.1.16). 37b adds one detail the text
+  below leaves implicit: the flight keeps its launch tick and `FlightTicks` skips it, because a command at tick L runs
+  before tick L's tick systems, so with no pause n is the host tick less L, as a client computes it from `ItemThrown`'s launch tick.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
