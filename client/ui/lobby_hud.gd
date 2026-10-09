@@ -110,6 +110,8 @@ func show_code(code: String, gone: bool, waiting: bool) -> void:
 
 ## The microphone: on while anybody may hear the own player (VoiceSender.live()).
 func show_mic(on: bool) -> void:
+	if on == _mic_on and mic_icon.texture != null:
+		return
 	_mic_on = on
 	mic_icon.texture = ToyIcons.texture(&"mic" if on else &"mic-off")
 	_tint()
