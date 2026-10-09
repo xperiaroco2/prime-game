@@ -5,16 +5,19 @@ extends HBoxContainer
 ## downed and back, cards of the tutorial's words) and the tasks (`guide.tasks`: one chip per task
 ## type of the mode with a card), one ButtonGroup over every chip; right, the selected chip's card
 ## (HowtoCardView, 160x120 art), titled with the chip's text. Its own control, so the Esc menu's
-## restyle (#491) hosts it as it is.
+## restyle (#491) hosts it as it is. Drawn for a light page (the handoff's ToyPanelMenu: the
+## ...OnLight captions and chips) or, in the greybox Esc menu until #491, a dark one (...OnDark).
 
 ## The list's width (the handoff's: the longest chip at large text), in pixels (layout).
 const LIST_WIDTH := 332.0
 ## The spacer between the basics and the tasks caption, in pixels (layout).
 const GAP := 8.0
 
+## The page it sits on: ToyHints.LIGHT (the handoff's) or DARK.
+var context := ToyHints.LIGHT
 var list := UiParts.scroll()
 var column := VBoxContainer.new()
-var tasks_label := UiParts.styled_label("guide.tasks", &"ToyTextMutedOnLight")
+var tasks_label := Label.new()
 var group := ButtonGroup.new()
 ## Every chip by its card's id (a basic's or a task type's), in the list's order.
 var chips: Dictionary[StringName, Button] = {}
@@ -27,7 +30,8 @@ var _cards: Dictionary[StringName, HowtoCard] = {}
 var _task_chips: Array[Button] = []
 
 
-func _init() -> void:
+func _init(on_context: StringName = ToyHints.LIGHT) -> void:
+	context = on_context
 	name = "Guide"
 	theme_type_variation = &"ToyRowTwentyFour"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -40,7 +44,9 @@ func _init() -> void:
 	column.theme_type_variation = &"ToyColumnEight"
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_child(column)
-	var basics := UiParts.styled_label("guide.basics", &"ToyTextMutedOnLight")
+	var basics := UiParts.styled_label(
+		"guide.basics", _look(&"ToyTextMutedOnLight", &"ToyTextMutedOnDark")
+	)
 	basics.name = "Basics"
 	column.add_child(basics)
 	for id: StringName in HowtoCards.BASICS:
@@ -52,6 +58,8 @@ func _init() -> void:
 	gap.custom_minimum_size = Vector2(0, GAP)
 	column.add_child(gap)
 	tasks_label.name = "Tasks"
+	tasks_label.text = "guide.tasks"
+	tasks_label.theme_type_variation = _look(&"ToyTextMutedOnLight", &"ToyTextMutedOnDark")
 	column.add_child(tasks_label)
 	set_mode(null)
 
@@ -63,7 +71,7 @@ func set_mode(mode: GameMode) -> void:
 		chips.erase(_id_of(chip))
 		_cards.erase(_id_of(chip))
 		column.remove_child(chip)
-		chip.queue_free()
+		chip.free()
 	_task_chips.clear()
 	for each: HowtoCard in HowtoCards.of_tasks(mode):
 		var chip := _chip(each)
@@ -79,13 +87,15 @@ func set_mode(mode: GameMode) -> void:
 ## Shows the card of the chip `id` and presses its chip; &"" or an unknown id shows none.
 func select(id: StringName) -> void:
 	if card != null:
+		# Freed now (a chip's press, never the card's own signal, gets here): a Game made and
+		# freed in one frame leaves no orphan.
 		remove_child(card)
-		card.queue_free()
+		card.free()
 		card = null
 	selected = id if _cards.has(id) else &""
 	if selected.is_empty():
 		return
-	card = HowtoCardView.raised(_cards[selected], HowtoCardView.GUIDE_ART, ToyHints.LIGHT)
+	card = HowtoCardView.raised(_cards[selected], HowtoCardView.GUIDE_ART, context)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	add_child(card)
@@ -95,7 +105,9 @@ func select(id: StringName) -> void:
 
 
 func _chip(shown: HowtoCard) -> Button:
-	var chip := UiParts.toggle(String(shown.title), Callable(), &"ToyChipToggleOnLight")
+	var chip := UiParts.toggle(
+		String(shown.title), Callable(), _look(&"ToyChipToggleOnLight", &"ToyChipToggleOnDark")
+	)
 	chip.name = String(shown.id).to_pascal_case()
 	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	chip.button_group = group
@@ -104,6 +116,11 @@ func _chip(shown: HowtoCard) -> Button:
 	chips[shown.id] = chip
 	_cards[shown.id] = shown
 	return chip
+
+
+## `on_light` or `on_dark`, for the page's context.
+func _look(on_light: StringName, on_dark: StringName) -> StringName:
+	return on_dark if context == ToyHints.DARK else on_light
 
 
 static func _id_of(chip: Button) -> StringName:

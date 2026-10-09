@@ -36,7 +36,8 @@ var state := EscMenuState.new()
 var lobby := LobbyPanel.new()
 var voice := VoicePanel.new()
 var controls := ControlsPanel.new()
-var guide := GuidePanel.new()
+## On the greybox menu's dark page until the restyle (#491) hosts it on a light one.
+var guide := GuidePanel.new(ToyHints.DARK)
 var tab_buttons: Dictionary[EscMenuState.Tab, Button] = {}
 var resume_page := VBoxContainer.new()
 var confirm_box := VBoxContainer.new()

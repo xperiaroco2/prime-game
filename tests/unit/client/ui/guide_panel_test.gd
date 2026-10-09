@@ -37,25 +37,28 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 			rows.append("%s %s" % [child.name, (child as Button).text])
 		else:
 			rows.append(String(child.name))
-	assert_array(rows).is_equal(
-		[
-			"Basics guide.basics",
-			"Moving guide.moving",
-			"Voice guide.voice",
-			"Downed guide.downed",
-			"Gap",
-			"Tasks guide.tasks",
-			"Delivery task.delivery",
-		]
+	(
+		assert_array(rows)
+		. is_equal(
+			[
+				"Basics guide.basics",
+				"Moving guide.moving",
+				"Voice guide.voice",
+				"Downed guide.downed",
+				"Gap",
+				"Tasks guide.tasks",
+				"Delivery task.delivery",
+			]
+		)
 	)
 	for id: StringName in guide.chips:
 		var chip := guide.chips[id]
 		assert_object(chip.button_group).is_same(guide.group)
 		assert_bool(chip.toggle_mode).is_true()
 		assert_int(chip.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_BEGIN)
-	assert_that(
-		(guide.column.get_node(^"Gap") as Control).custom_minimum_size
-	).is_equal(Vector2(0, 8))
+	assert_that((guide.column.get_node(^"Gap") as Control).custom_minimum_size).is_equal(
+		Vector2(0, 8)
+	)
 	await get_tree().process_frame
 
 
@@ -69,9 +72,10 @@ func test_delivery_is_selected_first_and_a_chip_shows_its_card() -> void:
 	var face := HowtoCardView.face_of(guide.card)
 	assert_str(face.title_label.text).is_equal("task.delivery")
 	assert_object(face.close_button).is_null()
-	assert_that(
-		(face.frames_box.get_child(0).get_child(0) as Control).custom_minimum_size
-	).is_equal(HowtoCardView.GUIDE_ART)
+	(
+		assert_that((face.frames_box.get_child(0).get_child(0) as Control).custom_minimum_size)
+		. is_equal(HowtoCardView.GUIDE_ART)
+	)
 	assert_int(guide.card.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_int(guide.card.size_flags_vertical).is_equal(Control.SIZE_SHRINK_BEGIN)
 	assert_object(guide.card.get_parent()).is_same(guide)
@@ -92,9 +96,7 @@ func test_the_words_are_in_both_languages() -> void:
 	guide.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
 	var face := HowtoCardView.face_of(guide.card)
 	assert_str(face.title_label.atr(face.title_label.text)).is_equal("Рух і руки")
-	assert_str((face.get_node(^"V/Frames/Frame1/Words") as Label).text).is_equal(
-		"Походи кімнатою"
-	)
+	assert_str((face.get_node(^"V/Frames/Frame1/Words") as Label).text).is_equal("Походи кімнатою")
 	var tasks := guide.column.get_node(^"Tasks") as Label
 	assert_str(tasks.atr(tasks.text)).is_equal("Задачі")
 	await get_tree().process_frame
@@ -105,6 +107,22 @@ func test_no_mode_lists_the_basics_only() -> void:
 	assert_array(guide.chips.keys()).is_equal([&"moving", &"voice", &"downed"])
 	assert_bool(guide.tasks_label.visible).is_false()
 	assert_str(String(guide.selected)).is_equal("moving")
+
+
+func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
+	# The greybox Esc menu is dark until #491 restyles it light (the handoff's).
+	var guide: GuidePanel = auto_free(GuidePanel.new(ToyHints.DARK))
+	assert_str(String((guide.column.get_node(^"Basics") as Label).theme_type_variation)).is_equal(
+		"ToyTextMutedOnDark"
+	)
+	assert_str(String(guide.tasks_label.theme_type_variation)).is_equal("ToyTextMutedOnDark")
+	assert_str(String(guide.chips[&"voice"].theme_type_variation)).is_equal("ToyChipToggleOnDark")
+	var light := _guide()
+	assert_str(String(light.tasks_label.theme_type_variation)).is_equal("ToyTextMutedOnLight")
+	assert_str(String(light.chips[&"voice"].theme_type_variation)).is_equal("ToyChipToggleOnLight")
+	var ui: GameUi = auto_free(GameUi.new())
+	assert_str(String(ui.esc.guide.context)).is_equal(String(ToyHints.DARK))
+	await get_tree().process_frame
 
 
 func test_the_esc_menus_guide_tab_shows_it() -> void:
