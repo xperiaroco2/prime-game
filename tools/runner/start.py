@@ -190,7 +190,7 @@ def main(
     if use_worktree:
         say(f"WORKTREE {path}")
         say("        Work there: EnterWorktree with this path, or open a new session in that folder.")
-        say("        Its first `tools\\run.cmd check` imports the project from scratch (slower once).")
+        say("        Its first `tools\\run.cmd check` imports the project (from scratch unless start seeded .godot/).")
     say(f"start: {branch}" + (f" in the worktree {path}" if use_worktree else " is checked out here"))
     return 0
 
@@ -307,7 +307,43 @@ def create_worktree(number: int, branch: str, dry_run: bool, parent: str = BASE)
     ok(f"created the worktree {path} on {branch} from {source}")
     if new:
         record_parent(branch, parent, dry_run)
+    if seed_import_cache(main_checkout(), path):
+        ok("seeded its .godot/ import cache from the main checkout's (its first check imports only what differs)")
     return path
+
+
+# #608: a new worktree's first `check` imported the whole project from scratch. Godot reimports only an asset whose
+# source changed (the .md5 files under .godot/imported/), so a copy of the main checkout's cache makes that import
+# incremental. Only a cache the runner made (its stamp and class cache are there, so the pinned Godot made it,
+# common.check_godot_version) for the same project (project.godot's name and features, the latter naming the Godot
+# minor) is copied, without the stamp: check.freshness then still imports once in the new worktree.
+SEED_SKIP = ("runner_import.stamp",)
+PROJECT_KEYS_RE = re.compile(r"^config/(name|features)=.*$", re.MULTILINE)
+
+
+def _project_keys(root: Path) -> list[str] | None:
+    try:
+        text = (root / "project.godot").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return sorted(m.group(0).strip() for m in PROJECT_KEYS_RE.finditer(text)) or None
+
+
+def seed_import_cache(source: Path, target: Path) -> bool:
+    """Copy source/.godot to target/.godot when the target has none and both are the same project; True if copied.
+    Anything else (no cache, another project or Godot minor, a copy error) skips silently: the import runs as before."""
+    cache, dest = source / ".godot", target / ".godot"
+    if dest.exists() or not (cache / "global_script_class_cache.cfg").is_file() or not (cache / SEED_SKIP[0]).is_file():
+        return False
+    keys = _project_keys(source)
+    if keys is None or keys != _project_keys(target):
+        return False
+    try:
+        shutil.copytree(cache, dest, ignore=shutil.ignore_patterns(*SEED_SKIP))
+    except (OSError, shutil.Error):
+        shutil.rmtree(dest, ignore_errors=True)  # a half copy (the editor writing meanwhile) would only mislead
+        return False
+    return True
 
 
 def _is_ancestor(commit: str, of: str) -> bool:
