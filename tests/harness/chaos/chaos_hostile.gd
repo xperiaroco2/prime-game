@@ -36,6 +36,8 @@ const NEAR_CLAIM_CHANCE := 0.5
 const VOICE_COUNTER := 500_000
 
 var rng := RandomNumberGenerator.new()
+## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
+var quiet := Callable()
 ## Intent name -> how many it sent; the malformed shapes and claim shapes sent; for the report.
 var sent: Dictionary[String, int] = {}
 
@@ -134,7 +136,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var resting := (
 		item != ChaosOracle.NO_ITEM and _client.model.items[item].holder == ClientModel.NO_HOLDER
 	)
-	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
+	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE and not _quiet():
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
 	_send(packet)
@@ -222,7 +224,12 @@ func _raise_target() -> int:
 
 func _claim() -> void:
 	var shape := rng.randi_range(0, ChaosFrames.RANDOM_CLAIMS - 1) as ChaosFrames.Claim
-	_claim_at(shape, _bot.position)
+	if not _quiet():
+		_claim_at(shape, _bot.position)
+
+
+func _quiet() -> bool:
+	return quiet.is_valid() and quiet.call()
 
 
 func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:

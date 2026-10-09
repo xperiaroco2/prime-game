@@ -1520,9 +1520,9 @@ fails that sweep).
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
-`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
-package, Delivery alone: the zone task banned with `tasks` 1 since #649; bot 1 knocks bot 4 down, bot 2 then
-delivers) carries two chaos peers that are never peer 1: a
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
+default draw of one package and one zone since #649; bot 4 walks into the zone and freezes, bot 1 then knocks it
+down, bot 2 delivers and bot 3 holds the zone) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -1552,7 +1552,15 @@ sections named:
    `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
    the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
    position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
-   a new baseline, checked as one tick and corrected: either answer passes;
+   a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
+   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 200 ticks while
+   it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
+   then one claim spends the stored credit to walk about 30 m away; `ChaosRun` checks on the host's state that the
+   zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
+   player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
+   The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
+   velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
+   walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last);
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
 7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
@@ -1597,7 +1605,9 @@ the encoder refuses with an error line).
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
 step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
-`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
+`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. With the zone and bot 4's freeze (#649,
+2026-10-09) a seed's three runs are 1830 frames (30.5 s simulated, about 11 s); `--seed 1 --runs 10`, `--seed
+188001`, `--long --seed 5`, `--enet --seed 7` and `--transport webrtc --seed 188001` passed. The night job `chaos` runs ten seeds of
 `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)

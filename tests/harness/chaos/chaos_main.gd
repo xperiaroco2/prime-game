@@ -90,6 +90,12 @@ static func run_seed(seed_value: int, long: bool) -> PackedStringArray:
 			]
 		)
 	)
+	print(
+		(
+			"  bot 4's freeze in the zone: it gained %d ticks after the last claim (at most %d)"
+			% [chaos.freeze_gained, ZoneTask.STALE_TICKS]
+		)
+	)
 	for named: Array in [["baseline", baseline], ["chaos", chaos], ["swapped roles", swapped]]:
 		var run: ChaosRun = named[1]
 		for failure: String in run.failures:
