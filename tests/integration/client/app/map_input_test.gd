@@ -182,7 +182,7 @@ func test_the_end_of_the_round_closes_the_map_and_the_next_round_starts_closed()
 	await get_tree().process_frame
 
 
-## A host's Game alone in the round of a one-minute match, its screens shown.
+## A card over the map (a stub; #254's registers the same way): Esc and the map key close it first.
 func test_a_card_over_the_map_closes_first_on_esc_and_on_the_map_key() -> void:
 	var game := await _round_game(PORT + 4)
 	var pointer := game.pointer as RecordingPointer
@@ -268,6 +268,7 @@ func test_with_the_map_open_the_keys_work_and_the_mouse_turns_nothing() -> void:
 	await get_tree().process_frame
 
 
+## A host's Game alone in the round of a one-minute match, its screens shown.
 func _round_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
 	game.pointer = RecordingPointer.new()
