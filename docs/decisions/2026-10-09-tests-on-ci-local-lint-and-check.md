@@ -35,13 +35,15 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 
 ## Amendment (#606, 2026-10-09): the review chain by the change's risk
 - **Deciders:** the engineer, #302 comment 6080608901 item 2 ("simplify by the risk of the change"): the full chain
-  only where a mistake becomes a cheat, a desync or a hidden-information leak.
+  only where a mistake becomes a cheat, a desync or a hidden-information leak. The three open points of #606's PR
+  (#631) he answered in #302 comment 6085059719 item 2: 1a, 2b and 3a below.
 - **Decision:** `issue-task` picks a review tier from the implementer's changed paths, the worst one winning.
-  - `full`: a path under `core/ server/ net/ client/ voice/ tests/harness/` (the path rule of `quick-task`, #608), no
-    changed paths (unknown), a design task, or the launch's `tier: "full"`. Today's chain, unchanged.
-  - `light`: any other diff (docs, content data, levels, tooling): `code-reviewer`
+  - `full`: a path under `core/ server/ net/ client/ voice/ tests/harness/` but `client/ui/` (the path rule of
+    `quick-task`, #608, which drops `client/ui/` too), no changed paths (unknown), a design task, or the launch's
+    `tier: "full"`. Today's chain, unchanged.
+  - `light`: any other diff (docs, content data, levels, tooling, the screens under `client/ui/`): `code-reviewer`
     (`godot-api-checker` too on a `.gd .tscn .tres` change; `ab_review` keeps its measurement pair) and the publisher.
-    `test_review`, `second_review` and `skeptic` are dropped even when passed.
+    The netcode review, `test_review`, `second_review` and `skeptic` are dropped even when passed.
   - `plan_review` runs before any diff exists, so the branch's area (`start`'s `<area>/` prefix, from the issue's area
     label) decides it: `content`, `level` and `tooling` skip it unless the tier is forced. A diff that then turns out
     full gets the full review without the plan.
@@ -49,16 +51,21 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - **Two tiers, not the issue's three:** #606 named a `tooling` tier after #605's verify tiers, which comment
   6082442125 replaced with one fast local verify; a tooling diff is light, its tests run on CI (`selftest`), and the
   script cannot read an issue's `Size:` line to drop `plan_review` below M.
-- **UI is full, not light:** the issue's light row named "UI text and layout", but the UI's scenes and scripts live
-  under `client/ui/`, and `client/` stays full (#158: a leak through rendering is an information leak, the rule of
-  `quick-task` and the netcode routing). A `client/ui/` carve-out needs the engineer's word on #606's PR.
-- **A path no rule lists is light:** the issue's table made `full` the default ("anything else"); the manager's notes
-  for #606, from the engineer's answer above, make it `light`. So a diff of only `project.godot`, export presets,
-  `addons/`, `.github/workflows/`, `.claude/settings*.json`, `tests/unit/` or `tests/integration/` (its `net/` too)
-  drops the skeptic, and on a light branch the plan. Open for the engineer's word on #606's PR; `ReviewTierTest` pins
-  whichever default holds (with `project.godot` and CI's workflow).
+- **`client/ui/` is light, the rest of `client/` full (answer 2b):** the issue's light row named "UI text and layout",
+  and the UI's scenes and scripts live under `client/ui/`. Before the answer all of `client/` was full (#158: a leak
+  through rendering is an information leak, the rule of `quick-task` and the netcode routing). Now a `client/ui/`
+  diff alone gets one fresh reviewer and CI, in both scripts (one `REVIEWED` rule, compared by `ReviewTierTest`);
+  `client/player/`, `client/world/`, `client/net/`, `client/voice/` and the rest stay full, and so does a folder or
+  file whose name only starts with `ui`. A screen that shows hidden information can still leak it; the manager passes
+  `tier: "full"` where a kickoff asks for the netcode review.
+- **A path no rule lists is light (answer 1a):** the issue's table made `full` the default ("anything else"); the
+  manager's notes for #606, from the engineer's answer above, make it `light`. So a diff of only `project.godot`,
+  export presets, `addons/`, `.github/workflows/`, `.claude/settings*.json`, `tests/unit/` or `tests/integration/` (its
+  `net/` too) drops the skeptic, and on a light branch the plan. `ReviewTierTest` pins the default (with
+  `project.godot` and CI's workflow).
 - **Consequences:** a docs, content or tooling task launched with `plan_review` and `skeptic` runs 3 agents (4 with
   `godot-api-checker`) instead of 5 and a skeptic per blocker or major;
   a light change has one fresh reviewer and CI. A mistake in tooling that guards against lost work (the guard, the
-  hooks, `publish`, `merge`) is reviewed light too; the manager passes `tier: "full"` where a kickoff asks for more.
+  hooks, `publish`, `merge`) is reviewed light too (answer 3a); the manager passes `tier: "full"` where a kickoff asks
+  for more.
   `metrics` groups cost and wall time per tier (the publisher's prompt names it), the before and after.

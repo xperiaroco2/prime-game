@@ -400,18 +400,21 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A small task (the
   issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
-  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
-  net/ client/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge` (the
-  definition of done's review step, §4.2, is then CI alone for any other diff). `issue-task`'s review chain follows
-  the change's risk (#606, [ADR amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the
-  implementer, a path under `core/ server/ net/ client/ voice/ tests/harness/`, no changed paths, a design task or
-  the arg `tier: "full"` gets today's full chain (the How above, unchanged); any other diff the light one
+  #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/ net/
+  client/ voice/ tests/harness/` (`client/ui/` excepted, #606), and the manager merges it at once when its result says
+  `ready_to_merge` (the definition of done's review step, §4.2, is then CI alone for any other diff). `issue-task`'s
+  review chain follows the change's risk (#606, [ADR
+  amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the implementer, a path under `core/
+  server/ net/ client/ voice/ tests/harness/` (but `client/ui/`, the screens: the engineer's answer 2b,
+  [#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)), no changed paths, a design task
+  or the arg `tier: "full"` gets today's full chain (the How above, unchanged); any other diff the light one
   (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher), which drops `skeptic` even when
-  passed, and `plan_review` on a `content`, `level` or `tooling` branch (`test_review` and `second_review` already
-  run only on a diff under the full tier's paths, so a light diff never ran them).
+  passed, `plan_review` on a `content`, `level` or `tooling` branch, and on a `client/ui/` diff the netcode review and
+  `test_review` (no other light diff ever routed them).
   A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
-  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
+  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158); only
+  `issue-task`'s light tier leaves out a `client/ui/` diff (#606).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
   read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)

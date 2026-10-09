@@ -55,13 +55,15 @@ implementer ends red. Every agent writes temporary files only under the scratchp
 
 **Review tier** (#606, the engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or
 a leak). After the implementer its changed paths choose, the worst one winning: `full` for a path under `core/ server/
-net/ client/ voice/ tests/harness/`, no changed paths, a design task or `tier: "full"` (the chain above, unchanged);
-`light` for any other diff (docs, content, levels, tooling; UI code lives under `client/`, so a UI task is full on
-purpose: a leak through rendering is an information leak, #158): the code reviewer (plus `godot-api-checker` on
-`.gd .tscn .tres`; `ab_review` keeps its pair), then the publisher; `test_review`, `second_review` and `skeptic` are
-dropped even when passed. `plan_review` runs before any diff, so the branch's area decides it: `content`, `level` and
-`tooling` skip it. Pass the options as the table says: the script drops them where the tier does. The result's
-`tier` and `tier_skipped` say what ran; `metrics` groups cost and wall time per tier.
+net/ client/ voice/ tests/harness/` (but `client/ui/`), no changed paths, a design task or `tier: "full"` (the chain
+above, unchanged); `light` for any other diff (docs, content, levels, tooling, and the screens under `client/ui/`: the
+engineer's answer 2b on #302, comment 6085059719; the rest of `client/` stays full, #158): the code reviewer (plus
+`godot-api-checker` on `.gd .tscn .tres`; `ab_review` keeps its pair), then the publisher; the netcode review,
+`test_review`, `second_review` and `skeptic` are dropped even when passed. For a `client/ui/` task whose kickoff asks
+for the netcode review (a screen that shows a role, a vote or another player's state), pass `tier: "full"`.
+`plan_review` runs before any diff, so the branch's area decides it: `content`, `level` and `tooling` skip it. Pass the
+options as the table says: the script drops them where the tier does. The result's `tier` and `tier_skipped` say what
+ran; `metrics` groups cost and wall time per tier.
 
 Notes that worked: say which PR a needed file comes from if it is unmerged ("build with fixtures, fetch and rebase
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
@@ -71,9 +73,9 @@ in the data); name a task's merge order relative to the other open PRs; name eve
 A task whose issue says `Size: XS` or `S`, one logical change and no design (a rename, a text or value change, a docs
 fix) goes to `quick-task` (`.claude/workflows/quick-task.js`) instead of `issue-task`, after `start` as usual. Args:
 `{n, title, wt, branch, base, notes}`, and `models: {quick: "opus"}` only for a harder one (default Sonnet). One
-`task-publisher` agent makes the change, runs `lint` and `check`, pushes, opens the PR and waits for CI (at most two
-fix rounds); only a diff under `core/ server/ net/ client/ voice/ tests/harness/` adds `code-reviewer` and
-`netcode-security-reviewer` and, on a blocker or major, one fix agent (1 to 4 agents). When the result says
-`ready_to_merge` (CI green, no blocker or major open, nothing for the engineer), merge at once:
-`tools/run.sh merge <pr> --base <base>`; otherwise act on `needs_engineer` and `stopped`. Not for a design task,
-Size M or larger, or a new mechanic.
+`task-publisher` agent makes the change, runs `lint` and `check`, pushes, opens the PR and waits for CI (at most two fix
+rounds); only a diff under `core/ server/ net/ client/ voice/ tests/harness/` (but `client/ui/`) adds `code-reviewer`
+and `netcode-security-reviewer` and, on a blocker or major, one fix agent (1 to 4 agents). When the result says
+`ready_to_merge` (CI green, no blocker or major open, nothing for the engineer), merge at once: `tools/run.sh merge <pr>
+--base <base>`; otherwise act on `needs_engineer` and `stopped`. Not for a design task, Size M or larger, or a new
+mechanic.

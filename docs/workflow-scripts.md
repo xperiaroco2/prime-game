@@ -54,13 +54,15 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
   Never edit a snapshot by hand; after a rebase that touched the scripts, regenerate them.
 - The compact result (#386) stays small: `CompactResultTest` bounds it.
 - `issue-task.js`'s review tier (#606): the implementer's changed paths choose, the worst winning. `full` (a path
-  under `core/ server/ net/ client/ voice/ tests/harness/`, quick-task's `REVIEWED` copied; no paths; a design task;
-  the arg `tier: 'full'`) runs the whole chain; `light` drops `skeptic`, and `plan_review` by the branch's area. It
-  lists `test_review` and `second_review` as dropped too, but those were already path-gated and never ran on a light
-  diff: compare tiers in `metrics` by the skeptic and the plan. `ReviewTierTest` covers it.
+  under `core/ server/ net/ client/ voice/ tests/harness/` but `client/ui/`, quick-task's `REVIEWED` copied; no paths;
+  a design task; the arg `tier: 'full'`) runs the whole chain; `light` drops `skeptic`, `plan_review` by the branch's
+  area, and the netcode review and `test_review` on a `client/ui/` diff (the `!LIGHT` guards; any other light diff
+  was never routed to them). It lists `test_review` and `second_review` as dropped whenever passed: compare tiers in
+  `metrics` by the skeptic and the plan. `ReviewTierTest` covers it.
 - `tools\run.cmd metrics` and `wave` read each agent's role from its label (`metrics.role_of`): `implement:#<n>`,
   `review:code:#<n>` and the like, with a suffix `#<k>` for a later agent of the same role (issue-task's checkpoint
   continuations, `implement:#<n>#2`; pr-rebase's `fix:#<n>#2`). A suffix `:<k>` makes the label unknown ("other").
 - `quick-task.js` (#608, launch-args.md): one `task-publisher` agent takes an XS/S task through `lint`, `check`, a
-  PR and CI; only a diff under `core/ server/ net/ client/ voice/ tests/harness/` adds the two reviewers and, on a
+  PR and CI; only a diff under `core/ server/ net/ client/ voice/ tests/harness/` (but `client/ui/`) adds the two
+  reviewers and, on a
   blocker or major, a fix agent. `QuickTaskTest` covers it, with no snapshots.
