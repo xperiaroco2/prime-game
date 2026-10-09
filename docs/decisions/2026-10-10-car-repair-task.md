@@ -186,7 +186,7 @@ choice to the engineer.
 | The holder is hit and not knocked down | RD10 (c): the hold goes on (`hit_stops` false); the fit of a hit fitter stops | the engineer's "let go, or be knocked down" |
 | Round ends (time, every task done, no crew present) while the car is up | the transition stops the hold with the phase's end marked: `LiftChanged(false)`, no kill | RD16 (x), RE4: nobody dies after the round's outcome |
 | The last part is fitted | `PartFitted`, the subtask, the task done; the hold goes on, and its drop kills as always; no new hold (RD11 (a)) | the car stays a car until it is lowered |
-| The fit completes and the hold stops in the same tick | `ChannelTicks` runs channels in actor-id order: the lower id's channel first, so the fitter fits and then dies, or dies first | determinism (§4.5.3); both are legal outcomes |
+| The fit completes and the hold stops in the same tick | a stop in that tick's command step (a `StopRaise`, another applied action of the holder, a knockdown, a leave) drops the car before `ChannelTicks` runs, so the fitter always dies first, whatever the ids; a stop found by `ChannelTicks` itself (the holder out of the cylinder or sight) follows actor-id order: the lower id's channel first, so the fitter fits and then dies, or dies first | determinism (§4.5.3: commands before tick systems); every case is a legal outcome |
 | A bystander beside the car | lives: its feet are outside the box | RE7, RD6 |
 | A player on the car's roof | cannot happen for an honest client: the car's collision has no top to stand on (RE8); a modified client's claim there floats above the host's floor and is corrected; were its feet above `clearance_m`, it would live | RE7, RE8 |
 | A downed player under the car | killed with the others (RD7 (a)); its items drop at its body under the car | "whoever is under it" |
@@ -257,7 +257,7 @@ choice to the engineer.
   refusals in order, a stop losing progress, a fitter who stops claiming (its fit stops 10 ticks after its last
   accepted claim with `FitChanged(car, 0, tick)`, its progress lost, RE2), a holder who stops claiming (the car stays
   up), completion locking the part, the next `PartNeeded`, the last part
-  completing the task, the fit and the drop in one tick in both actor orders.
+  completing the task, the fit and the drop in one tick in both actor orders and with the drop in the command step (the fitter dies first).
 - **The leak test's lists** (R3, R4): the four events join the task events every player receives alike
   (`LeakCheck`, `ScenarioInvariants`); they prove nothing until a scenario plays car repair (R9).
 - **Integration tests on House** (R8; bots do not play House, ARCHITECTURE §9.7): `Match` over `HostWorldQuery` with
