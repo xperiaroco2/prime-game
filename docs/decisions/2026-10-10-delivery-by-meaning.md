@@ -14,6 +14,9 @@
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules, DD1 to DD8); the game-design manager session of #676 (DE1 to DE14). Designed
   by the agent of #683, on the engineer's word (#683; the track's kickoff on #593, comment 6088751685).
+- **Amends:** [MVP rules](2026-09-29-mvp-rules.md) (Delivery: a circle per package placed at random, a colour per
+  package, the palette of 10). The direction is the engineer's decision of 2026-10-10, so that ADR's Deciders line, its
+  Delivery bullet and its two numbers rows already point here; the rest of this ADR is proposed.
 - **Builds on:** [MVP rules](2026-09-29-mvp-rules.md) (Tasks: the shared Delivery of #79; the engineer's correction in
   #32, "rests inside, however it got there"), [content API v0](2026-09-29-content-api-v0.md) (task types are classes
   with settings), [vision revision 1](2026-10-01-vision-revision-1.md) (V4's "living", V13's two-handed package, hiding
@@ -251,6 +254,9 @@ recommendation and D2 on DD2, DD5 and DD6's, each revertible in its data or code
 - **The bots on a fixture mode** (DE9 (b)): the scenarios would stop testing the base mode's Delivery.
 
 ## Consequences
+- The MVP rules ADR records the engineer's change (its Deciders line, the Delivery bullet, the rows "Delivery circles
+  per match" and "Distinct circle colours"), each pointing here. When this ADR is accepted its Status says so, and the
+  issue that builds a rule here updates the line of the MVP rules it replaces.
 - ARCHITECTURE §9.5.4 points here, §9.8 gains the row "Delivery by meaning" and §10 its questions; GDD §8 gains
   Delivery's section with the questions still open. house-map §6's Delivery rows change in D4, after DD1's answer.
 - When D2 lands, ARCHITECTURE's Delivery entries (§7.1.14, §9.5.4, §9.5.5), `ItemSpawned`'s rows (§4.2, §4.3.4), §5's
