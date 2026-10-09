@@ -380,6 +380,10 @@ TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:
 NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
+# #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
+REVIEW_TIER = re.compile(r"^Review tier \(#606\): (light|full)\b", re.MULTILINE)
+# The tier of a run whose publisher's prompt names none: before #606, stopped before its publisher, or pr-rebase.
+NO_TIER = "unknown"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
 BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
@@ -1214,6 +1218,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "effort": effort,
         "title": title,
         "design": DESIGN_TASK in (prompt or ""),
+        "tier": (m.group(1) if (m := REVIEW_TIER.search(prompt or "")) else None),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -1713,12 +1718,14 @@ def per_task(r: dict) -> dict:
     )
     pub = next((x["result"] for x in r["agents"] if x["role"] == "publisher" and x["result"]), None) or {}
     impl = implementer_context(r)
+    tier = next((x["data"]["tier"] for x in r["agents"] if x["data"] and x["data"].get("tier")), None) or NO_TIER
     return {
         "session": r["session"],
         "issue": r["issue"],
         "wf": r["wf"],
         "start": r["start"],
         "wall": r["end"] - r["start"],
+        "tier": tier,
         "span": span,
         "tokens": total(tok),
         "fresh": fresh(tok),
@@ -1789,6 +1796,8 @@ def build(
         "",
     ]
     md += task_section(tasks)
+    tiers = tier_rows(tasks)
+    md += tier_section(tiers)
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
@@ -1836,6 +1845,7 @@ def build(
         "week": week,
         "stages": stages,
         "tasks": tasks,
+        "tiers": tiers,
         "runs": [
             {k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r), "types": run_types(r)} for r in counted
         ],
@@ -1875,6 +1885,35 @@ def task_section(tasks: list[dict]) -> list[str]:
             "API list $", "tool calls", "verify runs/red", "min in verify", "verify+publish calls",
             "min in those calls", "min on CI", *SEVERITIES, "PR", "CI"]
     return ["## Per finished issue-task run (minutes)", "", table(head, rows), ""]
+
+
+def tier_rows(tasks: list[dict]) -> list[dict]:
+    """#606: the finished issue-task runs per review tier (light, full, then unknown): count, wall time and API list $."""
+    rows = []
+    for tier in ("light", "full", NO_TIER):
+        t = [p for p in tasks if p["tier"] == tier]
+        if t:
+            rows.append({
+                "tier": tier, "runs": len(t), "wall": med([p["wall"] for p in t]), "wall_max": max(p["wall"] for p in t),
+                "review": med([p["span"].get("Review", 0) for p in t]), "usd": med([p["usd"] for p in t]),
+                "usd_max": max(p["usd"] for p in t), "usd_sum": sum(p["usd"] for p in t),
+                "calls": med([p["calls"] for p in t]),
+            })  # fmt: skip
+    return rows
+
+
+def tier_section(rows: list[dict]) -> list[str]:
+    head = ["tier", "runs", "wall", "wall max", "review", "API list $", "API list $ max", "API list $ total", "tool calls"]
+    body = [
+        [r["tier"], r["runs"], mins(r["wall"]), mins(r["wall_max"]), mins(r["review"]), fmt_usd(r["usd"]),
+         fmt_usd(r["usd_max"]), fmt_usd(r["usd_sum"]), f"{r['calls']:.0f}"]
+        for r in rows
+    ]
+    return [
+        "## Per review tier (#606): finished issue-task runs, medians in minutes", "", table(head, body), "",
+        f"The tier is the line its publisher's prompt names; {NO_TIER}: a run before #606 or one stopped before its "
+        "publisher.", "",
+    ]
 
 
 def stage_rows(tasks: list[dict], labels: list[str]) -> list[dict]:
@@ -4094,6 +4133,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
     context: list[dict] = []
     types: Counter = Counter()
     type_usd: Counter = Counter()
+    tier = None  # #606: the review tier its publisher's prompt names, once the publisher started
     for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
@@ -4107,6 +4147,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
             data = read_agent(path)
+            tier = tier or data.get("tier")
             if data["api_calls"]:
                 idle.append({"session": run_dir.parents[2].name[:8], "run": run_dir.name, "label": label,
                              "type": str(read_meta(path).get("agentType", "?")), "data": data})  # fmt: skip
@@ -4129,6 +4170,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "phases": phases,
         "types": dict(types),
         "type_usd": dict(type_usd),
+        "tier": tier,
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
         "idle": idle_record(idle),
         "context": context_record(context),
@@ -4145,6 +4187,8 @@ def run_lines(r: dict) -> list[str]:
     if r["agent_runs"] > r["started"]:  # the phases count every agent id: a retry, or one the journal does not list
         head += f" ({r['agent_runs']} agent runs: a retry, or one the journal does not list)"
     head += f", {r['answered']} answered"
+    if r.get("tier"):  # #606: issue-task's review tier, once its publisher started
+        head += f"; review tier {r['tier']}"
     if r["working"]:
         head += "; working now: " + ", ".join(r["working"])
     if r["idle_minutes"] is not None:

@@ -1579,7 +1579,9 @@ under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.jso
 id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
 with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
 characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
+`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run, per review tier (#606: light, full, or
+unknown before #606 or with no publisher, read from the publisher's prompt; runs, wall time, review phase, API list $;
+`tiers` in `metrics.json`, and `--run` names a run's tier) and per session (a stage), per agent role
 (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
 issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review`, `skeptic`, and #535's
 `review:code-control` and `ab-judge`; any other is "other"),
