@@ -55,3 +55,15 @@ func test_feet_count_on_the_floor_and_up_to_the_height_and_radius() -> void:
 	]
 	for at: Vector3 in outside:
 		assert_bool(zone.contains(at)).override_failure_message(str(at)).is_false()
+
+
+## The floor's slack is 1 mm: pinned from both sides on a floor at y = 0, 0.1 mm inside and 0.1 mm
+## past it, not at exactly 1 mm, which a Vector3's 32-bit y holds as a hair more than the 64-bit
+## constant (the code review of #647).
+func test_the_floor_slack_is_1_mm() -> void:
+	var kind := StationKind.new()
+	kind.radius_m = 1.5
+	kind.height_m = 2.5
+	var zone := StationState.new(3, kind, Vector3(-2, 0, 6), Color.YELLOW)
+	assert_bool(zone.contains(Vector3(-2, -0.0009, 6))).is_true()
+	assert_bool(zone.contains(Vector3(-2, -0.0011, 6))).is_false()
