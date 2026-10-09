@@ -11,6 +11,7 @@ var _stage: Control
 
 func before_test() -> void:
 	UiPrefs.reduced_motion = true
+	_free_clicker()
 	_stage = auto_free(Control.new())
 	_stage.theme = GameUi.THEME
 	add_child(_stage)
@@ -18,6 +19,11 @@ func before_test() -> void:
 
 func after_test() -> void:
 	UiPrefs.reset()
+	_free_clicker()
+
+
+## A click player left by any earlier suite in this process: every test starts and ends without one.
+func _free_clicker() -> void:
 	var clicker := UiSounds.player_in(get_tree())
 	if clicker != null:
 		clicker.free()
