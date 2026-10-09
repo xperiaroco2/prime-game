@@ -1521,7 +1521,8 @@ fails that sweep).
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
 `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
-package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+package, Delivery alone: the zone task banned with `tasks` 1 since #649; bot 1 knocks bot 4 down, bot 2 then
+delivers) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -4540,7 +4541,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6.1).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
-    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10).
+    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
+    (`PerfScenario`) keeps the default draw, both task types since #649: two of the 10 spokes cross the greybox's
+    zones, so it meters `ZoneProgress` too.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
