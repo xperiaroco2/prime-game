@@ -8,6 +8,9 @@ it verifies as always. CI still runs the full verify before any merge.
 The only way the agent updates a pushed branch after a rebase (docs/decisions/2026-09-28-force-with-lease-on-task-
 branches.md). The pre-push hook lets this one non-fast-forward push through because the runner marks it with
 PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker and is blocked.
+
+Its verify is quiet unless `--verbose` (#572): its red steps' failure lines and its summary; the whole output in
+tools/out/logs/verify-output.log. Publish's own lines are few and print as before.
 """
 
 from __future__ import annotations
@@ -97,7 +100,7 @@ def reuse_refusal() -> str:
     return wait.reuse_refusal(wait.newest_record(verify.HISTORY), facts, dirty, wait.utc_now())
 
 
-def main(base: str | None = None) -> int:
+def main(base: str | None = None, verbose: bool = False) -> int:
     say("publish")
     branch = _git("symbolic-ref", "--quiet", "--short", "HEAD").out.strip()
     if not TASK_BRANCH_RE.match(branch):
@@ -173,13 +176,17 @@ def main(base: str | None = None) -> int:
 
     # After a stacked parent was rebased or amended, replay only this branch's own commits onto it: the ones after the
     # recorded parent commit (--onto), else after the fork point that the upstream's reflog shows (--fork-point).
-    res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
-    if res.rc != 0 or res.timed_out:
-        _git("rebase", "--abort")
-        raise Failure(
-            f"the rebase on {upstream} stopped, usually on a conflict. Publish aborted it: {branch} is unchanged "
-            f"at {before[:10]}. Ask the human how to resolve it.\n{res.out.strip()[-600:]}"
-        )
+    # HEAD already holds the upstream's tip (a branch that took main or the base in by a merge, #694): there is
+    # nothing to replay, and a rebase would drop its merges and replay the merged-in commits as the branch's own.
+    # Not when --onto must leave out a parent's commits that the upstream lacks (the tip is not in the upstream).
+    if not (_in(upstream, "HEAD") and (not onto or _in(tip, upstream))):
+        res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
+        if res.rc != 0 or res.timed_out:
+            _git("rebase", "--abort")
+            raise Failure(
+                f"the rebase on {upstream} stopped, usually on a conflict. Publish aborted it: {branch} is unchanged "
+                f"at {before[:10]}. Ask the human how to resolve it.\n{res.out.strip()[-600:]}"
+            )
     after = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     ok(f"rebased on {upstream}" + (" (already up to date)" if after == before else f": {before[:10]} -> {after[:10]}"))
     if unstack:
@@ -203,7 +210,7 @@ def main(base: str | None = None) -> int:
     else:
         say(f"publish: verify runs: {why}")
         say()
-        if verify.main() != 0:
+        if verify.main(verbose=verbose) != 0:
             raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 

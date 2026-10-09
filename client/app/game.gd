@@ -150,6 +150,7 @@ func _ready() -> void:
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
 	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
+	ui.esc.lobby.map_changed.connect(change_map)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
@@ -313,6 +314,12 @@ func change_lobby_name(text: String) -> void:
 		_client.send_intent(
 			Intents.CHANGE_SETTINGS, {"settings": {}, "lobby_name": LobbyName.clean(text)}
 		)
+
+
+## The host picks the match's map: one of the mode's maps, which the host checks (#627).
+func change_map(map: String) -> void:
+	if _client != null:
+		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {}, "map": map})
 
 
 ## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it

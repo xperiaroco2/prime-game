@@ -107,7 +107,8 @@ client notices that the host is gone is the transport's (#40), not this ADR's.
     emission, so one effect class and a `Revived` event suffice. Knowledge never shrinks: a revived player keeps
     what they saw as a ghost; #34 decides whether that matters.
   - **Physics throwing (#37):** a throw action part, and `server/` reporting `ItemRested` from its physics; whether
-    a thrown package delivers is #37's open question, and the check is the same one.
+    a thrown package delivers is #37's open question, and the check is the same one. (Note of 2026-10-09: #37's
+    design, [proposed](2026-10-09-throwing-held-items.md), runs the flight in `core/` instead, its TE1.)
 - Stage 2a rewords `core/CLAUDE.md` ("`core/` never decides who may see an event"; game modes as `core/` classes plus
   content data) and `server/CLAUDE.md` (the phase and range checks and the movement sanity checks move to `core/`
   rules that `server/` calls). ARCHITECTURE §1 already says so.

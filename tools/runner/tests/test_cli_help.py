@@ -63,7 +63,8 @@ OLD_ROWS = {
     ],
     "merge": [
         "--base release/<x>",
-        "verify on the merged tree, push by hash",
+        "through GitHub when CI is green on a head that contains the branch",
+        "no local verify",
         "--base main",
         "through GitHub when its gate passes",
         "--sync-main",

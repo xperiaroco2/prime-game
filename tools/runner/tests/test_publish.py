@@ -163,6 +163,15 @@ class RealGitTest(unittest.TestCase):
         self.verify.assert_called_once()
         self.assertFalse(self.skipped())
 
+    def test_its_verify_is_quiet_unless_publish_is_verbose(self) -> None:
+        # #572: publish --verbose passes it on; by default its verify prints its red steps' lines and its summary.
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.assertEqual(publish.main(), 0)
+        self.commit(self.work, "g.txt", "more\n", "more")
+        self.assertEqual(publish.main(verbose=True), 0)
+        self.assertEqual([c.kwargs["verbose"] for c in self.verify.call_args_list], [False, True])
+
     def test_each_unmet_condition_verifies(self) -> None:
         self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
         self.commit(self.work, "g.txt", "mine\n", "mine")
@@ -263,6 +272,24 @@ class RealGitTest(unittest.TestCase):
         own = self.git(self.work, "rev-list", "--count", "origin/tooling/1-parent..HEAD")
         self.assertEqual(own, "1")
         self.assertEqual(self.remote("tooling/2-child"), self.git(self.work, "rev-parse", "HEAD"))
+
+    def test_a_branch_that_holds_main_by_a_merge_is_not_replayed(self) -> None:
+        # #694: a task branch on a release branch took main in by a merge. The base tip is in HEAD, so there is
+        # nothing to replay; a rebase would drop the merge and replay main's commits as the branch's own.
+        self.git(self.work, "switch", "-q", "-c", "release/m1")
+        self.git(self.work, "push", "-q", "origin", "release/m1")
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.git(self.work, "config", "branch.tooling/1-x.primeBase", "release/m1")
+        self.git(self.work, "config", "branch.tooling/1-x.primeBaseTip", self.git(self.work, "rev-parse", "HEAD"))
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        self.commit(self.other, "h.txt", "theirs\n", "main moves")
+        self.git(self.other, "push", "-q", "origin", "main")
+        self.git(self.work, "fetch", "-q", "origin")
+        self.git(self.work, "merge", "-q", "--no-ff", "-m", "take main", "origin/main")
+        before = self.git(self.work, "rev-parse", "HEAD")
+        self.assertEqual(publish.main(base="release/m1"), 0)
+        self.assertEqual(self.git(self.work, "rev-parse", "HEAD"), before)
+        self.assertEqual(self.remote("tooling/1-x"), before)
 
 
 if __name__ == "__main__":

@@ -60,6 +60,73 @@ func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 	assert_array(sent).is_empty()
 
 
+func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() -> void:
+	# #627: the mode's maps by name; the host's pick is sent, a guest's picker is read-only, and the
+	# picker follows the map the host's settings name.
+	var mode := load(MODE) as GameMode
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	var sent: Array[String] = []
+	panel.map_changed.connect(func(map: String) -> void: sent.append(map))
+	var picker := panel.map_picker
+	assert_int(picker.item_count).is_equal(mode.maps.size())
+	for i in mode.maps.size():
+		assert_str(picker.get_item_text(i)).is_equal(LobbyPanel.map_name(mode.maps[i]))
+	assert_str(LobbyPanel.map_name("res://levels/house/house.tscn")).is_equal("House")
+	var guest := Preview.fake_model(mode, false)
+	guest.map = mode.maps[1]
+	panel.refresh(guest, -1, false)
+	assert_bool(picker.disabled).is_true()
+	assert_int(picker.selected).is_equal(1)
+	picker.item_selected.emit(0)
+	assert_array(sent).is_empty()
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	assert_bool(picker.disabled).is_false()
+	assert_int(picker.selected).is_equal(0)
+	picker.item_selected.emit(1)
+	assert_array(sent).is_equal([mode.maps[1]])
+
+
+func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_list() -> void:
+	# #694: the map pick beside the lobby's name (#214), not among the settings; a set_mode with other
+	# maps replaces the old ones, and one pick sends one map.
+	var mode := load(MODE) as GameMode
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	var name_row := panel.name_edit.get_parent()
+	var map_row := panel.map_picker.get_parent()
+	assert_object(name_row.get_parent()).is_same(panel)
+	assert_object(map_row.get_parent()).is_same(panel)
+	assert_int(map_row.get_index()).is_equal(name_row.get_index() + 1)
+	assert_bool(panel.settings_box.is_ancestor_of(panel.map_picker)).is_false()
+	var one := mode.duplicate() as GameMode
+	one.maps = PackedStringArray([mode.maps[1]])
+	panel.set_mode(one)
+	assert_int(panel.map_picker.item_count).is_equal(1)
+	assert_str(panel.map_picker.get_item_text(0)).is_equal(LobbyPanel.map_name(mode.maps[1]))
+	panel.set_mode(mode)
+	assert_int(panel.map_picker.item_count).is_equal(mode.maps.size())
+	var sent: Array[String] = []
+	panel.map_changed.connect(func(map: String) -> void: sent.append(map))
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	panel.map_picker.item_selected.emit(1)
+	assert_array(sent).is_equal([mode.maps[1]])
+
+
+func test_a_mode_with_one_map_shows_it_with_nothing_to_pick() -> void:
+	var mode := (load(MODE) as GameMode).duplicate() as GameMode
+	mode.maps = PackedStringArray([mode.maps[0]])
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	assert_int(panel.map_picker.item_count).is_equal(1)
+	assert_bool(panel.map_picker.disabled).is_true()
+	assert_bool(panel.settings_editable()).is_true()
+
+
 func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	var mode := load(MODE) as GameMode
 	var menu: EscMenu = auto_free(EscMenu.new())

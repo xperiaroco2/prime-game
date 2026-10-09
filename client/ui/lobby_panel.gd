@@ -1,22 +1,28 @@
 class_name LobbyPanel
 extends VBoxContainer
 ## The Esc menu's Lobby tab (ARCHITECTURE §4.7, #169): the roster with ready flags, the countdown,
-## the Ready toggle, and one control per SettingSpec of the client's own mode (a whole number within
-## its bounds, or check boxes for the banned task types) with the shortfalls that hold the start
-## back. Everyone sees the settings; only the host changes them, and only in a phase that accepts
-## its ChangeSettings (EscMenuState.may_change_settings): for everyone else they are read-only.
+## the Ready toggle, the match's map (one of the mode's maps, #627), and one control per SettingSpec
+## of the client's own mode (a whole number within its bounds, or check boxes for the banned task
+## types) with the shortfalls that hold the start back. Everyone sees the settings; only the host
+## changes them, and only in a phase that accepts its ChangeSettings
+## (EscMenuState.may_change_settings): for everyone else they are read-only.
 ## Everything shown comes from the own ClientModel and the own mode. A changed control sends that
 ## setting only. The room's code with Copy, to whoever knows it (the M6 design §3 item 2). The
 ## lobby's name (#214): the host edits it (sent when submitted or left, cleaned, only when it
-## differs), everyone else reads it; empty shows the default as its placeholder.
+## differs), everyone else reads it; empty shows the default as its placeholder. The map's picker
+## sits right under the name, the two things that name the match (#694).
 
 signal ready_toggled(on: bool)
 signal setting_changed(id: StringName, value: Variant)
 ## The host's new lobby name, LobbyName-cleaned ("" asks for the default again).
 signal lobby_name_changed(text: String)
+## The host's pick of the match's map, one of the own mode's maps (#627).
+signal map_changed(map: String)
 
-const READ_ONLY := "The settings below: only the host changes them, in the lobby."
+const READ_ONLY := "Only the host changes the lobby's name, map and settings, in the lobby."
 const NAME_LABEL := "lobby.setting.name"
+## Plain text, as "Settings": the UI deck has no key for it yet (a change goes to prime-game-ui).
+const MAP_LABEL := "Map"
 const DEFAULT_NAME := "lobby.default_name"
 
 var code_label := Label.new()
@@ -28,12 +34,16 @@ var ready_button := Button.new()
 var settings_box := VBoxContainer.new()
 var read_only_label := Label.new()
 var shortfalls_label := Label.new()
+## The map choice, under the lobby's name; its items rebuilt by set_mode.
+var map_picker := OptionButton.new()
 
 ## Whether the settings take a change now: a read-only control that still changes sends nothing.
 var _may_change := false
 var _numbers: Dictionary[StringName, SpinBox] = {}
 ## Setting id -> task type id -> its check box.
 var _bans: Dictionary[StringName, Dictionary] = {}
+## The mode's maps, in the picker's order.
+var _maps := PackedStringArray()
 ## The code Copy puts on the clipboard; empty hides the row.
 var _code := ""
 var _code_row := HBoxContainer.new()
@@ -61,6 +71,8 @@ func _init() -> void:
 	name_edit.text_submitted.connect(func(_submitted: String) -> void: _submit_name())
 	name_edit.focus_exited.connect(_submit_name)
 	add_child(UiParts.labelled(NAME_LABEL, name_edit))
+	map_picker.item_selected.connect(_send_map)
+	add_child(UiParts.labelled(MAP_LABEL, map_picker))
 	add_child(roster_label)
 	add_child(countdown_label)
 	ready_button.toggle_mode = true
@@ -92,6 +104,10 @@ func set_mode(mode: GameMode) -> void:
 	_numbers.clear()
 	_bans.clear()
 	settings_box.add_child(UiParts.heading("Settings"))
+	_maps = mode.maps.duplicate()
+	map_picker.clear()
+	for map in _maps:
+		map_picker.add_item(map_name(map))
 	for spec: SettingSpec in mode.settings:
 		var id := spec.id
 		if spec.is_number():
@@ -138,6 +154,9 @@ func refresh(model: ClientModel, host_tick: int, may_change: bool) -> void:
 	read_only_label.visible = not may_change
 	shortfalls_label.visible = not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
+	map_picker.disabled = not may_change or _maps.size() < 2
+	# A map not in the own mode's list (none yet, before the Welcome) shows no map, never a wrong one.
+	map_picker.select(_maps.find(model.map))
 	for id: StringName in _numbers:
 		var box := _numbers[id]
 		box.editable = may_change
@@ -191,8 +210,15 @@ static func countdown_text(model: ClientModel, host_tick: int) -> String:
 	return "Starting in %d s" % left if left >= 0 else "Waiting for everyone"
 
 
+## A map's name for the picker: its scene's file name until maps have names ("House").
+static func map_name(map: String) -> String:
+	return map.get_file().get_basename().capitalize()
+
+
 ## Whether any settings control takes a change now.
 func settings_editable() -> bool:
+	if not map_picker.disabled:
+		return true
 	for id: StringName in _numbers:
 		if _numbers[id].editable:
 			return true
@@ -224,6 +250,11 @@ func _submit_name() -> void:
 	_pending = wanted
 	_awaiting = true
 	lobby_name_changed.emit(wanted)
+
+
+func _send_map(index: int) -> void:
+	if _may_change and index >= 0 and index < _maps.size():
+		map_changed.emit(_maps[index])
 
 
 func _banned(id: StringName) -> PackedStringArray:

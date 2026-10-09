@@ -1,0 +1,85 @@
+[gd_scene format=3 uid="uid://chkarvkyvx48s"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="2_floor"]
+
+[sub_resource type="BoxShape3D" id="Shape_1"]
+size = Vector3(4, 0.04, 1)
+
+[sub_resource type="BoxShape3D" id="Shape_2"]
+size = Vector3(4, 1, 0.1)
+
+[sub_resource type="BoxShape3D" id="Shape_3"]
+size = Vector3(0.1, 1, 2)
+
+[sub_resource type="BoxMesh" id="Mesh_1"]
+material = ExtResource("1_greybox")
+size = Vector3(4, 0.04, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_2"]
+material = ExtResource("1_greybox")
+size = Vector3(4, 1, 0.1)
+
+[sub_resource type="BoxMesh" id="Mesh_3"]
+material = ExtResource("1_greybox")
+size = Vector3(0.1, 1, 2)
+
+[node name="OutdoorStairs" type="Node3D" unique_id=683803510]
+metadata/size_m = Vector2i(4, 4)
+
+[node name="Body" type="StaticBody3D" parent="." unique_id=2007732061]
+
+[node name="Floor1" type="CollisionShape3D" parent="Body" unique_id=1645237905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.04, 0.5)
+shape = SubResource("Shape_1")
+
+[node name="Floor2" type="CollisionShape3D" parent="Body" unique_id=1572493624]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.04, 3.5)
+shape = SubResource("Shape_1")
+
+[node name="Wall1" type="CollisionShape3D" parent="Body" unique_id=668982278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 1)
+shape = SubResource("Shape_2")
+
+[node name="Wall2" type="CollisionShape3D" parent="Body" unique_id=327466616]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 3)
+shape = SubResource("Shape_2")
+
+[node name="Wall3" type="CollisionShape3D" parent="Body" unique_id=1278134564]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.5, 2)
+shape = SubResource("Shape_3")
+
+[node name="Looks" type="Node3D" parent="." unique_id=268328617]
+
+[node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=1118451258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.04, 0.5)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_1")
+
+[node name="Floor2" type="MeshInstance3D" parent="Looks" unique_id=485764293]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -0.04, 3.5)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_1")
+
+[node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=100761164]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 1)
+mesh = SubResource("Mesh_2")
+
+[node name="Wall2" type="MeshInstance3D" parent="Looks" unique_id=1176590803]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.5, 3)
+mesh = SubResource("Mesh_2")
+
+[node name="Wall3" type="MeshInstance3D" parent="Looks" unique_id=1472925038]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.5, 2)
+mesh = SubResource("Mesh_3")
+
+[node name="Name" type="Label3D" parent="." unique_id=1215963220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2.4, 2)
+billboard = 1
+text = "Outdoor stairs"
+font_size = 72
+outline_size = 16
+
+[node name="Doors" type="Node3D" parent="." unique_id=306461664]
+
+[node name="Stations" type="Node3D" parent="." unique_id=643328103]

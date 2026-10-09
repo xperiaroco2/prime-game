@@ -14,6 +14,7 @@ extends GdUnitTestSuite
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 
 
 func test_every_mode_in_content_passes_the_mode_check() -> void:
@@ -87,12 +88,14 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 	)
 
 
-func test_the_levels_are_flat() -> void:
-	# The scenarios' fake world (§9.7) is one floor at y = 0: each stage-2 level is a floor
-	# collider whose top is at y = 0 and covers every marker, and every marker stands on it.
+func test_the_scenarios_levels_are_flat() -> void:
+	# The scenarios' fake world (§9.7) is one floor at y = 0: each level a scenario plays on (the
+	# lobby, the first map, a map a scenario names) is a floor collider whose top is at y = 0 and
+	# covers every marker, and every marker stands on it. The mode's other maps (the House) are
+	# played by people only, in the host's real world (#626).
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
-	for path: String in levels:
+	for path: String in ScenarioLevels.of(mode):
 		var root: Node = auto_free((load(path) as PackedScene).instantiate())
 		var shapes := root.find_children("*", "CollisionShape3D", true, false)
 		assert_int(shapes.size()).override_failure_message(path).is_equal(1)

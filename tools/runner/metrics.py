@@ -135,11 +135,12 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   that spans several waves sums them (`--since <wave start>` for one).
 
 A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
-with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui
-and -art checkouts wherever they sit on this machine, each with its worktrees: track_checkouts), whether or not it ran a
-workflow: its own transcript, its hand-run subagents and its workflow runs' agents, each API call counted by its time in
-[--since, --until) (a run in flight or one that began before the reset counts in part), each message id once across
-every file. A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
+with `--since <the weekly reset>` (the moment the counter last restarted: after a reset by hand, #677, that time) reads
+every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui and -art checkouts wherever they sit on
+this machine, each with its worktrees: track_checkouts), whether or not it ran a workflow: its own transcript, its
+hand-run subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in
+flight or one that began before the reset counts in part), each message id once across every file.
+A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
 never filters), a `Track: <name>` line in its first user message (the kickoff, the key also `Трек:`, the name in
 English; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the
 engineer's reserve). Per named track it prints the % of the week (week_percent, with the bracket), and with `--budget
@@ -215,6 +216,18 @@ reminder after each tool result (an attachment of type total_tokens_reminder in 
 when N plus the context of the API call before it (its four token fields, output included) equals the agent's budget
 (the most common such sum), for every agent of the counted runs. The per-task records carry handoffs, impl_calls,
 over200_calls and over200_usd; the JSON record's "handoffs" holds the rows, the proxy and the reminder check.
+
+Tool output per implementer (#572, the quiet runner output): each tool call's text output in characters (an image
+counts 0) and the part of RUNNER_OUTPUT_KINDS, per implementer agent that made a tool call, in tokens (characters /
+CHARS_PER_TOKEN); per task "impl_outputs", and their medians at the end of the compact "task medians" line, to compare
+a wave before a change with one after it. `--compact` cuts each summary line at LINE_CAP characters unless verbose.
+
+Launch prompt size per agent role (#470): the prompt the script gave each workflow agent, the last user text message
+before its first API call (the harness may relay the user request in a message of its own before it; that relay is the
+same for every agent of a run and is not counted), in characters and in tokens (characters / CHARS_PER_TOKEN, an estimate), median and max per role over
+the counted runs, in the "Launch prompt size per agent role" table of the non-compact output (`--compact` does not
+carry it) and as "prompt_sizes" in the JSON record. Run it over a window before a change and one after it
+(`--since`, `--until`) to read whether a prompt shrank.
 """
 
 from __future__ import annotations
@@ -231,7 +244,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import agents_check
-from .common import OUT, ROOT, Failure, run, say, warn
+from .common import LINE_CAP, OUT, ROOT, Failure, cut_line, run, say, shown, warn
 
 TOKEN_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 SHORT = {
@@ -328,6 +341,8 @@ GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to
 # A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
 CACHE_TTL = 300
 BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
+# The runner commands agents run in loops, as CMD_KINDS names them: their share of an implementer's tool output (#572).
+RUNNER_OUTPUT_KINDS = frozenset({"wait", "publish", "verify", "selftest", "test", "check", "lint"})
 # #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
 LATENCY_CLASSES = (
     ("shell-background", "shell calls started in the background (start-up only)"),
@@ -380,6 +395,10 @@ TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:
 NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
+# #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
+REVIEW_TIER = re.compile(r"^Review tier \(#606\): (light|full)\b", re.MULTILINE)
+# The tier of a run whose publisher's prompt names none: before #606, stopped before its publisher, or pr-rebase.
+NO_TIER = "unknown"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
 BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
@@ -1031,6 +1050,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     stamps: list[float] = []
     model, effort, title = None, None, None
     prompt: str | None = None  # the first user message: the agent's prompt
+    launch: str | None = None  # #470: the last user text message before its first API call: the script's prompt
+    called = False
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
@@ -1085,13 +1106,17 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 continue
             if not isinstance(m, dict):
                 continue
-            if prompt is None and d.get("type") == "user":
+            if d.get("type") == "user" and (prompt is None or not called):
                 content = m.get("content")
                 if isinstance(content, str) or (
                     isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "text" for b in content)
                 ):
-                    prompt = text_of(content)
+                    if prompt is None:
+                        prompt = text_of(content)
+                    if not called:
+                        launch = text_of(content)  # the harness may relay the user request first, on its own
             if d.get("type") == "assistant":
+                called = True
                 msg_model = m.get("model")
                 if msg_model == "<synthetic>":
                     continue  # written by Claude Code itself (an interruption, an API error): no API call
@@ -1141,6 +1166,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
                         text = text_of(b.get("content"))
+                        call["out"] = len(text)  # #572: what the call's output adds to every later call's context
                         if call["code"] and not call.get("counted"):
                             call["counted"] = True
                             count_code_read(call["code"], text, code_seen, code_reads)
@@ -1207,13 +1233,16 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     high = [usage[mid] for (_, ctx), mid in zip(ctx_series, order) if ctx > HIGH_CTX]
     budgets = Counter(n + ctx for n, ctx in left)
     budget = budgets.most_common(1)[0][0] if budgets else None
+    both = (prompt or "") + "\n" + (launch or "")  # the harness may relay the user request first: look in both
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
         "model": model,
         "effort": effort,
         "title": title,
-        "design": DESIGN_TASK in (prompt or ""),
+        "design": DESIGN_TASK in both,
+        "prompt_chars": len(launch) if launch else None,  # #470: the launch prompt's size
+        "tier": (m.group(1) if (m := REVIEW_TIER.search(both)) else None),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -1230,6 +1259,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "timers": [(a, b) for a, b in armed if since is None or b > since],
         "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
+        # #572: the characters of its tool outputs (text; an image counts 0), and those of the runner's commands
+        "tool_output": sum(c.get("out", 0) for c in calls),
+        "runner_output": sum(c.get("out", 0) for c in calls if c["kind"] in RUNNER_OUTPUT_KINDS),
         "latency": [(k, c["t1"] - c["t0"]) for c in calls if c["t1"] and (k := latency_class(c))]
         + [("wait", c["t1"] - c["t0"] - c["polled"]) for c in calls if c["t1"] and c.get("polled") is not None],
         "kinds": dict(kinds),
@@ -1713,12 +1745,14 @@ def per_task(r: dict) -> dict:
     )
     pub = next((x["result"] for x in r["agents"] if x["role"] == "publisher" and x["result"]), None) or {}
     impl = implementer_context(r)
+    tier = next((x["data"]["tier"] for x in r["agents"] if x["data"] and x["data"].get("tier")), None) or NO_TIER
     return {
         "session": r["session"],
         "issue": r["issue"],
         "wf": r["wf"],
         "start": r["start"],
         "wall": r["end"] - r["start"],
+        "tier": tier,
         "span": span,
         "tokens": total(tok),
         "fresh": fresh(tok),
@@ -1738,6 +1772,7 @@ def per_task(r: dict) -> dict:
         "impl_calls": impl["api_calls"],
         "over200_calls": impl["over200"],
         "over200_usd": impl["over200_usd"],
+        "impl_outputs": impl["outputs"],
     }
 
 
@@ -1753,6 +1788,13 @@ def implementer_context(r: dict) -> dict:
         "over200": sum(x["data"].get("high_ctx", {}).get("calls", 0) for x in impls),
         "over200_usd": sum(x["data"].get("high_ctx", {}).get("usd", 0.0) for x in impls),
         "usd": sum(usd(x["data"]["tokens"]) for x in impls),
+        # #572: each implementer's tool output and its runner commands' part, in tokens (characters / CHARS_PER_TOKEN);
+        # one that made no tool call (an attempt that died at once) is left out
+        "outputs": [
+            [x["data"].get("tool_output", 0) / CHARS_PER_TOKEN, x["data"].get("runner_output", 0) / CHARS_PER_TOKEN]
+            for x in impls
+            if x["data"].get("tool_calls")
+        ],
     }
 
 
@@ -1789,12 +1831,16 @@ def build(
         "",
     ]
     md += task_section(tasks)
+    tiers = tier_rows(tasks)
+    md += tier_section(tiers)
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
     types = type_record(counted)
     md += type_section(types)
     md += code_read_section(counted)
+    prompts = prompt_record(counted)
+    md += prompt_section(prompts)
     plans = plan_rows(counted)
     md += plan_section(plans)
     handoffs = handoff_record(counted)
@@ -1836,6 +1882,7 @@ def build(
         "week": week,
         "stages": stages,
         "tasks": tasks,
+        "tiers": tiers,
         "runs": [
             {k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r), "types": run_types(r)} for r in counted
         ],
@@ -1855,6 +1902,7 @@ def build(
         "sonnet_trial": trial,
         "instructions": instructions,
         "agent_types": types,
+        "prompt_sizes": prompts,
         "compact": compact,
     }
     return md, record, compact
@@ -1875,6 +1923,35 @@ def task_section(tasks: list[dict]) -> list[str]:
             "API list $", "tool calls", "verify runs/red", "min in verify", "verify+publish calls",
             "min in those calls", "min on CI", *SEVERITIES, "PR", "CI"]
     return ["## Per finished issue-task run (minutes)", "", table(head, rows), ""]
+
+
+def tier_rows(tasks: list[dict]) -> list[dict]:
+    """#606: the finished issue-task runs per review tier (light, full, then unknown): count, wall time and API list $."""
+    rows = []
+    for tier in ("light", "full", NO_TIER):
+        t = [p for p in tasks if p["tier"] == tier]
+        if t:
+            rows.append({
+                "tier": tier, "runs": len(t), "wall": med([p["wall"] for p in t]), "wall_max": max(p["wall"] for p in t),
+                "review": med([p["span"].get("Review", 0) for p in t]), "usd": med([p["usd"] for p in t]),
+                "usd_max": max(p["usd"] for p in t), "usd_sum": sum(p["usd"] for p in t),
+                "calls": med([p["calls"] for p in t]),
+            })  # fmt: skip
+    return rows
+
+
+def tier_section(rows: list[dict]) -> list[str]:
+    head = ["tier", "runs", "wall", "wall max", "review", "API list $", "API list $ max", "API list $ total", "tool calls"]
+    body = [
+        [r["tier"], r["runs"], mins(r["wall"]), mins(r["wall_max"]), mins(r["review"]), fmt_usd(r["usd"]),
+         fmt_usd(r["usd_max"]), fmt_usd(r["usd_sum"]), f"{r['calls']:.0f}"]
+        for r in rows
+    ]
+    return [
+        "## Per review tier (#606): finished issue-task runs, medians in minutes", "", table(head, body), "",
+        f"The tier is the line its publisher's prompt names; {NO_TIER}: a run before #606 or one stopped before its "
+        "publisher.", "",
+    ]
 
 
 def stage_rows(tasks: list[dict], labels: list[str]) -> list[dict]:
@@ -2046,6 +2123,41 @@ def code_read_section(counted: list[dict]) -> list[str]:
         "partial).",
         "",
         table(head, rows),
+        "",
+    ]
+
+
+def prompt_record(counted: list[dict]) -> list[dict]:
+    """#470: per agent role, the launch prompt's size (read_agent's "prompt_chars") over the counted runs' agents (chars; tokens estimated at
+    CHARS_PER_TOKEN): agents, median and max. A retried agent counts once per attempt. Most characters first."""
+    sizes: dict[str, list[int]] = defaultdict(list)
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if d and d.get("prompt_chars"):
+                sizes[x["role"]].append(d["prompt_chars"])
+    rows = [
+        {"role": role, "agents": len(v), "median_chars": med(v), "max_chars": max(v),
+         "median_tokens": med(v) / CHARS_PER_TOKEN, "max_tokens": max(v) / CHARS_PER_TOKEN}
+        for role, v in sizes.items()
+    ]  # fmt: skip
+    return sorted(rows, key=lambda row: -row["median_chars"])
+
+
+def prompt_section(rows: list[dict]) -> list[str]:
+    """The table of prompt_record's rows; nothing when no agent has a prompt."""
+    if not rows:
+        return []
+    body = [[r["role"], r["agents"], f"{r['median_chars']:,.0f} / {r['max_chars']:,}",
+             f"{r['median_tokens'] / 1e3:.1f}k / {r['max_tokens'] / 1e3:.1f}k"] for r in rows]  # fmt: skip
+    head = ["role", "agents", "chars (median / max)", "est. tokens (median / max)"]
+    return [
+        "## Launch prompt size per agent role (#470)",
+        "",
+        f"The prompt its script gave each workflow agent (the last user text message before its first API call); tokens are characters / "
+        f"{CHARS_PER_TOKEN}, an estimate.",
+        "",
+        table(head, body),
         "",
     ]
 
@@ -3737,6 +3849,10 @@ def compact_lines(
                      f"{calls:.0f} tool calls; implementer calls over {HIGH_CTX // 1000}k: {over / max(1, impl_calls):.0%} "
                      f"({fmt_usd(sum(p.get('over200_usd', 0.0) for p in tasks))}), "
                      f"{sum(p.get('handoffs', 0) for p in tasks)} handoffs (#559)")  # fmt: skip
+        outputs = [pair for p in tasks for pair in p.get("impl_outputs", [])]
+        if outputs:  # #572: compare a wave before a change with one after it
+            lines[-1] += (f"; tool output per implementer median {fmt_k(med([o[0] for o in outputs]))} tokens, "
+                          f"runner commands {fmt_k(med([o[1] for o in outputs]))} (#572)")  # fmt: skip
         if quality:
             lines.append(quality["compact"])
     diet = instruction_compact(instructions) if instructions else None
@@ -4094,6 +4210,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
     context: list[dict] = []
     types: Counter = Counter()
     type_usd: Counter = Counter()
+    tier = None  # #606: the review tier its publisher's prompt names, once the publisher started
     for aid, (label, phase) in agents.items():
         row = phases.setdefault(phase, {"usd": 0.0, "agents": 0})
         row["agents"] += 1
@@ -4107,6 +4224,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
             row["usd"] += s
             spent, read, calls = spent + s, read + r, calls + c
             data = read_agent(path)
+            tier = tier or data.get("tier")
             if data["api_calls"]:
                 idle.append({"session": run_dir.parents[2].name[:8], "run": run_dir.name, "label": label,
                              "type": str(read_meta(path).get("agentType", "?")), "data": data})  # fmt: skip
@@ -4129,6 +4247,7 @@ def run_spend(run_dir: Path, now: float) -> dict:
         "phases": phases,
         "types": dict(types),
         "type_usd": dict(type_usd),
+        "tier": tier,
         "idle_minutes": (now - max(writes)) / 60 if writes else None,
         "idle": idle_record(idle),
         "context": context_record(context),
@@ -4145,6 +4264,8 @@ def run_lines(r: dict) -> list[str]:
     if r["agent_runs"] > r["started"]:  # the phases count every agent id: a retry, or one the journal does not list
         head += f" ({r['agent_runs']} agent runs: a retry, or one the journal does not list)"
     head += f", {r['answered']} answered"
+    if r.get("tier"):  # #606: issue-task's review tier, once its publisher started
+        head += f"; review tier {r['tier']}"
     if r["working"]:
         head += "; working now: " + ", ".join(r["working"])
     if r["idle_minutes"] is not None:
@@ -4201,7 +4322,8 @@ def tracks_main(
 ) -> int:
     """`metrics --track`: the tracks' spend since the reset (--since) against their budgets (module docstring)."""
     if not since:
-        raise Failure("--track needs --since <the weekly reset> (ISO 8601): the week's spend counts from it")
+        raise Failure("--track needs --since <the moment the counter last restarted> (ISO 8601): "
+                      "the week's spend counts from it")
     t_since = parse_time(since)
     t_until = parse_time(until) if until else time.time()
     if t_since >= t_until:
@@ -4255,6 +4377,7 @@ def main(
     track: list[str] | None = None,
     budget: list[float] | None = None,
     run_ids: list[str] | None = None,
+    verbose: bool = False,
 ) -> int:
     if run_ids:
         if track or budget or sessions or since or until or ci or compact or out:
@@ -4316,8 +4439,10 @@ def main(
     with io.open(folder / "metrics.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)
         f.write("\n")
-    if compact:
-        say("\n".join(summary))  # only the summary: the manager pastes it into a wave comment as it is
+    if compact:  # only the summary; quiet (#572): each line cut at LINE_CAP unless verbose, metrics.md has it whole
+        say("\n".join(summary if verbose else [cut_line(line) for line in summary]))
+        if not verbose and any(len(line) > LINE_CAP for line in summary):
+            say(f"(lines over {LINE_CAP} characters cut; whole: {shown(folder / 'metrics.md')}, or --verbose)")
     else:
         say("\n".join([*md, "## Summary", "", *summary]))
         say(f"\nmetrics: wrote {folder / 'metrics.md'} and metrics.json")

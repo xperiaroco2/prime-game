@@ -4,9 +4,10 @@ The rules of the [weekly budget ADR](../../../docs/decisions/2026-10-05-weekly-b
 engineer chose them on 2026-10-05: every recommendation, N1 (b) to N8 (b)
 ([PR #403 comment 5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)). They apply
 from the weekly reset of 2026-10-06 10:00 UTC, N5 (the Sonnet publisher) already from the answer; the reset comes
-every Tuesday at 10:00 UTC. Read this file at the kickoff, before you plan each wave and before each launch. "Row n"
-is a row of the ADR's "Measured inputs"; "§n" is a section of the skill: `SKILL.md` beside this file, or the file
-its index names for that §.
+every Tuesday at 10:00 UTC, and a reset by hand (the engineer's spare reset) restarts the counter too: the week's
+`--since` is then its time (AGENT_WORKFLOW §11.12, #677). Read this file at the kickoff, before you plan each wave and
+before each launch. "Row n" is a row of the ADR's "Measured inputs"; "§n" is a section of the skill: `SKILL.md` beside
+this file, or the file its index names for that §.
 
 ## The unit
 Every budget is a % of the week: (list $ without cache reads + 0.75 x cache-read $) / $23.0, counted from the reset
@@ -34,9 +35,12 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   `{agentType: 'lean-writer'}`.
 
 ## Reading the spend
-- `tools\run.cmd metrics --since <the reset, 2026-10-06T10:00:00Z> --track <track> --budget <its %> --compact` (#409)
-  prints the window, one line per track named (`<track>: <%> (<bracket>) of <budget>% this week; plan to date <%>;
-  list $<n> in <k> sessions`; the plan to date is the budget x the days since the reset / 7), and the total of every
+- `tools\run.cmd metrics --since <restart> --track <track> --budget <its %> --compact` (#409), `<restart>` the moment
+  the counter last restarted (the Tuesday 10:00 UTC reset, or a reset by hand after it; never a fixed date: `--since`
+  the scheduled reset after a reset by hand read 103% against the counter's 31%, #677), prints the window, one line per
+  track named (`<track>: <%> (<bracket>) of <budget>% this week; plan to date <%>;
+  list $<n> in <k> sessions`; the plan to date is the budget x the days since `--since` / 7: after a reset by hand it
+  runs low until the next scheduled reset, so hold the track's % against its budget directly), and the total of every
   session of the three checkouts with its untracked share and that share's largest sessions. Several tracks take one
   budget each, in their order (`--track game meta --budget 26 12`); `--track all` lists every track found and takes no
   `--budget`. Without `--compact` it adds a table of every session with its track and where the track came from.
@@ -45,7 +49,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   checkout's (`-ui`: ui, `-art`: art), else untracked (the engineer's reserve). A session of your track listed as
   untracked (a kickoff without the line, or with a translated name): count it with `--session <id>=<track>`.
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
-  <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
+  <your session id> --compact --verbose` (whole lines; the default cuts them at 400 characters) in a text block, written
+  straight into the comment's body file, not read (at most ten lines: time and API list $ per task and in total, the %
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
   `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
   running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`

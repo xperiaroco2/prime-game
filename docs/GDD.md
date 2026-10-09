@@ -101,6 +101,12 @@ Open questions:
 
 - How are items found or given, and can they be traded or stolen?
 - Which items affect voice (for example radios, which the brief mentions)?
+- Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
+  does a thrown package count when it lands in its circle; may an item land where nobody can reach it; does a throw
+  cost anything; which key; can a flying item be caught; does it bounce or stop where it hits; does a running throw
+  go farther; where does an item thrown off the map end up; does a downed player stop it? The options and a
+  recommendation for each are in the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) (TD1 to TD12), for
+  the engineer.
 
 ## 7. Sabotages
 
@@ -112,6 +118,25 @@ Open questions:
 - What kinds of tasks exist (short, long, shared, fake-able)?
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
+
+### Zone task (#36)
+A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
+shared and only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4),
+so the downed never count, and the dead have no avatar (there are no ghosts). The options, with a recommendation for
+each question: [the zone task ADR](decisions/2026-10-09-m7-zone-task.md) (ZD1 to ZD11).
+
+Open questions (the engineer's):
+- Is the time earned by standing in the zone, or by holding a key there?
+- Does leaving the zone pause its time or reset it?
+- Can several players share a zone, and does it fill faster with more of them?
+- Does a living dissident standing in a zone count, as any living player does a subtask today?
+- Is each subtask one zone, with every zone open from the start?
+- Does everyone see each zone's progress as it fills, or only when it is done?
+- Does anything but leaving stop a zone: a hit, carrying something?
+- How long, how big and how many zones, in which colours; the task's name and description; and does "zone" clash
+  with "the zones where items may appear" (§1) and with the House map's photo zone and chill zone ([House map](design/house-map.md) §2, §4)?
+- Does every match deal both Delivery and the zone task, or one of them at random?
+- Where do zones stand on the maps (the [House map](design/house-map.md)'s task stations, its §6, include none), and how do they look?
 
 ## 9. Meetings and voting
 
