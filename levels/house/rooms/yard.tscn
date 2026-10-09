@@ -249,3 +249,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -0.06, 58.5)
 
 [node name="Respawn4" type="Marker3D" parent="Markers" unique_id=1431297863 groups=["spawn_respawn"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78.5, -0.06, 58.5)
+
+[node name="Zone01" type="Marker3D" parent="Markers" unique_id=1465582453 groups=["spawn_zone"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, 0.5, 37)

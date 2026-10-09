@@ -50,8 +50,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
 - Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
   start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
-  "not a decision" (#649); House's three (the generator hall, the garden, the landing) are #651's placeholders until
-  the engineer moves them.
+  "not a decision" (#649); House's three (the yard, the garden, the landing) are #651's placeholders until
+  the engineer moves them (#681 moved the generator hall's up to the yard).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).

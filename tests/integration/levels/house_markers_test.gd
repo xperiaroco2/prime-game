@@ -38,7 +38,9 @@ func test_the_markers_are_the_engineer_s_counts() -> void:
 	assert_int(layout.count(&"circle")).is_equal(10)
 	assert_int(layout.count(&"knife")).is_equal(4)
 	assert_int(layout.count(&"respawn")).is_equal(4)
-	# #651's provisional points, one per floor but the attic (#302 comment 6085904317).
+	# #651's provisional points (#302 comment 6085904317): the yard and the garden on the ground
+	# floor, the landing upstairs; none in the basement, where the scenarios' flat fake finds no
+	# floor (#681).
 	assert_int(layout.count(&"zone")).is_equal(3)
 
 

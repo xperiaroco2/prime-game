@@ -302,8 +302,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 9)
 
 [node name="Generator" type="Marker3D" parent="Stations" unique_id=115368882]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 10)
-
-[node name="Markers" type="Node3D" parent="." unique_id=1952440759]
-
-[node name="Zone01" type="Marker3D" parent="Markers" unique_id=1465582453 groups=["spawn_zone"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.5, 15)

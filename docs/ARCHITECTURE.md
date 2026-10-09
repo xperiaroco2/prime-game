@@ -4349,8 +4349,9 @@ comment 6085251071), in the base mode's data since #649: 10 s (200 ticks), a `zo
 height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
 per subtask; the base mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
 placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
-he moves them, #302 comment 6085904317): the generator hall (44, −3.2, 37), the garden (52, 0, 20) and the landing
-(30, 3.2, 41), one per floor but the attic, whose sloped roof leaves no clear spot.
+he moves them, #302 comment 6085904317): the yard (48, 0, 37), the garden (52, 0, 20) and the landing (30, 3.2, 41).
+None in the attic, whose sloped roof leaves no clear spot, and none in the basement, where the scenarios' flat fake
+finds no floor (§9.7; #681 moved the generator hall's (44, −3.2, 37) up to the yard).
 - Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
   distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
   `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
