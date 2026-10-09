@@ -3217,11 +3217,11 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   mic). The respawn countdown stays on the greybox life panel until the Toy downed screen (#497); so does the
   life panel's "Raising <name>" for the raiser.
 - **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
-  An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`) once it exists; until #520 lands
-  the pinned, `.gdignore`d copy under `client/ui/theme/pack/icons/` is rasterised at run time
-  (`Image.load_svg_from_string`) at the `svg_scale` the pack's `assets` list gives (`item` 2, `knife` 1, `mic` and
-  `mic-off` 1.17). That copy is not exported, so an exported build draws no icon until #520 lands.
-  `TeammateMark` (§4.7.29) still draws its diamond in code; #520 swaps it.
+  An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the
+  pack's `assets` list gives: `item` 2, `knife` 1, `mic` and `mic-off` 1.17), which an export packs. Only an icon
+  with no imported copy (one a newer pin lists before `ui-sync` imports it) falls back to the pinned, `.gdignore`d
+  copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
+  scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
 - **Not built here:** separate CanvasLayers per the handoff's layer table (the screens stay children of one `Ui`
   layer, in the same order); the font (#520: Godot's default until the TTF lands); the Toy downed screen (#497),
   the role reveal (#496) and the tutorial, which reuse these nodes.

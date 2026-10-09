@@ -2,11 +2,11 @@ class_name ToyIcons
 extends RefCounted
 ## The UI pack's white icons (prime-game-ui `dist/pack/icons/`, own work) for the screens that draw
 ## them in a TextureRect tinted through `self_modulate` (#489; ARCHITECTURE §4.7.37). An icon is
-## its imported copy, `res://assets/ui/toy_pack/icons/<name>.svg` (#520's ui-sync imports it at the
-## pack's `svg_scale`), once that exists. Until #520 lands, the pinned copy the theme is built from
-## (`client/ui/theme/pack/icons/`, `.gdignore`d, so never imported) is rasterised here at the scale
-## the pack's `assets` list gives it, the same pixels the import makes. That copy is not exported
-## (a `.gdignore`d folder is not packed): an exported build draws no icon until #520 lands.
+## its imported copy, `res://assets/ui/toy_pack/icons/<name>.svg`, which #520's ui-sync imports at
+## the pack's `svg_scale` and an export packs. Only an icon with no imported copy (one a newer pin
+## lists before ui-sync imports it) falls back to the pinned copy the theme is built from
+## (`client/ui/theme/pack/icons/`, `.gdignore`d, so never imported), rasterised here at the scale
+## the pack's `assets` list gives it, the same pixels the import makes. That copy is not exported.
 
 ## The imported copy (#520) and the pinned one, by icon name.
 const IMPORTED := "res://assets/ui/toy_pack/icons/%s.svg"
@@ -32,7 +32,7 @@ static func texture(icon: StringName) -> Texture2D:
 	else:
 		made = _rasterised(icon)
 	if made == null:
-		# Once per icon (cached below): an export cut before #520 lands has no pinned copy.
+		# Once per icon (cached below): an export has no pinned copy of an icon not yet imported.
 		push_warning("ToyIcons: no icon '%s' (neither %s nor %s)" % [icon, imported, PINNED % icon])
 	_made[icon] = made
 	return made
