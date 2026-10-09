@@ -7,10 +7,16 @@ extends RefCounted
 ## "rested <item> <cause> <position>" on item_rested) whose `Use` with an item in hand runs
 ## `throw` (FixtureThrow: 10 m/s by default), and whose Round lists FlightTicks after LifeTicks.
 ## The fixture capsule: radius 0.4 m, height 1.8 m, eye at 1.6 m.
+##
+## with_throw(mode, throw): the same `Use` rule and FlightTicks added to another fixture mode built
+## on FixtureItemModes.basic() (FixtureDeliveryModes.basic(), for a thrown package).
 
 
 static func basic(throw: FixtureThrow = null) -> GameMode:
-	var mode := FixtureItemModes.basic()
+	return with_throw(FixtureItemModes.basic(), throw)
+
+
+static func with_throw(mode: GameMode, throw: FixtureThrow = null) -> GameMode:
 	var effect := throw if throw != null else FixtureThrow.new()
 	mode.actions.append(FixtureModes.rule(Intents.USE, [HoldsItem.new()], [effect]))
 	mode.find_phase(&"round").tick_systems.append(FlightTicks.new())
