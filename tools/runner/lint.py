@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 from . import instructions, pins, refs
-from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
+from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, quiet, rel, run, say
 
 TIMEOUT = 300
 # Keep each command line well under the Windows limit of 32k characters.
@@ -88,7 +88,12 @@ def targets_of(files: list[str], root: Path | None = None) -> list[Path]:
     return kept
 
 
-def main(fix: bool = False, files: list[str] | None = None) -> int:
+def main(fix: bool = False, files: list[str] | None = None, verbose: bool = False) -> int:
+    """Quiet unless `verbose` (#590): a summary on success, a capped excerpt and the log's path on failure."""
+    return quiet("lint", lambda: lint_all(fix, files), verbose)
+
+
+def lint_all(fix: bool, files: list[str] | None) -> int:
     say("lint" + (" --fix" if fix else ""))
     targets = targets_of(files) if files else gd_files()
     failed = gdscript(targets, fix) if targets else False

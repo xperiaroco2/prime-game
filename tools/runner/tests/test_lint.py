@@ -92,7 +92,7 @@ class FixOnAFolderTest(unittest.TestCase):
                 mock.patch.object(lint, "gdscript", fake_gdscript),
                 mock.patch.object(lint, "say"),
             ):
-                self.assertEqual(lint.main(fix=True, files=["net", "tests"]), 0)
+                self.assertEqual(lint.main(fix=True, files=["net", "tests"], verbose=True), 0)
             self.assertEqual(seen, [root / "net/a.gd", root / "net/deep/b.gd", root / "tests/c.gd"])
 
 

@@ -63,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
         "of rules, skills and agents, and the relative links in skills.",
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/lint-output.log)",
+    )
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
 
     p = sub.add_parser(
@@ -79,6 +85,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="only fail on any Git LFS pointer file (a checkout without LFS content), with no Godot: a build's check "
         "before its export",
+    )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/check-output.log)",
     )
 
     p = sub.add_parser(
@@ -172,6 +184,12 @@ def build_parser() -> argparse.ArgumentParser:
         "it instead of verifying again)",
     )
     p.add_argument("--max", type=int, default=180, metavar="S", help="seconds to wait, 1 to 180 (default 180)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the job's whole summary (default: at most about 1.5 KB when it passed, 4 KB when it failed, "
+        "with the failing lines)",
+    )
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
@@ -688,13 +706,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "lint":
             from . import lint
 
-            return lint.main(fix=args.fix, files=args.files or None)
+            return lint.main(fix=args.fix, files=args.files or None, verbose=args.verbose)
         if args.command == "check":
             from . import check
 
             if args.lfs_content and args.files:
                 raise Failure("--lfs-content checks every LFS file; drop the paths")
-            return check.main(files=args.files or None, lfs_content=args.lfs_content)
+            return check.main(files=args.files or None, lfs_content=args.lfs_content, verbose=args.verbose)
         if args.command == "test":
             from . import gdunit
 
@@ -719,7 +737,7 @@ def main(argv: list[str] | None = None) -> int:
             if args.verified == (args.log is not None):
                 print("wait: give a log, or --verified alone", flush=True)
                 return wait.MISSING  # never 1, which reads like a red job
-            return wait.verified() if args.verified else wait.main(args.log, max_seconds=args.max)
+            return wait.verified() if args.verified else wait.main(args.log, max_seconds=args.max, verbose=args.verbose)
         if args.command == "bots":
             from . import bots
 

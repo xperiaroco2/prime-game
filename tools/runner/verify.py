@@ -295,9 +295,9 @@ def steps() -> dict[str, Callable[[], int]]:
     """Each step by name, looked up when called (tests replace the functions)."""
     return {
         "doctor": lambda: doctor.main(quick=True),
-        "lint": lambda: lint.main(),
+        "lint": lambda: lint.main(verbose=True),
         "signal": lambda: signalling.main(),
-        "check": lambda: check.main(),
+        "check": lambda: check.main(verbose=True),
         # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
         "test": lambda: gdunit.main(run_import=False),
         "enet": enet,
