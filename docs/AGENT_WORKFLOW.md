@@ -1618,7 +1618,9 @@ the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and wher
 compact "task medians" line), the tool output per implementer (#572: the characters of its tool calls' text outputs
 and the part of the runner commands agents run in loops, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
 in tokens; per task `impl_outputs` in `metrics.json`, one pair per implementer that made a tool call; their medians at
-the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the Sonnet implementer trial (#560: per trial task, against the
+the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the launch
+prompt size per agent role (#470: the prompt the script gave each agent, in characters and estimated tokens, median and
+max; `prompt_sizes` in `metrics.json`, not in `--compact`), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
 and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
 [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
