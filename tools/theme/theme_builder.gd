@@ -463,6 +463,19 @@ static func _base_type_problems(pack: Dictionary, mapping: Dictionary) -> Packed
 					"%s: %s has a parent, whose items the copy would miss" % [where, from]
 				)
 		problems.append_array(_shadow_problems(mapping, cls, where))
+	var engine_variations: Dictionary = _dict(mapping, "engine_variations")
+	var regex := RegEx.create_from_string(NAME_PATTERN)
+	var taken: Array = (
+		variations.keys() + _dict(mapping, "legacy").keys() + _dict(mapping, "keep").keys()
+	)
+	for name: String in engine_variations:
+		var base := str(engine_variations[name])
+		if regex.search(name) == null or ClassDB.class_exists(name) or taken.has(name):
+			problems.append(
+				"engine variation %s: not letters only, an engine class or a name in use" % name
+			)
+		if not rows.has(base):
+			problems.append("engine variation %s: %s is not a base type" % [name, base])
 	var size: Variant = mapping.get("default_font_size")
 	if size != null and _int(size) <= 0:
 		problems.append("default_font_size: %s is not a size" % size)
@@ -511,18 +524,20 @@ static func base_type_items(mapping: Dictionary, cls: String) -> Dictionary:
 	return items
 
 
+## Whether `theme` sets the item on `type` itself: its lists, since Theme.has_font_size is also
+## true for every type of a theme with a default font size (Godot's default theme has one).
 static func _default_has(theme: Theme, kind: String, item: String, type: String) -> bool:
 	match kind:
 		"styles":
-			return theme.has_stylebox(item, type)
+			return theme.get_stylebox_list(type).has(item)
 		"colors":
-			return theme.has_color(item, type)
+			return theme.get_color_list(type).has(item)
 		"constants":
-			return theme.has_constant(item, type)
+			return theme.get_constant_list(type).has(item)
 		"font_sizes":
-			return theme.has_font_size(item, type)
+			return theme.get_font_size_list(type).has(item)
 		"icons":
-			return theme.has_icon(item, type)
+			return theme.get_icon_list(type).has(item)
 	return false
 
 
@@ -611,6 +626,10 @@ static func _add_legacy(theme: Theme, pack: Dictionary, mapping: Dictionary) -> 
 
 ## Each base type (#576) under its engine class's name: every item its `from` variation holds, the
 ## same objects (a StyleBox stays one sub-resource, `<Variation>_<item>`), then its literal items.
+## Then the engine's own variations (mapping.engine_variations, SpinBox's SpinBoxInnerLineEdit) as
+## thin variations of a base type: Godot takes a control's type chain from the theme that names
+## its variation, and from its default theme the inner field would find this theme's default font
+## size before the LineEdit row (seen in a probe).
 static func _add_base_types(theme: Theme, mapping: Dictionary) -> void:
 	var rows: Dictionary = _dict(mapping, "base_types")
 	for cls in base_type_names(mapping):
@@ -623,6 +642,11 @@ static func _add_base_types(theme: Theme, mapping: Dictionary) -> void:
 				for item in names:
 					theme.set_theme_item(kind, item, cls, theme.get_theme_item(kind, item, from))
 		_set_literal_items(theme, cls, row)
+	var engine_variations: Dictionary = _dict(mapping, "engine_variations")
+	var names := engine_variations.keys()
+	names.sort()
+	for name: String in names:
+		theme.set_type_variation(name, str(engine_variations[name]))
 
 
 static func _add_kept(theme: Theme, mapping: Dictionary) -> void:

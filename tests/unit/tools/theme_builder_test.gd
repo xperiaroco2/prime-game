@@ -88,8 +88,8 @@ func test_check_pack_names_a_bad_base_type() -> void:
 		"base type Button: ToyButtonPrimary has a parent": {"Button": {"from": "ToyButtonPrimary"}},
 		"base type Button: its styles normal would replace the default theme's on CheckBox":
 		{"Button": {"from": "ToyButtonPrimary"}},
-		"BoxContainer: its constants separation would replace the default theme's on VBoxContainer":
-		{"BoxContainer": {"constants": {"separation": 7}}},
+		"base type Button: its font_sizes font_size would replace the default theme's on CheckBox":
+		{"Button": {"font_sizes": {"font_size": 27}}},
 	}
 	for want: String in cases:
 		var broken: Dictionary = _mapping.duplicate(true)
@@ -100,16 +100,27 @@ func test_check_pack_names_a_bad_base_type() -> void:
 			. override_failure_message("planted: %s\ngot: %s" % [want, problems])
 			. contains(want)
 		)
-	# A subclass's own row covers the item, so a row on the parent hides nothing there.
+	# A subclass's own row covers the item, so a row on the parent hides nothing there: give each
+	# subclass the check names a row of its own and the problems go.
 	var covered: Dictionary = _mapping.duplicate(true)
-	var separation := {"constants": {"separation": 7}}
-	(covered["base_types"] as Dictionary).merge(
-		{"BoxContainer": separation, "HBoxContainer": separation, "VBoxContainer": separation}, true
+	var size := {"font_sizes": {"font_size": 27}}
+	var rows: Dictionary = covered["base_types"]
+	rows["Button"] = size
+	var shadowed := Array(Builder.check_pack(_pack, covered)).filter(
+		func(problem: String) -> bool: return problem.begins_with("base type Button:")
 	)
-	assert_str("\n".join(Builder.check_pack(_pack, covered))).not_contains("on VBoxContainer")
+	assert_array(shadowed).is_not_empty()
+	for problem: String in shadowed:
+		rows[problem.get_slice(" on ", 1)] = size
+	assert_str("\n".join(Builder.check_pack(_pack, covered))).not_contains("base type Button:")
 	var sized: Dictionary = _mapping.duplicate(true)
 	sized["default_font_size"] = 0
 	assert_array(Builder.check_pack(_pack, sized)).contains(["default_font_size: 0 is not a size"])
+	var inner: Dictionary = _mapping.duplicate(true)
+	inner["engine_variations"] = {"SpinBoxInnerLineEdit": "TextEdit", "LineEdit": "Label"}
+	var found := "\n".join(Builder.check_pack(_pack, inner))
+	assert_str(found).contains("engine variation SpinBoxInnerLineEdit: TextEdit is not a base type")
+	assert_str(found).contains("engine variation LineEdit: not letters only, an engine class")
 
 
 ## Breaks a copy of the pack the way the problem it must cause names.
@@ -162,23 +173,72 @@ func test_every_mapped_engine_item_exists_in_the_class_reference() -> void:
 	var press: Dictionary = broken["classes"]["Button"]["press"]
 	press["depth"] = "h_separation"
 	(broken["classes"]["HSlider"]["icons"] as Array).append("grabber_hilight")
+	broken["base_types"]["VBoxContainer"] = {"constants": {"seperation": 7}}
 	var found := "\n".join(_unknown_items(broken))
 	assert_str(found).contains("Button colors icon_hover_colour")
 	assert_str(found).contains("LineEdit styles readonly")
 	assert_str(found).contains("Button custom constants h_separation shadows an engine item")
 	assert_str(found).contains("HSlider icons grabber_hilight")
+	assert_str(found).contains("base type VBoxContainer constants seperation")
 
 
 func test_names_are_letters_only_and_no_engine_class() -> void:
+	# The base types (#576) are the one place an engine class names a theme type, and each of
+	# them is in both themes; every other name is still none.
+	var base_types := Builder.base_type_names(_mapping)
+	assert_array(Array(base_types)).contains(["LineEdit", "OptionButton", "HSlider"])
 	var regex := RegEx.create_from_string(Builder.NAME_PATTERN)
 	for key: String in ["default", "large"]:
-		for type_name in _committed(key).get_type_list():
-			assert_object(regex.search(type_name)).override_failure_message(type_name).is_not_null()
+		var types := _committed(key).get_type_list()
+		for type_name in base_types:
+			assert_bool(types.has(type_name)).override_failure_message(type_name).is_true()
 			(
 				assert_bool(ClassDB.class_exists(type_name))
 				. override_failure_message(type_name)
+				. is_true()
+			)
+		for type_name in types:
+			assert_object(regex.search(type_name)).override_failure_message(type_name).is_not_null()
+			(
+				assert_bool(ClassDB.class_exists(type_name) and not base_types.has(type_name))
+				. override_failure_message(type_name)
 				. is_false()
 			)
+
+
+func test_base_types_share_the_toy_looks() -> void:
+	var rows: Dictionary = _mapping["base_types"]
+	for key: String in ["default", "large"]:
+		var theme := _committed(key)
+		for cls: String in rows:
+			var row: Dictionary = rows[cls]
+			if not row.has("from"):
+				continue
+			var from := str(row["from"])
+			# Every item of the variation, the StyleBoxes the very objects (one sub-resource).
+			for kind in Theme.DATA_TYPE_MAX:
+				var items := theme.get_theme_item_list(kind, from)
+				(
+					assert_array(Array(theme.get_theme_item_list(kind, cls)))
+					. override_failure_message("%s %s" % [cls, kind])
+					. contains_exactly_in_any_order(Array(items))
+				)
+				for item in items:
+					var theirs: Variant = theme.get_theme_item(kind, item, from)
+					var ours: Variant = theme.get_theme_item(kind, item, cls)
+					if theirs is Object:
+						assert_object(ours).override_failure_message(cls + item).is_same(theirs)
+					else:
+						assert_that(ours).override_failure_message(cls + item).is_equal(theirs)
+		assert_str(str(theme.get_type_variation_base(&"SpinBoxInnerLineEdit"))).is_equal("LineEdit")
+		assert_int(theme.default_font_size).is_equal(_mapping["default_font_size"] as int)
+	var normal := _committed("default")
+	assert_int(normal.get_font_size(&"font_size", &"LineEdit")).is_equal(22)
+	assert_int(_committed("large").get_font_size(&"font_size", &"LineEdit")).is_greater(22)
+	assert_int(normal.get_constant(&"separation", &"VBoxContainer")).is_equal(7)
+	assert_int(normal.get_constant(&"line_spacing", &"Label")).is_equal(5)
+	var text := FileAccess.get_file_as_string(_path("default"))
+	assert_int(text.count('id="ToyField_normal"]')).is_equal(1)
 
 
 func test_the_committed_themes_are_not_stale() -> void:
@@ -411,7 +471,8 @@ func test_the_font_hook_waits_for_520() -> void:
 	assert_object(font["file"]).is_null()
 	var theme := _committed("default")
 	assert_object(theme.default_font).is_null()
-	assert_int(theme.default_font_size).is_equal(-1)
+	# The size is the greybox one until the font lands (#576; test_base_types_share_the_toy_looks).
+	assert_int(theme.default_font_size).is_equal(27)
 	for type_name in theme.get_type_list():
 		(
 			assert_array(Array(theme.get_font_list(type_name)))
@@ -422,9 +483,17 @@ func test_the_font_hook_waits_for_520() -> void:
 
 ## Engine items the mapping writes that Godot's default theme does not list for the class (or a
 ## class it inherits) and the mapping's not_in_default_theme does not name; and custom items that
-## shadow an engine item.
+## shadow an engine item; and the literal items of the base types (#576) the default theme does not
+## list for their class.
 func _unknown_items(mapping: Dictionary) -> PackedStringArray:
 	var found := PackedStringArray()
+	var rows: Dictionary = mapping.get("base_types", {})
+	for cls: String in rows:
+		for kind: String in ["constants", "font_sizes", "colors"]:
+			var known := _default_items(cls, kind)
+			for item: String in (rows[cls] as Dictionary).get(kind, {}) as Dictionary:
+				if not known.has(item):
+					found.append("base type %s %s %s" % [cls, kind, item])
 	var listed: Dictionary = mapping.get("not_in_default_theme", {})
 	for cls: String in mapping["classes"] as Dictionary:
 		var engine := Builder.engine_items(mapping, cls)
