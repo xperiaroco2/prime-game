@@ -880,8 +880,9 @@ const FULL_PUB_EFFORT = set(EFFORTS, PUB_ROLE) || 'high'
 const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== undefined
 const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
 // #606: the tier in the publisher's prompt, for the PR and for `metrics` (a run's return value is not journaled, so
-// metrics.REVIEW_TIER reads this line from the publisher's transcript).
-const TIER_LINE = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.length ? `; dropped although the launch passed them: ${TIER_SKIPPED.join(', ')}` : ''}. Say the tier and why in one line of the PR's verification section.`
+// metrics.REVIEW_TIER reads this line from the publisher's transcript); the publisher stopped by mutants gets it too.
+const TIER_FACT = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.length ? `; dropped although the launch passed them: ${TIER_SKIPPED.join(', ')}` : ''}.`
+const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's verification section.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
@@ -889,6 +890,7 @@ const pub = stoppedByMutants
     `Task: report a stopped run of issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 30 tool calls.`,
     `The test review (test_review) reported: ${JSON.stringify(testReview)}`,
     `${MUTANTS_STOP} Check \`git status\` in the worktree first: it must show no planted fault.`,
+    `${TIER_FACT} Say the tier and why in one line of the comment.`,
     HUMAN_STEPS,
     'Return the structured result.',
   ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))

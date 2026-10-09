@@ -47,7 +47,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from runner import wait
+from runner import metrics, wait
 from runner.common import ROOT, force_rmtree, node_bin
 
 WORKFLOWS = ROOT / ".claude" / "workflows"
@@ -1187,6 +1187,8 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("Task: report a stopped run of issue #7", publish)
         self.assertIn("publish nothing", publish)
         self.assertNotIn("gh pr create", publish)
+        # metrics reads the tier from this prompt too (#606 review), so a stopped full run is not "unknown".
+        self.assertEqual(metrics.REVIEW_TIER.search(publish).group(1), "full")
         self.assertIn("mutants exited 2 in the test review", exit_2["returned"]["stopped"])
         # A resume would replay the cached exit 2 and stop again, so the result names the way on.
         self.assertIn("relaunch issue-task (not a resume", exit_2["returned"]["stopped"])
