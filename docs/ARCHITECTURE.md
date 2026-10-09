@@ -233,7 +233,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
 - **Names** (#550, the engineer's answers on #73; built on #58's `Player<n>`): a player sets their own name
   (`UserSettings.player_name` in `user://`, "" until chosen, never empty once chosen) and `Hello` asks for it.
   The host decides (`JoinRules.joiner_name`, the rules in `core/match/player_names.gd`): `PlayerNames.clean`
-  drops the C0 and C1 controls, DEL, U+FEFF and surrogates, trims blank edges (the space and the Unicode spaces
+  drops the C0 and C1 controls, DEL, U+FEFF, surrogates and the invisible format characters (zero-width
+  marks, line separators, bidi controls: a name that looks like another), trims blank edges (the space and the Unicode spaces
   that show nothing) and keeps the first 16 characters (code points); when nothing is left (no name, the wrong
   type, blanks or controls only) the joiner gets the fallback `Player<n>`, with n counted by accepted joins over
   the whole session (`MatchState.joins`, which steps on every join, a named one too): Player1, Player2, and so on.
@@ -709,7 +710,7 @@ Little-endian; sizes in bytes.
 | `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
 | `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 (no row uses it since #550) | another byte |
-| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 64 (`WireField.NAME_MAX_BYTES`: 16 characters of at most 4 bytes, #550); empty allowed (the host's fallback) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 64 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two |
+| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 64 (`WireField.NAME_MAX_BYTES`: 16 characters of at most 4 bytes, #550); empty allowed (the host's fallback) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 64 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two |
 | `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |

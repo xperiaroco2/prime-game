@@ -49,11 +49,19 @@ static func unique(wanted: String, taken: PackedStringArray) -> String:
 
 ## Whether a name drops the character `code`: the C0 controls, DEL and the C1 controls, a
 ## surrogate (never a character of its own), U+FEFF (the byte-order mark, which a UTF-8 decoder
-## may drop silently) and anything above U+10FFFF. The wire's `name` type rejects the same.
+## may drop silently), anything above U+10FFFF, and the invisible format characters (zero-width
+## marks, the line and paragraph separators, the bidi controls, the invisible operators: U+200B to
+## U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), which would let two names that
+## look alike pass as different, "Di<U+200B>ma" beside "Dima". The wire's `name` type rejects the
+## same.
 static func is_dropped(code: int) -> bool:
 	return (
 		code < 0x20
 		or (code >= 0x7F and code <= 0x9F)
+		or (code >= 0x200B and code <= 0x200F)
+		or (code >= 0x2028 and code <= 0x202E)
+		or (code >= 0x2060 and code <= 0x2064)
+		or (code >= 0x2066 and code <= 0x2069)
 		or (code >= 0xD800 and code <= 0xDFFF)
 		or code == 0xFEFF
 		or code > 0x10FFFF

@@ -26,6 +26,14 @@ func test_clean_drops_controls_and_the_byte_order_mark() -> void:
 	assert_str(PlayerNames.clean(_c(BOM) + "Di" + _c(BOM) + "ma")).is_equal("Dima")
 
 
+func test_clean_drops_invisible_characters_anywhere() -> void:
+	# A zero-width mark or a bidi control would make "Dima" look like two different names.
+	for code: int in [0x200B, 0x200D, 0x200F, 0x2028, 0x2029, 0x202A, 0x202E, 0x2060, 0x2066]:
+		var hidden := "Di" + _c(code) + "ma"
+		assert_str(PlayerNames.clean(hidden)).override_failure_message("%x" % code).is_equal("Dima")
+	assert_str(PlayerNames.clean(_c(0x202E) + "amiD")).is_equal("amiD")
+
+
 func test_clean_trims_unicode_blanks_at_the_edges_only() -> void:
 	var edged := _c(NBSP) + _c(IDEOGRAPHIC_SPACE) + "Dima" + _c(ZERO_WIDTH) + _c(EM_SPACE)
 	assert_str(PlayerNames.clean(edged)).is_equal("Dima")
@@ -96,6 +104,8 @@ func test_unique_always_finds_a_name() -> void:
 
 func test_dropped_and_blank_characters() -> void:
 	for code: int in [0, 0x1F, 0x7F, 0x80, 0x9F, 0xD800, 0xDFFF, BOM, 0x110000]:
+		assert_bool(PlayerNames.is_dropped(code)).override_failure_message("%x" % code).is_true()
+	for code: int in [0x200B, 0x202E, 0x2066]:
 		assert_bool(PlayerNames.is_dropped(code)).override_failure_message("%x" % code).is_true()
 	for code: int in [0x20, 0x41, 0x7E, NBSP, 0x414, 0xD7FF, 0xE000, 0xFFFD, 0x1F600, 0x10FFFF]:
 		assert_bool(PlayerNames.is_dropped(code)).override_failure_message("%x" % code).is_false()

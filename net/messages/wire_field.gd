@@ -286,12 +286,18 @@ static func is_name(text: String) -> bool:
 
 ## Whether a `name` may hold the character `code`: not a C0 control, DEL or a C1 control, not a
 ## surrogate, not U+FEFF (a UTF-8 decoder may drop it silently, so it would not decode back to the
-## same bytes) and at most U+10FFFF. core/'s PlayerNames.is_dropped refuses exactly these (net/
-## names no core/ class; a test pins the two), so every name the host makes encodes.
+## same bytes), not an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to
+## U+2064, U+2066 to U+2069: a name that looks like another) and at most U+10FFFF. core/'s
+## PlayerNames.is_dropped refuses exactly these (net/ names no core/ class; a test pins the two), so
+## every name the host makes encodes.
 static func is_name_char(code: int) -> bool:
 	return not (
 		code < 0x20
 		or (code >= 0x7F and code <= 0x9F)
+		or (code >= 0x200B and code <= 0x200F)
+		or (code >= 0x2028 and code <= 0x202E)
+		or (code >= 0x2060 and code <= 0x2064)
+		or (code >= 0x2066 and code <= 0x2069)
 		or (code >= 0xD800 and code <= 0xDFFF)
 		or code == 0xFEFF
 		or code > 0x10FFFF
