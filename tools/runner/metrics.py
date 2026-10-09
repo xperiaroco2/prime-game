@@ -1233,15 +1233,16 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     high = [usage[mid] for (_, ctx), mid in zip(ctx_series, order) if ctx > HIGH_CTX]
     budgets = Counter(n + ctx for n, ctx in left)
     budget = budgets.most_common(1)[0][0] if budgets else None
+    both = (prompt or "") + "\n" + (launch or "")  # the harness may relay the user request first: look in both
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
         "model": model,
         "effort": effort,
         "title": title,
-        "design": DESIGN_TASK in (prompt or ""),
+        "design": DESIGN_TASK in both,
         "prompt_chars": len(launch) if launch else None,  # #470: the launch prompt's size
-        "tier": (m.group(1) if (m := REVIEW_TIER.search(prompt or "")) else None),
+        "tier": (m.group(1) if (m := REVIEW_TIER.search(both)) else None),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,

@@ -1,5 +1,5 @@
-"""`metrics`' launch prompt size per agent role (#470): the first user message of each workflow agent, from small
-synthetic transcripts written here (never real ones)."""
+"""`metrics`' launch prompt size per agent role (#470): the last user text message before each workflow agent's first
+API call, from small synthetic transcripts written here (never real ones)."""
 
 import tempfile
 import unittest
@@ -48,7 +48,7 @@ class PromptSizeTest(unittest.TestCase):
         data = metrics.collect([self.fx.dir], {}, None, metrics.parse_time(UNTIL))
         return metrics.build(data, [], None, None, metrics.parse_time(UNTIL))
 
-    def test_the_first_user_message_gives_the_size(self) -> None:
+    def test_the_launch_prompt_gives_the_size(self) -> None:
         path = Path(self.tmp.name) / "agent.jsonl"
         write_lines(path, [prompt([{"type": "text", "text": "x" * 120}]), assistant(0, "m1", usage(inp=1)), prompt("y" * 9)])
         self.assertEqual(metrics.read_agent(path)["prompt_chars"], 120)
@@ -60,6 +60,19 @@ class PromptSizeTest(unittest.TestCase):
         relay = prompt("[Workflow harness - user request] " + "u" * 100)
         write_lines(path, [relay, prompt("t" * 700), assistant(0, "m1", usage(inp=1)), prompt("later " * 99)])
         self.assertEqual(metrics.read_agent(path)["prompt_chars"], 700)
+
+    def test_the_tier_and_design_flag_are_read_from_the_launch_prompt_after_a_relay(self) -> None:
+        path = Path(self.tmp.name) / "agent.jsonl"
+        relay = prompt("[Workflow harness - user request] " + "u" * 100)
+        body = "Task.\n" + metrics.DESIGN_TASK + "\nReview tier (#606): light (why)\nrest"
+        write_lines(path, [relay, prompt(body), assistant(0, "m1", usage(inp=1))])
+        rec = metrics.read_agent(path)
+        self.assertEqual(rec["tier"], "light")
+        self.assertTrue(rec["design"])
+        write_lines(path, [prompt("plain"), assistant(0, "m1", usage(inp=1))])
+        rec = metrics.read_agent(path)
+        self.assertIsNone(rec["tier"])
+        self.assertFalse(rec["design"])
 
     def test_median_and_max_per_role(self) -> None:
         _md, record, _compact = self.build()
