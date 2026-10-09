@@ -64,6 +64,17 @@ func test_a_player_reads_the_name_and_sends_nothing() -> void:
 	assert_str(_panel.name_edit.text).is_equal("Den")
 
 
+func test_a_players_focused_field_still_follows_a_rename() -> void:
+	var model := _model(false)
+	model.lobby_name = "Den"
+	_panel.refresh(model, -1, false)
+	_panel.name_edit.grab_focus()
+	assert_bool(_panel.name_edit.has_focus()).is_true()
+	model.lobby_name = "Attic"
+	_panel.refresh(model, -1, false)
+	assert_str(_panel.name_edit.text).is_equal("Attic")
+
+
 func test_a_refresh_keeps_what_the_host_is_typing() -> void:
 	var model := _model(true)
 	_panel.refresh(model, -1, true)

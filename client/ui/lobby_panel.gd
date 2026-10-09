@@ -120,8 +120,10 @@ func refresh(model: ClientModel, host_tick: int, may_change: bool) -> void:
 	_lobby_name = model.lobby_name
 	name_edit.editable = may_change
 	name_edit.placeholder_text = default_name(model)
-	# Refreshed every frame: never over what the host is typing.
-	if not (name_edit.has_focus() or name_edit.is_editing()) and name_edit.text != _lobby_name:
+	# Refreshed every frame: never over what the host is typing. A player's read-only field can
+	# hold the focus too (a click, the keyboard), and still follows every rename.
+	var typing := may_change and (name_edit.has_focus() or name_edit.is_editing())
+	if not typing and name_edit.text != _lobby_name:
 		name_edit.text = _lobby_name
 	read_only_label.visible = not may_change
 	shortfalls_label.visible = not model.shortfalls.is_empty()
