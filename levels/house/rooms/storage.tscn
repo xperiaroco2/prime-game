@@ -359,3 +359,35 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 14)
 
 [node name="PartsShelf" type="Marker3D" parent="Stations" unique_id=1616311837]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0, 14)
+
+[node name="Markers" type="Node3D" parent="." unique_id=1189157603]
+
+[node name="Package01" type="Marker3D" parent="Markers" unique_id=228187488 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 1.5)
+
+[node name="Package02" type="Marker3D" parent="Markers" unique_id=299359259 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0, 1.5)
+
+[node name="Package03" type="Marker3D" parent="Markers" unique_id=1812888002 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 1.5)
+
+[node name="Package04" type="Marker3D" parent="Markers" unique_id=1281051208 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 0, 1.5)
+
+[node name="Package05" type="Marker3D" parent="Markers" unique_id=1799985532 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 5)
+
+[node name="Package06" type="Marker3D" parent="Markers" unique_id=1395297431 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 6)
+
+[node name="Package07" type="Marker3D" parent="Markers" unique_id=413947507 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 5.5)
+
+[node name="Package08" type="Marker3D" parent="Markers" unique_id=2028058073 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 11)
+
+[node name="Package09" type="Marker3D" parent="Markers" unique_id=1903957594 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 13.5)
+
+[node name="Package10" type="Marker3D" parent="Markers" unique_id=1201248628 groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 0, 14.5)

@@ -153,3 +153,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 10)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 0)
 
 [node name="Stations" type="Node3D" parent="." unique_id=750550924]
+
+[node name="Markers" type="Node3D" parent="." unique_id=710419403]
+
+[node name="Circle05" type="Marker3D" parent="Markers" unique_id=1113656916 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, 7)

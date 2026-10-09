@@ -113,3 +113,8 @@ mesh = SubResource("Mesh_6")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 6)
 
 [node name="Stations" type="Node3D" parent="." unique_id=1741759659]
+
+[node name="Markers" type="Node3D" parent="." unique_id=2075086870]
+
+[node name="Circle08" type="Marker3D" parent="Markers" unique_id=116916339 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, 6)

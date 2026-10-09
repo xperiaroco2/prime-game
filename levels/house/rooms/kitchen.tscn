@@ -161,3 +161,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 
 [node name="OrderBoard" type="Marker3D" parent="Stations" unique_id=291536346]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 7)
+
+[node name="Markers" type="Node3D" parent="." unique_id=715396516]
+
+[node name="Circle06" type="Marker3D" parent="Markers" unique_id=1853343776 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, 12)
+
+[node name="Knife1" type="Marker3D" parent="Markers" unique_id=1447406457 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 12.5)
