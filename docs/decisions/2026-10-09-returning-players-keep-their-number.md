@@ -57,8 +57,8 @@ The cases a return must survive:
 
 | # | Case | What must happen |
 |---|---|---|
-| S1 | A player's Wi-Fi drops for 30 s in the lobby; the game says the host is lost; the player joins again with the same code | the old number back |
-| S2 | The game crashes or is closed by mistake; the player starts it again and joins | the old number back |
+| S1 | A player's Wi-Fi drops for 30 s in the lobby; the game says the host is lost; the player joins again with the same code | the old number back, once the host has noticed the leave (its transport's timeout); a faster return is a new number with no binding, and the key keeps its first number for the next return (P2 (a)) |
+| S2 | The game crashes or is closed by mistake; the player starts it again and joins | the old number back, once the host has noticed the leave (its transport's timeout); a faster return is a new number with no binding, and the key keeps its first number for the next return (P2 (a)) |
 | S3 | Two friends play from one house behind one router (one public address), or through one VPN exit | two players, each with its own number |
 | S4 | The engineer's one-PC test: `host --clients 2` | three players |
 | S5 | A player starts the exported game twice on one PC (one settings file) | neither window breaks |
