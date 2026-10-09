@@ -103,6 +103,17 @@ func test_a_found_of_another_version_ends_the_join_before_any_offer() -> void:
 	assert_str(joiner.ui.menu.reason_label.text).contains(
 		"the host runs protocol %d, this game %d" % [WireSchema.VERSION + 1, WireSchema.VERSION]
 	)
+	# fail-version (#494): both versions, the host's from the service's `found`, and the own one.
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.FAILURE)
+	var failure := joiner.ui.connecting
+	assert_str(String(failure.state())).is_equal("fail-version")
+	assert_bool(failure.versions.visible).is_true()
+	assert_str(failure.version_host.text).contains(
+		JoinProgress.version_text(WireSchema.VERSION + 1, other.room_content)
+	)
+	assert_str(failure.version_own.text).contains(
+		JoinProgress.version_text(WireSchema.VERSION, ClientSession.content_of(joiner.mode))
+	)
 	other.close()
 	service.stop()
 
@@ -165,8 +176,11 @@ func test_a_code_join_without_a_service_says_to_use_direct() -> void:
 	assert_str(String(joiner.ui.connecting.state())).is_equal("fail-service")
 	assert_int(joiner.ui.connecting.action()).is_equal(ConnectingScreen.Action.DIRECT)
 	joiner.ui.connecting.direct_requested.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
 	assert_str(joiner.ui.menu.code_edit.text).is_equal("K7M2QX")
+	assert_object(joiner.get_viewport().gui_get_focus_owner()).is_same(joiner.ui.menu.address_edit)
 
 
 ## A Game set to host a room with CODE whose signalling it serves (as --code --signal=lan
