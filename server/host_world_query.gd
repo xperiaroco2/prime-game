@@ -122,6 +122,10 @@ func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
 			return to
 		var at: Vector3 = hit["position"]
 		return at
+	return _sweep_sphere(from, to, radius)
+
+
+func _sweep_sphere(from: Vector3, to: Vector3, radius: float) -> Vector3:
 	var sphere := SphereShape3D.new()
 	sphere.radius = radius
 	var query := PhysicsShapeQueryParameters3D.new()
@@ -135,6 +139,9 @@ func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
 		return to
 	query.motion = to - from
 	var fractions := space.cast_motion(query)
+	# `to` itself when clear: from + (to - from) can miss it by an ULP in single precision.
+	if fractions[0] >= 1.0:
+		return to
 	return from + (to - from) * fractions[0]
 
 

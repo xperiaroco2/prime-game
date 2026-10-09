@@ -28,6 +28,10 @@ func test_a_sweep_with_nothing_in_the_way_reaches_its_end() -> void:
 	var query := _level(LEVEL)
 	var to := Vector3(3, 1.6, -2)
 	assert_vector(query.sweep(Vector3(0, 1.6, 0), to, ITEM)).is_equal(to)
+	# Coordinates where from + (to - from) need not round back to `to` in single precision:
+	# the answer is `to` itself, bit for bit (FlightTicks tells a clear segment by it).
+	var off := Vector3(1.33, 1.7, -2.9)
+	assert_vector(query.sweep(Vector3(0.3, 1.3, 0.1), off, ITEM)).is_equal(off)
 
 
 func test_a_sweep_stops_before_the_wall_the_ledge_and_the_crate() -> void:
