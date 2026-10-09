@@ -30,12 +30,13 @@ export const meta = {
 //            engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or a leak). The
 //            implementer's changed paths choose, the worst one winning: full for a path under core/ server/ net/
 //            client/ voice/ tests/harness/ (quick-task.js's REVIEWED), no changed paths or a design task; light for any
-//            other diff (docs, content, levels, UI, tooling). Light runs the code reviewer (and godot-api-checker on a
-//            .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and drops test_review,
-//            second_review and skeptic even when passed. plan_review runs before the diff exists, so the branch's area
-//            (`start`'s <area>/ prefix) decides it: content, level and tooling skip it, unless tier is 'full'. Only full
-//            can be forced: the diff's worst path always wins. The publisher's prompt names the tier (`metrics` groups
-//            the runs by it) and the result carries tier and tier_skipped
+//            other diff (docs, content, levels, tooling; UI code lives under client/, so it is full on purpose: a
+//            leak through rendering is an information leak, #158). Light runs the code reviewer (and godot-api-checker
+//            on a .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and drops test_review,
+//            second_review and skeptic even when passed. plan_review runs before the diff exists, so the branch's
+//            area (`start`'s <area>/ prefix) decides it: content, level and tooling skip it, unless tier is 'full'.
+//            Only full can be forced: the diff's worst path always wins. The publisher's prompt names the tier
+//            (`metrics` groups the runs by it) and the result carries tier and tier_skipped
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
 // false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2

@@ -56,7 +56,8 @@ implementer ends red. Every agent writes temporary files only under the scratchp
 **Review tier** (#606, the engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or
 a leak). After the implementer its changed paths choose, the worst one winning: `full` for a path under `core/ server/
 net/ client/ voice/ tests/harness/`, no changed paths, a design task or `tier: "full"` (the chain above, unchanged);
-`light` for any other diff (docs, content, levels, UI, tooling): the code reviewer (plus `godot-api-checker` on
+`light` for any other diff (docs, content, levels, tooling; UI code lives under `client/`, so a UI task is full on
+purpose: a leak through rendering is an information leak, #158): the code reviewer (plus `godot-api-checker` on
 `.gd .tscn .tres`; `ab_review` keeps its pair), then the publisher; `test_review`, `second_review` and `skeptic` are
 dropped even when passed. `plan_review` runs before any diff, so the branch's area decides it: `content`, `level` and
 `tooling` skip it. Pass the options as the table says: the script drops them where the tier does. The result's

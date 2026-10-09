@@ -39,7 +39,7 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - **Decision:** `issue-task` picks a review tier from the implementer's changed paths, the worst one winning.
   - `full`: a path under `core/ server/ net/ client/ voice/ tests/harness/` (the path rule of `quick-task`, #608), no
     changed paths (unknown), a design task, or the launch's `tier: "full"`. Today's chain, unchanged.
-  - `light`: any other diff (docs, content data, levels, UI text and layout, tooling): `code-reviewer`
+  - `light`: any other diff (docs, content data, levels, tooling): `code-reviewer`
     (`godot-api-checker` too on a `.gd .tscn .tres` change; `ab_review` keeps its measurement pair) and the publisher.
     `test_review`, `second_review` and `skeptic` are dropped even when passed.
   - `plan_review` runs before any diff exists, so the branch's area (`start`'s `<area>/` prefix, from the issue's area
@@ -49,6 +49,9 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - **Two tiers, not the issue's three:** #606 named a `tooling` tier after #605's verify tiers, which comment
   6082442125 replaced with one fast local verify; a tooling diff is light, its tests run on CI (`selftest`), and the
   script cannot read an issue's `Size:` line to drop `plan_review` below M.
+- **UI is full, not light:** the issue's light row named "UI text and layout", but the UI's scenes and scripts live
+  under `client/ui/`, and `client/` stays full (#158: a leak through rendering is an information leak, the rule of
+  `quick-task` and the netcode routing). A `client/ui/` carve-out needs the engineer's word on #606's PR.
 - **A path no rule lists is light:** the issue's table made `full` the default ("anything else"); the manager's notes
   for #606, from the engineer's answer above, make it `light`. So a diff of only `project.godot`, export presets,
   `addons/`, `.github/workflows/`, `.claude/settings*.json`, `tests/unit/` or `tests/integration/` (its `net/` too)
