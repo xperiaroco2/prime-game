@@ -1837,14 +1837,14 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
-| no session | main menu: address, port, Host, Join, Voice (its Voice page, #301), Quit, and why the last session ended | none | none |
+| no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
-| ended | the connecting screen's failure in plain words until Back (#494), then the main menu with the reason in words; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
+| ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
   mode's `lobby_level`, loaded synchronously at `Welcome` and when a lobby phase follows a map phase (End → Lobby,
@@ -1901,7 +1901,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
-  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu; the reason in words (printed, and kept in `Game.last_words` since #493) comes from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
   `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
   (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
@@ -2428,12 +2428,12 @@ a follow-up on #144 and #145):
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
   the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
   line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
-- **The main menu's Voice page** (#301, the follow-up of #220's Esc-only tab): `MainMenu`'s Voice entry swaps its
-  rows for a second `VoicePanel` (the same class, in the Esc page's room) and Back; Esc on the menu returns too and
+- **The main menu's Voice page** (#301, the follow-up of #220's Esc-only tab; since #493 the Settings panel, §4.7.38):
+  `MainMenu`'s Settings item opens a second `VoicePanel` (the same class, in its light look); Esc closes it and
   opens no Esc menu. `Game` wires both panels to its one `VoiceControl` and feeds the one on screen
   (`Game.shown_voice_panel`), so a pick there is saved in this window's `UserSettings` and opens under the mark as in
   the tab. With no `ClientSession` the sender still captures and gates for the meter (its `may_speak` is false
-  without a model, and it has no `send`), so nothing leaves; the menu shows its rows again when a session ends.
+  without a model, and it has no `send`), so nothing leaves; the Settings panel closes when a session ends.
   Tests: `tests/unit/client/ui/main_menu_test.gd`, `game_voice_test.gd` (a pick on the page saved and opened under
   the mark; the meter with no session, nothing sent even to a send of the test's own; both seen failing with the
   page unwired or `may_speak` true without a model), `esc_menu_input_test.gd` (Esc leaves the page, seen failing
@@ -2966,11 +2966,11 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
   end as `Game.failure` (GameFlow's `FAILED` session, `FAILURE` screen, the pointer free) until Back
   (`back_to_menu`, also Esc), Try again (`retry`: `Game._retry`, the last `join_target`, `host` or `host_with_code`
-  with the same arguments) or Join directly (`open_direct`: the menu's address field focused, the code kept; #493's
-  Direct panel takes over). Primary is focused with a flat BackGhost beside it, or the raised BackSolo stands alone and
+  with the same arguments) or Join directly (`open_direct`: the menu's Direct panel open, its address focused, the
+  code kept, #493). Primary is focused with a flat BackGhost beside it, or the raised BackSolo stands alone and
   focused. A code join that the service's `found` ended on another version shows both versions
   (`JoinProgress.found_versions`: "<protocol> (<first six hex digits of the content hash>)"); a Rejected Hello names
-  none. The menu's reason line stays as before (#493 redraws the menu).
+  none. The menu draws no reason line since #493 (§4.7.38): the failure says why.
 - **Loading.** `GameUi.show_screen` starts it on entering `LOADING` (`show_loading`: one random `TIPS` key, a test
   holds the list to the deck's `tip.*`); `refresh_loading(model)` lists the host (`NetTransport.HOST_ID`) first, then
   the roster's order, the own row `player.you`, each `loading.player_loading` muted until its `PlayerLoaded`; the bar
@@ -3095,7 +3095,8 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   no Button reads it. `ui_up/down/left/right` are the arrows and the d-pad only, never WASD.
 - **Esc closes the topmost overlay, one per press** (rule 2). `client/ui/UiOverlays` (pure) holds the overlays by
   layer, each registered with what tells whether it is open and what closes it, asked on every press (a freed one
-  counts as closed): `MENU_PANEL` (the main menu's Voice page, only while the main menu shows), `MAP`, `CARD`,
+  counts as closed): `MENU_PANEL` (the main menu's open panel, code, Direct or Settings since #493, §4.7.38, only
+  while the main menu shows), `MAP`, `CARD`,
   `ESC_MENU` (closed as its Resume, so `Game.close_esc` captures the mouse again), `ESC_DIALOG` (the host's Leave or
   Quit question, `EscMenuState.asking()`: back to the default tab). `GameUi` registers all but the card. `Game._input`
   asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
@@ -3250,6 +3251,68 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   `hud_<state>_preview.tscn` for pack, tired, hurt, mate, raising and dead, each with a `_uk` twin, and
   `hud_large_uk_preview.tscn`, at `--size 1920x1080`; the playcheck fields `hud.*` (`tools/runner/playcheck.py`)
   read the new nodes.
+
+#### 4.7.38 Built in #493 (M6.2), the main menu
+prime-game-ui's s2 at `ui-0.4.0` (its handoff `docs/handoff/s02-main-menu.md`; the issue linked `ui-0.2.0`, and
+where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.gd`.
+- **The tree.** `MainMenu` (GameUi's `menu`) holds `Backdrop` (ToyBackdrop, full rect, the mouse ignored), `Column`
+  (the logo `prime-game`, a data text; `NameRow`; `Body`: the 592 px `Items`, then `Gap` and the raised 784 px
+  `CodePanel` and `DirectPanel`), the raised 960x888 `SettingsPanel` at (856, 96), a root of its own, and `Version`
+  bottom right. A raised panel or button is its `ToyRaised` wrapper `<name>Raised` (placement, size, visibility) with
+  the face inside. It stays a `Control` of the `Ui` layer, built in code like the other screens (the handoff's "its
+  own scene, under none of the in-game CanvasLayers" holds: the `Ui` layer is none of the handoff's layers 1 to 6).
+  The live lobby behind it with an idle camera is not built: no level loads before a session (`GameFlow`), so the
+  backdrop dims the empty viewport.
+- **Items.** ToyMenuItem Buttons, left-aligned, each with the pointer icon at 24 px that ToyMenuItem's
+  `icon_*_color` shows only focused, hovered or pressed: the pack's `pointer.svg` as #520 imported it
+  (`ToyIcons.texture(&"pointer")`, §4.7.34, its `svg_scale` 1). Join, Join by address and Settings are `UiParts.toggle`s in one ButtonGroup with
+  `allow_unpress`: pressing one opens its panel (`open_panel`), pressing it again, Back or Esc closes it
+  (`close_panel`) and focuses its item. Esc reaches the open panel as #488's overlay `menu_panel` (§4.7.35:
+  `GameUi` registers `panel_open()` and `close_panel`, only while the menu shows), so `Game._input` closes it like
+  any other overlay; with no panel open and no session it does nothing.
+  Focus starts on Host whenever the menu shows with no panel; up and down follow the items. Host emits
+  `code_host_requested` (`Game.host_with_code` on the launch options' port); Quit quits; Tutorial is drawn and
+  unplugged until the tutorial exists (#492).
+- **The code panel.** `code_text()` keeps the field upper case, only `SignalCodec.CODE_ALPHABET` (no spaces, dashes,
+  0, O, 1, I or L), at most 6 (`max_length` 6); a paste longer than the room left comes back through
+  `text_change_rejected` and is filtered whole, so "k7m-2qx" pasted reads K7M2QX. Join (ToyButtonPrimary, unplugged
+  until `SignalCodec.is_code`) and Enter join by the code. Opening it from its item empties the field; a failure's
+  Back shows the menu as it was, the code kept.
+- **The Direct panel.** Address takes host or host:port (`JoinTarget.of_direct`); Join and Enter are unplugged while
+  it does not parse (an empty field included), so no typed problem reaches `Game`; the port line names the default
+  (`join.port`, the launch options' `--port`). Host hosts over ENet on the port typed after the address, else the
+  default (`typed_port`); Host is off while the typed port is not one (`JoinTarget.port_problem`), never quietly on
+  the default. A command-line join fills its panel (`Game._fill_menu`) so Back finds it there; a `--join=` that does
+  not parse waits in the Direct field with Join off, the menu's only sign of it.
+- **The name row** binds to `UserSettings.player_name` (`bind_name`, #550): each change is cleaned by `PlayerNames`
+  and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
+  player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
+  "never empty, else the system user name" predates.
+- **The Settings panel.** `settings_page` is the one seam #491's Settings scene (shared with the Esc menu, opened on
+  Sound and voice) replaces: today `_build_settings()` returns the #301 `VoicePanel` in a ToyScroll, in its light
+  look (`VoicePanel.on_light()`: ink labels, the microphone notice too, as the pack has no warning text on light;
+  each check box's words beside it, a click on them toggling it; the logic unchanged, its words still
+  #150's greybox English). `Game` feeds it as before (`shown_voice_panel`, `settings_open()`). It opens at its top:
+  `follow_focus` scrolls to the focused first row before the panel's first sort, with the old sizes (290 px down
+  under large text), so the menu scrolls it back once the focus has landed.
+- **No reason line.** The handoff draws none: a failure shows on the connecting screen (§4.7.32); the words of the
+  last end, or of a problem with a command-line target, are printed and kept in `Game.last_words`.
+- **Version.** `menu.version` with `application/config/version`; hidden while `project.godot` names no version.
+- Every text is a deck key; the version and port lines are set from code with `auto_translate_mode` DISABLED and
+  rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the logo, the name, the code and the address are data texts. Every
+  LineEdit has `context_menu_enabled` false (Godot's menu words are English).
+- Tests: `tests/unit/client/ui/main_menu_test.gd` (the tree node for node: names, classes, variations, anchors,
+  offsets, grow, size flags and minimum sizes; the items, the group, the pointer (the imported file) and its colours; every state by its
+  item, Back and another item, seen failing on the group's release order; the focus as drawn; the alphabet, the case, six at most and a long paste, seen
+  failing without the filter; Join and Enter only with a whole code; the code kept on a return; Direct's Join and
+  Host's port; the Settings panel at its top under large text, seen failing without the scroll back; the name row and its file; the port and version lines in uk; every key in the deck),
+  `tests/unit/client/ui/game_ui_overlays_test.gd` (the `menu_panel` overlay closes each panel and returns the focus to
+  its item; none open, no overlay), `tests/integration/client/app/esc_menu_input_test.gd` (Esc on the real game's
+  menu closes Settings, the code and the Direct panel, no Esc menu), `game_voice_test.gd` (the Settings panel's pick and meter), `game_code_join_test.gd` (Join
+  directly opens the Direct panel; a mistyped code never leaves the field) and `game_loop_test.gd` (Back to the
+  Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
+  text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
+  scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -3417,11 +3480,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   engineer's Worker (`tools/signal/README.md`), `wss://prime-game-signal.xperiaroco-36a.workers.dev/` since 2026-10-07
   (#513). `--signal=<url>` overrides it; an empty one (`--signal=`) makes a code join end as `service_unreachable`
   (use Direct) and a code host refuse to start.
-- **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
-  `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
-  one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
-  with its reason; the fields keep what was typed. Voice (#301) swaps the rows for the Voice page (§4.7.17), Back or
-  Esc returns.
+- **The menu** (`MainMenu`, the Toy menu of #493, §4.7.38): Host (a room with a code, `CodeRoom` over
+  `WebRtcTransport`), Join (the code panel) and Join by address (the Direct panel: the address with an optional port,
+  Join and Host, ENet as before M6). A host serves one backend, so a code host takes no Direct joiner and a Direct
+  host has no code. A failed join shows its failure (#494), then the menu with the panel and what was typed kept.
 - **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
   code, before `found`), connecting, joined (connected, before `Welcome`). **The version check** is the joiner's
   `WebRtcTransport`'s (`expect_protocol`, `expect_content`, which `JoinTarget.transport` sets): a `found` naming
@@ -3677,7 +3739,7 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
   the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
   microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
-  microphone privacy) show in the Voice tab. The same panel is the main menu's Voice page (#301, §4.7.17), so the
+  microphone privacy) show in the Voice tab. The same panel is in the main menu's Settings panel (#301, §4.7.17, §4.7.38), so the
   microphone is picked and the meter checked before hosting or joining; with no session the capture and the gate
   run for the meter and nothing is sent.
 - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
@@ -3735,7 +3797,7 @@ Effects, the lift music on Music, its −14 dB now the bus default); four slider
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
 the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Voice page (#301).
+`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Settings panel (#301, #493).
 `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (M5-6), as `run --instances` and
 `bots --instances` do from `launch.launch`.
 

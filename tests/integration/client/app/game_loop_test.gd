@@ -129,7 +129,7 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	assert_str(String(one.ui.connecting.state())).is_equal("lost")
 	assert_str(String(host.last_reason)).is_equal(String(EndReasons.CLOSED))
 	assert_str(String(one.last_reason)).is_equal(String(ClientSession.HOST_LOST))
-	assert_str(one.ui.menu.reason_label.text).contains(EndReasons.words(ClientSession.HOST_LOST))
+	assert_str(one.last_words).contains(EndReasons.words(ClientSession.HOST_LOST))
 	one.back_to_menu()
 	assert_int(one.screen()).is_equal(S.MENU)
 	for game: Game in games:
@@ -199,18 +199,20 @@ func test_a_join_nobody_answers_shows_why_then_back_keeps_the_address() -> void:
 	assert_int(lonely.screen()).is_equal(S.FAILURE)
 	assert_str(String(lonely.ui.connecting.state())).is_equal("fail-no-answer")
 	assert_str(String(lonely.last_reason)).is_equal(String(ClientSession.CONNECT_FAILED))
-	assert_str(lonely.ui.menu.reason_label.text).contains("no answer from the host")
+	assert_str(lonely.last_words).contains("no answer from the host")
 	# Try again joins the same address; it fails alike.
 	lonely.ui.connecting.retry_requested.emit()
 	assert_object(lonely.client()).is_not_null()
 	assert_int(lonely.screen()).is_equal(S.CONNECTING)
 	assert_bool(await _until([lonely], func() -> bool: return lonely.client() == null)).is_true()
 	assert_int(lonely.screen()).is_equal(S.FAILURE)
-	# Back: the menu, the address and port as the command line gave them.
+	# Back: the menu's Direct panel, the address and port as the command line gave them (the
+	# port, the command line's, is the default the panel names).
 	lonely.ui.connecting.back_requested.emit()
 	assert_int(lonely.screen()).is_equal(S.MENU)
+	assert_str(String(lonely.ui.menu.state())).is_equal("direct")
 	assert_str(lonely.ui.menu.address_edit.text).is_equal("127.0.0.1")
-	assert_int(lonely.ui.menu.port()).is_equal(PORT + 1)
+	assert_int(lonely.ui.menu.default_port).is_equal(PORT + 1)
 	await get_tree().process_frame
 
 
@@ -223,7 +225,7 @@ func test_a_host_that_cannot_start_says_why_and_tries_again_the_same_way() -> vo
 	assert_int(second.screen()).is_equal(S.FAILURE)
 	assert_str(String(second.ui.connecting.state())).is_equal("host-failed")
 	assert_str(String(second.last_reason)).is_equal(String(EndReasons.CANNOT_HOST))
-	assert_str(second.ui.menu.reason_label.text).contains(EndReasons.words(EndReasons.CANNOT_HOST))
+	assert_str(second.last_words).contains(EndReasons.words(EndReasons.CANNOT_HOST))
 	assert_bool(second.host(PORT + 2)).is_false()
 	# Try again hosts on the same port: it starts once the port is free.
 	first.leave()
@@ -237,7 +239,7 @@ func test_a_host_that_cannot_start_says_why_and_tries_again_the_same_way() -> vo
 func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	var game := _game(["--port=%d" % (PORT + 3)])
 	assert_int(game.screen()).is_equal(S.MENU)
-	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
+	assert_int(game.ui.menu.default_port).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
 	game.get_parent().remove_child(game)
 	assert_bool(get_tree().auto_accept_quit).is_true()

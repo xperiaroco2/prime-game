@@ -26,6 +26,9 @@ var port := 0
 var service_url := SERVICE_URL
 ## What is wrong with the text, in words; empty when nothing is.
 var problem := ""
+## The problem is in the port part (Kind.DIRECT): the port stays the default, though one was
+## typed. The main menu's Host, which needs no address, is off only then (#493).
+var port_problem := false
 
 
 ## `text` from the command line: a code, or `address[:port]` with `default_port` when none is given.
@@ -69,6 +72,7 @@ static func of_direct(text: String, default_port: int) -> JoinTarget:
 		typed = typed.substr(1, close - 1)
 		if not port_text.is_empty() and not port_text.begins_with(":"):
 			target.problem = "after ] comes :port"
+			target.port_problem = true
 			return target
 		port_text = port_text.trim_prefix(":")
 	elif typed.count(":") == 1:
@@ -79,6 +83,7 @@ static func of_direct(text: String, default_port: int) -> JoinTarget:
 		var number := port_text.to_int() if port_text.is_valid_int() else 0
 		if number < 1 or number > 65535:
 			target.problem = "the port is a number from 1 to 65535, not '%s'" % port_text
+			target.port_problem = true
 			return target
 		target.port = number
 	if typed.is_empty():
