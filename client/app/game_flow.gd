@@ -17,7 +17,7 @@ enum Screen {
 	MENU,  ## the main menu (#493): the name, Host, Join, Join by address, Settings, Quit
 	CONNECTING,  ## the spinner, the step, the code and the time since Join, Cancel (#494)
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
-	LOADING,  ## who has loaded
+	LOADING,  ## who has loaded; also a phase with no level (the tutorial's gather, #601)
 	PREGAME,  ## dark, the own role (#213): silent, frozen, before the round's clock runs
 	ROUND,  ## the round (M4-8's HUD)
 	END,  ## "The <side> won"; "Back to the lobby in 3" (#212)
@@ -46,7 +46,8 @@ static func screen(session: Session, model: ClientModel) -> Screen:
 		return Screen.CONNECTING
 	if spec.level == PhaseSpec.Level.LOBBY:
 		return Screen.LOBBY
-	if spec.senders_of(Intents.LOAD_ACK) != 0:
+	# A phase with no level (the tutorial's gather, #601) waits there too: no floor, nothing to do.
+	if spec.level == PhaseSpec.Level.NONE or spec.senders_of(Intents.LOAD_ACK) != 0:
 		return Screen.LOADING
 	if spec.phase_class == PregamePhase:
 		return Screen.PREGAME
