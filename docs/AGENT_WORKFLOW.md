@@ -451,7 +451,11 @@ Rules for every workflow run:
   report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
   left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
   cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
-  publisher gets the whole report but of a `plan_review` run only the plan's summary, its comment's link and the
+  publisher gets the report whole but its commits, changed paths and verify tail (`git log`, `git diff --name-only`
+  and its own `publish` give them), each review finding's severity, file, line and problem with its fix only on a
+  blocker or major and no reviewer's verdict, and a preamble without the reading rule for code, the Godot-windows line
+  and the game-rule line (#696: 28.8k characters at the median of 39 publishers from 2026-10-07 to 09, about 23.3k
+  re-rendered with the cuts), and of a `plan_review` run only the plan's summary, its comment's link and the
   critique (the whole plan is that comment on the issue, #469, and stays in the journal); and
   the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
   itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
@@ -462,7 +466,7 @@ Rules for every workflow run:
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
-  #468's reading line, #471's publish steps, #470's digests).
+  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
   agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
   most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
