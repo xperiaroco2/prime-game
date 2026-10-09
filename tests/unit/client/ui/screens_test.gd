@@ -89,8 +89,8 @@ func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() ->
 
 
 func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_list() -> void:
-	# #694: the map pick beside the lobby's name (#214), not among the settings; a second set_mode
-	# replaces the maps, and one pick sends one map.
+	# #694: the map pick beside the lobby's name (#214), not among the settings; a set_mode with other
+	# maps replaces the old ones, and one pick sends one map.
 	var mode := load(MODE) as GameMode
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
@@ -101,6 +101,11 @@ func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_lis
 	assert_object(map_row.get_parent()).is_same(panel)
 	assert_int(map_row.get_index()).is_equal(name_row.get_index() + 1)
 	assert_bool(panel.settings_box.is_ancestor_of(panel.map_picker)).is_false()
+	var one := mode.duplicate() as GameMode
+	one.maps = PackedStringArray([mode.maps[1]])
+	panel.set_mode(one)
+	assert_int(panel.map_picker.item_count).is_equal(1)
+	assert_str(panel.map_picker.get_item_text(0)).is_equal(LobbyPanel.map_name(mode.maps[1]))
 	panel.set_mode(mode)
 	assert_int(panel.map_picker.item_count).is_equal(mode.maps.size())
 	var sent: Array[String] = []
