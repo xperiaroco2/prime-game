@@ -699,15 +699,18 @@ def run_lanes(
 # Since #556 a machine with at least BIG_MACHINE logical CPUs gives them half (8 on the PC; over 10 runs on 10-08:
 # selftest 144 s, the lane 212 s, which ends it near the first network run, and `test` beside it no slower, 123 s
 # against 130 s); a smaller one keeps a quarter (1 on CI's 4-vCPU runner, where the Python lane ends about 230 s
-# before the Godot lane anyway).
+# before the Godot lane anyway). A `selftest` outside a verify lane (CI's minimum-Python job, a 4-vCPU runner with
+# nothing beside it) takes every logical CPU of a small machine (#603); a big one keeps half for the other sessions.
 WORKER_SHARE = 2
 SMALL_WORKER_SHARE = 4
 BIG_MACHINE = 8
 
 
-def selftest_workers(cpus: int | None = None) -> int:
+def selftest_workers(cpus: int | None = None, alone: bool = False) -> int:
     count = cpus if cpus is not None else os.cpu_count() or 1
-    return max(1, count // (WORKER_SHARE if count >= BIG_MACHINE else SMALL_WORKER_SHARE))
+    if count >= BIG_MACHINE:
+        return max(1, count // WORKER_SHARE)
+    return count if alone else max(1, count // SMALL_WORKER_SHARE)
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
@@ -986,11 +989,12 @@ def selftest(group: str = "all") -> int:
     @starts_godot, serially in one process. `all` (the `selftest` command): both at once, then the count check.
     """
     say("selftest-godot" if group == "godot" else "selftest")
+    alone = not os.environ.get(INSIDE_VAR)  # not in a verify lane beside the Godot lane
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"  # the spawned workers import the runner afresh
     os.environ[INSIDE_VAR] = "1"  # and inherit this: a test that reaches the real lanes fails (run_lane_process)
     tests = discover()
     groups = ("python", "godot") if group == "all" else (group,)
-    workers = {name: 1 if name == "godot" else selftest_workers() for name in groups}
+    workers = {name: 1 if name == "godot" else selftest_workers(alone=alone) for name in groups}
     # Every worker inherits a stand-in app-data folder: a test that writes to the app-data folder outside a
     # @starts_godot class (which has its own) would have written to the real one, and fails the run (#233).
     with temp_app_data(prefix="prime-selftest-app-data-") as stand_in:

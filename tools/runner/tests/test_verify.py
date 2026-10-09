@@ -1683,6 +1683,24 @@ class SelftestTest(unittest.TestCase):
         cpus = (1, 2, 4, 6, 7, 8, 16, 32)
         self.assertEqual([verify.selftest_workers(n) for n in cpus], [1, 1, 1, 1, 1, 4, 8, 16])
 
+    def test_alone_a_small_machine_gives_every_cpu_a_big_one_still_half(self) -> None:
+        # #603: CI's minimum-Python job (4 vCPUs, nothing beside it) runs on 4 workers; the PC keeps 8 of 16.
+        cpus = (1, 2, 4, 6, 7, 8, 16, 32)
+        self.assertEqual([verify.selftest_workers(n, alone=True) for n in cpus], [1, 2, 4, 6, 7, 4, 8, 16])
+
+    def test_selftest_in_a_verify_lane_shares_the_machine_and_alone_does_not(self) -> None:
+        for inside, alone in (("1", False), ("", True)):
+            with (
+                self.subTest(inside=inside),
+                mock.patch.dict(os.environ, {verify.INSIDE_VAR: inside}),
+                mock.patch.object(verify, "discover", return_value=[]),
+                mock.patch.object(verify, "selftest_workers", return_value=3) as workers,
+                mock.patch.object(verify, "_run_group", return_value=([], 0.0)),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                verify.selftest("python")
+                workers.assert_called_once_with(alone=alone)
+
     def test_workers_report_each_outcome_like_a_serial_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             name = f"selftest_fixture_{uuid.uuid4().hex}"
