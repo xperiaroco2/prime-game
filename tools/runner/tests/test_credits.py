@@ -15,6 +15,8 @@ ENTRY = """# Crate Pack
 - **Author:** Someone
 - **Source:** https://example.com/crates
 - **License:** CC0 1.0
+- **AI generated:** false
+- **Public repo OK:** true
 
 ## Notes
 Recolored.
@@ -175,6 +177,41 @@ class RepoTest(unittest.TestCase):
             self.assertEqual(credits.main(self.root), 0)
         self.assertIn("CREDITS.md is up to date (1 entry)", out.getvalue())
         self.assertEqual((self.root / "CREDITS.md").stat().st_mtime_ns, before)
+
+    def test_an_lfs_asset_entry_states_its_provenance(self) -> None:
+        # #519: the art manifest's ai_generated and public_repo_ok travel with the asset.
+        self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/room.tscn`").replace("- **AI generated:** false\n", ""))
+        self.main()
+        self.assertEqual(
+            credits.check(self.root).errors,
+            [
+                "docs/credits/crates.md: covers the LFS asset levels/props/crate/wood.png but has no"
+                " '- **AI generated:** true' or 'false' (the art manifest's ai_generated and public_repo_ok)"
+            ],
+        )
+
+    def test_a_note_may_follow_the_flag_but_a_word_is_not_one(self) -> None:
+        self.assertIs(credits.flag("true (Meshy Pro output)"), True)
+        self.assertIs(credits.flag("False."), False)
+        self.assertIsNone(credits.flag("yes"))
+        self.assertIsNone(credits.flag(""))
+
+    def test_a_private_only_asset_is_refused(self) -> None:
+        text = ENTRY.replace("`levels/crate.glb`", "`levels/room.tscn`")
+        self.entry(text.replace("- **Public repo OK:** true", "- **Public repo OK:** false"))
+        self.main()
+        errors = credits.check(self.root).errors
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("Public repo OK is false: this public repo takes only", errors[0])
+
+    def test_an_entry_without_lfs_assets_needs_no_provenance(self) -> None:
+        # The addons' entries: their files stay out of LFS.
+        self.entry(ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`", "`addons/tool/**`").replace(
+            "- **Public repo OK:** true\n", "").replace("- **AI generated:** false\n", ""))
+        write(self.root, "docs/credits/wood.md", ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`",
+                                                               "`levels/props/**`").replace("# Crate", "# Wood"))
+        self.main()
+        self.assertEqual(credits.check(self.root).errors, [])
 
     def test_broken_entry_is_reported_and_not_rendered(self) -> None:
         self.entry("no title\n")

@@ -533,5 +533,19 @@ class RealPointerTest(unittest.TestCase):
                 self.assertEqual((root / name).read_bytes(), POINTER, name)
                 self.assertEqual((root / (name + ".import")).read_bytes(), committed[name], name)
 
+
+class HandoffFormatsTest(unittest.TestCase):
+    """The art handoff (#519): the project's .gitattributes routes every format an art PR brings through LFS, in each
+    landing folder, and keeps addons out of it."""
+
+    FORMATS = ("glb", "png", "jpg", "wav", "ogg", "ttf", "otf")
+    FOLDERS = ("assets/characters/x", "assets/environment/x", "assets/audio/x", "assets/ui/x")
+
+    def test_the_handoff_formats_go_through_lfs(self) -> None:
+        paths = [f"{folder}/a.{suffix}" for folder in self.FOLDERS for suffix in self.FORMATS]
+        self.assertEqual(credits.lfs_assets(common.ROOT, paths), sorted(paths))
+        self.assertEqual(credits.lfs_assets(common.ROOT, ["addons/x/a.png", "assets/x/a.json"]), [])
+
+
 if __name__ == "__main__":
     unittest.main()

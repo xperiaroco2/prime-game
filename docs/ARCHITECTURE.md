@@ -13,10 +13,11 @@
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
 | `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
-| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) | engineer |
+| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
 | `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | engineer (#518) |
-| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | engineer (#518) |
+| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
+| `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
 
 Changing a boundary is a stop-and-ask item and gets an ADR.
@@ -4682,3 +4683,75 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
 | The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 and #492, which then write their sections here |
+
+## 11. Art assets: the handoff from the art repo (#519)
+
+Art is made in the private art repo (`xperiaroco2/prime-game-art`: its `docs/pipeline.md`, `docs/contract.md`,
+`docs/godot.md`, `docs/manifest.md`) and enters this repo only through a game-repo PR, one asset or one set per PR.
+Built in #519 for the character (#522) and the house (#523); its dry run is a CC0 Kenney chair
+(`assets/environment/kenney_chair/`), which no scene uses.
+
+### 11.1 Where an asset lands
+```
+assets/
+  characters/<id>/<id>.glb     a character: body, rig and clips in one GLB (art `export`)
+  environment/<id>/<id>.glb    a house, a room or a prop, its textures beside it
+  audio/<id>/<id>.wav|.ogg     a sound effect or a music track
+  ui/<id>/<id>.png|.ttf|.otf   a UI image or a font
+```
+- `<id>` is the art manifest's `id` (lowercase letters, digits and underscores), or for a third-party file a slug
+  of its pack and name (`kenney_chair`). A set (several sounds, a font family) keeps its files in its one folder.
+- Data only: binaries and the `.import` files Godot writes beside them, no scripts. The engineer owns `assets/`
+  (§1). Scenes in `client/` and `levels/` instance them (the avatar a character, the level its environment); an
+  asset never refers back to them.
+- Not here: the pinned UI pack (`client/ui/theme/pack/`, `ui-sync`, #288, its SVGs are text), addons with their own
+  files (`addons/`), and test fixtures (`tests/fixtures/`).
+
+### 11.2 The PR an art handoff opens
+- **The files:** the asset under §11.1's path, through Git LFS (`.gitattributes` routes glb, png, jpg, wav, ogg,
+  ttf and otf, among others, as the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md) lists them; the
+  pre-push hook uploads the objects). `git lfs ls-files` lists each.
+- **The credits:** `docs/credits/<id>.md` with `Files`, `Author`, `Source` (the art manifest's source, or the
+  download page with the file's SHA-256), `License` (with its URL), `AI generated` and `Public repo OK`, the
+  manifest's `ai_generated` and `public_repo_ok` (AGENT_WORKFLOW §10). From the art repo, only an asset whose
+  manifest has `approved_by`, `approved_at` and `approval_pr` set and `public_repo_ok = true`; `check` refuses
+  `Public repo OK: false`. Then `tools\run.cmd credits` and the regenerated `CREDITS.md` in the same commit.
+- **The import settings:** the `.import` file of every asset, committed (`check` imports first and fails on an
+  import that changes or creates one, so run `check`, review the `.import` and commit it). A GLB keeps
+  `nodes/root_type=""` (a `Node3D` root: the game's scene owns the body), `nodes/root_scale=1.0` and
+  `nodes/apply_root_scale=true` (1 unit = 1 m, the contract's axes) and `animation/import=true`. A character adds
+  the art repo's two options (its `docs/godot.md`): `animation/fps=30`, the rate an animation set (the MVP set,
+  `mvp.toml` fps = 30) is baked at, which the GLB's `.export.json` records (at another rate Godot resamples every
+  track; a GLB of the pack's own 24 fps clips would need 24, and the contract changed first) and
+  `optimizer/enabled=false` on the AnimationPlayer node (`_subresources={"nodes": {"PATH:AnimationPlayer":
+  {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
+  with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
+  (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
+- **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
+  locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
+  (the art pipeline's step 15).
+
+### 11.3 The import check
+`tools/assets/asset_check.gd` over `tools/assets/asset_contract.json`, run by
+`tests/unit/tools/asset_import_test.gd` (so `test`, `verify --full` and CI run it; a plain `verify` runs no tests,
+#605; alone: `tools\run.cmd test tests/unit/tools/asset_import_test.gd`):
+- every GLB under `res://` (not `addons/`, `.godot/`, `tools/out/`, `tests/scratch/`) has a committed `.import`
+  with §11.2's options and loads headless as a `PackedScene` that instantiates;
+- a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract and one
+  `AnimationPlayer` holding every clip, each looping exactly as listed;
+- every image under `assets/` (png, jpg, jpeg, webp, tga, bmp, exr, hdr: the texture formats `.gitattributes`
+  routes through LFS) keeps its folder's `compress/mode`.
+
+Each problem is one line that starts with the asset's path and names what is missing, for instance
+`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
+fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
+compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
+committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
+clips, which a local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
+
+**The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
+`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to
+Godot's `SkeletonProfileHumanoid` names, and the file changes with it. The clips are the slice's list from
+prime-game-art#42 under the art MVP set's names as Godot imports them (`Idle`, `Jog_Fwd`, `Sprint_Fwd`,
+`Carry_Upper`, `Pickup_Package`, `Putdown_Package`, `Knockdown`, `Crawl`, `Getup_Fours`): not a decision; the
+avatar (#522) settles the clips it maps and edits the list.

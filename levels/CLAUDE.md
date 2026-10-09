@@ -47,7 +47,9 @@ changes: whichever copy is saved last wins. Remind the human of the convention:
 3. Nobody edits a scene by hand while the agent is working on it.
 
 ## Assets
-- Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`).
+- Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`). They land
+  in `assets/<kind>/<id>/` with their committed `.import` file, never under `levels/`; a level instances them from
+  there (`docs/ARCHITECTURE.md` §11).
 - Every third-party asset gets a credits file in `docs/credits/<asset>.md` (source, author, license) in the same PR.
 
 ## Checking the work

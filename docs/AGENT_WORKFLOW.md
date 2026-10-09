@@ -1218,7 +1218,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ assets/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Designer (optional) | none of his own: he may contribute anywhere, mostly in the content area, through PRs the engineer merges |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1291,7 +1291,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Credits [applied]:** one file per asset or pack, `docs/credits/<asset-slug>.md`: a `# <name>` title, then
   `- **Files:**` (repo-relative globs in backticks; `*` stays in one folder, `**` crosses folders), `- **Author:**`,
   `- **Source:**` and `- **License:**` lines; more fields and free text are copied as they are
-  ([example](credits/gdunit4.md)). `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
+  ([example](credits/gdunit4.md)). An entry that covers an LFS asset also has `- **AI generated:**` and
+  `- **Public repo OK:**`, each `true` or `false` first (the art manifest's `ai_generated` and `public_repo_ok`,
+  #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`.
+  `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
   `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
   date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
