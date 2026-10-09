@@ -14,7 +14,9 @@ extends TaskType
 ## in station-id order: the zone counts when at least one player, in peer-id order, is living
 ## (life ALIVE, any role), has its feet (its last accepted claim) inside the zone's cylinder
 ## (StationState.contains), and that claim is at most STALE_TICKS host ticks old
-## (MovementRule.claim_age, ZE10): a client that stops claiming stops counting. A counting zone
+## (MovementRule.claim_age, ZE10): a client that stops claiming stops counting. Nor does one that
+## stored more than STALE_TICKS of credit since its least (MovementRule.credit_gain): claiming one
+## client tick every few host ticks keeps the claim young but stores travel. A counting zone
 ## gains one tick, however many stand in it (ZD4); leaving pauses it, and it keeps its ticks (ZD2).
 ## A zone whose ticks reach needed_ticks() is done: ZoneProgress first, then Tasks.subtask_done
 ## (ZE5). Nothing else stops or resets a zone (ZD9): carrying, using, a hit that does not knock
@@ -157,8 +159,9 @@ func _tick_zone(
 		)
 
 
-## Whether a living player whose last accepted claim is at most STALE_TICKS old stands in
-## `station`. Reads no role (ZD3): a public ZoneProgress must not tell who counts.
+## Whether a living player whose last accepted claim is at most STALE_TICKS old, and who stored at
+## most STALE_TICKS of credit since (MovementRule.credit_gain), stands in `station`. Reads no role
+## (ZD3): a public ZoneProgress must not tell who counts.
 static func _anyone_inside(ctx: MatchContext, station: StationState) -> bool:
 	for peer: int in ctx.state.peers():
 		var player := ctx.state.player(peer)
@@ -166,6 +169,8 @@ static func _anyone_inside(ctx: MatchContext, station: StationState) -> bool:
 			continue
 		var age := MovementRule.claim_age(ctx.state, peer, ctx.tick)
 		if age < 0 or age > STALE_TICKS:
+			continue
+		if MovementRule.credit_gain(ctx.state, peer, ctx.tick) > STALE_TICKS:
 			continue
 		if station.contains(player.position):
 			return true

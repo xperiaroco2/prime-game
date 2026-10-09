@@ -232,6 +232,28 @@ func test_a_frozen_client_counts_10_ticks_after_its_last_claim_and_its_credit_bu
 	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before + 10)
 
 
+func test_a_slow_claimer_counts_while_it_stores_at_most_10_ticks_and_its_credit_buys_no_more(
+) -> void:
+	# The drip (the netcode review of #647): a claim every 10 host ticks covering one client tick
+	# keeps the claim young but stores 9 ticks of credit each time. The zone counts the first
+	# claim's tick and the 9 after it (stored 0 to 9), the second claim's tick (9) and the next (10),
+	# and nothing once 11 are stored: 12 ticks, not the 220 the drip lasts. Then one claim spends
+	# 200 ticks of credit to walk 20 m away, as in the freeze row.
+	var game := _round([P1])
+	FixtureZoneModes.put(game, P1, A)
+	FixtureZoneModes.hold(game, [P1], 5)
+	var ticks_before := FixtureZoneModes.ticks_of(game, 0)
+	for i in 22:
+		_claim_next(game, P1, A, 1)
+		FixtureModes.run_ticks(game, 9)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before + 12)
+	var corrected := FixtureMoves.corrections(game, P1).size()
+	_claim_next(game, P1, A + EAST * 20, 200)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(corrected)
+	assert_vector(game.state.player(P1).position).is_equal(A + EAST * 20)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before + 12)
+
+
 func test_a_zone_at_its_time_is_done_and_counts_no_more() -> void:
 	var game := _round([P1])
 	FixtureZoneModes.put(game, P1, A)
@@ -300,3 +322,11 @@ func _round(peers: Array[int]) -> Match:
 
 func _zone_id(game: Match, index: int) -> int:
 	return FixtureZoneModes.state_of(game).stations[index]
+
+
+## A claim of `peer` at `at`, `covered` client ticks after its last accepted one, applied on the
+## next host tick.
+func _claim_next(game: Match, peer: int, at: Vector3, covered: int) -> void:
+	var client_tick := game.state.player(peer).claim_tick + covered
+	FixtureMoves.claim(game, peer, at, {"client_tick": client_tick})
+	FixtureModes.run_ticks(game, 1)

@@ -3314,10 +3314,18 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn), until the epoch's first
   accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
   record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
-  keeps the last one's age, and a revive keeps the epoch. The zone task counts a
-  player only while it is at most `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a
-  client that stops claiming (a freeze, or a modified client that goes on polling) stops counting 10 ticks after
-  its last claim, so the credit it stores meanwhile cannot buy zone time and travel at once. A respawn inside a
+  keeps the last one's age, and a revive keeps the epoch. The zone task counts a player only while it is at most
+  `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a client that stops claiming (a
+  freeze, or a modified client that goes on polling) stops counting 10 ticks after its last claim. Its companion
+  `MovementRule.credit_gain(state, peer, now)` is how many ticks of credit the player stores at `now` above the
+  least an accepted claim of its epoch left it (the credit not yet topped up counted in, the cap not; -1 as
+  `claim_age`); the record keeps that least as `least_credit`, reset by a placement. An honest client claims one
+  tick of its own clock per host tick, so it stays near 0 (lost claims raise it until the next claim covers them; a
+  frozen host's backlog is spent in the tick it arrives). A modified client that claims one client tick every 10
+  host ticks keeps `claim_age` under 10 but stores 9 ticks a claim (the netcode review of #647): the zone task
+  counts a player only while `credit_gain` is at most `PUSH_TICKS` too, so the credit stored while standing in a
+  zone, whether silent or claiming slowly, cannot buy more than 10 ticks of zone time and travel at once. Spending
+  credit lowers the least, so credit spent and stored again counts as well. A respawn inside a
   zone therefore counts from its first claim after the respawn, about a round trip later, not from the respawn
   tick (a deviation from the ADR's §4 row, which the zone task ADR records). Tests:
   `tests/unit/movement/movement_rule_claim_age_test.gd`.
@@ -4239,7 +4247,8 @@ radius 1.5 m, height 2.5 m, one zone per subtask, yellow, spawn tag `zone`; they
 - Tick (`TaskTicks`, Round in the base mode; `ModeCheck` refuses a ticking task type that no phase lists it in): for
   each undone zone in station-id order, it counts when a player, in peer-id order, is living (life ALIVE, any role,
   ZD3), stands in its cylinder (`StationState.contains` with the feet of its last accepted claim) and that claim is at
-  most 10 host ticks old (`MovementRule.claim_age` at most `PUSH_TICKS`, ZE10, §7.1.5). A counting zone gains one
+  most 10 host ticks old with at most 10 ticks of credit stored since (`MovementRule.claim_age` and `credit_gain`
+  at most `PUSH_TICKS`, ZE10, §7.1.5). A counting zone gains one
   tick, however many stand in it (ZD4); leaving pauses it and it keeps its ticks (ZD2). At `seconds` converted once
   (`Ticks.from_seconds`, at least 1 tick) it is done: `ZoneProgress` first, then `Tasks.subtask_done` (ZE5).
   Nothing else stops or resets it (ZD9): carrying, using, swapping, a raise, a hit that does not knock down. A
@@ -4259,8 +4268,9 @@ Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, an
 event that depended on a role would reveal it (§9.2, ZD3).
 Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
 (M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
-`MovementRule.claim_age`; no `.tres` yet (M7-Z3). Tests: `tests/unit/tasks/zone_deal_test.gd` (the deal, the
-demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row, the clock's
+`MovementRule.claim_age` and `credit_gain`; no `.tres` yet (M7-Z3). Tests: `tests/unit/tasks/zone_deal_test.gd`
+(the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
+and a slow claimer's, the clock's
 last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
 trip), `zone_role_swap_test.gd` (two roles swapped emit the same task events; planted "counts the crew only", it
 failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movement/movement_rule_claim_age_test.gd`,
@@ -4493,8 +4503,9 @@ most one effect.
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
 progress and a public "zone done" share `ZoneProgress`), and as built in #647; with ZD1 (a), the engineer's answer,
 its time runs in its task state, not on the channel primitive (§9.3), since standing is no action. Delivery's
-cylinder test moved to `StationState` unchanged, so both types share one. Beyond the paper test it needed one
-helper outside the parts: `MovementRule.claim_age` (§7.1.5), so a stale claim stops counting (ZE10). The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
+cylinder test moved to `StationState` unchanged, so both types share one. Beyond the paper test it needed two
+helpers outside the parts: `MovementRule.claim_age` and `credit_gain` (§7.1.5), so a stale claim, or credit stored
+while standing, stops counting (ZE10). The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
 target, a timed action needed a new
 primitive (the channel) and the raise three public events and three intents. With them in place, a resurrection at
 a body (#34) is two or three part classes and one event class: a body is again a new kind of target, and a
