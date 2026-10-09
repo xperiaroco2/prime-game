@@ -433,6 +433,26 @@ static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
 	return player.claim_tick
 
 
+## How many host ticks old `peer`'s last accepted claim is at host tick `now` (0 in the tick the
+## claim was accepted), or -1 when its position is not a claim of its current epoch: no player, no
+## record, or a placement since (PlacePlayers, a knockdown, a respawn: the position is the host's
+## until the epoch's first claim is accepted). A refused claim's Correction keeps the age of the
+## last accepted one. The zone task counts a player only while this is at most PUSH_TICKS (ZE10 of
+## the zone task ADR): a client that stops claiming stops counting, and the credit it stores
+## meanwhile cannot buy zone time and travel at once.
+static func claim_age(state: MatchState, peer: int, now: int) -> int:
+	var player := state.player(peer)
+	if player == null:
+		return -1
+	var table := (
+		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
+	)
+	var motion: Motion = table.by_peer.get(peer)
+	if motion == null or motion.epoch != player.epoch or motion.accepted_tick < 0:
+		return -1
+	return maxi(0, now - motion.accepted_tick)
+
+
 ## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
 ## move it: farther than HOLD_SLACK_M, in any direction, from where the raise started
 ## (Channel.held_at; the engineer's answer 8 on PR #133). Such a claim is corrected.
