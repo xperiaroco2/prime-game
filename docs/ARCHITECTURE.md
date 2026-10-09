@@ -3228,8 +3228,9 @@ Effects, the lift music on Music, its −14 dB now the bus default); four slider
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
 the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Voice page (#301). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
-(M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
+`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Voice page (#301).
+`host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (M5-6), as `run --instances` and
+`bots --instances` do from `launch.launch`.
 
 #### 6.5.6 No talking indicator in M5 (D14, the engineer's answer)
 No own transmit icon on the HUD, no icon over a
