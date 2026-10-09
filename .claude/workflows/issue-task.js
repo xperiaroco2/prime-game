@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff) drops test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier drops the first three and plan_review)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -26,6 +26,16 @@ export const meta = {
 //   effort   the implementer's effort: default 'high', 'xhigh' for a design task
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
+//   tier     'full' forces the full review chain; missing or null, the review tier follows the change's risk (#606, the
+//            engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or a leak). The
+//            implementer's changed paths choose, the worst one winning: full for a path under core/ server/ net/
+//            client/ voice/ tests/harness/ (quick-task.js's REVIEWED), no changed paths or a design task; light for any
+//            other diff (docs, content, levels, UI, tooling). Light runs the code reviewer (and godot-api-checker on a
+//            .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and drops test_review,
+//            second_review and skeptic even when passed. plan_review runs before the diff exists, so the branch's area
+//            (`start`'s <area>/ prefix) decides it: content, level and tooling skip it, unless tier is 'full'. Only full
+//            can be forced: the diff's worst path always wins. The publisher's prompt names the tier (`metrics` groups
+//            the runs by it) and the result carries tier and tier_skipped
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
 // false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
@@ -34,7 +44,7 @@ export const meta = {
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #605's fast-verify wording). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -110,7 +120,8 @@ export const meta = {
 //                 gains handoffs. Off: every prompt, label and option unchanged. +0 agents, up to +2 with handoffs
 // Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
 // published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
-// human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
+// human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
+// review tier (tier; tier_skipped, the agents passed that it dropped, #606), and
 // what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review), and under lean false
 // lean_off (#557: how many general agents it launched, and the lean_reason); `full` points to the run's
 // journal.jsonl, which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole
@@ -137,7 +148,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review', 'checkpoint']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review', 'checkpoint', 'tier']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -197,6 +208,9 @@ if (AB_REVIEW && MODELS.code === undefined) throw new Error('issue-task: args.ab
 if (AB_REVIEW && DESIGN) throw new Error('issue-task: args.ab_review is for code tasks, not a design task: another population')
 if (AB_REVIEW && MODELS.code === MODELS.review) throw new Error('issue-task: args.ab_review needs models.code other than models.review, the control\'s model')
 const CHECKPOINT = flag('checkpoint')
+// #606: only the full tier can be forced; a forced light tier would let a core/ diff skip the reviews it needs.
+if (A.tier !== undefined && A.tier !== null && A.tier !== 'full') throw new Error('issue-task: args.tier must be \'full\' (or missing: the diff after the implementer chooses the review tier, its worst path winning; light cannot be forced)')
+const FORCED_FULL = A.tier === 'full'
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
 // and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
 // that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
@@ -526,10 +540,29 @@ const mapRule = m => {
   return `\n\nThe file map (file_map): the plan agent read these files at ${sha}. Trust it while a file is unchanged since that sha: first run in the Bash tool \`cd ${WTB} && git diff --name-only ${sha} -- ${paths.map(p => `'${p.replace(/'/g, `'\\''`)}'`).join(' ')}\` once (again after a rebase). For each path it does not list, take the map's line ranges and facts instead of reading the file again for them: read only what the map lacks, and before an Edit only the range you change (the Edit tool needs a Read of the file first). A path it lists changed since the plan: read it as usual. A file whose facts the critique disputes: read it as usual too. If the command fails (the sha unknown), the map does not hold: read every file as usual.`
 }
 
+// #606: the review tier, by the change's risk. The diff-path rule is quick-task.js's (#608; test_workflows.py compares
+// the copies): a mistake under these paths can become a cheat, a desync or a hidden-information leak.
+const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
+// Before the implementer no diff exists, so plan_review follows the branch's area (`start`'s <area>/ prefix, from the
+// issue's area label): only these areas are light; any other, a design task or a forced full tier plans.
+const LIGHT_AREAS = ['content', 'level', 'tooling']
+const PLAN_SKIPPED = PLAN_REVIEW && !DESIGN && !FORCED_FULL && LIGHT_AREAS.includes(AREA)
+if (PLAN_SKIPPED) log(`#${N}: plan_review skipped: the branch's area ${AREA} is the light review tier (#606)`)
+// The tier of the implementer's changed paths, the worst one winning: [tier, why].
+const tierOf = paths => {
+  if (FORCED_FULL) return ['full', 'forced by the launch (tier: full)']
+  if (DESIGN) return ['full', 'a design task']
+  if (!paths.length) return ['full', 'no changed paths returned']
+  const hit = paths.filter(p => REVIEWED.test(p))
+  return hit.length
+    ? ['full', `the diff touches ${hit.slice(0, 3).join(', ')}${hit.length > 3 ? ', ...' : ''}`]
+    : ['light', 'no path under core/ server/ net/ client/ voice/ tests/harness/']
+}
+
 phase('Implement')
 // plan_review: a plan agent, then a fresh critique of its plan; the implementer builds with both.
 let planned = null
-if (PLAN_REVIEW) {
+if (PLAN_REVIEW && !PLAN_SKIPPED) {
   const plan = await agent([
     RULES,
     `Task: plan GitHub issue #${N} (${A.title}) before it is built (plan_review). Effort: ${PLAN_EFFORT}. Budget: at most about 80 tool calls. Plan only: create, edit or commit nothing (no plan file in the repo: the plan is one comment on the issue and your structured result) and run no verify. A fresh reviewer critiques your plan next, then an implementer builds from both.`,
@@ -614,6 +647,16 @@ if (impl && handedOver.length) {
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
+const [TIER, TIER_WHY] = tierOf(impl.changed_paths || [])
+const LIGHT = TIER === 'light'
+// The agents the launch passed that this run's tier dropped (#606). In the light tier test_review and second_review
+// would not run anyway (no production path, no netcode review); they are listed so the result says why.
+const TIER_SKIPPED = [
+  PLAN_SKIPPED && 'plan_review', LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review',
+  LIGHT && SKEPTICS > 0 && 'skeptic',
+].filter(Boolean)
+log(`#${N}: review tier ${TIER} (${TIER_WHY})${TIER_SKIPPED.length ? `; skipped: ${TIER_SKIPPED.join(', ')}` : ''}${PLAN_SKIPPED && !LIGHT ? '; the plan was skipped by the branch\'s area, but the diff is full: the full review runs' : ''}`)
+const SKEPTIC_LIMIT = LIGHT ? 0 : SKEPTICS
 // visual: what the implementer's playcheck run gave; a missing command or a missing report is reported, not fatal.
 const shots = VISUAL ? (impl.playcheck || { available: false, pngs: [], notes: 'the implementer reported no playcheck run' }) : null
 
@@ -666,7 +709,7 @@ if (impl.verify_green) {
     thunks.push(() => agent(base, asReviewer({ label: `review:godot-api:#${N}`, phase: 'Review', agentType: 'godot-api-checker', schema: REVIEW }, 'godot')))
   }
   // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
-  if (netcode && SECOND_REVIEW) {
+  if (netcode && SECOND_REVIEW && !LIGHT) {
     labels.push('second netcode-security-reviewer')
     thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
   }
@@ -729,10 +772,10 @@ if (impl.verify_green) {
   reviews.forEach((r, i) => (r.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: labels[i], finding: f }) }))
   if (testReview) (testReview.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: 'test review', finding: f }) })
   // skeptic: one read-only agent per blocker or major finding tries to refute it before the publisher fixes it.
-  if (SKEPTICS) {
-    const checked = serious.slice(0, SKEPTICS)
-    skeptic = { refuted: [], stood: [], unchecked: serious.slice(SKEPTICS) }
-    if (skeptic.unchecked.length) log(`#${N}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTICS} go to the publisher unchecked`)
+  if (SKEPTIC_LIMIT) {
+    const checked = serious.slice(0, SKEPTIC_LIMIT)
+    skeptic = { refuted: [], stood: [], unchecked: serious.slice(SKEPTIC_LIMIT) }
+    if (skeptic.unchecked.length) log(`#${N}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTIC_LIMIT} go to the publisher unchecked`)
     if (checked.length) {
       const verdicts = await parallel(checked.map(s => () => agent([
         `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
@@ -746,7 +789,7 @@ if (impl.verify_green) {
     }
     log(`#${N}: skeptics refuted ${skeptic.refuted.length} of ${checked.length} blocker or major finding(s)`)
   }
-  openSerious = SKEPTICS ? skeptic.stood.length + skeptic.unchecked.length : serious.length
+  openSerious = SKEPTIC_LIMIT ? skeptic.stood.length + skeptic.unchecked.length : serious.length
 }
 
 // issue-task's own result: the implementer's verdict, the reviews' counts, the publisher's fields and each v2 option's.
@@ -783,6 +826,9 @@ const brief = (stopped, pub, extra) => {
   if (items(impl.proposed_issues).length) out.proposed_issues = lines(items(impl.proposed_issues), 100)
   if (items(impl.provisional_content).length) out.provisional_content = lines(items(impl.provisional_content), 120)
   out.reviews = briefReviews(labels, reviews)
+  // #606: the review tier and the agents the launch passed that it dropped.
+  out.tier = TIER
+  if (TIER_SKIPPED.length) out.tier_skipped = TIER_SKIPPED
   // #469: the plan's comment, whether its result was cut, and the planner's model when the launch set one (the
   // manager's models.plan, orchestrate-stage §3), so the before and after of #469 read from the results.
   if (planned) {
@@ -795,7 +841,7 @@ const brief = (stopped, pub, extra) => {
   else if (testReview) {
     out.test_review = { available: testReview.available, exit_2: testReview.exit_2, mutants: tally(testReview.mutants, 'result', ['killed', 'survived', 'error', 'equivalent']), findings: tally(testReview.findings, 'severity', SEVERITIES), ...(testReview.notes ? { notes: line(testReview.notes) } : {}) }
   }
-  if (SKEPTICS && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
+  if (SKEPTIC_LIMIT && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
   // ab_review (#535): the two models and the judge's counts; `metrics` scores the runs from the journal.
   if (AB_REVIEW && reviews.length) {
     out.ab_review = {
@@ -831,6 +877,9 @@ const PUB_ROLE = !DESIGN && !stoppedByMutants && openSerious === 0 ? 'publish_cl
 const FULL_PUB_EFFORT = set(EFFORTS, PUB_ROLE) || 'high'
 const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== undefined
 const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
+// #606: the tier in the publisher's prompt, for the PR and for `metrics` (a run's return value is not journaled, so
+// metrics.REVIEW_TIER reads this line from the publisher's transcript).
+const TIER_LINE = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.length ? `; dropped although the launch passed them: ${TIER_SKIPPED.join(', ')}` : ''}. Say the tier and why in one line of the PR's verification section.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
@@ -847,6 +896,7 @@ const pub = stoppedByMutants
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
+    TIER_LINE,
     AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
     planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
     testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`

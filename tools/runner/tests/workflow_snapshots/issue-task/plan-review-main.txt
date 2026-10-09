@@ -168,6 +168,8 @@ Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]},{"reviewer
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and `tools\run.cmd check`, then publish (below) with no standalone `verify` before it: `publish` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
 
+Review tier (#606): full (the diff touches core/x.gd). Say the tier and why in one line of the PR's verification section.
+
 The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): {"plan_summary":"p","plan_comment":"https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1","critique":{"reviewer":"r","verdict":"ok","findings":[]}}
 
 In the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).
@@ -215,6 +217,7 @@ Return the structured result.
    "by": "godot-api-checker"
   }
  ],
+ "tier": "full",
  "plan": {
   "summary": "p",
   "critique": {},

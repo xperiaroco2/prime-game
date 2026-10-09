@@ -46,6 +46,7 @@ Return the structured result. changed_paths: `git diff --name-only origin/main..
  "summary": "s",
  "needs_engineer": [],
  "reviews": [],
+ "tier": "full",
  "lean_off": {
   "general": 1,
   "reason": "a resume of a run launched before #458"

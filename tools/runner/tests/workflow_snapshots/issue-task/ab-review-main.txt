@@ -117,6 +117,8 @@ Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[{"severity":"
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and `tools\run.cmd check`, then publish (below) with no standalone `verify` before it: `publish` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
 
+Review tier (#606): light (no path under core/ server/ net/ client/ voice/ tests/harness/): the light chain ran, code-reviewer, code-reviewer (control), then you. Say the tier and why in one line of the PR's verification section.
+
 Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR's findings table.
 
 Then, in this order (the definition of done; the reviews above were its review step):
@@ -161,6 +163,7 @@ Return the structured result.
    "minor": 1
   }
  ],
+ "tier": "light",
  "ab_review": {
   "model": "sonnet",
   "control_model": null,

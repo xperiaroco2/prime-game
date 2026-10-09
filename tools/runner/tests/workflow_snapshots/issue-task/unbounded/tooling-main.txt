@@ -80,6 +80,8 @@ Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]}]
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and `tools\run.cmd check`, then publish (below) with no standalone `verify` before it: `publish` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
 
+Review tier (#606): light (no path under core/ server/ net/ client/ voice/ tests/harness/): the light chain ran, code-reviewer, then you. Say the tier and why in one line of the PR's verification section.
+
 Then, in this order (the definition of done; the reviews above were its review step):
 - Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human's correction of how the agents work that the notes or the issue's comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\run.cmd credits`. Commit these too.
 - `tools\run.cmd publish`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with `git ls-remote origin` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (`git rebase origin/main`, resolve keeping both sides' intent, `git rebase --continue`, the tests the conflicts touched and `check`), then publish again (it verifies the new tree). If it stops on remote commits the branch never had, or with "cannot confirm that the parent … was merged", push nothing by hand: return published false with what it said, and the engineer's check under human_steps.
@@ -110,6 +112,7 @@ Return the structured result.
    "by": "code-reviewer"
   }
  ],
+ "tier": "light",
  "lean_off": {
   "general": 2,
   "reason": "a resume of a run launched before #458"

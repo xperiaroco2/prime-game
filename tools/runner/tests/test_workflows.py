@@ -30,7 +30,8 @@ the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed o
 launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone).
 #605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
 tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
-gate, no local `verify --full`).
+gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
+return value.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -1507,7 +1508,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
         ):
@@ -2325,6 +2326,123 @@ class CheckpointTest(unittest.TestCase):
         self.assertEqual((red["returned"]["handoffs"], red["returned"]["verify_tail"]), (1, "FAILED"))
         self.assertFalse(calls(red, "review"))
         self.assertFalse(calls(red, "publish"))
+
+
+# #606: issue-task's review tier by the change's risk. Each light path alone is light; each full path, alone or with
+# light ones, makes the run full.
+LIGHT_PATHS = ["docs/AGENT_WORKFLOW.md", "content/roles/x.tres", "levels/rooms/x.tscn", "tools/runner/start.py",
+               "tests/unit/match/vote_test.gd", "addons/x/plugin.cfg", ".claude/workflows/issue-task.js"]  # fmt: skip
+FULL_PATHS = ["core/match/vote.gd", "server/host_session.gd", "net/protocol/codec.gd", "client/hud/hud.gd",
+              "voice/mixer.gd", "tests/harness/bots/leak_check.gd"]  # fmt: skip
+# Every option the light tier drops, passed at once, with a major finding for the skeptic to check.
+ALL_OPTIONS = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True}
+TIER_LINE = "Review tier (#606): "
+
+
+def tier_of(result: dict) -> str:
+    """The tier the publisher's prompt names (the line metrics.REVIEW_TIER reads), checked against the result's."""
+    (pub,) = calls(result, "publish")
+    line = next(x for x in pub["prompt"].split("\n\n") if x.startswith(TIER_LINE))
+    tier = line[len(TIER_LINE):].split(" ")[0]
+    assert tier == result["returned"]["tier"], (line, result["returned"]["tier"])
+    return tier
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class ReviewTierTest(unittest.TestCase):
+    """issue-task.js (#606): the full chain only where a mistake becomes a cheat, a desync or a leak."""
+
+    def test_the_diff_chooses_the_tier_and_the_worst_path_wins(self) -> None:
+        cases = [({}, [p], "light") for p in LIGHT_PATHS]
+        cases += [({}, [p], "full") for p in FULL_PATHS]
+        cases += [({}, LIGHT_PATHS + [p], "full") for p in FULL_PATHS]  # one full path among light ones: full
+        cases += [({}, LIGHT_PATHS, "light"), ({}, [], "full")]  # no changed paths returned: unknown, so full
+        cases += [({"branch": "docs/7-x", "design": True}, ["docs/x.md"], "full")]
+        cases += [({"tier": "full"}, LIGHT_PATHS, "full"), ({"tier": None}, ["docs/x.md"], "light")]
+        results = run_jobs([("issue-task.js", dict(ARGS, **args), {"paths": paths}) for args, paths, _ in cases])
+        for (args, paths, want), result in zip(cases, results):
+            with self.subTest(args=args, paths=paths):
+                self.assertIsNone(result["error"])
+                self.assertEqual(tier_of(result), want)
+                self.assertTrue(any(f"review tier {want} (" in e["message"] for e in result["events"] if e["kind"] == "log"))
+        forced = results[-2]
+        self.assertIn("Review tier (#606): full (forced by the launch (tier: full))", calls(forced, "publish")[0]["prompt"])
+
+    def test_the_light_tier_drops_the_optional_agents_even_when_passed(self) -> None:
+        light, godot, full = run_jobs([
+            ("issue-task.js", dict(ARGS, **ALL_OPTIONS), {"paths": ["docs/x.md", "tools/runner/x.py"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **ALL_OPTIONS), {"paths": ["content/roles/x.tres"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **ALL_OPTIONS), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ])  # fmt: skip
+        for result in (light, godot, full):
+            self.assertIsNone(result["error"])
+        self.assertEqual([e["label"] for e in agents(light)], ["implement:#7", "review:code:#7", "publish:#7"])
+        self.assertEqual([e["label"] for e in agents(godot)], ["implement:#7", "review:code:#7", "review:godot-api:#7", "publish:#7"])
+        for result in (light, godot):
+            out = result["returned"]
+            self.assertEqual((out["tier"], out["tier_skipped"]), ("light", ["plan_review", "test_review", "second_review", "skeptic"]))
+            self.assertNotIn("skeptic", out)
+            # The publisher fixes the major unchecked, and the prompt says what the light chain dropped.
+            pub = calls(result, "publish")[0]["prompt"]
+            self.assertIn("the light chain ran, code-reviewer", pub)
+            self.assertIn("dropped although the launch passed them: plan_review, test_review, second_review, skeptic", pub)
+            self.assertNotIn("Skeptics tried to refute", pub)
+            self.assertTrue(any("plan_review skipped: the branch's area tooling" in e["message"] for e in result["events"] if e["kind"] == "log"))
+        # The full tier keeps today's chain: every option passed runs.
+        labels = [e["label"] for e in agents(full)]
+        for want in ("plan:#7", "review:plan:#7", "review:netcode:#7", "review:netcode-second:#7", "test-review:#7", "skeptic:#7"):
+            self.assertIn(want, labels)
+        self.assertEqual(full["returned"]["tier"], "full")
+        self.assertNotIn("tier_skipped", full["returned"])
+        self.assertIn("skeptic", full["returned"])
+
+    def test_plan_review_follows_the_branch_area_before_the_diff_exists(self) -> None:
+        cases = [
+            ("core/7-x", {}, ["docs/x.md"], True, "light", ["skeptic"]),  # a full area plans; the light diff drops the skeptic
+            ("tooling/7-x", {}, ["core/x.gd"], False, "full", ["plan_review"]),  # a light area skips; the diff is full
+            ("content/7-x", {}, ["content/x.tres"], False, "light", ["plan_review", "skeptic"]),
+            ("level/7-x", {}, ["levels/x.tscn"], False, "light", ["plan_review", "skeptic"]),
+            ("tooling/7-x", {"tier": "full"}, ["docs/x.md"], True, "full", None),  # forced: plans and keeps the skeptic
+            ("docs/7-x", {"design": True}, ["docs/x.md"], True, "full", None),
+        ]
+        jobs = [("issue-task.js", dict(ARGS, branch=b, plan_review=True, skeptic=True, **a), {"paths": p, "findings": [MAJOR]})
+                for b, a, p, *_ in cases]  # fmt: skip
+        for (branch, args, paths, plans, tier, skipped), result in zip(cases, run_jobs(jobs)):
+            with self.subTest(branch=branch, args=args, paths=paths):
+                self.assertIsNone(result["error"])
+                self.assertEqual(bool(calls(result, "plan:")), plans)
+                self.assertEqual(bool(calls(result, "review:plan:")), plans)
+                self.assertEqual(bool(calls(result, "skeptic:")), tier == "full")
+                self.assertEqual(result["returned"]["tier"], tier)
+                self.assertEqual(result["returned"].get("tier_skipped"), skipped)
+
+    def test_ab_review_and_visual_still_run_in_the_light_tier(self) -> None:
+        (result,) = run_jobs([("issue-task.js", dict(ARGS, ab_review=True, models={"code": "sonnet"}), {"paths": ["tools/x.py"], "findings": [MINOR]})])
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["returned"]["tier"], "light")
+        self.assertTrue(calls(result, "review:code-control:"))
+        self.assertTrue(calls(result, "ab-judge:"))
+
+    def test_a_red_implementer_still_reports_its_tier(self) -> None:
+        (result,) = run_jobs([("issue-task.js", ARGS, {"queues": {"implement": [implemented(["docs/x.md"], verify_green=False)]}})])
+        self.assertIsNone(result["error"])
+        self.assertIn("stopped", result["returned"])
+        self.assertEqual(result["returned"]["tier"], "light")
+
+    def test_only_the_full_tier_can_be_forced(self) -> None:
+        bad = [{"tier": "light"}, {"tier": "auto"}, {"tier": True}, {"tier": ""}, {"tier": "Full"}]
+        for args, result in zip(bad, run_jobs([("issue-task.js", dict(ARGS, **a), {}) for a in bad])):
+            with self.subTest(args=args):
+                self.assertIn("issue-task: args.tier must be 'full'", result["error"] or "")
+                self.assertFalse(agents(result))
+
+    def test_issue_task_uses_quick_tasks_path_rule(self) -> None:
+        # One diff-path rule for both scripts (a workflow script imports nothing, so the line is copied).
+        rules = []
+        for name in ("issue-task.js", "quick-task.js"):
+            text = (WORKFLOWS / name).read_text(encoding="utf-8")
+            rules.append(next(line for line in text.splitlines() if line.startswith("const REVIEWED = ")))
+        self.assertEqual(rules[0], rules[1])
 
 
 def quick(paths: list[str], **extra) -> dict:
