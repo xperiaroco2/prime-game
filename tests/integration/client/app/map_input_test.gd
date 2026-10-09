@@ -92,8 +92,9 @@ func test_m_opens_and_closes_the_map_and_the_player_keeps_walking() -> void:
 	await get_tree().physics_frame
 	assert_float(player.move_input.y).is_greater(0.0)
 	_hold(KEY_W, false)
-	# A click on the open map never captures the mouse (the controller leaves it unhandled).
-	_click(Vector2(4, 4))
+	# A click on the open map's dim (the top-left corner, above and left of the task list since
+	# #490) never captures the mouse (the controller leaves it unhandled).
+	_click(Vector2(1, 1))
 	assert_int(_unhandled_clicks).is_equal(1)
 	_press(KEY_M)
 	await _frames(2)
@@ -184,6 +185,44 @@ func test_esc_and_m_close_the_how_to_card_before_the_map() -> void:
 	game.ui.map.open_howto(&"delivery")
 	game.ui.close_map()
 	assert_bool(game.ui.map.howto_open()).is_false()
+	game.leave()
+	await get_tree().process_frame
+
+
+func test_the_arrows_reach_the_question_mark_and_esc_gives_its_focus_back() -> void:
+	# #490 (s8): no focus on open, the first arrow focuses the first «?» while W still walks;
+	# Enter opens its card with Close focused; Esc closes only the card and the «?» has the focus
+	# again; M then closes the map.
+	var game := await _round_game(PORT + 6)
+	var player := game.player()
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_true()
+	assert_object(get_viewport().gui_get_focus_owner()).is_null()
+	_press(KEY_DOWN)
+	await _frames(2)
+	var help := game.ui.map.rows_box.get_child(0).find_child("Help", true, false) as Button
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(help)
+	_hold(KEY_W, true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_float(player.move_input.y).is_greater(0.0)
+	_hold(KEY_W, false)
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(help)
+	_press(KEY_ENTER)
+	await _frames(2)
+	assert_bool(game.ui.map.howto_open()).is_true()
+	var close := HowtoCardView.face_of(game.ui.map.howto).close_button
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(close)
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.map.howto_open()).is_false()
+	assert_bool(game.ui.map_is_open()).is_true()
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(help)
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_false()
+	assert_object(get_viewport().gui_get_focus_owner()).is_null()
 	game.leave()
 	await get_tree().process_frame
 
