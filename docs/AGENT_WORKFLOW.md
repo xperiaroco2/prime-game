@@ -1293,7 +1293,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `- **Source:**` and `- **License:**` lines; more fields and free text are copied as they are
   ([example](credits/gdunit4.md)). An entry that covers an LFS asset also has `- **AI generated:**` and
   `- **Public repo OK:**`, each `true` or `false` first (the art manifest's `ai_generated` and `public_repo_ok`,
-  #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`.
+  #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`. A file the engineer
+  adds by hand later gets its entry first with `- **Pending:** <what lands, and how>`: its globs may match no file
+  yet (#520, the Comfortaa font).
   `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
   `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
@@ -2159,11 +2161,14 @@ asset's sha256 against the pack's `assets` record), so a bad tag leaves the pinn
 files land byte for byte in `client/ui/theme/pack/` (`-text` in `.gitattributes`: git converts no line ending)
 under a `.gdignore` (Godot imports none of it; nothing at run
 time may read it, and exports leave it out), stale ones are removed, and `client/ui/theme/pack.lock.json` records
-`{repo, tag, commit, files: {path: sha256}, deferred: {path: sha256}}`. Binaries (the card art PNGs, later a font)
-are not landed: they are listed under `deferred` with the pack's sha256 for #520, which imports them into a folder
-Godot imports, under the same lock. With no tag, or `--check`, it verifies the pinned copy offline (each file against
+`{repo, tag, commit, files: {path: sha256}, imported: {path: sha256}, deferred: {path: sha256}}`. Every asset of the
+pack's `assets` list (its icons and card art) also lands byte for byte in `assets/ui/toy_pack/`, which Godot imports
+(#520, `docs/ARCHITECTURE.md` §4.7.34): the PNGs through LFS, each SVG's `.import` with the pack's `svg_scale` (a
+minimal file where none exists, else only that line changed); commit the `.import` files the next import writes. A
+binary outside the `assets` list (a font, later) is not landed and is listed under `deferred`. With no tag, or `--check`, it verifies the pinned copy offline (each file against
 the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
-assets' sha256, nothing deferred on disk); a tag already pinned and intact is not fetched again unless `--force`. A
+assets' sha256, nothing deferred on disk; the imported copy against `imported`, an LFS pointer file by its oid, each
+SVG's scale, no pack asset left out); a tag already pinned and intact is not fetched again unless `--force`. A
 runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.
 Then `tools\run.cmd run tools/theme/build_theme.gd --headless` regenerates the themes.
 

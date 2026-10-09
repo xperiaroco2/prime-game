@@ -2625,7 +2625,8 @@ ADR's §6 check the rest.
   tests also hold.
 - What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
   ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
-  engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); no default font (#520). Each theme also carries
+  engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); the pack's textures as icons and, once its file is
+  in the project, the font (§4.7.34). Each theme also carries
   the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
   is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
   `GameUi.set_large_text` swaps to it.
@@ -2637,12 +2638,11 @@ ADR's §6 check the rest.
   `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the issue's ToyTab, whose ink text is
   unreadable on the Esc menu's dark panel. The names the issue does not map (the containers' margins and separations,
   DebugText, HudCrosshair, Shortfalls) keep their greybox values at #287's sizes in the mapping's `keep`.
-- Deferred to #520: the Comfortaa font (the mapping's `font.file` is the hook: a FontVariation per label weight and
-  `line_spacing` from its metrics), the theme icons from the pack's `textures` (the SVGs under the `.gdignore` need
-  an imported copy under the same lock; until then the builder only checks each key against the class's icons) and
-  the Delivery card art (the lock's `deferred`).
-- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, the
-  binaries deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
+- Built in #520 (§4.7.34): the theme icons from the pack's `textures` (an imported copy of the pack's assets under
+  the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per label weight, the file
+  itself waiting for the engineer).
+- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, a
+  binary outside the assets list deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
   fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the
   committed copy against its lock); `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted
   gap named, a StyleBox state missing a field too; every mapped engine item and icon name in the class reference, with
@@ -2831,8 +2831,8 @@ same without the mark); the look is provisional: the Toy round HUD (#489) restyl
   no role, no health, no life state. The mark shows only when `NamePlates.marked(model, peer)`: the peer is in the
   own model's `teammates[role]` (its own Teammates, which the host sends only to a role whose players know each other,
   so only to dissidents) and is not the own player; an engineer's client has no list for its role and never marks
-  anyone. `TeammateMark` draws the pack's `teammate-mark.svg` diamond in code, 20 px, tinted with ToyNamePlateText's
-  `font_color`, until #520 imports the pack's icons and the handoff's `TextureRect` replaces it.
+  anyone. `TeammateMark` is the handoff's 20 px `TextureRect` of the pack's `teammate-mark.svg` (imported by #520,
+  §4.7.34), tinted with ToyNamePlateText's `font_color` through `self_modulate`.
 - The ray meets only the world layer (1), while a body is hidden by what the level draws: a look a player can hide
   behind (a partition, a tarp, a shelf) needs a layer-1 collider that covers it, or the plate shows through it
   (`levels/CLAUDE.md` keeps looks and colliders apart on purpose). Today's levels have only floors.
@@ -2871,8 +2871,7 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
 - Left on Godot's default theme (listed in `base_controls_test.gd`; the screen issues #489-#498 and the UI track
   decide): the bare Buttons' StyleBoxes (the lobby's Copy and Ready, the Controls tab's keys), CheckBox's icons and
   StyleBoxes, SpinBox's arrows, the voice meter's ProgressBar boxes, the bare PanelContainers' panel (no margins),
-  the icons the pack's `textures` give with #520 (the slider's grabber, the dropdown's arrow, the list's radio
-  icons), the Esc menu's VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks
+  the Esc menu's VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks
   (ink fill on a lavender track): on the Esc menu's dark panel their filled part and grabber barely show until the
   screen moves to a light panel. Large text grows the bare fields and dropdowns (their Toy sizes) but not the
   default size, which the pack has no large value for.
@@ -3033,6 +3032,42 @@ the Toy restyle is #490 and the how-to card #254.
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
   Esc rule). The `shot`s: `client/dev/map_preview.tscn` and `map_preview_uk.tscn` (Delivery's zones lit); the
   playcheck scenario `map`.
+
+#### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
+- **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
+  icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`) in `assets/ui/toy_pack/`, a folder Godot
+  imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
+  LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
+  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
+  `ui-sync` writes it into Godot's own file, so a re-sync keeps the uid. Credits: `docs/credits/prime_game_ui_pack.md`
+  from the pack's `LICENCES.json` (own work).
+- **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
+  `grabber_highlight`) loaded from `mapping.textures.folder`, and refuses a texture that is not imported: ToySlider's
+  grabbers, ToyDropdown's arrow, ToyDropdownList's radio icons, and through the base types (§4.7.30) the bare HSlider,
+  OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
+  Godot would make it from the path saved to and the stale test saves elsewhere.
+- **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms wait for the map (#253,
+  through MapData); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
+  slot, mic and lock icons for the Toy screens (#489 and on).
+- **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, which the engineer adds by
+  hand (a third-party asset; its source and weights are open on prime-game-ui#44, which proposes google/fonts'
+  variable `Comfortaa[wght].ttf`). While it is not in the project the themes have no font, so Godot's default draws.
+  Once it is, `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's
+  `fontWeight` on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`),
+  sets it as the `font` of each variation with a label, and type.body's weight as the theme's default font; the base
+  types copy it. `line_spacing` from the font's metrics is not built: CI imports a stand-in font (§4.7.21, `lfs`'s TTF
+  and OTF stand-in), whose metrics differ, so a metric-derived value would make the stale test fail there.
+  `docs/credits/comfortaa.md` is `Pending` (AGENT_WORKFLOW §10) until the file lands.
+- Tests: `tools/runner/tests/test_ui_sync.py` (the imported copy, its scales and a re-sync that keeps Godot's
+  `.import`, an asset the pack lists but does not ship, each problem verify names: a missing, changed or extra file,
+  an LFS pointer by its oid, a wrong or missing scale, an asset not imported; the committed copy);
+  `tests/unit/tools/theme_builder_test.gd` (the icons and their size, exactly the six types with icons, a texture
+  that is not imported named; no font while the file is absent, and with Godot's fallback font as a stand-in a
+  FontVariation per label weight shared by every label and base type); `base_controls_test.gd` (a bare slider,
+  dropdown and list draw the pack's icons); `name_plate_test.gd` (the mark's texture and tint);
+  `test_credits.py` (a Pending entry, seen failing without the change); `test_lfs.py` (the TTF and OTF stand-ins
+  import with the pinned Godot, seen failing on a broken one). `client/dev/pack_preview.tscn`: a `shot` of the
+  assets in English and Ukrainian.
 
 #### 4.7.35 Built in #488 (M6.2), the UI's input rules across the game
 The «Layers and input (every screen)» section of the UI handoffs at `ui-0.4.0` (the engineer's standing decision for
@@ -5045,8 +5080,11 @@ assets/
 - Data only: binaries and the `.import` files Godot writes beside them, no scripts. The engineer owns `assets/`
   (§1). Scenes in `client/` and `levels/` instance them (the avatar a character, the level its environment); an
   asset never refers back to them.
-- Not here: the pinned UI pack (`client/ui/theme/pack/`, `ui-sync`, #288, its SVGs are text), addons with their own
-  files (`addons/`), and test fixtures (`tests/fixtures/`).
+- The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
+  `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
+  to `ui/comfortaa/comfortaa.ttf` (#520).
+- Not here: the pinned UI pack (`client/ui/theme/pack/`, `ui-sync`, #288, text Godot does not import), addons with
+  their own files (`addons/`), and test fixtures (`tests/fixtures/`).
 
 ### 11.2 The PR an art handoff opens
 - **The files:** the asset under §11.1's path, through Git LFS (`.gitattributes` routes glb, png, jpg, wav, ogg,

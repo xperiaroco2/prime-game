@@ -5,8 +5,9 @@ extends Control
 ## `hover` StyleBox and font colour through a small per-cell theme, and ToyPress's hover offset);
 ## held (the `pressed` look and `press_held`); disabled (the base unplugged); focus (the `focus`
 ## StyleBox drawn over the face, as Godot draws it for keyboard focus); selected and selected +
-## hover for a toggle pair; and a live cell (real ToyPress and ToyToggle). The font (Comfortaa) and
-## the icons (slider knobs, the dropdown arrow, radios, chevrons) are placeholders until #520.
+## hover for a toggle pair; and a live cell (real ToyPress and ToyToggle). The slider knobs, the
+## dropdown arrow and the radios are the pack's (theme icons, #520); the font is Godot's default
+## until the Comfortaa TTF lands (#520).
 ##   tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080      page 0 (showcase_<n>.tscn)
 ##   tools\run.cmd run tools/theme/showcase_interactive.tscn --seconds 3600   a window, for a human
 ## A dev tool, not a screen, so it lives under tools/ (prime-game-ui spec §19.6).
