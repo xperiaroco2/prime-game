@@ -417,11 +417,23 @@ func test_the_port_and_version_lines_follow_the_language() -> void:
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	_menu.notification(Node.NOTIFICATION_TRANSLATION_CHANGED)
 	assert_str(_menu.port_label.text).is_equal("Порт 7777")
-	# The version: shown with the project's, hidden while project.godot names none.
-	var version := str(ProjectSettings.get_setting("application/config/version", ""))
-	assert_bool(_menu.version_label.visible).is_equal(not version.is_empty())
-	if not version.is_empty():
-		assert_str(_menu.version_label.text).is_equal("Версія %s" % version)
+	# The version: shown with the project's, hidden while project.godot names none. Both cases
+	# run whatever project.godot says today; the setting is put back after.
+	var key := "application/config/version"
+	var kept: Variant = ProjectSettings.get_setting(key, null)
+	ProjectSettings.set_setting(key, "0.4")
+	_menu.retext()
+	var shown_uk := [_menu.version_label.visible, _menu.version_label.text]
+	TranslationServer.set_locale(Languages.ENGLISH)
+	_menu.notification(Node.NOTIFICATION_TRANSLATION_CHANGED)
+	var shown_en := [_menu.version_label.visible, _menu.version_label.text]
+	ProjectSettings.set_setting(key, "")
+	_menu.retext()
+	var hidden := _menu.version_label.visible
+	ProjectSettings.set_setting(key, kept)
+	assert_array(shown_uk).is_equal([true, "Версія 0.4"])
+	assert_array(shown_en).is_equal([true, "Version 0.4"])
+	assert_bool(hidden).is_false()
 
 
 func test_every_key_the_menu_names_is_in_the_deck() -> void:
