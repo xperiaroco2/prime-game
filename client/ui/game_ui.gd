@@ -15,14 +15,19 @@ extends CanvasLayer
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
+## The screens the connecting screen draws (s3).
+const BLACK_SCREENS: Array[GameFlow.Screen] = [
+	GameFlow.Screen.CONNECTING, GameFlow.Screen.FAILURE, GameFlow.Screen.LOADING
+]
 
 ## The name plates over the others' heads (#257), under every screen: the lobby and the round.
 var plates := NamePlates.new()
 var menu := MainMenu.new()
+## The black screen of a join, its failure and the map loading (#494): Connecting, Failure and
+## Loading show it, each its own part.
 var connecting := ConnectingScreen.new()
 ## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
 var lobby_hud := LobbyHud.new()
-var loading := LoadingScreen.new()
 ## The silent seconds before the round: black, the own role (#213).
 var pregame := PregameScreen.new()
 var hud := Hud.new()
@@ -50,9 +55,7 @@ var _mode: GameMode
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [
-		plates, menu, connecting, lobby_hud, loading, pregame, hud, life, tasks, end, esc
-	]:
+	for each: Control in [plates, menu, connecting, lobby_hud, pregame, hud, life, tasks, end, esc]:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
@@ -64,14 +67,16 @@ func _process(_delta: float) -> void:
 		show_tasks(not esc_open() and Input.is_action_pressed(&"task_screen"))
 
 
-## The screen of `which`; the round shows the HUD.
+## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
+## loading); the connecting and failure parts are the game's to set (show_join, show_failure).
 func show_screen(which: GameFlow.Screen) -> void:
+	if which == GameFlow.Screen.LOADING and screen != which:
+		connecting.show_loading()
 	screen = which
 	plates.visible = which == GameFlow.Screen.LOBBY or which == GameFlow.Screen.ROUND
 	menu.visible = which == GameFlow.Screen.MENU
-	connecting.visible = which == GameFlow.Screen.CONNECTING
+	connecting.visible = which in BLACK_SCREENS
 	lobby_hud.visible = which == GameFlow.Screen.LOBBY
-	loading.visible = which == GameFlow.Screen.LOADING
 	pregame.visible = which == GameFlow.Screen.PREGAME
 	hud.visible = which == GameFlow.Screen.ROUND
 	end.visible = which == GameFlow.Screen.END
@@ -97,7 +102,7 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 		GameFlow.Screen.LOBBY:
 			lobby_hud.refresh(model, host_tick)
 		GameFlow.Screen.LOADING:
-			loading.refresh(model)
+			connecting.refresh_loading(model)
 		GameFlow.Screen.PREGAME:
 			pregame.refresh(model, mode)
 		GameFlow.Screen.END:

@@ -27,12 +27,19 @@ func test_it_acks_after_a_threaded_load_of_a_listed_map() -> void:
 			assert_str(String(root.name)).is_equal("TinyMap")
 			root.free()
 	)
+	# The loading screen's bar (#494): nothing before LoadMatch, then the load's own progress.
+	assert_float(_harness.session.load_progress()).is_equal(0.0)
 	_harness.send(_load_match(3, Harness.TINY_MAP))
+	var seen: Array[float] = []
 	for i in MAX_FRAMES:
 		_harness.pump()
+		seen.append(_harness.session.load_progress())
 		if not _harness.sent_named(Intents.LOAD_ACK).is_empty():
 			break
 		await get_tree().process_frame
+	for fraction: float in seen:
+		assert_float(fraction).is_between(0.0, 1.0)
+	assert_float(_harness.session.load_progress()).is_equal(1.0)
 	var acks := _harness.sent_named(Intents.LOAD_ACK)
 	assert_int(acks.size()).is_equal(1)
 	assert_int(acks[0].fields["match_id"] as int).is_equal(3)
@@ -56,6 +63,7 @@ func test_a_bot_acks_without_loading() -> void:
 	assert_int(acks.size()).is_equal(1)
 	assert_int(acks[0].fields["match_id"] as int).is_equal(0)
 	assert_array(loaded).is_empty()
+	assert_float(_harness.session.load_progress()).is_equal(1.0)
 
 
 func test_a_map_its_own_mode_does_not_list_ends_the_session() -> void:

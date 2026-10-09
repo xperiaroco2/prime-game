@@ -53,10 +53,41 @@ const WORDS: Dictionary[StringName, String] = {
 	CANNOT_HOST: "the session could not start (see the log)",
 }
 
+## The failure state of the connecting screen (prime-game-ui's s3 handoff at ui-0.4.0, its state
+## table; #494) each end shows before the main menu. Leaving (`left`, `closed`) shows none: straight
+## to the menu. A new reason in WORDS needs its row here or in NO_FAILURE (a test holds it).
+const FAILURE_STATES: Dictionary[StringName, StringName] = {
+	&"no_room": &"fail-no-room",
+	&"joins_closed": &"fail-started",
+	&"wrong_version": &"fail-version",
+	&"wrong_content": &"fail-version",
+	&"service_refused": &"fail-version",
+	&"unknown_map": &"fail-version",
+	&"full": &"fail-full",
+	&"service_unreachable": &"fail-service",
+	&"host_unreachable": &"fail-unreachable",
+	&"connect_failed": &"fail-no-answer",
+	&"host_lost": &"lost",
+	&"load_failed": &"map-failed",
+	&"load_deadline": &"map-failed",
+	ROW_ERROR: &"error",
+	OWN_CLIENT_MALFORMED: &"error",
+	OWN_CLIENT_DISCONNECTED: &"error",
+	CANNOT_HOST: &"host-failed",
+}
+## The ends the player chose: no failure screen.
+const NO_FAILURE: Array[StringName] = [&"left", CLOSED]
+
 
 ## The reason in words; the id itself when the table has none.
 static func words(reason: StringName) -> String:
 	return WORDS.get(reason, String(reason))
+
+
+## The connecting screen's failure state for `reason`, or &"" when it shows none (the player left,
+## or an id outside the table).
+static func failure_state(reason: StringName) -> StringName:
+	return FAILURE_STATES.get(reason, &"")
 
 
 ## The id followed by its words: "full (the host's lobby is full)"; the id alone when unknown.

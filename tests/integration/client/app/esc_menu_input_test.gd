@@ -213,6 +213,37 @@ func test_on_the_main_menu_esc_leaves_the_voice_page_and_opens_no_esc_menu() -> 
 	assert_bool(game.ui.menu.is_visible_in_tree()).is_true()
 
 
+## #494: Esc on the connecting screen is its Cancel (the menu, the address kept), and on a failure
+## its Back, the failure's Primary focused till then; no Esc menu opens on either.
+func test_esc_cancels_a_join_and_leaves_a_failure_for_the_menu() -> void:
+	var game := _game([])
+	game.pointer = FakePointer.new()
+	await _frames(2)
+	game.ui.menu.address_edit.text = "127.0.0.1:%d" % (PORT + 9)
+	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.port())
+	assert_int(game.screen()).is_equal(S.CONNECTING)
+	_press(KEY_ESCAPE)
+	assert_object(game.client()).is_null()
+	assert_str(String(game.last_reason)).is_equal(String(ClientSession.LEFT))
+	assert_int(game.screen()).is_equal(S.MENU)
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_str(game.ui.menu.address_edit.text).is_equal("127.0.0.1:%d" % (PORT + 9))
+	# Nobody listens there: the join fails, and its failure shows with Try again focused.
+	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.port())
+	assert_bool(await _until(func() -> bool: return game.screen() == S.FAILURE)).is_true()
+	await _frames(2)
+	assert_bool(game.ui.connecting.failure.is_visible_in_tree()).is_true()
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(game.ui.connecting.primary.face)
+	assert_bool(game.pointer.captured()).is_false()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_int(game.screen()).is_equal(S.MENU)
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(game.ui.menu.is_visible_in_tree()).is_true()
+	assert_bool(game.ui.connecting.visible).is_false()
+	assert_str(game.ui.menu.address_edit.text).is_equal("127.0.0.1:%d" % (PORT + 9))
+
+
 ## A host's Game alone in the lobby, its pointer a FakePointer, its screens shown.
 func _lobby_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])

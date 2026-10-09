@@ -112,7 +112,7 @@ func test_the_ui_shows_the_pregame_screen_alone_in_the_pregame() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.PREGAME)
 	assert_bool(ui.pregame.visible).is_true()
-	for other: Control in [ui.loading, ui.hud, ui.life, ui.end, ui.lobby_hud]:
+	for other: Control in [ui.connecting, ui.hud, ui.life, ui.end, ui.lobby_hud]:
 		assert_bool(other.visible).override_failure_message(other.name).is_false()
 	ui.show_screen(GameFlow.Screen.ROUND)
 	assert_bool(ui.pregame.visible).is_false()

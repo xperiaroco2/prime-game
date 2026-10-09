@@ -19,7 +19,8 @@ enum Status { RUNNING, DONE, FAILED }
 ## PLAYER_FIELDS), mapped to its peer id through View.peer_of().
 const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
 ## The waits that read the window itself, not its model: they hold before a Welcome and after the
-## session ended too (`wait screen menu` after a Leave or a host close).
+## session ended too (`wait screen menu` after a Leave or the host's own close; a guest whose host
+## closed waits `screen failure`, its `lost` failure, #494).
 const WINDOW_WAITS: Array[String] = ["screen", "esc", "pointer", "text", "shown"]
 ## Squared lengths below this count as none in aim_turn() (a target at the eye, straight up).
 const AIM_EPSILON := 1e-8

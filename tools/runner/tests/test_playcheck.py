@@ -290,6 +290,15 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(sorted(keys), sorted(playcheck.FIELDS))
         self.assertEqual(len(playcheck.FIELDS), len(set(playcheck.FIELDS)))
 
+    def test_the_screens_are_game_flows_in_lower_case(self) -> None:
+        # #494 added FAILURE; a screen GameFlow gains must be one a scenario can wait for.
+        flow = (ROOT / "client" / "app" / "game_flow.gd").read_text(encoding="utf-8")
+        enum = re.search(r"^enum Screen \{\n(.*?)^\}", flow, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(enum, "no enum Screen in game_flow.gd")
+        assert enum is not None
+        names = re.findall(r"^\t([A-Z_]+),", enum.group(1), re.MULTILINE)
+        self.assertEqual(tuple(name.lower() for name in names), playcheck.SCREENS)
+
     def test_every_scenario_in_the_folder_parses_and_its_bots_file_exists(self) -> None:
         names = playcheck.available()
         self.assertIn("esc_menu", names)

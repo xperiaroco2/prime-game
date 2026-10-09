@@ -10,23 +10,25 @@ enum Session {
 	NONE,  ## no session: the main menu
 	CONNECTING,  ## joined or hosting, no Welcome yet
 	WELCOMED,  ## a player of the session
+	FAILED,  ## no session: the last one failed, and its failure shows until Back (#494)
 }
 
 enum Screen {
 	MENU,  ## address, port, Host, Join, Quit, and why the last session ended
-	CONNECTING,  ## "Connecting to <address>", Cancel
+	CONNECTING,  ## the spinner, the step, the code and the time since Join, Cancel (#494)
 	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded
 	PREGAME,  ## dark, the own role (#213): silent, frozen, before the round's clock runs
 	ROUND,  ## the round (M4-8's HUD)
 	END,  ## "The <side> won"; "Back to the lobby in 3" (#212)
+	FAILURE,  ## what failed in plain words, then Try again or Join directly, and Back (#494)
 }
 
 ## What showing a screen asks of the mouse (#169, #517).
 enum Pointer {
 	CAPTURE,  ## the lobby and the round: the player looks around
 	KEEP,  ## Loading and Pregame: nothing to click; a mouse captured in the lobby reaches the round
-	FREE,  ## the menu, Connecting and the end screen: their buttons
+	FREE,  ## the menu, Connecting, a failure and the end screen: their buttons
 }
 
 
@@ -37,6 +39,8 @@ static func screen(session: Session, model: ClientModel) -> Screen:
 			return Screen.MENU
 		Session.CONNECTING:
 			return Screen.CONNECTING
+		Session.FAILED:
+			return Screen.FAILURE
 	var spec := model.phase_spec()
 	if spec == null:
 		return Screen.CONNECTING

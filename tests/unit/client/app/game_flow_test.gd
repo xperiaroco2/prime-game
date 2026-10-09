@@ -14,6 +14,9 @@ func test_no_session_is_the_menu_and_no_welcome_is_connecting() -> void:
 	assert_int(GameFlow.level(GameFlow.Session.NONE, model)).is_equal(L.NONE)
 	assert_int(GameFlow.screen(GameFlow.Session.CONNECTING, model)).is_equal(S.CONNECTING)
 	assert_int(GameFlow.level(GameFlow.Session.CONNECTING, model)).is_equal(L.NONE)
+	# #494: a failed session shows its failure until Back, with no level.
+	assert_int(GameFlow.screen(GameFlow.Session.FAILED, null)).is_equal(S.FAILURE)
+	assert_int(GameFlow.level(GameFlow.Session.FAILED, model)).is_equal(L.NONE)
 
 
 func test_each_phase_of_the_base_mode_has_its_screen_and_level() -> void:
@@ -54,7 +57,7 @@ func test_a_match_that_ended_shows_the_end_screen() -> void:
 
 
 func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
-	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.PREGAME, S.END]:
+	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.PREGAME, S.END, S.FAILURE]:
 		assert_bool(GameFlow.frozen(screen)).is_true()
 	for screen: S in [S.LOBBY, S.ROUND]:
 		assert_bool(GameFlow.frozen(screen)).is_false()
@@ -64,7 +67,7 @@ func test_the_lobby_and_the_round_capture_the_mouse_loading_keeps_it_the_rest_fr
 	# #169: the lobby is walked like the round; its Ready and settings are in the Esc menu.
 	# #517: Loading freed it, so the round started with the cursor showing until a click; the
 	# pregame (#213), also between the lobby and the round, keeps it too.
-	for screen: S in [S.MENU, S.CONNECTING, S.END]:
+	for screen: S in [S.MENU, S.CONNECTING, S.END, S.FAILURE]:
 		assert_int(GameFlow.pointer_on(screen)).is_equal(GameFlow.Pointer.FREE)
 	for screen: S in [S.LOBBY, S.ROUND]:
 		assert_int(GameFlow.pointer_on(screen)).is_equal(GameFlow.Pointer.CAPTURE)
