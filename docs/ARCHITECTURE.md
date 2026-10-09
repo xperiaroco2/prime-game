@@ -3143,9 +3143,9 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   and 3, which #488 generalises). While it is open the task list and the board take no focus
   (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
 - **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` shows
-  the card of the first task type the round may deal (`HowtoCards.dealable`: the mode's task types minus the host's
-  bans; DealTasks draws them at the end of Loading, so no more is known) that the player has not completed and has
-  seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
+  the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
+  bans in the set its `banned_setting` names; DealTasks draws them at the end of Loading, so no more is known) that
+  has a card (`HowtoCards.with_card`), the player has not completed and has seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
 - **Seen and completed** (`client/app/HowtoProgress`, `user://howto.cfg`, one file per player as the controls): the
   loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
   (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`). Tasks are

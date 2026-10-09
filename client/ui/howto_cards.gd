@@ -51,21 +51,44 @@ static func problems_of(mode: GameMode) -> PackedStringArray:
 	return found
 
 
-## The task types this round may deal, in `mode`'s order: the mode's minus the ones the host
-## banned in the lobby (every id set of `model`'s settings is a set of banned task types,
-## SettingSpec.Kind.TASK_TYPES). The deal itself comes at the end of Loading (DealTasks on
-## `all_loaded`), so the loading screen knows no more than this.
+## The task types this round may deal, in `mode`'s order: the pool of the mode's DealTasks (its
+## task types minus the ones the host banned in the lobby, the id set its `banned_setting` names
+## in `model`'s settings; no other set); none when the mode deals no tasks. The deal itself comes
+## at the end of Loading (DealTasks on `all_loaded`), so the loading screen knows no more.
 static func dealable(mode: GameMode, model: ClientModel) -> Array[StringName]:
+	var found: Array[StringName] = []
+	var deal := deal_of(mode)
+	if deal == null:
+		return found
 	var banned := PackedStringArray()
 	if model != null:
-		for id: StringName in model.id_sets:
-			banned.append_array(model.id_sets[id])
-	var found: Array[StringName] = []
+		banned = model.id_sets.get(deal.banned_setting, PackedStringArray())
+	for type: TaskType in DealTasks.pool_of(mode, banned):
+		found.append(type.id)
+	return found
+
+
+## The DealTasks among `mode`'s transition actions (the base mode's on `all_loaded`); null when
+## it deals no tasks.
+static func deal_of(mode: GameMode) -> DealTasks:
 	if mode == null:
-		return found
-	for type: TaskType in mode.task_types:
-		if type != null and not banned.has(String(type.id)):
-			found.append(type.id)
+		return null
+	for row: Transition in mode.transitions:
+		if row == null:
+			continue
+		for action: RuleEffect in row.actions:
+			if action is DealTasks:
+				return action as DealTasks
+	return null
+
+
+## Those of `types` that have a card, in their order: the loading screen picks among them, so a
+## type without one (the content test fails it) does not hide a later type's card.
+static func with_card(types: Array[StringName]) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for type: StringName in types:
+		if of_task(type) != null:
+			found.append(type)
 	return found
 
 

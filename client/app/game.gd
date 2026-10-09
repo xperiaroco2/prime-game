@@ -370,7 +370,7 @@ func close_esc() -> void:
 ## not completed, shown at most HowtoProgress.LOADING_SHOWS times (#254), instead of the tip.
 func _on_loading_started() -> void:
 	var model := _client.model if _client != null else null
-	var type := howto.loading_pick(HowtoCards.dealable(mode, model))
+	var type := howto.loading_pick(HowtoCards.with_card(HowtoCards.dealable(mode, model)))
 	if not type.is_empty() and ui.show_loading_card(type):
 		howto.note_loading_shown(type)
 

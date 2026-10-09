@@ -49,6 +49,25 @@ func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"delivery"])
 
 
+func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
+	var model := Preview.fake_model(_mode, true)
+	# Another set setting (say a later "banned roles") that happens to name a task type.
+	model.id_sets[&"some_other_set"] = PackedStringArray(["delivery"])
+	assert_array(HowtoCards.dealable(_mode, model)).is_equal([&"delivery"])
+	assert_str(String(HowtoCards.deal_of(_mode).banned_setting)).is_equal("banned_task_types")
+	var no_deal := GameMode.new()
+	no_deal.task_types = _mode.task_types
+	assert_object(HowtoCards.deal_of(no_deal)).is_null()
+	assert_array(HowtoCards.dealable(no_deal, model)).is_empty()
+
+
+func test_only_types_with_a_card_reach_the_loading_pick() -> void:
+	var types: Array[StringName] = [&"no_such_type", &"delivery"]
+	var with_card := HowtoCards.with_card(types)
+	assert_array(with_card).is_equal([&"delivery"])
+	assert_str(String(HowtoProgress.new().loading_pick(with_card))).is_equal("delivery")
+
+
 func test_the_card_is_drawn_node_for_node() -> void:
 	var made := HowtoCardView.raised(_card(4), HowtoCardView.MAP_ART, ToyHints.LIGHT, true)
 	add_child(made)
