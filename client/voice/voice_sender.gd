@@ -21,7 +21,8 @@ extends Node
 ##
 ## Nothing opens without the codec (the addon absent: voice unavailable). Off (D11) is a closed
 ## capture; VoiceControl decides what opens. Push-to-talk reads `voice_talk` (V) only while
-## `listening` (no Esc menu: the menu releases the keys held when it opened, #169).
+## `listening`: the keys are not typing (#488: the Esc menu keeps the voice, a text field or a key
+## capture does not).
 
 const TALK_ACTION := &"voice_talk"
 ## The words for a machine without the voice codec (greybox, #150).
@@ -39,7 +40,7 @@ var gate := VoiceGate.new()
 var send := Callable()
 ## Read the talk key from the keyboard; tests turn it off and set `talk_held`.
 var reads_device_input := true
-## No Esc menu is open: the talk key counts (Game sets it).
+## The keys are not typing into a text field or a key capture: the talk key counts (Game sets it).
 var listening := true
 ## The talk key, while reads_device_input is off.
 var talk_held := false

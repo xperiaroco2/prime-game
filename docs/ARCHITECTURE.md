@@ -2407,7 +2407,8 @@ a follow-up on #144 and #145):
   §4.7.26; written on each change). `Game` reads this
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
   stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
-  (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
+  (`voice_talk`, V), under the Esc menu too since #488 but never while a text field has the focus or a key capture
+  runs (`Game._typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
   the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
@@ -3476,7 +3477,7 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   hears nobody, nothing in Off or with no device open.
 - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
   with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
-  counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+  counted under the Esc menu too since #488, never while typing in a text field or a key capture), or Off, which closes only the own microphone: the others stay audible and the
   Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
   voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
   In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither

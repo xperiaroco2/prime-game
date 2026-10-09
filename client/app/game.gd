@@ -911,12 +911,13 @@ func _setup_voice() -> void:
 	_sender.setup(_client, mode)
 
 
-## Each frame: the talk key counts only without the Esc menu; an open Voice panel (the Esc menu's
-## tab, or the main menu's page with no session, #301) shows the settings and the microphone's
-## level (the device list read again as it opens); the lobby's hint.
+## Each frame: the talk key counts, under the Esc menu too (#488 rule 4), but never while the
+## keys are typing; an open Voice panel (the Esc menu's tab, or the main menu's page with no
+## session, #301) shows the settings and the microphone's level (the device list read again as it
+## opens); the lobby's hint.
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
-	_sender.listening = not ui.esc_open()
+	_sender.listening = not _typing()
 	var panel := shown_voice_panel()
 	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
@@ -924,6 +925,13 @@ func _refresh_voice() -> void:
 	if panel != null:
 		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+
+
+## A text field has the focus (the Lobby tab's name, #214) or Settings > Controls captures a key:
+## the keys are letters or a binding then, and V must not key the microphone.
+func _typing() -> bool:
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus is LineEdit or focus is TextEdit or ui.esc.controls.is_capturing()
 
 
 ## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Voice page, or null.

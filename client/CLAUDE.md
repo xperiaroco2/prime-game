@@ -63,6 +63,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `Color(...)` or font size in a screen's code; a source test holds it. A bare base control takes its class's row (mapping `base_types`, §4.7.30); a new bare control class needs a row or a named gap in `base_controls_test.gd`. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
 - A key on screen is `KeyLabel`'s (the binding now, on the player's layout), never a letter in a string (#211).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
+  the voice keeps working, the Talk key too, except while a text field or a key capture has the keys (#488);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse"). The map (#253, §4.7.33) frees the mouse but pauses no key (`PlayerController.mouse_free`); `GameUi` alone holds it open; it draws rooms and zones from level data and no place but the own body's.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
