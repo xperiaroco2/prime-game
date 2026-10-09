@@ -150,9 +150,10 @@ class BudgetTest(unittest.TestCase):
         self.assertIn(f"budget {instructions.ROOT_BYTES}", report.errors[0])
 
     def test_an_unscoped_rule_counts_toward_root_bytes(self) -> None:
-        half = ("y" * 99 + "\n") * 44
+        # Each half alone fits the budget; together they exceed it.
+        half = ("y" * 99 + "\n") * (instructions.ROOT_BYTES // 200 + 1)
         report = self.check({"CLAUDE.md": half, ".claude/rules/style.md": half})
-        self.assertTrue(any("8800 bytes" in e for e in report.errors), report.errors)
+        self.assertTrue(any(f"{2 * len(half)} bytes" in e for e in report.errors), report.errors)
 
     def test_unscoped_rule_counts_toward_root_budget(self) -> None:
         report = self.check({"CLAUDE.md": lines(120), ".claude/rules/style.md": lines(31)})

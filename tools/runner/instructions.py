@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT_BUDGET = 150  # root CLAUDE.md plus every rule without paths: (all of them load at launch)
-ROOT_BYTES = 8704  # the same files' loaded bytes (8.5 KiB, #561): every agent pays them on every call
+ROOT_BYTES = 9216  # the same files' loaded bytes (9 KiB, #561; the engineer raised it from 8.5 KiB for headroom): every agent pays them on every call
 NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its folder is read)
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md

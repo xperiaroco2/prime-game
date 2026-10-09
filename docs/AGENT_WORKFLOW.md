@@ -101,7 +101,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, memory guardrail, dictation glossary; each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 8,704 bytes loaded, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, memory guardrail, dictation glossary; each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 9,216 bytes loaded, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -146,7 +146,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
-  `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 8,704 (every agent carries them on
+  `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 9,216 (every agent carries them on
   every call; root `CLAUDE.md` has little room left, so a rule or glossary row added there trims another rule into its
   doc in the same PR), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
   only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
