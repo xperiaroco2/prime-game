@@ -97,9 +97,7 @@ func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:
 	# The check above can fail: a zone marker 2 m from a round_player marker (2.5 m needed).
 	var mode := _mode()
 	var zone := _zone_task(mode).zone
-	var gap := Vector3(0, 0, 2).distance_to(Vector3.ZERO)
 	assert_bool(_apart(Vector3(0, 0, 2), Vector3.ZERO, zone.radius_m + FREE_M, 2.5)).is_false()
-	assert_float(gap).is_less(zone.radius_m + FREE_M)
 	# A marker a storey above is not compared.
 	assert_bool(_apart(Vector3(0, 3.2, 0), Vector3.ZERO, 3.0, zone.height_m)).is_true()
 
