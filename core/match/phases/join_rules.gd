@@ -39,9 +39,10 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
 ## this build can read (§4.3). Accepted: the join is counted, the joiner named (joiner_name),
-## placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
-## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back.
-static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
+## placed at a lobby marker (_free_spot) with a new epoch; Welcome (the joiner), PlayerJoined and
+## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back. `spec`
+## is the phase's own (its id goes into Welcome, its level decides the spot).
+static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
 		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
@@ -61,13 +62,13 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 		_drop(ctx, peer)
 		return false
 	ctx.state.newcomers.erase(peer)
-	var spot := _free_spot(ctx)
+	var spot := _free_spot(ctx, spec)
 	var player_name := joiner_name(ctx, command.field("name"))
 	var joined := ctx.state.add_player(peer, player_name)
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
 	joined.epoch += 1
-	ctx.emit(_welcome(ctx, joined, phase_id))
+	ctx.emit(_welcome(ctx, joined, spec.id))
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
@@ -142,7 +143,15 @@ static func _drop(ctx: MatchContext, peer: int) -> void:
 	ctx.emit(DisconnectPeerEvent.new(peer))
 
 
-static func _free_spot(ctx: MatchContext) -> Vector3:
+## Where a joiner stands (§3.5). In a phase at no level (PhaseSpec.Level.NONE: the tutorial's
+## `gather`, E72) the origin, with no error: nobody sees it and the deal places everyone. Otherwise
+## the first lobby_player marker of the phase's level with no player within SPOT_CLEARANCE_M, or
+## the first marker when all are taken; none (no marker, or the layout failed to load: null) is a
+## match error and the origin. Keyed on the spec's level, never on ctx.layout being null, which
+## both cases have.
+static func _free_spot(ctx: MatchContext, spec: PhaseSpec) -> Vector3:
+	if spec.level == PhaseSpec.Level.NONE:
+		return Vector3.ZERO
 	var spots := PackedVector3Array()
 	if ctx.layout != null:
 		spots = ctx.layout.positions(LayoutCheck.LOBBY_PLAYER)

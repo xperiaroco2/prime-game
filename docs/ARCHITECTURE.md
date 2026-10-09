@@ -229,7 +229,11 @@ dissidents, no crew present only once every crew member left, End widens nothing
   `server/` passes to `Match.new` with the seed; §4.3, E1, 3e), else `Rejected` (`wrong_content`) and
   `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
   `Rejected` (`full`) and `DisconnectPeer`. A newcomer's leave is forgotten silently, and so is the late `PeerLeft`
-  of a peer that a directive disconnected.
+  of a peer that a directive disconnected. The joiner stands on the first `lobby_player` marker of the phase's level
+  with no player within 1 m, or on the first marker when all are taken (placeholders); no marker, or a lobby layout
+  that failed to load, is a match error and the origin. In a phase whose spec's level is `PhaseSpec.Level.NONE` (the
+  tutorial's `gather`, E72) the joiner stands at the origin with no error (#599): the rule keys on the spec's
+  level, never on the layout being null, which the failed load has too (`join_rules_spot_test`).
 - **Names** (#550, the engineer's answers on #73; built on #58's `Player<n>`): a player sets their own name
   (`UserSettings.player_name` in `user://`, "" until chosen, never empty once chosen) and `Hello` asks for it.
   The host decides (`JoinRules.joiner_name`, the rules in `core/match/player_names.gd`): `PlayerNames.clean`
