@@ -29,6 +29,9 @@ var stations: Dictionary[int, StationState] = {}
 var bodies: Dictionary[int, Vector3] = {}
 ## Match-clock ticks left while it runs or is paused; -1 before StartClock (2h).
 var clock_ticks_left := -1
+## The ticks StartClock set the clock to; -1 before it ran (#548: EndMatch gives the round's
+## length as the ticks counted down since).
+var clock_ticks_total := -1
 var clock_ended := false
 ## The winning side once EndMatch ran (2h), else empty.
 var winner: StringName
@@ -202,6 +205,7 @@ func reset_match() -> void:
 	_next_task_id = 1
 	_next_station_id = 1
 	clock_ticks_left = -1
+	clock_ticks_total = -1
 	clock_ended = false
 	winner = &""
 	for peer: int in peers():

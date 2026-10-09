@@ -575,13 +575,19 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 		FixtureDeliveryModes.carry_to(game, crew[index % crew.size()], package, circle.position)
 	assert_str(game.phase_id()).is_equal("end")
 	assert_str(game.state.winner).is_equal("crew")
+	# The round's play time, in whole seconds (#548).
+	var played := floori(
+		(game.state.clock_ticks_total - game.state.clock_ticks_left) / float(Ticks.RATE)
+	)
 	for peer: int in peers:
 		var view := game.view_of(peer)
 		assert_dict(view.events_named(&"RoundStarted")[0].to_dict()).is_equal({"start_tick": start})
 		assert_int(view.events_named(&"PackageDelivered").size()).is_equal(6)
 		var ended := view.events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_dict(ended[0].to_dict()).is_equal({"side": &"crew"})
+		assert_dict(ended[0].to_dict()).is_equal(
+			{"side": &"crew", "reason": &"every_task_done", "numbers": {&"time": played}}
+		)
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
 	assert_str(game.phase_id()).is_equal("lobby")
 	assert_str(game.state.winner).is_empty()
@@ -595,7 +601,9 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	for peer: int in peers:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(2)
-		assert_dict(ended[1].to_dict()).is_equal({"side": &"dissidents"})
+		assert_dict(ended[1].to_dict()).is_equal(
+			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+		)
 	_end_in_silence_then_lobby(game, peers)
 	assert_array(Array(game.diagnostics)).is_empty()
 
@@ -622,7 +630,9 @@ func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() ->
 	for peer: int in peers:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
+		assert_dict(ended[0].to_dict()).is_equal(
+			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+		)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 

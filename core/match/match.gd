@@ -50,6 +50,9 @@ var _row_errors := 0
 var _step_has_outcome := false
 var _step_outcome: StringName
 var _step_argument: Variant
+## The id of the win condition that reported this step's `won` (_check_wins), else empty: the
+## row's MatchContext.outcome_reason (#548).
+var _step_reason: StringName
 var _fact_chain: Array[StringName] = []
 var _emitted: Array[EmittedEvent] = []
 var _outbox_from := 0
@@ -360,6 +363,7 @@ func _begin_step() -> void:
 	_step_has_outcome = false
 	_step_outcome = &""
 	_step_argument = null
+	_step_reason = &""
 
 
 ## The end of a step: the win check, then the first outcome's row, which enters the next phase;
@@ -377,8 +381,9 @@ func _finish_step() -> void:
 			return
 		var outcome := _step_outcome
 		var argument: Variant = _step_argument
+		var reason := _step_reason
 		_begin_step()
-		if not _transition(outcome, argument):
+		if not _transition(outcome, argument, reason):
 			return
 
 
@@ -388,12 +393,15 @@ func _check_wins() -> void:
 	for condition: WinCondition in mode.win_conditions:
 		if condition.holds(_context("win condition %s" % condition.id)):
 			report_outcome(WON, condition.side, null)
+			# The step had no outcome (checked above), so this one is recorded: name its cause.
+			_step_reason = condition.id
 			return
 
 
 ## Runs the row of `outcome` from the current phase: its actions, the exit, the next entry. An
-## outcome without a row fails loudly (§3.1).
-func _transition(outcome: StringName, argument: Variant) -> bool:
+## outcome without a row fails loudly (§3.1). `reason`: the id of the win condition behind a
+## `won`, else empty (MatchContext.outcome_reason).
+func _transition(outcome: StringName, argument: Variant, reason: StringName) -> bool:
 	var from := _phase_spec.id
 	var row := mode.find_transition(from, outcome)
 	if row == null:
@@ -402,6 +410,7 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	var ctx := _context("row %s, %s" % [from, outcome])
 	ctx.outcome = outcome
 	ctx.outcome_argument = argument
+	ctx.outcome_reason = reason
 	var to_spec := mode.find_phase(row.to)
 	ctx.layout = _layout_of(to_spec)
 	# The row's actions ask about the level of the phase it enters (§4.5, E9).
