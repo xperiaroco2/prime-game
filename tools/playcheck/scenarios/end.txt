@@ -6,7 +6,9 @@
 # ready (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced
 # clock is session state, so the second round ends after 20 s too: its shots come well before that.
 # lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show.
-# The text waits read short parts of the greybox wording (#150), never whole sentences.
+# The text waits read short parts of the greybox wording (#150), never whole sentences; the end
+# screen's are the copy deck's English (#498): the dissident sees its side's win on the title plate,
+# the guest the same line as plain text (end.winner reads the one shown).
 players 2
 windows 2
 role 1 dissident
@@ -23,6 +25,9 @@ wait screen end timeout=60
 wait phase end
 wait text end.winner is The Dissidents won
 wait text end.countdown has lobby in
+# A second into End: past Night's 0.4 s fade in (#498), two before the lobby. Frames are no
+# clock here (an off-screen window may draw hundreds a second).
+wait text end.countdown has in 2
 shot end_host
 wait pointer free
 wait screen lobby timeout=30
@@ -43,6 +48,7 @@ wait screen round timeout=60
 wait screen end timeout=60
 wait text end.winner is The Dissidents won
 wait text end.countdown has lobby in
+wait text end.countdown has in 2
 shot end_guest
 wait screen lobby timeout=60
 wait ready off

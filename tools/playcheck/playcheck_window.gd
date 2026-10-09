@@ -113,14 +113,16 @@ class GameView:
 		var shown: bool = _field(field)[1]
 		return shown
 
-	## [text, shown] of a field, read from this window's Ui and current camera only; the keys here
-	## and in _labels() are tools/runner/playcheck.py's FIELDS (its test holds them equal).
+	## [text, shown] of a field (a Label's text as drawn: a key translated), read from this
+	## window's Ui and current camera only; the keys here and in _labels() are
+	## tools/runner/playcheck.py's FIELDS (its test holds them equal).
 	func _field(field: String) -> Array:
 		var ui := game.ui
 		var labels := _labels()
 		var found: Array = ["", false]
 		if labels.has(field):
-			found = [labels[field].text, labels[field].is_visible_in_tree()]
+			var label := labels[field]
+			found = [label.atr(label.text), label.is_visible_in_tree()]
 		match field:
 			"life.bar":
 				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
@@ -158,7 +160,7 @@ class GameView:
 			"lobby.roster": ui.lobby_hud.roster_label,
 			"lobby.countdown": ui.lobby_hud.countdown_label,
 			"pregame.role": ui.pregame.role_label,
-			"end.winner": ui.end.winner_label,
+			"end.winner": ui.end.winner_shown(),
 			"end.countdown": ui.end.countdown_label,
 		}
 
