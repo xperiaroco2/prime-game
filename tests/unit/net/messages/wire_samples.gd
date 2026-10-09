@@ -75,6 +75,10 @@ static func events() -> Dictionary[String, Array]:
 	found["TaskStateEvent"] = [
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
 	]
+	found["ZoneProgressEvent"] = [
+		ZoneProgressEvent.new(0, 0, 1, false, 0),
+		ZoneProgressEvent.new(0xFFFE, 0xFFFF, 0xFFFF, true, 0xFFFFFFFE),
+	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [MatchEndedEvent.new(&"crew")]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]

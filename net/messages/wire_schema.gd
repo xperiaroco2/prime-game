@@ -13,7 +13,9 @@ extends RefCounted
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
 ## 9 since #429 added MoveClaimReliable (kind 14).
-const VERSION := 9
+## 11 since #647 added ZoneProgress (kind 66). 10 is release/m6.2's (#550, Hello's `name`), not on
+## this line yet: two tables must never share a number, so whichever lands second takes the next.
+const VERSION := 11
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -372,6 +374,18 @@ static func _events() -> Array[WireRow]:
 			&"TaskState",
 			38,
 			[_of("task", WireField.Type.U8), _id("type"), _u16("done"), _u16("total")]
+		),
+		_down(
+			66,
+			&"ZoneProgress",
+			11,
+			[
+				_station("station"),
+				_u16("ticks"),
+				_u16("needed"),
+				_bool("counting"),
+				_of("tick", _tick())
+			]
 		),
 	]
 
