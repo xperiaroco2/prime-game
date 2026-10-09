@@ -93,6 +93,19 @@ func test_lighting_a_type_shows_its_zones_and_their_chip_only() -> void:
 	assert_bool(screen.zone_hint.visible).is_false()
 
 
+func test_the_zone_chip_stays_inside_its_room_in_a_long_language() -> void:
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	var screen := _screen(_round_model())
+	screen.light(&"delivery")
+	var tile := screen.plan.get_node("Room_storage") as Control
+	assert_float(screen.zone_hint.get_combined_minimum_size().x).is_less_equal(
+		tile.size.x - 2.0 * MapScreen.ZONE_HINT_GAP + 0.01
+	)
+	assert_vector(screen.zone_hint.position).is_equal(
+		tile.position + Vector2.ONE * MapScreen.ZONE_HINT_GAP
+	)
+
+
 func test_the_rooms_by_name_and_the_own_pin_at_the_own_place_and_heading() -> void:
 	var local := _local()
 	local.placed = false
@@ -148,9 +161,12 @@ func test_other_players_items_and_circles_change_nothing_on_the_screen() -> void
 			one.light(lit)
 			other.light(lit)
 		assert_array(_signature(other)).is_equal(_signature(one))
-	# The board holds the rooms, their zones, the pin and two chips: nothing else to draw on.
+	# The board holds the rooms (each with its zone and its name), the pin and two chips: nothing
+	# else to draw on.
 	var screen := _screen(busy)
-	assert_int(screen.plan.get_child_count()).is_equal(2 * _data.rooms.size() + 3)
+	assert_int(screen.plan.get_child_count()).is_equal(_data.rooms.size() + 3)
+	for room: MapData.Room in _data.rooms:
+		assert_int(screen.plan.get_node("Room_%s" % room.id).get_child_count()).is_equal(2)
 	var all := _all_texts(screen)
 	assert_str(all).not_contains("Player")
 	assert_str(all).not_contains("Stranger")
@@ -195,7 +211,7 @@ func _row_texts(screen: MapScreen) -> Array[String]:
 
 
 func _room_label(screen: MapScreen, id: StringName) -> Label:
-	return screen.plan.get_node("Room_%s" % id).get_child(0) as Label
+	return screen.plan.get_node("Room_%s/Name" % id) as Label
 
 
 func _room_names(screen: MapScreen) -> Array[String]:
@@ -207,8 +223,8 @@ func _room_names(screen: MapScreen) -> Array[String]:
 
 func _lit_rooms(screen: MapScreen) -> Array[String]:
 	var lit: Array[String] = []
-	for zone: Node in screen.plan.get_children():
-		if zone.name.begins_with("Zone_") and (zone as Control).visible:
+	for zone: Node in screen.plan.find_children("Zone_*", "Panel", true, false):
+		if (zone as Control).visible:
 			lit.append(zone.name.trim_prefix("Zone_"))
 	return lit
 

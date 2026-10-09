@@ -128,6 +128,11 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: float, local: HudTex
 	_refresh_now()
 
 
+## What the last refresh was given besides the model: the own place and heading.
+func local() -> HudText.Local:
+	return _local
+
+
 ## Lights the zones of `task_type` (the rooms where its items may lie) and the chip that says so.
 func light(task_type: StringName) -> void:
 	_lit = task_type
@@ -331,7 +336,16 @@ func _rebuild_rooms() -> void:
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.position = _data.to_board(room.rect.position, BOARD_SIZE)
 		tile.size = room.rect.size * pixels_per_metre
+		# The zone first, so the room's name draws over the light; the tile stacks both full size.
+		var zone := Panel.new()
+		zone.name = "Zone_%s" % room.id
+		zone.theme_type_variation = &"ToyMapZone"
+		zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		zone.visible = false
+		tile.add_child(zone)
+		_zones[room.id] = zone
 		var label := UiParts.styled_label(_room_name(room.id), &"ToyMapRoomText")
+		label.name = "Name"
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -341,17 +355,6 @@ func _rebuild_rooms() -> void:
 		plan.add_child(tile)
 		plan.move_child(tile, at)
 		at += 1
-		var zone := Panel.new()
-		zone.name = "Zone_%s" % room.id
-		zone.theme_type_variation = &"ToyMapZone"
-		zone.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		zone.position = tile.position
-		zone.size = tile.size
-		zone.visible = false
-		plan.add_child(zone)
-		plan.move_child(zone, at)
-		at += 1
-		_zones[room.id] = zone
 
 
 func _room_name(id: StringName) -> String:
@@ -368,9 +371,25 @@ func _show_zone_hint() -> void:
 	_zone_hint_label.text = _translated(
 		"map.zone_hint.%s" % _lit, String(TranslationServer.translate("map.zone_hint"))
 	)
-	var first := _zones[StringName(rooms[0])]
+	# Inside the first lit room: wrapped to its width when the words (a long language) are wider.
+	var tile := _zones[StringName(rooms[0])].get_parent() as Control
+	var room_width := tile.size.x - 2.0 * ZONE_HINT_GAP
+	_zone_hint_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_zone_hint_label.custom_minimum_size = Vector2.ZERO
+	var chip_width := zone_hint.get_combined_minimum_size().x
+	var padding := chip_width - _zone_hint_label.get_combined_minimum_size().x
+	if chip_width > room_width:
+		_zone_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_zone_hint_label.custom_minimum_size.x = maxf(room_width - padding, 1.0)
 	zone_hint.reset_size()
-	zone_hint.position = first.position + Vector2.ONE * ZONE_HINT_GAP
+	zone_hint.position = tile.position + Vector2.ONE * ZONE_HINT_GAP
+	# A wrapped label knows its height only once laid out at its width: shrink the chip again then.
+	if _zone_hint_label.autowrap_mode != TextServer.AUTOWRAP_OFF:
+		_refit_zone_hint.call_deferred()
+
+
+func _refit_zone_hint() -> void:
+	zone_hint.reset_size()
 
 
 ## The own pin at the own place, pointing the own heading, with its chip; hidden with no place or
