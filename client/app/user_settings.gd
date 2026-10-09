@@ -3,9 +3,9 @@ extends RefCounted
 ## The player's own settings on this machine (the M5 ADR §1.7, E43 (a), E47 as amended): the
 ## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
 ## §1.1's "opening" mark, the interface language (#208), the player's own name (#550), large text,
-## reduced motion and the window mode (Settings, #491), in a
-## ConfigFile under user://, read at the start and written on each change. Only the name is ever
-## sent (in Hello). Key bindings get their own file.
+## reduced motion and the window mode (Settings, #491) and whether the first launch's tutorial was
+## seen (#601), in a ConfigFile under user://, read at the start and written on each change. Only
+## the name is ever sent (in Hello). Key bindings get their own file.
 ##
 ## The windows that `tools\run.cmd host --clients N` starts on one PC share one user:// folder, and
 ## the runner gives each its PRIME_INSTANCE (1 the host, 2 and on the clients): the file is
@@ -83,6 +83,9 @@ var window_mode := "":
 ## The Lobby tab's own preset (Save your own, #491): setting id -> a whole number or the ids of a
 ## set; empty before the host saved one. LobbyPresets keeps only what the mode declares.
 var own_preset: Dictionary = {}
+## The first launch's tutorial was seen (#601, E70): false while the flag is absent from the file,
+## and the game starts the tutorial with its invite on a launch with no option.
+var tutorial_seen := false
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -150,6 +153,8 @@ func read() -> Error:
 	window_mode = str(file.get_value("display", "window_mode", ""))
 	var preset: Variant = file.get_value("lobby", "own_preset", {})
 	own_preset = preset as Dictionary if preset is Dictionary else {}
+	var seen: Variant = file.get_value("player", "tutorial_seen", false)
+	tutorial_seen = seen is bool and seen as bool
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -171,6 +176,7 @@ func write() -> Error:
 	file.set_value("interface", "reduced_motion", reduced_motion)
 	file.set_value("display", "window_mode", window_mode)
 	file.set_value("lobby", "own_preset", own_preset)
+	file.set_value("player", "tutorial_seen", tutorial_seen)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)

@@ -126,6 +126,29 @@ func test_a_hand_edited_name_is_cleaned_on_reading_and_fits_hello() -> void:
 	assert_str(fresh.player_name).is_empty()
 
 
+func test_the_tutorial_flag_is_absent_until_written_and_round_trips() -> void:
+	# #601 (E70): an absent flag, a missing file or a damaged value read as not seen.
+	var settings := UserSettings.new(PATH)
+	assert_bool(settings.tutorial_seen).is_false()
+	settings.player_name = "Ann"
+	assert_int(settings.write()).is_equal(OK)
+	var unseen := UserSettings.new(PATH)
+	assert_int(unseen.read()).is_equal(OK)
+	assert_bool(unseen.tutorial_seen).is_false()
+	unseen.tutorial_seen = true
+	assert_int(unseen.write()).is_equal(OK)
+	var seen := UserSettings.new(PATH)
+	assert_int(seen.read()).is_equal(OK)
+	assert_bool(seen.tutorial_seen).is_true()
+	assert_str(seen.player_name).is_equal("Ann")
+	var file := ConfigFile.new()
+	file.set_value("player", "tutorial_seen", "yes")
+	assert_int(file.save(PATH)).is_equal(OK)
+	var damaged := UserSettings.new(PATH)
+	assert_int(damaged.read()).is_equal(OK)
+	assert_bool(damaged.tutorial_seen).is_false()
+
+
 func test_settings_with_no_path_stay_in_memory() -> void:
 	var settings := UserSettings.new()
 	settings.mode = UserSettings.Mode.OFF
