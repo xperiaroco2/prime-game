@@ -119,6 +119,27 @@ func test_a_body_out_of_the_eyes_sight_or_watched_from_its_eyes_gets_no_plate() 
 	assert_bool(_plates.shows(MATE)).is_true()
 
 
+func test_the_downed_cameras_plate_also_needs_the_bodys_eye_to_see_the_player() -> void:
+	# The camera at the origin (the arm, 2 m back) sees NEAR over the end of the wall; the body's eye
+	# behind the wall at x = 3 does not (the M4 ADR's §3 item 3).
+	var hider: SightHider = auto_free(SightHider.new())
+	_plates.hider = hider
+	await _settle()
+	assert_bool(_plates.shows(NEAR)).is_true()
+	hider.watch_from(Vector3(5.0, _world.rules.eye_height_m, -3.0))
+	await _settle()
+	assert_bool(_plates.shows(NEAR)).is_false()
+	assert_bool(_plates.shows(MATE)).is_false()
+	hider.watch_from(Vector3(0.0, _world.rules.eye_height_m, 1.0))
+	await _settle()
+	assert_bool(_plates.shows(NEAR)).is_true()
+	hider.stop()
+	hider.watch_from(Vector3(5.0, _world.rules.eye_height_m, -3.0))
+	hider.stop()
+	await _settle()
+	assert_bool(_plates.shows(NEAR)).is_true()
+
+
 func test_the_mark_shows_on_a_dissidents_client_for_a_teammate_only() -> void:
 	_model.fold(&"RoleAssigned", {"role": &"dissident"})
 	_model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([OWN, MATE])})

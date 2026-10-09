@@ -26,6 +26,10 @@ const PHYSICS_PRIORITY := 11
 
 ## The others' bodies and the own ClientModel (its `model`); the game sets it, null draws nothing.
 var avatars: AvatarViews
+## The downed camera's SightHider (LifeView.hider()), or null: while it is active a plate also needs
+## the body's eye to see the player's eye, so the arm's camera, 2 m back, shows no more than
+## standing at the body would (the M4 ADR's §3 item 3).
+var hider: SightHider
 
 ## Peer -> its plate, while that peer has a body.
 var _plates: Dictionary[int, NamePlate] = {}
@@ -96,8 +100,14 @@ func _physics_process(_delta: float) -> void:
 	var space := camera.get_world_3d().direct_space_state
 	for peer: int in _bodies():
 		var body := avatars.body_of(peer)
-		if in_view(camera, body) and SightHider.sees(space, camera.global_position, eye_of(body)):
-			_in_sight[peer] = true
+		if not in_view(camera, body):
+			continue
+		var eye := eye_of(body)
+		if not SightHider.sees(space, camera.global_position, eye):
+			continue
+		if hider != null and hider.is_active() and not SightHider.sees(space, hider.pivot, eye):
+			continue
+		_in_sight[peer] = true
 
 
 func _process(_delta: float) -> void:

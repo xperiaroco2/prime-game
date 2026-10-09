@@ -118,6 +118,7 @@ func _ready() -> void:
 		mode = load(MODE_PATH) as GameMode
 	ui.esc.lobby.set_mode(mode)
 	ui.plates.avatars = _avatars
+	ui.plates.hider = _life.hider()
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
 	ui.menu.join_requested.connect(join)
 	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.port()))
