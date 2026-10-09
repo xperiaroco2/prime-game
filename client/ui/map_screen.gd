@@ -612,14 +612,26 @@ func _show_zone_hint() -> void:
 		_zone_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_zone_hint_label.custom_minimum_size.x = maxf(room_for - padding, 1.0)
 	zone_hint.reset_size()
-	zone_hint.position = tile.position + Vector2(0, tile.size.y + ZONE_HINT_GAP)
+	_place_zone_hint(tile)
 	# A wrapped label knows its height only once laid out at its width: shrink the chip again then.
 	if _zone_hint_label.autowrap_mode != TextServer.AUTOWRAP_OFF:
-		_refit_zone_hint.call_deferred()
+		_refit_zone_hint.call_deferred(tile)
 
 
-func _refit_zone_hint() -> void:
+func _refit_zone_hint(tile: PanelContainer) -> void:
+	if not is_instance_valid(tile) or not zone_hint.visible:
+		return
 	zone_hint.reset_size()
+	_place_zone_hint(tile)
+
+
+## The tag under the room; above it where it would pass the bottom of the rooms (the lowest row of
+## the plan leaves less than the tag is tall).
+func _place_zone_hint(tile: PanelContainer) -> void:
+	var y := tile.position.y + tile.size.y + ZONE_HINT_GAP
+	if y + zone_hint.size.y > ROOMS_SIZE.y:
+		y = maxf(tile.position.y - ZONE_HINT_GAP - zone_hint.size.y, 0.0)
+	zone_hint.position = Vector2(tile.position.x, y)
 
 
 ## The own pin at the own place, pointing the own heading, with its chip; hidden with no place or

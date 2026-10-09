@@ -349,6 +349,23 @@ func test_the_zone_tag_sits_under_its_room_and_wraps_only_at_the_boards_edge() -
 	)
 
 
+func test_the_zone_tag_of_a_room_in_the_bottom_row_goes_above_it_not_off_the_board() -> void:
+	var screen := _screen(_round_model())
+	# Large text: the tag is taller than what the plan leaves under its lowest row.
+	screen.theme = GameUi.THEME_LARGE
+	var data := MapData.new()
+	data.rooms.append(MapData.Room.new(&"hall", Rect2(0, 0, 10, 10)))
+	data.rooms.append(MapData.Room.new(&"lab", Rect2(0, 10, 10, 10)))
+	data.zones[&"delivery"] = PackedStringArray(["lab"])
+	screen.set_data(data)
+	screen.light(&"delivery")
+	var tile := screen.plan.get_node("Lab") as Control
+	var tag: Control = screen.zone_hint
+	assert_float(tag.position.y + tag.size.y).is_less_equal(MapScreen.ROOMS_SIZE.y + 0.01)
+	assert_float(tag.position.y + tag.size.y).is_less_equal(tile.position.y)
+	assert_float(tag.position.y).is_greater_equal(0.0)
+
+
 func test_the_rooms_by_name_and_the_own_pin_at_the_own_place_and_heading() -> void:
 	var local := _local()
 	local.placed = false
