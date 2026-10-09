@@ -3474,9 +3474,10 @@ there would not follow from the commands.
 - **The rest.** At the first contact the item drops to `floor_below` of the stop point and rests through
   `Items.place` with the cause `thrown`: `ItemPlaced`, then `item_rested`, so the delivery check (§7.1.14) runs as
   for any rest. That rest is the base point on the floor (the engineer's answer on PR #82, recorded on #37). A flight
-  past the longest flight stops at its last point. With no floor below the stop, the item rests at the thrower's feet
-  at the throw (the origin less the eye height; TD11) and the match logs an error, as for a drop (§7.1.13): a level with a
-  hole. Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
+  past the longest flight stops at its last point. With no floor below the stop, the item rests where the thrower stood (TD11):
+  on `floor_below` of the thrower's feet, asked once at the throw and logged, and the match logs an error, as for a drop
+  (§7.1.13): a level with a hole. A thrower over no floor is refused (`no_floor`), and the item stays in the hand.
+  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
   exactly, launch tick) goes to everyone; nothing in it is hidden (§5). The snapshot stays avatars only (§4.3): the
   thrower's client predicts the arc at the key press, and every other client draws it from `ItemThrown` on its

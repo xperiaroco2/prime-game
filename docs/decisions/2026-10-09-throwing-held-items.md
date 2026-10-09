@@ -85,8 +85,8 @@ no key is proposed.
 
 **The flight (TE3, under TD9 (a)).** On the launch tick L the item leaves the hand into a new state, `ItemState.Where.FLYING`
 (appended after `BELT`, so the older values keep theirs), with the origin o (`Items.eye_of(thrower)`) and the velocity v
-(the facing, normalized, times the speed). The item's state keeps the flight (o, v, the gravity g and the ticks flown
-n), as `Channels` keeps a raise, and its `position` holds o until it rests. On every later tick a new tick system,
+(the facing, normalized, times the speed). The item's state keeps the flight (o, v, the gravity g, the ticks flown n
+and the fallback rest f, below), as `Channels` keeps a raise, and its `position` holds o until it rests. On every later tick a new tick system,
 `FlightTicks`, adds one to the flight's own count of flown ticks n and sweeps the segment from p(n−1) to p(n), where
 p(n) = o + v·s + ½·g·s², s = n / `Ticks.RATE` in seconds and g points straight down. The count is the flight's, not the
 host tick less L, so a phase that lists no `FlightTicks` pauses a flight instead of making it jump past a wall when the
@@ -99,11 +99,17 @@ position, widened by the item's radius, with no lag compensation, as for hits (A
 drops to `WorldQuery.floor_below` of the stop point lifted (`Items.lifted`) and rests there through `Items.place` with
 the cause `thrown`: `ItemPlaced` and `item_rested`, so Delivery runs unchanged. That rest is the base point on the floor
 below, as the engineer asked on PR #82. A flight that has not ended within the longest flight (data) stops at its last
-point. With no floor below the stop (TD11 (a)), the item rests at the thrower's feet at the throw (o less the eye height: the floor
-`Items.eye_of` raised the eye from, where the thrower stood) and the match logs an error: a level with a hole, as for a
-drop (ARCHITECTURE §7.1.13), and no second geometry question. Unlike a drop, which rests at the point itself, a throw's
-fallback goes back to where the thrower stood. Prevents: a package thrown over the edge of the map, or into a gap in its
-floor, hanging in the air where nobody can reach it, so that the crew can never finish. Further:
+point. With no floor below the stop (TD11 (a)), the item rests at the fallback f that the launch fixed, and the match
+logs an error: a level with a hole, as for a drop (ARCHITECTURE §7.1.13). f is one more answer, asked once at the
+throw: `WorldQuery.floor_below(Items.lifted(feet))` at the thrower's last accepted position, logged like every answer
+and kept in the flight. It is not o less the eye height: `Items.eye_of` raises the eye from the highest floor under
+its footprint rays, so at a ledge's edge that point keeps the thrower's x and z beside the floor, in the air, and with
+no floor at all it is the claimed position itself. With no floor below the thrower either (a jump over a pit, or a
+client that walked out through the level's wall, which the host does not check, ARCHITECTURE §7.1.9), the `Throw` is
+refused with a new reason, `no_floor`, which names only the thrower's own position, and the item stays in the hand.
+Unlike a drop, which rests at the point itself, a throw's fallback goes back to where the thrower stood. Prevents: a
+package thrown over the edge of the map, or into a gap in its floor, hanging in the air where nobody can reach it, so
+that the crew can never finish; no rest of a throw is ever above no floor. Further:
 - `FlightTicks` runs each item in flight in id order. A phase whose rules can throw lists it, or the mode check
   refuses the phase, as for `ChannelTicks`. The base mode's Round would list it after `ChannelTicks`, before
   `TaskTicks` (content, provisional). A landing on the match clock's last tick counts, because tick systems run before
@@ -135,7 +141,7 @@ gravity are the host's, and the thrower's own velocity is not added (TD10 (a)), 
 prevents a hacked client's throw: farther than the rule (the speed is data), from somewhere else (the origin is the
 host's eye, the floor below the last accepted position plus the eye height, so a jump does not raise it, as for a
 put-down), or through a wall (the sweep from the eye, with TE2's start check). An applied `Throw` stops its thrower's
-raise, as every action does. Every refusal names only the sender's own facts. Accepted, as for a put-down: a client that
+raise, as every action does. Every refusal names only the sender's own facts (`no_floor` among them, TD11). Accepted, as for a put-down: a client that
 walked into a wall (the host does not check walls for movement, ARCHITECTURE §7.1.9) throws from inside it.
 
 **What clients draw (TE5 (a)).** At the key press the thrower's client hides its hand item and starts the arc from its
@@ -167,7 +173,8 @@ command log as `WorldQuery` answers, as every other rule's does.
 
 **Tests (TE7).** Unit, in `core/`: the arc's points against the formula; a stop at a wall, a ceiling, a floor and a
 living player; the thrower and a downed player flown through; the rest on the floor below the stop; the longest flight
-with and without a floor; a flight paused by a phase without `FlightTicks` resuming where it stopped; a package thrown
+with and without a floor; a thrower at a ledge's edge whose flight ends over no floor rests the item on the floor
+below its feet, never in the air; a `Throw` by a thrower over no floor refused with `no_floor`; a flight paused by a phase without `FlightTicks` resuming where it stopped; a package thrown
 into its circle delivered (TD4 (a)) with the cause `thrown`; every refusal, the dead host's own `Throw` among them
 (`Intents.PLAYER_ACTIONS`); the mode check (a phase that accepts a throw with no `FlightTicks`, a radius too big for
 the capsule); a throw replayed from its log. Integration, in `server/`: `HostWorldQuery.sweep` on the fixture level
