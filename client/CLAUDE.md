@@ -25,7 +25,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words and its failure state on the connecting screen, #494; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
-  in code (`ConnectingScreen`: the join, its failures and the loading, #494, §4.7.31), the HUD and the task screen (M4-8), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  in code (`ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD and the task screen (M4-8), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds). `life/` (M4-9): `LifeView` (the cameras,
   inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud`.
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,

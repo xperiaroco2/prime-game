@@ -1802,7 +1802,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
 | no session | main menu: address, port, Host, Join, Voice (its Voice page, #301), Quit, and why the last session ended | none | none |
-| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.31): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
+| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
@@ -1864,7 +1864,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
-  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.31) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
   `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
   (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
@@ -2893,7 +2893,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
   `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It stays in the `Ui` layer under the Esc
   menu, not on the handoff's black-screen CanvasLayer 6: the Esc menu (layer 4 in that table) opens in Loading, and a
-  layer 6 would hide it (the PR asks the engineer).
+  layer 6 would hide it (the engineer chose this in PR #637 until the black screens share a layer, as §4.7.31's post game screen does).
 - **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until #214 sends the lobby's name
   (`set_lobby(typed, host_name)`: `connect.connecting` with the typed name, or `lobby.default_name` with the host's
   name), the step from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
