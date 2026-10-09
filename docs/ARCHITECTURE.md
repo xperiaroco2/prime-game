@@ -1568,7 +1568,8 @@ sections named:
    every tick; `chaos_test.gd` pins the margin. Since #693 the host's answer to each of bot 4's own claims (no
    chaos tag: `ChaosFrames.claim_shape` is -1) is checked on the host over every transport
    (`ChaosHonestClaims`): a `Correction` of one fails the run, naming the seed (`chaos seed 7: the host corrected
-   an honest claim of bot 4 ...`), and so does a run in which none reached the host; a placement's `Correction`
+   an honest claim of bot 4 ... (and N more)`: one line, the first correction and the count of the rest), and so
+   does a run in which the movement rule accepted none (the summary line counts those); a placement's `Correction`
    comes with another call. `ChaosRun` checks on the host's state that the
    zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
    player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
@@ -1637,7 +1638,7 @@ claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--tra
 (18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). With
 the honest-claim check (#693, 2026-10-10) `--seed 188001 --runs 10`, `--seed 1 --runs 10`, `--long --seed 5 --runs
 2`, `--enet --seed 7` and `--transport webrtc` seeds 188001, 7, 1, 2 and 3 passed (222 to 478 honest claims of bot 4
-each answered without a `Correction`); a plant holding bot 4's claims 2 s past its freeze (its walk away past the
+each accepted without a `Correction`); a plant holding bot 4's claims 2 s past its freeze (its walk away past the
 credit) failed on that check alone (`chaos seed 188001: the host corrected an honest claim of bot 4`; reverted). The
 night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
