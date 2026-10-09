@@ -1,7 +1,8 @@
 """`sfx-check` (#524): check sound files with the Python standard library only, and write a listening page.
 
-What a file of each category must measure is data: tools/sfx/categories.json (its numbers are provisional until #525
-picks the real sounds). A WAV is read whole (RIFF chunks with `struct`, its samples with `array`): PCM 16-bit, mono,
+What a file of each category must measure is data: tools/sfx/categories.json (its numbers are provisional until
+the engineer's listening verdicts on the #525 set, assets/audio/sfx-verdicts.json, tune them). A WAV is read
+whole (RIFF chunks with `struct`, its samples with `array`): PCM 16-bit, mono,
 an allowed sample rate, peak headroom, RMS loudness and duration within its category's bounds, leading silence and
 DC offset. The standard library cannot decode Vorbis, so an OGG gets its identification header (mono or stereo:
 OGG_CHANNELS, #525; its rate) and its length (the last page's granule position) checked, and is reported as
