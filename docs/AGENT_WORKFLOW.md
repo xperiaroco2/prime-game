@@ -402,7 +402,12 @@ Rules for every workflow run:
   issue's `Size:` XS or S, one logical change, no design) goes to `quick-task` instead (`.claude/workflows/quick-task.js`,
   #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/
   net/ client/ voice/ tests/harness/`, and the manager merges it at once when its result says `ready_to_merge` (the
-  definition of done's review step, §4.2, is then CI alone for any other diff). A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
+  definition of done's review step, §4.2, is then CI alone for any other diff). `issue-task`'s review chain follows
+  the change's risk (#606, [ADR amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the
+  implementer, a path under `core/ server/ net/ client/ voice/ tests/harness/`, no changed paths, a design task or
+  the arg `tier: "full"` gets the full chain below; any other diff the light one (`code-reviewer`, `godot-api-checker`
+  on a `.gd .tscn .tres` change, the publisher), which drops `test_review`, `second_review` and `skeptic` even when
+  passed, and `plan_review` on a `content`, `level` or `tooling` branch. A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and

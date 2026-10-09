@@ -12,9 +12,10 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
 | `reading` | overrides the default reading list (the issue's links, handoffs and ADRs, the ARCHITECTURE sections it names by section, the code; area CLAUDE.md files and rules load by path, #339) |
-| `testing` | overrides the default test expectations, which follow the branch's area: `core` a seeded Match and `view_of`; `net`/`server` loopback-transport tests plus the ENet runs in verify; `tooling` the runner selftest; others generic |
+| `testing` | overrides the default test expectations, which follow the branch's area: `core` a seeded Match and `view_of`; `net`/`server` loopback-transport tests plus the ENet runs (on CI); `tooling` runner tests (CI runs `selftest`); others generic |
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
+| `tier` | `"full"` only (#606), and rarely: forces the full review chain on a change the diff would rate light (see "Review tier" below); `light` cannot be forced |
 
 **Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count toward the number per workflow the kickoff approved:
 
@@ -51,6 +52,15 @@ blocker or major) → publisher (fixes blocker, major and cheap minor findings, 
 base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most two fix rounds,
 handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the
 implementer ends red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
+
+**Review tier** (#606, the engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or
+a leak). After the implementer its changed paths choose, the worst one winning: `full` for a path under `core/ server/
+net/ client/ voice/ tests/harness/`, no changed paths, a design task or `tier: "full"` (the chain above, unchanged);
+`light` for any other diff (docs, content, levels, UI, tooling): the code reviewer (plus `godot-api-checker` on
+`.gd .tscn .tres`; `ab_review` keeps its pair), then the publisher; `test_review`, `second_review` and `skeptic` are
+dropped even when passed. `plan_review` runs before any diff, so the branch's area decides it: `content`, `level` and
+`tooling` skip it. Pass the options as the table says: the script drops them where the tier does. The result's
+`tier` and `tier_skipped` say what ran; `metrics` groups cost and wall time per tier.
 
 Notes that worked: say which PR a needed file comes from if it is unmerged ("build with fixtures, fetch and rebase
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
