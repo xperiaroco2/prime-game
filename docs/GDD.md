@@ -293,6 +293,8 @@ Open questions (the engineer's; the ADR's CD items, each with options and a reco
 - Which sounds, and a ring over the grill that fills to fried and then to burnt?
 - Does Cooking play on the greybox too, and does every match deal it (the Generator's same question)?
 - How near must a player stand to use a cooking station?
+- How soon may one player take again from a box or a bed (a short wait between takes, so that a spam cannot flood
+  everyone with new items)?
 
 ## 9. Meetings and voting
 
