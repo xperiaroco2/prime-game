@@ -22,7 +22,9 @@ make the verify runs beside it run over the limit.
 The `slots` command (#416, P2 of the weekly budget ADR) reads and quiets the slots. `slots --status` prints the holders,
 the runs waiting for a slot (each waiting run keeps a `waiter-<pid>-<token>.json` in the folder while it waits, and,
 when it goes ahead over the limit, until it ends) and the runs of the last hour that ran without a slot (from the verify
-history files of the main checkout and its worktrees). `slots --quiet <hours>` writes `quiet.json` into the same
+history files of the main checkout and its worktrees); a holder that took its slot before the machine last slept is
+marked STALE and not counted as held (#595, slept_since: the sleep counter each holder file records since #595, else
+the System log's last resume). `slots --quiet <hours>` writes `quiet.json` into the same
 folder, so every checkout of the PC sees it: until its end time a new verify or load run takes one slot (QUIET_SLOTS),
 and its slot line names the quiet window (a run already waiting joins the window on its next poll; a run already in a
 slot keeps it); `slots --quiet off` removes it. The quiet file fails safe: a missing,
@@ -43,6 +45,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from . import suspend
 from .common import IS_WINDOWS, ROOT, Failure, git
 
 # The number of slots, the longest wait in seconds, and the folder of the lock files; each overrides the default.
@@ -274,6 +277,7 @@ class Holder:
     pid: int | None = None
     since: str = "?"
     kind: str = VERIFY  # VERIFY or LOAD: what holds the slot
+    asleep: float | None = None  # suspend.asleep_seconds() when it took the slot (#595); None: not known
 
     def line(self) -> str:
         what = f"{self.worktree} ({self.branch or 'detached'}, pid {self.pid}, since {self.since})"
@@ -397,6 +401,7 @@ class Pool:
         quiet: Quiet | None = None,
         watch_quiet: bool = False,
         wall: Callable[[], datetime] = lambda: datetime.now(UTC),
+        asleep: Callable[[], float | None] = suspend.asleep_seconds,
     ) -> None:
         if count < 1:
             raise ValueError(f"a pool needs at least one slot, not {count}")
@@ -413,6 +418,7 @@ class Pool:
         # has closed to new runs.
         self.watch_quiet = watch_quiet
         self.wall = wall
+        self.asleep = asleep
         self.max_wait = max_wait
         self.me = me or {}
         self.clock = clock
@@ -467,6 +473,7 @@ class Pool:
             pid=pid if isinstance(pid, int) else None,
             since=str(data.get("since", "?")),
             kind=LOAD if data.get("kind") == LOAD else VERIFY,  # a holder file without a kind is a verify's
+            asleep=float(asleep) if isinstance(asleep := data.get("asleep"), (int, float)) else None,
         )
 
     def holders(self) -> list[Holder]:
@@ -514,8 +521,9 @@ class Pool:
             left = self.holder(slot)  # a holder file nobody cleared: its run ended without releasing the slot
             self._fd, self._slot = fd, slot
             since = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+            data = {**self.me, "kind": self.kind, "pid": os.getpid(), "since": since, "asleep": self.asleep()}
             with contextlib.suppress(OSError):  # the holder file only names the holder; the lock is the slot
-                self._write_holder(slot, {**self.me, "kind": self.kind, "pid": os.getpid(), "since": since})
+                self._write_holder(slot, data)
             return slot, left
         return None
 
@@ -670,6 +678,20 @@ def stale_waiter(waiter: Waiter, now: datetime, default_wait: float) -> bool:
     return (now - started).total_seconds() > limit + STALE_MARGIN
 
 
+def slept_since(holder: Holder, asleep_now: float | None, resumed: Callable[[], datetime | None]) -> str:
+    """Why a live holder is stale (#595): the machine slept suspend.SUSPEND_GAP or more since it took its slot (its
+    `asleep` against asleep_now), or, for a holder file without the counter (a runner before #595), it took the slot
+    before the last resume from sleep in the System log (`resumed`). "" when it is not stale or nothing tells."""
+    if holder.asleep is not None and asleep_now is not None and asleep_now >= holder.asleep:
+        slept = asleep_now - holder.asleep
+        return f"the machine slept {slept:.0f} s since it took the slot" if slept >= suspend.SUSPEND_GAP else ""
+    since = parse_stamp(holder.since)
+    resume = resumed() if since is not None else None
+    if since is not None and resume is not None and resume > since:
+        return f"it took the slot before the machine resumed from sleep at {stamp(resume)} (System log)"
+    return ""
+
+
 def status(
     env: dict[str, str] | os._Environ[str] = os.environ,
     *,
@@ -677,10 +699,14 @@ def status(
     alive: Callable[[int], bool] = _alive,
     histories: Callable[[], list[Path]] = _history_paths,
     out: Callable[[str], None] = print,
+    asleep: Callable[[], float | None] = suspend.asleep_seconds,
+    resumed: Callable[[], datetime | None] = suspend.last_resume,
 ) -> int:
     """`slots --status`: the quiet window, who holds each slot, the runs waiting for one (and those that went ahead
     without one and still run), and the verify runs of the last hour that ran without a slot. A manager launches only
-    when no run waits or runs over the limit (N3 (b) of the weekly budget ADR); the last line says whether one does."""
+    when no run waits or runs over the limit (N3 (b) of the weekly budget ADR); the last line says whether one does.
+    A holder from before the machine last slept is marked stale (slept_since, #595) and not counted as held: a verify
+    since #595 stops at the resume and frees its slot, an older one may hang in it."""
     now = now or datetime.now(UTC)
     where = folder(env)
     count = configured_count(env)
@@ -701,9 +727,21 @@ def status(
         )
     out("holders:")
     pool = Pool(where, max(count, 1), 0)
-    held = 0
+    held = stale = 0
+    asleep_now = asleep()
+    resumes: list[datetime | None] = []
+
+    def resumed_once() -> datetime | None:  # the System log is read at most once, and only when a holder needs it
+        if not resumes:
+            resumes.append(resumed())
+        return resumes[0]
+
     for holder in pool.holders()[:count]:
-        if holder.pid is not None and alive(holder.pid):
+        if holder.pid is not None and alive(holder.pid) and (why := slept_since(holder, asleep_now, resumed_once)):
+            stale += 1
+            out(f"  {holder.line()}: STALE, {why}: a verify since #595 stops at the resume and frees it, an older run "
+                "may hang in it; launch as if it were free")  # fmt: skip
+        elif holder.pid is not None and alive(holder.pid):
             held += 1
             out(f"  {holder.line()}")
         elif holder.pid is not None:
@@ -742,13 +780,14 @@ def status(
             f"  {rec.get('start')} {rec.get('worktree', '?')} ({rec.get('branch') or 'detached'}): {why}, "
             f"{rec.get('status', '?')} in {rec.get('seconds', '?')} s after waiting {slot.get('waited', '?')} s"
         )
+    stale_note = f", {stale} stale" if stale else ""
     if waiting or over_now:  # a run over the limit means the PC is past its slots: even more contention
         parts = [f"{len(waiting)} run(s) waiting for a slot"] if waiting else []
         if over_now:
             parts.append(f"{len(over_now)} running over the limit")
-        out(f"slots: {', '.join(parts)} ({held} of {count} held): launch nothing now")
+        out(f"slots: {', '.join(parts)} ({held} of {count} held{stale_note}): launch nothing now")
     else:
-        out(f"slots: no run waits for a slot ({held} of {count} held)")
+        out(f"slots: no run waits for a slot ({held} of {count} held{stale_note})")
     return 0
 
 

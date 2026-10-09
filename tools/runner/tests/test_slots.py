@@ -490,11 +490,25 @@ class StatusTest(SlotsCase):
         super().setUp()
         self.history = self.where.parent / "verify-history.jsonl"
 
-    def status(self, now: datetime = NOW, alive: Callable[[int], bool] | None = None) -> list[str]:
+    def status(
+        self,
+        now: datetime = NOW,
+        alive: Callable[[int], bool] | None = None,
+        asleep: float | None = None,
+        resumed: datetime | None = None,
+    ) -> list[str]:
         out: list[str] = []
         env = {slots.DIR_VAR: str(self.where), slots.COUNT_VAR: "2"}
+        self.resume_reads = 0
+
+        def read_resume() -> datetime | None:
+            self.resume_reads += 1
+            return resumed
+
         rc = slots.status(env, now=now, alive=alive or (lambda pid: pid == os.getpid()),
-                          histories=lambda: [self.history], out=out.append)  # fmt: skip
+                          histories=lambda: [self.history], out=out.append,
+                          asleep=lambda: asleep if asleep is not None else slots.suspend.asleep_seconds(),
+                          resumed=read_resume)  # fmt: skip
         self.assertEqual(rc, 0)
         return out
 
@@ -614,6 +628,64 @@ class StatusTest(SlotsCase):
         slots.status(env, now=NOW, histories=lambda: [], out=out.append)
         self.assertIn("no limit", out[0])
         self.assertIn("  none (no limit)", out)
+
+
+class SleptHolderTest(StatusTest):
+    """#595: a holder from before the machine last slept is stale in `slots --status`, and not counted as held."""
+
+    def hold(self, slot: int, since: datetime, asleep: float | None) -> None:
+        self.where.mkdir(parents=True, exist_ok=True)
+        data: dict[str, object] = {"worktree": f"D:/wt/{slot}", "branch": f"tooling/{slot}-x", "pid": os.getpid(),
+                                   "since": slots.stamp(since)}  # fmt: skip
+        if asleep is not None:
+            data["asleep"] = asleep
+        (self.where / f"slot-{slot}.json").write_text(json.dumps(data), encoding="utf-8")
+
+    def test_a_holder_the_machine_slept_through_is_stale_by_the_sleep_counter(self) -> None:
+        self.hold(1, NOW - timedelta(hours=10), asleep=1_000.0)
+        self.hold(2, NOW - timedelta(minutes=5), asleep=38_250.0)  # took its slot after the resume
+        out = self.status(asleep=38_277.0)  # 2026-10-08: 37,277 s asleep since slot 1 was taken
+        self.assertTrue(out[3].startswith("  slot 1: D:/wt/1 (tooling/1-x, pid "), out)
+        self.assertIn(": STALE, the machine slept 37277 s since it took the slot: a verify since #595 stops at the "
+                      "resume and frees it", out[3])  # fmt: skip
+        self.assertTrue(out[4].startswith("  slot 2: D:/wt/2 (") and "STALE" not in out[4], out)
+        self.assertEqual(out[-1], "slots: no run waits for a slot (1 of 2 held, 1 stale)")
+        self.assertEqual(self.resume_reads, 0, "the counter tells: the System log is not read")
+
+    def test_a_short_sleep_leaves_the_holder_live(self) -> None:
+        self.hold(1, NOW - timedelta(hours=1), asleep=1_000.0)
+        out = self.status(asleep=1_000.0 + slots.suspend.SUSPEND_GAP - 1)
+        self.assertNotIn("STALE", "\n".join(out))
+        self.assertEqual(out[-1], "slots: no run waits for a slot (1 of 2 held)")
+
+    def test_a_holder_without_the_counter_is_stale_when_it_started_before_the_last_resume(self) -> None:
+        resume = NOW - timedelta(hours=4, minutes=38)
+        self.hold(1, resume - timedelta(hours=10), asleep=None)  # a runner before #595
+        self.hold(2, resume + timedelta(minutes=1), asleep=None)
+        out = self.status(resumed=resume)
+        self.assertIn(f": STALE, it took the slot before the machine resumed from sleep at {slots.stamp(resume)} "
+                      "(System log)", out[3])  # fmt: skip
+        self.assertNotIn("STALE", out[4])
+        self.assertEqual(self.resume_reads, 1, "read once for both holders")
+
+    def test_no_known_resume_leaves_a_holder_without_the_counter_live(self) -> None:
+        self.hold(1, NOW - timedelta(hours=10), asleep=None)
+        out = self.status(resumed=None)
+        self.assertNotIn("STALE", "\n".join(out))
+
+    def test_a_holder_whose_process_ended_is_free_as_before_and_needs_no_log(self) -> None:
+        self.hold(1, NOW - timedelta(hours=10), asleep=None)
+        out = self.status(alive=lambda _pid: False, resumed=NOW)
+        self.assertIn("ended without releasing it", out[3])
+        self.assertEqual(self.resume_reads, 0)
+
+    def test_a_slot_taken_records_the_sleep_counter(self) -> None:
+        pool = slots.Pool(self.where, 1, 0, me={"worktree": "D:/wt/me"}, say=self.said.append, asleep=lambda: 4321.5)
+        self.addCleanup(pool.release)
+        pool.acquire()
+        holder = pool.holder(1)
+        assert holder is not None
+        self.assertEqual(holder.asleep, 4321.5)
 
 
 class CommandTest(unittest.TestCase):
