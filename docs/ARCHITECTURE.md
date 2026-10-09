@@ -248,6 +248,25 @@ dissidents, no crew present only once every crew member left, End widens nothing
   body colour, and a reconnecting player's old number.
   Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
   `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
+- **The lobby's name** (#214, the engineer's answers on #214 of 2026-10-08): the host names the lobby, at most
+  20 characters, with the same cleaning as a player's name (`LobbyName.clean`, `core/match/lobby_name.gd`, which
+  is `PlayerNames.clean_to` with `LobbyName.MAX_CHARS`): controls and invisible characters dropped, blank edges
+  trimmed, cut at 20 code points; never refused for its content. "" is the default, which is not a stored string:
+  each client shows the deck key `lobby.default_name` with the host's name (`ClientModel.host_name()`, peer 1's
+  roster name), so it follows the host's name and the client's language. Decisions (the implementer's, #214):
+  (1) a **session property**, `MatchState.lobby_name`, next to `joins`, not a `SettingSpec` of the mode: it is
+  text, not a number or an id set, and no mode (content) should own it; `ResetMatch` keeps it, so End → Lobby
+  keeps the name. (2) It rides **ChangeSettings** as an optional `lobby_name` (§4.1), not a new intent: the
+  mode's existing ChangeSettings row already makes it host-only and Lobby-only (`Accept_lobby_settings`, from =
+  HOST; the Countdown has none), so no file under `content/` changes, and `LobbyPhase._change_settings`
+  applies it all or nothing with the rest of the change. (3) It reaches clients in **`Welcome`** (the host's
+  answer, so a client knows it the moment it is welcomed, before the `SettingsChanged` that follows) and in
+  every **`SettingsChanged`** (a change reaches everyone; a join or leave repeats it). Public: no filtering
+  (§5). (4) The wire's `name` type carries it (§4.3.1), widened to 80 bytes for 20 four-byte characters.
+  Before `Welcome` a joiner knows no name: the connecting screen shows `connect.connecting_unnamed` (#494).
+  Tests: `lobby_name_test.gd`, `lobby_phase_lobby_name_test.gd`, `host_session_lobby_name_test.gd` (over
+  loopback: every client, a joiner's `Welcome`, a non-host refused, the limits), `client_model_test.gd`,
+  `lobby_panel_name_test.gd` and `game_loop_test.gd`.
 - A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
@@ -616,7 +635,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 |---|---|---|
 | `Hello(version, content, name)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. `name` (a String, the player's own, #550) is never refused: the host cleans it, falls back to `Player<n>` and suffixes a duplicate (§3.5). Accepted, it is the join (§3.5) |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
-| `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
+| `ChangeSettings(settings, map, lobby_name)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). The optional `lobby_name` (#214, §3.5) is text (else `bad_args`, which only a `core/` caller can reach: the wire's type is `name`), never refused for its content: `LobbyName.clean` keeps 20 characters, "" is the default again. All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5) |
@@ -640,11 +659,11 @@ wire schemas of the events and the snapshot are §4.3.
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions; the lobby's name ("" while it is the default, #214) | the joiner | its `Hello` is accepted |
 | `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
-| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
+| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back; the lobby's name ("" while it is the default, #214) | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
@@ -710,7 +729,7 @@ Little-endian; sizes in bytes.
 | `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
 | `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 (no row uses it since #550) | another byte |
-| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 64 (`WireField.NAME_MAX_BYTES`: 16 characters of at most 4 bytes, #550); empty allowed (the host's fallback) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 64 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two |
+| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 80 (`WireField.NAME_MAX_BYTES`: the lobby's 20 characters of at most 4 bytes, #214; a player's name keeps 16, #550); empty allowed (the host's fallback, the lobby's default) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 80 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two, and `lobby_name_test.gd` pins both limits at 4 bytes a character within the bound. Since 80 bytes, a `Hello` name of 17 to 20 characters decodes and the host cuts it to 16 |
 | `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
@@ -749,7 +768,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 |---|---|---|---|---|
 | 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1), `name: name` (the player's own, "" for none; #550) | 11 + n; 8192 |
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
-| 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
+| 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
 | 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
@@ -781,11 +800,11 @@ directive has no row, because it reaches no peer.
 | Kind | Event | Fields | Bytes; cap |
 |---|---|---|---|
 | 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
-| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>` | 410; 2048 |
-| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3` | 25; 81 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 411; 2048 |
+| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3` | 25; 97 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
-| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>` | 250 with no shortfall; 8192 |
+| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>`, `lobby_name: name` | 251 with no shortfall and the default name; 8192 |
 | 38 | `PhaseChanged` | `phase: id`, `end_tick: tick` (optional) | 10; 37 |
 | 39 | `CountdownCancelled` | `reason: id` | 9; 33 |
 | 40 | `PlayersPlaced` | `spots: map<peer, vec3>` | 161; 257 |
@@ -842,9 +861,11 @@ The rules of the table:
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
   `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), and is 10 since
-  #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster;
-  M4's protocol PRs each set
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), 10
+  when #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster,
+  and is 11 since #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
+  and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
+  97. The tutorial's `NextStage` (T1 #599, E65) takes 12 or later. M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1640,7 +1661,9 @@ covers its teleport, far-future, stale and wrong-phase twins, #429), the debug k
 `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111,
 113, 127, 128, 200, 255). A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
-in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
+in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it. Since #214 the hostile's
+`ChangeSettings` also carries a `lobby_name`, and `ChaosRun` fails a run that ends with the lobby named (only the
+host may name it, and the host's bot never does).
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
@@ -1822,7 +1845,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   level the look (§4.7.13).
 - **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
   · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
-  roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
+  lobby's name (the host's to edit, #214, §4.7.11), the roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
@@ -2216,6 +2239,16 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
   #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
   failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
+- #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
+  `LobbyName.MAX_CHARS` characters) that the host edits and everyone else reads (not editable), its placeholder
+  the default (`LobbyPanel.default_name`: `lobby.default_name` with `ClientModel.host_name()`). The page is
+  refreshed every frame, so the field takes the model's name only while it has no focus (the host's typing stays),
+  and it sends only on submit or when it loses focus, cleaned (`LobbyName.clean`: a pasted invisible character
+  would make the wire refuse the whole intent) and only when it differs from the model's: no `ChangeSettings` per
+  keystroke, each of which the host would answer with a `SettingsChanged` to everyone. `Game.change_lobby_name`
+  sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default) for
+  the lobby HUD (#495). Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
+  `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
