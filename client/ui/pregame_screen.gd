@@ -28,6 +28,11 @@ func _init() -> void:
 		column.add_child(label)
 	title_label.text = TITLE_KEY
 	role_label.theme_type_variation = &"EndTitle"
+	# No input in the pregame (#488 rule 4), as on the post game screen: the backdrop draws only.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for control: Control in find_children("*", "Control", true, false):
+		control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		control.focus_mode = Control.FOCUS_NONE
 
 
 func refresh(model: ClientModel, mode: GameMode) -> void:

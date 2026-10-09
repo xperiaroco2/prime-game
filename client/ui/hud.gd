@@ -52,6 +52,7 @@ func _init() -> void:
 	_corner(frame, Control.PRESET_BOTTOM_LEFT, [health_label, stamina_label])
 	swatch.custom_minimum_size = SWATCH_SIZE
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_destination_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_destination_row.add_child(swatch)
 	_destination_row.add_child(destination_label)
 	var slots: Array[Control] = [spectating_label, hand_label, belt_label, _destination_row]

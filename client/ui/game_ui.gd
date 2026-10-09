@@ -13,6 +13,10 @@ extends CanvasLayer
 ## child of this layer gets it, also one added later (the debug overlay, a later screen). Large
 ## text swaps it for THEME_LARGE, the same theme with larger text (#289; Settings > Accessibility,
 ## #491, calls set_large_text).
+##
+## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main menu's
+## page, the map, a card over the map, the Esc menu and its question to the host register here;
+## the how-to card (#254) registers itself (UiOverlays.CARD, the map key closing it too).
 
 ## The map and tasks screen opened (the game frees the mouse; the tutorial's `map_opened`).
 signal map_opened
@@ -43,6 +47,8 @@ var esc := EscMenu.new()
 ## The own player's life in the round (M4-9).
 var life := LifePanel.new()
 var screen := GameFlow.Screen.MENU
+## What Esc closes, the topmost first (#488): Game._input asks it before it opens the Esc menu.
+var overlays := UiOverlays.new()
 ## Whether the screens have the large-text theme (set_large_text).
 var large_text := false
 
@@ -65,6 +71,13 @@ func _init() -> void:
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
 	close_esc()
+	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_voice)
+	overlays.add(&"map", UiOverlays.MAP, map_is_open, close_map)
+	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
+	overlays.add(
+		&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.press.bind(EscMenuState.Tab.RESUME)
+	)
+	overlays.add(&"esc_dialog", UiOverlays.ESC_DIALOG, esc.state.asking, esc.cancel)
 
 
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
@@ -113,6 +126,16 @@ func toggle_map() -> void:
 
 func map_is_open() -> bool:
 	return _map_open
+
+
+## The map key (#488 rule 3): closes a card over the map (an overlay the key closes), else opens
+## or closes the map; ignored under the Esc menu. Returns whether the key was used.
+func press_map_key() -> bool:
+	if esc_open():
+		return false
+	if not overlays.close_top_for_map_key():
+		toggle_map()
+	return true
 
 
 ## The level's rooms and zones for the map (the game reads them when a map level loads).
@@ -171,6 +194,11 @@ func close_esc() -> void:
 
 func esc_open() -> bool:
 	return esc.is_open()
+
+
+## The main menu's Voice page, only while the main menu shows (its page stays set under a session).
+func _menu_panel_open() -> bool:
+	return screen == GameFlow.Screen.MENU and menu.voice_open()
 
 
 ## The map shows while open in the round; it hides the crosshair. The first frame it shows has

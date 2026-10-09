@@ -5,7 +5,9 @@
 # captures the real mouse). F under the menu readies nobody; F in the lobby readies its player.
 # The guest presses Esc as soon as it is welcomed (#204: the menu still opens on its Lobby tab)
 # and readies with that tab's Ready toggle, a button only the Lobby tab shows.
-# In the round the menu has Resume, Leave and Quit and no Lobby tab; its Resume button closes it.
+# In the round the menu has Resume, Leave and Quit and no Lobby tab; the host's Leave asks first,
+# and one Esc takes back only the question, the menu staying open (#488: one press, one overlay);
+# its Resume button closes it.
 # The text waits read short parts of the greybox wording (#150), never whole sentences.
 players 2
 windows 2
@@ -41,6 +43,14 @@ wait text esc.tabs lacks Lobby
 wait text esc.tabs has Resume
 frames 5
 shot esc_round_host
+button Leave
+frames 5
+shot esc_round_host_leave_question
+press ui_cancel
+frames 5
+wait esc open
+wait text esc.tabs has Resume
+shot esc_round_host_question_closed
 button Resume
 wait esc closed
 wait pointer captured

@@ -112,6 +112,8 @@ var _voice_control: VoiceControl
 ## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
 ## is read again when one opens.
 var _voice_panel_shown := false
+## The keys were typing and the talk key is not yet let go (#488): the microphone stays shut.
+var _talk_blocked := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -348,8 +350,8 @@ func open_esc() -> void:
 	pointer.capture(false)
 
 
-## Esc again, or Resume: the menu closes; in the lobby, Loading and the round the mouse is captured
-## again.
+## Esc again with no question open on it (its Resume), or Resume: the menu closes; in the lobby,
+## Loading and the round the mouse is captured again.
 func close_esc() -> void:
 	ui.close_esc()
 	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
@@ -493,26 +495,22 @@ func _input(event: InputEvent) -> void:
 			leave()
 		get_viewport().set_input_as_handled()
 		return
-	if ui.map_is_open():
-		# Esc closes the map first (#488's rule 2); the Esc menu never opens over it.
-		ui.close_map()
+	# Then the open overlay on top, only that one (#488 rule 2): a card, the map, the host's
+	# question, the Esc menu (its Resume), the main menu's Voice page (#301). A key capture in
+	# Settings > Controls took its Esc in its own _input already.
+	if ui.overlays.close_top() != &"":
 		get_viewport().set_input_as_handled()
 		return
+	# None open: the Esc menu, over a session only.
 	if _client == null:
-		# The main menu's Voice page goes back to the menu (#301); no session has no Esc menu.
-		if screen() == GameFlow.Screen.MENU and ui.menu.voice_open():
-			ui.menu.close_voice()
-			get_viewport().set_input_as_handled()
 		return
-	if ui.esc_open():
-		close_esc()
-	else:
-		open_esc()
+	open_esc()
 	get_viewport().set_input_as_handled()
 
 
 ## The Ready key, while the player walks in the lobby, and the map key (#253), which opens and
-## closes the map in the round on any life; neither under the Esc menu (gameplay input).
+## closes the map in the round on any life, or closes a card over it (#488); neither under the Esc
+## menu (gameplay input).
 func _unhandled_input(event: InputEvent) -> void:
 	if ui.esc_open():
 		return
@@ -524,8 +522,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		and event.is_action_pressed(&"map")
 		and screen() == GameFlow.Screen.ROUND
 		and _client != null
+		and ui.press_map_key()
 	):
-		ui.toggle_map()
 		get_viewport().set_input_as_handled()
 
 
@@ -915,12 +913,19 @@ func _setup_voice() -> void:
 	_sender.setup(_client, mode)
 
 
-## Each frame: the talk key counts only without the Esc menu; an open Voice panel (the Esc menu's
-## tab, or the main menu's page with no session, #301) shows the settings and the microphone's
-## level (the device list read again as it opens); the lobby's hint.
+## Each frame: the talk key counts, under the Esc menu too (#488 rule 4), but never while the
+## keys are typing, nor after it, until the talk key has been let go once (a V that ended a typing
+## or bound a key is still held, and must not key the microphone); an open Voice panel (the Esc
+## menu's tab, or the main menu's page with no session, #301) shows the settings and the
+## microphone's level (the device list read again as it opens); the lobby's hint.
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
-	_sender.listening = not ui.esc_open()
+	var typing := _typing()
+	if typing:
+		_talk_blocked = true
+	elif not Input.is_action_pressed(VoiceSender.TALK_ACTION):
+		_talk_blocked = false
+	_sender.listening = not typing and not _talk_blocked
 	var panel := shown_voice_panel()
 	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
@@ -928,6 +933,13 @@ func _refresh_voice() -> void:
 	if panel != null:
 		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+
+
+## A text field has the focus (the Lobby tab's name, #214) or Settings > Controls captures a key:
+## the keys are letters or a binding then, and V must not key the microphone.
+func _typing() -> bool:
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus is LineEdit or focus is TextEdit or ui.esc.controls.is_capturing()
 
 
 ## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Voice page, or null.

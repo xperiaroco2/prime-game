@@ -75,12 +75,12 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	# The lobby hints at the Voice tab until a microphone is picked.
 	await get_tree().process_frame
 	assert_bool(host.ui.lobby_hud.voice_label.visible).is_true()
-	# The Voice tab shows the settings; the talk key does not count under the menu.
+	# The Voice tab shows the settings; the talk key counts under the menu too (#488 rule 4).
 	host.open_esc()
 	host.ui.esc.press(EscMenuState.Tab.VOICE)
 	await get_tree().process_frame
 	assert_bool(host.ui.esc.voice.visible).is_true()
-	assert_bool(host.sender().listening).is_false()
+	assert_bool(host.sender().listening).is_true()
 	var panel := host.ui.esc.voice
 	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
 	assert_bool(panel.microphone_box.visible).is_true()
@@ -99,6 +99,58 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	assert_bool(host.sender().listening).is_true()
 	host.leave()
 	await get_tree().process_frame
+
+
+## #488 rule 4: under the Esc menu the voice works as set, push-to-talk too; never while a text
+## field has the keys (the Lobby tab's name, #214) or a key capture runs (binding V in Controls).
+func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
+	var saved := UserSettings.new(PATHS[0])
+	saved.mode = UserSettings.Mode.PUSH_TO_TALK
+	saved.write()
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)], 0)
+	assert_bool(await _until(func() -> bool: return host.screen() == S.LOBBY)).is_true()
+	_open_fake(host)
+	var mic := host.sender().capture.microphone as FakeMicrophone
+	host.open_esc()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	host.sender().talk_held = true
+	mic.capture_chunks(5, 0.5)
+	assert_bool(await _until(func() -> bool: return host.sender().sent > 0)).is_true()
+	# A text field on the menu's page has the keys: V is a letter there.
+	var field := LineEdit.new()
+	host.ui.esc.page().add_child(field)
+	field.grab_focus()
+	await _frames(2)
+	assert_object(host.get_viewport().gui_get_focus_owner()).is_same(field)
+	assert_bool(host.sender().listening).is_false()
+	field.release_focus()
+	field.free()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	# A key capture: the key pressed is the binding, not talk.
+	host.ui.esc.press(EscMenuState.Tab.CONTROLS)
+	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
+	assert_bool(host.ui.esc.controls.is_capturing()).is_true()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_false()
+	host.ui.esc.controls.cancel_capture()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	# V pressed to end a capture (or a field) is still held when the typing stops: it must be
+	# let go once before it keys the microphone (the key that bound an action is not talk).
+	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
+	await _frames(2)
+	Input.action_press(VoiceSender.TALK_ACTION)
+	host.ui.esc.controls.cancel_capture()
+	await _frames(3)
+	assert_bool(host.sender().listening).is_false()
+	Input.action_release(VoiceSender.TALK_ACTION)
+	await _frames(3)
+	assert_bool(host.sender().listening).is_true()
+	host.sender().talk_held = false
+	host.leave()
+	await _frames(2)
 
 
 func test_a_word_into_the_clients_microphone_reaches_the_host() -> void:
@@ -226,6 +278,12 @@ func _open_fake(game: Game) -> void:
 	game.voice_control().can_capture = true
 	game.voice_control().apply_microphone()
 	assert_bool(game.sender().is_open()).is_true()
+
+
+## `count` whole frames: process_frame fires before the nodes' _process (#222).
+func _frames(count: int) -> void:
+	for i in count:
+		await get_tree().process_frame
 
 
 ## Steps the clock and the frames until `done` holds, at most MAX_FRAMES physics frames.

@@ -33,6 +33,7 @@ func _init() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom.add_child(panel)
 	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(column)
 	title_label.theme_type_variation = &"LifeTitle"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -48,6 +49,7 @@ func _init() -> void:
 	bar.step = 0.0
 	bar.show_percentage = false
 	bar.theme_type_variation = &"LifeBar"
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(bar)
 	show_hud(LifeHud.Shown.new())
 

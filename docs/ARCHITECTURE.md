@@ -1857,7 +1857,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
   (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
   #212: End returns everyone by itself).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (with the map open, Esc closes only the map, §4.7.33), and where
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (one Esc closes one overlay, the topmost first: a card, the map, the host's Leave or Quit question before the menu, §4.7.35), and where
   `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
@@ -2407,7 +2407,8 @@ a follow-up on #144 and #145):
   §4.7.26; written on each change). `Game` reads this
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
   stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
-  (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
+  (`voice_talk`, V), under the Esc menu too since #488 but never while a text field has the focus or a key capture
+  runs (`Game._typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
   the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
@@ -2983,18 +2984,20 @@ the Toy restyle is #490 and the how-to card #254.
 - **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
   for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
   any life. A saved binding under the old name reads as an unknown action and keeps the default. `Game` reads it in
-  `_unhandled_input` on the round's screen only, never under the Esc menu (whose Controls tab captures keys).
+  `_unhandled_input` on the round's screen only, never under the Esc menu (whose Controls tab captures keys);
+  `GameUi.press_map_key` closes a how-to card over the map first (§4.7.35).
 - **One open state.** `GameUi` holds whether the map is open (`open_map`, `close_map`, `toggle_map`, `map_is_open`;
   the signals `map_opened`, the tutorial's hook, and `map_closed`). It opens only in the round with no Esc menu;
   any other screen closes it, so a new round starts with it closed; `open_esc` closes it after the menu opened, so
   the two never show together (a close request while hosting too). Esc with the map open closes only the map
-  (#488's rule 2). While it shows the crosshair hides.
+  (#488's rule 2, `GameUi.overlays`, §4.7.35). While it shows the crosshair hides.
 - **The mouse.** Opening frees the mouse (`Game._on_map_opened`); closing captures it again only in the round, with
   no Esc menu and the window focused, as closing the Esc menu does. `PlayerController.mouse_free` (set every frame
   from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
   put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
-  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take no focus, since
-  Space jumps and is also `ui_accept` until #488 moves it.
+  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take no focus yet
+  (the mouse presses them; their keyboard focus is #490's and #254's); Space, which jumps, is out of `ui_accept`
+  since #488, so a focused one would not press with a jump.
 - **What it shows** (`client/ui/MapScreen`): the tasks, one row per task by id with its name (`task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)` (#254
   connects the card); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
@@ -3030,6 +3033,56 @@ the Toy restyle is #490 and the how-to card #254.
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
   Esc rule). The `shot`s: `client/dev/map_preview.tscn` and `map_preview_uk.tscn` (Delivery's zones lit); the
   playcheck scenario `map`.
+
+#### 4.7.35 Built in #488 (M6.2), the UI's input rules across the game
+The «Layers and input (every screen)» section of the UI handoffs at `ui-0.4.0` (the engineer's standing decision for
+the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built the 16 actions, their phases and
+`KeyLabel`; #253 (§4.7.33) the map key and its mouse.
+- **Space leaves `ui_accept`** (rule 1). `project.godot` overrides `ui_accept` with Godot 4.7.2's own list (probed:
+  Enter, keypad Enter, Space; deadzone 0.5) without Space, plus the gamepad's A (button 0), which the builtin lacks
+  and the rule names; Enter stays first (playcheck's `button` step presses the first key). `ui_select` keeps Space:
+  no Button reads it. `ui_up/down/left/right` are the arrows and the d-pad only, never WASD.
+- **Esc closes the topmost overlay, one per press** (rule 2). `client/ui/UiOverlays` (pure) holds the overlays by
+  layer, each registered with what tells whether it is open and what closes it, asked on every press (a freed one
+  counts as closed): `MENU_PANEL` (the main menu's Voice page, only while the main menu shows), `MAP`, `CARD`,
+  `ESC_MENU` (closed as its Resume, so `Game.close_esc` captures the mouse again), `ESC_DIALOG` (the host's Leave or
+  Quit question, `EscMenuState.asking()`: back to the default tab). `GameUi` registers all but the card. `Game._input`
+  asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
+  `ui.overlays.close_top()`, then, with a session only, opens the Esc menu. A key capture in Settings › Controls
+  takes its Esc in its own `_input`, which runs before the game's, so it is no overlay here.
+- **The how-to card's seam** (#254, not built yet): the card registers itself, `ui.overlays.add(&"howto_card",
+  UiOverlays.CARD, <is open>, <close>, true)`; the last argument makes the map key close it too. It closes with the
+  map (`map_closed`), which `open_esc` closes. The tests use a stub card.
+- **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
+  the map key closes), else toggles the map; under the Esc menu it does nothing and returns false.
+- **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
+  the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `Game._typing()`
+  alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
+  runs, since a handled key still reads as pressed in `Input`; and `Game._talk_blocked` keeps it shut after the
+  typing stops until the talk key has been let go once (a V that ended the capture is still held). With the map open the keys work and the look stops
+  (`mouse_free`). The lobby HUD, the round HUD and the life panel take no mouse (the destination row, the life
+  panel's column and bar were PASS or STOP); the pregame takes no input, as the post game screen (its backdrop,
+  centre and column were STOP or PASS); the connecting screen's backdrop stops the mouse (§4.7.32).
+- **Keys on screen** (rule 7): `KeyLabel.is_wide(physical)` and `is_wide_action(action)`: a keycap is wide for
+  exactly the physical keys Space, Shift, Tab and Esc, wherever a rebind puts them; Ctrl, Enter, F5 and the mouse
+  words stay normal until a screen shows one (a placeholder, not a decision).
+  The keycap builders (#492, #497) take the theme's wide size from it. Esc has no deck key (`key.esc`): it shows as
+  the literal "Esc" where it is fixed.
+- **Look in tests.** Headless Godot keeps no mouse mode (CAPTURED reads back VISIBLE, probed on 4.7.2), so
+  `PlayerController.mouse_captured` (a Callable, Input's mouse mode by default) is the seam the tests replace.
+- Tests: `tests/unit/client/input_actions_test.gd` (the `ui_accept` list, Space jumps, a focused Button pressed by
+  Enter, keypad Enter and the gamepad's A and not by Space through `Input.parse_input_event`, no WASD in the focus
+  actions; seen failing on the builtin list), `tests/unit/client/ui/ui_overlays_test.gd` (the order, one per press,
+  a closed or freed overlay skipped, the map key closes only a card), `game_ui_overlays_test.gd` (the main menu's
+  page only on the main menu, the question before the menu, the map key), `input_rules_test.gd` (the HUDs and the
+  pregame take no mouse and no focus; seen failing on four parts), `key_label_test.gd` (the four wide keycaps follow a
+  rebind), `tests/unit/client/app/controls_test.gd` (the 16 actions with the issue's deck keys and defaults),
+  `tests/integration/client/app/esc_menu_input_test.gd` (the host's question closes first, a capture before the
+  menu, no look, jump or sprint under the menu and the look back after it; seen failing on the old `Game._input`
+  and without the controller's guard), `map_input_test.gd` (a stub card closes first on Esc and on M, M under the
+  menu does nothing, the keys work and the look stops with the map open), `game_voice_test.gd` (Talk sends under
+  the menu, a focused text field or a capture stops it; seen failing without `_typing`). The playcheck scenarios
+  `esc_menu` (the host's Leave question, one Esc back) and `map`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -3476,7 +3529,7 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   hears nobody, nothing in Off or with no device open.
 - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
   with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
-  counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+  counted under the Esc menu too since #488, never while typing in a text field or a key capture), or Off, which closes only the own microphone: the others stay audible and the
   Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
   voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
   In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither

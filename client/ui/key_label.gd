@@ -16,10 +16,15 @@ extends RefCounted
 ## - Deck keys are the copy deck's (#208, client/i18n/strings.csv), read only through its
 ##   translation in the current language ("Space" in English, "Пробіл" in Ukrainian).
 ## - Nothing bound: "".
+## - A keycap takes the wide size (is_wide) for the physical keys Space, Shift, Tab and Esc
+##   (#488 rule 7), and so follows a rebind.
 
 ## The last code point of the Latin scripts (Latin Extended-B): a layout's label above it, and
 ## below the special keys, is shown by its US name.
 const LATIN_END := 0x024F
+
+## The keys whose keycap is wide (#488 rule 7).
+const WIDE_KEYS: Array[Key] = [KEY_SPACE, KEY_SHIFT, KEY_TAB, KEY_ESCAPE]
 
 ## The mouse buttons named by a deck key.
 const MOUSE_WORDS: Dictionary[MouseButton, StringName] = {
@@ -72,6 +77,28 @@ static func shown(physical: Key, label: Key) -> Key:
 	if (label & KEY_SPECIAL) != 0 or label <= LATIN_END:
 		return label
 	return physical
+
+
+## Whether a keycap for the physical key `physical` takes the wide size: Space, Shift, Tab and Esc
+## (#488 rule 7, the four the issue names; Ctrl, Enter, F5 and the mouse words stay normal until
+## a screen shows one, a placeholder and not a decision).
+static func is_wide(physical: Key) -> bool:
+	return WIDE_KEYS.has(physical)
+
+
+## Whether `action`'s keycap takes the wide size now (its first bound key, as of_action reads it).
+static func is_wide_action(action: StringName) -> bool:
+	if not InputMap.has_action(action):
+		return false
+	for event: InputEvent in InputMap.action_get_events(action):
+		var key := event as InputEventKey
+		if key != null:
+			return is_wide(
+				key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode
+			)
+		if event is InputEventMouseButton:
+			return false
+	return false
 
 
 ## A deck key's text in the current language (the copy deck's translation).
