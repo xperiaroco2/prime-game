@@ -30,7 +30,8 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	var nodes: Array = [
 		["Night", "Panel", &"ToyBackdropNight", Vector2.ZERO],
 		["Connecting", "VBoxContainer", &"ToyColumnTwentyFour", Vector2(768, 0)],
-		["Connecting/Spinner", "Panel", &"ToySpinner", Vector2(90, 90)],
+		["Connecting/SpinnerBox", "Control", &"", Vector2(90, 90)],
+		["Connecting/SpinnerBox/Spinner", "Panel", &"ToySpinner", Vector2(90, 90)],
 		["Connecting/Texts", "VBoxContainer", &"ToyColumnEight", Vector2.ZERO],
 		["Connecting/Texts/Title", "Label", &"ToyTitleOnDark", Vector2(768, 0)],
 		["Connecting/Texts/Step", "Label", &"ToyTextOnDark", Vector2.ZERO],
@@ -90,7 +91,7 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	assert_int(_screen.connecting.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
 	assert_int(_screen.failure.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
 	# Size flags as drawn; raised buttons on their ToyRaised with its base, Back beside flat.
-	assert_int(_screen.spinner.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	assert_int(_screen.spinner_box.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_that(_screen.spinner.pivot_offset_ratio).is_equal(Vector2(0.5, 0.5))
 	assert_int(_screen.code_row.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_int(_screen.code_key.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
@@ -233,12 +234,12 @@ func test_the_title_names_the_lobby_once_known_and_follows_the_language() -> voi
 	assert_str(_screen.title_label.text).is_equal("Підключення…")
 	TranslationServer.set_locale(Languages.ENGLISH)
 	assert_str(_screen.title_label.text).is_equal("Connecting…")
-
 	# A later join does not keep the earlier lobby's name.
 	_screen.set_lobby("X")
 	assert_str(_screen.title_label.text).is_equal("Connecting to “X”…")
 	_screen.show_join("K7M2QX", JoinProgress.Step.FINDING)
 	assert_str(_screen.title_label.text).is_equal("Connecting…")
+
 
 func test_the_version_lines_show_only_on_fail_version_when_both_are_known() -> void:
 	var lines := PackedStringArray(["13 (a1b2c3)", "12 (9f8e7d)"])
@@ -375,6 +376,22 @@ func test_the_spinner_turns_once_a_second_and_half_as_fast_under_reduced_motion(
 	_screen.show_failure(&"lost")
 	_screen._process(0.25)
 	assert_float(_screen.spinner.rotation).is_equal_approx(TAU / 8.0, 0.0001)
+
+
+func test_a_sort_of_the_column_does_not_reset_the_spinner_s_turn() -> void:
+	_screen.show_join("K7M2QX", JoinProgress.Step.CONNECTING)
+	await _frames(1)
+	_screen.set_process(false)
+	_screen.spinner.rotation = 1.0
+	_screen.step_label.text = "A much longer step text that changes the column's minimum size"
+	_screen.connecting.queue_sort()
+	await _frames(2)
+	assert_float(_screen.spinner.rotation).is_equal_approx(1.0, 0.0001)
+	# The holder takes the spinner's size and the spinner fills it.
+	assert_that(_screen.spinner_box.custom_minimum_size).is_equal(
+		_screen.spinner.custom_minimum_size
+	)
+	assert_that(_screen.spinner.size).is_equal(_screen.spinner_box.size)
 
 
 func test_the_keycap_and_the_spinner_take_their_size_from_the_theme_also_large() -> void:

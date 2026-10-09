@@ -69,6 +69,8 @@ var failure_state: StringName = &""
 var night := Panel.new()
 var connecting := VBoxContainer.new()
 var spinner := Panel.new()
+## The spinner's holder in the column: a plain Control, so that no sort resets the turn.
+var spinner_box := Control.new()
 var title_label := Label.new()
 var step_label := Label.new()
 var code_row := HBoxContainer.new()
@@ -142,9 +144,9 @@ func show_join(code: String, step: JoinProgress.Step) -> void:
 	code_label.text = code
 	code_row.visible = not code.is_empty()
 	_lobby = ""
+	_retext_title()
 	set_elapsed(0)
 	set_step(step)
-	_retext_title()
 	_show_part(Part.JOIN)
 
 
@@ -323,6 +325,10 @@ func _retext_versions() -> void:
 	version_own.text = _word("connect.fail.version_own").format({"version": _versions[1]})
 
 
+func _fit_spinner_box() -> void:
+	spinner_box.custom_minimum_size = spinner.custom_minimum_size
+
+
 func _build_connecting() -> void:
 	connecting.name = "Connecting"
 	connecting.theme_type_variation = &"ToyColumnTwentyFour"
@@ -333,9 +339,17 @@ func _build_connecting() -> void:
 	add_child(connecting)
 	spinner.name = "Spinner"
 	spinner.theme_type_variation = &"ToySpinner"
-	spinner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	spinner.pivot_offset_ratio = Vector2(0.5, 0.5)
-	connecting.add_child(UiParts.sized(spinner))
+	spinner.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# A container resets the rotation of its children at every sort (Container.fit_child_in_rect),
+	# which would snap the turning spinner back: a plain Control keeps it out of the layout, and
+	# takes its size.
+	spinner_box.name = "SpinnerBox"
+	spinner_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	spinner_box.add_child(UiParts.sized(spinner))
+	spinner.minimum_size_changed.connect(_fit_spinner_box)
+	_fit_spinner_box()
+	connecting.add_child(spinner_box)
 	var texts := _column("Texts", &"ToyColumnEight")
 	connecting.add_child(texts)
 	_label(title_label, "Title", &"ToyTitleOnDark", JOIN_WIDTH, true)
