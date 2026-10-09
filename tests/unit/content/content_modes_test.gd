@@ -83,8 +83,14 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 			stripped.add_marker(tag, at)
 	var settings := mode.default_settings()
 	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
-	assert_array(Array(demands.shortfalls(stripped))).contains_exactly(
-		["1 respawn marker(s) needed, the map has 0"]
+	assert_array(HostText.to_dicts(demands.shortfalls(stripped))).contains_exactly(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["respawn"]),
+				"numbers": {&"need": 1, &"have": 0}
+			}
+		]
 	)
 
 

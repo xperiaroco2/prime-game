@@ -73,7 +73,15 @@ func test_settings_that_do_not_fit_the_map_hold_the_lobby_and_say_why() -> void:
 	assert_dict(changed.map_markers).is_equal({&"round_player": 4, &"knife": 1, &"circle": 1})
 	assert_dict(changed.needed_colours).is_equal({&"circle": 1})
 	assert_dict(changed.palettes).is_equal({&"circle": 2})
-	assert_array(Array(changed.shortfalls)).is_equal(["2 knife marker(s) needed, the map has 1"])
+	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["knife"]),
+				"numbers": {&"need": 2, &"have": 1}
+			}
+		]
+	)
 	# A change that fits fires all_ready at once: the ready flags stayed.
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"settings": {"knives": 1}})
 	assert_str(game.phase_id()).is_equal("countdown")
@@ -86,8 +94,14 @@ func test_more_stations_than_palette_colours_do_not_fit() -> void:
 	FixtureBaseMode.ready(game, P1)
 	assert_str(game.phase_id()).is_equal("lobby")
 	var changed := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
-	assert_array(Array(changed.shortfalls)).is_equal(
-		["3 circle colour(s) needed, the palette has 2"]
+	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+		[
+			{
+				"id": &"colours",
+				"ids": PackedStringArray(["circle"]),
+				"numbers": {&"need": 3, &"have": 2}
+			}
+		]
 	)
 
 
@@ -101,10 +115,66 @@ func test_the_player_count_must_be_within_the_modes_bounds() -> void:
 	FixtureBaseMode.ready(game, P1)
 	assert_str(game.phase_id()).is_equal("lobby")
 	var changed := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
-	assert_array(Array(changed.shortfalls)).is_equal(["1 player(s), the mode plays with 2 to 4"])
+	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+		[
+			{
+				"id": &"players_few",
+				"ids": PackedStringArray(),
+				"numbers": {&"count": 1, &"min": 2, &"max": 4}
+			}
+		]
+	)
 	FixtureBaseMode.join(game, P2)
 	FixtureBaseMode.ready(game, P2)
 	assert_str(game.phase_id()).is_equal("countdown")
+
+
+## The join limit keeps a lobby within max_players; a mode lowered under the players present is
+## the one way past it, and the shortfall counts the players too many (#548).
+func test_more_players_than_the_maximum_name_how_many_too_many() -> void:
+	var mode := FixtureBaseMode.mode()
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureBaseMode.layouts())
+	game.keep_history = true
+	game.start(0)
+	for peer: int in [P1, P2, P3]:
+		FixtureBaseMode.join(game, peer)
+	mode.max_players = 1
+	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"map": FixtureBaseMode.MAP})
+	var changed := game.view_of(P3).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
+	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+		[
+			{
+				"id": &"players_many",
+				"ids": PackedStringArray(),
+				"numbers": {&"count": 2, &"min": 1, &"max": 1}
+			}
+		]
+	)
+
+
+## A map without a layout names no path: a path is no wire id, and SettingsChanged has the map.
+## (LayoutCheck refuses such a mode at start, so FitCheck is asked directly.)
+func test_a_map_without_a_layout_is_a_shortfall_without_arguments() -> void:
+	var mode := FixtureBaseMode.mode()
+	var no_layouts: Dictionary[String, LevelLayout] = {}
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), no_layouts)
+	game.state.map = FixtureBaseMode.MAP
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = mode
+	(
+		assert_array(HostText.to_dicts(FitCheck.shortfalls(ctx, Demands.new(null))))
+		. is_equal(
+			[
+				{
+					"id": &"players_few",
+					"ids": PackedStringArray(),
+					"numbers": {&"count": 1, &"min": 1, &"max": mode.max_players}
+				},
+				{"id": &"no_layout", "ids": PackedStringArray(), "numbers": {}},
+			]
+		)
+	)
 
 
 func test_the_host_changes_settings_and_un_readies_nobody() -> void:

@@ -5,8 +5,9 @@ extends MatchEvent
 ## demands). It carries the whole-number settings, the set settings (the task types the host
 ## banned, #79), the demands per spawn tag against the map's markers (the package count
 ## among them), the colours per station kind against its palette, every reason the settings do
-## not fit, so the lobby can show why `all_ready` cannot fire, and the lobby's name (#214), which
-## a ChangeSettings may change too. Audience: everyone.
+## not fit (HostTexts, #548), so the lobby can show why `all_ready` cannot fire in its own
+## language, and the lobby's name (#214), which a ChangeSettings may change too. Audience:
+## everyone.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE
@@ -24,8 +25,9 @@ var map_markers: Dictionary[StringName, int] = {}
 var needed_colours: Dictionary[StringName, int] = {}
 ## Station kind -> colours its palette has.
 var palettes: Dictionary[StringName, int] = {}
-## Why the settings do not fit (the player count, a missing marker or colour); empty when they do.
-var shortfalls := PackedStringArray()
+## Why the settings do not fit (the player count, a missing marker or colour), as HostTexts
+## (#548): ids plus arguments, never a sentence. Empty when they fit.
+var shortfalls: Array[HostText] = []
 ## The lobby's name (MatchState.lobby_name, #214): "" while it is the default.
 var lobby_name := ""
 
@@ -36,7 +38,7 @@ func _init(
 	player_count: int,
 	demands: Demands,
 	layout: LevelLayout,
-	problems: PackedStringArray,
+	problems: Array[HostText],
 	sets: Dictionary[StringName, PackedStringArray] = {},
 	lobby := ""
 ) -> void:
@@ -71,6 +73,6 @@ func to_dict() -> Dictionary:
 		"map_markers": map_markers.duplicate(),
 		"needed_colours": needed_colours.duplicate(),
 		"palettes": palettes.duplicate(),
-		"shortfalls": shortfalls.duplicate(),
+		"shortfalls": HostText.to_dicts(shortfalls),
 		"lobby_name": lobby_name,
 	}

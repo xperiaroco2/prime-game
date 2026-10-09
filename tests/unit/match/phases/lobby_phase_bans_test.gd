@@ -109,8 +109,14 @@ func test_the_fit_check_holds_for_any_draw() -> void:
 	FixtureBanModes.change(game, {"tasks": 2})
 	FixtureBaseMode.ready(game, P1)
 	assert_str(game.phase_id()).is_equal("lobby")
-	assert_array(Array(FixtureBanModes.last_change(game, P1).shortfalls)).is_equal(
-		["6 token marker(s) needed, the map has 5"]
+	assert_array(HostText.to_dicts(FixtureBanModes.last_change(game, P1).shortfalls)).is_equal(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["token"]),
+				"numbers": {&"need": 6, &"have": 5}
+			}
+		]
 	)
 	# The small map has 1 token marker: even `first` alone does not fit there.
 	FixtureModes.send(
@@ -123,8 +129,14 @@ func test_the_fit_check_holds_for_any_draw() -> void:
 		}
 	)
 	assert_str(game.phase_id()).is_equal("lobby")
-	assert_array(Array(FixtureBanModes.last_change(game, P1).shortfalls)).contains(
-		["2 token marker(s) needed, the map has 1"]
+	assert_array(HostText.to_dicts(FixtureBanModes.last_change(game, P1).shortfalls)).contains(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["token"]),
+				"numbers": {&"need": 2, &"have": 1}
+			}
+		]
 	)
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"map": FixtureBaseMode.MAP}, 3)
 	assert_str(game.phase_id()).is_equal("countdown")
