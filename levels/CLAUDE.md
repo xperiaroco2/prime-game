@@ -37,15 +37,18 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     never counts the player whose feet stand below the snapped marker;
   - keeps its whole cylinder **clear of walls and ceilings**: the host tests positions only, with no line of
     sight, so a cylinder through a thin wall counts a player behind it, and one taller than its storey counts a
-    player upstairs. Headless tests cannot see this: a `shot` of the station's room in the PR checks it;
+    player upstairs. A `shot` of the station's room in the PR checks it; on House, `house_markers_test.gd` also
+    tests each zone's cylinder against the host's collision world (no wall, ceiling or furniture inside, flat floor
+    under it, #651);
   - keeps **ZE9's distances**, which `tests/unit/content/zone_content_test.gd` checks on every map of the base
     mode: any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least its
     radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
-    are not compared.
+    are not compared (the check is `tests/unit/content/zone_spacing.gd`, which House's marker test runs too).
 - Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
   start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
-  "not a decision" (#649); House's are #651's.
+  "not a decision" (#649); House's three (the generator hall, the garden, the landing) are #651's placeholders until
+  the engineer moves them.
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
