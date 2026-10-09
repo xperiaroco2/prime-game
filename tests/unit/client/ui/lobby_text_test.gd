@@ -147,11 +147,11 @@ func test_a_row_reads_you_the_host_mark_or_the_name() -> void:
 
 func test_a_rename_or_a_ready_changes_the_rows_value() -> void:
 	var model := _handoff_lobby()
-	var before := LobbyText.of(model, _mode, NOW).rows_key()
-	assert_str(LobbyText.of(model, _mode, NOW + 3).rows_key()).is_equal(before)
+	var unchanged := LobbyText.of(model, _mode, NOW).rows_key()
+	assert_str(LobbyText.of(model, _mode, NOW + 3).rows_key()).is_equal(unchanged)
 	model.fold(&"ReadyChanged", {"peer": 3, "ready": true})
 	var readied := LobbyText.of(model, _mode, NOW).rows_key()
-	assert_str(readied).is_not_equal(before)
+	assert_str(readied).is_not_equal(unchanged)
 	model.roster[2].name = "Taras K"
 	assert_str(LobbyText.of(model, _mode, NOW).rows_key()).is_not_equal(readied)
 
