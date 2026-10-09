@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## ClientModel (ARCHITECTURE §4.6): what a client knows, folded from decoded events (here core/'s
 ## own events through to_dict(), which the codec reproduces exactly): the roster, settings, phase,
-## items with every player's hand and belt (E29), stations, tasks (E30), bodies, each player's life
-## (E25), avatars and its own SelfStatus; a match's
-## facts cleared on LoadMatch and on entering the lobby, the roster and settings kept.
+## items with every player's hand and belt (E29), stations with a zone's progress (ZE8 of the zone
+## task ADR), tasks (E30), bodies, each player's life (E25), avatars and its own SelfStatus; a
+## match's facts cleared on LoadMatch and on entering the lobby, the roster and settings kept.
 
 const OWN := 2
 
@@ -95,6 +95,36 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	assert_bool(_model.is_alive(OWN)).is_true()
 	_fold(MatchEndedEvent.new(&"crew"))
 	assert_str(String(_model.winner)).is_equal("crew")
+
+
+func test_a_zones_progress_follows_its_zone_progress_and_done_comes_only_from_it() -> void:
+	_to_round()
+	_fold(StationPlacedEvent.new(3, &"zone", Color.YELLOW, Vector3(0, 0, 20)))
+	var zone := _model.stations[3]
+	assert_int(zone.ticks).is_equal(0)
+	assert_int(zone.needed).is_equal(0)
+	assert_bool(zone.counting).is_false()
+	assert_int(zone.progress_tick).is_equal(-1)
+	assert_bool(zone.done).is_false()
+	_fold(ZoneProgressEvent.new(3, 1, 20, true, 100))
+	assert_int(zone.ticks).is_equal(1)
+	assert_int(zone.needed).is_equal(20)
+	assert_bool(zone.counting).is_true()
+	assert_int(zone.progress_tick).is_equal(100)
+	assert_bool(zone.done).is_false()
+	_fold(ZoneProgressEvent.new(3, 12, 20, false, 111))
+	assert_int(zone.ticks).is_equal(12)
+	assert_bool(zone.counting).is_false()
+	assert_int(zone.progress_tick).is_equal(111)
+	assert_bool(zone.done).is_false()
+	# Another zone's event and one of a station the model does not know change nothing here.
+	_fold(ZoneProgressEvent.new(9, 20, 20, false, 112))
+	assert_int(zone.ticks).is_equal(12)
+	assert_bool(_model.stations.has(9)).is_false()
+	_fold(ZoneProgressEvent.new(3, 20, 20, false, 130))
+	assert_int(zone.ticks).is_equal(20)
+	assert_bool(zone.counting).is_false()
+	assert_bool(zone.done).is_true()
 
 
 func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
