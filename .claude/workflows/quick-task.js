@@ -1,10 +1,10 @@
 export const meta = {
   name: 'quick-task',
   description: 'One small prime-game issue by one agent: change, lint and check, commit, push, PR, CI; fresh reviews only when the diff touches core, server, net, voice or tests/harness',
-  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, client/ (but client/ui/), voice/ or tests/harness/ adds 2 reviewers and, on a blocker or major, 1 fix agent.',
+  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, client/, voice/ or tests/harness/ adds 2 reviewers (1, code-reviewer, when its only such paths are under client/ui/) and, on a blocker or major, 1 fix agent.',
   phases: [
     { title: 'Quick', detail: 'one agent: the change, lint and check, commit, push, PR, CI (at most two fix rounds)' },
-    { title: 'Review', detail: 'only for a diff under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: code-reviewer and netcode-security-reviewer, then one fix agent on a blocker or major' },
+    { title: 'Review', detail: 'only for a diff under core/ server/ net/ client/ voice/ tests/harness/: code-reviewer and netcode-security-reviewer (code-reviewer alone when those paths are all under client/ui/), then one fix agent on a blocker or major' },
   ],
 }
 
@@ -38,9 +38,12 @@ const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
 const BASE = A.base || 'main'
 const SCRATCH = `a${N}`
 const QUICK_MODEL = M.quick || 'sonnet'
-// The diff-path rule (#608): only these paths get the fresh reviews; anything else has CI as its gate. client/ui/ (the
-// screens) is not reviewed: the engineer's answer 2b on #302 (comment 6085059719), as issue-task.js's light tier (#606).
-const REVIEWED = /^(?:(?:core|server|net|voice|tests\/harness)\/|client\/(?!ui\/))/
+// The diff-path rule (#608): only these paths get the fresh reviews; anything else has CI as its gate.
+const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
+// The netcode review's paths: a diff whose reviewed paths are all under client/ui/ (the screens) gets code-reviewer
+// alone, as issue-task.js's light tier does (#606; the engineer's answer 2b on #302, comment 6085059719, made the
+// screens light there; one fresh reviewer stays, never none). issue-task.js's REVIEWED line is this rule, copied.
+const NETCODE = /^(?:(?:core|server|net|voice|tests\/harness)\/|client\/(?!ui\/))/
 const SERIOUS = /blocker|major/i
 
 const RULES = [
@@ -134,8 +137,8 @@ const paths = quick.changed_paths || []
 // No paths returned with a PR open: unknown, so reviewed (as issue-task does).
 const touched = paths.filter(p => REVIEWED.test(p))
 if (paths.length && !touched.length) {
-  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/`)
-  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/: CI is the gate' }, open_serious: 0 })
+  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ client/ voice/ tests/harness/`)
+  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ client/ voice/ tests/harness/: CI is the gate' }, open_serious: 0 })
 }
 
 phase('Review')
@@ -145,14 +148,18 @@ const base = [
   `The agent's summary: ${line(quick.summary, 600)}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against the issue or an invariant, a leak, a broken test. No findings is a valid answer.',
 ].join('\n\n')
+// No paths returned: unknown, so the netcode review runs too.
+const netcode = !paths.length || paths.some(p => NETCODE.test(p))
+const reviewers = netcode ? ['code-reviewer', 'netcode-security-reviewer'] : ['code-reviewer']
 const reviews = (await parallel([
   () => agent(base, opts({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, M.review)),
-  () => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots and view_of (ARCHITECTURE §5, §4.2 and §4.6: `tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`); intents the host does not validate; host-trust assumptions.', opts({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, M.review)),
+  ...(netcode ? [() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots and view_of (ARCHITECTURE §5, §4.2 and §4.6: `tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`); intents the host does not validate; host-trust assumptions.', opts({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, M.review))] : []),
 ])).map(r => r || { dead: true, findings: [] })
 const serious = reviews.flatMap(r => (r.findings || []).filter(f => SERIOUS.test(f.severity)))
-const why = paths.length ? `the diff touches ${touched.slice(0, 3).join(', ')}${touched.length > 3 ? ', ...' : ''}` : 'no changed paths returned'
-const counts = reviews.map((r, i) => ({ by: ['code-reviewer', 'netcode-security-reviewer'][i], findings: (r.findings || []).length, serious: (r.findings || []).filter(f => SERIOUS.test(f.severity)).length }))
-// A reviewer that returned nothing leaves half the review missing: never ready_to_merge then.
+const why = (paths.length ? `the diff touches ${touched.slice(0, 3).join(', ')}${touched.length > 3 ? ', ...' : ''}` : 'no changed paths returned') +
+  (netcode ? '' : '; all under client/ui/: code-reviewer alone, no netcode review (#606)')
+const counts = reviews.map((r, i) => ({ by: reviewers[i], findings: (r.findings || []).length, serious: (r.findings || []).filter(f => SERIOUS.test(f.severity)).length }))
+// A reviewer that returned nothing leaves part of the review missing: never ready_to_merge then.
 const died = reviews.filter(r => r.dead).length
 const deadReviewers = `${died} reviewer(s) returned nothing: review PR ${quick.pr_url} before a merge`
 if (!serious.length) {

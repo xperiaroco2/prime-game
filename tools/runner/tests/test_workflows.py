@@ -2467,13 +2467,15 @@ class ReviewTierTest(unittest.TestCase):
                 self.assertIn("issue-task: args.tier must be 'full'", result["error"] or "")
                 self.assertFalse(agents(result))
 
-    def test_issue_task_uses_quick_tasks_path_rule(self) -> None:
-        # One diff-path rule for both scripts (a workflow script imports nothing, so the line is copied).
-        rules = []
-        for name in ("issue-task.js", "quick-task.js"):
+    def test_issue_task_uses_quick_tasks_netcode_rule(self) -> None:
+        # One rule for the netcode review in both scripts (a workflow script imports nothing, so the regex is copied):
+        # issue-task's full tier is quick-task's netcode review; quick-task also reviews client/ui/, with code-reviewer.
+        def rule(name: str, const: str) -> str:
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
-            rules.append(next(line for line in text.splitlines() if line.startswith("const REVIEWED = ")))
-        self.assertEqual(rules[0], rules[1])
+            return next(line for line in text.splitlines() if line.startswith(f"const {const} = ")).split(" = ", 1)[1]
+
+        self.assertEqual(rule("issue-task.js", "REVIEWED"), rule("quick-task.js", "NETCODE"))
+        self.assertEqual(rule("quick-task.js", "REVIEWED"), r"/^(core|server|net|client|voice|tests\/harness)\//")
 
 
 def quick(paths: list[str], **extra) -> dict:
@@ -2487,13 +2489,13 @@ QUICK_FIELDS = {"n", "pr_url", "ci_green", "reviewed", "ready_to_merge", "needs_
 
 @unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
 class QuickTaskTest(unittest.TestCase):
-    """quick-task.js (#608): one agent to a PR, reviewers only for a diff under core/ server/ net/ voice/ tests/harness/."""
+    """quick-task.js (#608): one agent to a PR, reviewers only for a diff under core/ server/ net/ client/ voice/ tests/harness/."""
 
     def run_quick(self, *cases: tuple[dict, dict]) -> list[dict]:
         return run_jobs([("quick-task.js", dict(ARGS, **args), stub) for args, stub in cases])
 
     def test_a_light_diff_gets_no_reviewer_and_is_ready(self) -> None:
-        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd", "levels/r.tscn", "client/ui/hud.gd"]
+        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd", "levels/r.tscn"]
         (result,) = self.run_quick(({}, {"queues": {"publish": [quick(light)]}}))
         self.assertIsNone(result["error"])
         self.assertEqual([e["label"] for e in agents(result)], ["publish:#7"])
@@ -2514,6 +2516,27 @@ class QuickTaskTest(unittest.TestCase):
                 self.assertEqual(reviewers, [("review:code:#7", "code-reviewer"), ("review:netcode:#7", "netcode-security-reviewer")])
                 self.assertTrue(result["returned"]["reviewed"]["done"])
                 self.assertTrue(result["returned"]["ready_to_merge"])
+
+    def test_a_client_ui_diff_gets_the_code_reviewer_alone(self) -> None:
+        # #606: the engineer's answer 2b (#302, comment 6085059719) made client/ui/ light in issue-task, where light keeps
+        # code-reviewer; quick-task gives the screens the same one reviewer, never none. A path outside client/ui/ under
+        # client/ (client/ui_kit/ only starts with "ui") brings the netcode review back.
+        ui, mixed, kit = self.run_quick(
+            ({}, {"findings": [MAJOR], "queues": {"publish": [quick(["client/ui/hud.gd", "docs/x.md"])], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
+            ({}, {"queues": {"publish": [quick(["client/ui/hud.gd", "client/player/p.gd"])]}}),
+            ({}, {"queues": {"publish": [quick(["client/ui_kit/k.gd"])]}}),
+        )  # fmt: skip
+        self.assertIsNone(ui["error"])
+        self.assertEqual([(e["label"], options(e)["agentType"]) for e in agents(ui)[1:2]], [("review:code:#7", "code-reviewer")])
+        self.assertFalse(calls(ui, "review:netcode"))
+        self.assertEqual(ui["returned"]["reviews"], [{"by": "code-reviewer", "findings": 1, "serious": 1}])
+        self.assertIn("code-reviewer alone, no netcode review (#606)", ui["returned"]["reviewed"]["why"])
+        self.assertEqual(len(calls(ui, "fix")), 1)  # a major from the one reviewer still gets the fix agent
+        self.assertTrue(ui["returned"]["ready_to_merge"])
+        for result in (mixed, kit):
+            self.assertIsNone(result["error"])
+            self.assertTrue(calls(result, "review:netcode"))
+            self.assertNotIn("code-reviewer alone", result["returned"]["reviewed"]["why"])
 
     def test_a_blocker_or_major_gets_one_fix_agent_and_gates_the_merge(self) -> None:
         core = quick(["core/match/vote.gd"])
