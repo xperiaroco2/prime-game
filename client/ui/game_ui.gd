@@ -42,7 +42,8 @@ var menu := MainMenu.new()
 var connecting := ConnectingScreen.new()
 ## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
 var lobby_hud := LobbyHud.new()
-## The silent seconds before the round: black, the own role (#213).
+## The silent seconds before the round: black, the own role, its goal and a dissident's team
+## (#213, #496); over the HUD, so its black fades out over the round's first moment.
 var pregame := PregameScreen.new()
 var hud := Hud.new()
 var map := MapScreen.new()
@@ -70,7 +71,7 @@ var _local := HudText.Local.new()
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [plates, menu, connecting, lobby_hud, pregame, hud, life, map, end, esc]:
+	for each: Control in [plates, menu, connecting, lobby_hud, hud, life, map, pregame, end, esc]:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
@@ -92,12 +93,12 @@ func show_screen(which: GameFlow.Screen) -> void:
 	var loading_now := which == GameFlow.Screen.LOADING and screen != which
 	if loading_now:
 		connecting.show_loading()
+	_show_pregame(which)
 	screen = which
 	plates.visible = which == GameFlow.Screen.LOBBY or which == GameFlow.Screen.ROUND
 	menu.visible = which == GameFlow.Screen.MENU
 	connecting.visible = which in BLACK_SCREENS
 	lobby_hud.visible = which == GameFlow.Screen.LOBBY
-	pregame.visible = which == GameFlow.Screen.PREGAME
 	hud.visible = which == GameFlow.Screen.ROUND
 	end.visible = which == GameFlow.Screen.END
 	life.visible = which == GameFlow.Screen.ROUND
@@ -106,6 +107,17 @@ func show_screen(which: GameFlow.Screen) -> void:
 	_show_map()
 	if loading_now:
 		loading_started.emit()
+
+
+## The pregame's intro shows in the pregame; at the round's start its black fades out over the
+## HUD and hides itself (#496); any other screen hides it at once. Runs before `screen` changes.
+func _show_pregame(which: GameFlow.Screen) -> void:
+	if which == GameFlow.Screen.PREGAME:
+		pregame.reveal()
+	elif which == GameFlow.Screen.ROUND and screen == GameFlow.Screen.PREGAME:
+		pregame.lift()
+	elif which != GameFlow.Screen.ROUND:
+		pregame.stop()
 
 
 ## The loading screen shows `type`'s how-to card instead of the players and the tip (load-card,
