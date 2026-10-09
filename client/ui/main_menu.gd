@@ -23,7 +23,7 @@ signal code_host_requested
 signal host_requested(port: int)
 signal join_requested(address: String, port: int)
 signal quit_requested
-## Tutorial: no handler until the tutorial exists (#492); the item is unplugged meanwhile.
+## Tutorial: Game starts the solo tutorial on it (#601); the item stays disabled until #492.
 signal tutorial_requested
 
 ## The panel open to the right of the items (or, Settings, in its own root).
@@ -302,7 +302,7 @@ func _build_column() -> void:
 	direct_item = _item("Direct", "menu.direct", Open.DIRECT)
 	tutorial_item = _item("Tutorial", "menu.tutorial", Open.NONE)
 	tutorial_item.pressed.connect(func() -> void: tutorial_requested.emit())
-	# No tutorial yet (#492): drawn as an item, unplugged until it loads lesson 1.
+	# Game starts the tutorial on it (#601); off until its screens and lessons are in (#492, 2A).
 	tutorial_item.disabled = true
 	settings_item = _item("Settings", "menu.settings", Open.SETTINGS)
 	quit_item = _item("Quit", "menu.quit", Open.NONE)

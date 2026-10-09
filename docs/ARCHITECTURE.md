@@ -1808,7 +1808,8 @@ would load.
 Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_session.gd`
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
-`ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`. `client/app/` is the only part
+`ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`, but in the solo tutorial,
+which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.42). `client/app/` is the only part
 of `client/` that names `server/`, and only through `HostNode` as a narrow façade: `HostNode.host(transport, mode,
 port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
 `end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
@@ -1862,6 +1863,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
+| a phase with no level (the tutorial's `gather`, #601, §4.7.42) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
@@ -1923,7 +1925,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
-  window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
+  window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
+  tutorial (§4.7.42) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
+  leaving (`closed`, no failure shown), and its stand-ins go with the `HostNode`.
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
   the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu; the reason in words (printed, and kept in `Game.last_words` since #493) comes from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
@@ -1934,6 +1938,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+  `--tutorial` (#601, §4.7.42) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
+  the first launch from starting it.
 
 #### 4.7.5 Built in M4-6 (#142), the shell
 `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
@@ -2551,7 +2557,8 @@ mode both fail as before; and every stand-in imported under the `.import` file a
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
 `tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
---local --no-replay` on a free port), up to two more windows join it, and the players after them are bots in one
+--local --no-replay` on a free port; a scenario with the `tutorial` header has that one window only, started with
+`--tutorial`, #601, §4.7.42), up to two more windows join it, and the players after them are bots in one
 headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
 window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
 with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
@@ -3536,6 +3543,63 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
   downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
   engineer's, in a two-client `host`/`join` session (the PR).
+#### 4.7.42 Built in #601 (M6.2), the solo tutorial session in the game
+T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
+(T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
+- **`Game.start_tutorial(invite := false)`** (`client/app/game_tutorial.gd`, `GameTutorial`, held in `Game.tutorial`
+  to keep `game.gd` under lint's 1000 lines): false while a session runs. It sets `Game.mode` to
+  `content/modes/tutorial_mode.tres` (§9.5.17) and hosts it through `Game.host_on` (the path `host()` and
+  `host_with_code()` take) on a `LoopbackTransport` of a private `LoopbackHub`: `HostNode.host(transport, mode, port)`
+  unchanged, the own `ClientSession` on `HostNode.own_client`. No socket opens and nobody else can join; the port
+  (`GameTutorial.PORT`, `LaunchOptions.DEFAULT_PORT`) only keys the hub, and `Game.make_transport` is never called.
+  The host writes no replay (`HostNode.skip_replay`: each would push a match's out of `ReplayFiles.KEEP`). The game
+  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed, and
+  Try again starts the tutorial again.
+- **The stand-ins** (`client/tutorial/stand_ins.gd`, `StandIns`, a child of `Game` named `StandIns`): two
+  `ClientSession`s, each on its own `LoopbackTransport` that joins the hub (peers 2 and 3) once the own player is
+  welcomed (`StandIns.join_host`), each stepped by a `SessionNode` of its own at physics priority -95 (after the
+  `HostNode`'s -100, before the own session's -90; it runs while the tree is paused). Each sends `Hello` with no name
+  (#550's ""), so the host's join count names them after the own player: `Player2` and `Player3` (stepped before the
+  own session, they would otherwise say Hello first and take `Player1` and `Player2`). Then `SetReady(true)` once
+  welcomed, `LoadAck` at once (`load_levels` off, as the bots), and `ClientSession`'s own claims from its last
+  `Welcome` or `Correction` (at rest, on the floor), so it stands where the host placed it; nothing else, no intent,
+  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()`: no session, model or
+  transport leaves the class.
+- **The mode per session:** `GameTutorial.end` (called by `Game._end_session` before `_show_end`) frees the
+  stand-ins and gives `Game.mode` back the mode it had (the base mode, or a test's), so a networked session after a
+  tutorial uses the base mode again. `GameFlow` shows the loading screen for a phase with no level (`gather`, §4.7.4's
+  table), which no base-mode phase is. The loading screen's how-to card counts this loading like any other (the
+  tutorial teaches Delivery anyway): no tutorial branch in `GameHowto`.
+- **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
+  window's close act at once, with no question, and the Lobby tab's host settings stay off. Leave ends it as a
+  host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after lesson 9 is T4's call of
+  `Game.leave()`.
+- **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
+  `tutorial_requested` to `start_tutorial(false)` (the item stays disabled until #492, #672's answer 2A), starts it
+  without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
+  settings)` holds only with no launch option at all (`LaunchOptions.given`, a wrong one too), the settings read from
+  a file (`UserSettings.path` set) and `UserSettings.tutorial_seen` (`[player] tutorial_seen`) false. A Game with no
+  command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
+  windows pass options: none of them starts it. `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in
+  the headless session, is a problem. `invite_open` says the invite is due (#492 draws it); until #492's Start and
+  Skip set the flag, the end of a tutorial that started with the invite sets it (`GameTutorial.mark_seen`, written),
+  so a plain launch does not start it every time (a choice under "Needs the engineer" in the PR).
+- **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
+  --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`
+  and `clock` are refused naming their line. The window still prints the `session: hosting` line, which nothing
+  waits for with one window. Scenario `tutorial`: the room in the lessons phase with three players, and its Esc menu.
+- Tests: `tests/unit/client/app/game_flow_test.gd` (the tutorial mode's flow), `launch_options_test.gd` (`--tutorial`,
+  `given` and the problems), `user_settings_test.gd` (the flag), `game_tutorial_test.gd` (the first-launch rule's
+  table), `tests/unit/client/tutorial/stand_ins_source_test.gd` (only `stand_ins.gd` and `game_tutorial.gd` name
+  `StandIns`, the wiring makes no node lookups, no public member hands out a session; planted failures rejected),
+  `tests/integration/client/tutorial/stand_ins_test.gd` (on a `HostNode` of the tutorial mode, what the host receives
+  from each stand-in: one `Hello` with no name, one `SetReady`, one `LoadAck`, claims at one spot at rest, nothing
+  else, seen failing with a planted voice frame; leaving the tree leaves), and
+  `tests/integration/client/app/game_tutorial_test.gd` (E71: `start_tutorial` to the lessons and through both stages,
+  the loading screen in `gather`, seen failing without `GameFlow`'s rule; Leave with no question, the base mode again
+  and a networked host after it, seen failing without the restore; no replay, seen failing without the skip; the
+  first launch, `--tutorial`, a wrong launch and the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the
+  header, its refusals and its one window's command line).
 
 #### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
 Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the
@@ -5335,7 +5399,7 @@ Settings:
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
-provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3 (#601).
+provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3 (#601, §4.7.42).
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
 `docs/design/tutorial.md` §2.3 and a match from `gather` to the respawn in `death_stage`
 (`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4

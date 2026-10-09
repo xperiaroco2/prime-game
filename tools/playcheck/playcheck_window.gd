@@ -5,7 +5,8 @@ extends SceneTree
 ## this window's steps from the runner's plan (tools/playcheck/playcheck_steps.gd).
 ##   godot --position -30000,-30000 --resolution 1280x720 --audio-driver Dummy
 ##       -s res://tools/playcheck/playcheck_window.gd
-##       -- --plan=<plan.json> --window=<n> <LaunchOptions' arguments: --host --local or --join=...>
+##       -- --plan=<plan.json> --window=<n> <--host --local, --join=... or --tutorial>
+## (LaunchOptions' arguments; --tutorial: the solo tutorial's one window, #601).
 ##
 ## It reads the game only through its own client (Game.client(): the ClientSession and its
 ## ClientModel), its screen, Esc menu and pointer, and what its Ui and current camera draw (the
