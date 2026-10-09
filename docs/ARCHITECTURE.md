@@ -3365,8 +3365,8 @@ role with no key; it reads only the own role and Teammates (the source's model f
 name nobody); the language switch; no focus or input; the fade, its cut under reduced motion; the hook once per
 pregame; `GameUi`'s lift into the round, its layer order and the cut on another screen), `screens_test.gd` and
 `input_rules_test.gd`. The `shot`s, at `--size 1920x1080 --frames 60`: `client/dev/pregame_preview.tscn` (engineer),
-`pregame_dissident_preview.tscn` (with a teammate), `pregame_alone_preview.tscn`, `pregame_after_preview.tscn` (the
-round's empty HUD after the fade), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
+`pregame_dissident_preview.tscn` (with a teammate), `pregame_alone_preview.tscn`, `pregame_after_preview.tscn` (Night
+frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
 `pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
 
 #### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
