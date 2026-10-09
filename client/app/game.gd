@@ -119,6 +119,7 @@ func _ready() -> void:
 	ui.connecting.cancel_requested.connect(leave)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.map_changed.connect(change_map)
 	ui.end.back_requested.connect(return_to_lobby)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
@@ -255,6 +256,12 @@ func set_ready(on: bool) -> void:
 func change_setting(id: StringName, value: Variant) -> void:
 	if _client != null:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+
+
+## The host picks the match's map: one of the mode's maps, which the host checks (#627).
+func change_map(map: String) -> void:
+	if _client != null:
+		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {}, "map": map})
 
 
 ## The host's Back to lobby on the end screen.

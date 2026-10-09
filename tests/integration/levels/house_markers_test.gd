@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The House map carries what the base mode asks of a map (ARCHITECTURE §9.4, §9.6): read by the
 ## host's marker reader in the host's world of the map, its markers raise no error (each delivery
 ## circle stands on a floor, no marker has two tags) and the layout check of a mode that plays on
-## it finds nothing missing for the mode's maximum of players. The map is not in the base mode's
-## list yet (#623): the scenarios' fake world is one flat floor.
+## it finds nothing missing for the mode's maximum of players. The House is the base mode's second
+## map (#626); the scenarios play only its flat first map (ARCHITECTURE §9.7).
 
 const MAP := "res://levels/house/house.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
