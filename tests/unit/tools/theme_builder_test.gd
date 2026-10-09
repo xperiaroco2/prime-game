@@ -540,16 +540,16 @@ func test_the_font_becomes_a_variation_per_label_weight() -> void:
 		# Every variation with a label gets the font of its label token's weight.
 		var tokens := _tokens(_pack)
 		var owned := Builder.tokens_by_variation(_pack)
-		for name in Builder.generated_names(_pack):
-			var variation := _variation(_pack, name)
+		for variation_name in Builder.generated_names(_pack):
+			var variation := _variation(_pack, variation_name)
 			var key := "%s.label" % variation["prefix"]
-			if not (owned[name] as Array).has(key):
+			if not (owned[variation_name] as Array).has(key):
 				continue
 			var want: int = (tokens[key] as Dictionary)["fontWeight"]
-			var got := theme.get_font(&"font", name) as FontVariation
+			var got := theme.get_font(&"font", variation_name) as FontVariation
 			(
 				assert_object(got.variation_opentype)
-				. override_failure_message("%s: %s" % [name, got.variation_opentype])
+				. override_failure_message("%s: %s" % [variation_name, got.variation_opentype])
 				. is_equal({wght: want})
 			)
 	# Without the file, the build writes no font at all.
