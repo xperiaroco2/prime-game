@@ -774,8 +774,8 @@ func _end_session(reason: StringName, detail := "") -> void:
 	_ending = true
 	last_reason = reason
 	if detail.is_empty():
-		detail = _found_detail(reason)
-	var versions := _found_versions(reason)
+		detail = JoinProgress.detail_of(reason, _join_transport, _own_content)
+	var versions := JoinProgress.versions_of(reason, _join_transport, _own_content)
 	print("session: ended: %s%s" % [EndReasons.text(reason), ": " + detail if detail else ""])
 	if _host != null:
 		# Leaving the tree closes the session: every client sees host_lost.
@@ -806,30 +806,6 @@ func _end_session(reason: StringName, detail := "") -> void:
 		_player = null
 	_show_end(reason, detail, versions)
 	_ending = false
-
-
-## Both versions in words when a code join ended on the service's `found` (the transport's
-## version check, before any ICE); "" for any other end, a Rejected Hello's included.
-func _found_detail(reason: StringName) -> String:
-	var webrtc := _join_transport as WebRtcTransport
-	if webrtc == null:
-		return ""
-	var found := webrtc.found_protocol
-	var own := WireSchema.VERSION
-	if JoinProgress.found_mismatch(found, webrtc.found_content, own, _own_content) != reason:
-		return ""
-	return JoinProgress.found_detail(reason, found, webrtc.found_content, own, _own_content)
-
-
-## The host's and this game's version for the connecting screen's failure, when a code join ended
-## on the service's `found`; empty otherwise (a Rejected Hello names no version).
-func _found_versions(reason: StringName) -> PackedStringArray:
-	var webrtc := _join_transport as WebRtcTransport
-	if webrtc == null:
-		return PackedStringArray()
-	return JoinProgress.found_versions(
-		reason, webrtc.found_protocol, webrtc.found_content, WireSchema.VERSION, _own_content
-	)
 
 
 ## A join under way: the connecting screen's step and the time since Join. Then the room's code to

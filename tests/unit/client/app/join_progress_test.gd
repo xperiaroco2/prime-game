@@ -79,3 +79,14 @@ func test_each_join_failure_in_plain_words() -> void:
 	var unreachable := EndReasons.words(NetTransport.JOIN_UNREACHABLE)
 	for part: String in ["full", "could not reach the host directly", "playit.gg", "Direct"]:
 		assert_str(unreachable).contains(part)
+
+
+func test_a_join_with_no_service_found_names_no_versions() -> void:
+	# A host's own end, a Direct join (ENet) and no transport have no `found`: nothing to add.
+	var kinds := WireSchema.game(OS.is_debug_build()).kind_table()
+	var transports: Array[NetTransport] = [
+		null, EnetTransport.new(kinds), LoopbackTransport.new(kinds)
+	]
+	for transport: NetTransport in transports:
+		assert_str(JoinProgress.detail_of(&"wrong_version", transport, 7)).is_empty()
+		assert_array(JoinProgress.versions_of(&"wrong_version", transport, 7)).is_empty()

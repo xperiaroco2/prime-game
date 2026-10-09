@@ -71,6 +71,33 @@ static func found_versions(
 	)
 
 
+## found_detail of a join that ended on its service's `found` (the transport's version check,
+## before any ICE): "" for a transport that is not a WebRtcTransport (none, a Direct join, a host)
+## and for any other end, a Rejected Hello's included. `own_content`: this game's content hash.
+static func detail_of(reason: StringName, transport: NetTransport, own_content: int) -> String:
+	var webrtc := transport as WebRtcTransport
+	if webrtc == null:
+		return ""
+	var found := webrtc.found_protocol
+	var own := WireSchema.VERSION
+	if found_mismatch(found, webrtc.found_content, own, own_content) != reason:
+		return ""
+	return found_detail(reason, found, webrtc.found_content, own, own_content)
+
+
+## found_versions of a join that ended on its service's `found`; empty for a transport that is not
+## a WebRtcTransport and otherwise (a Rejected Hello names no version).
+static func versions_of(
+	reason: StringName, transport: NetTransport, own_content: int
+) -> PackedStringArray:
+	var webrtc := transport as WebRtcTransport
+	if webrtc == null:
+		return PackedStringArray()
+	return found_versions(
+		reason, webrtc.found_protocol, webrtc.found_content, WireSchema.VERSION, own_content
+	)
+
+
 ## A version in a line: the protocol, then the content hash's first SHORT_CONTENT hex digits.
 static func version_text(protocol: int, content: int) -> String:
 	return "%d (%s)" % [protocol, SignalCodec.content_text(content).left(SHORT_CONTENT)]
