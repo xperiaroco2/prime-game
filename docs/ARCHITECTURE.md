@@ -3010,8 +3010,8 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
 
 #### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
 The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
-the designer, 2026-10-03, on #253). Its look is provisional (Toy variations already in the theme, no overrides);
-the Toy restyle is #490 and the how-to card #254 (§4.7.36).
+the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.41), the how-to card
+#254's (§4.7.36).
 - **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
   for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
   any life. A saved binding under the old name reads as an unknown action and keeps the default. `Game` reads it in
@@ -3026,17 +3026,17 @@ the Toy restyle is #490 and the how-to card #254 (§4.7.36).
   no Esc menu and the window focused, as closing the Esc menu does. `PlayerController.mouse_free` (set every frame
   from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
   put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
-  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take no focus yet
-  (the mouse presses them; their keyboard focus is #490's and #254's); Space, which jumps, is out of `ui_accept`
-  since #488, so a focused one would not press with a jump.
-- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task by id with its name (`task.<id>`, else the
+  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take the focus of
+  the arrows and the d-pad since #490 (§4.7.41); Space, which jumps, is out of `ui_accept` since #488, so a focused
+  one never presses with a jump.
+- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
   screen opens that type's how-to card (§4.7.36); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
   progress line (nor has the HUD since #489, §4.7.37); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
-  lights that type's zones, drawn under the room's name, and their chip (`map.zone_hint.<type>`, else
-  `map.zone_hint`; wrapped to its room's width when the words are wider). Words built in code are
+  lights that type's zones, drawn under the room's pictogram and name, and their tag (`map.zone_hint.<type>`, else
+  `map.zone_hint`; under the first lit room since #490, §4.7.41). Words built in code are
   set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
@@ -3062,8 +3062,7 @@ the Toy restyle is #490 and the how-to card #254 (§4.7.36).
   and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
   captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the
   Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
-  Esc rule). The `shot`s: `client/dev/map_preview.tscn` and `map_preview_uk.tscn` (Delivery's zones lit); the
-  playcheck scenario `map`.
+  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.41.
 
 #### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
 - **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
@@ -3078,8 +3077,8 @@ the Toy restyle is #490 and the how-to card #254 (§4.7.36).
   grabbers, ToyDropdown's arrow, ToyDropdownList's radio icons, and through the base types (§4.7.30) the bare HSlider,
   OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
   Godot would make it from the path saved to and the stale test saves elsewhere.
-- **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms wait for the map (#253,
-  through MapData); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
+- **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
+  §4.7.41); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
   slot, mic and lock icons for the Toy screens (#489 and on).
 - **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, added in #684 (google/fonts'
   variable `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; a Git LFS file; proposed on prime-game-ui#44).
@@ -3330,6 +3329,51 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
   text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
   scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
+
+#### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
+The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
+engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
+- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
+  ToyBasePanel; its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
+  with `Title`, `Rows` (ToyColumnEight) and `Time`; a row `<Type>` (ToySettingRow, 64 tall) holds `H` (ToyRowTwelve):
+  `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton, the handoff's fixed 42x42,
+  not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard raised, its wrapper at
+  744, 88, 1096x904) holds `Rooms`, 1088x896 inside the 4 px border (`MapScreen.ROOMS_SIZE`, the size MapData fits
+  the rooms to): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
+  `room/<id>` pictogram through `ToyIcons`, 48x48, its `self_modulate` the ink of ToyMapRoomText's `font_color`,
+  #2a1f33, set again on a theme change; hidden for a room id the pack draws none for) and `Name` (ToyMapRoomText, 120
+  wide at least, wrapped); then `Zone<Type>Tag` (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and
+  `Here` (ToyChipPlate, `Text` ToyHudCaption). `Dim2`, `Guide` and the card are §4.7.36's.
+- **Rows** are one per task type, in the order of its first task's id, the counters of its tasks summed (DealTasks
+  deals each drawn type once, so a round has one task per type). A refresh with the same types sets the words in
+  place, so a live counter never takes a «?»'s focus.
+- **Zones.** Lighting a type adds `Zone<Type>` (ToyMapZone, no mouse) as the first child of each lit room, so it
+  fills the room under its pictogram and name; the tag sits 12 px under the first lit room, its left edge on the
+  room's, on one line, wrapped only where it would pass the board's right edge. The hovered row lights its type, else
+  the «?» with the keyboard's focus (`has_focus(true)`: a focus a mouse press gave is hidden and lights nothing).
+- **Focus.** `Help` is `FOCUS_ALL`. Nothing has the focus on open; with none, the first `ui_down` or `ui_up` (the
+  arrows and the d-pad only, §4.7.35) focuses the first «?» in `MapScreen._unhandled_input`, and Godot moves it from
+  there. A «?» pressed while it shows its focus (keyboard or gamepad) opens its card with Close focused
+  (`open_howto(type, true)`), and closing it (Close, Esc or M, the overlays of §4.7.35) gives that «?» the focus
+  back; pressed with the mouse, closing drops a focus on the map. `focus_help(type)` focuses a «?» (the previews).
+- **Not as drawn** (each in the PR): the screens are children of `GameUi`, not CanvasLayers; the hover is read with
+  `gui_get_hovered_control` each frame, not `mouse_entered`/`mouse_exited` (a child takes the parent's hover,
+  §4.7.33); the Delivery PNGs keep #520's import without mipmaps (the canvas's default filter samples none); the
+  rooms are what MapData reads today, and the greybox has none until #306 (the engineer chose to wait for its
+  room records, PR #652), so in the game the board hides; the base mode has no Switches task type, so neither its
+  row nor `map.zone_hint.switches` shows; Delivery lights every room with a package marker (the storage-only zone
+  is Delivery v2, #255, out of the slice, #521).
+- Tests: `tests/unit/client/ui/map_screen_test.gd` (the tree node for node with its sizes, the ink, one row per type,
+  a counter set in place keeping the focus, the first arrow and the keyboard's lit zones, Close focused and the focus
+  back, each seen failing without its code, the mouse's card dropping the focus, the zone first in its room and its
+  tag under it, the tag's wrap at the board's edge, the privacy signature), `hud_test.gd` (one row),
+  `tests/integration/client/app/map_input_test.gd` (real Down, W, Enter, Esc and M in a host's round; the open
+  map's click moved to the corner, which the task list does not cover). The `shot`s, at `--size 1920x1080`:
+  `client/dev/map_list_preview.tscn` (`list`), `map_preview.tscn` (`zone`, the «?» focused),
+  `map_card_preview.tscn` (`guide`), each with a Ukrainian twin (`map_list_uk_preview`, `map_preview_uk`,
+  `map_card_uk_preview`), and `map_large_uk_preview.tscn` (`zone` at large text); `screen_preview.gd`'s fake house
+  follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
+  Enter and closes only the card with Esc.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
