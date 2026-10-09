@@ -167,7 +167,7 @@ func _args_of(intent: StringName) -> Dictionary:
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
-			args = {"version": WireSchema.VERSION, "content": 0}
+			args = {"version": WireSchema.VERSION, "content": 0, "name": ""}
 	return args
 
 

@@ -37,7 +37,8 @@ var rng: RngStreams
 var player_rules: PlayerRules
 ## Connected peers whose Hello was not accepted yet (2b), peer -> true: only they may join.
 var newcomers: Dictionary[int, bool] = {}
-## The joins accepted in the session (2b): the next joiner is Player<joins + 1>. Session state:
+## The joins accepted in the session (2b): a joiner without a usable name of its own (#550) is
+## Player<n>, n its join's number, counted for every join whatever the name. Session state:
 ## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
 var joins := 0
 ## Roles forced per peer (debug builds only, §8, §9.7: a debug command or a scenario), which
@@ -74,8 +75,9 @@ func add_player(peer: int, player_name: String) -> PlayerState:
 	return joined
 
 
-## Counts an accepted join and returns the joiner's name, Player<n> with n the join's number in
-## the session (§3.5, the engineer's decision of 2026-09-30 on #58; own names come with #73).
+## Counts an accepted join and returns its fallback name, Player<n> with n the join's number in
+## the session (§3.5, the engineer's decision of 2026-09-30 on #58), which JoinRules gives a
+## joiner without a usable name of its own (#550).
 func name_next_joiner() -> String:
 	joins += 1
 	return "Player%d" % joins

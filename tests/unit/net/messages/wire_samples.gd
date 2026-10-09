@@ -21,7 +21,7 @@ static func events() -> Dictionary[String, Array]:
 		. assign(
 			[
 				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": 3, "name": "Player2", "ready": false},
+				{"peer": 3, "name": "Діма 2", "ready": false},
 			]
 		)
 	)
@@ -30,7 +30,10 @@ static func events() -> Dictionary[String, Array]:
 	welcome.phase = &"lobby"
 	welcome.positions = {1: Vector3(0.1, 0.2, 0.3)}
 	found["WelcomeEvent"] = [welcome]
-	found["PlayerJoinedEvent"] = [PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE)]
+	found["PlayerJoinedEvent"] = [
+		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE),
+		PlayerJoinedEvent.new(4, "Ann " + String.chr(0x1F600), Vector3.ZERO),
+	]
 	found["PlayerLeftEvent"] = [PlayerLeftEvent.new(5)]
 	found["ReadyChangedEvent"] = [ReadyChangedEvent.new(5, true)]
 	found["SettingsChangedEvent"] = [_settings_changed()]
@@ -85,7 +88,10 @@ static func events() -> Dictionary[String, Array]:
 static func intents() -> Array[WireMessage]:
 	var settings := {&"tasks": 3, &"banned_task_types": PackedStringArray(["delivery"])}
 	return [
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH}),
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH, "name": "Діма"}
+		),
+		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 0, "name": ""}),
 		WireMessage.new(&"SetReady", {"ready": true}, 7),
 		WireMessage.new(&"ChangeSettings", {"settings": settings}, 8),
 		WireMessage.new(

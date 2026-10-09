@@ -27,7 +27,7 @@ var senders: Array[int] = []
 var endings: Array[StringName] = []
 
 
-func _init(load_levels := true) -> void:
+func _init(load_levels := true, own_name := "") -> void:
 	mode.lobby_level = TINY_MAP
 	mode.maps = PackedStringArray([TINY_MAP, MISSING_MAP])
 	host.host(PORT, 8)
@@ -36,7 +36,7 @@ func _init(load_levels := true) -> void:
 	host.peer_joined.connect(_on_peer_joined)
 	host.packet_received.connect(_on_host_packet)
 	client.join("127.0.0.1", PORT)
-	session = ClientSession.new(client, mode, schema)
+	session = ClientSession.new(client, mode, schema, own_name)
 	session.keep_history = true
 	session.load_levels = load_levels
 	session.ended.connect(_on_ended)

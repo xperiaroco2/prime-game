@@ -149,11 +149,11 @@ static func started(seed_value: int = 7) -> Match:
 	return game
 
 
-## `peer` connects and says Hello with `player_name` (the host ignores it), the host's version and
-## the content hash of a Match made without one (0).
+## `peer` connects and says Hello with `player_name` ("" asks for none: the host names it
+## Player<n>), the host's version and the content hash of a Match made without one (0).
 static func join(game: Match, peer: int, player_name: String = "") -> void:
 	FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
-	hello(game, peer, player_name if not player_name.is_empty() else "p%d" % peer)
+	hello(game, peer, player_name)
 
 
 static func hello(

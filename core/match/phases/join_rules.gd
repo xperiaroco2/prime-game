@@ -8,12 +8,13 @@ extends RefCounted
 ## refuses joins gets `joins_closed` (Match._refuse, E14), and drop_newcomers disconnects the
 ## waiting newcomers when a phase freezes the roster (Loading's entry).
 ##
-## The host names every joiner Player<n>, n counting the session's joins (MatchState.joins); the
-## name a Hello carries is ignored in the MVP (#73). The joiner's spot is a placeholder, "not a
+## A joiner is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or Player<n> when
+## nothing usable is left (n counting the session's joins, MatchState.joins); a name a present
+## player has gets a suffix (PlayerNames.unique). The joiner's spot is a placeholder, "not a
 ## decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 9
+const PROTOCOL_VERSION := 10
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -37,9 +38,9 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## hash must be the host's (Match.content_hash), else Rejected (`wrong_content`) and
 ## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
-## this build can read (§4.3). Accepted: the joiner is named Player<n> by the session's join
-## count, placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
-## SettingsChanged (everyone).
+## this build can read (§4.3). Accepted: the join is counted, the joiner named (joiner_name),
+## placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
+## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back.
 static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
@@ -61,7 +62,7 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 		return false
 	ctx.state.newcomers.erase(peer)
 	var spot := _free_spot(ctx)
-	var player_name := ctx.state.name_next_joiner()
+	var player_name := joiner_name(ctx, command.field("name"))
 	var joined := ctx.state.add_player(peer, player_name)
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
@@ -70,6 +71,19 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
+
+
+## Counts an accepted join and names the joiner (§3.5, #550): `wanted` as PlayerNames.clean leaves
+## it, or the session's Player<n> (MatchState.name_next_joiner) when that is empty (no name, the
+## wrong type, blanks or controls only); then PlayerNames.unique against the present players, so
+## neither a chosen name nor the fallback repeats one ("Dima", then "Dima 2").
+static func joiner_name(ctx: MatchContext, wanted: Variant) -> String:
+	var fallback := ctx.state.name_next_joiner()
+	var cleaned := PlayerNames.clean(wanted)
+	var taken := PackedStringArray()
+	for peer: int in ctx.state.present_peers():
+		taken.append(ctx.state.players[peer].name)
+	return PlayerNames.unique(fallback if cleaned.is_empty() else cleaned, taken)
 
 
 ## Disconnects every newcomer still waiting (DisconnectPeer each, in peer-id order, no Rejected:

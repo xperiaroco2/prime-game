@@ -12,8 +12,9 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
-## 9 since #429 added MoveClaimReliable (kind 14).
-const VERSION := 9
+## 9 since #429 added MoveClaimReliable (kind 14); 10 since #550 added Hello's `name` and made
+## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8).
+const VERSION := 10
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -191,7 +192,9 @@ static func _intents() -> Array[WireRow]:
 		"settings", _id(""), WireField.setting("", MAX_TASK_TYPES), MAX_ENTRIES, false
 	)
 	var has_map := WireField.when("has_map", [_of("map", WireField.Type.PATH)])
-	var hello := _up(HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64)])
+	var hello := _up(
+		HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64), _name("name")]
+	)
 	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map])
 	change.content_sized = true
 	# No seq: it is a claim, so a failed check gets a Correction, never a Rejected (§4.3).
@@ -250,7 +253,7 @@ static func _debug_commands() -> Array[WireRow]:
 
 
 static func _events() -> Array[WireRow]:
-	var roster_entry := WireField.record("", [_peer("peer"), _text("name"), _bool("ready")])
+	var roster_entry := WireField.record("", [_peer("peer"), _name("name"), _bool("ready")])
 	var numbers := _numbers("settings")
 	var welcome := _down(
 		33,
@@ -321,7 +324,7 @@ static func _events() -> Array[WireRow]:
 	return [
 		_down(REJECTED, &"Rejected", 37, [_u32("seq"), _id("reason")]),
 		welcome,
-		_down(34, &"PlayerJoined", 81, [_peer("peer"), _text("name"), _vec3("spot")]),
+		_down(34, &"PlayerJoined", 81, [_peer("peer"), _name("name"), _vec3("spot")]),
 		_down(35, &"PlayerLeft", 4, [_peer("peer")]),
 		_down(36, &"ReadyChanged", 5, [_peer("peer"), _bool("ready")]),
 		settings_changed,
@@ -519,8 +522,9 @@ static func _path(field_name: String) -> WireField:
 	return _of(field_name, WireField.Type.PATH)
 
 
-static func _text(field_name: String) -> WireField:
-	return _of(field_name, WireField.Type.TEXT)
+## A player's name (#550): UTF-8, at most WireField.NAME_MAX_BYTES bytes.
+static func _name(field_name: String) -> WireField:
+	return _of(field_name, WireField.Type.NAME)
 
 
 ## A map<id, s32>: whole-number settings, markers or colours per id.

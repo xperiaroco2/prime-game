@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 
 const Samples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
+## A control character a name never holds.
+const BELL := "\u0007"
 
 var _schema: WireSchema
 var _errors: EngineErrors
@@ -125,13 +127,12 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	_assert_refused(WireMessage.new(&"Swung", {"peer": 2, "facing": Vector3(INF, 0, 0)}))
 	_assert_refused(WireMessage.new(&"Damaged", {"amount": 0x80000000, "health": 0}))
 	_assert_refused(WireMessage.new(&"TaskProgress", {"done": 0x10000, "total": 1}))
-	_assert_refused(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": "é", "spot": Vector3.ZERO})
-	)
-	var long_name := "x".repeat(WireField.TEXT_MAX + 1)
-	_assert_refused(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
-	)
+	# A name (#550) is UTF-8 of at most 64 bytes, not characters, and holds no control.
+	for bad_name: String in ["x".repeat(WireField.NAME_MAX_BYTES + 1), "é".repeat(33), "a" + BELL]:
+		_assert_refused(
+			WireMessage.new(&"PlayerJoined", {"peer": 2, "name": bad_name, "spot": Vector3.ZERO})
+		)
+	_assert_refused(WireMessage.new(&"PlayerJoined", {"peer": 2, "name": 7, "spot": Vector3.ZERO}))
 	_assert_refused(WireMessage.new(&"MoveClaim", _claim_with("sprint", 1)))
 	_assert_refused(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": PackedByteArray()}))
 	var frame := PackedByteArray()
@@ -158,12 +159,12 @@ func test_a_refusal_names_a_byte_array_by_its_size_and_cuts_a_long_value() -> vo
 	assert_str(voice.problem).is_equal("opus: %d bytes is not an opus" % frame.size())
 	var role := _schema.write(WireMessage.new(&"RoleAssigned", {"role": &"Crew"}))
 	assert_str(role.problem).is_equal('role: &"Crew" is not an id')
-	var long_name := "x".repeat(WireField.TEXT_MAX + 1)
+	var long_name := "x".repeat(WireField.NAME_MAX_BYTES + 1)
 	var joined := _schema.write(
 		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
 	)
 	assert_int(joined.problem.length()).is_less(100)
-	assert_str(joined.problem).ends_with("... is not a text")
+	assert_str(joined.problem).ends_with("... is not a name")
 
 
 func test_the_encoder_refuses_bad_paths() -> void:
@@ -270,6 +271,80 @@ func test_a_release_table_neither_encodes_nor_decodes_debug_commands() -> void:
 	var forced := WireMessage.new(&"ForceRole", {"role": "crew"}, 1, 2)
 	assert_str(release.write(forced).problem).contains("no row")
 	assert_object(release.decode(24, _schema.encode(forced))).is_null()
+
+
+## A name (#550) round-trips as UTF-8: empty, ASCII, Cyrillic, four-byte characters, 64 bytes.
+func test_a_name_round_trips_in_utf8() -> void:
+	var emoji := String.chr(0x1F600)
+	for each: String in [
+		"", "Dima", "Діма 2", emoji.repeat(16), "é".repeat(32), "x".repeat(WireField.NAME_MAX_BYTES)
+	]:
+		var hello := {"version": WireSchema.VERSION, "content": 1, "name": each}
+		var decoded := _round_trip(WireMessage.new(&"Hello", hello))
+		if decoded != null:
+			assert_str(decoded.fields["name"]).is_equal(each)
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## The decoder checks a name's bytes by hand before any decode: malformed UTF-8 is a clean reject,
+## with no engine error a peer could repeat (get_string_from_utf8 prints one), and so are the
+## characters a name never holds.
+func test_a_malformed_name_is_rejected_without_an_engine_error() -> void:
+	var bad: Array[PackedByteArray] = [
+		PackedByteArray([0xC3]),  # a lead byte without its continuation
+		PackedByteArray([0x41, 0xE2, 0x82]),  # cut short
+		PackedByteArray([0x80]),  # a continuation byte alone
+		PackedByteArray([0xC3, 0x41]),  # a lead byte followed by no continuation
+		PackedByteArray([0xC0, 0x80]),  # overlong NUL
+		PackedByteArray([0xE0, 0x80, 0x80]),  # overlong
+		PackedByteArray([0xF0, 0x80, 0x80, 0x80]),  # overlong
+		PackedByteArray([0xED, 0xA0, 0x80]),  # a surrogate
+		PackedByteArray([0xF4, 0x90, 0x80, 0x80]),  # above U+10FFFF
+		PackedByteArray([0xF8, 0x88, 0x80, 0x80, 0x80]),  # five bytes
+		PackedByteArray([0xFF]),
+		PackedByteArray([0xEF, 0xBB, 0xBF, 0x41]),  # a byte-order mark
+		PackedByteArray([0x41, 0x00]),  # NUL
+		PackedByteArray([0x41, 0x0A]),  # a control
+		PackedByteArray([0x7F]),  # DEL
+		PackedByteArray([0xC2, 0x9F]),  # a C1 control
+	]
+	for name_bytes: PackedByteArray in bad:
+		var payload := _hello_with_name_bytes(name_bytes)
+		(
+			assert_object(_schema.decode(WireSchema.HELLO, payload))
+			. override_failure_message(str(Array(name_bytes)))
+			. is_null()
+		)
+	var long := PackedByteArray()
+	long.resize(WireField.NAME_MAX_BYTES + 1)
+	long.fill(0x41)
+	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(long), "a length of 65")
+	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(bad[4]), "not UTF-8 at byte 0")
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## Pins net/'s name characters to core/'s (net/ names no core/ class): every name the host makes
+## (PlayerNames) encodes, and the wire takes no character PlayerNames drops.
+func test_the_wire_takes_exactly_the_characters_player_names_keeps() -> void:
+	var differ := PackedInt32Array()
+	for code: int in range(0, 0x11000):
+		if WireField.is_name_char(code) == PlayerNames.is_dropped(code):
+			differ.append(code)
+	for code: int in [0x1F600, 0x10FFFF, 0x110000, 0x7FFFFFFF]:
+		if WireField.is_name_char(code) == PlayerNames.is_dropped(code):
+			differ.append(code)
+	assert_array(Array(differ)).is_empty()
+
+
+## A Hello of this version whose name is `name_bytes`, written by hand.
+func _hello_with_name_bytes(name_bytes: PackedByteArray) -> PackedByteArray:
+	var payload := PackedByteArray()
+	payload.resize(10)
+	payload.encode_u16(0, WireSchema.VERSION)
+	payload.encode_s64(2, 1)
+	payload.append(name_bytes.size())
+	payload.append_array(name_bytes)
+	return payload
 
 
 func _round_trip(message: WireMessage) -> WireMessage:
