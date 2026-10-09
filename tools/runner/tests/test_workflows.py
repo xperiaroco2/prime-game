@@ -27,10 +27,10 @@ too), and #470's digests (the reviewers' and the test reviewer's digest of the i
 summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay phrase
 nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
 the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
-launched snapshots, between waves too. #469's plan phase (the plan's comment, its short form and file map) changed only
-`plan-review-main`, new with it. Each snapshot ends with the run's return value, which the rule does not cover (a resume
-replays agents, not the return): #386 made it compact and changed only that part of every snapshot, and #557 added
-`lean_off` to the unbounded/ ones.
+launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone).
+#469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
+snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
+#386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
 """
 
 import difflib
@@ -1473,6 +1473,15 @@ class PipelineV2Test(unittest.TestCase):
                         if j != i and ("gh pr checks" in text or "run.cmd verify" in text):
                             self.assertLess(j, i, text[:120])
                     kind = "publishing" if label.startswith(publishing) else "other"
+                    kind = "implementing" if label.startswith("implement") else kind
+                    # #574: only the implementer's inner loop may run verify --fail-fast; what it reports as
+                    # verify_tail, publish's verify and every other agent's run each step.
+                    fail_fast = "In your inner loop you may run `verify --fail-fast` (it stops at the first red step)"
+                    if kind == "implementing":
+                        self.assertIn(fail_fast, paragraph)
+                        self.assertIn("the run you report as verify_tail, and publish's, is a plain `verify`", paragraph)
+                    else:
+                        self.assertNotIn("--fail-fast", paragraph)
                     if kind == "publishing":
                         # #471: publish verifies (or reuses a green verify of the identical tree) and pushes nothing
                         # on red, so a publisher runs no standalone verify before it.
@@ -1488,6 +1497,7 @@ class PipelineV2Test(unittest.TestCase):
         self.assertEqual(len(extra[("issue-task.js", "publishing")]), 1)
         self.assertEqual(extra[("issue-task.js", "publishing")], extra[("pr-rebase.js", "publishing")])
         self.assertEqual(len(extra[("issue-task.js", "other")]), 1)
+        self.assertEqual(len(extra[("issue-task.js", "implementing")]), 1)
 
     def test_meta_and_the_args_comment_name_each_v2_arg(self) -> None:
         # A manager states the agent count in its kickoff from these lines.

@@ -95,6 +95,11 @@ class Result:
 
 
 def kill_tree(proc: subprocess.Popen[bytes]) -> None:
+    _kill_group(proc)
+    proc.wait()
+
+
+def _kill_group(proc: subprocess.Popen[bytes]) -> None:
     # The Windows console exe of Godot spawns the real engine as a child, so kill the whole tree.
     if IS_WINDOWS:
         subprocess.run(
@@ -108,7 +113,23 @@ def kill_tree(proc: subprocess.Popen[bytes]) -> None:
             os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
-    proc.wait()
+
+
+# Every process run() started in this process that has not ended (#574). Each runs in a group of its own
+# (group_kwargs), which a kill of its parent's group never reaches: a verify lane process that its parent stops on
+# Linux or macOS kills them first (verify.lane_main's SIGTERM handler). set.add and set.discard hold the GIL, so no
+# lock: a lock that the main thread held when the signal interrupted it would deadlock the handler. A gap stays: a
+# SIGTERM between Popen's return and RUNNING.add misses the child just started (a few bytecodes; blocking the signal
+# there would not close it, since another thread can take it and the main thread still runs the handler).
+RUNNING: set[subprocess.Popen[bytes]] = set()
+
+
+def kill_running() -> None:
+    """Kill every process run() started that has not ended, each with its group, and wait for none of them: a signal
+    handler calls it, and a Popen.wait there could block for good on the wait that the signal interrupted (Popen's
+    waitpid lock is not reentrant)."""
+    for proc in tuple(RUNNING):
+        _kill_group(proc)
 
 
 def group_kwargs() -> dict[str, object]:
@@ -322,6 +343,23 @@ def _run_once(
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {cmd[0]}: {exc}") from exc
+    RUNNING.add(proc)
+    try:
+        return _finish(proc, started, timeout=timeout, log=log, echo=echo, on_start=on_start)
+    finally:
+        RUNNING.discard(proc)
+
+
+def _finish(
+    proc: subprocess.Popen[bytes],
+    started: float,
+    *,
+    timeout: float,
+    log: str | None,
+    echo: bool,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None,
+) -> Result:
+    """The rest of _run_once, once proc runs: its output until it ends or times out (then its tree is killed)."""
     if on_start is not None:
         on_start(proc)
     chunks: list[str] = []

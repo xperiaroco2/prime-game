@@ -1,7 +1,8 @@
 """`metrics --run ID ...` (#534): one workflow run's spend so far, in flight or finished, for the manager's check after
 a large launch's first phase (docs/MANAGERS.md §9), over small synthetic transcripts written here (never real ones) in
-the three track checkouts' folders: the agents and who works now, a retried agent, a journal cut short, the dedup by
-message id, the % of the week by phase, the prefix match and the command line."""
+the three track checkouts' folders (one not on this machine): the agents and who works now, a retried agent, a journal
+cut short, the dedup by message id, the % of the week by phase, the prefix match, the checkouts a failure names and the
+command line."""
 
 import io
 import json
@@ -19,6 +20,9 @@ CHECKOUT = Path("D:/prime-game")
 ONE = usage(inp=5_750_000)  # $23.00 of input on Opus 5.5: 1% of the week, no cache reads
 WRITTEN = 1_000_000.0  # every fixture file's mtime
 NOW = WRITTEN + 600  # ten minutes later
+# The checkouts read, named when no run matches (#586): the fixture has no -ui checkout's folder.
+READ = ("checkouts read: main D--prime-game; ui (prime-game-ui) not on this machine, its spend unknown here; art "
+        "D--prime-game-art")  # fmt: skip
 
 
 def journal(folder: Path, lines: list[dict]) -> None:
@@ -124,10 +128,19 @@ class RunsTest(unittest.TestCase):
         self.assertEqual(line, "spent so far: 3.8% (3.9 to 3.6%) of the week, list $92 in 4 API calls")
         self.assertAlmostEqual(metrics.run_spend(self.fx.live, NOW)["read_usd"], 23.0)
 
+    def test_an_id_that_names_no_run_is_said_so_beside_one_that_does(self) -> None:
+        # wf_b may be a run of a checkout not on this machine: its spend is unknown here, not absent (#586).
+        lines = self.run_main("abc12345", "wf_b").splitlines()
+        self.assertEqual(lines[0], f"wf_b: no run here ({READ})")
+        self.assertTrue(lines[1].startswith("run wf_abc12345-111 "), lines[1])
+        self.assertTrue(lines[-1].startswith("context per API call"), "#584's line stays last")
+        self.assertFalse(any(line.startswith("wf_abc12345") for line in lines), "a run found is not 'no run'")
+
     def test_mistakes_fail(self) -> None:
         with self.assertRaises(Failure) as caught:
             metrics.runs_main(["wf_nosuch"], checkout=CHECKOUT, base=self.root, now=NOW)
         self.assertIn("no workflow run named wf_nosuch", str(caught.exception))
+        self.assertIn(READ, str(caught.exception))
         for extra in ({"since": "2026-10-06T10:00:00Z"}, {"track": ["game"]}, {"compact": True}, {"sessions": ["x"]},
                       {"out": "x"}):
             with self.subTest(extra), self.assertRaises(Failure) as caught:

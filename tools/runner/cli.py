@@ -59,8 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
         "lint",
         help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter",
         description="gdformat --check and gdlint on the named .gd files or folders. With none: all project GDScript, "
-        "plus the CLAUDE.md budgets (the lines Claude Code loads), the frontmatter of rules, skills and agents, and the "
-        "relative links in skills.",
+        "plus the CLAUDE.md budgets (the lines and bytes Claude Code loads; each SKILL.md body's too), the frontmatter "
+        "of rules, skills and agents, and the relative links in skills.",
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
@@ -575,8 +575,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="NAME",
         help="each track's %% of the week since --since (the reset), over the main checkout's, -ui's and -art's "
-        "sessions; a session's track: --session ID=TRACK, else its kickoff's 'Track: <name>' line, else its checkout's "
-        "(-ui: ui, -art: art), else untracked; 'all' names every track found",
+        "sessions (the -ui and -art checkouts by their transcript folders' names, in any folder; the last line names "
+        "the checkouts read, or one not on this machine); a session's track: --session ID=TRACK, else its kickoff's "
+        "'Track: <name>' line, else its checkout's (-ui: ui, -art: art), else untracked; 'all' names every track found",
     )
     p.add_argument(
         "--budget",
@@ -595,8 +596,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="ID",
         help="alone: each workflow run named (wf_45e2297a-4a6, or its start) so far, in flight or finished: its agents, "
-        "who works now, its %% of the week and its list $ by phase, over the three track checkouts (the check after a large "
-        "launch's first phase, docs/MANAGERS.md §9)",
+        "who works now, its %% of the week and its list $ by phase, over the three track checkouts found on this machine "
+        "(the check after a large launch's first phase, docs/MANAGERS.md §9)",
     )
 
     p = sub.add_parser(

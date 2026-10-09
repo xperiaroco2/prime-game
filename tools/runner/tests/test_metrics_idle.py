@@ -269,7 +269,7 @@ class IdleTrackTest(unittest.TestCase):
     def test_the_compact_budget_lines_are_unchanged(self) -> None:
         out = self.run_main(True)
         self.assertNotIn("re-write", out)
-        self.assertEqual(len(out.splitlines()), 3, "the window, art, every session")
+        self.assertEqual(len(out.splitlines()), 4, "the window, art, every session, the checkouts read (#586)")
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
         self.assertEqual(record["idle"], {}, "--compact prints none of it, so it does not read every subagent")
 
