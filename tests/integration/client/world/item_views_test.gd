@@ -63,6 +63,27 @@ func test_an_item_on_the_ground_lies_where_the_events_put_it() -> void:
 	assert_that(view.global_position).is_equal(Vector3(3, 0, 0))
 
 
+func test_an_item_in_flight_is_drawn_neither_in_a_hand_nor_where_it_lay() -> void:
+	# §7.1.16: from ItemThrown until its rest the item is in no hand and lies nowhere; 37e draws
+	# its arc, until then it is not drawn at all.
+	_other_at(Vector3(4, 0, 0))
+	_spawn(1, &"knife", Vector3(2, 0, -1))
+	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
+	await _drawn()
+	var view := _items.view_of(1)
+	assert_bool(view.is_look_shown()).is_true()
+	var launch := {"item": 1, "peer": OTHER, "origin": Vector3(4, 1.6, 0), "tick": 9}
+	launch["velocity"] = Vector3(0, 5, -8)
+	launch["gravity"] = Vector3(0, -9.8, 0)
+	_model.fold(&"ItemThrown", launch)
+	await _drawn()
+	assert_bool(view.is_look_shown()).is_false()
+	_model.fold(&"ItemPlaced", {"item": 1, "position": Vector3(4, 0, -6), "cause": &"thrown"})
+	await _drawn()
+	assert_that(view.global_position).is_equal(Vector3(4, 0, -6))
+	assert_bool(view.is_look_shown()).is_true()
+
+
 func test_another_players_items_hang_at_its_attach_points() -> void:
 	_other_at(Vector3(4, 0, 0))
 	_spawn(1, &"knife", Vector3.ZERO)

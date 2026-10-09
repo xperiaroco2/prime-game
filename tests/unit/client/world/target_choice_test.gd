@@ -83,6 +83,24 @@ func test_the_nearest_item_on_the_ground_wins_and_held_or_delivered_ones_never()
 	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(-1)
 
 
+func test_an_item_in_flight_is_never_aimed_at_and_one_resting_at_its_origin_is() -> void:
+	# §7.1.16: while it flies its position is the launch's origin, a stand-in; the host answers a
+	# PickUp of it `unavailable`.
+	_spawn(1, Vector3(0, 0, -2))
+	_spawn(2, Vector3(0, 0, -2))
+	var look := (ItemView.centre_of(&"knife", Vector3(0, 0, -2)) - EYE).normalized()
+	_model.fold(&"ItemPickedUp", {"peer": 3, "item": 2})
+	var launch := {"item": 2, "peer": 3, "origin": Vector3(0, 0, -2), "tick": 4}
+	launch["velocity"] = Vector3(0, 3, -6)
+	launch["gravity"] = Vector3(0, -9.8, 0)
+	_model.fold(&"ItemThrown", launch)
+	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(1)
+	_model.fold(&"ItemPickedUp", {"peer": 3, "item": 1})
+	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(-1)
+	_model.fold(&"ItemPlaced", {"item": 2, "position": Vector3(0, 0, -2), "cause": &"thrown"})
+	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(2)
+
+
 func test_the_item_the_crosshair_is_on_wins_over_a_nearer_one_aside() -> void:
 	# The crosshair is on the knife; a knife (on a crate) 0.25 m aside and nearer is entered first.
 	_spawn(1, Vector3(0, 0, -2.0))

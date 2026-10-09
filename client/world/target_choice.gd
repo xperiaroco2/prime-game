@@ -83,7 +83,7 @@ static func along_ray(model: ClientModel, eye: Vector3, look: Vector3, length: f
 	var best_t := INF
 	for id: int in model.items:
 		var item := model.items[id]
-		if item.holder != ClientModel.NO_HOLDER or item.delivered:
+		if not item.rests() or item.delivered:
 			continue
 		var centre := ItemView.centre_of(item.kind, item.position)
 		var t := enters_at(eye, look, centre, PICK_RADIUS_M)

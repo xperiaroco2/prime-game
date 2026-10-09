@@ -2,8 +2,9 @@ class_name ItemViews
 extends Node3D
 ## The items of the own ClientModel in 3D (ARCHITECTURE §4.7, Hands; M4-8): an ItemView per item
 ## the model knows, drawn from the model's fold of the item events only (ItemSpawned, ItemPickedUp,
-## Swapped, ItemPlaced, PackageDelivered):
+## Swapped, ItemPlaced, PackageDelivered, ItemThrown):
 ## - nobody holds it: where it lies;
+## - in flight (ItemThrown until its rest, §7.1.16): its look hidden (37e draws the arc);
 ## - another player holds it: at that player's RemotePlayerBody, in its hand, on its belt, or a
 ##   two-handed item (the package) in front with both hands; hidden while that player has no body
 ##   drawn (no avatar in the newest snapshot);
@@ -83,6 +84,10 @@ func _physics_process(_delta: float) -> void:
 
 
 func _place(view: ItemView, item: ClientModel.Item) -> void:
+	if item.flying:
+		# In no hand and lying nowhere until its rest (§7.1.16); 37e draws its arc here.
+		view.show_look(false)
+		return
 	if item.holder == ClientModel.NO_HOLDER:
 		view.global_transform = Transform3D(Basis.IDENTITY, item.position)
 		view.show_look(true)
