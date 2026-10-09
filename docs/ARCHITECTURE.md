@@ -2194,7 +2194,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   each file passing `sfx-check` first, AGENT_WORKFLOW §11.25).
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
-- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
+- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.36); `TaskScreen` (its rows pure: each `TaskState` by task
   id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
   and hint under it. **Superseded by #253** (§4.7.33): the map and tasks screen `MapScreen`, opened and closed on M
@@ -3001,7 +3001,7 @@ the Toy restyle is #490 and the how-to card #254 (§4.7.36).
 - **What it shows** (`client/ui/MapScreen`): the tasks, one row per task by id with its name (`task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
   screen opens that type's how-to card (§4.7.36); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
-  progress line (the HUD has it); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
+  progress line (nor has the HUD since #489, §4.7.37); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
   lights that type's zones, drawn under the room's name, and their chip (`map.zone_hint.<type>`, else
@@ -3176,6 +3176,65 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
   card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
+
+#### 4.7.37 Built in #489 (M6.2), the round HUD in the Toy style
+The round's HUD (§4.7.10's M4-8 HUD) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
+`docs/handoff/s07-hud.md` (not `ui-0.2.0`; since then the hand-slot icon is tinted by ToySlotText and the teammate mark
+by ToyNamePlateText, and the SVG scales come from the pack's `assets` list, prime-game-ui#44), node for node, px at
+the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`). The slice's cut is
+#521: Delivery v2 (#255) is out, so the hand slot shows today's Delivery package.
+- **The tree** (`client/ui/Hud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of `Ui`,
+  under it): `Timer` ToyPlate (top centre, 40 px down) > `Time` ToyTimer, 140 px wide; `Role` ToyChipPlate (top left)
+  > `Text`; `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate (38 px under the centre) > `Text`; `Vitals`
+  ToyColumnTwelve (bottom left) > `Health` and `Stamina` (ToyColumnFour, 320 px: `Cap` ToyBarLabel > `Text`
+  ToyHudCaption, `Track` a `ToyBar` with its `Fill`) and `Mic` ToyMic > `Icon`; `Slots` ToyRowTwelve (bottom right)
+  > `Hand` ToySlotActive and `Belt` ToySlot (`HudSlot`: `Center` > `Row` ToyRowEight > `Icon`, `Name`
+  ToySlotTextEmpty, `ItemName` ToySlotText); `Raising` ToyPlate > `Bar` ToyBarProgress (240 x 10). Every root sits at
+  a point (the four offsets equal) and takes its minimum size along its grow directions, so a slot that narrows
+  pulls the row back into its corner. The size constants (`width`, `height`, `wide_width`) are read into
+  `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
+  Control ignores the mouse and takes no focus.
+- **What it shows** (`HudText`, pure, from the own `ClientModel`, the own mode and `HudText.Local`): the time left
+  as mm:ss (data); the own role as its deck key (`HudText.ROLE_KEYS`: `crew` is `role.engineer`); health as the
+  fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
+  first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
+  push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the hand and belt (a kind's
+  deck key, `HudText.ITEM_KEYS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
+  name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
+  and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
+  `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10); `Raising`, the own raise's progress
+  (`LifeView.raise_shown()`: the countdowns' `raise_progress`, the same value as the downed player's bar), in
+  place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
+  hides Cross, Aim and Raising. The HUD shows no key, walking or running, player list, who knocked the player
+  down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
+  swatch and the crosshair's "E: pick up" hint are gone (the world's marker still shows the destination, §4.7.10;
+  the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
+- **Dead** (#168): the handoff s09's `Spectate` ToyPlate (top centre) > `V` > `Watching` ToyTitleOnDark, the deck's
+  `dead.watching` with the watched player's name (set in code, again on `NOTIFICATION_TRANSLATION_CHANGED`), and the
+  watched player's public hand and belt in `Slots`; nothing else of the HUD (s09's `dead`: no time, role, bars or
+  mic). The respawn countdown stays on the greybox life panel until the Toy downed screen (#497); so does the
+  life panel's "Raising <name>" for the raiser.
+- **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
+  An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`) once it exists; until #520 lands
+  the pinned, `.gdignore`d copy under `client/ui/theme/pack/icons/` is rasterised at run time
+  (`Image.load_svg_from_string`) at the `svg_scale` the pack's `assets` list gives (`item` 2, `knife` 1, `mic` and
+  `mic-off` 1.17). That copy is not exported, so an exported build draws no icon until #520 lands.
+  `TeammateMark` (§4.7.29) still draws its diamond in code; #520 swaps it.
+- **Not built here:** separate CanvasLayers per the handoff's layer table (the screens stay children of one `Ui`
+  layer, in the same order); the font (#520: Godot's default until the TTF lands); the Toy downed screen (#497),
+  the role reveal (#496) and the tutorial, which reuse these nodes.
+- Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
+  and the raise in its place, a dissident's and an engineer's HUD equal but the role, the spectator's watched name
+  and slots and nothing else; the map's tests of §4.7.33), `hud_layout_test.gd` (the handoff's tree, anchors,
+  offsets, grow directions and minimum sizes; no mouse or focus; the health stop for 0.22, 0.8 and 1.0; the states
+  empty, pack, tired, hurt, mate, raising; the mic off; a spectator; large text and the row shrinking back into its
+  corner), `tests/unit/client/voice/voice_sender_test.gd` (`live()`),
+  `tests/integration/client/life/life_network_test.gd` (the raiser's bar is the raised player's value and shows on
+  the raiser's HUD; the spectator's plate), `base_controls_test.gd` (TextureRect named). The teammate mark never on
+  an engineer's client: §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and
+  `hud_<state>_preview.tscn` for pack, tired, hurt, mate, raising and dead, each with a `_uk` twin, and
+  `hud_large_uk_preview.tscn`, at `--size 1920x1080`; the playcheck fields `hud.*` (`tools/runner/playcheck.py`)
+  read the new nodes.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
