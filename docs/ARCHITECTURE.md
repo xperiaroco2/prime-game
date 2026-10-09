@@ -2179,7 +2179,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
   camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel. (#168 adds the spectator's first-person
   hand and removes the panel's own invulnerability line and its "Watching" line: below.)
-- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
+- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD; #497 replaced it with the Toy
+  `LifeScreen`, §4.7.44) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
@@ -2566,7 +2567,7 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 `HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
-`LifePanel`, the `LobbyHud`, the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
+`LifeScreen` (#497), the `LobbyHud`, the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
@@ -2615,7 +2616,7 @@ the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", 
 one visible, enabled button or its failure; `aim` as an action step, the nearest resting item it picks and the
 turn that makes a real `PlayerController` face a target). The scenarios `esc_menu` (#169), `spectate` (#168),
 `items` and `end` (#276) are its own checks, run on a desktop; since #275 they assert the Esc tabs, the lobby
-roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
+roster and countdown, the downed and spectating plates (#497) and the knife in the first-person hand besides their PNGs,
 and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner, its
 countdown (`end.countdown`) and the return with no button press, the lobby's
 cleared ready flags after End and a second round. A text wait reads a Label as drawn, `atr(text)` (a deck key's
@@ -2829,13 +2830,13 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   (`KeyLabel.shown()`: a Ukrainian layout labels the physical F "А", probed in a window on 4.7.2, and the prompt
   reads F; headless Godot has no layout and prints an error, so it reads the physical key's name there), the deck's
   `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
-  no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` ("Hold <key> to
-  give up", the raise and spectate keys, through `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up,
+  no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
+  through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
+  `downed.give_up_hold`, §4.7.44, and no raise or spectate key), `ItemInteractions.hint()`'s pick-up,
   `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind. Known gap until the Toy
-  screens (#495, #497; #491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
-  they are greybox English in every language (the give-up line too, though the deck has `downed.give_up_hold`: translated alone it would mix the default downed panel), so under
-  Ukrainian a mouse button or Space reads in Ukrainian inside one ("ЛКМ and ПКМ: next and previous" by default,
-  "Hold Пробіл to give up" or `LobbyHud`'s "Esc: menu · ЛКМ: ready" after a rebind).
+  screens (#495; #491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck: they
+  are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside one
+  (`LobbyHud`'s "Esc: menu · ЛКМ: ready" after a rebind).
 - `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
   Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
   or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
@@ -2852,16 +2853,16 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `tests/unit/client/ui/key_label_test.gd` (the deck's words in English and Ukrainian; these suites set the locale,
   as the machine's language is the test run's), `controls_panel_test.gd` (the capture binds, ignores releases and
   echoes, cancels on Esc and on a click on another button, lets the wheel through, marks a clash, resets, follows a
-  language switch after it was built), `life_hud_test.gd` (every prompt names the bound key; the give-up line is
-  English in Ukrainian too; the mouse keys' defaults are the deck's words),
+  language switch after it was built), `life_hud_test.gd` (the give-up key is the one bound now; since #497 the
+  screen's keycap follows a rebind through the life view, `life_screen_test.gd`),
   `input_actions_test.gd` (`give_up` is F); `tests/integration/client/app/esc_menu_input_test.gd` (through real key
   events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, a click on another
   row's key cancels the capture and starts that row's, K then toggles Ready
   and F no longer does; seen failing with the capture not consuming its events) and
   `tests/integration/client/life/life_network_test.gd` (a downed joiner gives up on F held, not on G, and no F in the
-  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page with a
-  same-key clash) and `life_give_up_preview.tscn` (the downed panel's "Hold F to give up", from a real window's
-  layout).
+  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page
+  with a same-key clash) and `life_give_up_preview.tscn` (the downed screen's "Hold F to give up", from a real
+  window's layout; the Toy plates since #497).
 - Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
 
 #### 4.7.29 Built in #257 (M6.2), name plates
@@ -3158,7 +3159,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
   runs, since a handled key still reads as pressed in `Input`; and `Game._talk_blocked` keeps it shut after the
   typing stops until the talk key has been let go once (a V that ended the capture is still held). With the map open the keys work and the look stops
-  (`mouse_free`). The lobby HUD, the round HUD and the life panel take no mouse (the destination row, the life
+  (`mouse_free`). The lobby HUD, the round HUD and the life screen (#497) take no mouse (the destination row, the life
   panel's column and bar were PASS or STOP); the pregame takes no input, as the post game screen (its backdrop,
   centre and column were STOP or PASS); the connecting screen's backdrop stops the mouse (§4.7.32).
 - **Keys on screen** (rule 7): `KeyLabel.is_wide(physical)` and `is_wide_action(action)`: a keycap is wide for
@@ -3271,11 +3272,11 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
   swatch and the crosshair's "E: pick up" hint are gone (the world's marker still shows the destination, §4.7.10;
   the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
-- **Dead** (#168): the handoff s09's `Spectate` ToyPlate (top centre) > `V` > `Watching` ToyTitleOnDark, the deck's
-  `dead.watching` with the watched player's name (set in code, again on `NOTIFICATION_TRANSLATION_CHANGED`), and the
-  watched player's public hand and belt in `Slots`; nothing else of the HUD (s09's `dead`: no time, role, bars or
-  mic). The respawn countdown stays on the greybox life panel until the Toy downed screen (#497); so does the
-  life panel's "Raising <name>" for the raiser.
+- **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
+  (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own
+  nor, since #497, the watched player's hand and belt (#168 showed them until s9 was settled: the engineer's
+  answer 3 on PR #675). The `Spectate` plate moved to `LifeScreen`; the raiser sees the `Raising` bar alone, as
+  drawn (the greybox "Raising <name>" is gone).
 - **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
   An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the
   pack's `assets` list gives: `item` 2, `knife` 1, `mic` and `mic-off` 1.17), which an export packs. Only an icon
@@ -3283,20 +3284,19 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
 - **Not built here:** separate CanvasLayers per the handoff's layer table (the screens stay children of one `Ui`
-  layer, in the same order); the font (#520: Godot's default until the TTF lands); the Toy downed screen (#497)
-  and the tutorial, which reuse these nodes. The role reveal (§4.7.39) fades out over them.
+  layer, in the same order); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
+  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.44's.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
-  and the raise in its place, a dissident's and an engineer's HUD equal but the role, the spectator's watched name
-  and slots and nothing else; the map's tests of §4.7.33), `hud_layout_test.gd` (the handoff's tree, anchors,
-  offsets, grow directions and minimum sizes; no mouse or focus; the health stop for 0.22, 0.8 and 1.0; the states
-  empty, pack, tired, hurt, mate, raising; the mic off; a spectator; large text and the row shrinking back into its
-  corner), `tests/unit/client/voice/voice_sender_test.gd` (`live()`),
+  and the raise in its place, a dissident's and an engineer's HUD equal but the role; since #497 the downed see the
+  mic alone and the dead nothing, none of the target's; the map's tests of §4.7.33), `hud_layout_test.gd` (the
+  handoff's tree, anchors, offsets, grow directions and minimum sizes; no mouse or focus; the health stop for 0.22,
+  0.8 and 1.0; the states empty, pack, tired, hurt, mate, raising; the mic off; the downed and the dead; large text
+  and the row shrinking back into its corner), `tests/unit/client/voice/voice_sender_test.gd` (`live()`),
   `tests/integration/client/life/life_network_test.gd` (the raiser's bar is the raised player's value and shows on
-  the raiser's HUD; the spectator's plate), `base_controls_test.gd` (TextureRect named). The teammate mark never on
-  an engineer's client: §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and
-  `hud_<state>_preview.tscn` for pack, tired, hurt, mate, raising and dead, each with a `_uk` twin, and
-  `hud_large_uk_preview.tscn`, at `--size 1920x1080`; the playcheck fields `hud.*` (`tools/runner/playcheck.py`)
-  read the new nodes.
+  the raiser's HUD), `base_controls_test.gd` (TextureRect named). The teammate mark never on an engineer's client:
+  §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and `hud_<state>_preview.tscn` for pack,
+  tired, hurt, mate and raising, each with a `_uk` twin, and `hud_large_uk_preview.tscn`, at `--size 1920x1080`
+  (s09's states: §4.7.44); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
 
 #### 4.7.38 Built in #493 (M6.2), the main menu
 prime-game-ui's s2 at `ui-0.4.0` (its handoff `docs/handoff/s02-main-menu.md`; the issue linked `ui-0.2.0`, and
@@ -3441,6 +3441,52 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   `map_card_uk_preview`), and `map_large_uk_preview.tscn` (`zone` at large text); `screen_preview.gd`'s fake house
   follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
   Enter and closes only the card with Esc.
+
+#### 4.7.44 Built in #497 (M6.2), the downed, dead and respawn screen in the Toy style
+The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
+stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
+at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
+`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
+- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
+  (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
+  a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
+  ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
+  up) > `V` ToyColumnEight > `Line` ToyRowFour (centred) > `Before`, `Key` ToyKeyOnDark > `Text` ToyKeyText,
+  `After`, then `Hold` ToyBarProgress (360 x 10) and `Pad`; `Spectate` ToyPlate (top centre, 40 px down) > `V`
+  ToyColumnFour > `Respawn` ToyTextMutedOnDark and `Watching` ToyTitleOnDark; `Protect` ToyChipLight (top centre,
+  144 px down: 24 px under the timer plate) > `Text` ToyChipLightText. Every root sits at a point and takes its
+  minimum size; the keycap's `min_width` (36, 42 at large text) is read by `UiParts.sized` again after the
+  large-text swap. Every Control ignores the mouse and takes no focus. The four roots sit under one full-rect
+  `LifeScreen` Control beside `Hud`, not beside its nodes (one class owns s09; the places are the handoff's).
+- **What it shows** (`client/life/LifeHud`, pure, from the own `ClientModel`, the own `LifeCountdowns` at the
+  estimated host tick and `LifeView`'s own state; `LifeView.hud()` reads the give-up binding each frame):
+  `down`: `downed.title`, the bleed-out bar (`LifeCountdowns.knockdown_fraction()`: the time left over the mode's
+  knockdown) and `downed.time_left` (m:ss, rounded up), and the give-up line: `tr("downed.give_up_hold")` split at
+  `{key}`, each piece through `strip_edges()`, an empty piece hidden (uk: "Щоб здатися, утримуй" [F]), around the
+  keycap of `KeyLabel.of_action(&"give_up")` (§4.7.28), so it follows a rebind; the hold bar fills over
+  `LifeView.GIVE_UP_HOLD_S` and stays shown, empty, at rest (`down-holding`). `raise` (a raiser in the model):
+  `downed.raised_by` with the raiser's name, the raise's progress (the raiser's HUD bar's value, §4.7.37) in place
+  of the bar and the time, no GiveUp; when the raise stops the bleed-out returns. `dead` (or gone): `dead.respawn_in`
+  (m:ss) and `dead.watching` with `LifeView.target()`'s roster name (hidden with no target); the HUD shows nothing
+  (§4.7.37), no key (the tutorial teaches the spectate keys) and nothing of the target's. `back`: the HUD returns;
+  `respawn.protected` counts the respawn's invulnerability (`LifeCountdowns.protection_left_s()`, the mode's 3 s:
+  3, 2, 1 rounded up), and only a respawn's: a raise's invulnerability shows no chip. Never who knocked the player
+  down: nothing here reads it. Texts with data are set in code (`auto_translate_mode` DISABLED) and written again on
+  `NOTIFICATION_TRANSLATION_CHANGED`; `downed.title` too, which the handoff sets as a plain key.
+- **Playcheck:** the fields `life.title`, `life.left`, `life.bleed`, `life.raise`, `life.give_up` (the line as
+  drawn), `life.hold`, `life.respawn`, `life.watching` and `life.protected` replace `life.lines`, `life.bar` and
+  `hud.spectating`; the `spectate` scenario waits on them.
+- Tests: `tests/unit/client/ui/life_screen_test.gd` (the tree, anchors, offsets, grow directions and minimum sizes;
+  no mouse or focus; every state in English and Ukrainian and a language switch; the bleed fill's ramp stop; the
+  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; 36 and 42 px at large
+  text with every plate on the screen; the `Ui` shows it in the round only), `tests/unit/client/life/life_hud_test.gd`
+  (each state's data, the m:ss rounding, the raise stopping, the protection after a respawn and not a raise, the
+  sentence's pieces), `life_countdowns_test.gd` (`knockdown_fraction`, `protection_left_s`), `hud_test.gd` and
+  `hud_layout_test.gd` (the HUD's part), `tests/integration/client/life/life_network_test.gd` (the raised joiner's
+  title and bar, the spectator's plate with the HUD empty, the chip after the respawn). The `shot`s:
+  `client/dev/hud_<state>_preview.tscn` for downed, holding, raised, dead and back, each with a `_uk` twin, and
+  `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
+  too.
 
 #### 4.7.46 Built in #491 (M6.2), the Esc menu in the Toy style
 - Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
