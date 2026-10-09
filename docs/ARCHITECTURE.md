@@ -5360,7 +5360,7 @@ phase classes come in the task each row names.
 | Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
-| Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
+| Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)) | | packages and knives on the ground |
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
@@ -6072,7 +6072,10 @@ costs outside it.
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
 world by id, and owners for fixed interactables (a marker kind in `levels/`, such as a meeting button) and for
 bodies. It changes the intent catalogue (§4.1) and the owners once; after it, a new interactable is data plus at
-most one effect.
+most one effect. The first mechanic that needs it is the House's Generator (#679): its
+[ADR](decisions/2026-10-10-generator-task.md) (proposed) designs the station half as `Interact(station)`, a station
+kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationUsable`, `UseStation`); bodies wait for
+their own mechanic.
 
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
 progress and a public "zone done" share `ZoneProgress`); with ZD1 (a), its recommendation and still open, its time
@@ -6095,7 +6098,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Question | When |
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
-| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it |
+| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), proposed: GE1 to GE4, its issues G0 to G7); its game questions GD1 to GD10 wait for the engineer; bodies with their own mechanic |
 | The zone task's game rules, numbers, names, maps and look (ZD1 to ZD11 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8): how its time is earned, pause or reset on leaving, who counts, shared zones, live progress | #36, the engineer; M7-Z1 needs ZD1 to ZD6, ZD9 and ZD7's "data or lobby setting" for the time |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
