@@ -20,6 +20,7 @@ from collections.abc import Callable, Iterator, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TextIO
 
 from . import pins
 
@@ -147,6 +148,26 @@ def success_lines(lines: list[str], bulk: re.Pattern[str] | None) -> list[str]:
     return kept
 
 
+class _Tee(io.TextIOBase):
+    """What `quiet` prints to: kept in `kept` for the summary and written through to the open log at once."""
+
+    def __init__(self, log: TextIO, kept: io.StringIO) -> None:
+        super().__init__()
+        self.log = log
+        self.kept = kept
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, text: str) -> int:
+        self.log.write(text)
+        self.log.flush()
+        return self.kept.write(text)
+
+    def flush(self) -> None:
+        self.log.flush()
+
+
 def quiet(name: str, body: Callable[[], int], verbose: bool = False, bulk: re.Pattern[str] | None = None) -> int:
     """Run `body` (a command's main, which prints with say/ok/bad and returns its exit code) with its output captured.
 
@@ -155,18 +176,20 @@ def quiet(name: str, body: Callable[[], int], verbose: bool = False, bulk: re.Pa
     of what it had printed, then goes on up unchanged: nothing is hidden and the exit code stays the caller's."""
     if verbose:
         return body()
+    ensure_out()
+    log = quiet_log(name)
     buffer = io.StringIO()
     rc = 1
     error: BaseException | None = None
-    try:
-        with contextlib.redirect_stdout(buffer):
-            rc = body()
-    except BaseException as exc:  # noqa: BLE001 - re-raised below, after the excerpt is out
-        error = exc
+    # The log is emptied first and gets each line as it is printed: a run killed from outside (a shell tool's
+    # timeout) leaves this run's lines so far, never the previous run's "passed".
+    with log.open("w", encoding="utf-8") as handle:
+        try:
+            with contextlib.redirect_stdout(_Tee(handle, buffer)):
+                rc = body()
+        except BaseException as exc:  # noqa: BLE001 - re-raised below, after the excerpt is out
+            error = exc
     text = buffer.getvalue()
-    ensure_out()
-    log = quiet_log(name)
-    log.write_text(text, encoding="utf-8")
     where = f"full output: {shown(log)} (search it, never read it whole; --verbose prints it all)"
     lines = text.splitlines()
     if error is None and rc == 0:

@@ -140,6 +140,23 @@ class QuietTest(unittest.TestCase):
         self.assertIn("check: FAILED, Failure;", out.getvalue())
         self.assertIn("project check crashed", self.log("check"))
 
+    def test_the_log_holds_this_runs_lines_as_they_are_printed_never_the_previous_runs(self) -> None:
+        log = self.root / "tools" / "out" / "logs" / "check-output.log"
+        log.parent.mkdir(parents=True)
+        log.write_text("check\n  ok    UID lint\ncheck: passed\n", encoding="utf-8")  # an earlier green run
+        seen: list[str] = []
+
+        def run() -> int:
+            common.say("check")
+            common.bad("project check: Parse Error")
+            seen.append(log.read_text(encoding="utf-8"))  # a run killed here (a shell timeout) leaves this
+            raise KeyboardInterrupt
+
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(KeyboardInterrupt):
+            common.quiet("check", run)
+        self.assertEqual(seen, ["check\n  FAIL  project check: Parse Error\n"])
+        self.assertNotIn("check: passed", self.log("check"))
+
     def test_verbose_prints_everything_and_writes_no_log(self) -> None:
         lines = ["lint"] + [f"  ok    step {n}" for n in range(200)] + ["lint: passed"]
         rc, out = printed(common.quiet, "lint", self.body(lines, 0), verbose=True)
