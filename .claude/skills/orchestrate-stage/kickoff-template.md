@@ -1,7 +1,7 @@
 # The kickoff's content and template (orchestrate-stage)
 
 Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it at a stage's or track's first kickoff, to check
-it, when a human asks for a kickoff, and for a handover's ready kickoff.
+it, when a human asks for a kickoff, and when writing a handover's ready kickoff (not at a successor's own start).
 
 ## 1. The kickoff (continued from the skill's §1): what it must state
 The kickoff must state:

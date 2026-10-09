@@ -43,8 +43,8 @@ number (a split section's second part repeats its number). After a compaction, r
 | §4, §7 (parts) | a failed or stopped run; a crash, restart, plan limit or new session with runs | [resume.md](resume.md) |
 | §5 | a merge, a rebase, a conflict, `--sync-main`, the stage's end | [merges.md](merges.md) |
 | §8 | the human is needed; a merged task's worktree | [notifications.md](notifications.md) |
-| §9 | a stage's kickoff; a failure you have not seen | [gotchas.md](gotchas.md) |
-| §1 (part), §10 | writing or checking a kickoff, a handover's kickoff | [kickoff-template.md](kickoff-template.md) |
+| §9 | a stage's first kickoff (not a handover's); a failure you have not seen | [gotchas.md](gotchas.md) |
+| §1 (part), §10 | checking a stage's first kickoff; writing a handover's ready kickoff (not at your own start) | [kickoff-template.md](kickoff-template.md) |
 | budget | the kickoff, each wave, each launch | [budget.md](budget.md) |
 | handover | a handover; a session a scheduled task started | [handover.md](handover.md) |
 

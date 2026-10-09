@@ -1,7 +1,7 @@
 # Gotchas (orchestrate-stage)
 
-Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it at a stage's kickoff, and when a run fails in a
-way you have not seen.
+Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it at a stage's first kickoff (not a handover's), and
+when a run fails in a way you have not seen.
 
 ## 9. Gotchas
 
