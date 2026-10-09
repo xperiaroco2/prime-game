@@ -172,9 +172,11 @@ func test_each_change_sends_its_signal_and_showing_sends_none() -> void:
 func test_on_light_inks_the_texts_and_keeps_each_check_box_working() -> void:
 	var panel: VoicePanel = auto_free(VoicePanel.new())
 	panel.on_light()
-	for label: Label in [panel.unavailable_label, panel.echo_label, panel.headset_label]:
+	# The microphone notice too: Shortfalls' amber on cream is about 1.5:1 (#493 review).
+	for label: Label in [
+		panel.unavailable_label, panel.notice_label, panel.echo_label, panel.headset_label
+	]:
 		assert_str(String(label.theme_type_variation)).is_equal("ToyTextOnLight")
-	assert_str(String(panel.notice_label.theme_type_variation)).is_equal("Shortfalls")
 	for check: CheckBox in [panel.denoise_check, panel.tone_check, panel.mute_check]:
 		assert_str(check.text).is_empty()
 		var row := check.get_parent() as HBoxContainer

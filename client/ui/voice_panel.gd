@@ -143,12 +143,14 @@ func _init() -> void:
 
 
 ## The look on a light (cream) panel, the main menu's Settings panel (#493) until #491's Settings
-## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight), and each check
-## box's words beside it in ink (a CheckBox has no light variation in the pack). The logic stays.
+## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight; the microphone
+## notice too, as the pack has no warning text for a light panel and Shortfalls' amber is
+## unreadable on cream), and each check box's words beside it in ink (a CheckBox has no light
+## variation in the pack). The logic stays.
 func on_light() -> void:
 	for label: Label in _labels(self):
 		match label.theme_type_variation:
-			&"":
+			&"", &"Shortfalls":
 				label.theme_type_variation = &"ToyTextOnLight"
 			&"Title":
 				label.theme_type_variation = &"ToyTitleOnLight"
