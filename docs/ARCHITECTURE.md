@@ -1648,9 +1648,9 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
+The C→H kinds 1 to 13 and 112 (kind 15, `Throw`, has no chaos shape yet (#643); kind 14, `MoveClaimReliable`, has none either: `host_session_claim_twin_test`
 covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
-`ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111,
+`ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 23, 26, 31, 75, 76, 80, 95, 97, 111,
 113, 127, 128, 200, 255). A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
 in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
