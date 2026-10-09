@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import common, credits, lfs, uids
-from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, say, skip, warn
+from .common import ROOT, Failure, Result, bad, ensure_out, git_status, godot, ok, quiet, say, skip, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
 REQUIRED_WARNINGS = (
@@ -249,9 +249,19 @@ def ensure_import() -> None:
     say(f"        import: done in {time.monotonic() - started:.1f}s")
 
 
-def main(files: list[str] | None = None, lfs_content: bool = False) -> int:
+# A script warning of the project check: the full run prints dozens (39 on 2026-10-09), which a quiet success counts.
+SCRIPT_WARNING = re.compile(r"^  warn  res://")
+
+
+def main(files: list[str] | None = None, lfs_content: bool = False, verbose: bool = False) -> int:
+    """Quiet unless `verbose` (#590): a summary on success (script warnings counted, not listed), a capped excerpt
+    and the log's path on failure."""
     if lfs_content:
         return require_lfs_content()
+    return quiet("check", lambda: check_all(files), verbose, bulk=SCRIPT_WARNING)
+
+
+def check_all(files: list[str] | None) -> int:
     say("check")
     ensure_out()
     failed = False

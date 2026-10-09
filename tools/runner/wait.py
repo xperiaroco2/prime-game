@@ -13,6 +13,10 @@ line (no newline yet) is never read, and a bare `exit=0` line in the job's own o
 summary"; otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line
 and 124. No log, or one it cannot read: 2.
 
+Quiet by default (#590): a passed job's summary is capped at SUCCESS_CAP bytes, a failed job's at FAILURE_CAP bytes
+followed by the first lines of its log that name a failure, each line cut at LINE_CAP characters, then the log's path.
+`--verbose` prints the whole summary as before.
+
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
 
@@ -37,7 +41,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import suspend
-from .common import say
+from .common import FAILURE_CAP, SUCCESS_CAP, cap_lines, say
 
 # A poll every 3 minutes keeps a 5-minute cache warm (#555): over 212 calls that ran to their deadline (2026-10-06 to
 # 10-08, `metrics`), the gap to the agent's next API call exceeded wait's own clock by 6 s median, AROUND_P95 at p95
@@ -56,6 +60,9 @@ TAIL_LINES = 20
 # follows the verify summaries of the publishes it ran.
 SUMMARY_HEADS = ("verify summary", "merge-train summary")
 EXIT_LINE = re.compile(r"^exit=(\d+)$")
+# Quiet by default (#590): what a red job's log says before its summary, the first few lines that name a failure.
+FAILING_LINE = re.compile(r"^\s*(FAIL|ERROR)\b|Traceback|AssertionError|\bFAILED\b")
+FAILING_SHOWN = 12
 # How old a passed verify may be for `publish` to push on it instead of verifying again (#471): a verify that ran two
 # hours before the push tested the same bytes, but the PC (Godot, the pins, the other worktrees' load) may have moved.
 REUSE_MAX_AGE = timedelta(hours=2)
@@ -103,6 +110,34 @@ def summary_lines(lines: list[str], tail: int = TAIL_LINES) -> list[str]:
     if heads:
         return body[heads[-1] :]
     return [line for line in body if line.strip()][-tail:]
+
+
+def failing_lines(lines: list[str]) -> list[str]:
+    """The first FAILING_SHOWN lines before the summary block that name a failure (a red step's FAIL line, a test's
+    assertion, a traceback), for a red job; none when the log has no summary block (summary_lines then already
+    printed the last lines)."""
+    end = max(i for i, line in enumerate(lines) if line.strip())  # the marker
+    body = lines[:end]
+    heads = [i for i, line in enumerate(body) if line.startswith(SUMMARY_HEADS)]
+    if not heads:
+        return []
+    return [line for line in body[: heads[-1]] if FAILING_LINE.search(line)][:FAILING_SHOWN]
+
+
+def quiet_report(lines: list[str], code: int, whole: str) -> list[str]:
+    """What a finished job prints by default (#590): its summary, at most SUCCESS_CAP bytes when it passed; when it
+    failed at most FAILURE_CAP, the summary and then the first failing lines of its log. A line over the cap is cut and
+    the last line says how many are left out; `whole` (the log's path) closes it."""
+    cap = SUCCESS_CAP if code == 0 else FAILURE_CAP
+    more = f"whole log: {whole}"
+    report = cap_lines(summary_lines(lines), cap, more)
+    if code != 0:
+        used = sum(len(line.encode("utf-8", errors="replace")) + 1 for line in report)
+        failing = failing_lines(lines)
+        if failing and cap - used > 200:
+            report += ["first failing lines of the log (search it for the rest):"]
+            report += cap_lines(failing, cap - used - 60, more)
+    return report
 
 
 def utc_now() -> datetime:
@@ -214,6 +249,7 @@ def main(
     now: Callable[[], float] = time.time,
     grace: float = APPEAR_GRACE,
     poll: float = POLL_SECONDS,
+    verbose: bool = False,
 ) -> int:
     if not 1 <= max_seconds <= MAX_ALLOWED:
         say(f"wait: --max is 1 to {MAX_ALLOWED} s (a call over about 300 s loses the 5-minute prompt cache)")
@@ -246,7 +282,7 @@ def main(
             seen = True
             code = exit_code(lines)
             if code is not None:
-                for line in summary_lines(lines):
+                for line in summary_lines(lines) if verbose else quiet_report(lines, code, str(path)):
                     say(line)
                 say(f"wait: {path.name} finished: exit={code} (whole log: {path})")
                 return code

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import os
 import re
 import shutil
@@ -70,6 +72,108 @@ def warn(text: str) -> None:
 
 def skip(text: str) -> None:
     say(f"  skip  {text}")
+
+
+# --- quiet output (#590, part of #572): a command an agent runs in a loop prints a summary, not its whole output -----
+# Agents carry every tool output on every later call. `quiet` runs a command's body with its output captured, writes
+# the whole of it to tools/out/logs/<name>-output.log, and prints on success at most SUCCESS_CAP bytes (the step lines
+# and the log's path) and on failure a capped excerpt (every line but the passed steps' ok lines, at most FAILURE_CAP
+# bytes), a footer with the exit code and the log's path. `--verbose` skips all of it.
+SUCCESS_CAP = 1500
+FAILURE_CAP = 4000
+LINE_CAP = 400  # one printed line, in characters: a single Godot line can run to kilobytes
+BULK_SHOWN = 3  # lines of a bulk kind (a script warning of the import) that a quiet success still prints
+
+
+def quiet_log(name: str) -> Path:
+    return LOGS / f"{name}-output.log"
+
+
+def shown(path: Path) -> str:
+    """A path as the commands name it: below the project root, else whole; forward slashes."""
+    try:
+        return path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def cap_lines(lines: list[str], cap: int, more: str) -> list[str]:
+    """The lines that fit in `cap` bytes (each cut at LINE_CAP characters); when some are left out, one last line says
+    how many and ends with `more`."""
+    kept: list[str] = []
+    used = 0
+    for index, line in enumerate(lines):
+        line = line if len(line) <= LINE_CAP else line[:LINE_CAP] + " ..."
+        size = len(line.encode("utf-8", errors="replace")) + 1
+        if used + size > cap:
+            kept.append(f"  ... {len(lines) - index} more lines; {more}")
+            break
+        kept.append(line)
+        used += size
+    return kept
+
+
+def success_lines(lines: list[str], bulk: re.Pattern[str] | None) -> list[str]:
+    """A green run's lines: each one, except that those matching `bulk` stop after BULK_SHOWN with a count."""
+    if bulk is None:
+        return lines
+    kept: list[str] = []
+    seen = 0
+    after = 0  # where the count goes: right after the last bulk line shown
+    for line in lines:
+        if bulk.match(line):
+            seen += 1
+            if seen > BULK_SHOWN:
+                continue
+            kept.append(line)
+            after = len(kept)
+            continue
+        kept.append(line)
+    if seen > BULK_SHOWN:
+        kept.insert(after, f"  ... and {seen - BULK_SHOWN} more of those lines ({seen} in all)")
+    return kept
+
+
+def quiet(name: str, body: Callable[[], int], verbose: bool = False, bulk: re.Pattern[str] | None = None) -> int:
+    """Run `body` (a command's main, which prints with say/ok/bad and returns its exit code) with its output captured.
+
+    verbose: just run it. Otherwise the whole output goes to tools/out/logs/<name>-output.log and the terminal gets
+    the summary or the excerpt described above. An exception from `body` (a Failure, a crash) first prints the excerpt
+    of what it had printed, then goes on up unchanged: nothing is hidden and the exit code stays the caller's."""
+    if verbose:
+        return body()
+    buffer = io.StringIO()
+    rc = 1
+    error: BaseException | None = None
+    try:
+        with contextlib.redirect_stdout(buffer):
+            rc = body()
+    except BaseException as exc:  # noqa: BLE001 - re-raised below, after the excerpt is out
+        error = exc
+    text = buffer.getvalue()
+    ensure_out()
+    log = quiet_log(name)
+    log.write_text(text, encoding="utf-8")
+    where = f"full output: {shown(log)} (search it, never read it whole; --verbose prints it all)"
+    lines = text.splitlines()
+    if error is None and rc == 0:
+        for line in cap_lines(success_lines(lines, bulk), SUCCESS_CAP, where):
+            say(line)
+        say(f"  {where}")
+        return rc
+    body_lines = lines[1:] if lines and not lines[0].startswith(" ") else lines  # the command's own header line
+    problems = [
+        line
+        for line in body_lines
+        if line.strip() and not line.startswith("  ok    ") and line != f"{name}: FAILED"  # the footer says it
+    ]
+    for line in cap_lines(problems, FAILURE_CAP, where):
+        say(line)
+    outcome = f"{type(error).__name__}" if error is not None else f"exit={rc}"
+    say(f"{name}: FAILED, {outcome}; {where}")
+    if error is not None:
+        raise error
+    return rc
 
 
 def ensure_out() -> Path:
