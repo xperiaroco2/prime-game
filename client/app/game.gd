@@ -139,6 +139,7 @@ func _ready() -> void:
 	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
@@ -286,6 +287,15 @@ func set_ready(on: bool) -> void:
 func change_setting(id: StringName, value: Variant) -> void:
 	if _client != null:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+
+
+## The host names the lobby (#214): "" asks for the default again. Cleaned as the host will, so a
+## pasted invisible character never makes the send fail.
+func change_lobby_name(text: String) -> void:
+	if _client != null:
+		_client.send_intent(
+			Intents.CHANGE_SETTINGS, {"settings": {}, "lobby_name": LobbyName.clean(text)}
+		)
 
 
 ## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it
@@ -792,9 +802,12 @@ func _found_versions(reason: StringName) -> PackedStringArray:
 
 ## A join under way: the connecting screen's step and the time since Join. Then the room's code to
 ## whoever knows it: the host from its room (waiting for the service, then the code, or a line
-## saying none is coming), a code joiner the code it typed, a Direct joiner none.
+## saying none is coming), a code joiner the code it typed, a Direct joiner none. Once welcomed,
+## the title names the lobby (#214: the host's answer carries its name).
 func _refresh_join() -> void:
 	var webrtc := _join_transport as WebRtcTransport
+	if _client.is_welcomed():
+		ui.connecting.set_lobby(_client.model.lobby_name, _client.model.host_name())
 	if _target != null and not _client.is_welcomed():
 		var found := webrtc.found_protocol if webrtc != null else -1
 		var connected := _join_transport.own_id() != 0

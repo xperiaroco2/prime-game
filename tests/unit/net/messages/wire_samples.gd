@@ -29,6 +29,7 @@ static func events() -> Dictionary[String, Array]:
 	welcome.map = "res://levels/maps/test_map.tscn"
 	welcome.phase = &"lobby"
 	welcome.positions = {1: Vector3(0.1, 0.2, 0.3)}
+	welcome.lobby_name = "Лобі Діми " + String.chr(0x1F600)
 	found["WelcomeEvent"] = [welcome]
 	found["PlayerJoinedEvent"] = [
 		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE),
@@ -94,6 +95,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 0, "name": ""}),
 		WireMessage.new(&"SetReady", {"ready": true}, 7),
 		WireMessage.new(&"ChangeSettings", {"settings": settings}, 8),
+		WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": "Діма's den"}, 13),
+		WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": ""}, 14),
 		WireMessage.new(
 			&"ChangeSettings", {"settings": {}, "map": "res://levels/maps/test_map.tscn"}, 9
 		),
@@ -220,7 +223,14 @@ static func _settings_changed() -> SettingsChangedEvent:
 		["3 circle marker(s) needed, the map has 1", "11 player(s), the mode plays with 4 to 10"]
 	)
 	return SettingsChangedEvent.new(
-		numbers, "res://levels/maps/test_map.tscn", 11, demands, layout, problems, sets
+		numbers,
+		"res://levels/maps/test_map.tscn",
+		11,
+		demands,
+		layout,
+		problems,
+		sets,
+		"Dima's den"
 	)
 
 

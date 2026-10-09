@@ -11,7 +11,7 @@ const EVENTS_FOLDER := "res://core/events/"
 ## The wire's own fields (§4.4): the payload never holds them, so no intent declares them. A debug
 ## row's `peer` (ForceRole's, ForceClock's) becomes MatchCommand.peer and is allowed on those rows
 ## only.
-const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_station", "has_role"]
+const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_lobby_name", "has_station", "has_role"]
 const CONTENT := Samples.CONTENT_HASH
 ## A map path the wire accepts (a `res://` path): the fixture maps' `fixture://` paths do not.
 const WIRE_MAP := "res://levels/maps/fixture_wire_map.tscn"

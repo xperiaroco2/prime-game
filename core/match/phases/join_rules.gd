@@ -14,7 +14,7 @@ extends RefCounted
 ## decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 10
+const PROTOCOL_VERSION := 11
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -171,4 +171,5 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 	welcome.settings = ctx.state.settings.duplicate()
 	welcome.map = ctx.state.map
 	welcome.phase = phase_id
+	welcome.lobby_name = ctx.state.lobby_name
 	return welcome

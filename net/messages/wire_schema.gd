@@ -13,8 +13,9 @@ extends RefCounted
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
 ## 9 since #429 added MoveClaimReliable (kind 14); 10 since #550 added Hello's `name` and made
-## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8).
-const VERSION := 10
+## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8); 11 since #214 added
+## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes.
+const VERSION := 11
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -195,7 +196,8 @@ static func _intents() -> Array[WireRow]:
 	var hello := _up(
 		HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64), _name("name")]
 	)
-	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map])
+	var has_lobby_name := WireField.when("has_lobby_name", [_name("lobby_name")])
+	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map, has_lobby_name])
 	change.content_sized = true
 	# No seq: it is a claim, so a failed check gets a Correction, never a Rejected (§4.3).
 	var twin := _up(14, RELIABLE_CLAIM, 55, _claim_fields())
@@ -268,6 +270,7 @@ static func _events() -> Array[WireRow]:
 			_path("map"),
 			_id("phase"),
 			WireField.map("positions", _peer(""), _vec3(""), MAX_PLAYERS),
+			_name("lobby_name"),
 		]
 	)
 	var id_sets := WireField.map(
@@ -292,6 +295,7 @@ static func _events() -> Array[WireRow]:
 			WireField.list(
 				"shortfalls", _of("", WireField.Type.NOTE), MAX_SHORTFALLS, TYPE_PACKED_STRING_ARRAY
 			),
+			_name("lobby_name"),
 		]
 	)
 	var spots := WireField.map("spots", _peer(""), _vec3(""), MAX_PLAYERS)
@@ -324,7 +328,7 @@ static func _events() -> Array[WireRow]:
 	return [
 		_down(REJECTED, &"Rejected", 37, [_u32("seq"), _id("reason")]),
 		welcome,
-		_down(34, &"PlayerJoined", 81, [_peer("peer"), _name("name"), _vec3("spot")]),
+		_down(34, &"PlayerJoined", 97, [_peer("peer"), _name("name"), _vec3("spot")]),
 		_down(35, &"PlayerLeft", 4, [_peer("peer")]),
 		_down(36, &"ReadyChanged", 5, [_peer("peer"), _bool("ready")]),
 		settings_changed,
@@ -522,7 +526,7 @@ static func _path(field_name: String) -> WireField:
 	return _of(field_name, WireField.Type.PATH)
 
 
-## A player's name (#550): UTF-8, at most WireField.NAME_MAX_BYTES bytes.
+## A player's or the lobby's name (#550, #214): UTF-8, at most WireField.NAME_MAX_BYTES bytes.
 static func _name(field_name: String) -> WireField:
 	return _of(field_name, WireField.Type.NAME)
 

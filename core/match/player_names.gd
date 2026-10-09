@@ -8,14 +8,19 @@ extends RefCounted
 ## is_dropped; a test pins the two).
 
 ## The most characters (Unicode code points) a name keeps: the engineer's answer on #73. At most 4
-## UTF-8 bytes each, so a name is at most 64 bytes on the wire.
+## UTF-8 bytes each, so a name fits the wire's `name` type (a test pins the two).
 const MAX_CHARS := 16
 
 
-## `raw` as a name: the characters is_dropped names removed, the blank edges (is_blank) trimmed,
-## then cut to MAX_CHARS characters and trimmed again. Anything but a String or StringName is "";
-## "" means no usable name (the host's fallback).
+## `raw` as a name: clean_to with MAX_CHARS. "" means no usable name (the host's fallback).
 static func clean(raw: Variant) -> String:
+	return clean_to(raw, MAX_CHARS)
+
+
+## `raw` cleaned by a name's rules to at most `most` characters: the characters is_dropped names
+## removed, the blank edges (is_blank) trimmed, then cut to `most` characters and trimmed again.
+## Anything but a String or StringName is "". The lobby's name (LobbyName, #214) uses it too.
+static func clean_to(raw: Variant, most: int) -> String:
 	if not (raw is String or raw is StringName):
 		return ""
 	var kept := PackedInt32Array()
@@ -23,8 +28,8 @@ static func clean(raw: Variant) -> String:
 		if not is_dropped(code):
 			kept.append(code)
 	var trimmed := _trimmed(kept)
-	if trimmed.size() > MAX_CHARS:
-		trimmed = _trimmed(trimmed.slice(0, MAX_CHARS))
+	if trimmed.size() > most:
+		trimmed = _trimmed(trimmed.slice(0, most))
 	return _as_string(trimmed)
 
 

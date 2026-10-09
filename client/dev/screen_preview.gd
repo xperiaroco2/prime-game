@@ -217,6 +217,7 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 				"id_sets": mode.default_id_sets(),
 				"map": MAP,
 				"shortfalls": PackedStringArray(["3 player(s), the mode plays with 4 to 10"]),
+				"lobby_name": "",
 			}
 		)
 	)

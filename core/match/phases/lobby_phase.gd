@@ -50,8 +50,10 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 		_check_all_ready(ctx)
 
 
-## ChangeSettings(settings, map) from the host (§4.1): `settings` maps setting ids to values and
-## names only the settings that change; `map` is optional. A whole-number setting takes an int; a
+## ChangeSettings(settings, map, lobby_name) from the host (§4.1): `settings` maps setting ids to
+## values and names only the settings that change; `map` is optional, and so is `lobby_name`
+## (#214), which LobbyName cleans and never refuses for its content ("" is the default again); only
+## a value that is not text is refused (`bad_args`). A whole-number setting takes an int; a
 ## set of task types (the bans, #79) takes an Array of task type ids, which replaces the set.
 ## Every value is checked before any is applied: a key the mode does not declare, or a value of
 ## the wrong type (`unknown_setting`); a number outside its bounds, or an id that is not one of
@@ -89,6 +91,13 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 			ctx.reject(command, RejectReasons.UNKNOWN_MAP)
 			return false
 		map = asked as String
+	var lobby := ctx.state.lobby_name
+	if command.has_field("lobby_name"):
+		var named: Variant = command.field("lobby_name")
+		if not (named is String or named is StringName):
+			ctx.reject(command, RejectReasons.BAD_ARGS)
+			return false
+		lobby = LobbyName.clean(named)
 	for row: Transition in ctx.mode.transitions:
 		if row == null:
 			continue
@@ -102,6 +111,7 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 	ctx.state.settings = numbers
 	ctx.state.id_sets = sets
 	ctx.state.map = map
+	ctx.state.lobby_name = lobby
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
 

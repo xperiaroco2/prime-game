@@ -157,7 +157,7 @@ func _args_of(intent: StringName) -> Dictionary:
 		Intents.SET_READY:
 			args = {"ready": true}
 		Intents.CHANGE_SETTINGS:
-			args = {"settings": {"packages": 2}}
+			args = {"settings": {"packages": 2}, "lobby_name": "Hacked"}
 		Intents.LOAD_ACK:
 			args = {"match_id": 1000 + rng.randi_range(0, 999)}
 		Intents.PICK_UP:

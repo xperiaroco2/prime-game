@@ -74,6 +74,9 @@ var spots: Dictionary[int, Vector3] = {}
 var settings: Dictionary[StringName, int] = {}
 var id_sets: Dictionary[StringName, PackedStringArray] = {}
 var map := ""
+## The lobby's name the host set (#214), from Welcome and each SettingsChanged; "" until the host
+## names it: the default, which the UI shows as `lobby.default_name` with host_name().
+var lobby_name := ""
 ## What holds all_ready back, as the last SettingsChanged listed it.
 var shortfalls := PackedStringArray()
 ## The last LoadMatch's id; -1 before the first.
@@ -180,6 +183,13 @@ func phase_spec() -> PhaseSpec:
 	return _mode.find_phase(phase)
 
 
+## The host's name as the roster has it (its own player is peer 1), or "" when it is not there:
+## the default lobby name `lobby.default_name` is built from it (#214).
+func host_name() -> String:
+	var host: Member = roster.get(NetTransport.HOST_ID)
+	return host.name if host != null else ""
+
+
 ## Folds one decoded event into the model.
 func fold(event_name: StringName, fields: Dictionary) -> void:
 	var phase_before := phase
@@ -213,6 +223,7 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 			id_sets = fields["id_sets"]
 			map = fields["map"]
 			shortfalls = fields["shortfalls"]
+			lobby_name = fields["lobby_name"]
 		&"PhaseChanged":
 			_enter(fields["phase"] as StringName)
 			end_tick = fields["end_tick"]
@@ -280,6 +291,7 @@ func _welcome(fields: Dictionary) -> void:
 	settings = fields["settings"]
 	map = fields["map"]
 	phase = fields["phase"]
+	lobby_name = fields["lobby_name"]
 	var positions: Dictionary[int, Vector3] = fields["positions"]
 	spots = positions.duplicate()
 	spots[own_peer] = fields["spot"]

@@ -6,15 +6,22 @@ extends VBoxContainer
 ## back. Everyone sees the settings; only the host changes them, and only in a phase that accepts
 ## its ChangeSettings (EscMenuState.may_change_settings): for everyone else they are read-only.
 ## Everything shown comes from the own ClientModel and the own mode. A changed control sends that
-## setting only. The room's code with Copy, to whoever knows it (the M6 design §3 item 2).
+## setting only. The room's code with Copy, to whoever knows it (the M6 design §3 item 2). The
+## lobby's name (#214): the host edits it (sent when submitted or left, cleaned, only when it
+## differs), everyone else reads it; empty shows the default as its placeholder.
 
 signal ready_toggled(on: bool)
 signal setting_changed(id: StringName, value: Variant)
+## The host's new lobby name, LobbyName-cleaned ("" asks for the default again).
+signal lobby_name_changed(text: String)
 
 const READ_ONLY := "The settings below: only the host changes them, in the lobby."
+const NAME_LABEL := "lobby.setting.name"
+const DEFAULT_NAME := "lobby.default_name"
 
 var code_label := Label.new()
 var copy_button := Button.new()
+var name_edit := LineEdit.new()
 var roster_label := Label.new()
 var countdown_label := Label.new()
 var ready_button := Button.new()
@@ -30,6 +37,15 @@ var _bans: Dictionary[StringName, Dictionary] = {}
 ## The code Copy puts on the clipboard; empty hides the row.
 var _code := ""
 var _code_row := HBoxContainer.new()
+## The lobby's name as the model last had it: a submit of the same name sends nothing.
+var _lobby_name := ""
+## A name the host sent that the model does not show yet (its SettingsChanged is a round trip
+## away): the field keeps it, so it never flicks back to the old name, and a second submit of it
+## sends nothing. Settled once the model's name moves off `_name_at_send` or the host may no longer
+## change it.
+var _pending := ""
+var _awaiting := false
+var _name_at_send := ""
 
 
 func _init() -> void:
@@ -41,6 +57,10 @@ func _init() -> void:
 	_code_row.add_child(copy_button)
 	_code_row.visible = false
 	add_child(_code_row)
+	name_edit.max_length = LobbyName.MAX_CHARS
+	name_edit.text_submitted.connect(func(_submitted: String) -> void: _submit_name())
+	name_edit.focus_exited.connect(_submit_name)
+	add_child(UiParts.labelled(NAME_LABEL, name_edit))
 	add_child(roster_label)
 	add_child(countdown_label)
 	ready_button.toggle_mode = true
@@ -104,6 +124,17 @@ func refresh(model: ClientModel, host_tick: int, may_change: bool) -> void:
 	ready_button.text = "Ready (press again to cancel)" if is_ready else "Ready"
 	countdown_label.text = countdown_text(model, host_tick)
 	_may_change = may_change
+	_lobby_name = model.lobby_name
+	if _awaiting and (not may_change or _lobby_name != _name_at_send):
+		_awaiting = false
+	var shown := _pending if _awaiting else _lobby_name
+	name_edit.editable = may_change
+	name_edit.placeholder_text = default_name(model)
+	# Refreshed every frame: never over what the host is typing. A player's read-only field can
+	# hold the focus too (a click, the keyboard), and still follows every rename.
+	var typing := may_change and (name_edit.has_focus() or name_edit.is_editing())
+	if not typing and name_edit.text != shown:
+		name_edit.text = shown
 	read_only_label.visible = not may_change
 	shortfalls_label.visible = not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
@@ -139,6 +170,21 @@ static func roster_text(model: ClientModel) -> String:
 	return "\n".join(lines)
 
 
+## The lobby's name as shown: the host's, or while it is the default, `lobby.default_name` with the
+## host's name in the current language (#214).
+static func lobby_title(model: ClientModel) -> String:
+	return model.lobby_name if not model.lobby_name.is_empty() else default_name(model)
+
+
+## The default lobby name: `lobby.default_name` with the host's name, or "" while the roster has no
+## host (never "'s lobby"), as ConnectingScreen.set_lobby does.
+static func default_name(model: ClientModel) -> String:
+	var host := model.host_name()
+	if host.is_empty():
+		return ""
+	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": host})
+
+
 ## The countdown in words, or that the start waits for everyone.
 static func countdown_text(model: ClientModel, host_tick: int) -> String:
 	var left := GameFlow.seconds_left(model.end_tick, host_tick)
@@ -161,6 +207,23 @@ func settings_editable() -> bool:
 func _send(id: StringName, value: Variant) -> void:
 	if _may_change:
 		setting_changed.emit(id, value)
+
+
+## The host's typed name, cleaned as the host will (the wire refuses an invisible character, so a
+## pasted one must not make the send fail), sent only when it changes the lobby's name.
+func _submit_name() -> void:
+	if not _may_change:
+		return
+	var wanted := LobbyName.clean(name_edit.text)
+	if name_edit.text != wanted:
+		name_edit.text = wanted
+	if wanted == (_pending if _awaiting else _lobby_name):
+		return
+	if not _awaiting:
+		_name_at_send = _lobby_name
+	_pending = wanted
+	_awaiting = true
+	lobby_name_changed.emit(wanted)
 
 
 func _banned(id: StringName) -> PackedStringArray:

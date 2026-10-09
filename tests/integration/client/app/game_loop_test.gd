@@ -269,6 +269,20 @@ func test_the_name_in_the_settings_is_the_name_the_game_asks_for() -> void:
 		names.append(member.name)
 	names.sort()
 	assert_array(names).contains_exactly(["Player1", "Діма", "Діма 2"])
+	# The host's Lobby tab names the lobby (#214): Game sends it cleaned (a pasted zero-width
+	# character would make the wire refuse it), and every model has it.
+	# A wiring check, not a visibility one: once welcomed, Game hands the connecting screen's (by
+	# then hidden) title the lobby's name, the default and then the host's (ARCHITECTURE §4.7.32).
+	for game: Game in games:
+		assert_str(game.client().model.lobby_name).is_empty()
+		assert_str(game.client().model.host_name()).is_equal("Player1")
+		assert_str(game.ui.connecting.title_label.text).contains("Player1")
+	host.ui.esc.lobby.lobby_name_changed.emit("Dima's" + String.chr(0x200B) + " den")
+	assert_bool(await _until(games, _lobby_name_is.bind(games, "Dima's den"))).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for game: Game in games:
+		assert_str(game.ui.connecting.title_label.text).contains("Dima's den")
 	two.leave()
 	one.leave()
 	host.leave()
@@ -377,6 +391,13 @@ func _round_watching_loading(
 func _setting_is(games: Array[Game], id: StringName, value: int) -> bool:
 	for game: Game in games:
 		if game.client() == null or game.client().model.settings.get(id, -1) != value:
+			return false
+	return true
+
+
+func _lobby_name_is(games: Array[Game], lobby: String) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.client().model.lobby_name != lobby:
 			return false
 	return true
 

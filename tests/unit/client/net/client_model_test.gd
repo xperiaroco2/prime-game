@@ -43,6 +43,30 @@ func test_welcome_gives_the_peer_epoch_roster_settings_and_phase() -> void:
 	assert_vector(_model.spots[1]).is_equal(Vector3(5, 0, 5))
 
 
+## #214: the lobby's name comes with the Welcome and each SettingsChanged; "" is the default, built
+## by the UI from host_name().
+func test_the_lobby_name_follows_welcome_and_settings_changed() -> void:
+	assert_str(_model.lobby_name).is_empty()
+	assert_str(_model.host_name()).is_equal("Player1")
+	var other := ClientModel.new(FixtureBaseMode.mode())
+	assert_str(other.host_name()).is_empty()
+	var welcome := WelcomeEvent.new(3, Vector3.ZERO, 1)
+	welcome.lobby_name = "Den"
+	other.fold(welcome.event_name(), welcome.to_dict())
+	assert_str(other.lobby_name).is_equal("Den")
+	# A roster without the host (it left) has no host name.
+	assert_str(other.host_name()).is_empty()
+	var no_sets: Dictionary[StringName, PackedStringArray] = {}
+	var problems := PackedStringArray()
+	var renamed_event := SettingsChangedEvent.new(
+		{}, "res://levels/a.tscn", 2, Demands.new(null), null, problems, no_sets, "Діма's den"
+	)
+	_fold(renamed_event)
+	assert_str(_model.lobby_name).is_equal("Діма's den")
+	_fold(SettingsChangedEvent.new({}, "res://levels/a.tscn", 2, Demands.new(null), null, problems))
+	assert_str(_model.lobby_name).is_empty()
+
+
 func test_the_roster_follows_joins_leaves_and_ready() -> void:
 	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9)))
 	_fold(ReadyChangedEvent.new(3, true))

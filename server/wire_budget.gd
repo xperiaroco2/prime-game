@@ -10,7 +10,8 @@ extends RefCounted
 ## content edit first.
 
 ## A joiner's name is its own (at most 16 characters of UTF-8) or the host's Player<n>, which grows
-## with the join count: bound it by the name type itself.
+## with the join count, and the lobby's name is at most 20 characters (#214): bound both by the
+## name type itself.
 const NAME_BYTES := WireField.NAME_MAX_BYTES
 const LARGEST_U32 := WireField.U32_MAX
 
@@ -76,6 +77,7 @@ static func _welcome(content: _Content) -> WireMessage:
 		"map": content.map,
 		"phase": content.phase,
 		"positions": others,
+		"lobby_name": "L".repeat(NAME_BYTES),
 	}
 	return WireMessage.new(&"Welcome", fields)
 
@@ -95,6 +97,7 @@ static func _settings_changed(content: _Content) -> WireMessage:
 		"needed_colours": content.counts(content.stations),
 		"palettes": content.counts(content.stations),
 		"shortfalls": shortfalls,
+		"lobby_name": "L".repeat(NAME_BYTES),
 	}
 	return WireMessage.new(&"SettingsChanged", fields)
 
@@ -103,7 +106,7 @@ static func _change_settings(content: _Content) -> Dictionary:
 	var settings := {}
 	settings.merge(content.numbers)
 	settings.merge(content.id_sets)
-	return {"settings": settings, "map": content.map}
+	return {"settings": settings, "map": content.map, "lobby_name": "L".repeat(NAME_BYTES)}
 
 
 ## What the worst cases are built from.

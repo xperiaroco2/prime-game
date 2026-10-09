@@ -127,8 +127,8 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	_assert_refused(WireMessage.new(&"Swung", {"peer": 2, "facing": Vector3(INF, 0, 0)}))
 	_assert_refused(WireMessage.new(&"Damaged", {"amount": 0x80000000, "health": 0}))
 	_assert_refused(WireMessage.new(&"TaskProgress", {"done": 0x10000, "total": 1}))
-	# A name (#550) is UTF-8 of at most 64 bytes, not characters, and holds no control.
-	for bad_name: String in ["x".repeat(WireField.NAME_MAX_BYTES + 1), "é".repeat(33), "a" + BELL]:
+	# A name (#550, #214) is UTF-8 of at most 80 bytes, not characters, and holds no control.
+	for bad_name: String in ["x".repeat(WireField.NAME_MAX_BYTES + 1), "é".repeat(41), "a" + BELL]:
 		_assert_refused(
 			WireMessage.new(&"PlayerJoined", {"peer": 2, "name": bad_name, "spot": Vector3.ZERO})
 		)
@@ -273,16 +273,36 @@ func test_a_release_table_neither_encodes_nor_decodes_debug_commands() -> void:
 	assert_object(release.decode(24, _schema.encode(forced))).is_null()
 
 
-## A name (#550) round-trips as UTF-8: empty, ASCII, Cyrillic, four-byte characters, 64 bytes.
+## A name (#550) round-trips as UTF-8: empty, ASCII, Cyrillic, four-byte characters, 80 bytes.
 func test_a_name_round_trips_in_utf8() -> void:
 	var emoji := String.chr(0x1F600)
 	for each: String in [
-		"", "Dima", "Діма 2", emoji.repeat(16), "é".repeat(32), "x".repeat(WireField.NAME_MAX_BYTES)
+		"", "Dima", "Діма 2", emoji.repeat(20), "é".repeat(40), "x".repeat(WireField.NAME_MAX_BYTES)
 	]:
 		var hello := {"version": WireSchema.VERSION, "content": 1, "name": each}
 		var decoded := _round_trip(WireMessage.new(&"Hello", hello))
 		if decoded != null:
 			assert_str(decoded.fields["name"]).is_equal(each)
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## The lobby's name (#214) is the `name` type on ChangeSettings (behind its flag, absent when not
+## sent), Welcome and SettingsChanged: 20 four-byte characters fit, one byte more or a control
+## does not.
+func test_the_lobby_name_is_a_name_on_three_rows() -> void:
+	var widest := String.chr(0x1F600).repeat(20)
+	var sent := WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": widest}, 3)
+	assert_str(_round_trip(sent).fields["lobby_name"]).is_equal(widest)
+	var without := _round_trip(WireMessage.new(&"ChangeSettings", {"settings": {}}, 4))
+	assert_bool(without.fields.has("lobby_name")).is_false()
+	var changed := _settings_changed_fields()
+	changed["lobby_name"] = widest
+	var decoded := _round_trip(WireMessage.new(&"SettingsChanged", changed))
+	assert_str(decoded.fields["lobby_name"]).is_equal(widest)
+	for bad: String in ["é".repeat(41), "Den" + BELL, "x".repeat(WireField.NAME_MAX_BYTES + 1)]:
+		_assert_refused(WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": bad}, 5))
+		changed["lobby_name"] = bad
+		_assert_refused(WireMessage.new(&"SettingsChanged", changed))
 	assert_array(Array(_errors.snapshot())).is_empty()
 
 
@@ -318,7 +338,7 @@ func test_a_malformed_name_is_rejected_without_an_engine_error() -> void:
 	var long := PackedByteArray()
 	long.resize(WireField.NAME_MAX_BYTES + 1)
 	long.fill(0x41)
-	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(long), "a length of 65")
+	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(long), "a length of 81")
 	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(bad[4]), "not UTF-8 at byte 0")
 	assert_array(Array(_errors.snapshot())).is_empty()
 

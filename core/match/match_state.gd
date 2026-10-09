@@ -41,6 +41,10 @@ var newcomers: Dictionary[int, bool] = {}
 ## Player<n>, n its join's number, counted for every join whatever the name. Session state:
 ## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
 var joins := 0
+## The lobby's name the host set (#214, ChangeSettings's `lobby_name`), as LobbyName cleaned it;
+## "" is the default, which each client shows as `lobby.default_name` with the host's name.
+## Session state: reset_match() keeps it, so the lobby keeps its name from match to match (§3.5).
+var lobby_name := ""
 ## Roles forced per peer (debug builds only, §8, §9.7: a debug command or a scenario), which
 ## DealRoles applies before its draws; a forced role counts toward its quota (the engineer's
 ## answer A on #30). Session state: reset_match() keeps it. core/ cannot tell a debug build, so
