@@ -922,14 +922,14 @@ func _watch_freeze() -> void:
 
 ## Whether a living player but bot 4 stands in a zone: bot 2 may carry its package across one.
 func _other_inside() -> bool:
-	var hostile_peer := peers.peer_of(HOSTILE)
+	var bot4_peer := peers.peer_of(HOSTILE)
 	for id: int in game.state.stations:
 		var station := game.state.stations[id]
 		if station.kind == null or station.kind.id != ChaosScenario.ZONE:
 			continue
 		for peer: int in game.state.peers():
 			var player := game.state.player(peer)
-			if peer != hostile_peer and player != null and player.is_alive():
+			if peer != bot4_peer and player != null and player.is_alive():
 				if station.contains(player.position):
 					return true
 	return false
