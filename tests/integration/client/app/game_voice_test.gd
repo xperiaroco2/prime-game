@@ -74,7 +74,7 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	assert_bool(await _until(func() -> bool: return host.screen() == S.LOBBY)).is_true()
 	# The lobby hints at Settings until a microphone is picked.
 	await get_tree().process_frame
-	assert_bool(host.ui.lobby_hud.voice_label.visible).is_true()
+	assert_bool(host.ui.lobby_hud.voice_hint.visible).is_true()
 	# Settings opens on Sound and voice; the talk key counts under the menu too (#488 rule 4).
 	host.open_esc()
 	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
@@ -93,7 +93,7 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	assert_int(back.mode).is_equal(UserSettings.Mode.VOICE_ACTIVITY)
 	assert_str(back.device).is_equal("Headset Microphone")
 	await get_tree().process_frame
-	assert_bool(host.ui.lobby_hud.voice_label.visible).is_false()
+	assert_bool(host.ui.lobby_hud.voice_hint.visible).is_false()
 	host.close_esc()
 	await get_tree().process_frame
 	assert_bool(host.sender().listening).is_true()

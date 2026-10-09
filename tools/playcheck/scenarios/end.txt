@@ -33,7 +33,7 @@ wait pointer free
 wait screen lobby timeout=30
 wait ready off
 wait ready 2 off
-wait text lobby.countdown is Waiting for everyone
+wait text lobby.status is 0 of 2 ready
 frames 60
 shot lobby_after_end
 press ready

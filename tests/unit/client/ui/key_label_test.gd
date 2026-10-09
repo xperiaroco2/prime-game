@@ -58,10 +58,10 @@ func test_the_label_follows_a_rebind() -> void:
 	var life := LifeHud.Local.new()
 	life.read_keys()
 	assert_str(life.give_up_key).is_equal("K")
-	assert_str(LobbyHud.hint()).contains("F: ready")
+	assert_str(KeyLabel.of_action(&"ready")).is_equal("F")
 	controls.bind(&"ready", key)
 	controls.apply()
-	assert_str(LobbyHud.hint()).contains("K: ready")
+	assert_str(KeyLabel.of_action(&"ready")).is_equal("K")
 
 
 func test_space_shift_tab_and_esc_keycaps_are_wide_and_a_rebind_decides() -> void:

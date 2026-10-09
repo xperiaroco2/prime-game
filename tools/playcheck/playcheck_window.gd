@@ -156,11 +156,23 @@ class GameView:
 					if button.is_visible_in_tree():
 						names.append(button.text)
 				found = [", ".join(names), ui.esc.is_visible_in_tree()]
+			"lobby.roster":
+				found = [_roster(ui.lobby_hud), ui.lobby_hud.rows.is_visible_in_tree()]
 			"hand.item":
 				var hand := _hand()
 				var kind := hand.shown_kind() if hand != null else &""
 				found = [kind, hand != null and hand.is_visible_in_tree() and not kind.is_empty()]
 		return found
+
+	## The lobby HUD's rows, one line each: the name as drawn ("You" for the own row, "<name> ·
+	## host" for the host's), then "ready" where the row shows its check, else "not ready".
+	func _roster(lobby: LobbyHud) -> String:
+		var lines := PackedStringArray()
+		var texts := lobby.row_texts()
+		var checks := lobby.row_checks()
+		for index in texts.size():
+			lines.append("%s %s" % [texts[index], "ready" if checks[index] else "not ready"])
+		return "\n".join(lines)
 
 	## [the item's name as drawn, shown while the slot is shown and holds an item] of a HUD slot.
 	func _slot(slot: HudSlot) -> Array:
@@ -179,9 +191,8 @@ class GameView:
 			"life.left": ui.life.left_label,
 			"life.respawn": ui.life.respawn_label,
 			"life.protected": ui.life.protect_label,
-			"lobby.hint": ui.lobby_hud.hint_label,
-			"lobby.roster": ui.lobby_hud.roster_label,
-			"lobby.countdown": ui.lobby_hud.countdown_label,
+			"lobby.status": ui.lobby_hud.status_label,
+			"lobby.ready": ui.lobby_hud.ready_label,
 			"pregame.role": ui.pregame.role_label,
 			"end.winner": ui.end.winner_shown(),
 			"end.countdown": ui.end.countdown_label,

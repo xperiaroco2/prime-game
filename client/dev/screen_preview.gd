@@ -120,7 +120,7 @@ func _ready() -> void:
 	ui.esc.guide.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	var code_line := JoinProgress.code_text(PREVIEW_CODE, code_gone)
-	ui.lobby_hud.show_code(code_line)
+	ui.lobby_hud.show_code(PREVIEW_CODE, code_gone, false)
 	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
 	match preview:
 		Preview.MENU, Preview.MENU_VOICE:
