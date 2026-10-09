@@ -42,3 +42,14 @@ func test_the_pick_must_be_able_to_name_a_player() -> void:
 		var mode := FixtureStageModes.staged([FixtureStageModes.knock_down(pick)])
 		var errors := "\n".join(ModeCheck.run(mode).errors)
 		assert_str(errors).contains("KnockDown pick is %d, outside 0 to 3" % pick)
+
+
+func test_a_knock_down_on_a_row_that_changes_the_level_is_an_error() -> void:
+	# Match._transition switches to the entered phase's level before the row's actions run.
+	var mode := FixtureStageModes.staged([FixtureStageModes.knock_down(1, true)])
+	mode.find_phase(FixtureStageModes.STAGE).level = PhaseSpec.Level.LOBBY
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("row round, next: KnockDown changes the level")
+	# The same row on one level passes.
+	var same := FixtureStageModes.staged([FixtureStageModes.knock_down(1, true)])
+	assert_array(Array(ModeCheck.run(same).errors)).is_empty()

@@ -338,6 +338,24 @@ func _check_rows(mode: GameMode) -> void:
 					)
 				)
 			var to_spec := mode.find_phase(row.to)
+			var from_spec := mode.find_phase(row.from)
+			if (
+				action is KnockDown
+				and to_spec != null
+				and from_spec != null
+				and to_spec.level != from_spec.level
+			):
+				# Match._transition switches the world to the entered phase's level before the
+				# row runs: the knockdown would ask the floor of a level the player is not in.
+				errors.append(
+					(
+						(
+							"row %s, %s: KnockDown changes the level (%s to %s); it acts where the"
+							+ " player stands, so a row that has it stays on one level"
+						)
+						% [row.from, row.outcome, row.from, row.to]
+					)
+				)
 			if (
 				action is KnockDown
 				and not (action as KnockDown).then_die
