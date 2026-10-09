@@ -363,6 +363,24 @@ class MetricsTest(unittest.TestCase):
         self.assertIn("slot wait (median / max) | over the limit |", text)
         self.assertIn("| 90 / 150 | 1 |", text)
 
+    def test_a_fast_run_is_never_a_full_runs_total(self) -> None:
+        # #605: a plain verify runs doctor, lint and check only; its total stays out of the full runs' totals.
+        fast = SUMMARY.replace("verify: FAILED", "  fast verify: lint and check; the tests run on CI\nverify: FAILED")
+        self.assertIs(metrics.parse_verify(fast)["fast"], True)
+        self.assertNotIn("fast", metrics.parse_verify(SUMMARY))
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 250, "mode": "full",
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "b", "seconds": 60, "mode": "fast",
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v.get("fast", False) for v in found], [False, True])
+        _md, _record, compact = self.build(history=found)
+        line = next(line for line in compact if line.startswith("local verify (history file)"))
+        self.assertIn("2 runs, 0 red, median 250 s (max 250)", line)
+
     def test_the_verify_history_file(self) -> None:
         path = self.root / "verify-history.jsonl"
         write_lines(path, [
