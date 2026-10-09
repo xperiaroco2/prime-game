@@ -6,14 +6,17 @@ extends Control
 ## and its shared counter, no description, and a «?» that asks for the type's how-to card
 ## (howto_requested; the card is #254). Right, the level's map (MapData): the rooms by name, the
 ## own place and heading as a pin with "you are here", and while a task row is hovered the zones
-## where that type's items may lie. Then the match clock.
+## where that type's items may lie. Then the match clock. A «?» opens its type's how-to card (#254,
+## s8's `guide`) over the map on Dim2: Close, Esc or the map key closes only the card (this screen
+## reads them first and marks them handled, #488's rule 2 and 3); while it is open the task list
+## and the board take no focus.
 ##
 ## Never another player's place, an item's or a circle's: the screen reads only the model's tasks
 ## and clock, and the own place the game passes in (HudText.Local); zones are level data (the M4
 ## ADR's §3 item 4 as revised by #253). Styled only through the shared theme's Toy variations; the
 ## final look is #490.
 
-## Asked when a task row's «?» is pressed: the how-to card of `task_type` (#254 connects it).
+## Asked when a task row's «?» is pressed: the how-to card of `task_type`; the screen opens it.
 signal howto_requested(task_type: StringName)
 
 ## The board's size in pixels at the 1920x1080 base (layout, not style).
@@ -24,6 +27,8 @@ const TASKS_WIDTH := 520.0
 const HERE_GAP := Vector2(8, -3)
 ## The zone's chip's inset from its room's top-left corner, in pixels (layout).
 const ZONE_HINT_GAP := 12.0
+## The how-to card's width over the map (the handoff's Card), in pixels (layout).
+const HOWTO_WIDTH := 1536.0
 
 
 ## One row of the task list: a task's type, its name and its shared counter.
@@ -45,6 +50,14 @@ var plan := Control.new()
 var pin := Panel.new()
 var here := PanelContainer.new()
 var zone_hint := PanelContainer.new()
+var tasks_panel: PanelContainer
+## Under the how-to card: dims the map and stops the mouse (Dim2), and centres the card (Guide).
+var howto_dim: Panel
+var howto_center := CenterContainer.new()
+## The open how-to card (a ToyRaised of HowtoCardView); null while none is open.
+var howto: ToyRaised
+## The task type whose card is open; &"" while none is.
+var howto_type: StringName = &""
 
 var _data := MapData.new()
 ## Room id -> its lit zone panel, and its name's label.
@@ -75,7 +88,8 @@ func _init() -> void:
 	row.theme_type_variation = &"ToyRowThirtyTwo"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(row)
-	row.add_child(_tasks_panel())
+	tasks_panel = _tasks_panel()
+	row.add_child(tasks_panel)
 	board.theme_type_variation = &"ToyMapBoard"
 	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(board)
@@ -84,6 +98,15 @@ func _init() -> void:
 	board.add_child(plan)
 	_build_marks()
 	set_data(_data)
+	howto_dim = UiParts.backdrop(self, &"ToyBackdrop")
+	howto_dim.name = "Dim2"
+	howto_dim.visible = false
+	howto_center.name = "Guide"
+	howto_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	howto_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	howto_center.visible = false
+	add_child(howto_center)
+	howto_requested.connect(open_howto)
 
 
 func _process(_delta: float) -> void:
@@ -99,12 +122,65 @@ func _process(_delta: float) -> void:
 		light(hovered)
 
 
+## Close, Esc (ui_cancel) or the map key with the card open closes only the card: read here, before
+## the game's own Esc and map key, and marked handled.
+func _input(event: InputEvent) -> void:
+	if howto == null or not is_visible_in_tree():
+		return
+	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"map"):
+		close_howto()
+		get_viewport().set_input_as_handled()
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED:
 		_place_pin()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
+		# The map closed (its key, the Esc menu, the end of the round): its card with it.
+		close_howto()
 	elif what == NOTIFICATION_TRANSLATION_CHANGED and is_node_ready():
 		# The words in place: nothing is freed while the notification walks the tree.
 		_retext()
+
+
+## Opens `type`'s how-to card over the map (HowtoCards); false when the type has none.
+func open_howto(type: StringName) -> bool:
+	var card := HowtoCards.of_task(type)
+	if card == null:
+		return false
+	close_howto()
+	howto = HowtoCardView.raised(card, HowtoCardView.MAP_ART, ToyHints.LIGHT, true)
+	howto.custom_minimum_size = Vector2(HOWTO_WIDTH, 0)
+	HowtoCardView.face_of(howto).close_requested.connect(close_howto)
+	howto_center.add_child(howto)
+	howto_type = type
+	howto_dim.visible = true
+	howto_center.visible = true
+	for each: Control in [tasks_panel, board]:
+		each.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_DISABLED
+	return true
+
+
+## Closes the how-to card, if one is open; the focus it had goes (it was opened with the mouse:
+## the «?» takes no focus until #488 moves Space out of ui_accept).
+func close_howto() -> void:
+	if howto == null:
+		return
+	howto_center.remove_child(howto)
+	howto.queue_free()
+	howto = null
+	howto_type = &""
+	howto_dim.visible = false
+	howto_center.visible = false
+	for each: Control in [tasks_panel, board]:
+		each.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_INHERITED
+	var viewport := get_viewport()
+	if viewport != null:
+		viewport.gui_release_focus()
+
+
+func howto_open() -> bool:
+	return howto != null
 
 
 ## The level's map; an empty MapData (no level, or a level with no rooms) hides the board.

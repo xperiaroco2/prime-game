@@ -75,6 +75,64 @@ func test_each_rows_question_mark_asks_for_its_types_card() -> void:
 	assert_int((helps[0] as Button).focus_mode).is_equal(Control.FOCUS_NONE)
 
 
+func test_a_question_mark_opens_its_types_card_over_the_map() -> void:
+	# #254, s8's `guide`: the card on Dim2, centred, the list and the board out of focus's reach.
+	var screen := _screen(_round_model())
+	assert_bool(screen.howto_open()).is_false()
+	assert_bool(screen.howto_dim.visible).is_false()
+	var helps := screen.rows_box.find_children("Help", "Button", true, false)
+	(helps[1] as Button).pressed.emit()
+	assert_bool(screen.howto_open()).is_true()
+	assert_str(String(screen.howto_type)).is_equal("delivery")
+	assert_str(screen.howto_dim.name).is_equal("Dim2")
+	assert_str(String(screen.howto_dim.theme_type_variation)).is_equal("ToyBackdrop")
+	assert_int(screen.howto_dim.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+	assert_bool(screen.howto_dim.visible).is_true()
+	assert_bool(screen.howto_center.visible).is_true()
+	assert_int(screen.howto_center.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	assert_object(screen.howto.get_parent()).is_same(screen.howto_center)
+	assert_that(screen.howto.custom_minimum_size).is_equal(Vector2(1536, 0))
+	var face := HowtoCardView.face_of(screen.howto)
+	assert_str(face.title_label.text).is_equal("task.delivery")
+	assert_object(face.close_button).is_not_null()
+	var first := face.frames_box.get_child(0).get_child(0) as Control
+	assert_that(first.custom_minimum_size).is_equal(HowtoCardView.MAP_ART)
+	for each: Control in [screen.tasks_panel, screen.board]:
+		assert_int(each.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_DISABLED)
+	# The card is above the map: the last children of the screen.
+	assert_int(screen.howto_center.get_index()).is_equal(screen.get_child_count() - 1)
+	assert_int(screen.howto_dim.get_index()).is_equal(screen.get_child_count() - 2)
+	var card := screen.howto
+	face.close_button.pressed.emit()
+	assert_bool(screen.howto_open()).is_false()
+	assert_bool(screen.howto_dim.visible).is_false()
+	assert_bool(screen.howto_center.visible).is_false()
+	for each: Control in [screen.tasks_panel, screen.board]:
+		assert_int(each.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_INHERITED)
+	await get_tree().process_frame
+	assert_bool(is_instance_valid(card)).is_false()
+	# A type with no card opens nothing.
+	assert_bool(screen.open_howto(&"no_such_task")).is_false()
+	assert_bool(screen.howto_open()).is_false()
+
+
+func test_esc_or_the_map_key_closes_only_the_card_and_so_does_hiding_the_map() -> void:
+	var screen := _screen(_round_model())
+	for action: StringName in [&"ui_cancel", &"map"]:
+		assert_bool(screen.open_howto(&"delivery")).is_true()
+		_press_action(action)
+		assert_bool(screen.howto_open()).override_failure_message(action).is_false()
+		assert_bool(screen.visible).is_true()
+	# Without a card the screen leaves both keys to the game.
+	_press_action(&"ui_cancel")
+	assert_bool(screen.visible).is_true()
+	screen.open_howto(&"delivery")
+	screen.visible = false
+	assert_bool(screen.howto_open()).is_false()
+	# The closed cards are freed at the end of the frame.
+	await get_tree().process_frame
+
+
 func test_lighting_a_type_shows_its_zones_and_their_chip_only() -> void:
 	var screen := _screen(_round_model())
 	assert_array(_lit_rooms(screen)).is_empty()
@@ -172,6 +230,16 @@ func test_other_players_items_and_circles_change_nothing_on_the_screen() -> void
 	assert_str(all).not_contains("Stranger")
 	for item: ClientModel.Item in busy.items.values():
 		assert_str(all).not_contains(str(item.position))
+
+
+## `action` pressed and released through Input, as a key would be.
+func _press_action(action: StringName) -> void:
+	for pressed: bool in [true, false]:
+		var event := InputEventAction.new()
+		event.action = action
+		event.pressed = pressed
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
 
 
 func _screen(model: ClientModel, local: HudText.Local = _local()) -> MapScreen:

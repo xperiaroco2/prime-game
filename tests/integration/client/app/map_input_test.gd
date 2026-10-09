@@ -5,9 +5,9 @@ extends GdUnitTestSuite
 ## frees the mouse, M again closes it and captures it; Tab does nothing; with the map open the
 ## player still walks and a click never recaptures the mouse; Esc closes only the map; under the
 ## Esc menu M does nothing, and a close request closes the map under the menu it opens; the end of
-## the round closes it, and the next round starts with it closed. #488: a card over the map (a stub
-## registered as #254's will) closes first, on Esc and on M; with the map open sprint, jump, the
-## item keys and talk work and the mouse turns no head.
+## the round closes it, and the next round starts with it closed. With the how-to card open (#254)
+## Esc and M close only the card (#488 also checks it with a stub card); with the map open sprint,
+## jump, the item keys and talk work and the mouse turns no head.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7395
@@ -156,6 +156,34 @@ func test_esc_closes_only_the_map_and_under_the_esc_menu_m_does_nothing() -> voi
 	await _frames(2)
 	assert_bool(game.ui.map_is_open()).is_false()
 	assert_bool(pointer.captured()).is_true()
+	game.leave()
+	await get_tree().process_frame
+
+
+func test_esc_and_m_close_the_how_to_card_before_the_map() -> void:
+	# #254 on #488's rules 2 and 3: the card is the topmost overlay; one press closes one.
+	var game := await _round_game(PORT + 4)
+	var pointer := game.pointer as RecordingPointer
+	_press(KEY_M)
+	await _frames(2)
+	for key: Key in [KEY_ESCAPE, KEY_M]:
+		assert_bool(game.ui.map.open_howto(&"delivery")).is_true()
+		_press(key)
+		await _frames(2)
+		assert_bool(game.ui.map.howto_open()).override_failure_message(str(key)).is_false()
+		assert_bool(game.ui.map_is_open()).override_failure_message(str(key)).is_true()
+		assert_bool(game.ui.esc_open()).is_false()
+		assert_bool(pointer.captured()).is_false()
+	_press(KEY_M)
+	await _frames(2)
+	assert_bool(game.ui.map_is_open()).is_false()
+	assert_bool(pointer.captured()).is_true()
+	# The map closing with its card open takes the card too.
+	_press(KEY_M)
+	await _frames(2)
+	game.ui.map.open_howto(&"delivery")
+	game.ui.close_map()
+	assert_bool(game.ui.map.howto_open()).is_false()
 	game.leave()
 	await get_tree().process_frame
 
