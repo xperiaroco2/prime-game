@@ -388,7 +388,8 @@ House's markers; the client's car, display, pose and sounds. The issues follow f
 Open questions (the engineer's; #688's "Open" and the ADR's RD items, each with options and a recommendation):
 - Lying down or crouched under the car? The movement code has no crouch today.
 - The fitting time, the number of part kinds, the subtask count, and how near a player must stand to the panel, the car
-  and the shelf.
+  and the shelf. How far is the panel from the car? The proposed point is 8.6 m, so from parts of the panel the fitter
+  is beyond the 8 m voice range.
 - How the car shows the needed part: a sign on the car or on the panel; a picture or a code? May the same part be
   needed twice in a row?
 - Is one subtask one part fitted (the car needs several, one after another, as the host's count), or one car

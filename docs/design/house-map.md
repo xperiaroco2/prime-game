@@ -181,9 +181,12 @@ A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the
 
 The car repair (the engineer, 2026-10-10, #688; the rules in [GDD](../GDD.md) §8): the lift panel has no view of who
 is under the car; a dissident plays by the same rules (#679's shared rule), so anyone holding the lift may let it go.
-The panel stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot hold the lift and
-fit a part. The garage's level gives the panel its blind side (the
-[car repair ADR](../decisions/2026-10-10-car-repair-task.md), its issue R5).
+The panel's proposed point stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot
+hold the lift and fit a part; but that is beyond the voice range (8 m) from parts of the panel's reach, and the holder
+relies on voice. So the panel moves nearer: every point of its reach within the voice range less a margin of the car's
+use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2
+asks for the distance, its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
+(issue R5).
 
 ## 7. Routes and travel times
 
