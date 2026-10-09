@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://jtwvmm7je2bl"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://brqhmd3yt3u4r" path="res://levels/kit/greybox_floor_street.tres" id="2_floor"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(80, 0.2, 6)
@@ -40,7 +41,15 @@ shape = SubResource("Shape_3")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=163720064]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, -0.16, 3)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
+
+[node name="Name" type="Label3D" parent="." unique_id=159781505]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 2.4, 3)
+billboard = 1
+text = "Street"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=1200269622]
 

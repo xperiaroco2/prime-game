@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dlfioqklehicl"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://b6atas412q0ag" path="res://levels/kit/greybox_floor_deck.tres" id="2_floor"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(14, 0.04, 14)
@@ -22,7 +23,15 @@ shape = SubResource("Shape_1")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=1609481790]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, -0.04, 7)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
+
+[node name="Name" type="Label3D" parent="." unique_id=32311341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 2.4, 7)
+billboard = 1
+text = "Chill zone"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=39070611]
 
