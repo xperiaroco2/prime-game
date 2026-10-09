@@ -80,7 +80,11 @@ static func events() -> Dictionary[String, Array]:
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
 	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
-	found["MatchEndedEvent"] = [MatchEndedEvent.new(&"crew")]
+	found["MatchEndedEvent"] = [
+		MatchEndedEvent.new(&"crew"),
+		MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}),
+		MatchEndedEvent.new(&"crew", StringName(ID_32), {}),
+	]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
 	return found
 
@@ -221,9 +225,17 @@ static func _settings_changed() -> SettingsChangedEvent:
 	var sets: Dictionary[StringName, PackedStringArray] = {
 		&"banned_task_types": PackedStringArray(["delivery", ID_32])
 	}
-	var problems := PackedStringArray(
-		["3 circle marker(s) needed, the map has 1", "11 player(s), the mode plays with 4 to 10"]
-	)
+	var problems: Array[HostText] = [
+		HostText.of(
+			HostText.PLAYERS_MANY, PackedStringArray(), {&"count": 1, &"min": 4, &"max": 10}
+		),
+		HostText.of(HostText.NO_LAYOUT),
+		HostText.of(HostText.MARKERS, PackedStringArray(["circle"]), {&"need": 3, &"have": 1}),
+		HostText.of(HostText.COLOURS, PackedStringArray([ID_32]), {&"need": 9, &"have": -8}),
+		HostText.of(
+			HostText.PLAYERS_FEW, PackedStringArray(), {&"count": 1, &"min": 4, &"max": 10}
+		),
+	]
 	return SettingsChangedEvent.new(
 		numbers,
 		"res://levels/maps/test_map.tscn",

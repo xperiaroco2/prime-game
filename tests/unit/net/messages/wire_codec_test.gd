@@ -212,14 +212,52 @@ func test_the_encoder_refuses_counts_over_their_maxima_and_payloads_over_the_cap
 		)
 		. is_equal(2 + 1 + 64)
 	)
-	var notes := PackedStringArray()
+	# The most shortfalls of the longest host text, beside the most settings of 32-character ids.
+	var texts: Array[Dictionary] = []
 	for i: int in WireSchema.MAX_SHORTFALLS:
-		notes.append("n".repeat(WireField.NOTE_MAX))
+		texts.append(_longest_text(i))
+	var settings: Dictionary[StringName, int] = {}
+	for i: int in WireSchema.MAX_ENTRIES:
+		settings[StringName("s%031d" % i)] = WireField.S32_MIN
 	var fields := _settings_changed_fields()
-	fields["shortfalls"] = notes
+	fields["shortfalls"] = texts
+	fields["settings"] = settings
 	var encoded := _schema.write(WireMessage.new(&"SettingsChanged", fields))
 	assert_str(encoded.problem).contains("over its cap of 8192")
 	_assert_refused(WireMessage.new(&"SettingsChanged", fields))
+
+
+## Host text is ids and whole numbers only (#548): a sentence, a third subject or a fifth
+## argument is refused on both ends, and the longest text round-trips in the decoder's types.
+func test_host_text_holds_ids_and_numbers_within_their_maxima() -> void:
+	var fields := _settings_changed_fields()
+	var longest: Array[Dictionary] = [_longest_text(0)]
+	fields["shortfalls"] = longest
+	var decoded := _schema.decode(37, _schema.encode(WireMessage.new(&"SettingsChanged", fields)))
+	assert_object(decoded).is_not_null()
+	assert_bool(Samples.same(decoded.fields["shortfalls"], longest)).is_true()
+	var bad: Array[Dictionary] = [
+		{"id": &"Players few", "ids": PackedStringArray(), "numbers": _no_numbers()},
+		{"id": &"markers", "ids": PackedStringArray(["a", "b", "c"]), "numbers": _no_numbers()},
+		{"id": &"markers", "ids": PackedStringArray(["a"]), "numbers": _numbers(5)},
+		{"id": &"markers", "ids": PackedStringArray(["a"])},
+	]
+	for text: Dictionary in bad:
+		var refused: Array[Dictionary] = [text]
+		fields["shortfalls"] = refused
+		_assert_refused(WireMessage.new(&"SettingsChanged", fields))
+	# The decoder: a fifth argument written by hand.
+	var payload := _schema.encode(
+		WireMessage.new(
+			&"MatchEnded", {"side": &"crew", "reason": &"time_up", "numbers": _numbers(4)}
+		)
+	)
+	assert_int(payload.size()).is_greater(0)
+	# side "crew" (1 + 4), the flag, reason "time_up" (1 + 7), then the count of numbers.
+	var count_at := 5 + 1 + 8
+	assert_int(payload[count_at]).is_equal(4)
+	payload[count_at] = 5
+	assert_object(_schema.decode(57, payload)).is_null()
 
 
 func test_map_keys_are_written_in_ascending_order() -> void:
@@ -440,3 +478,26 @@ func _claim_with(field: String, value: Variant) -> Dictionary:
 
 func _settings_changed_fields() -> Dictionary:
 	return Samples._settings_changed().to_dict()
+
+
+## The longest host text: a 32-character id, the most subject ids and arguments, all 32 characters.
+func _longest_text(index: int) -> Dictionary:
+	var subjects := PackedStringArray()
+	for i: int in WireSchema.MAX_TEXT_IDS:
+		subjects.append("i%031d" % i)
+	return {
+		"id": StringName("t%031d" % index),
+		"ids": subjects,
+		"numbers": _numbers(WireSchema.MAX_TEXT_NUMBERS)
+	}
+
+
+func _numbers(count: int) -> Dictionary[StringName, int]:
+	var found: Dictionary[StringName, int] = {}
+	for i: int in count:
+		found[StringName("n%031d" % i)] = WireField.S32_MIN
+	return found
+
+
+func _no_numbers() -> Dictionary[StringName, int]:
+	return {}
