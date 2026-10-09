@@ -165,8 +165,9 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 
 #### 3.2 Who is in it (PE2), on the host, in the shot's command
 - **The candidates**, in peer-id order: every ALIVE player but the actor (PD1's recommendation).
-- **A candidate counts** when its head, the point `Items.eye_of` gives (the floor it stands on raised by the eye
-  height, as `InSight`'s eye), lies in the frame (`PhotoFrame.contains`) and the line from the lens to it is clear
+- **A candidate counts** when its head, its last accepted position raised by the mode's eye height (a jump raises it,
+  so the rule counts the head where the picture draws it; unlike `Items.eye_of`, whose floor keeps an actor from
+  seeing over a wall from a jump, which does not apply to a subject), lies in the frame (`PhotoFrame.contains`) and the line from the lens to it is clear
   (`WorldQuery.line_of_sight`, recorded in the command log, so a replay agrees).
 - **`has_person`** is whether any candidate counts; the task state also keeps who counted (`subjects`), for a later
   rule that needs it (PD2 (b), poses).
@@ -234,6 +235,8 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 | A player behind the gazebo's wall, inside the frame | not counted: the line from the lens is blocked; the picture shows the wall | §3.2 |
 | A player far behind the spot, in the frame but beyond `range_m` | not counted; drawn small if the picture reaches it | PD9's range |
 | Only a body without a head in the frame (the head cut off by the frame's edge) | not counted | §3.2: the head must be in the frame (PD1) |
+| The subject jumps as the shot is taken | its head counts where it is in the air, the picture draws it there | §3.2: the record's position and the rule's head agree |
+| Another player's body fills the lens, its own head outside the frame, the subject behind it | the subject counts (only the level blocks a line), though the picture shows the body in front | accepted as rare: any one person is enough (PD2 (a)); a later rule needing a visible subject would test lines against the avatars too |
 | A package carrier at the camera, the box, the printer or the board | `two_handed` | busy hands (#679) |
 | A shooter with a knife in hand and a card on the belt | the shot goes onto the belt's card | the card may be in the hand or on the belt (PD11) |
 | A card with no shot left | `card_full`; the player fetches a new card from storage | #687 |
