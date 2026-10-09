@@ -110,6 +110,66 @@ func test_a_done_zone_is_full_and_dimmed() -> void:
 		assert_float(_colour(part).r).is_less((open[part] as Color).r)
 
 
+func test_the_ring_lies_flat_over_the_fill_and_the_parts_sort_in_order() -> void:
+	await _drawn()
+	var torus := _part(&"Ring").mesh as TorusMesh
+	var tube := (torus.outer_radius - torus.inner_radius) * 0.5
+	var ring := _part(&"Ring")
+	# Squashed to a thin band: it does not poke into the floor or rise above the fill by a donut.
+	var height := 2.0 * tube * ring.scale.y
+	assert_float(height).is_less(0.02)
+	var lowest := ring.position.y - tube * ring.scale.y
+	var fill_top := _part(&"Fill").position.y + ZoneViews.DISC_THICKNESS * 0.5
+	assert_float(lowest).is_greater_equal(fill_top - 1e-5)
+	# The disc, the fill and the ring draw in that order among themselves, and render_priority
+	# stays 0 so they sort by distance against every other translucent object.
+	assert_float(_part(&"Disc").sorting_offset).is_less(_part(&"Fill").sorting_offset)
+	assert_float(_part(&"Fill").sorting_offset).is_less(ring.sorting_offset)
+	for part: StringName in [&"Disc", &"Fill", &"Ring"]:
+		var material := _part(part).material_override as BaseMaterial3D
+		assert_int(material.render_priority).is_equal(0)
+
+
+func test_the_fill_is_hidden_out_of_the_bodys_sight_but_the_disc_and_ring_stay() -> void:
+	# The downed camera (the M4 ADR's §3 item 3): a counting zone behind a wall the body's eye
+	# cannot see past tells that a living player stands there, as its avatar would; SightHider
+	# hides the fill's holder, and the fixed disc and ring stay drawn like the level.
+	var wall := StaticBody3D.new()
+	wall.collision_layer = PhysicsLayers.WORLD
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(6.0, 2.0, 0.2)
+	shape.shape = box
+	wall.add_child(shape)
+	wall.position = Vector3(2, 1.0, -1.5)
+	_world.add_child(wall)
+	var hider := SightHider.new()
+	_world.add_child(hider)
+	_progress(4, true, 100)
+	_host_tick = 105
+	await _drawn()
+	var holder := _zones.view_of(ZONE).get_node(^"FillSight") as Node3D
+	assert_bool(holder.is_in_group(SightHider.GROUP)).is_true()
+	assert_bool(_part(&"Fill").visible).is_true()
+	# Not watching: everything shows.
+	assert_bool(holder.visible).is_true()
+	hider.watch_from(Vector3(2, 0.5, 0))
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(holder.visible).is_false()
+	# The fill's own flag is still the zone's: it only follows the host's progress.
+	assert_bool(_part(&"Fill").visible).is_true()
+	assert_bool(_part(&"Disc").is_visible_in_tree()).is_true()
+	assert_bool(_part(&"Ring").is_visible_in_tree()).is_true()
+	assert_bool(_part(&"Fill").is_visible_in_tree()).is_false()
+	# From a place with a clear line to the zone's centre, the fill shows again.
+	hider.watch_from(Vector3(2, 0.5, -4))
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(holder.visible).is_true()
+	hider.stop()
+
+
 func test_nothing_of_a_zone_draws_through_walls() -> void:
 	_progress(4, true, 100)
 	_host_tick = 105
@@ -141,7 +201,8 @@ func _progress(ticks: int, counting: bool, at_tick: int) -> void:
 
 
 func _part(part: StringName) -> MeshInstance3D:
-	return _zones.view_of(ZONE).get_node(NodePath(part)) as MeshInstance3D
+	var path := "FillSight/Fill" if part == &"Fill" else String(part)
+	return _zones.view_of(ZONE).get_node(NodePath(path)) as MeshInstance3D
 
 
 func _colour(part: StringName) -> Color:
