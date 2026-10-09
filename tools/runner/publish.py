@@ -8,6 +8,9 @@ it verifies as always. CI still runs the full verify before any merge.
 The only way the agent updates a pushed branch after a rebase (docs/decisions/2026-09-28-force-with-lease-on-task-
 branches.md). The pre-push hook lets this one non-fast-forward push through because the runner marks it with
 PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker and is blocked.
+
+Its verify is quiet unless `--verbose` (#572): its red steps' failure lines and its summary; the whole output in
+tools/out/logs/verify-output.log. Publish's own lines are few and print as before.
 """
 
 from __future__ import annotations
@@ -97,7 +100,7 @@ def reuse_refusal() -> str:
     return wait.reuse_refusal(wait.newest_record(verify.HISTORY), facts, dirty, wait.utc_now())
 
 
-def main(base: str | None = None) -> int:
+def main(base: str | None = None, verbose: bool = False) -> int:
     say("publish")
     branch = _git("symbolic-ref", "--quiet", "--short", "HEAD").out.strip()
     if not TASK_BRANCH_RE.match(branch):
@@ -203,7 +206,7 @@ def main(base: str | None = None) -> int:
     else:
         say(f"publish: verify runs: {why}")
         say()
-        if verify.main() != 0:
+        if verify.main(verbose=verbose) != 0:
             raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 

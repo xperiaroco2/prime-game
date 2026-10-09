@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import pins
+from . import common, pins
 from .common import Failure, bad
 
 
@@ -151,6 +151,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="stop every lane at the first red step: the steps not ended yet are 'not run' in the summary and the "
         "record, the run is red (an agent's inner loop; publish, merge and CI run every step)",
+    )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print every step's whole output as it ends (default, and always on CI: each red step's failure lines, "
+        "at most about 4 KB, and the summary; the whole output is in tools/out/logs/verify-output.log)",
     )
     p = sub.add_parser(
         "selftest",
@@ -329,6 +335,12 @@ def build_parser() -> argparse.ArgumentParser:
         "runner, with a clean tree then and now, under 2 hours ago (wait --verified tells in advance).",
     )
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print its verify's whole output (default: verify's red steps' failure lines and its summary; the whole "
+        "output is in tools/out/logs/verify-output.log)",
+    )
 
     # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch or, gated, main (#300).
     p = sub.add_parser(
@@ -743,7 +755,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main(full=args.full, fail_fast=args.fail_fast)
+            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=args.verbose or common.IS_CI)
         if args.command == "selftest":
             from . import verify
 
@@ -807,7 +819,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "publish":
             from . import publish
 
-            return publish.main(base=args.base)
+            return publish.main(base=args.base, verbose=args.verbose)
         if args.command == "merge-check":
             from . import merge
 

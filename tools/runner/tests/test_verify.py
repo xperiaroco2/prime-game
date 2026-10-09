@@ -21,10 +21,11 @@ import threading
 import time
 import unittest
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, common, metrics, slots, suspend, verify
+from runner import cli, common, metrics, slots, suspend, verify, wait
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = [
@@ -130,23 +131,29 @@ class Verify:
         tmp = tempfile.TemporaryDirectory()
         test.addCleanup(tmp.cleanup)
         self.history = Path(tmp.name) / "verify-history.jsonl"
+        self.logs = Path(tmp.name) / "out" / "logs"
 
     def run(
         self,
         run_lane: verify.RunLane,
         *,
-        doctor: int = 0,
+        doctor: int | Callable[..., int] = 0,
         status: object = None,
         counted: tuple[list[str], str] = ([], "runner tests: 2 run and 0 skipped of 2; a serial run: 2 run of 2"),
         pool: slots.Pool | None = None,
         full: bool = True,
         fail_fast: bool = False,
         watch: object = None,
+        verbose: bool = True,
     ) -> tuple[int, str, dict[str, object]]:
+        """verbose: the whole output, as before #572 (these tests read every step's lines); a quiet run's log goes to
+        self.logs, never this checkout's tools/out."""
         out = io.StringIO()
         with (
             mock.patch.object(verify, "slot_pool", return_value=(pool, "no limit (a test)")) as self.slot_pool,
-            mock.patch.object(verify.doctor, "main", return_value=doctor),
+            mock.patch.object(
+                verify.doctor, "main", **({"side_effect": doctor} if callable(doctor) else {"return_value": doctor})
+            ),
             mock.patch.object(verify, "git_status", side_effect=status if status is not None else [set(), set()]),
             mock.patch.object(
                 verify, "count_after_lanes", return_value=(*counted, {"run": 2, "skipped": 0})
@@ -155,12 +162,14 @@ class Verify:
                 verify, "git_facts", return_value={"branch": "b", "head": "h", "tree": "t", "runner": "r"}
             ),
             mock.patch.object(verify, "HISTORY", self.history),
+            mock.patch.object(common, "LOGS", self.logs),
+            mock.patch.object(common, "OUT", self.logs.parent),
             mock.patch.dict(os.environ),
             contextlib.redirect_stdout(out),
         ):
             no_watch = lambda _on_suspend, _stop: None  # noqa: E731 - a run without a suspend
             rc = verify.main(  # type: ignore[arg-type]
-                run_lane=run_lane, full=full, fail_fast=fail_fast, watch=watch or no_watch
+                run_lane=run_lane, full=full, fail_fast=fail_fast, watch=watch or no_watch, verbose=verbose
             )
         lines = self.history.read_text(encoding="utf-8").splitlines()
         self.test.assertEqual(len(lines), 1, lines)
@@ -450,6 +459,155 @@ class FastTest(unittest.TestCase):
         with stub_steps(ran), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(verify.lane_main("godot", wait=no_wait, names=("check",)), 0)
         self.assertEqual(ran, ["check"])
+
+
+def red_lane(outputs: dict[str, str]) -> verify.RunLane:
+    """A lane that reports each step red with the given output when it has one, else passed with two lines."""
+
+    def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+        for name in names:
+            if name in outputs:
+                emit(verify.StepRun(name, lane, "FAILED", 1.0, outputs[name]))
+            else:
+                emit(verify.StepRun(name, lane, "passed", 1.0, f"{name}\n  ok    {name} line 1\n{name}: passed\n"))
+
+    return run_lane
+
+
+RED_LINT = "lint\n  ok    gdformat (709 files)\n  FAIL  core/a.gd:5: Error: a bad name (function-variable-name)\nlint: FAILED\n"
+
+
+class QuietTest(unittest.TestCase):
+    """Quiet by default (#572): the whole output in tools/out/logs/verify-output.log, the terminal only each red step's
+    failure lines and the summary block, the exit code and the red step's name always; --verbose as before."""
+
+    def log(self, run: Verify) -> str:
+        return (run.logs / "verify-output.log").read_text(encoding="utf-8")
+
+    def where(self, run: Verify) -> str:
+        """The footer naming the log: in a temporary folder here, tools/out/logs/verify-output.log for real."""
+        return common.where_line(run.logs / "verify-output.log")
+
+    def test_a_green_run_prints_only_its_summary_block_with_the_log_path(self) -> None:
+        run = Verify(self)
+        rc, text, record = run.run(red_lane({}), full=False, verbose=False)
+        self.assertEqual(rc, 0)
+        lines = text.splitlines()
+        self.assertEqual(lines[0], "verify summary")
+        self.assertEqual(lines[-1].split(" in ")[0], "verify: passed")
+        self.assertEqual(lines[-2], f"  {self.where(run)}")
+        self.assertTrue(self.where(run).startswith("full output: ") and self.where(run).endswith("prints it all)"))
+        self.assertEqual(summary_rows(text), [("passed", "doctor"), ("passed", "lint"), ("passed", "check")])
+        self.assertLessEqual(len(text.encode()), common.SUCCESS_CAP)
+        self.assertNotIn("lint line 1", text)
+        log = self.log(run)
+        self.assertIn("  ok    lint line 1", log)  # every step's whole output, and the summary too
+        self.assertIn("verify: 2 lanes at once", log)
+        self.assertTrue(log.rstrip().endswith(lines[-1]))
+        self.assertEqual(record["status"], "passed")
+
+    def test_a_red_step_prints_its_name_and_failure_lines_before_the_summary_never_its_ok_lines(self) -> None:
+        run = Verify(self)
+        rc, text, record = run.run(red_lane({"lint": RED_LINT}), full=False, verbose=False)
+        self.assertEqual(rc, 1)
+        head, summary = text.split("verify summary\n")
+        self.assertEqual(head.splitlines(), [
+            "== lint (python lane, 1.0s, FAILED)",
+            "  FAIL  core/a.gd:5: Error: a bad name (function-variable-name)",
+        ])  # fmt: skip
+        self.assertIn(("FAILED", "lint"), summary_rows(text))
+        self.assertTrue(summary.rstrip().splitlines()[-1].startswith("verify: FAILED in "))
+        self.assertIn("gdformat (709 files)", self.log(run))
+        failure = record["steps"][1]["failure"]  # type: ignore[index]
+        self.assertEqual(failure, "core/a.gd:5: Error: a bad name (function-variable-name)")
+
+    def test_red_excerpts_share_about_4_kb_and_each_red_step_still_shows_its_first_lines(self) -> None:
+        many = "check\n" + "".join(f"  FAIL  res://a.gd:{n}: Parse Error: x\n" for n in range(400)) + "check: FAILED\n"
+        run = Verify(self)
+        rc, text, _record = run.run(red_lane({"check": many, "lint": RED_LINT}), full=False, verbose=False)
+        self.assertEqual(rc, 1)
+        head = text.split("verify summary\n")[0]
+        self.assertIn("== check (godot lane, 1.0s, FAILED)", head)
+        self.assertIn("== lint (python lane, 1.0s, FAILED)", head)
+        self.assertIn("  FAIL  core/a.gd:5: Error: a bad name", head)
+        self.assertIn("  FAIL  res://a.gd:0: Parse Error: x", head)
+        self.assertRegex(head, r"\.\.\. \d+ more lines; " + re.escape(self.where(run)))
+        self.assertLessEqual(len(head.encode()), common.FAILURE_CAP + verify.EXCERPT_MIN)
+        self.assertIn("  FAIL  res://a.gd:399: Parse Error: x", self.log(run))
+
+    def test_a_red_doctor_prints_its_failure_lines(self) -> None:
+        def doctor(**_kwargs: object) -> int:
+            common.say("doctor --quick")
+            common.ok("Python 3.14")
+            common.bad("Godot 4.6 found, 4.7.2 pinned")
+            return 1
+
+        run = Verify(self)
+        rc, text, _record = run.run(mock.MagicMock(), doctor=doctor, full=False, verbose=False)
+        self.assertEqual(rc, 1)
+        self.assertEqual(text.split("verify summary\n")[0].splitlines(),
+                         ["== doctor (FAILED)", "  FAIL  Godot 4.6 found, 4.7.2 pinned"])  # fmt: skip
+        self.assertEqual(summary_rows(text), [("FAILED", "doctor")])
+
+    def test_a_dirty_tree_after_the_run_prints_the_files_it_left(self) -> None:
+        run = Verify(self)
+        rc, text, _record = run.run(red_lane({}), status=[set(), {"?? left.txt"}], full=False, verbose=False)
+        self.assertEqual(rc, 1)
+        self.assertEqual(text.split("verify summary\n")[0].splitlines(), [
+            "== clean tree (FAILED)",
+            "  FAIL  verify left new or changed files in the working tree:",
+            "        -> ?? left.txt",
+        ])  # fmt: skip
+
+    def test_a_red_count_check_prints_its_problems(self) -> None:
+        run = Verify(self)
+        counted = (["test_x.T.test_y ran twice"], "runner tests: 2 run")
+        rc, text, _record = run.run(red_lane({}), counted=counted, verbose=False)
+        self.assertEqual(rc, 1)
+        self.assertIn("== selftest-count (FAILED)\n  FAIL  test_x.T.test_y ran twice\n", text)
+
+    def test_metrics_and_wait_read_a_quiet_runs_summary(self) -> None:
+        run = Verify(self)
+        rc, text, _record = run.run(red_lane({"lint": RED_LINT}), full=False, verbose=False)
+        parsed = metrics.parse_verify(text)
+        assert parsed is not None
+        self.assertEqual((parsed["status"], parsed["steps"]["lint"][0], parsed.get("fast")), ("FAILED", "FAILED", True))
+        report = wait.quiet_report([*text.splitlines(), f"exit={rc}"], rc, "x.log")
+        self.assertIn(f"  {self.where(run)}", report)
+        self.assertIn("  FAIL  core/a.gd:5: Error: a bad name (function-variable-name)", report)
+
+    def test_an_exception_prints_the_log_path_and_goes_on_up(self) -> None:
+        def crash(_lane: str, _names: tuple[str, ...], _emit: verify.Emit) -> None:
+            raise KeyboardInterrupt
+
+        run = Verify(self)
+        out = io.StringIO()
+        with (
+            mock.patch.object(verify, "run_lanes", side_effect=KeyboardInterrupt),
+            mock.patch.object(verify.doctor, "main", return_value=0),
+            mock.patch.object(verify, "git_status", return_value=set()),
+            mock.patch.object(verify, "git_facts", return_value={}),
+            mock.patch.object(common, "LOGS", run.logs),
+            mock.patch.object(common, "OUT", run.logs.parent),
+            contextlib.redirect_stdout(out),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            verify.main(crash, watch=lambda _on, _stop: None)
+        self.assertEqual(out.getvalue().splitlines()[-1], f"verify: stopped by KeyboardInterrupt; {self.where(run)}")
+
+    def test_verbose_prints_every_steps_output_as_before(self) -> None:
+        _rc, text, _record = Verify(self).run(red_lane({}), full=False, verbose=True)
+        self.assertIn("  ok    lint line 1", text)
+        self.assertNotIn("full output:", text)
+
+    def test_the_cli_is_quiet_unless_verbose_or_on_ci(self) -> None:
+        with mock.patch.object(verify, "main", return_value=0) as main, mock.patch.object(common, "IS_CI", False):
+            cli.main(["verify"])
+            cli.main(["verify", "--verbose"])
+        with mock.patch.object(verify, "main", return_value=0) as on_ci, mock.patch.object(common, "IS_CI", True):
+            cli.main(["verify", "--full"])
+        self.assertEqual([c.kwargs["verbose"] for c in main.call_args_list], [False, True])
+        self.assertTrue(on_ci.call_args.kwargs["verbose"])  # CI's job log is the whole output (the PC has the log)
 
 
 class HistoryDetailTest(unittest.TestCase):
@@ -945,7 +1103,7 @@ class FailFastTest(unittest.TestCase):
         self.assertEqual([(s.name, s.status) for s in steps + late], [("lint", "FAILED"), ("check", "FAILED")])
 
     def test_the_flag_reaches_verify_and_is_off_by_default(self) -> None:
-        with mock.patch.object(verify, "main", return_value=0) as run:
+        with mock.patch.object(verify, "main", return_value=0) as run, mock.patch.object(common, "IS_CI", False):
             self.assertEqual(cli.main(["verify"]), 0)
             self.assertEqual(cli.main(["verify", "--fail-fast"]), 0)
             self.assertEqual(cli.main(["verify", "--full", "--fail-fast"]), 0)
@@ -953,10 +1111,10 @@ class FailFastTest(unittest.TestCase):
         self.assertEqual(
             run.call_args_list,
             [
-                mock.call(full=False, fail_fast=False),
-                mock.call(full=False, fail_fast=True),
-                mock.call(full=True, fail_fast=True),
-                mock.call(full=True, fail_fast=False),
+                mock.call(full=False, fail_fast=False, verbose=False),
+                mock.call(full=False, fail_fast=True, verbose=False),
+                mock.call(full=True, fail_fast=True, verbose=False),
+                mock.call(full=True, fail_fast=False, verbose=False),
             ],
         )
 
