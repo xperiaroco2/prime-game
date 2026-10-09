@@ -1268,7 +1268,11 @@ names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd`
 ##### 4.6.1.2 The slots and the tasks (E25 for M4-5, #141)
 Each `ClientModel.Item` holds its holder and whether it is
 `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
-(the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
+(the swapper's two items change places), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
+the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravity` and `flight_tick`, #644) and
+`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying) is what
+`ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
+it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
 `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
 `ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
@@ -1658,7 +1662,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13 and 112 (kind 15, `Throw`, has no chaos shape yet (#643); kind 14, `MoveClaimReliable`, has none either: `host_session_claim_twin_test`
+The C→H kinds 1 to 13, 15 and 112 (`Throw`'s facing from `ChaosFrames.THROW_FACINGS`: a unit vector, zero, a
+1e-30 vector and a 1e38 vector, each refused `not_accepted` in every phase until the base mode's rule, 37f (#646),
+adds its `ChaosOracle.ACCEPTS` row; non-finite facings are the codec's, class 1, #644;
+kind 14, `MoveClaimReliable`, has none either: `host_session_claim_twin_test`
 covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
 `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 23, 26, 31, 75, 76, 80, 95, 97, 111,
 113, 127, 128, 200, 255). A new intent gets its refusals in
@@ -3593,7 +3600,10 @@ The [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD1 to TD12 an
 every recommendation ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719); TD1's
 speed and the provisional gravity, radius and longest flight in the next two comments there), and this section follows
 them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
-and their wire rows (37c, #643, below). The client (37d, 37e) and the base mode's rule (37f) are still to come. The flight runs in `core/` (TE1 (a)), not in
+and their wire rows (37c, #643, below).
+The client's model, the chaos shapes and the bots' step (37d, #644, below);
+the client's view and prediction (37e) and the base mode's rule (37f) are still to come.
+The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
 there would not follow from the commands.
@@ -3662,6 +3672,13 @@ there would not follow from the commands.
   avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
   sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
+  **Built in #644:** `ClientModel` folds `ItemThrown` (§4.6.1.2; `client_model_test.gd`), and `ItemViews`,
+  `TargetChoice` and `PlaycheckSteps` skip a flying item (`item_views_test.gd`, `target_choice_test.gd`,
+  `playcheck_steps_test.gd`); `ScenarioBot` folds it into `Where.FLYING`, whose place it cannot know, and the
+  `Throw` step (§9.7) sends it (`scenario_runner_test.gd`); `throw_scenarios_test.gd` throws a package end to end
+  on a copy of the base mode with a test's Throw rule, through the core runner and the network, where the leak
+  check compares each `ItemThrown` exactly; chaos sends its facing extremes (§4.6.5.3; `chaos_frames_test.gd`,
+  `chaos_test.gd`).
 - **The engineer's answers** (all as recommended, #302): strength and range (TD1 (a); 10 m/s, provisional), which
   items (TD2), what a thrown item does to a player (TD3 (b): stops and drops at its feet, no damage), a thrown package
   counts in its circle (TD4 (a)), where an item may come to rest (TD5), a cost (TD6), the key (TD7), no catching
@@ -4533,6 +4550,7 @@ told. One format runs in two runners.
 | `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (at the crawl speed with no sprint while downed, M4-2; a dead bot cannot walk and fails the step), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
+| `Throw(towards, pitch_deg)` | faces the target flat, tilts that facing up by `pitch_deg` (-90 to 90) and sends `Throw`; standing on the target with a pitch other than ±90 fails the step (a zero facing would throw along the last one) | its `ItemThrown` of the item it held arrives (a `WaitFor` of `ItemPlaced` with cause `thrown` waits for the rest) |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |
 | `Jump` | claims a jump | the claim is sent |
 | `Expect(event, fields, within)` | checks | it received a matching event since its previous step, or within `within` seconds |
@@ -4546,9 +4564,10 @@ told. One format runs in two runners.
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
 one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
-- `Join` also takes `expect_rejected` (it sends `Hello`). `Ready`, `Setting`, `ReturnToLobby`, `PickUp`, `PutDown`
-  and `Use` are done by their own answer: the bot's `ReadyChanged`, a `SettingsChanged` holding the value, the
-  `PhaseChanged` to `lobby`, its `ItemPickedUp` of that item, `ItemPlaced` (put down) of the item it held, and
+- `Join` also takes `expect_rejected` (it sends `Hello`). `Ready`, `Setting`, `ReturnToLobby`, `PickUp`, `PutDown`,
+  `Throw` and `Use` are done by their own answer: the bot's `ReadyChanged`, a `SettingsChanged` holding the value, the
+  `PhaseChanged` to `lobby`, its `ItemPickedUp` of that item, `ItemPlaced` (put down) and `ItemThrown` of the item it
+  held, and
   `until` naming this bot when the event has a `peer`.
 - `WaitFor` and `ExpectNone` look at the events from their own start; `Expect` also at those since the previous
   step started, so it sees what arrived with the previous step's answer (a `PackageDelivered` after a
