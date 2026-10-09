@@ -22,7 +22,7 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | arg | when | adds (tool calls each) |
 |---|---|---|
 | `plan_review: true` | the issue's Files line touches `core/ server/ net/ tests/harness/`, or its Size is M or more | 2: a plan agent (80) and a fresh critique (40) |
-| `test_review: true` | the same paths, once `mutants` (#184) is on the task's base (`git show origin/<base>:tools/runner/mutants.py`) | 1 (60); none for a design task or a diff without `core/ server/ net/ client/ voice/` code |
+| `test_review: true` | the same paths, once `mutants` (#184) is on the task's base (`git show origin/<base>:tools/runner/mutants.py`) | 1 (60); none for a design task, a diff without `core/ server/ net/ client/ voice/` code, or one whose only production code is under `client/ui/` (the light tier, #606) |
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
@@ -74,8 +74,9 @@ A task whose issue says `Size: XS` or `S`, one logical change and no design (a r
 fix) goes to `quick-task` (`.claude/workflows/quick-task.js`) instead of `issue-task`, after `start` as usual. Args:
 `{n, title, wt, branch, base, notes}`, and `models: {quick: "opus"}` only for a harder one (default Sonnet). One
 `task-publisher` agent makes the change, runs `lint` and `check`, pushes, opens the PR and waits for CI (at most two fix
-rounds); only a diff under `core/ server/ net/ client/ voice/ tests/harness/` (but `client/ui/`) adds `code-reviewer`
-and `netcode-security-reviewer` and, on a blocker or major, one fix agent (1 to 4 agents). When the result says
+rounds); only a diff under `core/ server/ net/ client/ voice/ tests/harness/` adds `code-reviewer` and
+`netcode-security-reviewer` (`code-reviewer` alone when those paths are all under `client/ui/`, #606) and, on a blocker
+or major, one fix agent (1 to 4 agents). When the result says
 `ready_to_merge` (CI green, no blocker or major open, nothing for the engineer), merge at once: `tools/run.sh merge <pr>
 --base <base>`; otherwise act on `needs_engineer` and `stopped`. Not for a design task, Size M or larger, or a new
 mechanic.

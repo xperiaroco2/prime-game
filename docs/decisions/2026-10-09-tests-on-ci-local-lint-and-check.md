@@ -38,12 +38,13 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
   only where a mistake becomes a cheat, a desync or a hidden-information leak. The three open points of #606's PR
   (#631) he answered in #302 comment 6085059719 item 2: 1a, 2b and 3a below.
 - **Decision:** `issue-task` picks a review tier from the implementer's changed paths, the worst one winning.
-  - `full`: a path under `core/ server/ net/ client/ voice/ tests/harness/` but `client/ui/` (the path rule of
-    `quick-task`, #608, which drops `client/ui/` too), no changed paths (unknown), a design task, or the launch's
+  - `full`: a path under `core/ server/ net/ client/ voice/ tests/harness/` but `client/ui/` (the rule by which
+    `quick-task`, #608, routes its netcode review), no changed paths (unknown), a design task, or the launch's
     `tier: "full"`. Today's chain, unchanged.
   - `light`: any other diff (docs, content data, levels, tooling, the screens under `client/ui/`): `code-reviewer`
     (`godot-api-checker` too on a `.gd .tscn .tres` change; `ab_review` keeps its measurement pair) and the publisher.
-    The netcode review, `test_review`, `second_review` and `skeptic` are dropped even when passed.
+    The netcode review, `test_review`, `second_review` and `skeptic` are dropped even when passed; `tier_skipped`
+    and the PR name each, the netcode review where a `client/ui/` path would have routed it.
   - `plan_review` runs before any diff exists, so the branch's area (`start`'s `<area>/` prefix, from the issue's area
     label) decides it: `content`, `level` and `tooling` skip it unless the tier is forced. A diff that then turns out
     full gets the full review without the plan.
@@ -54,7 +55,9 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - **`client/ui/` is light, the rest of `client/` full (answer 2b):** the issue's light row named "UI text and layout",
   and the UI's scenes and scripts live under `client/ui/`. Before the answer all of `client/` was full (#158: a leak
   through rendering is an information leak, the rule of `quick-task` and the netcode routing). Now a `client/ui/`
-  diff alone gets one fresh reviewer and CI, in both scripts (one `REVIEWED` rule, compared by `ReviewTierTest`);
+  diff alone gets one fresh reviewer, `code-reviewer`, and CI in both scripts: `issue-task`'s `REVIEWED` is
+  `quick-task`'s `NETCODE` rule, compared by `ReviewTierTest`; `quick-task` still reviews `client/ui/`, since the
+  answer offered no option with no reviewer at all (#631's review);
   `client/player/`, `client/world/`, `client/net/`, `client/voice/` and the rest stay full, and so does a folder or
   file whose name only starts with `ui`. A screen that shows hidden information can still leak it; the manager passes
   `tier: "full"` where a kickoff asks for the netcode review.
