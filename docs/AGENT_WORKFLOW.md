@@ -18,8 +18,9 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 - **No workflow framework.** Plain plan mode plus our own project skills (§6). No Superpowers, no GSD
   ([ADR](decisions/2026-09-28-no-workflow-framework.md)).
 - **Proportionate protection.** This is a hobby project for the humans and their friends. Protections exist to stop
-  accidents and lost work, not attackers. Do not add privacy or security hardening that nobody asked for. Secrets
-  (tokens, keys) are still never committed.
+  accidents and lost work, not attackers. Do not add privacy or security hardening (redaction, scrubbing, extra
+  guards) that nobody asked for. Secrets (tokens, keys, passwords) are still never committed.
+- **The repo is English**: code, comments, docs, commits, issues, PRs. Chat follows each human's settings.
 - **Humans write zero code** (KICKOFF §0). The agent verifies its own work from the command line and never claims
   something works without running it.
 
@@ -88,11 +89,19 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
   humans' settings files, the TwoVoIP round trip).
 
+### 2.2 Shell notes for agents
+Known shell failures on this machine, moved out of root `CLAUDE.md` (#561), whose Shell section keeps the rules that
+prevent prompts and lost work and names these symptoms with a pointer here:
+- PowerShell 5.1 breaks quoted arguments containing spaces for native exes (`gh --jq '.a + " " + .b'`): use Bash.
+- `bash` on PATH is the WSL launcher, not Git Bash (§11.15). In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
+- In the Bash tool `\\` arrives as `\`, even in single quotes and heredocs: write such code to a file with Write.
+- `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
+
 ## 3. Instruction files and memory
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, memory guardrail, dictation glossary; each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 9,216 bytes loaded, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -136,9 +145,14 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
-  `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
-  Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
-  retires it, and the intervention entry says which.
+  `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
+  `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 9,216 (every agent carries them on
+  every call; root `CLAUDE.md` has little room left, so a rule or glossary row added there trims another rule into its
+  doc in the same PR), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
+  only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
+  folder, read on demand (`orchestrate-stage`'s core names the file for each event, §6). It also fails on rule
+  frontmatter that would not parse (Claude Code would then load the rule at every launch). The same PR then scopes a
+  rule to paths, moves it into a skill, or retires it, and the intervention entry says which.
 - **[applied]** Root's commands section is the runner line and one line of command names, no table (#340; N2 (a) of
   the instruction-diet ADR, PR #325): each command's `--help` (its `description` in `tools/runner/cli.py`) carries what
   its table row said. A new command adds its name in alphabetical order and a description; a note on the names line
@@ -162,7 +176,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
   .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
   table go with it.
-- **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
+- **Auto memory stays on.** It is personal and machine-local, and never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
 
@@ -312,7 +326,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `new-level-piece` | both | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
-| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1) |
+| `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 | `secretary` | engineer | The engineer's inbox: gathers what needs him from every session and the three repos into the pinned "Engineer's inbox" issue every 30 to 60 minutes and relays his answers; runs and decides nothing (§7.2) |
 
@@ -437,8 +451,8 @@ Rules for every workflow run:
   the paths, line ranges and facts the plan rests on, read at its `base_sha`. The implementer runs one `git diff
   --name-only <base_sha> -- <paths>` and trusts the map for each file it does not list, instead of reading it again;
   the critique checks the map's facts, and a file whose facts it disputes is read as usual. The manager runs the
-  planner on Sonnet with `models.plan` (orchestrate-stage §3); the critique stays on the review model. `metrics`'
-  plan phase table (§11.12) gives the before and after.
+  planner on Sonnet with `models.plan` (orchestrate-stage §3, `launch-args.md`); the critique stays on the review
+  model. `metrics`' plan phase table (§11.12) gives the before and after.
   `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
   `tools\run.cmd mutants` (#184), each in a scratch worktree (with `bounded_waits`, each spec in the background with a
   new log and `wait`, like the publisher's rerun of a survived mutant, #455); a survived mutant is a finding, and the
@@ -594,19 +608,19 @@ Rules for every workflow run:
   started in. A track's spend this week against its budget, over every session of the track, the UI and art
   checkouts' included: `tools\run.cmd metrics --since <the
   weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
-  the `Track:` line of its kickoff, the skill's §10, else its checkout's, else untracked). Shared files (N5 (c)):
-  `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
-  between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
-  changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
-  another base (a PR stacked on one of its own track counts as its track's) when both change a shared file (`tools/`,
-  `.claude/`, `.github/`, this file), the same one or different ones (a signature changed in `tools/runner/x.py` that
-  the other PR calls from `tools/runner/y.py`, #231): the textual conflicts in the files both change and the same symbol
-  check over each whole PR, in a table "across bases" that names both bases (#207); the pairs where at most one side
-  changes a shared file it names as not compared. A flagged pair: its manager names it on the other track's plan issue;
-  the PR into `main` merges first (through the gate, or by a human for an exception; the milestone's manager holds its
-  own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
-  rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
-  manager says so on each running manager's plan issue.
+  the `Track:` line of its kickoff, the skill's §10 (`kickoff-template.md`), else its checkout's, else untracked).
+  Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an
+  issue there, landing between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and
+  this file may be changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every
+  open PR into another base (a PR stacked on one of its own track counts as its track's) when both change a shared file
+  (`tools/`, `.claude/`, `.github/`, this file), the same one or different ones (a signature changed in
+  `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`, #231): the textual conflicts in the files both
+  change and the same symbol check over each whole PR, in a table "across bases" that names both bases (#207); the pairs
+  where at most one side changes a shared file it names as not compared. A flagged pair: its manager names it on the
+  other track's plan issue; the PR into `main` merges first (through the gate, or by a human for an exception; the
+  milestone's manager holds its own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge
+  --sync-main`) and its PR is rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches
+  `main`, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff once per stage (template in the skill, with the budget as a percentage of the weekly
   limit; each handover comment's notes end with it as the ready kickoff he pastes, the manager's last For-you carrying
   it too, Recovery below), answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest)
@@ -676,9 +690,10 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   it ("messages can't be delivered there", probed on
   [#484](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025367088)), so the answer goes as a
   comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
-- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
-  on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
-  it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
+- **Every manager's "For you:" block stays parseable** (orchestrate-stage §8, `notifications.md`): the label
+  `For you:` (or `Для вас:`) on a line of its own, then numbered items at the line's start, each item's command block
+  indented or fenced under it, or `For you: nothing.`; the same block goes into the wave comment's notes in English,
+  where `inbox` reads it.
 
 **Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
@@ -1519,17 +1534,17 @@ fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-d
 `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
 whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
 running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
-those itself (orchestrate-stage §8, the trust ADR). The section's first line, which the manager lifts into its chat
-message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
-worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
-#343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
-the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
---search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
-the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
-returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
-may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
-whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
-a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
+those itself (orchestrate-stage §8 in `notifications.md`, the trust ADR). The section's first line, which the manager
+lifts into its chat message, names only what needs the engineer, a worktree a live session holds: `For you: close the
+Claude session in worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay
+out of it, #343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD
+not the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
+--search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves the
+merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh returns
+all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree) may be
+missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block whole, to
+`<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed, a part one
+run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
 A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
 publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
 every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
@@ -1641,22 +1656,28 @@ AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row 
 single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
 `instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
-session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
-name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
-worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
+session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
+name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's
+from the folder names under `~/.claude/projects/` wherever they sit (#586: `C:\prime-game` with `D:\prime-game-ui`;
+a key such as `D--prime-game-ui` or `E--games-prime-game-art`, its worktrees' `<key>--claude-worktrees-<n>`); the
+session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
 its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
 across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
 `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
-orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
-kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
-default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
-(`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
-bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
-engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
---since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
-(`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
-or translated shows there). That total covers only the three checkouts: the counter also counts the account's
-sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
+orchestrate-stage skill's §10 template (`kickoff-template.md`) and §7's handover carry one; any case, the key also
+`Трек:` for a translated
+kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's default
+(`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track (`all`: every
+track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the bracket, its list $
+and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the engineer's, N1 of the design, so
+there is no default) `of <budget>% this week; plan to date <budget x days since --since / 7, at most the budget>%`; then
+every session's total, which the manager holds against the weekly counter (`get_usage`), with the untracked share and
+its three largest sessions (a kickoff whose `Track:` line was left out or translated shows there). That total covers
+only the three checkouts: the counter also counts the account's sessions elsewhere (another project folder, a replay,
+another machine), so the two differ by more than the conversion's error. The last line names the checkouts read (each
+one's folder keys and worktree count); a `-ui` or `-art` checkout with no folder here is `not on this machine`, and so
+is its track's line when no session here has that track (`all` lists it too): its spend is unknown, never 0%.
+`tracks.json` lists them under `checkouts`.
 Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %), then per
 named track the re-write line and tables above over its sessions' subagents (workflow and hand-run, never the sessions'
 own lines; each call by its time in the window), their $ as a share of the track's cache-write $ (#558; with
@@ -1671,8 +1692,8 @@ journal or agent transcripts, its % of the week with the bracket and its list $ 
 message id once, with no window; an agent the journal does not list counts by its `.meta.json`), and its list $ by
 phase; a fourth line when one of its agents re-wrote its cache after an idle gap (#558: count, $, causes, its
 three costliest agents), and last each agent's average and peak context per API call, the heavy ones marked (#584);
-several runs end with their total. It writes no file; an ID that names no run fails. On
-art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
+several runs end with their total. It writes no file; an ID that names no run fails, naming the checkouts read (one
+with no folder here: not on this machine, #586); next to an ID that does, it gets a line `<id>: no run here (...)` first. On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
@@ -1724,8 +1745,9 @@ tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export
 `ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
 lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
-runner takes the machine paths from the Claude settings (§2).
+Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
+`tools/out/gdunit/`. Outside a Claude Code session (a human's PowerShell) the runner takes the machine paths from the
+Claude settings (§2).
 
 ### 11.16 CI [applied]
 `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
@@ -1771,18 +1793,22 @@ summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `en
 `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
 `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
 test count.
-**`verify --fail-fast` (#556):** the first red step stops every lane (their processes and children are killed on
-Windows; on Linux and macOS a Godot or node child started by the lane survives the kill, as it already does on Ctrl+C
-and a lane timeout): the steps that had not ended are `not run` in the summary (no output block) and the record, a
+**`verify --fail-fast` (#556):** the first red step stops every lane (`stop_lane`, as Ctrl+C and a lane timeout do:
+on Windows `taskkill /T` kills each lane's whole tree; on Linux and macOS the lane process first gets SIGTERM, whose
+handler in `lane_main` kills each process `common.run` started there, in a session of its own that the kill of the
+lane's group never reaches, #574; not tracked there, a Godot that a selftest worker process started survives, and the
+`game` step's host and client, which `hostjoin.start` starts, stop on their own within 10 s once its alive file goes
+stale): the steps that had not ended are `not run` in the summary (no output block) and the record, a
 `stopped early (--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step>
 (--fail-fast)`, the count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is
 {`at`, `not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
-stopped run's total as no verify length. Use it in an implementer's inner loop, where a red step means another fix
+stopped run's total as no verify length. Use it in an implementer's inner loop (issue-task's implementer prompt and
+the `finish-task` skill say so, #574), where a red step means another fix
 anyway: a planted `lint` error returned in 60 s and a planted type error (red `check`) in 31 s, against 455 s for a
 whole run. Never for the run that gates: the green verify that the definition of done pastes, `publish` (which runs
 `verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
 stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
-(`AfterTest`, `FailFastTest`).
+(`AfterTest`, `FailFastTest`, `LaneTermTest`, whose stopped lane with a live child runs on Linux and macOS only).
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
 at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
@@ -2160,8 +2186,8 @@ waits on him; the engineer's sessions do the content work otherwise.
 <!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
 - Phrases: "запам'ятай" → the question in §3; "стоп" → stop and summarise; "поясни" → explain the pending prompt or
   step.
-- **The agent explains choices plainly:** start from a concrete scenario of what goes wrong, then the options; jargon
-  comes after. Before designing enforcement, it asks how the humans actually work.
+- **The agent explains choices plainly:** start from a concrete scenario of what goes wrong (which person, agent and
+  machine), then the options; jargon comes after. Before designing enforcement, it asks how the humans actually work.
 - Human-reserved decisions (KICKOFF §0) come as one batched question.
 
 ## 14. Open questions (deferred past M0)

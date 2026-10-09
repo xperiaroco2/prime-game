@@ -1,6 +1,6 @@
-"""Instruction files for Claude Code: line budgets, frontmatter and skills' links (docs/AGENT_WORKFLOW.md §3 and §5).
+"""Instruction files for Claude Code: line and byte budgets, frontmatter and skills' links (docs/AGENT_WORKFLOW.md §3, §5).
 
-Budgets count the lines Claude Code loads: frontmatter and block-level HTML comments are removed before
+Budgets count the lines and bytes Claude Code loads: frontmatter and block-level HTML comments are removed before
 injection (code.claude.com/docs/en/memory), so `<!-- see docs/interventions/... -->` notes are free.
 Frontmatter is checked strictly: when a rule's YAML does not parse, Claude Code silently ignores its
 `paths:` and loads the rule at every launch.
@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT_BUDGET = 150  # root CLAUDE.md plus every rule without paths: (all of them load at launch)
+ROOT_BYTES = 9216  # the same files' loaded bytes (9 KiB, #561; the engineer raised it from 8.5 KiB for headroom): every agent pays them on every call
 NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its folder is read)
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
@@ -47,6 +48,7 @@ SKILL_RESERVED = ("doctor", "verify", "run", "workflow-authoring")
 SKILL_NO_FORK = ("start-task", "finish-task")  # they need the conversation (§6)
 SKILL_LISTING_CAP = 1536  # description + when_to_use are cut here in the skill listing
 SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to supporting files beyond this
+SKILL_BYTES = 16000  # loaded bytes of each SKILL.md body (#561): an invocation injects it whole, files only on Read
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # The skill listing (#562): `skillOverrides` in .claude/settings.json hides the bundled skills no agent of ours uses.
 # Values from code.claude.com/docs/en/skills, "Override skill visibility from settings" (read 2026-10-08, Claude Code
@@ -138,9 +140,10 @@ def parse(text: str) -> Frontmatter:
     return Frontmatter(fields, lines[end + 1 :])
 
 
-def loaded_lines(body: list[str]) -> int:
+def loaded_body(body: list[str]) -> list[str]:
     """Lines Claude Code injects: block-level HTML comments outside code fences are stripped."""
-    count, in_comment, in_code = 0, False, False
+    kept: list[str] = []
+    in_comment, in_code = False, False
     for line in body:
         text = line.strip()
         if in_comment:
@@ -154,8 +157,17 @@ def loaded_lines(body: list[str]) -> int:
                 continue
             if text.endswith("-->"):
                 continue
-        count += 1
-    return count
+        kept.append(line)
+    return kept
+
+
+def loaded_lines(body: list[str]) -> int:
+    return len(loaded_body(body))
+
+
+def loaded_bytes(body: list[str]) -> int:
+    """UTF-8 bytes of the loaded lines, a newline each: what the file costs every call that carries it (#561)."""
+    return sum(len(line.encode("utf-8")) + 1 for line in loaded_body(body))
 
 
 def _as_list(value: str | list[str] | None) -> list[str]:
@@ -184,9 +196,12 @@ def check(root: Path) -> Report:
 
     # Launch-time files: root CLAUDE.md, .claude/CLAUDE.md and unscoped rules share one budget.
     launch: list[tuple[str, int]] = []
+    launch_bytes: list[tuple[str, int]] = []
     for path in (root / "CLAUDE.md", root / ".claude" / "CLAUDE.md"):
         if path.is_file():
-            launch.append((rel(path), loaded_lines(path.read_text(encoding="utf-8").splitlines())))
+            body = path.read_text(encoding="utf-8").splitlines()
+            launch.append((rel(path), loaded_lines(body)))
+            launch_bytes.append((rel(path), loaded_bytes(body)))
     if not (root / "CLAUDE.md").is_file():
         report.errors.append("CLAUDE.md is missing at the repo root")
 
@@ -207,6 +222,7 @@ def check(root: Path) -> Report:
             report.errors.append(f"{rel(path)}: paths: is empty")
         elif "paths" not in fm.fields:
             launch.append((rel(path), lines))
+            launch_bytes.append((rel(path), loaded_bytes(fm.body)))
             report.notes.append(f"{rel(path)} has no paths: and loads at every launch")
 
     if rules:
@@ -217,6 +233,15 @@ def check(root: Path) -> Report:
         report.errors.append(f"launch-time instructions: {total} lines ({detail}), budget {ROOT_BUDGET}")
     else:
         report.notes.append(f"launch-time instructions {total}/{ROOT_BUDGET} lines ({detail})")
+    size = sum(n for _, n in launch_bytes)
+    detail = " + ".join(f"{name} {n}" for name, n in launch_bytes)
+    if size > ROOT_BYTES:
+        report.errors.append(
+            f"launch-time instructions: {size} bytes ({detail}), budget {ROOT_BYTES}: move a rule's detail into the "
+            "doc it repeats and leave a one-line pointer (docs/AGENT_WORKFLOW.md §3)"
+        )
+    else:
+        report.notes.append(f"launch-time instructions {size}/{ROOT_BYTES} bytes ({detail})")
 
     nested = [(rel(p), loaded_lines(parse(p.read_text(encoding="utf-8")).body)) for p in _nested_claude_files(root)]
     for name, lines in nested:
@@ -404,6 +429,9 @@ def skill_problems(folder: Path) -> list[str]:
     lines = loaded_lines(fm.body)
     if lines > SKILL_BUDGET:
         problems.append(f"{lines} lines, budget {SKILL_BUDGET}: move detail into a supporting file")
+    size = loaded_bytes(fm.body)
+    if size > SKILL_BYTES:
+        problems.append(f"{size} bytes, budget {SKILL_BYTES}: move detail into a supporting file read on demand")
     return problems
 
 

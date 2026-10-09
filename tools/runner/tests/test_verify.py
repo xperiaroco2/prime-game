@@ -11,7 +11,9 @@ import io
 import json
 import os
 import re
+import signal
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -880,6 +882,147 @@ class FailFastTest(unittest.TestCase):
         assert parsed is not None
         self.assertEqual(parsed["steps"], {"doctor": ("passed", parsed["steps"]["doctor"][1]), "lint": ("FAILED", 1.0)})
         self.assertEqual((parsed["status"], parsed["stopped"]), ("FAILED", True))
+
+
+def alive(pid: int) -> bool:
+    """Whether the process `pid` still runs: a zombie, which only waits for its parent to read its exit, does not."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    stat = Path(f"/proc/{pid}/stat")
+    if stat.exists():
+        try:
+            return stat.read_text().rsplit(")", 1)[1].split()[0] != "Z"
+        except (OSError, IndexError):
+            return False
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, check=False).stdout
+    return bool(state.strip()) and not state.strip().startswith("Z")
+
+
+class LaneTermTest(unittest.TestCase):
+    """#574: a lane process stopped on Linux or macOS (verify --fail-fast, the lane timeout, Ctrl+C) kills the
+    processes common.run started, each in a group of its own that the kill of the lane's group never reaches."""
+
+    def tearDown(self) -> None:
+        verify._STOP.clear()
+
+    def test_lane_main_kills_the_children_on_sigterm_while_its_steps_run(self) -> None:
+        seen: list[object] = []
+        before = signal.getsignal(signal.SIGTERM)
+
+        def step() -> int:
+            seen.append(signal.getsignal(signal.SIGTERM))
+            return 0
+
+        with (
+            mock.patch.object(verify, "LANES", {"x": ("s",)}),
+            mock.patch.object(verify, "AFTER", {}),
+            mock.patch.object(verify, "steps", lambda: {"s": step}),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(verify.lane_main("x", wait=no_wait), 0)
+        # Windows has no such handler: stop_lane's taskkill /T reaches the whole tree.
+        self.assertEqual(seen, [before if common.IS_WINDOWS else verify.lane_stopped])
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before, "the earlier handler is back after the steps")
+
+    def test_the_handler_kills_what_run_started_then_ends_the_lane_at_once(self) -> None:
+        calls: list[str] = []
+        with (
+            mock.patch.object(verify, "kill_running", lambda: calls.append("kill_running")),
+            mock.patch.object(verify.os, "_exit", lambda rc: calls.append(f"exit {rc}")),
+        ):
+            verify.lane_stopped(signal.SIGTERM, None)
+        self.assertEqual(calls, ["kill_running", f"exit {128 + signal.SIGTERM}"])
+
+    def test_run_tracks_each_process_until_it_ends(self) -> None:
+        tracked: list[bool] = []
+        procs: list[object] = []
+
+        def started(proc: object) -> None:
+            procs.append(proc)
+            tracked.append(proc in common.RUNNING)
+
+        result = common.run([sys.executable, "-c", "pass"], timeout=60, on_start=started)
+        self.assertEqual(result.rc, 0, result.out)
+        self.assertEqual(tracked, [True])
+        self.assertNotIn(procs[0], common.RUNNING)
+
+    def test_kill_running_kills_each_group_and_waits_for_none(self) -> None:
+        # Its caller is a signal handler: a Popen.wait there could block on the wait the signal interrupted.
+        first, second = mock.MagicMock(), mock.MagicMock()
+        killed: list[object] = []
+        with (
+            mock.patch.object(common, "RUNNING", {first, second}),
+            mock.patch.object(common, "_kill_group", killed.append),
+        ):
+            common.kill_running()
+        self.assertCountEqual(killed, [first, second])
+        first.wait.assert_not_called()
+        second.wait.assert_not_called()
+
+    def test_stop_lane_sends_sigterm_first_on_linux_and_macos_only(self) -> None:
+        for windows in (False, True):
+            with self.subTest(windows=windows):
+                proc = mock.MagicMock()
+                proc.poll.return_value = None
+                killed: list[object] = []
+                with (
+                    mock.patch.object(verify, "IS_WINDOWS", windows),
+                    mock.patch.object(verify, "kill_tree", killed.append),
+                ):
+                    verify.stop_lane(proc)
+                self.assertEqual(killed, [proc], "the lane's group (its tree on Windows) is killed in the end")
+                if windows:
+                    proc.terminate.assert_not_called()
+                else:
+                    proc.terminate.assert_called_once_with()
+                    proc.wait.assert_called_once_with(timeout=verify.LANE_TERM_GRACE)
+
+    @unittest.skipIf(common.IS_WINDOWS, "Windows: kill_tree's taskkill /T reaches the whole tree")
+    def test_stop_lanes_kills_a_child_run_started_in_a_session_of_its_own(self) -> None:
+        tools = str(ROOT / "tools")
+        with tempfile.TemporaryDirectory() as tmp:
+            pidfile = str(Path(tmp) / "child.pid")
+            child = [
+                sys.executable,
+                "-c",
+                f"import os, time; open({pidfile!r} + '.tmp', 'w').write(str(os.getpid())); "
+                f"os.replace({pidfile!r} + '.tmp', {pidfile!r}); time.sleep(120)",
+            ]
+            code = (
+                f"import sys; sys.path.insert(0, {tools!r}); sys.dont_write_bytecode = True; "
+                "from runner import common, verify; verify.LANES = {'x': ('s',)}; verify.AFTER = {}; "
+                f"verify.steps = lambda: {{'s': lambda: common.run({child!r}, timeout=300).rc}}; "
+                "sys.exit(verify.lane_main('x'))"
+            )
+
+            def stop_once_the_child_runs() -> None:
+                deadline = time.monotonic() + 60
+                while not os.path.exists(pidfile) and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                verify.stop_lanes()
+
+            stopper = threading.Thread(target=stop_once_the_child_runs, daemon=True)
+            stopper.start()
+            steps: list[verify.StepRun] = []
+            started = time.monotonic()
+            verify.run_lane_process("x", ("s",), steps.append, cmd=[sys.executable, "-u", "-c", code], timeout=120)
+            stopper.join(timeout=60)
+            self.assertTrue(os.path.exists(pidfile), "the child never started")
+            pid = int(Path(pidfile).read_text())
+            try:
+                deadline = time.monotonic() + 10
+                while alive(pid) and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                self.assertFalse(alive(pid), "the child run started outlived its stopped lane")
+            finally:
+                if alive(pid):
+                    os.kill(pid, signal.SIGKILL)
+            self.assertLess(time.monotonic() - started, 60)
+            self.assertEqual([(s.name, s.status) for s in steps], [("s", "FAILED")])
 
 
 FIXTURE = '''
