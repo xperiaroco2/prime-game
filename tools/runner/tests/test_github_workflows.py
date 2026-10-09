@@ -94,7 +94,22 @@ class GithubWorkflowsTest(unittest.TestCase):
         steps = data["jobs"]["verify"]["steps"]
         uses = [step.get("uses", "") for step in steps]
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
-        self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify", [step.get("run") for step in steps])
+        self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full", [step.get("run") for step in steps])
+
+    def test_every_workflow_verify_runs_the_full_suite(self) -> None:
+        # #605: a plain `verify` runs only doctor, lint and check; CI is where every test runs, so each workflow's
+        # verify call is `verify --full`, and the parser reads it as such.
+        calls = []
+        for path in sorted((GITHUB / "workflows").glob("*.yml")):
+            for job in load(path)["jobs"].values():
+                for step in job.get("steps", []):
+                    run = step.get("run", "")
+                    if "tools/run.sh verify" in run:
+                        calls.append((path.name, run))
+                        argv = run.split("tools/run.sh ", 1)[1].split()
+                        args = cli.build_parser().parse_args(argv)
+                        self.assertEqual((args.command, args.full, args.fail_fast), ("verify", True, False), run)
+        self.assertIn("ci.yml", [name for name, _run in calls])
 
     def test_ci_runs_the_runner_on_the_pinned_minimum_python(self) -> None:
         # #349: the verify job's Python is 3.12, the runner's stated minimum 3.11 (pins.PYTHON_MIN).
@@ -130,7 +145,7 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
         self.assertEqual(settings["restore-keys"], "gdunit-times-")
         self.assertIn("${{ github.run_id }}", settings["key"])
-        self.assertLess(cache[0], runs.index("GODOT_BIN=$HOME/godot/godot tools/run.sh verify"))
+        self.assertLess(cache[0], runs.index("GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full"))
 
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
         data = load(GITHUB / "workflows" / "nightly.yml")
@@ -226,7 +241,7 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
 
     def test_ci_tests_the_frame_bound_suites_at_fixed_fps_and_the_nightly_flaky_job_in_real_time(self) -> None:
-        # #341, the engineer's option (b) on PR #323. CI runs plain `verify` (test_ci_keeps_its_triggers_...), whose
+        # #341, the engineer's option (b) on PR #323. CI runs `verify --full` (test_ci_keeps_its_triggers_...), whose
         # test step takes gdunit.FIXED_FPS_SUITES at fixed fps (test_gdunit_shards, the verify pin). The flaky job's
         # `test --repeat` stays real-time, the run that still meets the #222 class (several physics steps a frame).
         ci = [step.get("run", "") for step in load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]]

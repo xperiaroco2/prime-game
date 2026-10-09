@@ -103,7 +103,7 @@ def inline_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
     """A lane in this process: lane_main's printed output through the LaneReader, as run_lane_process reads it."""
     with _INLINE:  # one lane at a time: redirect_stdout swaps sys.stdout for every thread
         with contextlib.redirect_stdout(io.StringIO()) as out:
-            verify.lane_main(lane, wait=no_wait)
+            verify.lane_main(lane, wait=no_wait, names=names)
         reader = verify.LaneReader(lane, names, emit)
         for line in out.getvalue().splitlines(keepends=True):
             reader.feed(line)
@@ -139,6 +139,7 @@ class Verify:
         status: object = None,
         counted: tuple[list[str], str] = ([], "runner tests: 2 run and 0 skipped of 2; a serial run: 2 run of 2"),
         pool: slots.Pool | None = None,
+        full: bool = True,
         fail_fast: bool = False,
         watch: object = None,
     ) -> tuple[int, str, dict[str, object]]:
@@ -158,7 +159,9 @@ class Verify:
             contextlib.redirect_stdout(out),
         ):
             no_watch = lambda _on_suspend, _stop: None  # noqa: E731 - a run without a suspend
-            rc = verify.main(run_lane=run_lane, fail_fast=fail_fast, watch=watch or no_watch)  # type: ignore[arg-type]
+            rc = verify.main(  # type: ignore[arg-type]
+                run_lane=run_lane, full=full, fail_fast=fail_fast, watch=watch or no_watch
+            )
         lines = self.history.read_text(encoding="utf-8").splitlines()
         self.test.assertEqual(len(lines), 1, lines)
         return rc, out.getvalue(), json.loads(lines[0])
@@ -253,6 +256,8 @@ class LaneTest(unittest.TestCase):
         self.assertIn("runner tests: 2 run and 0 skipped of 2", text)
         self.assertRegex(text.splitlines()[-1], r"^verify: passed in [\d.]+s$")
         self.assertEqual(list(record["lanes"]), list(verify.LANES))  # type: ignore[arg-type]
+        self.assertEqual(record["mode"], "full")
+        self.assertNotIn(verify.FAST_LINE, text)
 
     def test_each_steps_output_is_printed_whole(self) -> None:
         delays = {name: 0.01 for name in verify.STEP_ORDER}
@@ -320,7 +325,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(
             set(record),
             {"start", "worktree", "branch", "head", "tree", "runner", "status", "seconds", "steps", "lanes", "cpus",
-             "workers", "selftest", "slot", "stopped"},  # fmt: skip
+             "workers", "selftest", "slot", "stopped", "mode"},  # fmt: skip
         )
         self.assertIsNone(record["slot"])  # no slot pool: CI, or a verify inside a verify
         self.assertIsNone(record["stopped"])  # every step ran
@@ -378,6 +383,73 @@ run: FAILED (1 of 3)
   #2   a Correction outside a placement (epoch 3, at (1.5, 0, -2)): an honest bot is never corrected
   #2   command log (Match.replay with ReplayFiles.read): user://x.log
 """
+
+
+class FastTest(unittest.TestCase):
+    """`verify` with no flag (#605): doctor, lint and check, the clean-tree check; no test, no slot, no count check."""
+
+    def test_the_default_is_the_fast_run(self) -> None:
+        self.assertIs(inspect.signature(verify.main).parameters["full"].default, False)
+        self.assertEqual(verify.FAST_LANES, {"python": ("lint",), "godot": ("check",)})
+        self.assertEqual(verify.FAST_ORDER, ("doctor", "lint", "check"))
+
+    def test_it_runs_only_lint_and_check_and_says_the_tests_run_on_ci(self) -> None:
+        ran: list[str] = []
+        run = Verify(self)
+        with stub_steps(ran):
+            rc, text, record = run.run(inline_lane, full=False)
+        self.assertEqual(rc, 0)
+        self.assertEqual(sorted(ran), ["check", "lint"])  # doctor: the stub in Verify
+        self.assertEqual(summary_rows(text), [("passed", "doctor"), ("passed", "lint"), ("passed", "check")])
+        self.assertIn(f"  {verify.FAST_LINE}", text.splitlines())
+        self.assertRegex(text.splitlines()[-1], r"^verify: passed in [\d.]+s$")
+        run.slot_pool.assert_not_called()  # no verify slot
+        run.count.assert_not_called()  # no runner test ran, so none is counted
+        self.assertEqual(record["mode"], "fast")
+        self.assertEqual(record["status"], "passed")
+        self.assertEqual(list(record["lanes"]), list(verify.FAST_LANES))  # type: ignore[arg-type]
+        self.assertEqual([s["name"] for s in record["steps"]], list(verify.FAST_ORDER))  # type: ignore[union-attr]
+        self.assertIsNone(record["slot"])
+
+    def test_the_full_run_runs_every_step(self) -> None:
+        ran: list[str] = []
+        with stub_steps(ran):
+            rc, text, record = Verify(self).run(inline_lane, full=True)
+        self.assertEqual(rc, 0)
+        self.assertEqual(sorted(ran), sorted(set(verify.STEP_ORDER) - {"doctor"}))
+        self.assertEqual([name for _status, name in summary_rows(text)], list(verify.STEP_ORDER))
+        self.assertEqual(record["mode"], "full")
+
+    def test_a_red_lint_or_check_fails_it_and_the_other_still_runs(self) -> None:
+        for failing in ("lint", "check"):
+            ran: list[str] = []
+            with self.subTest(failing=failing), stub_steps(ran, failing):
+                rc, text, record = Verify(self).run(inline_lane, full=False)
+                self.assertEqual(rc, 1)
+                self.assertEqual(sorted(ran), ["check", "lint"])  # doctor: the stub in Verify
+                self.assertEqual([name for status, name in summary_rows(text) if status == "FAILED"], [failing])
+                self.assertEqual((record["status"], record["mode"]), ("FAILED", "fast"))
+
+    def test_it_keeps_the_clean_tree_check(self) -> None:
+        rc, text, _record = Verify(self).run(fake_lane(), status=[set(), {"?? left.txt"}], full=False)
+        self.assertEqual(rc, 1)
+        self.assertIn(("FAILED", "clean"), summary_rows(text))
+
+    def test_a_red_doctor_stops_it(self) -> None:
+        lane = mock.MagicMock()
+        rc, text, _record = Verify(self).run(lane, doctor=1, full=False)
+        self.assertEqual(rc, 1)
+        lane.assert_not_called()
+        self.assertEqual(summary_rows(text), [("FAILED", "doctor")])
+
+    def test_a_lane_process_runs_only_the_fast_steps(self) -> None:
+        self.assertNotIn("names=", " ".join(verify.lane_command("python")))
+        self.assertNotIn("names=", " ".join(verify.lane_command("python", verify.LANES["python"])))
+        self.assertIn("names=('lint',)", " ".join(verify.lane_command("python", ("lint",))))
+        ran: list[str] = []
+        with stub_steps(ran), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(verify.lane_main("godot", wait=no_wait, names=("check",)), 0)
+        self.assertEqual(ran, ["check"])
 
 
 class HistoryDetailTest(unittest.TestCase):
@@ -876,7 +948,17 @@ class FailFastTest(unittest.TestCase):
         with mock.patch.object(verify, "main", return_value=0) as run:
             self.assertEqual(cli.main(["verify"]), 0)
             self.assertEqual(cli.main(["verify", "--fail-fast"]), 0)
-        self.assertEqual(run.call_args_list, [mock.call(fail_fast=False), mock.call(fail_fast=True)])
+            self.assertEqual(cli.main(["verify", "--full", "--fail-fast"]), 0)
+            self.assertEqual(cli.main(["verify", "--full"]), 0)
+        self.assertEqual(
+            run.call_args_list,
+            [
+                mock.call(full=False, fail_fast=False),
+                mock.call(full=False, fail_fast=True),
+                mock.call(full=True, fail_fast=True),
+                mock.call(full=True, fail_fast=False),
+            ],
+        )
 
     def test_metrics_reads_a_stopped_summary_without_its_not_run_rows(self) -> None:
         delays = {name: 0.5 for name in verify.STEP_ORDER} | {"lint": 0.0}

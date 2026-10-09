@@ -212,8 +212,11 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots`, `bots-enet` and `bots-webrtc`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. A plain `verify` runs only
+   `doctor --quick`, `lint` and `check` (no test, no verify slot); every test, the bot matches included, runs on CI's
+   `verify --full`, so CI green on the PR is the test gate (#605,
+   [ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)); `verify --full` runs the whole suite here when
+   needed (§11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
@@ -1749,7 +1752,12 @@ Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/ou
 Claude settings (§2).
 
 ### 11.16 CI [applied]
-`.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
+A plain `verify` runs only `doctor --quick`, `lint` and `check` (one lane each, at once) and the clean-tree check,
+takes no verify slot, prints "fast verify: lint and check; the tests run on CI" and records `"mode": "fast"` (`metrics`
+leaves its total out of the full runs'); every test runs on CI (#605,
+[ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)). What follows about steps, lanes and slots is
+`verify --full`, CI's run, which an agent runs locally only when it needs to (a Windows-only failure, a release).
+`.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify --full` on every PR
 (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
 pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
 (the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
@@ -1855,7 +1863,7 @@ printed a line or lived 10 s is never started again, whatever it returned, so no
 that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
 are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
 `NOT STARTED` line. Tests: `tools/runner/tests/test_not_started.py`.
-**Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
+**Verify slots (#185):** on a PC, after `doctor`, `verify --full` (a plain `verify` takes none, #605) takes one of N
 machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
 a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
 `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The

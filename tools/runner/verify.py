@@ -1,4 +1,9 @@
-"""`verify` (the definition of done: exactly what CI runs) and `selftest`.
+"""`verify` (the definition of done) and `selftest`.
+
+`verify` with no flag is the fast local run (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md):
+`doctor --quick`, then `lint` and `check` in two lanes at once (FAST_LANES), then the clean-tree check; no verify slot,
+no test: every test runs on CI, whose job runs `verify --full`. Its record's "mode" is "fast", and its summary says so
+(FAST_LINE), so no tool takes it for a full run. The rest of this docstring is `verify --full` (exactly what CI runs).
 
 `doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
@@ -146,6 +151,11 @@ LANES: dict[str, tuple[str, ...]] = {
     ),
     "selftest-godot": ("selftest-godot",),
 }
+# `verify` with no flag (#605): only the static checks, one lane each, at once; the tests run on CI (`verify --full`).
+FAST_LANES: dict[str, tuple[str, ...]] = {"python": ("lint",), "godot": ("check",)}
+FAST_ORDER = ("doctor", "lint", "check")
+# The fast run's summary line; metrics.FAST_RUN reads its start, so a fast run's total is never a full run's.
+FAST_LINE = "fast verify: lint and check; the tests run on CI (verify --full runs them here)"
 # A step that starts only once these steps of other lanes have ended (whatever their status): the runner tests that
 # start Godot after check, so a fresh CI checkout has imported the project (.godot/) before RealSessionTest is
 # discovered and no two Godot imports run at once; the first network run after them, so no other Godot run overlaps
@@ -351,12 +361,13 @@ def wait_for_steps(needed: tuple[str, ...], stream: IO[str] | None = None) -> No
         _ENDED.add(line.strip())
 
 
-def lane_main(lane: str, wait: WaitFor | None = None) -> int:
+def lane_main(lane: str, wait: WaitFor | None = None, names: tuple[str, ...] | None = None) -> int:
     """The body of a lane process: its steps in order, each after its AFTER steps have ended (`wait`, by default
     wait_for_steps) and followed by a MARK line with its result. On Linux and macOS a SIGTERM (stop_lane) kills the
-    processes common.run started before the lane ends (#574)."""
+    processes common.run started before the lane ends (#574). `names`: the lane's steps when not LANES[lane] (a fast
+    run's FAST_LANES)."""
     with term_kills_children():
-        for name in LANES[lane]:
+        for name in names if names is not None else LANES[lane]:
             (wait or wait_for_steps)(AFTER.get(name, ()))
             started = time.monotonic()
             rc = run_step(name)
@@ -445,11 +456,12 @@ class LaneReader:
         self.waiting = []
 
 
-def lane_command(lane: str) -> list[str]:
+def lane_command(lane: str, names: tuple[str, ...] | None = None) -> list[str]:
     tools = str(ROOT / "tools")
+    which = "" if names is None or names == LANES.get(lane) else f", names={tuple(names)!r}"
     code = (
         f"import sys; sys.path.insert(0, {tools!r}); sys.dont_write_bytecode = True; "
-        f"from runner import verify; sys.exit(verify.lane_main({lane!r}))"
+        f"from runner import verify; sys.exit(verify.lane_main({lane!r}{which}))"
     )
     return [sys.executable, "-u", "-c", code]
 
@@ -573,7 +585,7 @@ def run_lane_process(
     env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1", INSIDE_VAR: "1"}
     gated = any(name in AFTER for name in names)
     proc = subprocess.Popen(
-        cmd or lane_command(lane),
+        cmd or lane_command(lane, names),
         cwd=ROOT,
         stdin=subprocess.PIPE if gated else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
@@ -616,12 +628,19 @@ def run_lane_process(
     reader.close(f"stopped after {timeout:.0f}s" if fired.is_set() else f"its process exited {proc.returncode}")
 
 
-def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = None) -> dict[str, float]:
+def run_lanes(
+    run_lane: RunLane,
+    emit: Emit,
+    printing: threading.Lock | None = None,
+    lanes: dict[str, tuple[str, ...]] | None = None,
+) -> dict[str, float]:
     """Every lane at once, one thread each; returns each lane's wall time in seconds. Ctrl+C stops the lanes'
     processes (each runs in a process group of its own, which Ctrl+C does not reach). `printing` is the lock emit
     prints under: a crashed lane's message takes it too, so it never lands inside another step's block. Each step that
-    ends, and each step of a lane that ended without reporting it, is told to the lane processes (Gate, AFTER)."""
+    ends, and each step of a lane that ended without reporting it, is told to the lane processes (Gate, AFTER). `lanes`:
+    LANES unless given (a fast run's FAST_LANES)."""
     global _GATE
+    lanes = LANES if lanes is None else lanes
     walls: dict[str, float] = {}
     printing = printing or threading.Lock()
     _GATE = gate = Gate()
@@ -643,7 +662,7 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
                 gate.end(name)
         walls[lane] = time.monotonic() - started
 
-    threads = [threading.Thread(target=one, args=item, daemon=True) for item in LANES.items()]
+    threads = [threading.Thread(target=one, args=item, daemon=True) for item in lanes.items()]
     try:
         for thread in threads:
             thread.start()
@@ -1096,11 +1115,11 @@ def append_history(record: dict[str, object]) -> None:
         warn(f"could not append to {HISTORY}: {exc}")
 
 
-def steps_in_flight(ended: set[str]) -> set[str]:
+def steps_in_flight(ended: set[str], lanes: dict[str, tuple[str, ...]] | None = None) -> set[str]:
     """The step each lane was running when the lanes ended in the middle (a suspend, #595): its first step that has not
     ended, unless that step was still waiting for an AFTER step of another lane, which it never started."""
     running = set()
-    for names in LANES.values():
+    for names in (LANES if lanes is None else lanes).values():
         step = next((name for name in names if name not in ended), None)
         if step is not None and set(AFTER.get(step, ())) <= ended:
             running.add(step)
@@ -1116,10 +1135,12 @@ def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
 def main(
     run_lane: RunLane = run_lane_process,
     *,
+    full: bool = False,
     fail_fast: bool = False,
     watch: Callable[[Callable[[float], None], threading.Event], object] = suspend.watch_in_background,
 ) -> int:
-    """`verify`; with `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
+    """`verify`: without `full` the fast run (#605): doctor, lint and check (FAST_LANES), the clean-tree check, no slot
+    and no count check; with `full` (`verify --full`, CI's job) every step of LANES in a verify slot. With `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
     are not run, the count check is left out, and the summary and the record say so. While the lanes run, `watch`
     (suspend.watch_in_background) calls back once the machine slept (#595): the lanes stop, each step that was running
     is red with suspend.message, the steps not started are not run, and the run counts as stopped early."""
@@ -1127,6 +1148,7 @@ def main(
     start_time = datetime.now(UTC)
     before = git_status()
     facts = git_facts(clean=not before)
+    lanes, order = (LANES, STEP_ORDER) if full else (FAST_LANES, FAST_ORDER)
     run_id = uuid.uuid4().hex
     os.environ[RUN_ID_VAR] = run_id  # the lane processes inherit it; their selftest results carry it
     runs: dict[str, StepRun] = {}
@@ -1143,14 +1165,16 @@ def main(
     taken: slots.Taken | None = None
     slot_line = ""
     if rc == 0:  # a wrong environment makes every later step meaningless
-        pool, why = slot_pool(facts)
-        slot_line = f"slot: {why}" if pool is None else ""
+        pool, why = slot_pool(facts) if full else (None, "")  # a fast run takes no slot (#605)
+        slot_line = f"slot: {why}" if pool is None and why else ""
         with pool.held() if pool is not None else contextlib.nullcontext() as taken:
             if taken is not None:
                 slot_line = taken.summary()
                 say(f"verify: {slot_line}")
-            described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
-            say(f"verify: {len(LANES)} lanes at once ({described}); each step's output follows whole when it ends")
+            described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in lanes.items())
+            if not full:
+                say(f"verify: {FAST_LINE}")
+            say(f"verify: {len(lanes)} lanes at once ({described}); each step's output follows whole when it ends")
             if fail_fast:
                 say("verify: --fail-fast: the first red step stops every lane")
             say()
@@ -1185,7 +1209,7 @@ def main(
                 with printing:
                     if stopped_at is not None or slept is not None or stop_watch.is_set():
                         return
-                    running = steps_in_flight(set(runs))
+                    running = steps_in_flight(set(runs), lanes)
                     if not running:  # every step ended, only the lane threads are being joined: nothing to stop
                         return
                     in_flight.update(running)
@@ -1195,15 +1219,15 @@ def main(
 
             watch(on_suspend, stop_watch)
             try:
-                walls = run_lanes(run_lane, emit, printing)
+                walls = run_lanes(run_lane, emit, printing, lanes)
             finally:
                 with printing:
                     stop_watch.set()
-        for lane, names in LANES.items():
+        for lane, names in lanes.items():
             for name in names:  # its lane never reported it: it failed, or the run stopped before it ended
                 stopped = stopped_at is not None or slept is not None
                 runs.setdefault(name, StepRun(name, lane, NOT_RUN if stopped else "FAILED", 0.0))
-        if stopped_at is None and slept is None:  # a stopped run's runner tests are partial: nothing to count
+        if full and stopped_at is None and slept is None:  # a stopped run's runner tests are partial: no count
             problems, count_line, counts = count_after_lanes(run_id)
             if problems:
                 for problem in problems:
@@ -1213,7 +1237,7 @@ def main(
     if leftovers:
         bad("verify left new or changed files in the working tree:", "\n".join(leftovers))
         extra.append(StepRun("clean tree", "main", "FAILED", 0.0))
-    ordered = [runs[name] for name in STEP_ORDER if name in runs] + extra
+    ordered = [runs[name] for name in order if name in runs] + extra
     say("verify summary")
     for step in ordered:
         say(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s{step_note(step)}")
@@ -1224,15 +1248,18 @@ def main(
         say(f"  stopped early: {suspend.message(slept)} while verify ran; {len(not_run)} steps not run; keep the "
             "machine awake (docs/MANAGERS.md §4) and run verify again")  # fmt: skip
     if walls:
-        say("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in LANES if lane in walls)
-            + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip
+        workers = f", selftest on {selftest_workers()} worker processes" if full else ""
+        say("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in lanes if lane in walls)
+            + f"; {os.cpu_count()} CPUs{workers}")  # fmt: skip
+    if not full:
+        say(f"  {FAST_LINE}")
     if count_line:
         say(f"  {count_line}")
     if slot_line:
         say(f"  {slot_line}")
     if starts_line := not_started_line(ordered):
         say(f"  {starts_line}")
-    failed = any(step.status != "passed" for step in ordered) or len(runs) < len(STEP_ORDER)
+    failed = any(step.status != "passed" for step in ordered) or len(runs) < len(order)
     waited = taken.waited if taken is not None else 0.0
     seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
     after = f" (after {waited:.1f}s waiting for a verify slot)" if taken is not None else ""
@@ -1252,9 +1279,10 @@ def main(
             "worktree": ROOT.as_posix(),
             **facts,
             "status": "FAILED" if failed else "passed",
+            "mode": "full" if full else "fast",
             "seconds": round(seconds, 1),
             "steps": [step_record(s) for s in ordered],
-            "lanes": {lane: round(walls[lane], 1) for lane in LANES if lane in walls},
+            "lanes": {lane: round(walls[lane], 1) for lane in lanes if lane in walls},
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
             "selftest": counts,
