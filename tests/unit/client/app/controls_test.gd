@@ -50,6 +50,40 @@ func test_there_are_the_sixteen_actions_of_settings_controls_each_with_its_phase
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
 
+func test_the_sixteen_actions_have_the_issues_deck_keys_and_defaults() -> void:
+	# #488's rule 5, row by row: the action, its deck key, its default (a key, or a mouse button).
+	var table: Array[Array] = [
+		[&"move_forward", &"control.forward", KEY_W],
+		[&"move_back", &"control.backward", KEY_S],
+		[&"move_left", &"control.left", KEY_A],
+		[&"move_right", &"control.right", KEY_D],
+		[&"sprint", &"control.sprint", KEY_SHIFT],
+		[&"jump", &"control.jump", KEY_SPACE],
+		[&"interact", &"control.interact", KEY_E],
+		[&"use", &"control.use", MOUSE_BUTTON_LEFT],
+		[&"put_down", &"control.put_down", KEY_Q],
+		[&"swap", &"control.swap", KEY_X],
+		[&"map", &"control.map", KEY_M],
+		[&"give_up", &"control.give_up", KEY_F],
+		[&"ready", &"control.ready", KEY_F],
+		[&"voice_talk", &"control.talk", KEY_V],
+		[&"spectate_next", &"control.spectate_next", MOUSE_BUTTON_LEFT],
+		[&"spectate_previous", &"control.spectate_previous", MOUSE_BUTTON_RIGHT],
+	]
+	var controls := Controls.new()
+	assert_array(Controls.ACTIONS.keys()).contains_exactly(
+		table.map(func(row: Array) -> Variant: return row[0])
+	)
+	for row: Array in table:
+		var action: StringName = row[0]
+		var deck_key: StringName = row[1]
+		assert_str(String(Controls.ACTIONS[action])).is_equal(String(deck_key))
+		var event := controls.event_of(action)
+		var button := event as InputEventMouseButton
+		var got: int = button.button_index if button != null else _key(event)
+		assert_int(got).override_failure_message(String(action)).is_equal(row[2])
+
+
 func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 	assert_int(Controls.PHASES[&"give_up"]).is_equal(Controls.Phase.DOWNED)
 	assert_int(Controls.PHASES[&"ready"]).is_equal(Controls.Phase.LOBBY)
