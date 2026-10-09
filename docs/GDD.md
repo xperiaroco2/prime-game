@@ -132,9 +132,9 @@ Open questions (the engineer's):
 - Does everyone see each zone's progress as it fills, or only when it is done?
 - Does anything but leaving stop a zone: a hit, carrying something?
 - How long, how big and how many zones, in which colours; the task's name and description; and does "zone" clash
-  with "the zones where items may appear" (§1) and with the House map's photo zone and chill zone (§13)?
+  with "the zones where items may appear" (§1) and with the House map's photo zone and chill zone ([House map](design/house-map.md) §2, §4)?
 - Does every match deal both Delivery and the zone task, or one of them at random?
-- Where do zones stand on the maps (the House map's task stations, §13, include none), and how do they look?
+- Where do zones stand on the maps (the [House map](design/house-map.md)'s task stations, its §6, include none), and how do they look?
 
 ## 9. Meetings and voting
 
