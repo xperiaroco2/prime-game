@@ -239,6 +239,7 @@ func _show_map() -> void:
 	var was_shown := map.visible
 	map.visible = _map_open and screen == GameFlow.Screen.ROUND
 	hud.aiming = not map.visible and _alive
+	hud.role_hidden = map.visible
 	if map.visible and not was_shown and _model != null:
 		map.refresh(_model, _mode, _host_tick, _local)
 
