@@ -20,6 +20,9 @@ const STOP_RAISE := &"StopRaise"
 const GIVE_UP := &"GiveUp"
 ## A living player swaps its hand and belt items (M4-5, vision revision 1: Two hands).
 const SWAP := &"Swap"
+## The host's player asks a scripted mode to go on (#599, the tutorial's stages): a session control
+## like ReturnToLobby, no argument. The base mode accepts it in no phase (`not_accepted`).
+const NEXT_STAGE := &"NextStage"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -36,6 +39,7 @@ const ALL: Array[StringName] = [
 	STOP_RAISE,
 	GIVE_UP,
 	SWAP,
+	NEXT_STAGE,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -93,6 +97,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	STOP_RAISE: {},
 	GIVE_UP: {},
 	SWAP: {},
+	NEXT_STAGE: {},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 }

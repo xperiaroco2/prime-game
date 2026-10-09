@@ -27,7 +27,7 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	match command.kind:
 		Intents.HELLO:
 			# A joiner is not ready, so a join never completes all_ready.
-			JoinRules.hello(ctx, command, spec.id)
+			JoinRules.hello(ctx, command, spec)
 		Intents.SET_READY:
 			if not JoinRules.has_ready_flag(ctx, command):
 				return

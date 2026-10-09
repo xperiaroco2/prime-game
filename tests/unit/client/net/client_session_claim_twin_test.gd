@@ -93,6 +93,7 @@ func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 		Intents.CHANGE_SETTINGS: {"settings": {}},
 		Intents.RETURN_TO_LOBBY: {},
 		Intents.LOAD_ACK: {"match_id": 1},
+		Intents.NEXT_STAGE: {},
 	}
 	var actions := {
 		Intents.PICK_UP: {"item": 0},

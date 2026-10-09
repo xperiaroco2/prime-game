@@ -3,7 +3,9 @@ extends RuleEffect
 ## Places every present player at a distinct random marker of `tag` (ARCHITECTURE §3.2, §9.4): a
 ## transition action of the deal (`round_player`) and of `End -> Lobby` (`lobby_player`). The
 ## markers come from the layout of the level being entered; players are taken in peer-id order
-## and the markers are shuffled with the RNG purpose `rng_purpose`. Each placed player gets a new
+## and the markers are shuffled with the RNG purpose `rng_purpose`; with `ordered` (#599, the
+## tutorial's deal) they are not: the i-th player stands on the i-th marker in level order (the
+## host's player, peer 1, on the first) and nothing is drawn. Each placed player gets a new
 ## epoch, so claims still in flight from the old scene are dropped as stale.
 ##
 ## Emits: PlayersPlaced (everyone: positions are public), then a Correction per player, in
@@ -11,7 +13,10 @@ extends RuleEffect
 
 ## The spawn tag of the markers: `round_player` in the deal, `lobby_player` on `End -> Lobby`.
 @export var tag: StringName
+## The shuffle's RNG purpose; unused (and not required) when `ordered`.
 @export var rng_purpose: StringName = &"spawns"
+## Players in peer-id order onto the markers in level order, with no draw. False: the shuffle.
+@export var ordered := false
 
 
 func run(ctx: MatchContext) -> void:
@@ -25,7 +30,13 @@ func run(ctx: MatchContext) -> void:
 			"PlacePlayers: %d %s marker(s) for %d players" % [spots.size(), tag, peers.size()]
 		)
 		return
-	var order := RngStreams.shuffled_indices(spots.size(), ctx.rng(rng_purpose))
+	var order := PackedInt32Array()
+	if ordered:
+		order.resize(spots.size())
+		for i in spots.size():
+			order[i] = i
+	else:
+		order = RngStreams.shuffled_indices(spots.size(), ctx.rng(rng_purpose))
 	var placed: Dictionary[int, Vector3] = {}
 	for i in peers.size():
 		var player := ctx.state.players[peers[i]]
@@ -51,6 +62,6 @@ func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if tag.is_empty():
 		found.append("PlacePlayers has no tag")
-	if rng_purpose.is_empty():
+	if rng_purpose.is_empty() and not ordered:
 		found.append("PlacePlayers has no rng_purpose")
 	return found

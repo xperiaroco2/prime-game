@@ -68,6 +68,26 @@ func test_an_intent_decodes_to_its_command_args_and_seq() -> void:
 	assert_int(claim.seq).is_equal(0)
 
 
+func test_next_stage_is_kind_15_with_its_seq_alone() -> void:
+	# The tutorial's stage intent (#599): kind 15, C to H, RELIABLE, cap 4, no argument.
+	assert_int(_schema.kind_of(&"NextStage")).is_equal(15)
+	var row := _schema.row(15)
+	assert_int(row.cap).is_equal(4)
+	assert_int(row.lane).is_equal(NetKindTable.Lane.RELIABLE)
+	assert_int(row.direction).is_equal(NetKindTable.Direction.CLIENT_TO_HOST)
+	var payload := _schema.encode(WireMessage.new(&"NextStage", {}, 7))
+	assert_int(payload.size()).is_equal(4)
+	var decoded := _schema.decode(15, payload)
+	assert_dict(decoded.fields).is_empty()
+	assert_int(decoded.seq).is_equal(7)
+	# A missing seq and a trailing byte are each refused by the codec.
+	_assert_rejected(15, PackedByteArray(), "truncated")
+	_assert_rejected(15, payload.slice(0, 3), "truncated")
+	var trailing := payload.duplicate()
+	trailing.append(0)
+	_assert_rejected(15, trailing, "after the last field")
+
+
 func test_change_settings_holds_a_map_only_when_it_names_one() -> void:
 	var without := _round_trip(WireMessage.new(&"ChangeSettings", {"settings": {&"tasks": 2}}, 1))
 	assert_bool(without.fields.has("map")).is_false()
