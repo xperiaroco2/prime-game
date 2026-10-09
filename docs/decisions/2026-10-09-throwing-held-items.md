@@ -1,7 +1,7 @@
 # Throwing held items (#37): the flight in `core/`, and the engineer's questions
 
 - **Status:** Accepted on 2026-10-09: the engineer took every recommendation (see the update below); being built, 37a
-  and 37b done. The TD items were his
+  to 37c done. The TD items were his
   (game rules and taste: the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier
   (c), "ask and wait"), and no task is opened on a TD item before his answer; the TE items are technical, and each
   recommendation stands until he says otherwise. TE1 is his too, because it revises what two accepted ADRs sketched
@@ -13,6 +13,11 @@
   #641) and 37b (the flight, `FlightTicks` and the rest, #642; ARCHITECTURE §7.1.16). 37b adds one detail the text
   below leaves implicit: the flight keeps its launch tick and `FlightTicks` skips it, because a command at tick L runs
   before tick L's tick systems, so with no pause n is the host tick less L, as a client computes it from `ItemThrown`'s launch tick.
+- **Update 2026-10-10 (37c, #643):** built the `Throw` intent, `ThrowItem`, `ItemThrownEvent` and their wire rows
+  (protocol 12 on `release/m7`). One part this text did not count: the condition `OverFloor` (`no_floor`, TD11 (a)).
+  A refusal inside `ThrowItem` would come after `RuleRunner` stops the thrower's raise and give the client no
+  `Rejected`, so the refusal is a condition, and ModeCheck requires `HoldsItem` and `OverFloor`, not negated, in every
+  rule that holds a `ThrowItem`. No change to a TD or TE answer.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
@@ -254,8 +259,9 @@ keeps the flying state with `ItemRested` as a command of `server/`'s, and 37e dr
 ## Consequences
 - ARCHITECTURE §7.1.16 holds this design's authority rules. §3.3, §7.1.14, §9.2 and §9.8 no longer say that `server/`
   reports a throw's rest from its physics, and §10 lists TD1 to TD12 and TE1. GDD §6 lists the questions.
-- The content API gains one intent, one effect, one tick system, one event, one fact cause and one `WorldQuery`
-  question, and no change to `Match` or the phase loop. ARCHITECTURE §9.8's row for throwing counts two part classes
-  instead of one (the effect, and the flight's tick system) and no simulation in `server/`.
+- The content API gains one intent, one effect, one tick system, one condition (`OverFloor`, added in 37c), one
+  event, one fact cause and one `WorldQuery` question, and no change to `Match` or the phase loop. ARCHITECTURE §9.8's
+  row for throwing counts three part classes instead of one (the effect, the flight's tick system and the condition)
+  and no simulation in `server/`.
 - Whatever the answers, the rest of a throw goes through `Items.place` and `item_rested`, so the delivery check, the
   win check and the drops at a death stay as they are.
