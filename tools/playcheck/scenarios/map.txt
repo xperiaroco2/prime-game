@@ -1,8 +1,9 @@
-# The map and tasks screen on M (#253) in the game's real window. Window 1 hosts alone (the base
-# mode plays with one). In the round M opens the map: the pointer is freed and the crosshair hides;
-# the tasks list their counters (the greybox has no rooms until #306, so no board shows).
-# M again closes it and the pointer is captured again; with the map open Esc closes only the map,
-# never opening the Esc menu over it.
+# The map and tasks screen on M (#253; its Toy look and focus #490) in the game's real window.
+# Window 1 hosts alone (the base mode plays with one). In the round M opens the map: the pointer is
+# freed and the crosshair hides; the tasks list their counters (the greybox has no rooms until
+# #306, so no board shows). Down focuses the first «?», Enter opens its how-to card, Esc closes only
+# the card. M again closes the map and the pointer is captured again; with the map open Esc closes
+# only the map, never opening the Esc menu over it.
 players 1
 windows 1
 
@@ -23,6 +24,16 @@ press map
 wait pointer free
 frames 10
 shot map_open
+press ui_down
+frames 10
+shot map_help_focused
+press ui_accept
+frames 10
+shot map_card
+press ui_cancel
+frames 10
+shot map_card_closed
+wait esc closed
 press map
 wait pointer captured
 press map
