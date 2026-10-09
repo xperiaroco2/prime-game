@@ -122,3 +122,4 @@ Add a row per real misrecognition you resolved; never guess.
 | Heard | Meant |
 |---|---|
 | "посеред науки" | "посеред двору" (in the middle of the yard) |
+| "хаоса" | "House" (the map: "немає хаоса" = "the House is not there") |
