@@ -77,6 +77,18 @@ class RootClaudeMdTest(unittest.TestCase):
         talking = next(text for title, text in self.sections.items() if title.startswith("Talking to the humans"))
         self.assertIn("\n- A command for a human goes in the chat itself", "\n" + talking)
 
+    def test_the_dropped_rows_and_sentences_keep_a_pointer(self) -> None:
+        # Review of #561: the Routing table's skill rows and the retarget sentence of the Definition of done had none.
+        routing = next(text for title, text in self.sections.items() if title.startswith("Routing"))
+        self.assertIn("`orchestrate-stage` (`docs/MANAGERS.md`)", routing)
+        done = next(text for title, text in self.sections.items() if title.startswith("Definition of done"))
+        self.assertIn("`gh pr edit <n> --base <its base>` (AGENT_WORKFLOW §8.5)", " ".join(done.split()))
+
+    def test_every_section_reference_names_its_document(self) -> None:
+        root = (common.ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        for match in re.finditer(r"\(§\d", root):
+            self.fail(f"a bare section reference at {match.start()}: {root[match.start():match.start() + 12]!r}")
+
     def test_the_shell_quirks_it_points_to_exist(self) -> None:
         workflow = (common.ROOT / "docs" / "AGENT_WORKFLOW.md").read_text(encoding="utf-8")
         quirks = workflow.split("### 2.2 Shell notes for agents\n", 1)[1].split("\n## 3.", 1)[0]
@@ -89,6 +101,13 @@ class OrchestrateStageCoreTest(unittest.TestCase):
     def setUp(self) -> None:
         self.core = (SKILL / "SKILL.md").read_text(encoding="utf-8")
         self.rows = [m.groups() for m in map(INDEX_ROW.match, self.core.splitlines()) if m]
+
+    def test_a_handover_start_reads_neither_gotchas_nor_the_kickoff_template(self) -> None:
+        # Review of #561: handovers are most manager starts; the index names them only for a stage's first kickoff.
+        rows = {name: cell for cell, name in self.rows}
+        self.assertIn("not a handover's", self.core.split("[gotchas.md]", 1)[0].splitlines()[-1])
+        self.assertIn("not at your own start", self.core.split("[kickoff-template.md]", 1)[0].splitlines()[-1])
+        self.assertIn("gotchas.md", rows)
 
     def test_the_index_links_every_file_of_the_skill(self) -> None:
         files = sorted(p.name for p in SKILL.glob("*.md") if p.name != "SKILL.md")
