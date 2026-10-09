@@ -2324,5 +2324,103 @@ class CheckpointTest(unittest.TestCase):
         self.assertFalse(calls(red, "publish"))
 
 
+def quick(paths: list[str], **extra) -> dict:
+    """The quick agent's result (#608): a PR with CI green unless extra says otherwise."""
+    pr = {"pr_url": "https://github.com/o/r/pull/9", "pr_number": 9, "ci_green": True, "changed_paths": paths, "summary": "s"}
+    return dict(pr, **extra)
+
+
+QUICK_FIELDS = {"n", "pr_url", "ci_green", "reviewed", "ready_to_merge", "needs_engineer", "summary"}
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class QuickTaskTest(unittest.TestCase):
+    """quick-task.js (#608): one agent to a PR, reviewers only for a diff under core/ server/ net/ voice/ tests/harness/."""
+
+    def run_quick(self, *cases: tuple[dict, dict]) -> list[dict]:
+        return run_jobs([("quick-task.js", dict(ARGS, **args), stub) for args, stub in cases])
+
+    def test_a_light_diff_gets_no_reviewer_and_is_ready(self) -> None:
+        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd"]
+        (result,) = self.run_quick(({}, {"queues": {"publish": [quick(light)]}}))
+        self.assertIsNone(result["error"])
+        self.assertEqual([e["label"] for e in agents(result)], ["publish:#7"])
+        out = result["returned"]
+        self.assertLessEqual(QUICK_FIELDS, set(out))
+        self.assertEqual(out["reviewed"]["done"], False)
+        self.assertIn("CI is the gate", out["reviewed"]["why"])
+        self.assertTrue(out["ready_to_merge"])
+        self.assertEqual((out["pr_url"], out["ci_green"], out["needs_engineer"]), ("https://github.com/o/r/pull/9", True, []))
+
+    def test_a_core_or_netcode_diff_gets_both_reviewers(self) -> None:
+        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
+        cases.append(({}, {"queues": {"publish": [quick([])]}}))  # no paths returned: unknown, so reviewed
+        for result in self.run_quick(*cases):
+            with self.subTest(why=result["returned"]["reviewed"]["why"]):
+                self.assertIsNone(result["error"])
+                reviewers = [(e["label"], options(e)["agentType"]) for e in agents(result)[1:]]
+                self.assertEqual(reviewers, [("review:code:#7", "code-reviewer"), ("review:netcode:#7", "netcode-security-reviewer")])
+                self.assertTrue(result["returned"]["reviewed"]["done"])
+                self.assertTrue(result["returned"]["ready_to_merge"])
+
+    def test_a_blocker_or_major_gets_one_fix_agent_and_gates_the_merge(self) -> None:
+        core = quick(["core/match/vote.gd"])
+        fixed, left, red = self.run_quick(
+            ({}, {"findings": [MAJOR], "queues": {"publish": [core], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
+            ({}, {"findings": [MAJOR], "queues": {"publish": [core], "fix": [{"fixed": [], "open": 1, "ci_green": True}]}}),
+            ({}, {"findings": [MAJOR], "queues": {"publish": [core], "fix": [{"fixed": ["f"], "open": 0, "ci_green": False}]}}),
+        )
+        fix = calls(fixed, "fix")
+        self.assertEqual(len(fix), 1)
+        self.assertEqual(options(fix[0])["agentType"], "task-publisher")
+        self.assertIn('"problem":"p1"', fix[0]["prompt"])
+        self.assertTrue(fixed["returned"]["ready_to_merge"])
+        self.assertFalse(left["returned"]["ready_to_merge"])
+        self.assertFalse(red["returned"]["ready_to_merge"])
+        self.assertFalse(red["returned"]["ci_green"])
+        (minor,) = self.run_quick(({}, {"findings": [MINOR], "queues": {"publish": [core]}}))
+        self.assertFalse(calls(minor, "fix"))
+        self.assertTrue(minor["returned"]["ready_to_merge"])
+
+    def test_red_ci_no_pr_or_a_dead_agent_is_not_ready(self) -> None:
+        red, none, dead, asks = self.run_quick(
+            ({}, {"queues": {"publish": [quick(["docs/x.md"], ci_green=False)]}}),
+            ({}, {"queues": {"publish": [quick([], pr_url="", needs_engineer=["bigger than a quick task"])]}}),
+            ({}, {"queues": {"publish": [None]}}),
+            ({}, {"queues": {"publish": [quick(["docs/x.md"], needs_engineer=["approve the text"])]}}),
+        )
+        for result in (red, none, dead, asks):
+            self.assertLessEqual(QUICK_FIELDS, set(result["returned"]))
+            self.assertFalse(result["returned"]["ready_to_merge"])
+        self.assertEqual(none["returned"]["needs_engineer"], ["bigger than a quick task"])
+        self.assertEqual([e["label"] for e in agents(none)], ["publish:#7"])
+        self.assertIn("returned nothing", dead["returned"]["stopped"])
+
+    def test_the_quick_agent_is_one_lean_bounded_agent(self) -> None:
+        default, opus = self.run_quick(
+            ({"base": "release/m5"}, {"queues": {"publish": [quick(["docs/x.md"])]}}),
+            ({"models": {"quick": "opus"}}, {"queues": {"publish": [quick(["docs/x.md"])]}}),
+        )
+        event = agents(default)[0]
+        o = options(event)
+        self.assertEqual((o["agentType"], o["model"]), ("task-publisher", "sonnet"))
+        self.assertEqual(options(agents(opus)[0])["model"], "opus")
+        prompt = event["prompt"]
+        for want in ("at most 60 tool calls", "tools/run.sh lint", "tools/run.sh check", "git push -u origin tooling/7-x",
+                     "gh pr create --base release/m5", "Closes #7", "timeout 180 gh pr checks", "At most two fix rounds",
+                     "the attribution line your system reminder gives for commits", STASH_RULE.replace("Never use ", "No ")):
+            self.assertIn(want, prompt)
+        self.assertNotIn("tools/run.sh verify", prompt)
+        self.assertNotIn("publish`", prompt)
+        for where, sub in schemas_of(o["schema"]):
+            self.assertLessEqual(set(sub.get("required", [])), set(sub.get("properties", {})), where)
+
+    def test_wrong_args_throw_before_any_agent(self) -> None:
+        bad = [{"n": ""}, {"notes": ""}, {"models": "opus"}, {"models": {"implement": "opus"}}, {"models": {"quick": ""}}]
+        for result in self.run_quick(*[(args, {}) for args in bad]):
+            self.assertIn("quick-task: args.", result["error"] or "")
+            self.assertFalse(agents(result))
+
+
 if __name__ == "__main__":
     unittest.main()
