@@ -15,7 +15,7 @@ import zlib
 from pathlib import Path
 from unittest import mock
 
-from runner import check, cli, common, credits, lfs
+from runner import check, cli, common, credits, lfs, sfx
 from runner.common import Failure, Result, godot_bin
 from runner.verify import starts_godot
 
@@ -141,16 +141,16 @@ class AsideTest(unittest.TestCase):
     def test_a_type_without_a_stand_in_is_out_of_sight_inside_and_back_after(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root, "art/a.ogg", POINTER)
-            write(root, "art/a.ogg.import", "[remap]\n")
+            write(root, "art/a.mp3", POINTER)
+            write(root, "art/a.mp3.import", "[remap]\n")
             write(root, "art/b.woff2", POINTER)  # no .import yet: a new asset
-            with lfs.aside(["art/a.ogg", "art/b.woff2"], root):
-                for name in ("art/a.ogg", "art/a.ogg.import", "art/b.woff2"):
+            with lfs.aside(["art/a.mp3", "art/b.woff2"], root):
+                for name in ("art/a.mp3", "art/a.mp3.import", "art/b.woff2"):
                     self.assertFalse((root / name).exists(), name)
                     self.assertTrue((root / lfs.ASIDE / name).is_file(), name)
                 self.assertTrue((root / lfs.ASIDE / ".gdignore").is_file())
-            self.assertEqual((root / "art/a.ogg").read_bytes(), POINTER)
-            self.assertEqual((root / "art/a.ogg.import").read_text(encoding="utf-8"), "[remap]\n")
+            self.assertEqual((root / "art/a.mp3").read_bytes(), POINTER)
+            self.assertEqual((root / "art/a.mp3.import").read_text(encoding="utf-8"), "[remap]\n")
             self.assertEqual((root / "art/b.woff2").read_bytes(), POINTER)
 
     def test_a_stand_in_is_imported_under_the_committed_import_file(self) -> None:
@@ -189,12 +189,17 @@ class AsideTest(unittest.TestCase):
             ".tga": b"\x00\x00\x02",
             ".ttf": b"\x00\x01\x00\x00",
             ".otf": b"\x00\x01\x00\x00",
+            ".ogg": b"OggS",
         }
         self.assertEqual(set(lfs.STAND_INS), set(signatures))
         for suffix, data in lfs.STAND_INS.items():
             self.assertTrue(data.startswith(signatures[suffix]), suffix)
             self.assertEqual(lfs.stand_in("art/x" + suffix.upper()), data)
-        self.assertIsNone(lfs.stand_in("art/x.ogg"))
+        self.assertIsNone(lfs.stand_in("art/x.mp3"))
+        # The Ogg is Vorbis (what Godot's AudioStreamOggVorbis imports, #525) at a rate sfx-check allows.
+        ogg = sfx.read_ogg(lfs.STAND_INS[".ogg"])
+        self.assertEqual((ogg.codec, ogg.channels), ("Vorbis", 1))
+        self.assertIn(ogg.rate, sfx.load_table().sample_rates)
         self.assertEqual(len(lfs.STAND_INS[".ttf"]) % 4, 0)
         self.assertEqual(len(lfs.STAND_INS[".glb"]) % 4, 0)
 
