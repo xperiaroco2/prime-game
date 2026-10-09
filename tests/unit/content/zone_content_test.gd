@@ -100,6 +100,20 @@ func test_the_spacing_check_refuses_a_zone_on_a_spawn_point() -> void:
 	assert_array(Array(faults)).has_size(1)
 
 
+func test_the_suite_reads_house_s_storeys_at_their_own_height() -> void:
+	# Guards `_layouts`: read through the scenarios' flat fake, every zone snaps to y = 0, so House's
+	# upstairs zone (the landing's) would sit at the ground floor and a flat read would pass (#681).
+	var mode := _mode()
+	var zone := Spacing.zone_task(mode).zone
+	var house := _layouts(mode)["res://levels/house/house.tscn"]
+	var top := 0.0
+	for at: Vector3 in house.positions(zone.spawn_tag):
+		top = maxf(top, at.y)
+	assert_float(top).override_failure_message("House's zones were read flat").is_greater(
+		zone.height_m
+	)
+
+
 func test_the_flat_fake_would_hide_a_spawn_point_beside_an_upstairs_zone() -> void:
 	# Why this suite reads every map in the host's world (#681): the scenarios' flat fake snaps a
 	# station marker to its one floor at y = 0 but leaves a spawn point at its storey's height, so
