@@ -310,6 +310,9 @@ EXIT_CRASH_NOTE = "crashed at exit"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # The end line of a run that `verify --fail-fast` stopped at its first red step (#556): its total is no run's length.
 STOPPED_EARLY = ", stopped early at "
+# A run the machine's sleep stopped (#595; suspend.message): the steps it was running are red only because of the
+# sleep, with hours-long seconds, so no step of it counts, in the history or in a transcript.
+SUSPENDED_RUN = "the machine slept or was suspended"
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
@@ -688,6 +691,8 @@ def parse_verify(text: str) -> dict | None:
             wait = float(waited.group(1)) if waited else None
             over = OVER_LIMIT in line
             stopped = STOPPED_EARLY in line
+            if SUSPENDED_RUN in line:
+                return None
             break
     if not steps:
         return None
@@ -1503,6 +1508,9 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             start = stamp(rec.get("start") or rec.get("started") or rec.get("time"))
             if start is None or start >= until or (since is not None and start < since):
                 continue
+            stopped_by = rec.get("stopped")
+            if isinstance(stopped_by, dict) and stopped_by.get("suspended") is not None:
+                continue  # the machine slept (#595): its red steps are no step's flake
             raw = rec.get("steps")
             if isinstance(raw, dict):
                 items = list(raw.items())

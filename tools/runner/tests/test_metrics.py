@@ -407,6 +407,23 @@ class MetricsTest(unittest.TestCase):
         self.assertIn("2 runs, 1 red, median 300 s (max 300)", line)
         self.assertIn("test 90", line)
 
+    def test_a_run_the_machines_sleep_stopped_counts_no_step(self) -> None:
+        # #595: the steps verify stopped at a resume are red only because of the sleep, with hours-long seconds.
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 300,
+             "steps": [{"name": "test", "status": "passed", "seconds": 90}], "stopped": None},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "a", "seconds": 37954,
+             "steps": [{"name": "test", "status": "FAILED", "seconds": 37954},
+                       {"name": "selftest", "status": "FAILED", "seconds": 37900}],
+             "stopped": {"at": None, "suspended": 37954, "not_run": []}},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v["steps"] for v in found], [{"test": ("passed", 90.0)}])
+        text = ("verify summary\n  FAILED  test            37954.0s\n"
+                "verify: FAILED in 37954.0s, stopped early at test: the machine slept or was suspended (37954 s)\n")
+        self.assertIsNone(metrics.parse_verify(text))
+
     def test_checks_that_passed_after_godot_crashed_at_exit_are_counted(self) -> None:
         # #449: the history record's `exit_crash` on the check step (#442's loud pass) gives the crash rate over the
         # window's check steps; a run without a check step does not count, and neither does a record older than #449
