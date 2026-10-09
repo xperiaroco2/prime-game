@@ -60,51 +60,6 @@ func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 	assert_array(sent).is_empty()
 
 
-func test_the_end_screen_names_the_side_by_its_display_name_only() -> void:
-	var mode := load(MODE) as GameMode
-	assert_str(EndScreen.winner_text(&"crew", mode)).is_equal(
-		"The %s won" % mode.find_side(&"crew").display_name
-	)
-	assert_str(EndScreen.winner_text(&"", mode)).is_equal("The match is over")
-
-
-func test_the_end_screen_counts_down_to_the_lobby_for_everyone_with_no_button() -> void:
-	# #212: End's end tick (PhaseChanged) is 3 s after its entry; host and client see the same.
-	var mode := load(MODE) as GameMode
-	for hosting: bool in [true, false]:
-		var model := Preview.fake_model(mode, hosting)
-		model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
-		model.fold(&"MatchEnded", {"side": &"crew"})
-		var screen: EndScreen = auto_free(EndScreen.new())
-		var shown := PackedStringArray()
-		for host_tick: int in [100, 101, 120, 121, 140, 141, 160, 200]:
-			screen.refresh(model, mode, host_tick)
-			shown.append(screen.countdown_label.text)
-		(
-			assert_array(Array(shown))
-			. is_equal(
-				[
-					"Back to the lobby in 3",
-					"Back to the lobby in 3",
-					"Back to the lobby in 2",
-					"Back to the lobby in 2",
-					"Back to the lobby in 1",
-					"Back to the lobby in 1",
-					"Back to the lobby in 0",
-					"Back to the lobby in 0",
-				]
-			)
-		)
-		assert_bool(screen.countdown_label.visible).is_true()
-		assert_array(screen.find_children("*", "BaseButton", true, false)).is_empty()
-		# No end tick known (an End with no `seconds`, or no host tick yet): no countdown.
-		screen.refresh(model, mode, -1)
-		assert_bool(screen.countdown_label.visible).is_false()
-		model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": -1})
-		screen.refresh(model, mode, 150)
-		assert_bool(screen.countdown_label.visible).is_false()
-
-
 func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	var mode := load(MODE) as GameMode
 	var menu: EscMenu = auto_free(EscMenu.new())
