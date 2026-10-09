@@ -8,8 +8,13 @@
   autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). "Humans merge the milestone", "each merged by
   the engineer, never by an agent" and "humans still merge everything into `main`" below now hold only for the gate's
   exceptions, and "agents never close issues ... a human closes the stage's issues" no longer holds: the manager closes
-  them after the merge into `main`. `verify` on the merged tree stays the gate into `release/m<k>`; into `main` the gate
-  requires an up-to-date head instead.
+  them after the merge into `main`. `verify` on the merged tree stays the gate into `release/m<k>` (since #622 it does
+  not, see the next line); into `main` the gate requires an up-to-date head instead.
+- **Amended 2026-10-09 (#622):** `merge <pr> --base release/m<k>` needs CI green on a head that contains
+  `origin/release/m<k>` and merges through GitHub (`gh pr merge --match-head-commit`), with no local `verify` (tests run
+  on CI only, [tests on CI](2026-10-09-tests-on-ci-local-lint-and-check.md)); CI runs on pushes to `release/**`. The
+  local merge, the merged-tree `verify` and the push by hash below describe the original design; `merge --sync-main`
+  still merges in a scratch worktree and pushes by hash, without the `verify`.
 - **Date:** 2026-10-01
 - **Deciders:** the engineer (chat with the M3 manager session, 2026-10-01; recorded on #96)
 
@@ -66,8 +71,9 @@ GitHub retargets to `main` when its parent's branch is deleted.
 ## Consequences
 - The engineer reviews a stage as one PR into `main`, with every task PR, review table and answer linked from it,
   instead of one click per task. The task PRs keep their own reviews and CI runs.
-- CI runs on pull requests and on pushes to `main` only, so a push to `release/m<k>` runs no CI: `verify` on the
-  merged tree is the gate there, and the closing PR runs CI on the whole stage.
+- CI ran on pull requests and on pushes to `main` only, so a push to `release/m<k>` ran no CI and `verify` on the
+  merged tree was the gate there; since #622 `merge` into a release branch needs CI green on a head up to date with it
+  (as into `main`), CI runs on pushes to `release/**`, and the closing PR runs CI on the whole stage.
 - Merging the closing PR deletes `release/m<k>` (auto-delete is on) and would retarget any PR still based on it to
   `main`: the manager opens it only when no task PR targets the release branch, or says which do.
 - On the M3 night `publish` treated a `release/*` base that equalled `main` as a merged parent. Since #113 it keeps

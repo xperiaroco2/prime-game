@@ -1,0 +1,151 @@
+[gd_scene format=3 uid="uid://1gl41cjan5w"]
+
+[ext_resource type="PackedScene" uid="uid://cpd3biluafkkw" path="res://levels/house/rooms/storage.tscn" id="1_storage"]
+[ext_resource type="PackedScene" uid="uid://dmiajy81u30b4" path="res://levels/house/rooms/darkroom.tscn" id="2_darkroom"]
+[ext_resource type="PackedScene" uid="uid://s5ctkd0ejhqb" path="res://levels/house/rooms/corridor.tscn" id="3_corridor"]
+[ext_resource type="PackedScene" uid="uid://bpnumhegeongv" path="res://levels/house/rooms/boiler_room.tscn" id="4_boiler_room"]
+[ext_resource type="PackedScene" uid="uid://bxig3axdy88ip" path="res://levels/house/rooms/generator_hall.tscn" id="5_generator_hall"]
+[ext_resource type="PackedScene" uid="uid://t8ovrc44s5ac" path="res://levels/house/rooms/pump_room.tscn" id="6_pump_room"]
+[ext_resource type="PackedScene" uid="uid://dm6hn7blo44y4" path="res://levels/house/rooms/switch_room.tscn" id="7_switch_room"]
+[ext_resource type="PackedScene" uid="uid://cvqjutypbbatc" path="res://levels/house/rooms/passage.tscn" id="8_passage"]
+[ext_resource type="PackedScene" uid="uid://w7dwro2qa0sp" path="res://levels/house/rooms/yard.tscn" id="9_yard"]
+[ext_resource type="PackedScene" uid="uid://jtwvmm7je2bl" path="res://levels/house/rooms/street.tscn" id="10_street"]
+[ext_resource type="PackedScene" uid="uid://yeg032vu86yo" path="res://levels/house/rooms/path.tscn" id="11_path"]
+[ext_resource type="PackedScene" uid="uid://bsnkppfg7lnxf" path="res://levels/house/rooms/driveway.tscn" id="12_driveway"]
+[ext_resource type="PackedScene" uid="uid://d1lssy2ljm4j" path="res://levels/house/rooms/garden.tscn" id="13_garden"]
+[ext_resource type="PackedScene" uid="uid://cqpa4dvxde8d6" path="res://levels/house/rooms/greenhouse.tscn" id="14_greenhouse"]
+[ext_resource type="PackedScene" uid="uid://bgu42omlmsppo" path="res://levels/house/rooms/photo_zone.tscn" id="15_photo_zone"]
+[ext_resource type="PackedScene" uid="uid://cisslecv6fw6b" path="res://levels/house/rooms/terrace.tscn" id="16_terrace"]
+[ext_resource type="PackedScene" uid="uid://dlfioqklehicl" path="res://levels/house/rooms/chill_zone.tscn" id="17_chill_zone"]
+[ext_resource type="PackedScene" uid="uid://chkarvkyvx48s" path="res://levels/house/rooms/outdoor_stairs.tscn" id="18_outdoor_stairs"]
+[ext_resource type="PackedScene" uid="uid://b8d3t1wpy1gvw" path="res://levels/house/rooms/garage.tscn" id="19_garage"]
+[ext_resource type="PackedScene" uid="uid://byitq6yirjdyp" path="res://levels/house/rooms/wc.tscn" id="20_wc"]
+[ext_resource type="PackedScene" uid="uid://c7oy43iwxnrak" path="res://levels/house/rooms/pantry.tscn" id="21_pantry"]
+[ext_resource type="PackedScene" uid="uid://byqf3el8ufwkd" path="res://levels/house/rooms/dining_room.tscn" id="22_dining_room"]
+[ext_resource type="PackedScene" uid="uid://b43nxnqq6bl4b" path="res://levels/house/rooms/living_room.tscn" id="23_living_room"]
+[ext_resource type="PackedScene" uid="uid://n4ioj5we4gky" path="res://levels/house/rooms/stairs.tscn" id="24_stairs"]
+[ext_resource type="PackedScene" uid="uid://df56ock2ivnx2" path="res://levels/house/rooms/kitchen.tscn" id="25_kitchen"]
+[ext_resource type="PackedScene" uid="uid://b0c8q1r7dbhah" path="res://levels/house/rooms/hallway.tscn" id="26_hallway"]
+[ext_resource type="PackedScene" uid="uid://bu2fi5vxfllqw" path="res://levels/house/rooms/bedroom.tscn" id="27_bedroom"]
+[ext_resource type="PackedScene" uid="uid://logmubvckpcg" path="res://levels/house/rooms/kids_room.tscn" id="28_kids_room"]
+[ext_resource type="PackedScene" uid="uid://ibxushdv358k" path="res://levels/house/rooms/landing.tscn" id="29_landing"]
+[ext_resource type="PackedScene" uid="uid://d1p3tte0xmmka" path="res://levels/house/rooms/study.tscn" id="30_study"]
+[ext_resource type="PackedScene" uid="uid://cc4i5jxgyrnd3" path="res://levels/house/rooms/bathroom.tscn" id="31_bathroom"]
+[ext_resource type="PackedScene" uid="uid://c81phx00ncspk" path="res://levels/house/rooms/guest_room.tscn" id="32_guest_room"]
+[ext_resource type="PackedScene" uid="uid://cu3t1d18bukai" path="res://levels/house/rooms/balcony.tscn" id="33_balcony"]
+[ext_resource type="PackedScene" uid="uid://cbiainxdl0yfp" path="res://levels/house/rooms/attic.tscn" id="34_attic"]
+[ext_resource type="PackedScene" uid="uid://bq73ldtdyk6av" path="res://levels/house/rooms/roof.tscn" id="35_roof"]
+
+[node name="House" type="Node3D" unique_id=1417964801]
+
+[node name="Basement" type="Node3D" parent="." unique_id=573692974]
+
+[node name="Storage" parent="Basement" unique_id=950587147 instance=ExtResource("1_storage")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -3.2, 18)
+
+[node name="Darkroom" parent="Basement" unique_id=171273454 instance=ExtResource("2_darkroom")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, -3.2, 34)
+
+[node name="Corridor" parent="Basement" unique_id=1428857916 instance=ExtResource("3_corridor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, -3.2, 26)
+
+[node name="BoilerRoom" parent="Basement" unique_id=1763801458 instance=ExtResource("4_boiler_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, -3.2, 34)
+
+[node name="GeneratorHall" parent="Basement" unique_id=84099799 instance=ExtResource("5_generator_hall")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, -3.2, 22)
+
+[node name="PumpRoom" parent="Basement" unique_id=482859663 instance=ExtResource("6_pump_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, -3.2, 42)
+
+[node name="SwitchRoom" parent="Basement" unique_id=1949796732 instance=ExtResource("7_switch_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, -3.2, 16)
+
+[node name="Passage" parent="Basement" unique_id=660246719 instance=ExtResource("8_passage")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, -3.2, 28)
+
+[node name="GroundFloor" type="Node3D" parent="." unique_id=2113451437]
+
+[node name="Yard" parent="GroundFloor" unique_id=2031428078 instance=ExtResource("9_yard")]
+
+[node name="Street" parent="GroundFloor" unique_id=49434842 instance=ExtResource("10_street")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 60)
+
+[node name="Path" parent="GroundFloor" unique_id=1227320590 instance=ExtResource("11_path")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29, 0, 44)
+
+[node name="Driveway" parent="GroundFloor" unique_id=1738261575 instance=ExtResource("12_driveway")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, 0, 48)
+
+[node name="Garden" parent="GroundFloor" unique_id=1281640113 instance=ExtResource("13_garden")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 0, 2)
+
+[node name="Greenhouse" parent="GroundFloor" unique_id=979865854 instance=ExtResource("14_greenhouse")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, 0, 6)
+
+[node name="PhotoZone" parent="GroundFloor" unique_id=445367691 instance=ExtResource("15_photo_zone")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 6)
+
+[node name="Terrace" parent="GroundFloor" unique_id=2113909672 instance=ExtResource("16_terrace")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, 16)
+
+[node name="ChillZone" parent="GroundFloor" unique_id=718209147 instance=ExtResource("17_chill_zone")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 44)
+
+[node name="OutdoorStairs" parent="GroundFloor" unique_id=1761149649 instance=ExtResource("18_outdoor_stairs")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 0, 29)
+
+[node name="Garage" parent="GroundFloor" unique_id=1900201000 instance=ExtResource("19_garage")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54, 0, 34)
+
+[node name="WC" parent="GroundFloor" unique_id=1312279717 instance=ExtResource("20_wc")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 24)
+
+[node name="Pantry" parent="GroundFloor" unique_id=1666610801 instance=ExtResource("21_pantry")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 0, 24)
+
+[node name="DiningRoom" parent="GroundFloor" unique_id=1475015962 instance=ExtResource("22_dining_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0, 24)
+
+[node name="LivingRoom" parent="GroundFloor" unique_id=2026524000 instance=ExtResource("23_living_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 30)
+
+[node name="Stairs" parent="GroundFloor" unique_id=1063603137 instance=ExtResource("24_stairs")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0, 30)
+
+[node name="Kitchen" parent="GroundFloor" unique_id=320037141 instance=ExtResource("25_kitchen")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0, 30)
+
+[node name="Hallway" parent="GroundFloor" unique_id=1276295238 instance=ExtResource("26_hallway")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0, 36)
+
+[node name="SecondFloor" type="Node3D" parent="." unique_id=728653883]
+
+[node name="Bedroom" parent="SecondFloor" unique_id=1777241284 instance=ExtResource("27_bedroom")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 3.2, 24)
+
+[node name="KidsRoom" parent="SecondFloor" unique_id=2029725253 instance=ExtResource("28_kids_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 3.2, 34)
+
+[node name="Landing" parent="SecondFloor" unique_id=661800245 instance=ExtResource("29_landing")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 3.2, 24)
+
+[node name="Study" parent="SecondFloor" unique_id=353665226 instance=ExtResource("30_study")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 3.2, 24)
+
+[node name="Bathroom" parent="SecondFloor" unique_id=1438556416 instance=ExtResource("31_bathroom")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 3.2, 32)
+
+[node name="GuestRoom" parent="SecondFloor" unique_id=1487361728 instance=ExtResource("32_guest_room")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 3.2, 36)
+
+[node name="Balcony" parent="SecondFloor" unique_id=135366200 instance=ExtResource("33_balcony")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 3.2, 21)
+
+[node name="AtticAndRoof" type="Node3D" parent="." unique_id=1627247215]
+
+[node name="Attic" parent="AtticAndRoof" unique_id=1608508078 instance=ExtResource("34_attic")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 6.4, 26)
+
+[node name="Roof" parent="AtticAndRoof" unique_id=516132861 instance=ExtResource("35_roof")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 6.4, 23)

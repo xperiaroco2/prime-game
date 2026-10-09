@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import os
 import re
 import shutil
@@ -18,6 +20,7 @@ from collections.abc import Callable, Iterator, MutableMapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TextIO
 
 from . import pins
 
@@ -70,6 +73,176 @@ def warn(text: str) -> None:
 
 def skip(text: str) -> None:
     say(f"  skip  {text}")
+
+
+# --- quiet output (#590, #572): a command an agent runs in a loop prints a summary, not its whole output -------------
+# Agents carry every tool output on every later call. `quiet` runs a command's body with its output captured, writes
+# the whole of it to tools/out/logs/<name>-output.log, and prints on success at most SUCCESS_CAP bytes (the step lines
+# and the log's path) and on failure a capped excerpt (every line but the passed steps' ok lines, bulk lines counted
+# after the first few, at most FAILURE_CAP bytes), a footer with the exit code and the log's path. `--verbose` skips all of it.
+# `verify` (and `publish`, which runs it) splits its output itself (verify.Split): the summary block, never cut.
+SUCCESS_CAP = 1500
+FAILURE_CAP = 4000
+LINE_CAP = 400  # one printed line, in characters: a single Godot line can run to kilobytes
+BULK_SHOWN = 3  # lines of a bulk kind (a script warning of the import) that a quiet success still prints
+
+
+def quiet_log(name: str) -> Path:
+    return LOGS / f"{name}-output.log"
+
+
+def shown(path: Path) -> str:
+    """A path as the commands name it: below the project root, else whole; forward slashes."""
+    try:
+        return path.relative_to(ROOT).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def cut_line(line: str) -> str:
+    return line if len(line) <= LINE_CAP else line[:LINE_CAP] + " ..."
+
+
+def line_bytes(lines: list[str]) -> int:
+    return sum(len(line.encode("utf-8", errors="replace")) + 1 for line in lines)
+
+
+def cap_lines(lines: list[str], cap: int, more: str, keep_end: int = 0) -> list[str]:
+    """The lines that fit in `cap` bytes (each cut at LINE_CAP characters); when some are left out, one line says how
+    many and ends with `more`. The last `keep_end` lines always print (an outcome line comes last: publish's push,
+    a merge-train's count), so the cut falls in the middle and the cap counts them first."""
+    start = max(0, len(lines) - keep_end)  # keep_end over len(lines): every line is a last line
+    tail = [cut_line(line) for line in lines[start:]] if 0 < keep_end else []
+    head = lines[: len(lines) - len(tail)]
+    budget = cap - line_bytes(tail)
+    kept: list[str] = []
+    used = 0
+    for index, line in enumerate(head):
+        line = cut_line(line)
+        size = line_bytes([line])
+        if used + size > budget:
+            kept.append(f"  ... {len(head) - index} more lines; {more}")
+            break
+        kept.append(line)
+        used += size
+    return kept + tail
+
+
+def where_line(log: Path) -> str:
+    """The footer that names a quiet command's whole output."""
+    return f"full output: {shown(log)} (search it, never read it whole; --verbose prints it all)"
+
+
+def failure_excerpt(
+    lines: list[str], name: str, bulk: re.Pattern[str] | None, cap: int, more: str, keep_end: int = 0
+) -> list[str]:
+    """A red run's lines worth printing: no header line (the command's own name), no `ok` line, no blank line and no
+    `<name>: FAILED` (the footer says it); bulk lines (script warnings) counted after the first few, since dozens of
+    them ahead of a FAIL line would fill the cap and push the failure itself out; at most `cap` bytes, the last
+    `keep_end` lines always (a verdict that comes last)."""
+    body_lines = lines[1:] if lines and not lines[0].startswith(" ") else lines
+    problems = [
+        line
+        for line in success_lines(body_lines, bulk)
+        if line.strip() and not line.startswith("  ok    ") and line != f"{name}: FAILED"
+    ]
+    return cap_lines(problems, cap, more, keep_end=keep_end)
+
+
+def without_ok(lines: list[str]) -> list[str]:
+    """A quiet success's lines without the `ok` progress lines (`merge`: its verdict line says the rest)."""
+    return [line for line in lines if not line.startswith("  ok    ")]
+
+
+def success_lines(lines: list[str], bulk: re.Pattern[str] | None) -> list[str]:
+    """A green run's lines: each one, except that those matching `bulk` stop after BULK_SHOWN with a count."""
+    if bulk is None:
+        return lines
+    kept: list[str] = []
+    seen = 0
+    after = 0  # where the count goes: right after the last bulk line shown
+    for line in lines:
+        if bulk.match(line):
+            seen += 1
+            if seen > BULK_SHOWN:
+                continue
+            kept.append(line)
+            after = len(kept)
+            continue
+        kept.append(line)
+    if seen > BULK_SHOWN:
+        kept.insert(after, f"  ... and {seen - BULK_SHOWN} more of those lines ({seen} in all)")
+    return kept
+
+
+class _Tee(io.TextIOBase):
+    """What `quiet` prints to: kept in `kept` for the summary and written through to the open log at once."""
+
+    def __init__(self, log: TextIO, kept: io.StringIO) -> None:
+        super().__init__()
+        self.log = log
+        self.kept = kept
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, text: str) -> int:
+        self.log.write(text)
+        self.log.flush()
+        return self.kept.write(text)
+
+    def flush(self) -> None:
+        self.log.flush()
+
+
+def quiet(
+    name: str,
+    body: Callable[[], int],
+    verbose: bool = False,
+    bulk: re.Pattern[str] | None = None,
+    *,
+    brief: Callable[[list[str]], list[str]] | None = None,
+    keep_end: int = 0,
+    log_name: str | None = None,
+) -> int:
+    """Run `body` (a command's main, which prints with say/ok/bad and returns its exit code) with its output captured.
+
+    verbose: just run it. Otherwise the whole output goes to tools/out/logs/<name>-output.log and the terminal gets
+    the summary or the excerpt described above. An exception from `body` (a Failure, a crash) first prints the excerpt
+    of what it had printed, then goes on up unchanged: nothing is hidden and the exit code stays the caller's.
+    `brief` shortens the printed lines first, green or red (merge-check: its clean rows counted, #572); the last
+    `keep_end` lines always print (a verdict or `wave:` line that comes last; the log's path follows them). `log_name`
+    (default `name`) names the log: runs that may overlap (two managers' merges) each get their own file."""
+    if verbose:
+        return body()
+    ensure_out()
+    log = quiet_log(log_name or name)
+    buffer = io.StringIO()
+    rc = 1
+    error: BaseException | None = None
+    # The log is emptied first and gets each line as it is printed: a run killed from outside (a shell tool's
+    # timeout) leaves this run's lines so far, never the previous run's "passed".
+    with log.open("w", encoding="utf-8") as handle:
+        try:
+            with contextlib.redirect_stdout(_Tee(handle, buffer)):
+                rc = body()
+        except BaseException as exc:  # noqa: BLE001 - re-raised below, after the excerpt is out
+            error = exc
+    where = where_line(log)
+    lines = buffer.getvalue().splitlines()
+    if error is None and rc == 0:
+        shown_lines = success_lines(lines, bulk)
+        for line in cap_lines(brief(shown_lines) if brief else shown_lines, SUCCESS_CAP, where, keep_end=keep_end):
+            say(line)
+        say(f"  {where}")
+        return rc
+    for line in failure_excerpt(brief(lines) if brief else lines, name, bulk, FAILURE_CAP, where, keep_end):
+        say(line)
+    outcome = f"{type(error).__name__}" if error is not None else f"exit={rc}"
+    say(f"{name}: FAILED, {outcome}; {where}")
+    if error is not None:
+        raise error
+    return rc
 
 
 def ensure_out() -> Path:

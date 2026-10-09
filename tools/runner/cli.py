@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import pins
+from . import common, pins
 from .common import Failure, bad
 
 
@@ -63,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
         "of rules, skills and agents, and the relative links in skills.",
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/lint-output.log)",
+    )
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
 
     p = sub.add_parser(
@@ -79,6 +85,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="only fail on any Git LFS pointer file (a checkout without LFS content), with no Godot: a build's check "
         "before its export",
+    )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
+        "tools/out/logs/check-output.log)",
     )
 
     p = sub.add_parser(
@@ -124,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="With no flag (#605): doctor, then lint and check at once, then the clean-tree check; no verify "
         "slot and no test: every test runs on GitHub CI, whose job runs verify --full. --full: everything CI runs, "
         "in the same order: doctor, then a Python lane, a Godot lane and a lane of the runner tests that start Godot "
-        "at once (each step's output whole when it ends); on a PC a --full run first takes one of 2 machine-wide "
+        "at once (each step's output whole in tools/out/logs/verify-output.log when it ends); on a PC a --full run first takes one of 2 machine-wide "
         "slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The definition-of-done "
         "gate, either way: every step runs and a red one fails it. Every agent runs it in the background into a log and polls it with wait "
         "(docs/AGENT_WORKFLOW.md §11.16).",
@@ -140,6 +152,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="stop every lane at the first red step: the steps not ended yet are 'not run' in the summary and the "
         "record, the run is red (an agent's inner loop; publish, merge and CI run every step)",
     )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print every step's whole output as it ends (always on CI; default: each red step's failure lines, "
+        "at most about 4 KB, and the summary; the whole output is in tools/out/logs/verify-output.log)",
+    )
     p = sub.add_parser(
         "selftest",
         help="unit tests of the runner itself",
@@ -152,6 +170,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="python: only the tests that start no Godot (CI's minimum-Python job, #349); godot: only those that do; "
         "all (default): both, then the count check",
     )
+    p = sub.add_parser(
+        "ctx",
+        help="the calling agent's own context now, from its transcript; HANDOFF NOW at or past --at (issue-task's "
+        "checkpoint); 2: no transcript found",
+        description="Print the calling agent's own context now: the tokens of its last API call, read from its "
+        "Claude Code transcript (the newest one of the last 6 hours whose task prompt names this checkout's folder), "
+        "then HANDOFF NOW at or past --at, and past --hard that the 'only the final verify left' exception is off. "
+        "issue-task's checkpoint (#559, #597) tells the implementer to run it every ~15 tool calls and after each "
+        "verify. Exit 0; 2 with a 'ctx: no transcript' line: none found (count tool calls instead).",
+    )
+    p.add_argument("--at", type=int, default=150000, metavar="N", help="hand over at or past N tokens (150000)")
+    p.add_argument(
+        "--hard", type=int, default=200000, metavar="N", help="past N, hand over even when only the final verify is "
+        "left (200000)"
+    )
+    p.add_argument("--transcript", metavar="PATH", help="read this transcript instead of finding the caller's")
     p = sub.add_parser(
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
@@ -172,6 +206,12 @@ def build_parser() -> argparse.ArgumentParser:
         "it instead of verifying again)",
     )
     p.add_argument("--max", type=int, default=180, metavar="S", help="seconds to wait, 1 to 180 (default 180)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the job's whole summary (default: at most about 1.5 KB when it passed, 4 KB when it failed, "
+        "with the failing lines)",
+    )
     p = sub.add_parser(
         "bots",
         help="bot scenarios through the network layers and the information-leak test",
@@ -295,6 +335,12 @@ def build_parser() -> argparse.ArgumentParser:
         "runner, with a clean tree then and now, under 2 hours ago (wait --verified tells in advance).",
     )
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print its verify's whole output (default: verify's red steps' failure lines and its summary; the whole "
+        "output is in tools/out/logs/verify-output.log)",
+    )
 
     # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch or, gated, main (#300).
     p = sub.add_parser(
@@ -312,18 +358,31 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
     )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print every row and progress line (default: the rows that flag something, a count of the clean ones "
+        "and the verdict; the whole output is in tools/out/logs/merge-check-<PRs>-output.log)",
+    )
     p = sub.add_parser(
         "merge",
-        help="merge a PR (or main) into release/<x> (verify on the merged tree, push by hash), or a PR into main "
-        "through GitHub when its gate passes",
-        description="A manager's merge (docs/AGENT_WORKFLOW.md §7.1). --base release/<x>: the PR (or, with "
-        "--sync-main, origin/main) merged into it, verify on the merged tree, push by hash. --base main: the PR "
-        "merged through GitHub when its gate passes.",
+        help="merge a PR into release/<x> or main through GitHub when its gate passes (CI green on an up-to-date head), "
+        "or main into release/<x> (--sync-main, push by hash); no local verify",
+        description="A manager's merge (docs/AGENT_WORKFLOW.md §7.1). --base release/<x>: the PR merged "
+        "through GitHub when CI is green on a head that contains the branch; with --sync-main, origin/main merged "
+        "into it and pushed by hash. --base main: the PR merged through GitHub when its gate passes. No local verify: "
+        "CI tests the merged tree (it runs on pushes to release/**).",
     )
     p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
     p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
     p.add_argument("--dry-run", action="store_true", help="print the gate's verdict and merge nothing")
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="print the progress lines too (default: the gate's notes, refusals and verdict, the wave: line, then the "
+        "log's path: tools/out/logs/merge-<pr>-output.log, all of the output)",
+    )
     p = sub.add_parser(
         "merge-train",
         help="merge PRs into main one by one: publish each in its worktree (a red verify retried once), wait for its "
@@ -578,6 +637,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
     p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="--compact: print each summary line whole (default: cut at 400 characters; metrics.md has them whole)",
+    )
+    p.add_argument(
         "--track",
         nargs="+",
         action="extend",
@@ -716,13 +780,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "lint":
             from . import lint
 
-            return lint.main(fix=args.fix, files=args.files or None)
+            return lint.main(fix=args.fix, files=args.files or None, verbose=args.verbose)
         if args.command == "check":
             from . import check
 
             if args.lfs_content and args.files:
                 raise Failure("--lfs-content checks every LFS file; drop the paths")
-            return check.main(files=args.files or None, lfs_content=args.lfs_content)
+            return check.main(files=args.files or None, lfs_content=args.lfs_content, verbose=args.verbose)
         if args.command == "test":
             from . import gdunit
 
@@ -736,18 +800,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main(full=args.full, fail_fast=args.fail_fast)
+            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=args.verbose or common.IS_CI)
         if args.command == "selftest":
             from . import verify
 
             return verify.selftest(args.group)
+        if args.command == "ctx":
+            from . import ctx
+
+            return ctx.main(at=args.at, hard=args.hard, transcript=args.transcript)
         if args.command == "wait":
             from . import wait
 
             if args.verified == (args.log is not None):
                 print("wait: give a log, or --verified alone", flush=True)
                 return wait.MISSING  # never 1, which reads like a red job
-            return wait.verified() if args.verified else wait.main(args.log, max_seconds=args.max)
+            return wait.verified() if args.verified else wait.main(args.log, max_seconds=args.max, verbose=args.verbose)
         if args.command == "bots":
             from . import bots
 
@@ -796,15 +864,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "publish":
             from . import publish
 
-            return publish.main(base=args.base)
+            return publish.main(base=args.base, verbose=args.verbose)
         if args.command == "merge-check":
             from . import merge
 
-            return merge.check(args.prs, base=args.base, trial=args.trial)
+            return merge.check_command(args.prs, base=args.base, trial=args.trial, verbose=args.verbose)
         if args.command == "merge":
             from . import merge
 
-            return merge.merge(args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run)
+            return merge.merge_command(
+                args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run, verbose=args.verbose
+            )
         if args.command == "merge-train":
             from . import train
 
@@ -905,7 +975,7 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run,
+                no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run, verbose=args.verbose,
             )
         if args.command == "wave":
             from . import wave

@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://d1lssy2ljm4j"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://d1t1jgv22rrqu" path="res://levels/kit/greybox_floor_garden.tres" id="2_floor"]
+
+[sub_resource type="BoxShape3D" id="Shape_1"]
+size = Vector3(32, 0.02, 28)
+
+[sub_resource type="BoxMesh" id="Mesh_1"]
+material = ExtResource("1_greybox")
+size = Vector3(32, 0.02, 28)
+
+[node name="Garden" type="Node3D" unique_id=247551859]
+metadata/size_m = Vector2i(32, 28)
+
+[node name="Body" type="StaticBody3D" parent="." unique_id=696957771]
+
+[node name="Floor1" type="CollisionShape3D" parent="Body" unique_id=678165953]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, -0.05, 14)
+shape = SubResource("Shape_1")
+
+[node name="Looks" type="Node3D" parent="." unique_id=659664871]
+
+[node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=739312386]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, -0.05, 14)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_1")
+
+[node name="Name" type="Label3D" parent="." unique_id=1386402591]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.4, 24)
+billboard = 1
+text = "Garden"
+font_size = 72
+outline_size = 16
+
+[node name="Doors" type="Node3D" parent="." unique_id=317700197]
+
+[node name="Stations" type="Node3D" parent="." unique_id=448974277]
+
+[node name="GardenDropOff" type="Marker3D" parent="Stations" unique_id=743312008]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 22)
+
+[node name="Markers" type="Node3D" parent="." unique_id=811928258]
+
+[node name="Circle03" type="Marker3D" parent="Markers" unique_id=276664534 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.46, 22)
+
+[node name="Knife4" type="Marker3D" parent="Markers" unique_id=1331936887 groups=["spawn_knife"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, -0.04, 8)

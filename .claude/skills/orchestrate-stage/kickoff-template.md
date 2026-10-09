@@ -45,8 +45,8 @@ order.>
 Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
-with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
-merged tree; you merge it into main through one PR at the end, through the gate, after my go | every PR straight
+with tools\run.cmd merge after green CI on a head up to date with release/m<k>, fresh reviews with no open blocker or
+major, and merge-check (no local verify: CI tests the push); you merge it into main through one PR at the end, through the gate, after my go | every PR straight
 into main (the tooling track); you merge each with merge <pr> --base main after merge-check>.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.

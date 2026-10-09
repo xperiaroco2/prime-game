@@ -1,0 +1,134 @@
+[gd_scene format=3 uid="uid://bq73ldtdyk6av"]
+
+[ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="2_floor"]
+
+[sub_resource type="BoxShape3D" id="Shape_1"]
+size = Vector3(3, 0.2, 14)
+
+[sub_resource type="BoxShape3D" id="Shape_2"]
+size = Vector3(26, 0.2, 3)
+
+[sub_resource type="BoxShape3D" id="Shape_3"]
+size = Vector3(26, 0.2, 5)
+
+[sub_resource type="BoxShape3D" id="Shape_4"]
+size = Vector3(26, 0.8, 0.1)
+
+[sub_resource type="BoxShape3D" id="Shape_5"]
+size = Vector3(0.1, 0.8, 22)
+
+[sub_resource type="BoxMesh" id="Mesh_1"]
+material = ExtResource("1_greybox")
+size = Vector3(3, 0.2, 14)
+
+[sub_resource type="BoxMesh" id="Mesh_2"]
+material = ExtResource("1_greybox")
+size = Vector3(26, 0.2, 3)
+
+[sub_resource type="BoxMesh" id="Mesh_3"]
+material = ExtResource("1_greybox")
+size = Vector3(26, 0.2, 5)
+
+[sub_resource type="BoxMesh" id="Mesh_4"]
+material = ExtResource("1_greybox")
+size = Vector3(26, 0.8, 0.1)
+
+[sub_resource type="BoxMesh" id="Mesh_5"]
+material = ExtResource("1_greybox")
+size = Vector3(0.1, 0.8, 22)
+
+[node name="Roof" type="Node3D" unique_id=1615708257]
+metadata/size_m = Vector2i(26, 22)
+
+[node name="Body" type="StaticBody3D" parent="." unique_id=695564077]
+
+[node name="Floor1" type="CollisionShape3D" parent="Body" unique_id=939430889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -0.1, 10)
+shape = SubResource("Shape_1")
+
+[node name="Floor2" type="CollisionShape3D" parent="Body" unique_id=1613114929]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 1.5)
+shape = SubResource("Shape_2")
+
+[node name="Floor3" type="CollisionShape3D" parent="Body" unique_id=622565538]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 19.5)
+shape = SubResource("Shape_3")
+
+[node name="Floor4" type="CollisionShape3D" parent="Body" unique_id=454757741]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -0.1, 10)
+shape = SubResource("Shape_1")
+
+[node name="Wall1" type="CollisionShape3D" parent="Body" unique_id=1798619608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.4, 0.05)
+shape = SubResource("Shape_4")
+
+[node name="Wall2" type="CollisionShape3D" parent="Body" unique_id=703447095]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.4, 21.95)
+shape = SubResource("Shape_4")
+
+[node name="Wall3" type="CollisionShape3D" parent="Body" unique_id=2079735474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.4, 11)
+shape = SubResource("Shape_5")
+
+[node name="Wall4" type="CollisionShape3D" parent="Body" unique_id=127542954]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.95, 0.4, 11)
+shape = SubResource("Shape_5")
+
+[node name="Looks" type="Node3D" parent="." unique_id=1828722763]
+
+[node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=510064864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -0.1, 10)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_1")
+
+[node name="Floor2" type="MeshInstance3D" parent="Looks" unique_id=1347719757]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 1.5)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_2")
+
+[node name="Floor3" type="MeshInstance3D" parent="Looks" unique_id=260428624]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 19.5)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_3")
+
+[node name="Floor4" type="MeshInstance3D" parent="Looks" unique_id=153716833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -0.1, 10)
+material_override = ExtResource("2_floor")
+mesh = SubResource("Mesh_1")
+
+[node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=1476644104]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.4, 0.05)
+mesh = SubResource("Mesh_4")
+
+[node name="Wall2" type="MeshInstance3D" parent="Looks" unique_id=408075848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0.4, 21.95)
+mesh = SubResource("Mesh_4")
+
+[node name="Wall3" type="MeshInstance3D" parent="Looks" unique_id=639135861]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.05, 0.4, 11)
+mesh = SubResource("Mesh_5")
+
+[node name="Wall4" type="MeshInstance3D" parent="Looks" unique_id=540832278]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.95, 0.4, 11)
+mesh = SubResource("Mesh_5")
+
+[node name="Name" type="Label3D" parent="." unique_id=114009347]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 2.4, 1.5)
+billboard = 1
+text = "Roof"
+font_size = 72
+outline_size = 16
+
+[node name="Doors" type="Node3D" parent="." unique_id=1428482830]
+
+[node name="Door1" type="Marker3D" parent="Doors" unique_id=1569548591]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23, 0, 10)
+
+[node name="Stations" type="Node3D" parent="." unique_id=836089379]
+
+[node name="Lookout" type="Marker3D" parent="Stations" unique_id=1891189764]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 0, 19.5)
+
+[node name="Loot" type="Marker3D" parent="Stations" unique_id=1150873598]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 0, 2)

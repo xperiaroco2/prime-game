@@ -13,18 +13,24 @@ network runs `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`, `webrtc-fre
 (the runner tests that start Godot). A step of AFTER starts only once its steps of other lanes have ended: the runner
 tests that start Godot after `check` (its import), beside `test`, and the network runs after them, so no other Godot
 run overlaps a timing-sensitive network run, and the network runs never overlap each other (#556).
-Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. With
+Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends (to the log in a
+quiet run, below). With
 `--fail-fast` (#556) the first red step stops the lanes instead: the steps that had not ended are `not run`. After the
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped; not after a run stopped early). The summary lists the steps in
 STEP_ORDER (the order of the serial `verify` before #179) with each lane's wall time; each run appends a record to
 HISTORY.
+
+Quiet by default (#572; `--verbose` and CI print it all): the whole output goes to tools/out/logs/verify-output.log as
+it is printed (Split), and the terminal gets only each red step's failure lines (common.failure_excerpt; at most
+FAILURE_CAP bytes over all of them, EXCERPT_MIN for each) and the summary block, whole, with the log's path in it.
 """
 
 from __future__ import annotations
 
 import concurrent.futures
 import contextlib
+import io
 import json
 import multiprocessing
 import os
@@ -48,6 +54,7 @@ from typing import IO
 
 from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots, suspend
 from .common import (
+    FAILURE_CAP,
     IS_CI,
     IS_WINDOWS,
     LOGS,
@@ -56,16 +63,20 @@ from .common import (
     app_data_dir,
     bad,
     ensure_out,
+    failure_excerpt,
     git,
     git_status,
     group_kwargs,
     kill_running,
     kill_tree,
+    line_bytes,
     ok,
+    quiet_log,
     say,
     take_starts,
     temp_app_data,
     warn,
+    where_line,
 )
 
 # The headless ENet run (#40): a host with its own client and two clients, one process each, on 127.0.0.1 only.
@@ -295,9 +306,9 @@ def steps() -> dict[str, Callable[[], int]]:
     """Each step by name, looked up when called (tests replace the functions)."""
     return {
         "doctor": lambda: doctor.main(quick=True),
-        "lint": lambda: lint.main(),
+        "lint": lambda: lint.main(verbose=True),
         "signal": lambda: signalling.main(),
-        "check": lambda: check.main(),
+        "check": lambda: check.main(verbose=True),
         # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
         "test": lambda: gdunit.main(run_import=False),
         "enet": enet,
@@ -655,7 +666,7 @@ def run_lanes(
         try:
             run_lane(lane, names, ended)
         except Exception:  # noqa: BLE001 - its unreported steps fail in the summary
-            with printing:
+            with printing, red_block(f"{lane} lane"):
                 bad(f"the {lane} lane crashed:", traceback.format_exc().rstrip())
         finally:
             for name in names:  # a step waiting for one of them would otherwise wait for the lane timeout
@@ -993,6 +1004,102 @@ def count_after_lanes(run_id: str) -> tuple[list[str], str, dict[str, int]]:
 def _print_step(step: StepRun) -> None:
     sys.stdout.write(f"== {step.name} ({step.lane} lane, {step.seconds:.1f}s, {step.status})\n{step.output}")
     sys.stdout.flush()
+    split = _SPLIT
+    if split is not None and step.status == "FAILED":
+        split.show(split.excerpt(step))
+
+
+# --- quiet output (#572) -------------------------------------------------------------------------------------------
+# A red step's excerpt gets what the earlier red steps of the run left of FAILURE_CAP, never less than this: a second
+# red step (lint and check both red) still shows its first failure lines.
+EXCERPT_MIN = 800
+
+
+class Split(io.TextIOBase):
+    """A quiet verify's stdout (#572): every line goes to the log at once (a run killed from outside leaves this run's
+    lines so far), and to the terminal only while `loud` (the summary block); `show` writes to the terminal alone (a
+    red step's excerpt, whose whole output the log already has). `kept`, when set, also gets every line."""
+
+    def __init__(self, log: IO[str], terminal: IO[str], where: str) -> None:
+        super().__init__()
+        self.log = log
+        self.terminal = terminal
+        self.where = where
+        self.loud = False
+        self.kept: io.StringIO | None = None
+        self.left = FAILURE_CAP  # the bytes the red steps' excerpts may still print
+        self._bulk: re.Pattern[str] | None = None
+
+    def writable(self) -> bool:
+        return True
+
+    def write(self, text: str) -> int:
+        self.log.write(text)
+        self.log.flush()
+        if self.kept is not None:
+            self.kept.write(text)
+        if self.loud:
+            self.terminal.write(text)
+            self.terminal.flush()
+        return len(text)
+
+    def flush(self) -> None:
+        if not self.log.closed:  # io's finalizer flushes once more, after main closed the log
+            self.log.flush()
+        self.terminal.flush()
+
+    def show(self, lines: list[str]) -> None:
+        for line in lines:
+            self.terminal.write(line + "\n")
+        self.terminal.flush()
+
+    def excerpt(self, step: StepRun) -> list[str]:
+        """A red step's header and failure lines (common.failure_excerpt, ANSI colours dropped; `check`'s script
+        warnings counted as a quiet `check` counts them), within what is left of FAILURE_CAP."""
+        place = f"{step.lane} lane, {step.seconds:.1f}s, " if step.lane != "main" else ""
+        head = f"== {step.name} ({place}{step.status})"
+        if step.name == "check" and self._bulk is None:
+            self._bulk = check.script_warnings(check.changed_scripts())
+        bulk = self._bulk if step.name == "check" else None
+        lines = [gdunit.ANSI_RE.sub("", line) for line in step.output.splitlines()]
+        cap = max(self.left, EXCERPT_MIN) - line_bytes([head])
+        shown = [head, *failure_excerpt(lines, step.name, bulk, cap, self.where)]
+        self.left = max(0, self.left - line_bytes(shown))
+        return shown
+
+
+# The Split of the quiet verify running in this process, else None (a verbose run, a lane process).
+_SPLIT: Split | None = None
+
+
+@contextlib.contextmanager
+def aloud() -> Iterator[None]:
+    """In a quiet run what the block prints reaches the terminal too (the summary block); otherwise nothing changes."""
+    split = _SPLIT
+    if split is None:
+        yield
+        return
+    before, split.loud = split.loud, True
+    try:
+        yield
+    finally:
+        split.loud = before
+
+
+@contextlib.contextmanager
+def red_block(name: str) -> Iterator[None]:
+    """What the block prints (a red result outside the steps: the clean-tree check, the runner tests' count, a lane
+    that crashed) goes to stdout as always; in a quiet run its excerpt also reaches the terminal, as a red step's."""
+    split = _SPLIT
+    if split is None:
+        yield
+        return
+    before, split.kept = split.kept, io.StringIO()
+    try:
+        yield
+    finally:
+        text, split.kept = split.kept.getvalue(), before
+        split.show(split.excerpt(StepRun(name, "main", "FAILED", 0.0, text)))
 
 
 def git_facts(clean: bool) -> dict[str, str | None]:
@@ -1132,13 +1239,44 @@ def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
     return slots.for_verify(me, ci=IS_CI, inside=bool(os.environ.get(INSIDE_VAR)), say=say)
 
 
+Watch = Callable[[Callable[[float], None], threading.Event], object]
+
+
 def main(
     run_lane: RunLane = run_lane_process,
     *,
     full: bool = False,
     fail_fast: bool = False,
-    watch: Callable[[Callable[[float], None], threading.Event], object] = suspend.watch_in_background,
+    watch: Watch = suspend.watch_in_background,
+    verbose: bool = False,
 ) -> int:
+    """`verify`, quiet unless `verbose` (#572): the whole output goes to tools/out/logs/verify-output.log as it is
+    printed (the run before it is kept as verify-output.prev.log), the terminal gets each red step's excerpt and the
+    summary block (Split). An exception (Ctrl+C, a crash) prints one line with the log's path and goes on up
+    unchanged."""
+    global _SPLIT
+    if verbose:
+        return _verify(run_lane, full, fail_fast, watch)
+    ensure_out()
+    log = quiet_log("verify")
+    if log.exists():  # a retry in the same worktree (merge-train) keeps the red run's whole output one run longer
+        with contextlib.suppress(OSError):
+            os.replace(log, log.with_name("verify-output.prev.log"))
+    previous = _SPLIT
+    with log.open("w", encoding="utf-8") as handle:
+        split = Split(handle, sys.stdout, where_line(log))
+        _SPLIT = split
+        try:
+            with contextlib.redirect_stdout(split):
+                return _verify(run_lane, full, fail_fast, watch)
+        except BaseException as exc:
+            split.show([f"verify: stopped by {type(exc).__name__}; {split.where}"])
+            raise
+        finally:
+            _SPLIT = previous
+
+
+def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int:
     """`verify`: without `full` the fast run (#605): doctor, lint and check (FAST_LANES), the clean-tree check, no slot
     and no count check; with `full` (`verify --full`, CI's job) every step of LANES in a verify slot. With `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
     are not run, the count check is left out, and the summary and the record say so. While the lanes run, `watch`
@@ -1154,9 +1292,16 @@ def main(
     runs: dict[str, StepRun] = {}
     walls: dict[str, float] = {}
     t0 = time.monotonic()
+    split = _SPLIT
+    if split is not None:
+        split.kept = io.StringIO()
     rc = run_step("doctor")
     say()
     runs["doctor"] = StepRun("doctor", "main", "passed" if rc == 0 else "FAILED", time.monotonic() - t0)
+    if split is not None and split.kept is not None:
+        doctor_output, split.kept = split.kept.getvalue(), None
+        if rc != 0:
+            split.show(split.excerpt(StepRun("doctor", "main", "FAILED", runs["doctor"].seconds, doctor_output)))
     extra: list[StepRun] = []
     count_line, counts = "", {}
     stopped_at: str | None = None  # the red step a --fail-fast run stopped at
@@ -1230,35 +1375,39 @@ def main(
         if full and stopped_at is None and slept is None:  # a stopped run's runner tests are partial: no count
             problems, count_line, counts = count_after_lanes(run_id)
             if problems:
-                for problem in problems:
-                    bad(problem)
+                with red_block("selftest-count"):
+                    for problem in problems:
+                        bad(problem)
                 extra.append(StepRun("selftest-count", "main", "FAILED", 0.0))
     leftovers = sorted(git_status() - before)
     if leftovers:
-        bad("verify left new or changed files in the working tree:", "\n".join(leftovers))
+        with red_block("clean tree"):
+            bad("verify left new or changed files in the working tree:", "\n".join(leftovers))
         extra.append(StepRun("clean tree", "main", "FAILED", 0.0))
     ordered = [runs[name] for name in order if name in runs] + extra
-    say("verify summary")
+    block = ["verify summary"]  # printed whole after the steps: a quiet run shows it on the terminal (aloud)
     for step in ordered:
-        say(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s{step_note(step)}")
+        block.append(f"  {step.status:<7} {step.name:<14} {step.seconds:6.1f}s{step_note(step)}")
     not_run = [step.name for step in ordered if step.status == NOT_RUN]
     if stopped_at is not None:
-        say(f"  stopped early (--fail-fast): {stopped_at} was red; {len(not_run)} steps not run: {', '.join(not_run)}")
+        block.append(
+            f"  stopped early (--fail-fast): {stopped_at} was red; {len(not_run)} steps not run: {', '.join(not_run)}"
+        )
     if slept is not None:
-        say(f"  stopped early: {suspend.message(slept)} while verify ran; {len(not_run)} steps not run; keep the "
-            "machine awake (docs/MANAGERS.md §4) and run verify again")  # fmt: skip
+        block.append(f"  stopped early: {suspend.message(slept)} while verify ran; {len(not_run)} steps not run; "
+                     "keep the machine awake (docs/MANAGERS.md §4) and run verify again")  # fmt: skip
     if walls:
         workers = f", selftest on {selftest_workers()} worker processes" if full else ""
-        say("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in lanes if lane in walls)
-            + f"; {os.cpu_count()} CPUs{workers}")  # fmt: skip
+        block.append("  lanes: " + ", ".join(f"{lane} {walls[lane]:.1f}s" for lane in lanes if lane in walls)
+                     + f"; {os.cpu_count()} CPUs{workers}")  # fmt: skip
     if not full:
-        say(f"  {FAST_LINE}")
+        block.append(f"  {FAST_LINE}")
     if count_line:
-        say(f"  {count_line}")
+        block.append(f"  {count_line}")
     if slot_line:
-        say(f"  {slot_line}")
+        block.append(f"  {slot_line}")
     if starts_line := not_started_line(ordered):
-        say(f"  {starts_line}")
+        block.append(f"  {starts_line}")
     failed = any(step.status != "passed" for step in ordered) or len(runs) < len(order)
     waited = taken.waited if taken is not None else 0.0
     seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
@@ -1267,7 +1416,12 @@ def main(
     early = f", stopped early at {stopped_at} (--fail-fast)" if stopped_at is not None else ""
     if slept is not None:  # metrics.STOPPED_EARLY: the totals leave a stopped run out
         early = f", stopped early at {', '.join(sorted(in_flight)) or 'a resume'}: {suspend.message(slept)}"
-    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{early}{after}{over}")
+    if _SPLIT is not None:
+        block.append(f"  {_SPLIT.where}")
+    block.append(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{early}{after}{over}")
+    with aloud():
+        for line in block:
+            say(line)
     stopped_record: dict[str, object] | None = None
     if stopped_at is not None:
         stopped_record = {"at": stopped_at, "not_run": not_run}

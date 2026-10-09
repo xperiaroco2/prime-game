@@ -12,8 +12,8 @@ merge` stays denied: you merge only with `tools\run.cmd merge` (#181, #300; AGEN
 taken in a `main` that has them.
 - **The gate.** Merge a PR only when CI is green, the fresh reviews left no open blocker or major (the PR's
   findings table and `not_fixed`; one that waits for the engineer waits for the merge too: write its answer as
-  "Answered: <link>" at the end of the item, `gh pr edit --body-file`), and, into `release/m<k>`, `verify` is green
-  on the merged tree (`merge` checks CI and runs that `verify`; into `main` it checks the rest of the gate instead).
+  "Answered: <link>" at the end of the item, `gh pr edit --body-file`). `merge` checks CI green on a head up to date
+  with the base, into `release/m<k>` as into `main` (#622): no local `verify` of the merged tree, tests run on CI.
 - **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
   its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
   added lines use; a signature that only appends parameters with defaults is a note), plus the pairs across bases
@@ -29,18 +29,20 @@ taken in a `main` that has them.
   first (its manager's gate notes the pair). Once it is on `main`: `merge --sync-main`, then the held PR to
   `pr-rebase` (inline for a docs conflict), then merge it. If the `main` PR is still open when everything else of
   the stage is merged, it goes into your "For you:" block: the engineer chooses the order.
-- **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` with `run_in_background` (12 to 14 minutes on this
-  PC: a fresh import plus the whole suite). It refuses any base but `release/*` and `main`, and a task's checkout;
-  a PR a human already merged is only fetched (the engineer merged #107 himself); otherwise it checks CI, merges
-  `--no-ff` in a scratch detached worktree at `origin/release/m<k>`, runs `verify` on the merged tree, pushes the
-  merge commit by hash, confirms the PR merged on GitHub and prints one `wave:` line: paste it into the wave comment.
-  A red `verify` or a conflict pushes nothing and leaves nothing to undo (logs and GdUnit reports in
-  `tools/out/merge-logs/`): tell the human and relaunch the task with the failure in `notes`. Never type its git
-  steps by hand: the guard asks for them, and the deny rule `git push *HEAD*` refuses `HEAD:`.
+- **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` (seconds: GitHub merges it). It refuses any base
+  but `release/*` and `main`, and a task's checkout; a PR a human already merged is only fetched (the engineer merged
+  #107 himself); otherwise it needs CI green on a head that contains `origin/release/m<k>`, merges through GitHub,
+  confirms the PR merged and prints one `wave:` line: paste it into the wave comment. A **behind** head is refused
+  with the reason: send it to `publish --base release/m<k>` (or `pr-rebase`), wait for its CI, merge again; so merges
+  into one release branch go in series, each leaving the others behind. A behind head whose files do not overlap the
+  base's new commits and that GitHub reports MERGEABLE merges anyway, into `release/m<k>` or `main` (#632: "behind by
+  N commits, no overlap" in its `wave:` line; `merge-train` publishes no such PR); an overlap is refused with its
+  paths. CI runs on the push to `release/**`: if it
+  goes red, fix it with a task before the next wave. Never type its git steps by hand.
 - **Taking `main` in** (the engineer's answer N2): when the tooling track's manager says on your plan issue that
   `main` has a change the stage should take in, run `tools\run.cmd merge --sync-main --base release/m<k>` at the
-  next wave boundary (no merge in flight), with `run_in_background`: `origin/main` merged into the release branch the
-  same way, `verify` on the merged tree, the push by hash. Then `merge-check --base release/m<k>` again (the open
+  next wave boundary (no merge in flight): `origin/main` merged into the release branch in a scratch worktree and
+  pushed by hash, no local `verify`; CI tests the push. Then `merge-check --base release/m<k>` again (the open
   task PRs onto the new tip); both go into the wave comment.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
