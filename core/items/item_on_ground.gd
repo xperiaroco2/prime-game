@@ -1,9 +1,9 @@
 class_name ItemOnGround
 extends Condition
 ## Passes when the rule's item (the intent's `item`, Items.target_of) exists, lies on the ground
-## and is interactive: not held, and not locked as a delivered package is (ARCHITECTURE §9.4).
-## Rejects with `unavailable`, which reveals nothing hidden: whether an item is held or delivered
-## is public.
+## and is interactive: not held, not in flight (thrown, until it rests: §7.1.16), and not locked as
+## a delivered package is (ARCHITECTURE §9.4). Rejects with `unavailable`, which reveals nothing
+## hidden: whether an item is held, flying or delivered is public.
 
 const UNAVAILABLE := &"unavailable"
 
