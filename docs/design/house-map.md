@@ -170,7 +170,7 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
-| Car repair | Lift control (proposal: no view of who is under the car) | 0 | 57, 46 | Garage |
+| Car repair | Lift control (its point a proposal; no view of who is under the car, decided in #688) | 0 | 57, 46 | Garage |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
 | Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
@@ -178,6 +178,12 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m.
+
+The car repair (the engineer, 2026-10-10, #688; the rules in [GDD](../GDD.md) §8): the lift panel has no view of who
+is under the car; a dissident plays by the same rules (#679's shared rule), so anyone holding the lift may let it go.
+The panel stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot hold the lift and
+fit a part. The garage's level gives the panel its blind side (the
+[car repair ADR](../decisions/2026-10-10-car-repair-task.md), its issue R5).
 
 ## 7. Routes and travel times
 
@@ -235,8 +241,7 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
   - the generator charges only while all active switches are on at the same time;
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
-  - the lift control has no view of who is under the car;
-  - how dissidents interfere with each chain (a wrong herb or part, letting the lift go, a wrong pose or a spoiled
+  - how dissidents interfere with each chain (a wrong herb or part, a wrong pose or a spoiled
     shot, switching the generator's switches off; for the burgers he decided it in #682: a dissident may hide a box,
     and the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
