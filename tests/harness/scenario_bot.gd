@@ -68,8 +68,9 @@ var unanswered_load := -1
 ## PackageDelivered. `where` tells GROUND from carried only: a Swapped leaves HAND and BELT as they
 ## were (the bot's own slots are `held` and `belted`).
 var items: Dictionary[int, Dictionary] = {}
-## Station id -> position, from StationPlaced.
+## Station id -> position, and station id -> its StationKind id, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
+var station_kinds: Dictionary[int, StringName] = {}
 ## Peer -> where the bot last saw that player: PlayerJoined, Welcome, PlayersPlaced, snapshots.
 var seen: Dictionary[int, Vector3] = {}
 
@@ -244,6 +245,14 @@ func where_is(target: ScenarioTarget) -> Vector3:
 			if held >= 0 and items.has(held):
 				var station: int = items[held]["station"]
 				found = stations.get(station, Vector3.INF)
+		ScenarioTarget.Kind.STATION:
+			var ids: Array[int] = []
+			for id: int in station_kinds:
+				if station_kinds[id] == target.station_kind:
+					ids.append(id)
+			ids.sort()
+			if target.index >= 1 and target.index <= ids.size():
+				found = stations[ids[target.index - 1]]
 		_:
 			var item := item_of(target)
 			if item >= 0:
@@ -287,6 +296,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			match_id = fields["match_id"] as int
 			items.clear()
 			stations.clear()
+			station_kinds.clear()
 			held = -1
 			belted = -1
 			downed = false
@@ -299,6 +309,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			phase = StringName(str(fields["phase"]))
 		&"StationPlaced":
 			stations[fields["station"] as int] = fields["position"] as Vector3
+			station_kinds[fields["station"] as int] = StringName(str(fields["kind"]))
 		&"ItemSpawned":
 			items[fields["item"] as int] = {
 				"kind": StringName(str(fields["kind"])),

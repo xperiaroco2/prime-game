@@ -4246,7 +4246,7 @@ told. One format runs in two runners.
   steps and targets) are data only and live in `core/content/scenario/` (§9.3), so `content/` still uses only the
   content API; the runners live in `tests/harness/`. It holds:
   - the setup: the mode; the map, one of the mode's maps; the seed; the number of bots (bot 1 is the host's own
-    client); the match settings that differ from the defaults; roles forced per bot (debug builds only, invariant 8;
+    client); the match settings that differ from the defaults, numbers (`settings`) and sets of task type ids (`id_sets`: the host's bans, #79; M7-Z2), which `problems()` checks as the lobby would: a set the mode does not declare, an id that is none of its task types, and bans that leave fewer types than `tasks` are refused, so a ban of one of two types also lowers `tasks` in the same setup (`DealTasks.settings_problem`); roles forced per bot (debug builds only, invariant 8;
     otherwise the deal draws them from the seed); the match clock's length in seconds, forced with the debug command
     `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every
     bot joins (sends `Hello`) at the start and acknowledges every `LoadMatch` at once; the steps `Join` and `LoadAck`
@@ -4308,7 +4308,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `stop_m` short. A dead bot claims nothing at all, standing or walking (M4-2).
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
-  right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
+  right after the joins at the start, and its settings and sets in one `ChangeSettings` from bot 1 after them (`BotScenario.setup_change()`, in both runners).
 - `fields` match a subset of the event's payload, as the bot received it (name and fields): text as text, numbers
   and vectors approximately, and `peer` (and the raise events' `raiser` and `target`, M4-4) holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
   for one peer whose payload names none (`SelfStatus`) matches `peer` as the bot that received it (3h). `never` names an event, fields and a
@@ -4317,7 +4317,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
   package in item-id order, from 1; tasks are shared, #79), `circle_of_held` (of its hand item), `nearest(kind)` (on
   the ground: not in a hand or on a belt, which the bot follows from `ItemPickedUp`'s `belted` and `Swapped`, M4-5), `bot(i)` (where it last saw
-  that player), `point(x, y, z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the
+  that player), `point(x, y, z)`, `station(kind, n)` (the n-th station, from 1, of that `StationKind` id in station-id order, from the bot's own `StationPlaced`s; a `WalkTo` to it takes `stop_m` 0, and the runners' arrival slack of 1 mm ends the walk: M7-Z2, ZE7 (a), for the zone task, whose zone the bot finds only this way). A target the bot cannot know fails the scenario, so a scenario also proves that the
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
