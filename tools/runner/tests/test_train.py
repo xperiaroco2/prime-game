@@ -18,6 +18,8 @@ PENDING = {"name": "verify", "state": "PENDING", "bucket": "pending"}
 MIN_PYTHON_RED = {"name": "runner on the minimum Python", "state": "FAILURE", "bucket": "fail"}
 RED = "  FAIL  verify is red after the rebase; nothing was pushed\n"
 CONFLICT = "  FAIL  the rebase on origin/main stopped, usually on a conflict. Publish aborted it\n"
+# Every PR and main move in TrainCase changes its own line of it (TrainCase.shared_line).
+SHARED = "core/shared.gd"
 
 
 class TrainGitHub(FakeGitHub):
@@ -50,7 +52,7 @@ class TrainGitHub(FakeGitHub):
 
 
 class TrainCase(MergeCase):
-    FILES = {**MergeCase.FILES, "tools/runner/guard.py": "X = 1\n"}
+    FILES = {**MergeCase.FILES, "tools/runner/guard.py": "X = 1\n", SHARED: "".join(f"# {i}\n" for i in range(300))}
 
     def setUp(self) -> None:
         super().setUp()
@@ -63,6 +65,7 @@ class TrainCase(MergeCase):
         self.holders: list[slots.Holder] = []
         self.live: list[sessions.Session] = []
         self.clock = [0.0]
+        self.moves = 0
         self.sleeps: list[float] = []
         for patch in (
             mock.patch.object(merge, "gh", self.gh),
@@ -84,12 +87,22 @@ class TrainCase(MergeCase):
         self.sleeps.append(seconds)
         self.clock[0] += seconds
 
-    def pr(self, number: int, files: dict[str, str | None], **extra: object) -> Path:
+    @staticmethod
+    def shared_line(work: Path, line: int) -> dict[str, str | None]:
+        """SHARED with one more line of its own changed: every PR and main move here changes that file, each at its own
+        line, so a rebase stays clean but a PR behind main overlaps it and is published (#632); shared=False: not."""
+        rows = (work / SHARED).read_text(encoding="utf-8").split("\n")
+        rows[line] = f"# {line} changed"
+        return {SHARED: "\n".join(rows)}
+
+    def pr(self, number: int, files: dict[str, str | None], shared: bool = True, **extra: object) -> Path:
         """An open PR into main from a task branch checked out in its own worktree and pushed."""
         branch = f"core/{number}-task"
         wt = self.repo.tmp / f"wt-{number}"
         _git(self.repo.work, "fetch", "-q", "origin")
         _git(self.repo.work, "worktree", "add", "-q", "-b", branch, wt.as_posix(), "origin/main")
+        if shared:
+            files = {**self.shared_line(wt, 4 * (number % 50)), **files}
         self.repo.commit_in(wt, files, f"feat: task {number}")
         self.repo.push(branch)
         self.gh.add(number, branch, "main")
@@ -141,10 +154,13 @@ class TrainCase(MergeCase):
         out = _git(remote, "log", "--first-parent", "--format=%P", f"{self.repo.base}..main")
         return [line.split() for line in out.splitlines()]
 
-    def main_moves(self, files: dict[str, str | None]) -> None:
-        """Another PR merged on GitHub: main moves on the remote."""
+    def main_moves(self, files: dict[str, str | None], shared: bool = True) -> None:
+        """Another PR merged on GitHub: main moves on the remote (with its own SHARED line unless shared=False)."""
         _git(self.repo.work, "fetch", "-q", "origin")
         _git(self.repo.work, "switch", "-q", "-C", "other", "origin/main")
+        if shared:
+            self.moves += 1
+            files = {**self.shared_line(self.repo.work, 200 + 4 * self.moves), **files}
         self.repo.commit(files, "another merge")
         self.repo.push("other:main")
         _git(self.repo.work, "switch", "-q", "main")
@@ -176,6 +192,26 @@ class TrainTest(TrainCase):
         rc, text = self.train(30, 31)
         self.assertEqual(rc, 0, text)
         self.assertEqual(self.summary()[1], "  merged   #30 (core/30-task): already merged")
+
+    def test_a_pr_behind_main_with_no_overlap_merges_without_a_publish(self) -> None:
+        # #632: the gate's own rule; #31 changes no file #30 or the other merge changed.
+        self.pr(30, {"core/a.gd": "extends Node\n"}, shared=False)
+        self.pr(31, {"core/b.gd": "extends Node\n"}, shared=False)
+        self.main_moves({"core/z.gd": "extends Node\n"}, shared=False)
+        rc, text = self.train(30, 31, dry_run=True)
+        self.assertEqual(rc, 0, text)
+        self.assertIn(": behind main, no file it changes is one main changed since its fork: no publish", text)
+        rc, text = self.train(30, 31)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual((self.published, self.verified_in), ([], []))
+        self.assertEqual([args[2] for args in self.gh.merges], ["30", "31"])
+        self.assertIn("gate: CI green, behind by 1 commit, no overlap: merged; CI runs on main", text)  # #30
+        # #31: the other merge, #30's commit and GitHub's merge commit of #30
+        self.assertIn("gate: CI green, behind by 3 commits, no overlap: merged; CI runs on main", text)
+        self.assertEqual(self.summary()[1:3], [
+            "  merged   #30 (core/30-task): no publish (behind main, no overlap), CI green, the gate passed",
+            "  merged   #31 (core/31-task): no publish (behind main, no overlap), CI green, the gate passed",
+        ])  # fmt: skip
 
     def test_a_red_verify_is_retried_once_and_a_second_red_skips_and_goes_on(self) -> None:
         self.pr(30, {"core/a.gd": "extends Node\n"})

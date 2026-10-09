@@ -568,7 +568,11 @@ Rules for every workflow run:
     engineer's go, which also clears its content-area paths and ADRs; and any top-level item, or sub-heading or bold
     label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
     pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
-    inside HTML comments do not count. **No local `verify`:** with `main` in the head, the merged tree is the head's
+    inside HTML comments do not count. A head behind its base (here or `release/m<k>`, the shared check) still passes
+    when no path it changes since its fork is one the base changed since then and GitHub reports it MERGEABLE (#632):
+    it merges with "behind by N commits, no overlap: merged; CI runs on <base>" in its `wave:` line, `merge-train`
+    publishes no such PR, and an overlap is refused with its paths. **No local `verify`:** with `main` in the head,
+    the merged tree is the head's
     own, which `publish` verified on Windows and CI (on `refs/pull/<n>/merge`) on Linux; a local run would hold a verify
     slot 12 to 14 minutes per merge for nothing. `merge-check` rows that involve the PR and PRs stacked on it print as
     `gate: note:` lines and never refuse: the partner is behind `main` afterwards (the gate refuses it until its
