@@ -108,6 +108,7 @@ func test_crossing_the_edge_every_tick_for_100_ticks_sends_at_most_one_event_per
 	for event: Dictionary in FixtureZoneModes.progress(game, P2):
 		sent_at.append(event["tick"] as int)
 	assert_int(sent_at.size()).is_greater_equal(1)
+	@warning_ignore("integer_division")
 	assert_int(sent_at.size()).is_less_equal(100 / ZoneTask.WINDOW_TICKS + 1)
 	for i in range(1, sent_at.size()):
 		assert_int(sent_at[i] - sent_at[i - 1]).is_greater_equal(ZoneTask.WINDOW_TICKS)
@@ -222,7 +223,7 @@ func _zone_id(game: Match, index: int) -> int:
 ## The zone and task events among `names`, in order.
 func _task_events(names: Array[StringName]) -> Array[StringName]:
 	var found: Array[StringName] = []
-	for name: StringName in names:
-		if name in [&"ZoneProgress", &"TaskState", &"TaskProgress"]:
-			found.append(name)
+	for event_name: StringName in names:
+		if event_name in [&"ZoneProgress", &"TaskState", &"TaskProgress"]:
+			found.append(event_name)
 	return found

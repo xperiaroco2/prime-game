@@ -82,24 +82,24 @@ func test_a_hit_that_does_not_knock_down_changes_nothing_and_a_knockdown_stops_i
 	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(4)
 	assert_int(FixtureZoneModes.progress(game, P1).size()).is_equal(sent)
 	FixtureZoneModes.hold(game, [P1], FixtureCombatModes.COOLDOWN_TICKS - 1)
-	var before := FixtureZoneModes.ticks_of(game, 0)
-	assert_int(before).is_equal(3 + FixtureCombatModes.COOLDOWN_TICKS)
+	var ticks_before := FixtureZoneModes.ticks_of(game, 0)
+	assert_int(ticks_before).is_equal(3 + FixtureCombatModes.COOLDOWN_TICKS)
 	# The second hit's command and LifeTicks run before TaskTicks: the knockdown tick gains nothing.
 	FixtureMoves.claim(game, P1, A)
 	FixtureCombatModes.use(game, P2, NORTH)
 	FixtureModes.run_ticks(game, 1)
 	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before)
 	var stopped := FixtureZoneModes.progress(game, P2).back() as Dictionary
 	assert_dict(stopped).is_equal(
-		FixtureZoneModes.sent(_zone_id(game, 0), before, false, game.ticked_through())
+		FixtureZoneModes.sent(_zone_id(game, 0), ticks_before, false, game.ticked_through())
 	)
 	# Downed, then dead: it never counts again.
 	FixtureZoneModes.hold(game, [P1], 5)
 	FixtureWinModes.run_out(game, P1)
 	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DEAD)
 	FixtureModes.run_ticks(game, 20)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before)
 
 
 func test_a_player_who_leaves_stops_it() -> void:
@@ -217,11 +217,11 @@ func test_a_frozen_client_counts_10_ticks_after_its_last_claim_and_its_credit_bu
 	FixtureZoneModes.put(game, P1, A)
 	FixtureZoneModes.hold(game, [P1], 5)
 	var last := game.ticked_through()
-	var before := FixtureZoneModes.ticks_of(game, 0)
+	var ticks_before := FixtureZoneModes.ticks_of(game, 0)
 	FixtureModes.run_ticks(game, 10)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before + 10)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before + 10)
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before + 10)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before + 10)
 	FixtureModes.run_ticks(game, 189)
 	var corrected := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.claim(game, P1, A + EAST * 20, {"client_tick": last + 200})
@@ -229,7 +229,7 @@ func test_a_frozen_client_counts_10_ticks_after_its_last_claim_and_its_credit_bu
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(corrected)
 	assert_vector(game.state.player(P1).position).is_equal(A + EAST * 20)
 	FixtureZoneModes.hold(game, [P1], 5)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(before + 10)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(ticks_before + 10)
 
 
 func test_a_slow_claimer_counts_while_it_stores_at_most_10_ticks_and_its_credit_buys_no_more(
