@@ -1832,7 +1832,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
   (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
   #212: End returns everyone by itself).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (with the map open, Esc closes only the map, §4.7.33), and where
   `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
@@ -1842,7 +1842,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
   Connecting and the end screen free it (the first three for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
-  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
+  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there (never while the map is open: the map frees the mouse in the round, and closing it captures it again, §4.7.33). Closing the Esc
   menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
   runs on the lobby's screen, every round started with the cursor showing until a click.
 - **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
