@@ -21,7 +21,7 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
   (`metrics` keeps its total out of the full runs').
 - `verify --full` runs the whole suite exactly as before (lanes, `AFTER`, the count check, a verify slot,
   `--fail-fast`). CI's `verify` job runs `tools/run.sh verify --full`.
-- `publish` and `merge` call the plain (fast) `verify`. The definition of done: `verify` (lint and check) green
+- `publish` calls the plain (fast) `verify`; `merge` runs none (#622). The definition of done: `verify` (lint and check) green
   locally, CI (the full suite) green on the PR.
 
 ## Consequences
