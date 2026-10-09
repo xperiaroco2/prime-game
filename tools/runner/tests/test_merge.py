@@ -994,6 +994,7 @@ class CommandTest(MergeCase):
         self.assertEqual(self.verified, [])
 
     def test_sync_main_merges_main_into_the_release_branch(self) -> None:
+        self.repo.install_hook()  # the push by hash goes through the real pre-push hook (a fast-forward it allows)
         self.assertEqual(merge.merge(None, base="release/m1", sync_main=True), 0)
         self.assertIn("already has main", self.printed[-1])
         main = self.repo.commit({"tools/x.py": "X = 1\n"}, "main moves")
@@ -1008,6 +1009,20 @@ class CommandTest(MergeCase):
         self.assertTrue(self.printed[-1].startswith(f"wave: merged main ({main[:12]}) into release/m1 as {merged[:12]}"))
         self.assertIn("no local verify", self.printed[-1])
         self.assertIn("tools/x.py", _git(self.repo.work, "ls-tree", "-r", "--name-only", merged))
+
+    def test_a_sync_main_conflict_pushes_nothing(self) -> None:
+        self.repo.install_hook()
+        _git(self.repo.work, "switch", "-q", "release/m1")
+        self.repo.commit({"core/a.gd": "extends Node\nvar a = 1\n"}, "release edits a")
+        self.repo.push("release/m1")
+        tip = self.repo.remote("release/m1")
+        _git(self.repo.work, "switch", "-q", "main")
+        self.repo.commit({"core/a.gd": "extends Node\nvar a = 2\n"}, "main edits a")
+        self.repo.push("main")
+        with self.assertRaises(Failure) as caught:
+            merge.merge(None, base="release/m1", sync_main=True)
+        self.assertIn("does not merge cleanly", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.verified, self.scratch_left()), (tip, [], []))
 
     def test_a_release_dry_run_merges_nothing_even_from_a_task_checkout(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
