@@ -21,7 +21,7 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
   (`metrics` keeps its total out of the full runs').
 - `verify --full` runs the whole suite exactly as before (lanes, `AFTER`, the count check, a verify slot,
   `--fail-fast`). CI's `verify` job runs `tools/run.sh verify --full`.
-- `publish` and `merge` call the plain (fast) `verify`. The definition of done: `verify` (lint and check) green
+- `publish` calls the plain (fast) `verify`; `merge` runs none (#622). The definition of done: `verify` (lint and check) green
   locally, CI (the full suite) green on the PR.
 
 ## Consequences
@@ -29,5 +29,6 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - A red test is found on the PR, not before the push: a red CI round costs about 8 minutes plus a fix and a push.
 - Windows-only failures (CI runs Linux, without the TwoVoIP addon) are no longer caught locally; run
   `verify --full` locally before a release, or when a change touches Windows-only code.
-- A push to `release/m<k>` runs no CI, so a merge there now checks only lint and check locally until `merge` and
-  `merge-train` wait for CI on an up-to-date head (#605's remaining criteria).
+- A push to `release/m<k>` ran no CI, so a merge there checked only lint and check locally until `merge` waited for
+  CI on an up-to-date head, as the gate into `main` does, and CI ran on pushes to `release/**` (#622, #605's remaining
+  criteria): `merge --base release/m<k>` and `--sync-main` run no local verify.

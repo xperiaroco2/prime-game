@@ -7,7 +7,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # release/** (#622): `merge --base release/<x>` and `--sync-main` run no verify of the merged tree; this run does.
+    branches: [main, release/**]
   workflow_dispatch:
 
 concurrency:

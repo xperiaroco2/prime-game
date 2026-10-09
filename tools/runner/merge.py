@@ -49,7 +49,7 @@ without an "Approved by the engineer: <GitHub link>" line (#563); `.claude/setti
 the guard, always); a milestone's closing PR (head `release/*`) without that line, the engineer's go; and an item under
 "Needs the engineer" without "Answered: <GitHub link>" (an unreadable section refuses too). Markers in HTML comments
 do not count. No local verify: the head contains `main`, so the merged tree is the one CI tested on an up-to-date
-head (the gate above); for `release/m<k>` see below (the fast verify, until #605's rest makes it wait for CI).
+head (the gate above); `release/m<k>` takes the same CI check below (#622).
 merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
 printed as notes that never refuse: a partner is behind `main` after the merge and its own re-publish tests the pair.
 Then `origin/main` is read again (`git ls-remote`; moved: refused), `gh pr merge <n> --merge --match-head-commit
@@ -57,17 +57,19 @@ Then `origin/main` is read again (`git ls-remote`; moved: refused), `gh pr merge
 commit. A real merge refuses a task checkout; `--dry-run` merges nothing and runs anywhere.
 
 `merge <pr> --base release/<x>`: a milestone manager's merge of a task PR into its release branch
-(docs/decisions/2026-10-01-release-branch-per-milestone.md). It refuses any other base and a task checkout (a
-`.claude/worktrees/<n>` worktree or a task branch, here or in the current folder); fetches only when a human
-already merged the PR; requires green CI (`gh pr checks`) on a ready, open PR
-into that base whose head origin has; then merges `--no-ff` with GitHub's message in a scratch detached worktree at
-`origin/<base>`, runs the fast `verify` (lint and check) on the merged tree (always: the release-branch gate; no
-tree-equality shortcut), pushes
-the merge commit by its hash (`git push origin <sha>:refs/heads/<base>`, a fast-forward the pre-push hook allows),
-removes the worktree, confirms that GitHub shows the PR merged and prints one line for the wave comment. A red
-`verify` or a conflict pushes nothing and leaves nothing to undo. `merge --sync-main --base release/<x>` takes
-`origin/main` into the release branch the same way (the wave-boundary sync of the engineer's N2 answer). The fresh
-reviews' gate (no open blocker or major) stays the manager's call, for both bases. `--dry-run` stops before the merge.
+(docs/decisions/2026-10-01-release-branch-per-milestone.md; no local verify since #622, as #605's answer: tests run on
+CI only). It refuses any other base and a task checkout (a `.claude/worktrees/<n>` worktree or a task branch, here or
+in the current folder); fetches only when a human already merged the PR; requires a ready, open PR into that base with
+green CI (`gh pr checks`) whose head origin has and which contains `origin/<base>` (the check of the gate into `main`:
+CI tested the tree that lands; a behind head is refused with the reason: rebase it with publish and wait for its CI).
+`origin/<base>` is read again before the merge (moved: refused). Then `gh pr merge <n> --merge --match-head-commit
+<oid>` merges through GitHub, GitHub's merge commit is fetched and one line for the wave comment is printed. CI runs on
+the push to `release/**` (ci.yml), so the merged tree is tested there. `merge --sync-main --base release/<x>` takes
+`origin/main` into the release branch with `--no-ff` in a scratch detached worktree at `origin/<base>` and pushes the
+merge commit by its hash (`git push origin <sha>:refs/heads/<base>`, a fast-forward the pre-push hook allows); no
+verify, CI tests the push (the wave-boundary sync of the engineer's N2 answer; a conflict pushes nothing and leaves
+nothing to undo). The fresh reviews' gate (no open blocker or major) stays the manager's call, for both bases.
+`--dry-run` stops before the merge.
 
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
@@ -1436,16 +1438,22 @@ def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool 
         raise Failure(f"{REMOTE}/{base} not found after the fetch")
     if _is_ancestor(pr.oid, tip):
         raise Failure(f"{REMOTE}/{base} already has #{number}'s head {pr.oid[:10]}; check gh pr view {number}")
+    if not _is_ancestor(tip, pr.oid):
+        raise Failure(f"#{number} is {behind_reason(pr, base, tip)}. Nothing was changed.")
     if dry_run:
-        say(f"gate: #{number} would merge into {base}: merge --no-ff, verify on the merged tree, then the push by hash")
+        say(f"gate: #{number} would merge into {base} through GitHub (CI green on an up-to-date head, no local verify)")
         return 0
-    sha, seconds = _merge_verify_push(tip, pr.oid, merge_message(pr), pr.label, base, f"merge-{number}")
-    confirmed = _confirm(number)
+    moved = base_moved(base, tip)
+    if moved:
+        raise Failure(f"{moved}: #{number} is behind it now. Nothing was merged; run merge again.")
+    ok(f"#{number}: the gate passed; merging through GitHub at {pr.oid[:10]}")
+    sha, confirmed = _merge_on_github(pr)
     if not confirmed:
         warn(f"GitHub does not show #{number} merged yet: check gh pr view {number} --json state")
     say(
-        f"wave: merged #{number} ({pr.head}) into {base} as {sha[:12]}; verify on the merged tree passed in "
-        f"{seconds:.0f} s" + ("" if confirmed else "; GitHub did not show it merged yet")
+        f"wave: merged #{number} ({pr.head}) into {base} as {sha[:12] or '?'} through GitHub; gate: CI green on an "
+        "up-to-date head, no local verify (CI tests the push)"
+        + ("" if confirmed else "; GitHub did not show it merged yet")
     )
     return 0
 
@@ -1459,27 +1467,14 @@ def _sync_main(base: str, dry_run: bool = False) -> int:
         say(f"wave: {base} already has main at {main[:12]}; nothing to merge")
         return 0
     if dry_run:
-        say(f"gate: main ({main[:10]}) would merge into {base}: merge --no-ff, verify on the merged tree, the push")
+        say(f"gate: main ({main[:10]}) would merge into {base}: merge --no-ff in a scratch worktree, then the push")
         return 0
     message = f"Merge branch 'main' into {base}"
-    sha, seconds = _merge_verify_push(tip, main, message, f"main ({main[:10]})", base, "merge-sync-main")
-    say(f"wave: merged main ({main[:12]}) into {base} as {sha[:12]}; verify on the merged tree passed in {seconds:.0f} s")
-    return 0
-
-
-def _merge_verify_push(tip: str, commit: str, message: str, what: str, base: str, log: str) -> tuple[str, float]:
-    started = time.monotonic()
-    with scratch_worktree(tip, log) as path:
-        sha = _merge_into(path, commit, message, what)
-        result = verify_in(path, log)
-        if result.rc != 0 or result.timed_out:
-            kept = keep_reports(path, log)
-            raise Failure(
-                f"verify is red on the merged tree of {what}: nothing was pushed (log tools/out/logs/{log}.log; "
-                f"the merged tree's logs and reports: {kept})"
-            )
+    with scratch_worktree(tip, "merge-sync-main") as path:
+        sha = _merge_into(path, main, message, f"main ({main[:10]})")
         _push(sha, base)
-    return sha, time.monotonic() - started
+    say(f"wave: merged main ({main[:12]}) into {base} as {sha[:12]}; no local verify (CI tests the push)")
+    return 0
 
 
 # --- merge into main through GitHub (#300) ----------------------------------------------------------------------------
@@ -1703,12 +1698,27 @@ def main_gate(pr: PullRequest) -> tuple[list[str], list[str], str]:
     if not tip:
         raise Failure(f"{REMOTE}/main not found after the fetch")
     if not _is_ancestor(tip, pr.oid):
-        reasons.append(
-            f"behind main ({REMOTE}/main {tip[:10]} is not in its head, so CI did not test the tree that would land): "
-            "rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
-        )
+        reasons.append(behind_reason(pr, "main", tip))
     reasons += _content_refusals(pr, view, tip)
     return reasons, gate_notes(pr), tip
+
+
+def behind_reason(pr: PullRequest, base: str, tip: str) -> str:
+    """Why a head without the base's tip is refused (the gate into main and into a release branch, #622): CI tested the
+    head's own tree, not the tree that would land."""
+    return (
+        f"behind {base} ({REMOTE}/{base} {tip[:10]} is not in its head, so CI did not test the tree that would land): "
+        "rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
+    )
+
+
+def base_moved(base: str, tip: str) -> str:
+    """"" while origin's base is still at tip (the fetch the gate read), else what moved it, read again right before
+    the merge: another merge landed after the gate, so the checked head is behind."""
+    now = _out("ls-remote", REMOTE, f"refs/heads/{base}").split()
+    if now and now[0] == tip:
+        return ""
+    return f"{REMOTE}/{base} moved since the fetch ({tip[:10]} -> {now[0][:10] if now else '?'})"
 
 
 def standing_refusals(pr: PullRequest) -> list[str]:
@@ -1796,11 +1806,10 @@ def _merge_main(number: int, dry_run: bool) -> int:
     if dry_run:
         say(f"gate: #{number} would merge into main (CI green on an up-to-date head, no exception, nothing open)")
         return 0
-    now = _out("ls-remote", REMOTE, "refs/heads/main").split()
-    if not now or now[0] != tip:
+    moved = base_moved("main", tip)
+    if moved:
         raise Failure(
-            f"{REMOTE}/main moved since the fetch ({tip[:10]} -> {now[0][:10] if now else '?'}): #{number} is behind "
-            "it now. Nothing was merged; run merge again (the gate asks for a rebase)."
+            f"{moved}: #{number} is behind it now. Nothing was merged; run merge again (the gate asks for a rebase)."
         )
     ok(f"#{number}: the gate passed; merging through GitHub at {pr.oid[:10]}")
     sha, confirmed = _merge_on_github(pr)

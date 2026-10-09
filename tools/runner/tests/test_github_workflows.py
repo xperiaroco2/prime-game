@@ -55,6 +55,16 @@ def steps_of(data: dict) -> list[dict]:
     return [step for job in data.get("jobs", {}).values() for step in job.get("steps", [])]
 
 
+class CiPushTriggerTest(unittest.TestCase):
+    """Without PyYAML (the test below it is skipped then): CI's push trigger is read as text."""
+
+    def test_ci_runs_on_pushes_to_main_and_to_release_branches(self) -> None:
+        # #622: `merge --base release/<x>` (and --sync-main) rely on CI instead of a local verify of the merged tree,
+        # so a push to a release branch must run it.
+        text = (GITHUB / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^  push:\n(?:    #.*\n)*    branches: \[main, release/\*\*\]$")
+
+
 @unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
 class GithubWorkflowsTest(unittest.TestCase):
     def files(self) -> list[Path]:
@@ -90,7 +100,9 @@ class GithubWorkflowsTest(unittest.TestCase):
 
     def test_ci_keeps_its_triggers_and_runs_verify_after_the_shared_setup(self) -> None:
         data = load(GITHUB / "workflows" / "ci.yml")
-        self.assertEqual(data["on"], {"pull_request": None, "push": {"branches": ["main"]}, "workflow_dispatch": None})
+        # release/** (#622): `merge --base release/<x>` relies on CI, so a release branch's tree is tested on push.
+        push = {"branches": ["main", "release/**"]}
+        self.assertEqual(data["on"], {"pull_request": None, "push": push, "workflow_dispatch": None})
         steps = data["jobs"]["verify"]["steps"]
         uses = [step.get("uses", "") for step in steps]
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])

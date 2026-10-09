@@ -104,8 +104,8 @@ reason; `--dry-run` prints the verdict and merges nothing.
 - **Keep human merges into `main`** (the 2026-09-28 rule): a click per PR that checks nothing the gate does not,
   and a night that stops at the first PR into `main`.
 - **`verify` on the merged tree for `main` too**, as for `release/m<k>`: 12 to 14 minutes in one of the PC's two
-  verify slots per merge, repeating what `publish` and CI ran on the same tree. It stays for `release/m<k>`, where
-  pushes run no CI and task PRs are not kept up to date with their base.
+  verify slots per merge, repeating what `publish` and CI ran on the same tree. It stayed for `release/m<k>` until #622,
+  where pushes then ran no CI and task PRs were not kept up to date with their base.
 - **A `merge-check --trial` instead of an up-to-date head:** a trial verifies main plus the named PRs, but the
   second PR is behind `main` after the first merges and must be re-tested anyway; the trial adds a verify per pair.
 - **Allow `gh pr merge` for agents:** the rulesets would let any agent merge any green PR, the stacked child that

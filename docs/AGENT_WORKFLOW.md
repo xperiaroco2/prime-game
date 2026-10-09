@@ -539,23 +539,24 @@ Rules for every workflow run:
   each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not check (its base gone
   from origin). On an overlap it merges the side that changes the symbol first and has the other rebased (`pr-rebase`),
   or first runs `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree
-  under `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
-  green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with `tools\run.cmd
-  merge <pr> --base release/m<k>` from the main checkout or its `release-m<k>` worktree (into `main` only through the
-  gate below; it refuses any other base and a task's checkout): fetch (a PR a human already merged is only fetched),
-  green CI (`gh pr checks`), `git merge --no-ff` with GitHub's message in a scratch detached worktree at
-  `origin/release/m<k>`, `verify` on the merged tree (always: no shortcut for an unchanged tree; a red run or a conflict
-  pushes nothing and leaves nothing to undo), `git push origin <commit>:refs/heads/release/m<k>` by hash (a fast-forward
-  the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), the scratch worktree
-  removed, the PR confirmed merged on GitHub, and one `wave:` line for the wave comment. Its `verify` takes minutes: run
-  it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main` has something the
-  stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git commands run inside
-  the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt from the main checkout
-  and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial` keeps the merged tree's logs
-  and GdUnit reports in `tools/out/merge-logs/<log>/`. A typed `gh pr merge` stays denied (the `main` rulesets ask only
-  for a PR and green checks, so it would let any agent merge into `main`). The stage ends with one PR from
-  `release/m<k>` into `main`, which the manager merges through the gate below once the engineer gave the milestone's go;
-  the stage's issues stay open until then (`Closes` fires only on the default branch) and the manager closes them.
+  under `tools/out/merge/`, that tree's own fast `verify`, then the worktree removed. The manager merges a task PR once CI
+  is green and the fresh reviews left no open blocker or major, with `tools\run.cmd merge <pr> --base release/m<k>`
+  from the main checkout or its `release-m<k>` worktree (into `main` only through the gate below; it refuses any other
+  base and a task's checkout): fetch (a PR a human already merged is only fetched), green CI (`gh pr checks`) on a head
+  that contains `origin/release/m<k>` (the check of the gate into `main`, shared code: a behind head is refused with the
+  reason, `publish --base release/m<k>` rebases it and CI runs again), then `gh pr merge --match-head-commit` through
+  GitHub, the merge commit fetched and one `wave:` line for the wave comment. **No local `verify`** (#622, #605's
+  answer: tests run on CI only): CI runs on pushes to `release/**`, so the merged tree is tested there. At a wave
+  boundary, when the AI productivity track (#170) says `main` has something the stage needs, `merge --sync-main --base
+  release/m<k>` merges `origin/main` into the branch in a scratch worktree and pushes the commit by hash (a
+  fast-forward the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), also with no
+  verify; a conflict pushes nothing. Its git commands run inside the runner, so the session types only `tools\run.cmd
+  merge ...`, which runs without a prompt from the main checkout and from the `release-m<k>` worktree. A red `verify` of
+  `merge-check --trial` keeps the merged tree's logs and GdUnit reports in `tools/out/merge-logs/<log>/`. A typed `gh pr
+  merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge into
+  `main`). The stage ends with one PR from `release/m<k>` into `main`, which the manager merges through the gate below
+  once the engineer gave the milestone's go; the stage's issues stay open until then (`Closes` fires only on the default
+  branch) and the manager closes them.
   - **Into `main`** (#300, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)): the
     engineer's manager runs `tools\run.cmd merge <pr> --base main` from the main checkout once the fresh reviews left no
     open blocker or major. Its gate collects every refusal: not open into `main` or a draft; not authored by the
@@ -1770,13 +1771,13 @@ pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E3
 (the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
 if its Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving
 them to Windows `verify`; that fallback must also give the smoke suite a skip when the `.gdextension` is absent,
-which it has none of today). The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra
-check, and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no
-CI: the manager's
-`verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
-minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
-`selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
-public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
+which it has none of today). The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check,
+and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs it too
+(`on.push.branches`: `main` and `release/**`, #622), so the tree a `merge` or `merge --sync-main` leaves there is tested
+(§7.1). A second job, `python-min` (#349), sets up the pinned minimum Python (`pins --get python_min`, 3.11), checks it
+runs that version, compiles every runner file and runs `selftest --group python` (199 s on 3.11 in a cloud session,
+beside `verify`; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated minimum, and
+3.12-only code broke `verify` in a cloud
 session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
 merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
 first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python lane

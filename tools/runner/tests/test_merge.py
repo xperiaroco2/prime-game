@@ -475,7 +475,7 @@ def _gh_result(data: object, rc: int = 0) -> Result:
 
 class FakeGitHub:
     """`gh pr list|view|checks|merge` and `gh api user` from a table of PRs; a PR shows MERGED once its base has its
-    head. `pr merge` checks its exact arguments and makes GitHub's merge commit on the remote's main."""
+    head. `pr merge` checks its exact arguments and makes GitHub's merge commit on the PR's base on the remote."""
 
     def __init__(self, repo: Repo) -> None:
         self.repo, self.prs, self.checks = repo, {}, {}
@@ -502,14 +502,15 @@ class FakeGitHub:
         if self.merge_rc:
             return _gh_result("GraphQL: Pull Request is not mergeable", self.merge_rc)
         remote = self.repo.tmp / "remote.git"
-        main = _git(remote, "rev-parse", "refs/heads/main")
+        base = f"refs/heads/{data['baseRefName']}"
+        main = _git(remote, "rev-parse", base)
         tree = _git(remote, "merge-tree", "--write-tree", main, data["headRefOid"]).split()[0]
         message = merge.merge_message(merge.PullRequest.of(data))
         commit = _git(
             remote, "-c", "user.name=GitHub", "-c", "user.email=noreply@github.com", "commit-tree", tree, "-p", main,
             "-p", data["headRefOid"], "-m", message,
         )  # fmt: skip
-        _git(remote, "update-ref", "refs/heads/main", commit, main)
+        _git(remote, "update-ref", base, commit, main)
         data["mergeCommit"] = {"oid": commit}
         return _gh_result("")
 
@@ -812,23 +813,41 @@ class CommandTest(MergeCase):
 
     # merge
 
-    def test_merge_pushes_the_verified_merge_commit_by_hash_through_the_pre_push_hook(self) -> None:
-        branch = self.task(7, {"core/a.gd": "extends Node\n"})
-        self.repo.install_hook()
+    def pr_into_release(self, number: int, files: dict[str, str | None]) -> str:
+        """An open PR into release/m1 whose head is on origin (GitHub's merge needs its commits there)."""
+        branch = self.task(number, files)
+        self.repo.push(branch)
+        return branch
+
+    def release_moves_on_github(self) -> str:
+        """Another PR merged on GitHub: a commit on the remote's release/m1 that this checkout has not fetched."""
+        remote = self.repo.tmp / "remote.git"
+        tip = _git(remote, "rev-parse", "refs/heads/release/m1")
+        tree = _git(remote, "rev-parse", f"{tip}^{{tree}}")
+        commit = _git(remote, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", tree, "-p", tip,
+                      "-m", "another merge")  # fmt: skip
+        _git(remote, "update-ref", "refs/heads/release/m1", commit, tip)
+        return commit
+
+    def test_a_release_merge_goes_through_github_with_no_local_verify(self) -> None:
+        branch = self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
         tip = self.repo.remote("release/m1")
         self.assertEqual(merge.merge(7, base="release/m1"), 0)
+        oid = self.gh.prs[7]["headRefOid"]
+        self.assertEqual(self.gh.merges, [("pr", "merge", "7", "--merge", "--match-head-commit", oid)])
         merged = self.repo.remote("release/m1")
-        parents = _git(self.repo.tmp / "remote.git", "log", "-1", "--format=%P", merged).split()
-        self.assertEqual(parents, [tip, self.gh.prs[7]["headRefOid"]])
-        message = _git(self.repo.tmp / "remote.git", "log", "-1", "--format=%B", merged)
-        self.assertEqual(message, f"Merge pull request #7 from owner/{branch}\n\nfeat: task 7")
-        self.assertIn("core/a.gd", self.verified[0])
-        self.assertEqual(self.scratch_left(), [])
-        self.assertEqual(self.user_dirs_left(), [])
-        self.assertTrue(self.printed[-1].startswith(f"wave: merged #7 ({branch}) into release/m1 as {merged[:12]}"))
+        remote = self.repo.tmp / "remote.git"
+        self.assertEqual(_git(remote, "log", "-1", "--format=%P", merged).split(), [tip, oid])
+        self.assertEqual(_git(remote, "log", "-1", "--format=%B", merged),
+                         f"Merge pull request #7 from owner/{branch}\n\nfeat: task 7")  # fmt: skip
+        self.assertEqual((self.verified, self.scratch_left(), self.user_dirs), ([], [], []))  # CI tests the push
+        self.assertEqual(_git(self.repo.work, "rev-parse", "origin/release/m1"), merged)  # fetched afterwards
+        self.assertTrue(self.printed[-1].startswith(f"wave: merged #7 ({branch}) into release/m1 as {merged[:12]}"
+                                                    " through GitHub; gate: CI green on an up-to-date head"),
+                        self.printed[-1])  # fmt: skip
 
-    def test_a_failed_gh_after_the_push_still_exits_0_with_the_wave_line(self) -> None:
-        self.task(7, {"core/a.gd": "extends Node\n"})
+    def test_a_gh_that_fails_after_the_merge_still_exits_0_with_the_wave_line(self) -> None:
+        self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
         tip = self.repo.remote("release/m1")
         real = self.gh.__call__
 
@@ -843,27 +862,51 @@ class CommandTest(MergeCase):
         self.assertTrue(any("does not show #7 merged yet" in line for line in self.printed))
         self.assertTrue(self.printed[-1].startswith("wave: merged #7"))
 
-    def test_a_red_verify_pushes_nothing(self) -> None:
-        self.task(7, {"core/a.gd": "extends Node\n"})
-        tip = self.repo.remote("release/m1")
-        self.verify_rc = 1
-        with self.assertRaises(Failure) as caught:
-            merge.merge(7, base="release/m1")
-        self.assertIn("nothing was pushed", str(caught.exception))
-        self.assertIn("merge-logs/merge-7", str(caught.exception))
-        reports = {"logs/merge-7.log": "merge-7: 1\n", "gdunit/results.xml": "merge-7: 1\n"}
-        self.assertEqual(self.kept("merge-7"), reports)
-        self.assertEqual((self.repo.remote("release/m1"), len(self.verified)), (tip, 1))
-        self.assertEqual(self.scratch_left(), [])
+    def test_a_head_behind_the_release_branch_is_refused_with_the_reason(self) -> None:
+        # CI tested the head's own tree; with release/m1 moved on, the tree that would land was never tested.
+        self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
+        moved = self.release_moves_on_github()
+        for dry_run in (True, False):
+            with self.subTest(dry_run=dry_run), self.assertRaises(Failure) as caught:
+                merge.merge(7, base="release/m1", dry_run=dry_run)
+            self.assertIn(f"#7 is behind release/m1 (origin/release/m1 {moved[:10]} is not in its head, so CI did "
+                          "not test the tree that would land): rebase it with publish", str(caught.exception))  # fmt: skip
+            self.assertIn("Nothing was changed", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.gh.merges, self.verified), (moved, [], []))
 
-    def test_a_conflict_pushes_nothing(self) -> None:
-        self.task(7, {"core/a.gd": "extends Node\n"})
-        self.repo.commit({"core/a.gd": "extends Object\n"}, "release moved")
-        self.repo.push("main:release/m1")
+    def test_a_head_that_contains_the_release_tip_is_not_behind(self) -> None:
+        # The tip moved first and the task was cut from it: up to date.
+        moved = self.release_moves_on_github()
+        _git(self.repo.work, "fetch", "-q", "origin")
+        branch = self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
+        self.assertTrue(merge._is_ancestor(moved, self.gh.prs[7]["headRefOid"]))
+        self.assertEqual(merge.merge(7, base="release/m1", dry_run=True), 0)
+        self.assertIn("gate: #7 would merge into release/m1 through GitHub", self.printed[-1])
+        self.assertEqual(merge.merge(7, base="release/m1"), 0)
+        self.assertIn(f"({branch}) into release/m1", self.printed[-1])
+
+    def test_a_release_moving_after_the_gate_refuses_the_merge(self) -> None:
+        self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
+        real, moved = merge.fetch, []
+
+        def fetch_then_release_moves() -> None:
+            real()
+            if not moved:  # the gate's fetch saw the tip; GitHub merges another PR right after it
+                moved.append(self.release_moves_on_github())
+
+        with mock.patch.object(merge, "fetch", fetch_then_release_moves), self.assertRaises(Failure) as caught:
+            merge.merge(7, base="release/m1")
+        self.assertIn("origin/release/m1 moved since the fetch", str(caught.exception))
+        self.assertIn("Nothing was merged", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.gh.merges), (moved[0], []))
+
+    def test_a_refused_github_merge_into_a_release_branch_changes_nothing(self) -> None:
+        self.pr_into_release(7, {"core/a.gd": "extends Node\n"})
         tip = self.repo.remote("release/m1")
+        self.gh.merge_rc = 1
         with self.assertRaises(Failure) as caught:
             merge.merge(7, base="release/m1")
-        self.assertIn("does not merge cleanly: core/a.gd", str(caught.exception))
+        self.assertIn("GitHub refused the merge of #7", str(caught.exception))
         self.assertEqual((self.repo.remote("release/m1"), self.verified), (tip, []))
 
     def test_an_already_merged_pr_is_only_fetched(self) -> None:
@@ -951,6 +994,7 @@ class CommandTest(MergeCase):
         self.assertEqual(self.verified, [])
 
     def test_sync_main_merges_main_into_the_release_branch(self) -> None:
+        self.repo.install_hook()  # the push by hash goes through the real pre-push hook (a fast-forward it allows)
         self.assertEqual(merge.merge(None, base="release/m1", sync_main=True), 0)
         self.assertIn("already has main", self.printed[-1])
         main = self.repo.commit({"tools/x.py": "X = 1\n"}, "main moves")
@@ -961,13 +1005,24 @@ class CommandTest(MergeCase):
         self.assertEqual(_git(self.repo.tmp / "remote.git", "log", "-1", "--format=%P", merged).split(), [tip, main])
         self.assertEqual(_git(self.repo.tmp / "remote.git", "log", "-1", "--format=%s", merged),
                          "Merge branch 'main' into release/m1")  # fmt: skip
-        self.assertIn("tools/x.py", self.verified[0])
-        self.verify_rc = 1
-        self.repo.commit({"tools/y.py": "Y = 1\n"}, "main moves again")
+        self.assertEqual((self.verified, self.scratch_left(), self.user_dirs), ([], [], []))  # no local verify (#622)
+        self.assertTrue(self.printed[-1].startswith(f"wave: merged main ({main[:12]}) into release/m1 as {merged[:12]}"))
+        self.assertIn("no local verify", self.printed[-1])
+        self.assertIn("tools/x.py", _git(self.repo.work, "ls-tree", "-r", "--name-only", merged))
+
+    def test_a_sync_main_conflict_pushes_nothing(self) -> None:
+        self.repo.install_hook()
+        _git(self.repo.work, "switch", "-q", "release/m1")
+        self.repo.commit({"core/a.gd": "extends Node\nvar a = 1\n"}, "release edits a")
+        self.repo.push("release/m1")
+        tip = self.repo.remote("release/m1")
+        _git(self.repo.work, "switch", "-q", "main")
+        self.repo.commit({"core/a.gd": "extends Node\nvar a = 2\n"}, "main edits a")
         self.repo.push("main")
-        with self.assertRaises(Failure):
+        with self.assertRaises(Failure) as caught:
             merge.merge(None, base="release/m1", sync_main=True)
-        self.assertEqual(self.repo.remote("release/m1"), merged)
+        self.assertIn("does not merge cleanly", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.verified, self.scratch_left()), (tip, [], []))
 
     def test_a_release_dry_run_merges_nothing_even_from_a_task_checkout(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
