@@ -1652,7 +1652,8 @@ replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on
 (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
 malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
 forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
-class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
+class 4 (the hostile picked up a knife resting far away); `Throw` taken in Round from the living by
+`ChaosOracle.ACCEPTS` failed class 4 naming Throw (seed 188001, #644). Tests: `tests/unit/net/transport/
 chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
 `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
 claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, a
@@ -1664,8 +1665,8 @@ a join lost for good fails at once naming its reason, a join that found no room 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
 The C→H kinds 1 to 13, 15 and 112 (`Throw`'s facing from `ChaosFrames.THROW_FACINGS`: a unit vector, zero, a
 1e-30 vector and a 1e38 vector, each refused `not_accepted` in every phase until the base mode's rule, 37f (#646),
-adds its `ChaosOracle.ACCEPTS` row; non-finite facings are the codec's, class 1, #644;
-kind 14, `MoveClaimReliable`, has none either: `host_session_claim_twin_test`
+adds its `ChaosOracle.ACCEPTS` row; non-finite facings are the codec's, class 1, #644),
+kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
 covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
 `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 23, 26, 31, 75, 76, 80, 95, 97, 111,
 113, 127, 128, 200, 255). A new intent gets its refusals in
