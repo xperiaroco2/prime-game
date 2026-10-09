@@ -59,6 +59,12 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
   and on a `client/ui/` diff the netcode review and `test_review` (the `!LIGHT` guards; `tier_skipped` then lists
   `netcode_review`). `test_review` and `second_review` count as dropped whenever passed: compare tiers in `metrics` by
   the skeptic and the plan. `ReviewTierTest` covers it.
+- issue-task's `checkpoint` (#559, launch-args.md) fires mechanically (#597): the implementer runs `tools/run.sh ctx
+  --at 150000 --hard 200000` every ~15 tool calls and after each verify. `ctx` reads the caller's own transcript
+  (the newest whose prompt names the worktree) and prints its last API call's context, then HANDOFF NOW at 150k;
+  past 200k, "only the final verify left" no longer lets it finish. The 60-call backstop holds whatever `ctx`
+  printed. The compact result has `checkpoint: true` and `handoffs` (0 too) when on, neither when off. `CheckpointTest` and
+  `test_ctx.py` cover it.
 - `tools\run.cmd metrics` and `wave` read each agent's role from its label (`metrics.role_of`): `implement:#<n>`,
   `review:code:#<n>` and the like, with a suffix `#<k>` for a later agent of the same role (issue-task's checkpoint
   continuations, `implement:#<n>#2`; pr-rebase's `fix:#<n>#2`). A suffix `:<k>` makes the label unknown ("other").

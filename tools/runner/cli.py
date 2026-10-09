@@ -165,6 +165,22 @@ def build_parser() -> argparse.ArgumentParser:
         "all (default): both, then the count check",
     )
     p = sub.add_parser(
+        "ctx",
+        help="the calling agent's own context now, from its transcript; HANDOFF NOW at or past --at (issue-task's "
+        "checkpoint); 2: no transcript found",
+        description="Print the calling agent's own context now: the tokens of its last API call, read from its "
+        "Claude Code transcript (the newest one of the last 6 hours whose task prompt names this checkout's folder), "
+        "then HANDOFF NOW at or past --at, and past --hard that the 'only the final verify left' exception is off. "
+        "issue-task's checkpoint (#559, #597) tells the implementer to run it every ~15 tool calls and after each "
+        "verify. Exit 0; 2 with a 'ctx: no transcript' line: none found (count tool calls instead).",
+    )
+    p.add_argument("--at", type=int, default=150000, metavar="N", help="hand over at or past N tokens (150000)")
+    p.add_argument(
+        "--hard", type=int, default=200000, metavar="N", help="past N, hand over even when only the final verify is "
+        "left (200000)"
+    )
+    p.add_argument("--transcript", metavar="PATH", help="read this transcript instead of finding the caller's")
+    p = sub.add_parser(
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
         "else 124 (still running); 2: no log",
@@ -732,6 +748,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import verify
 
             return verify.selftest(args.group)
+        if args.command == "ctx":
+            from . import ctx
+
+            return ctx.main(at=args.at, hard=args.hard, transcript=args.transcript)
         if args.command == "wait":
             from . import wait
 
