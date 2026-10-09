@@ -2165,8 +2165,8 @@ time may read it, and exports leave it out), stale ones are removed, and `client
 pack's `assets` list (its icons and card art) also lands byte for byte in `assets/ui/toy_pack/`, which Godot imports
 (#520, `docs/ARCHITECTURE.md` §4.7.34): the PNGs through LFS, each SVG's `.import` with the pack's `svg_scale` (a
 minimal file where none exists, else only that line changed); commit the `.import` files the next import writes. A
-binary outside the `assets` list (a font, later) is not landed and is listed under `deferred`. With no tag, or `--check`, it verifies the pinned copy offline (each file against
-the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
+binary outside the `assets` list (a font, later) is not landed and is listed under `deferred`. With no tag, or `--check`, it
+verifies the pinned copy offline (each file against the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
 assets' sha256, nothing deferred on disk; the imported copy against `imported`, an LFS pointer file by its oid, each
 SVG's scale, no pack asset left out); a tag already pinned and intact is not fetched again unless `--force`. A
 runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.

@@ -2484,8 +2484,8 @@ Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), ame
 (`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
 `check.run_import` keeps the LFS pointer files from Godot's import (`lfs.aside`), whose import of one fails and
 rewrites its `.import` file. Each pointer file goes into `tools/out/lfs-aside/` (behind a `.gdignore`); a type with a
-stand-in (`lfs.STAND_INS`: PNG, JPEG, WebP, BMP, TGA, WAV, glTF, GLB, OBJ, and since #520 TTF and OTF) gets a minimal valid file of its type in
-its place under its committed `.import` file, so Godot writes the imported file every use of the asset loads (later
+stand-in (`lfs.STAND_INS`: PNG, JPEG, WebP, BMP, TGA, WAV, glTF, GLB, OBJ, and since #520 TTF and OTF) gets a
+minimal valid file of its type in its place under its committed `.import` file, so Godot writes the imported file every use of the asset loads (later
 steps too); a type without one has its `.import` moved too. All of it goes back afterwards as it was, even when the
 import fails. `check`'s project check then drops the lines that name a hidden pointer file, its imported file or a
 script that failed to load because of one (`lfs.drop_lines`), in one `skip` line with the counts; the credits check
