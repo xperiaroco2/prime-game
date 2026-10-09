@@ -10,9 +10,17 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - Small files mean two people rarely touch the same scene. Scenes are single-owner: never edit a scene that someone
   else has an open PR on.
 - Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
-- The folder layout inside `levels/` and the piece conventions are decided by the engineer when level work starts
-  (M4); skill `new-level-piece` then encodes them.
-- Greybox with CSG and CC0 low-poly packs. Stylized low-poly, no texture-heavy art.
+- **Conventions** ([ADR](../docs/decisions/2026-10-09-level-piece-conventions.md), #607):
+  - folders: `<map>/<map>.tscn` (only places pieces), `<map>/rooms/`, `stations/` (reusable on any map),
+    `props/`, `kit/` (wrappers of the art kit's GLBs); `lobby/` and `greybox/` stay;
+  - one grid with the art kit: whole metres, 2 m and 1 m wall modules, 3.2 m floor to floor (Y -3.2, 0, 3.2; an
+    attic at 6.4 with 2.2 m knee walls), doors 1.4 x 2.15 m;
+  - a room's origin is its north-west floor corner; the map places it at its design doc's (x, level height, y),
+    plan x = X, plan y = Z, no rotation;
+  - a room declares `metadata/size_m = Vector2i(w, d)`, its door openings as `Marker3D` children of `Doors`, its
+    stations as instanced station scenes; a test checks the map against the design doc's room table.
+- Greybox with CSG and one shared neutral material until the art kit lands; the kit's GLBs then replace the CSG
+  inside the same piece. The look comes from the art track (xperiaroco2/prime-game-art).
 - **Collision** ([D2](../docs/decisions/2026-09-30-wire-format-and-host-session.md)): `StaticBody3D` nodes with
   `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only. The host refuses a level with CSG or
   `GridMap` collision, a `CollisionPolygon3D`, a `RigidBody3D` or `CharacterBody3D` on layer 1, or no layer-1

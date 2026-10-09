@@ -16,11 +16,12 @@ Read `levels/CLAUDE.md` and `.claude/rules/godot-resources.md` first. The engine
 optional designer may ask too, and then his PR goes to the engineer. "The human" below is whoever asked. Talk in
 the human's language.
 
-1. **Conventions come first.** The folder layout inside `levels/` and the piece conventions are decided by the
-   engineer when level work starts (M4), then written here. Until this section lists them, stop and say so: offer
-   to list the questions (folders, names, units and scale, the origin of a piece, collision, how interactables and
-   stations attach, greybox materials) with options for the engineer to choose. Do not invent a layout.
-   <!-- The agreed conventions go here (the engineer decides them). -->
+1. **Conventions come first:** `docs/decisions/2026-10-09-level-piece-conventions.md` (#607), summarised in
+   `levels/CLAUDE.md`. Put the piece in its folder (`<map>/rooms/`, `stations/`, `props/`, `kit/`); keep the grid
+   (whole metres, 3.2 m floor to floor, 1.4 x 2.15 m doors); a room's origin is its north-west floor corner, with
+   `metadata/size_m` and a `Doors` node of `Marker3D` openings; a map takes each room's position from its design
+   doc (`docs/design/`). A room the design doc does not list, or a size it does not give, is the engineer's to
+   decide: stop and ask, never invent one.
 2. **A task.** The piece has an issue (`start-task` first). Scenes are single-owner:
    `gh pr list --state open --json number,author,files`; if another human's open PR changes this scene, stop.
 3. **Save first.** Before writing, ask the human to Save All Scenes (Ctrl+Shift+Alt+S, «Зберегти всі сцени») and
