@@ -29,7 +29,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order. A
   `circle` marker is snapped down to the floor below it when read (its cylinder starts there); one with no floor
-  below is a load error.
+  below is a load error. The bot scenarios read every map through a flat fake (floor at y = 0, ARCHITECTURE §9.7):
+  on a map with several levels no `circle` below y = 0 and no two markers of different tags at one (x, z).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).

@@ -4290,7 +4290,12 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
     declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
     error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat, marker-only
-    lobby and map (§9.6). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
+    lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, its first
+    map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
+    four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
+    still read every map's markers through the flat fake, so those maps must read there without an error: no
+    delivery circle below y = 0 (it would find no floor) and no two markers of different tags at one (x, z) (the
+    fake puts every circle at y = 0). `content_modes_test.gd` reads them so. One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.
