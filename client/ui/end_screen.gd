@@ -1,6 +1,6 @@
 class_name EndScreen
 extends Control
-## The post game screen (ARCHITECTURE §4.7.30, §3.2): the black outro of about 3 s, built node for
+## The post game screen (ARCHITECTURE §4.7.31, §3.2): the black outro of about 3 s, built node for
 ## node as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-0.4.0, #498).
 ## Night fades in when End starts; on it `V`: "End of the round", the winning team (on the title
 ## plate when the own team won, plain text when it lost), why the round ended, and the seconds

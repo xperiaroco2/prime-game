@@ -1807,7 +1807,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
-| End | post game screen (#498, §4.7.30): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
+| End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | main menu with the reason in words | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
@@ -1828,7 +1828,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
-- **The end screen** (the post game screen, §4.7.30) shows the winning side's deck line, on the title plate when the
+- **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
   (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
   #212: End returns everyone by itself).
@@ -4162,7 +4162,7 @@ phase classes come in the task each row names.
 - **`Transition`**: from phase, outcome, to phase, and its actions (effects) in order, which see the outcome and its
   argument (`EndMatch` reads the side of `won`).
 - **`GameMode`**: players (minimum, maximum); its match settings; `PlayerRules` (health, stamina, speeds, capsule);
-  its sides (`SideSpec`: id and display name; `MatchEnded` names the winner's id, which the end screen shows as a deck line, §4.7.30); its roles; its item kinds; the
+  its sides (`SideSpec`: id and display name; `MatchEnded` names the winner's id, which the end screen shows as a deck line, §4.7.31); its roles; its item kinds; the
   lobby level and the maps (paths that `server/` loads); its actions and reactions; its task types and win
   conditions, in order; its phases, the first phase and the transitions. Validation (§9.1) refuses a role, side or
   item kind that a part names and these lists lack.
