@@ -97,20 +97,32 @@ def shown(path: Path) -> str:
         return path.as_posix()
 
 
-def cap_lines(lines: list[str], cap: int, more: str) -> list[str]:
-    """The lines that fit in `cap` bytes (each cut at LINE_CAP characters); when some are left out, one last line says
-    how many and ends with `more`."""
+def cut_line(line: str) -> str:
+    return line if len(line) <= LINE_CAP else line[:LINE_CAP] + " ..."
+
+
+def line_bytes(lines: list[str]) -> int:
+    return sum(len(line.encode("utf-8", errors="replace")) + 1 for line in lines)
+
+
+def cap_lines(lines: list[str], cap: int, more: str, keep_end: int = 0) -> list[str]:
+    """The lines that fit in `cap` bytes (each cut at LINE_CAP characters); when some are left out, one line says how
+    many and ends with `more`. The last `keep_end` lines always print (an outcome line comes last: publish's push,
+    a merge-train's count), so the cut falls in the middle and the cap counts them first."""
+    tail = [cut_line(line) for line in lines[len(lines) - keep_end :]] if 0 < keep_end else []
+    head = lines[: len(lines) - len(tail)]
+    budget = cap - line_bytes(tail)
     kept: list[str] = []
     used = 0
-    for index, line in enumerate(lines):
-        line = line if len(line) <= LINE_CAP else line[:LINE_CAP] + " ..."
-        size = len(line.encode("utf-8", errors="replace")) + 1
-        if used + size > cap:
-            kept.append(f"  ... {len(lines) - index} more lines; {more}")
+    for index, line in enumerate(head):
+        line = cut_line(line)
+        size = line_bytes([line])
+        if used + size > budget:
+            kept.append(f"  ... {len(head) - index} more lines; {more}")
             break
         kept.append(line)
         used += size
-    return kept
+    return kept + tail
 
 
 def success_lines(lines: list[str], bulk: re.Pattern[str] | None) -> list[str]:

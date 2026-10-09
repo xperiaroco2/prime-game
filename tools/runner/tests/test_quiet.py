@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import check, cli, common, lint, verify, wait
+from runner import check, cli, common, lint, metrics, verify, wait
 
 GREEN_LINT = [
     "lint",
@@ -110,6 +110,15 @@ class QuietTest(unittest.TestCase):
         self.assertNotIn("more lines;", out)  # nothing cut by the cap
         self.assertEqual(self.log("check").count("res://client/a.gd"), 40)
 
+    def test_cap_lines_can_keep_its_last_lines_and_cut_the_middle(self) -> None:
+        lines = [f"line {n} " + "x" * 90 for n in range(50)] + ["the outcome"]
+        kept = common.cap_lines(lines, 1000, "see the log", keep_end=1)
+        self.assertEqual(kept[0], lines[0])
+        self.assertRegex(kept[-2], r"^  \.\.\. \d+ more lines; see the log$")
+        self.assertEqual(kept[-1], "the outcome")
+        self.assertLessEqual(common.line_bytes(kept), 1000 + 60)
+        self.assertEqual(common.cap_lines(lines[:3], 1000, "see the log", keep_end=1), lines[:3])
+
     def test_a_very_long_line_is_cut(self) -> None:
         _, out = printed(common.quiet, "lint", self.body(["lint", "  FAIL  " + "q" * 5000, "lint: FAILED"], 1))
         self.assertLess(len(out), 1000)
@@ -196,8 +205,34 @@ class QuietWaitTest(unittest.TestCase):
         rc, out = self.wait(summary + ["verify: passed in 1.0s", "exit=0"])
         self.assertEqual(rc, 0)
         self.assertLessEqual(len("\n".join(out[:-1]).encode()), common.SUCCESS_CAP + 200)
-        self.assertRegex(out[-2], r"\.\.\. \d+ more lines; whole log: .*verify-1\.log")
+        self.assertRegex(out[-3], r"\.\.\. \d+ more lines; whole log: .*verify-1\.log")
+        self.assertEqual(out[-2], "verify: passed in 1.0s")  # the cut is in the middle: the end line stays
         self.assertRegex(out[-1], r"^wait: verify-1\.log finished: exit=0 \(whole log: .*verify-1\.log\)$")
+
+    def test_a_green_publish_keeps_its_verify_block_and_its_push_lines_after_it(self) -> None:
+        rows = [f"  passed  step{n:<12} {n}.0s" for n in range(30)]
+        block = ["verify summary", *rows, "  lanes: python 1.0s, godot 2.0s; 16 CPUs", "verify: passed in 3.0s"]
+        push = [
+            "publish: verify runs: a new tree",
+            *[f"        remote: line {n} of the push " + "r" * 40 for n in range(8)],
+            "  ok    pushed tooling/590-x at 0123456789 (new)",
+            "publish: done",
+        ]
+        self.assertGreater(len("\n".join(block + push).encode()), common.SUCCESS_CAP)
+        rc, out = self.wait(["== doctor", *block, *push, "exit=0"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out[: len(block)], block)  # whole, for metrics.parse_verify
+        self.assertEqual(out[-3:-1], ["  ok    pushed tooling/590-x at 0123456789 (new)", "publish: done"])
+        self.assertIsNotNone(metrics.parse_verify("\n".join(out)))
+
+    def test_a_summary_without_a_verify_end_line_keeps_its_last_lines(self) -> None:
+        summary = ["merge-train summary", *[f"  merged  #{n} " + "m" * 80 for n in range(30)]]
+        rc, out = self.wait([*summary, "merge-train: 30 merged, 0 skipped of 30 PRs", "exit=0"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out[0], "merge-train summary")
+        self.assertTrue(any("more lines; whole log:" in line for line in out))
+        self.assertEqual(out[-2], "merge-train: 30 merged, 0 skipped of 30 PRs")
+        self.assertLessEqual(len("\n".join(out[:-1]).encode()), common.SUCCESS_CAP + 200)
 
     def test_a_red_log_adds_the_first_failing_lines_before_its_summary_under_4_kb(self) -> None:
         body = ["== lint (python lane, 4.1s, FAILED)", "lint", "  FAIL  net/a.gd:3: bad name", "  ok    gdlint"]

@@ -41,7 +41,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import suspend
-from .common import FAILURE_CAP, SUCCESS_CAP, cap_lines, say
+from .common import FAILURE_CAP, SUCCESS_CAP, cap_lines, line_bytes, say
 
 # A poll every 3 minutes keeps a 5-minute cache warm (#555): over 212 calls that ran to their deadline (2026-10-06 to
 # 10-08, `metrics`), the gap to the agent's next API call exceeded wait's own clock by 6 s median, AROUND_P95 at p95
@@ -63,6 +63,12 @@ EXIT_LINE = re.compile(r"^exit=(\d+)$")
 # Quiet by default (#590): what a red job's log says before its summary, the first few lines that name a failure.
 FAILING_LINE = re.compile(r"^\s*(FAIL|ERROR)\b|Traceback|AssertionError|\bFAILED\b")
 FAILING_SHOWN = 12
+# The end line of a verify summary block: what follows it in a publish log (git push's lines, "ok pushed", "publish:
+# done") is the outcome the agent waits for, capped on its own so the block stays whole for `metrics` (parse_verify).
+VERIFY_END_LINE = re.compile(r"^verify: (passed|FAILED)\b")
+AFTER_CAP = 1500
+# The last lines a summary without a verify end line always keeps (a merge-train's count, the end of a mutants run).
+END_LINES = 6
 # How old a passed verify may be for `publish` to push on it instead of verifying again (#471): a verify that ran two
 # hours before the push tested the same bytes, but the PC (Godot, the pins, the other worktrees' load) may have moved.
 REUSE_MAX_AGE = timedelta(hours=2)
@@ -126,13 +132,20 @@ def failing_lines(lines: list[str]) -> list[str]:
 
 def quiet_report(lines: list[str], code: int, whole: str) -> list[str]:
     """What a finished job prints by default (#590): its summary, at most SUCCESS_CAP bytes when it passed; when it
-    failed at most FAILURE_CAP, the summary and then the first failing lines of its log. A line over the cap is cut and
-    the last line says how many are left out; `whole` (the log's path) closes it."""
+    failed at most FAILURE_CAP, the summary and then the first failing lines of its log. Lines over the cap are cut
+    from the middle (a line says how many, with `whole`, the log's path): the verify end line and the last lines
+    always print, and the lines after a verify block (publish's push) have their own AFTER_CAP."""
     cap = SUCCESS_CAP if code == 0 else FAILURE_CAP
     more = f"whole log: {whole}"
-    report = cap_lines(summary_lines(lines), cap, more)
+    summary = summary_lines(lines)
+    ends = [i for i, line in enumerate(summary) if VERIFY_END_LINE.match(line)]
+    if ends:
+        block, after = summary[: ends[-1] + 1], summary[ends[-1] + 1 :]
+        report = cap_lines(block, cap, more, keep_end=1) + cap_lines(after, AFTER_CAP, more, keep_end=3)
+    else:
+        report = cap_lines(summary, cap, more, keep_end=END_LINES)
     if code != 0:
-        used = sum(len(line.encode("utf-8", errors="replace")) + 1 for line in report)
+        used = line_bytes(report)
         failing = failing_lines(lines)
         if failing and cap - used > 200:
             report += ["first failing lines of the log (search it for the rest):"]
