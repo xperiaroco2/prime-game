@@ -87,16 +87,31 @@ func test_each_zone_stands_on_flat_floor_clear_of_walls_and_ceilings() -> void:
 		)
 
 
-func test_the_clearance_check_refuses_a_zone_by_a_wall_or_over_the_stairs() -> void:
-	# The check above can fail: a zone pressed to the landing's west wall, and one over the main
-	# stairs' well (docs/design/house-map.md §5: they reach the landing at x 28, y 33).
+func test_the_clearance_check_refuses_a_zone_by_a_wall_a_ceiling_or_over_the_stairs() -> void:
+	# The check above can fail: a zone pressed to the landing's west wall, one over the main
+	# stairs' well (docs/design/house-map.md §5: they reach the landing at x 28, y 33) and one in
+	# the attic, whose ceiling (2.2 m over its floor) is lower than the zone's cylinder.
 	var zone := Spacing.zone_task(_base_mode()).zone
 	var level := LevelWorld.build(MAP)
 	var world := _world(level)
 	var by_wall := world.floor_below(Vector3(26.5, 4.2, 41))
+	_assert_floor_found(by_wall, "by the wall")
 	assert_int(_hits(level, by_wall, zone)).is_greater(0)
 	var over_stairs := world.floor_below(Vector3(29.5, 4.2, 35))
+	_assert_floor_found(over_stairs, "over the stairs")
 	assert_float(_floor_step(world, over_stairs, zone.radius_m)).is_greater(FLAT_M)
+	var under_ceiling := world.floor_below(Vector3(30, 7.4, 35))
+	_assert_floor_found(under_ceiling, "under the attic's ceiling")
+	assert_int(_hits(level, under_ceiling, zone)).is_greater(0)
+
+
+## A refusal case whose probe found no floor would pass for the wrong reason (NO_FLOOR is INF).
+func _assert_floor_found(floor_point: Vector3, case_name: String) -> void:
+	(
+		assert_bool(floor_point != WorldQuery.NO_FLOOR)
+		. override_failure_message("no floor found for the refusal case %s" % case_name)
+		. is_true()
+	)
 
 
 ## How many collision shapes on the world layer the zone's cylinder at `at` (its snapped floor
