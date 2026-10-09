@@ -4760,7 +4760,8 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   change that raised no fact.
 - **Outcomes** come from phase classes, win conditions and `ReportOutcome`; the first in a step wins (§3.1). An
   outcome and its argument reach no peer: `PhaseChanged` names only the new phase, and only an event that a
-  transition action emits can carry the argument (`EndMatch`: the side of `won`), with that event's audience.
+  transition action emits can carry the argument (`EndMatch`: the side of `won`, and the id of the win condition
+  that reported it as the reason, #548), with that event's audience.
 - **Events and who sees them.** An effect emits event classes (§4.2), and each event class declares its audience,
   evaluated at emission (§5). Neither the data nor an effect chooses recipients: a mechanic that needs a new audience
   needs a new event class, which is an engine request. Each part lists every event it can emit, so reviewing a part
