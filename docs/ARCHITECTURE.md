@@ -4384,7 +4384,8 @@ Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), 
 `MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
 provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.24).
 Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
-every map of the base mode), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
+every map of the base mode, each read in the host's collision world since #681, and the flat fake shown hiding a spawn
+point beside an upstairs zone), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
 `dissident_works_a_zone_alone` (§9.7), `tests/unit/tasks/zone_deal_test.gd`
 (the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
 and a slow claimer's, the clock's
