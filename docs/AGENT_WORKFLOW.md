@@ -1753,8 +1753,9 @@ rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on 
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
 `tools/out/gdunit/`. `lint`, `check` and `wait` are quiet by default (#590): a summary when green, a capped
 excerpt with the exit code and the log's path when red (`lint` and `check` keep their whole output in
-`tools/out/logs/<command>-output.log`, `wait` points to the job's own log; `--verbose` prints today's output); read a
-log by search (grep the failing test), never whole. Outside a Claude Code session (a human's PowerShell) the runner
+`tools/out/logs/<command>-output.log`, written as it runs, `wait` points to the job's own log; `--verbose` prints the
+whole output; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch
+changes always print); read a log by search (grep the failing test), never whole. Outside a Claude Code session (a human's PowerShell) the runner
 takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
