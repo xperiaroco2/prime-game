@@ -2171,7 +2171,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
   id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
-  and hint under it. **Superseded by #253** (§4.7.31): the map and tasks screen `MapScreen`, opened and closed on M
+  and hint under it. **Superseded by #253** (§4.7.33): the map and tasks screen `MapScreen`, opened and closed on M
   (the action `map`); Tab has no action. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
   variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
@@ -2933,6 +2933,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   connecting screen, `fail-no-room` and Back with the code kept, `fail-service` and Join directly). The look: a `shot`
   of each state in en and uk, default and large text, from `client/dev/screen_preview.gd` (`s3_state`, `language`,
   `large_text`) in the PR.
+
 #### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
 The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
 the designer, 2026-10-03, on #253). Its look is provisional (Toy variations already in the theme, no overrides);
@@ -4251,7 +4252,7 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253, the how-to card of #254 will); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.31) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253, the how-to card of #254 will); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |

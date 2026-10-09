@@ -1,6 +1,6 @@
 class_name MapData
 extends RefCounted
-## What the map screen draws of the level (#253, ARCHITECTURE §4.7.30): its rooms and, for each
+## What the map screen draws of the level (#253, ARCHITECTURE §4.7.33): its rooms and, for each
 ## task type, the rooms where its items may lie (the zones). Pure: read once from the level when it
 ## loads, from level data every client has, never from the model: no player, item or circle.
 ##

@@ -1,6 +1,6 @@
 class_name MapScreen
 extends Control
-## The map and tasks screen (#253, ARCHITECTURE §4.7.30), opened and closed with the `map` action
+## The map and tasks screen (#253, ARCHITECTURE §4.7.33), opened and closed with the `map` action
 ## (M) in the round, for the living, the downed and the dead alike; it replaced the hold-Tab task
 ## screen of M4-8. Left, the tasks: one row per task of the match (TaskState) with its type's name
 ## and its shared counter, no description, and a «?» that asks for the type's how-to card

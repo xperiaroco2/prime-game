@@ -9,7 +9,7 @@
   screen opens and closes on M (the action `map`; Tab has no action), shows each task's name and counter with no
   description, and a map of the level's rooms with the own place only and the rooms where a task type's items may
   lie (zones, from level data); never a player's, an item's, a circle's or a spawn point's position
-  (`ARCHITECTURE.md` §4.7.31). The row and item 4 below keep their text, with a note
+  (`ARCHITECTURE.md` §4.7.33). The row and item 4 below keep their text, with a note
 - **Amended by** [the M5 voice design](2026-10-02-m5-voice-integrated-with-the-rules.md)'s E40 (2026-10-02, confirmed
   by the engineer): E33's hearing range is measured from the ears, not the listener's camera; built in M5-5 (#219)
 - **Date:** 2026-10-01
