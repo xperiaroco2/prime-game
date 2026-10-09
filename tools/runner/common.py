@@ -77,8 +77,8 @@ def skip(text: str) -> None:
 # --- quiet output (#590, part of #572): a command an agent runs in a loop prints a summary, not its whole output -----
 # Agents carry every tool output on every later call. `quiet` runs a command's body with its output captured, writes
 # the whole of it to tools/out/logs/<name>-output.log, and prints on success at most SUCCESS_CAP bytes (the step lines
-# and the log's path) and on failure a capped excerpt (every line but the passed steps' ok lines, at most FAILURE_CAP
-# bytes), a footer with the exit code and the log's path. `--verbose` skips all of it.
+# and the log's path) and on failure a capped excerpt (every line but the passed steps' ok lines, bulk lines counted
+# after the first few, at most FAILURE_CAP bytes), a footer with the exit code and the log's path. `--verbose` skips all of it.
 SUCCESS_CAP = 1500
 FAILURE_CAP = 4000
 LINE_CAP = 400  # one printed line, in characters: a single Godot line can run to kilobytes
@@ -162,9 +162,11 @@ def quiet(name: str, body: Callable[[], int], verbose: bool = False, bulk: re.Pa
         say(f"  {where}")
         return rc
     body_lines = lines[1:] if lines and not lines[0].startswith(" ") else lines  # the command's own header line
+    # Bulk lines (script warnings) are counted here too: dozens of them ahead of a FAIL line would fill the cap and
+    # push the failure itself out of the excerpt.
     problems = [
         line
-        for line in body_lines
+        for line in success_lines(body_lines, bulk)
         if line.strip() and not line.startswith("  ok    ") and line != f"{name}: FAILED"  # the footer says it
     ]
     for line in cap_lines(problems, FAILURE_CAP, where):

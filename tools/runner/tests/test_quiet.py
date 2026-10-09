@@ -100,6 +100,16 @@ class QuietTest(unittest.TestCase):
         self.assertIn("lint: FAILED, exit=1", out)
         self.assertEqual(len(self.log("lint").splitlines()), 202)
 
+    def test_a_red_check_counts_its_script_warnings_so_a_later_fail_line_still_prints(self) -> None:
+        warnings = [SCRIPT_WARNING.format(n=n) for n in range(40)]
+        lines = ["check", *warnings, "  FAIL  res://tests/x.gd:1: Parse Error", "check: FAILED"]
+        rc, out = printed(common.quiet, "check", self.body(lines, 1), bulk=check.SCRIPT_WARNING)
+        self.assertEqual(rc, 1)
+        self.assertIn("  FAIL  res://tests/x.gd:1: Parse Error", out)
+        self.assertIn("... and 37 more of those lines (40 in all)", out)
+        self.assertNotIn("more lines;", out)  # nothing cut by the cap
+        self.assertEqual(self.log("check").count("res://client/a.gd"), 40)
+
     def test_a_very_long_line_is_cut(self) -> None:
         _, out = printed(common.quiet, "lint", self.body(["lint", "  FAIL  " + "q" * 5000, "lint: FAILED"], 1))
         self.assertLess(len(out), 1000)
