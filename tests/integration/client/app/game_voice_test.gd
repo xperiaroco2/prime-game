@@ -4,8 +4,10 @@ extends GdUnitTestSuite
 ## FakeMicrophone and settings in a file of its own. The settings apply at the start; the Esc
 ## menu's Voice tab shows them and its changes are saved; the talk key counts only without the
 ## menu; the lobby hints at the tab until a pick; a word into the client's microphone reaches the
-## host as a delivered frame; and a session's end leaves the sender with no session. Headless
-## runs open no microphone by themselves (VoiceControl.can_capture), so each test opens the fake.
+## host as a delivered frame; and a session's end leaves the sender with no session. The main
+## menu's Voice page (#301), before any session, saves a pick and opens it under the mark as the
+## tab does, and its meter runs while nothing is sent. Headless runs open no microphone by
+## themselves (VoiceControl.can_capture), so each test opens the fake.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7340
@@ -16,11 +18,17 @@ const PATHS: Array[String] = ["user://game_voice_test_1.cfg", "user://game_voice
 
 var _hub: LoopbackHub
 var _now := 1000000
+## The mark as the settings file held it each time the fake microphone opened.
+var _marks: Array[String] = []
+## The frames a test's own send callable was given.
+var _sent_frames := 0
 
 
 func before_test() -> void:
 	_hub = LoopbackHub.new()
 	_now = 1000000
+	_marks.clear()
+	_sent_frames = 0
 
 
 func after_test() -> void:
@@ -118,6 +126,74 @@ func test_a_word_into_the_clients_microphone_reaches_the_host() -> void:
 	assert_bool(client.sender().send.is_valid()).is_false()
 	host.leave()
 	await get_tree().process_frame
+
+
+func test_the_main_menus_voice_page_saves_a_pick_and_opens_it_under_the_mark() -> void:
+	var game := _game([], 0)
+	await get_tree().process_frame
+	assert_int(game.screen()).is_equal(S.MENU)
+	assert_object(game.client()).is_null()
+	var mic := game.sender().capture.microphone as FakeMicrophone
+	mic.on_open = func() -> void: _marks.append(_saved(0).opening)
+	game.voice_control().can_capture = true
+	# The menu's Voice entry shows the same panel class as the Esc tab, fed by the game.
+	(game.ui.menu.voice_button.face as Button).pressed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var panel := game.ui.menu.voice
+	assert_object(game.shown_voice_panel()).is_same(panel)
+	assert_bool(panel.is_visible_in_tree()).is_true()
+	assert_bool(panel.microphone_box.visible).is_true()
+	# The device list was read as the page opened: the fake's microphones (its first the Windows
+	# default) are there to pick.
+	assert_int(panel.device_button.item_count).is_equal(mic.names.size())
+	panel.device_picked.emit("Headset Microphone")
+	panel.mode_picked.emit(UserSettings.Mode.PUSH_TO_TALK)
+	# Opened as the Esc tab opens it: the mark in the file before the device opened.
+	assert_bool(game.sender().is_open()).is_true()
+	assert_str(mic.opened_device).is_equal("Headset Microphone")
+	assert_array(_marks).contains_exactly(["Headset Microphone"])
+	var back := _saved(0)
+	assert_str(back.device).is_equal("Headset Microphone")
+	assert_str(back.opening).is_equal("Headset Microphone")
+	assert_int(back.mode).is_equal(UserSettings.Mode.PUSH_TO_TALK)
+	assert_int(game.sender().gate.mode).is_equal(VoiceGate.Mode.PUSH_TO_TALK)
+	# The page shows the pick and the mode the next frame.
+	await get_tree().process_frame
+	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
+	assert_str(panel.device_button.get_item_text(panel.device_button.selected)).is_equal(
+		"Headset Microphone"
+	)
+
+
+func test_the_main_menus_meter_runs_with_no_session_and_nothing_is_sent() -> void:
+	var game := _game([], 1)
+	await get_tree().process_frame
+	_open_fake(game)
+	game.ui.menu.open_voice()
+	# No ClientSession: the sender has nowhere to send. A send of the test's own catches any frame
+	# the gate would let out with no session.
+	assert_object(game.client()).is_null()
+	assert_bool(game.sender().send.is_valid()).is_false()
+	game.sender().send = func(_frame: PackedByteArray) -> Error:
+		_sent_frames += 1
+		return OK
+	var mic := game.sender().capture.microphone as FakeMicrophone
+	mic.capture_chunks(10, 0.5)
+	var metered := func() -> bool:
+		return mic.frames_available() == 0 and game.ui.menu.voice.meter.value > 0.4
+	assert_bool(await _until(metered)).is_true()
+	assert_float(game.sender().peak).is_equal_approx(0.5, 0.01)
+	assert_bool(game.sender().gate.is_open()).is_false()
+	assert_int(_sent_frames).is_equal(0)
+	assert_int(game.sender().sent).is_equal(0)
+
+
+## The settings file PATHS[`which`] as written now.
+func _saved(which: int) -> UserSettings:
+	var saved := UserSettings.new(PATHS[which])
+	saved.read()
+	return saved
 
 
 ## A Game with the fake codec, a FakeMicrophone and the settings file PATHS[`which`], in its own

@@ -1,6 +1,7 @@
 class_name VoicePanel
 extends VBoxContainer
-## The Esc menu's Voice tab (the M5 ADR §1.7, D11, D15; in every screen with the Esc menu): the
+## The Voice settings (the M5 ADR §1.7, D11, D15): the Esc menu's Voice tab in every screen with
+## the Esc menu, and the main menu's Voice page before any session (#301), one instance each: the
 ## microphone (the Windows default, then each device; no Off entry: Off is a mode), the mode (voice
 ## activity, the default; push-to-talk with its key; Off), the voice-activity threshold with a live
 ## meter of the microphone's peak, RNNoise, the four volume sliders (Master, Voice, Effects, Music),

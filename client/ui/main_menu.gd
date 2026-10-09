@@ -2,8 +2,10 @@ class_name MainMenu
 extends Control
 ## The main menu (ARCHITECTURE §4.7; the M6 design §3 item 1): "Join with a code" (a field and
 ## Join), Host (a room with a code), "Direct (LAN or VPN)" (the host's address and port, Join, and
-## Host Direct over ENet, as before M6), Quit, and why the last session ended. The fields keep what
-## was typed when a join fails. Built in code; the game connects its signals.
+## Host Direct over ENet, as before M6), Voice, Quit, and why the last session ended. The fields
+## keep what was typed when a join fails. Voice (#301) swaps the menu's rows for the Voice page: the
+## same VoicePanel as the Esc menu's Voice tab, which the game feeds and listens to as it does that
+## tab's, and Back (or Esc). Built in code; the game connects its signals.
 
 signal code_join_requested(code: String)
 signal code_host_requested
@@ -17,12 +19,25 @@ var code_edit := LineEdit.new()
 var address_edit := LineEdit.new()
 var port_box := SpinBox.new()
 var reason_label := Label.new()
+## The menu's rows: hidden while the Voice page shows.
+var main_page := VBoxContainer.new()
+## The Voice page (#301): the panel in the Esc menu's page room, then Back.
+var voice_page := VBoxContainer.new()
+var voice := VoicePanel.new()
+## The menu's Voice entry and the page's Back, raised Toy buttons (their faces press).
+var voice_button := UiParts.button("Voice")
+var back_button := UiParts.button("common.back")
 
 
 func _init() -> void:
 	name = "MainMenu"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var column := UiParts.centered_column(self, "PrimeGame")
+	var page := UiParts.centered_column(self, "PrimeGame")
+	main_page.theme_type_variation = page.theme_type_variation
+	page.add_child(main_page)
+	_build_voice_page()
+	page.add_child(voice_page)
+	var column := main_page
 	column.add_child(UiParts.heading("Join with a code"))
 	code_edit.placeholder_text = "the code the host gave you"
 	code_edit.custom_minimum_size = Vector2(467, 0)
@@ -49,11 +64,14 @@ func _init() -> void:
 	)
 	buttons.add_child(UiParts.button("Host Direct", func() -> void: host_requested.emit(port())))
 	column.add_child(buttons)
+	(voice_button.face as Button).pressed.connect(open_voice)
+	column.add_child(voice_button)
 	column.add_child(UiParts.button("Quit", func() -> void: quit_requested.emit()))
 	reason_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reason_label.custom_minimum_size = Vector2(700, 0)
 	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(reason_label)
+	close_voice()
 
 
 func port() -> int:
@@ -64,6 +82,37 @@ func port() -> int:
 func set_reason(text: String) -> void:
 	reason_label.text = text
 	reason_label.visible = not text.is_empty()
+
+
+## Shows the Voice page instead of the menu's rows.
+func open_voice() -> void:
+	main_page.visible = false
+	voice_page.visible = true
+
+
+## Back to the menu's rows.
+func close_voice() -> void:
+	voice_page.visible = false
+	main_page.visible = true
+
+
+func voice_open() -> bool:
+	return voice_page.visible
+
+
+func _build_voice_page() -> void:
+	voice_page.theme_type_variation = main_page.theme_type_variation
+	var room := ScrollContainer.new()
+	room.custom_minimum_size = EscMenu.PAGE_SIZE
+	room.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	voice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	room.add_child(voice)
+	voice_page.add_child(room)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	(back_button.face as Button).pressed.connect(close_voice)
+	buttons.add_child(back_button)
+	voice_page.add_child(buttons)
 
 
 func _join_code() -> void:

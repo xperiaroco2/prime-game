@@ -2,8 +2,9 @@ class_name VoiceControl
 extends RefCounted
 ## The player's voice settings applied (the M5 ADR §1.1, §1.7, E36 as amended, E43, D11, D15):
 ## UserSettings to VoiceSender (which microphone is open, the mode, the threshold, RNNoise) and to
-## the buses (the four volumes); the Esc menu's Voice tab changes them through here, and each
-## change is written at once. The debug test tone and "mute this window" (E47) are never saved.
+## the buses (the four volumes); the Esc menu's Voice tab and the main menu's Voice page (#301)
+## change them through here, and each change is written at once. The debug test tone and "mute
+## this window" (E47) are never saved.
 ##
 ## Which microphone opens: none without the codec (voice unavailable), none in Off (Off closes
 ## only the own microphone; the others stay audible, the Voice slider silences them), none in a

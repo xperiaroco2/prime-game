@@ -35,7 +35,8 @@ extends Node
 ##
 ## Speaking (M5-6): `VoiceSender` sends the own microphone through the gate into the own session;
 ## `VoiceControl` applies this window's UserSettings (the microphone, the mode, the threshold,
-## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them; the lobby
+## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them, as does the
+## main menu's Voice page before any session (#301: the meter runs, nothing is sent); the lobby
 ## hints at the tab until a microphone is picked; F3 shows the own gate, peak, age and encode time.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
@@ -99,8 +100,9 @@ var _items := ItemWorld.new()
 var _voices := VoiceViews.new()
 var _sender := VoiceSender.new()
 var _voice_control: VoiceControl
-## The Esc menu showed the Voice tab last frame: the device list is read again when it opens.
-var _voice_tab_shown := false
+## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
+## is read again when one opens.
+var _voice_panel_shown := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -408,7 +410,13 @@ func _input(event: InputEvent) -> void:
 		_overlay.visible = not _overlay.visible
 		get_viewport().set_input_as_handled()
 		return
-	if _client == null or not event.is_action_pressed(&"ui_cancel"):
+	if not event.is_action_pressed(&"ui_cancel"):
+		return
+	if _client == null:
+		# The main menu's Voice page goes back to the menu (#301); no session has no Esc menu.
+		if screen() == GameFlow.Screen.MENU and ui.menu.voice_open():
+			ui.menu.close_voice()
+			get_viewport().set_input_as_handled()
 		return
 	if ui.esc_open():
 		close_esc()
@@ -747,7 +755,8 @@ func _ready_settings() -> void:
 
 
 ## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
-## settings applied, and the Voice tab wired to them.
+## settings applied, and both Voice panels (the Esc menu's tab, the main menu's page, #301) wired
+## to them.
 func _ready_voice() -> void:
 	AudioBuses.ensure()
 	if voice_codec == null:
@@ -756,14 +765,14 @@ func _ready_voice() -> void:
 	_sender.codec = voice_codec
 	add_child(_sender)
 	_voice_control = VoiceControl.new(settings, _sender)
-	var panel := ui.esc.voice
-	panel.device_picked.connect(_voice_control.pick_device)
-	panel.mode_picked.connect(_voice_control.set_mode)
-	panel.threshold_changed.connect(_voice_control.set_threshold)
-	panel.denoise_toggled.connect(_voice_control.set_denoise)
-	panel.volume_changed.connect(_voice_control.set_volume)
-	panel.tone_toggled.connect(_voice_control.set_tone)
-	panel.mute_toggled.connect(_voice_control.set_muted)
+	for panel: VoicePanel in [ui.esc.voice, ui.menu.voice]:
+		panel.device_picked.connect(_voice_control.pick_device)
+		panel.mode_picked.connect(_voice_control.set_mode)
+		panel.threshold_changed.connect(_voice_control.set_threshold)
+		panel.denoise_toggled.connect(_voice_control.set_denoise)
+		panel.volume_changed.connect(_voice_control.set_volume)
+		panel.tone_toggled.connect(_voice_control.set_tone)
+		panel.mute_toggled.connect(_voice_control.set_muted)
 	_voice_control.start()
 
 
@@ -784,18 +793,28 @@ func _setup_voice() -> void:
 	_sender.setup(_client, mode)
 
 
-## Each frame: the talk key counts only without the Esc menu; an open Voice tab shows the settings
-## and the microphone's level (the device list read again as it opens); the lobby's hint.
+## Each frame: the talk key counts only without the Esc menu; an open Voice panel (the Esc menu's
+## tab, or the main menu's page with no session, #301) shows the settings and the microphone's
+## level (the device list read again as it opens); the lobby's hint.
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
 	_sender.listening = not ui.esc_open()
-	var tab := ui.esc_open() and ui.esc.state.selected == EscMenuState.Tab.VOICE
-	if tab and not _voice_tab_shown:
+	var panel := shown_voice_panel()
+	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
-	_voice_tab_shown = tab
-	if tab:
-		ui.esc.voice.show_facts(_voice_control.facts())
+	_voice_panel_shown = panel != null
+	if panel != null:
+		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+
+
+## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Voice page, or null.
+func shown_voice_panel() -> VoicePanel:
+	if ui.esc_open():
+		return ui.esc.voice if ui.esc.state.selected == EscMenuState.Tab.VOICE else null
+	if ui.screen == GameFlow.Screen.MENU and ui.menu.voice_open():
+		return ui.menu.voice
+	return null
 
 
 func _cannot_host(why: String) -> void:
@@ -813,6 +832,7 @@ func _drop_room() -> void:
 
 func _show_menu(reason: StringName, detail := "") -> void:
 	ui.close_esc()
+	ui.menu.close_voice()
 	var why := EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
 	ui.menu.set_reason("The last session ended: %s." % why)
 	ui.show_screen(GameFlow.Screen.MENU)
