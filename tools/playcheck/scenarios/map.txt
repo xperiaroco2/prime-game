@@ -1,0 +1,34 @@
+# The map and tasks screen on M (#253) in the game's real window. Window 1 hosts alone (the base
+# mode plays with one). In the round M opens the map: the pointer is freed and the crosshair hides;
+# the tasks list their counters (the greybox has no rooms until #306, so no board shows). Tab does
+# nothing. M again closes it and the pointer is captured again; with the map open Esc closes only
+# the map, never opening the Esc menu over it.
+players 1
+windows 1
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+press ready
+wait screen round timeout=60
+frames 30
+shot round_before_map
+press map
+wait pointer free
+frames 10
+shot map_open
+press map
+wait pointer captured
+press map
+wait pointer free
+press ui_cancel
+wait pointer captured
+wait esc closed
+frames 10
+shot map_closed_by_esc
