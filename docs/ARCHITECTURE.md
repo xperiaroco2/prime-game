@@ -1553,18 +1553,24 @@ sections named:
    the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
    position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
    a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
-   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 200 ticks while
+   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 190 ticks while
    it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
-   then one claim spends the stored credit to walk about 30 m away; `ChaosRun` checks on the host's state that the
+   then one claim spends the stored credit to walk about 39 m away. The freeze is `ChaosScenario.FREEZE_TICKS`,
+   `MovementRule.MAX_TICK_CREDIT` less `PUSH_TICKS`: that claim also covers a tick when the freeze starts between
+   two client ticks and the claims a network lost before it. At 200 it covered 201 over WebRTC (#674, seed 7, 4 of
+   6 runs), was corrected, and bot 4 stood in the zone on the host all round while its script, which adopts no
+   `Correction` outside a placement (each is taken for a chaos claim's), claimed from 39 m off and was corrected
+   every tick; `chaos_test.gd` pins the margin. `ChaosRun` checks on the host's state that the
    zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
    player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
    The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
    velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
    walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
-   Over the loopback, `ChaosRun` fails a run in which no hostile claim went out while its client knew it alive in
-   the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 13 to 27 over seeds 188001 to
-   188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot silence class 5
-   unseen. Over a network it only prints the count: over WebRTC seed 7 sent none (188001 sent 13), not looked into.
+   Over every transport (#674), `ChaosRun` fails a run in which no hostile claim went out while its client knew it
+   alive in the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 12 to 24 over seeds
+   188001 to 188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot
+   silence class 5 unseen; the failure names the claims each quiet rule held back (`ChaosRun.quiet_held`: the
+   200-tick freeze's WebRTC seed 7 read "before its walk away" 44, its host position behind its bot's 17).
    The run does not play the freeze with refused claims (a far claim, a past-credit tick or another epoch sent
    during the freeze, hoping each `Correction` keeps the claim young): `MovementRule.claim_age` reads only an
    accepted claim, covered by `movement_rule_claim_age_test.gd` (a refused claim does not renew it), not end to
@@ -1615,8 +1621,12 @@ step is `--seed 188001`, the short match (the round ends while bot 4 is downed):
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
 `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. With the zone and bot 4's freeze (#649,
 2026-10-09) a seed's three runs are 1830 frames (30.5 s simulated, about 11 s); `--seed 1 --runs 10`, `--seed
-188001`, `--long --seed 5`, `--enet --seed 7` and `--transport webrtc --seed 188001` passed. The night job `chaos` runs ten seeds of
-`--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+188001`, `--long --seed 5`, `--enet --seed 7` and `--transport webrtc --seed 188001` passed. With the 190-tick
+freeze and the claim coverage check over every transport (#674, 2026-10-10) a seed's runs are 1800 frames (30.0 s
+simulated); `--seed 188001 --runs 10`, `--seed 1 --runs 10` and `--long --seed 5 --runs 2` passed (12 to 24 hostile
+claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--transport webrtc` seed 7 three times
+(18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). The
+night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
 `HostSession` taking no budget failed on the

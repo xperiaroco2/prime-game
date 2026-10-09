@@ -51,6 +51,11 @@ const SHIM_SEED_STRIDE := 16
 const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
+## Why _hostile_quiet held a hostile claim back (quiet_held's keys).
+const QUIET_BEFORE_AWAY := "before its walk away"
+const QUIET_MOVING := "moving on the host"
+const QUIET_BEHIND := "host position behind its bot"
+const QUIET_NEAR_ZONE := "near a zone"
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
@@ -69,6 +74,9 @@ var hostile_rejected := PackedStringArray()
 ## The host ticks the zone gained from bot 4's freeze, after its last accepted claim (-1 before
 ## the freeze ended): at most ZoneTask.STALE_TICKS (the zone task ADR's freeze row, ZE10).
 var freeze_gained := -1
+## The hostile claims _hostile_quiet held back in the round while the host had bot 4 alive, by
+## reason (the QUIET_ constants): the claim coverage check's failure names them.
+var quiet_held: Dictionary[String, int] = {}
 
 var _hostile_client: BotClient
 var _hostile_budget := ChaosBudget.new()
@@ -730,10 +738,10 @@ func _check_chaos_counts() -> void:
 		failures.append("chaos: the hostile's session ended (%s)" % _hostile_client.end_reason)
 	if hostile_rejected.is_empty():
 		failures.append("chaos: the hostile decoded no Rejected")
-	# Over the loopback only, where a seed replays exactly: over WebRTC seed 7 sent none (188001 sent
-	# 13), a network-timing case not looked into; the summary line prints the count there too.
-	if not over_network and hostile != null and hostile.round_alive_claims == 0:
-		failures.append("chaos: no hostile MoveClaim went out while it was alive in the round")
+	# Over every transport (#674): the claims held back say which quiet rule silenced class 5.
+	if hostile != null and hostile.round_alive_claims == 0:
+		var none := "chaos: no hostile MoveClaim went out while it was alive in the round"
+		failures.append("%s (held back: %s)" % [none, quiet_held])
 
 
 ## Over ENet: under each reason a malformed packet names, the host counted at most the chaos
@@ -866,20 +874,33 @@ func _frozen() -> bool:
 ## too) or the zone's count would show every honest bot, unlike the baseline's. Standing still
 ## afterwards, downed or dead, it claims as before.
 func _hostile_quiet() -> bool:
-	if game == null or bots.size() < HOSTILE:
+	var reason := _quiet_reason()
+	if reason.is_empty():
 		return false
+	var player := game.state.player(peers.peer_of(HOSTILE))
+	if game.phase_id() == &"round" and player != null and player.is_alive():
+		quiet_held[reason] = quiet_held.get(reason, 0) + 1
+	return true
+
+
+## Why _hostile_quiet holds a claim back now; empty when it does not.
+func _quiet_reason() -> String:
+	if game == null or bots.size() < HOSTILE:
+		return ""
 	var bot := bots[HOSTILE - 1]
 	if game.phase_id() == &"round" and bot.step_index <= ChaosScenario.away_index(bot.steps):
-		return true
+		return QUIET_BEFORE_AWAY
 	var player := game.state.player(peers.peer_of(HOSTILE))
 	if player == null:
-		return false
+		return ""
 	# Its last move, or the standing claim after it, not yet accepted (the bot's claim goes out
 	# after this frame's chaos): a hostile LATEST claim now would supersede it.
+	if not player.velocity.is_zero_approx():
+		return QUIET_MOVING
 	var behind := Vector2(player.position.x - bot.position.x, player.position.z - bot.position.z)
-	if not player.velocity.is_zero_approx() or behind.length() > 0.01:
-		return true
-	return _near_zone(player.position)
+	if behind.length() > 0.01:
+		return QUIET_BEHIND
+	return QUIET_NEAR_ZONE if _near_zone(player.position) else ""
 
 
 ## Whether `at` is within a zone's radius plus 1 m, horizontally.
