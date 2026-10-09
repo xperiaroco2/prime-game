@@ -75,6 +75,15 @@ func test_bare_option_buttons_and_their_lists_take_toy_dropdown() -> void:
 		assert_int(popup.get_theme_font_size(&"font_size")).is_equal(
 			theme.get_font_size(&"font_size", &"ToyDropdownList")
 		)
+		# The pack's icons (#520): the dropdown's arrow and the list's radio checks.
+		assert_object(option.get_theme_icon(&"arrow")).is_same(
+			theme.get_icon(&"arrow", &"ToyDropdown")
+		)
+		assert_str(option.get_theme_icon(&"arrow").resource_path).ends_with("/chevron-down.svg")
+		for item: StringName in [&"radio_checked", &"radio_checked_disabled", &"radio_unchecked"]:
+			assert_object(popup.get_theme_icon(item)).is_same(
+				theme.get_icon(item, &"ToyDropdownList")
+			)
 
 
 func test_bare_sliders_and_scroll_bars_take_toy_looks() -> void:
@@ -86,6 +95,10 @@ func test_bare_sliders_and_scroll_bars_take_toy_looks() -> void:
 		assert_object(slider.get_theme_stylebox(item)).is_same(
 			theme.get_stylebox(item, &"ToySlider")
 		)
+	# The pack's grabbers (#520), the knob at its import size.
+	for item: StringName in [&"grabber", &"grabber_highlight", &"grabber_disabled"]:
+		assert_object(slider.get_theme_icon(item)).is_same(theme.get_icon(item, &"ToySlider"))
+	assert_object(slider.get_theme_icon(&"grabber").get_size()).is_equal(Vector2(28, 28))
 	var scroll := ScrollContainer.new()
 	holder.add_child(scroll)
 	assert_int(scroll.get_theme_constant(&"scrollbar_h_separation")).is_equal(
