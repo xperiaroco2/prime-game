@@ -79,10 +79,13 @@ const MASK_TICKS := 32
 var keep_history := false
 ## False for a bot: it acknowledges LoadMatch without loading the scene (§4.6).
 var load_levels := true
-## The name Hello asks for (#550), as PlayerNames.clean leaves it: "" asks for none, and the host
-## names the player Player<n>. The host decides the final name (a duplicate gets a suffix); the
-## model's roster holds it once Welcome arrives.
-var player_name := ""
+## The name Hello asks for (#550), always as PlayerNames.clean leaves it (an assignment is cleaned,
+## so Hello always encodes): "" asks for none, and the host names the player Player<n>. The host
+## decides the final name (a duplicate gets a suffix); the model's roster holds it once Welcome
+## arrives.
+var player_name := "":
+	set(value):
+		player_name = PlayerNames.clean(value)
 var view := DecodedView.new()
 var model: ClientModel
 ## Why the session ended; empty while it runs.
@@ -143,11 +146,11 @@ var _placement_due := false
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
 ## the client's own copy of the game mode, whose ContentFingerprint Hello carries; `own_name` is
-## the name Hello asks for (UserSettings.player_name), cleaned again so Hello always encodes.
+## the name Hello asks for (UserSettings.player_name).
 func _init(
 	transport: NetTransport, mode: GameMode, schema: WireSchema = null, own_name := ""
 ) -> void:
-	player_name = PlayerNames.clean(own_name)
+	player_name = own_name
 	_transport = transport
 	_mode = mode
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
