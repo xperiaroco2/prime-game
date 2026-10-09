@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
-## The HUD's and the task screen's words (client/ui/, ARCHITECTURE §4.7, M4-8) from a fake
+## The HUD's words (client/ui/, ARCHITECTURE §4.7, M4-8) from a fake
 ## ClientModel and the client's own mode only: the own numbers, hand and belt, the package's
-## destination, the shared progress, the clock, the own role and a dissident's teammates; the task
-## screen's rows with no position. How they look: the `shot`s of
-## client/dev/hud_preview.tscn and task_screen_preview.tscn.
+## destination, the shared progress, the clock, the own role and a dissident's teammates; when the
+## map and tasks screen shows (#253; its own words and its privacy rule: map_screen_test.gd). How
+## they look: the `shot`s of client/dev/hud_preview.tscn and map_preview.tscn.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -165,83 +165,76 @@ func test_the_hud_control_hides_empty_lines_and_paints_the_swatch() -> void:
 	assert_bool(hud.crosshair.visible).is_false()
 
 
-func test_the_task_screen_lists_each_task_by_name_description_and_progress() -> void:
-	var model := _round_model()
-	var rows := TaskScreen.rows(model, _mode)
-	var delivery := _mode.find_task_type(&"delivery")
-	assert_int(rows.size()).is_equal(2)
-	assert_str(rows[0][0]).is_equal("%s  1 / 3" % delivery.display_name)
-	assert_str(rows[0][1]).is_equal(delivery.description)
-	assert_str(rows[1][0]).is_equal("%s  2 / 2" % delivery.display_name)
-	assert_str(TaskScreen.progress_text(model)).is_equal("Shared progress: 3 / 5")
-	# A task type the client's mode does not name shows its id.
-	model.fold(&"TaskState", {"task": 5, "type": &"zones", "done": 0, "total": 4})
-	assert_str(TaskScreen.rows(model, _mode)[2][0]).is_equal("zones  0 / 4")
-
-
-func test_the_task_screen_names_no_place() -> void:
-	# The M4 ADR's §3 item 4: no position of an item, a player or a spawn point, no map.
-	var model := _round_model()
-	var screen: TaskScreen = auto_free(TaskScreen.new())
-	screen.refresh(model, _mode)
-	var texts := PackedStringArray()
-	for label: Node in screen.find_children("*", "Label", true, false):
-		texts.append((label as Label).text)
-	var all := "\n".join(texts)
-	assert_str(all).contains("Shared progress: 3 / 5")
-	for item: ClientModel.Item in model.items.values():
-		assert_str(all).not_contains(str(item.position))
-	assert_str(all).not_contains("Player")
-	assert_str(all.to_lower()).not_contains("map")
-
-
-func test_the_task_screen_shows_in_the_round_while_held_only() -> void:
+func test_the_map_shows_in_the_round_while_open_only() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
-	ui.reads_device_input = false
+	ui.show_screen(GameFlow.Screen.LOBBY)
+	ui.open_map()
+	assert_bool(ui.map_is_open()).is_false()
 	ui.show_screen(GameFlow.Screen.ROUND)
 	assert_bool(ui.hud.visible).is_true()
-	assert_bool(ui.tasks.visible).is_false()
-	ui.show_tasks(true)
-	assert_bool(ui.tasks.visible).is_true()
+	assert_bool(ui.map.visible).is_false()
+	ui.toggle_map()
+	assert_bool(ui.map.visible).is_true()
 	assert_bool(ui.hud.crosshair.visible).is_false()
-	ui.show_screen(GameFlow.Screen.LOBBY)
-	assert_bool(ui.tasks.visible).is_false()
-	assert_bool(ui.hud.visible).is_false()
+	ui.toggle_map()
+	assert_bool(ui.map.visible).is_false()
+	assert_bool(ui.hud.crosshair.visible).is_true()
+	# Leaving the round closes it: the next round starts with it closed.
+	ui.open_map()
+	ui.show_screen(GameFlow.Screen.END)
+	assert_bool(ui.map_is_open()).is_false()
+	assert_bool(ui.map.visible).is_false()
+	ui.show_screen(GameFlow.Screen.ROUND)
+	assert_bool(ui.map.visible).is_false()
 
 
-func test_the_crosshair_stays_hidden_for_the_downed_whatever_tab_does() -> void:
-	# GameUi reads Tab after the game's refresh_round in the same frame: its show_tasks(false) must
-	# not bring back the crosshair of a downed player.
+func test_the_map_says_when_it_opens_and_closes_once_each() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
-	ui.reads_device_input = false
+	ui.show_screen(GameFlow.Screen.ROUND)
+	var heard: Array[String] = []
+	ui.map_opened.connect(func() -> void: heard.append("opened"))
+	ui.map_closed.connect(func() -> void: heard.append("closed"))
+	ui.open_map()
+	ui.open_map()
+	ui.close_map()
+	ui.close_map()
+	ui.open_map()
+	ui.show_screen(GameFlow.Screen.LOBBY)
+	assert_array(heard).contains_exactly(["opened", "closed", "opened", "closed"])
+
+
+func test_the_crosshair_stays_hidden_for_the_downed_whatever_the_map_does() -> void:
+	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.ROUND)
 	var model := _round_model()
 	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
 	ui.refresh_round(model, _mode, NOW, HudText.Local.new())
-	ui.show_tasks(false)
 	assert_bool(ui.hud.crosshair.visible).is_false()
-	ui.show_tasks(true)
-	ui.show_tasks(false)
+	ui.open_map()
+	ui.close_map()
 	assert_bool(ui.hud.crosshair.visible).is_false()
 
 
-func test_tab_shows_the_task_screen_with_its_rows_and_never_under_the_esc_menu() -> void:
+func test_the_map_opens_with_its_rows_and_the_esc_menu_closes_it() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
-	Input.action_press(&"task_screen")
-	ui._process(0.0)
-	assert_bool(ui.tasks.visible).is_true()
+	ui.open_map()
 	# Its rows are there on the first frame it shows, before the next refresh_round.
-	var texts := PackedStringArray()
-	for label: Node in ui.tasks.find_children("*", "Label", true, false):
-		texts.append((label as Label).text)
-	assert_str("\n".join(texts)).contains("Shared progress: 3 / 5")
+	assert_int(ui.map.rows_box.get_child_count()).is_equal(2)
+	var closed_under_menu: Array[bool] = []
+	ui.map_closed.connect(func() -> void: closed_under_menu.append(ui.esc_open()))
 	ui.open_esc(false)
-	ui._process(0.0)
-	Input.action_release(&"task_screen")
-	assert_bool(ui.tasks.visible).is_false()
-	assert_bool(ui.hud.crosshair.visible).is_true()
+	assert_bool(ui.map_is_open()).is_false()
+	assert_bool(ui.map.visible).is_false()
+	# It closed after the menu opened, so the game leaves the mouse free.
+	assert_array(closed_under_menu).contains_exactly([true])
+	# Under the menu the map key does nothing.
+	ui.toggle_map()
+	assert_bool(ui.map_is_open()).is_false()
+	ui.close_esc()
+	ui.toggle_map()
+	assert_bool(ui.map.visible).is_true()
 
 
 func _round_model() -> ClientModel:

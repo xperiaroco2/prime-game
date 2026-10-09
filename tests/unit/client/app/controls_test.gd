@@ -28,7 +28,7 @@ func test_the_defaults_are_the_projects_with_give_up_and_ready_both_on_f() -> vo
 	assert_int(_key(controls.event_of(&"give_up"))).is_equal(KEY_F)
 	assert_int(_key(controls.event_of(&"ready"))).is_equal(KEY_F)
 	assert_int(_key(controls.event_of(&"move_forward"))).is_equal(KEY_W)
-	assert_int(_key(controls.event_of(&"task_screen"))).is_equal(KEY_TAB)
+	assert_int(_key(controls.event_of(&"map"))).is_equal(KEY_M)
 	var use := controls.event_of(&"use") as InputEventMouseButton
 	assert_int(use.button_index).is_equal(MOUSE_BUTTON_LEFT)
 	for action: StringName in Controls.ACTIONS:
@@ -45,7 +45,7 @@ func test_there_are_the_sixteen_actions_of_settings_controls_each_with_its_phase
 		assert_int(Controls.PHASES[action]).override_failure_message(action).is_not_zero()
 		assert_str(Controls.name_of(action)).is_not_empty()
 	assert_str(Controls.name_of(&"give_up")).is_equal("Give up")
-	assert_str(Controls.name_of(&"task_screen")).is_equal("Map and tasks")
+	assert_str(Controls.name_of(&"map")).is_equal("Map and tasks")
 	TranslationServer.set_locale("uk")
 	assert_str(Controls.name_of(&"give_up")).is_equal("Здатися")
 
@@ -63,9 +63,9 @@ func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 func test_one_key_in_one_phase_is_a_clash_and_in_two_phases_is_none() -> void:
 	var controls := Controls.new()
 	# The review page's example: Map and Talk on one key, both while living.
-	assert_bool(controls.bind(&"task_screen", _press(KEY_V))).is_true()
-	assert_array(controls.clashes_of(&"task_screen")).contains_exactly([&"voice_talk"])
-	assert_array(controls.clashes_of(&"voice_talk")).contains_exactly([&"task_screen"])
+	assert_bool(controls.bind(&"map", _press(KEY_V))).is_true()
+	assert_array(controls.clashes_of(&"map")).contains_exactly([&"voice_talk"])
+	assert_array(controls.clashes_of(&"voice_talk")).contains_exactly([&"map"])
 	# Sprint on F clashes with Ready in the lobby, not with give-up (downed only).
 	controls.bind(&"sprint", _press(KEY_F))
 	assert_array(controls.clashes_of(&"sprint")).contains_exactly([&"ready"])

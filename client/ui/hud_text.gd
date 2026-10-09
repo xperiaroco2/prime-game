@@ -28,6 +28,11 @@ class Local:
 	var hint := ""
 	## The peer a dead player watches (LifeView.target()); 0 for none.
 	var watching := 0
+	## The own body's place for the map screen (#253): whether it has one (the dead have none), the
+	## place, and the heading in radians clockwise from north (-Z) seen from above.
+	var placed := false
+	var position := Vector3.ZERO
+	var heading := 0.0
 
 
 ## The HUD's lines; an empty one hides its label.

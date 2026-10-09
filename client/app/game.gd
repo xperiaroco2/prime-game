@@ -142,6 +142,8 @@ func _ready() -> void:
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
+	ui.map_opened.connect(_on_map_opened)
+	ui.map_closed.connect(_on_map_closed)
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
@@ -344,6 +346,21 @@ func close_esc() -> void:
 		pointer.capture(true)
 
 
+## The map opened (#253): the mouse is free for its «?»; the player keeps walking.
+func _on_map_opened() -> void:
+	pointer.capture(false)
+	_apply_player_flags(screen())
+
+
+## The map closed by its key or Esc: the round's mouse is captured again, as after the Esc menu.
+## Not under the Esc menu (it closes the map as it opens), not off the round (the next screen's
+## mouse is _point_for's), and only while the window has the focus.
+func _on_map_closed() -> void:
+	if screen() == GameFlow.Screen.ROUND and not ui.esc_open() and pointer.focused():
+		pointer.capture(true)
+	_apply_player_flags(screen())
+
+
 ## The Ready key (`ready`, F, #169): the Ready toggle's SetReady, with the own ready flag flipped.
 func toggle_ready() -> void:
 	var model := _welcomed_model()
@@ -432,7 +449,6 @@ func _process(_delta: float) -> void:
 		_screen = now
 		_point_for(now)
 	ui.show_screen(now)
-	ui.reads_device_input = device_input
 	if _client != null:
 		_refresh_join()
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
@@ -467,6 +483,11 @@ func _input(event: InputEvent) -> void:
 			leave()
 		get_viewport().set_input_as_handled()
 		return
+	if ui.map_is_open():
+		# Esc closes the map first (#488's rule 2); the Esc menu never opens over it.
+		ui.close_map()
+		get_viewport().set_input_as_handled()
+		return
 	if _client == null:
 		# The main menu's Voice page goes back to the menu (#301); no session has no Esc menu.
 		if screen() == GameFlow.Screen.MENU and ui.menu.voice_open():
@@ -480,12 +501,21 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-## The Ready key, while the player walks in the lobby with no Esc menu (gameplay input).
+## The Ready key, while the player walks in the lobby, and the map key (#253), which opens and
+## closes the map in the round on any life; neither under the Esc menu (gameplay input).
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed(&"ready") or ui.esc_open():
+	if ui.esc_open():
 		return
-	if screen() == GameFlow.Screen.LOBBY:
+	if event.is_action_pressed(&"ready") and screen() == GameFlow.Screen.LOBBY:
 		toggle_ready()
+		get_viewport().set_input_as_handled()
+	elif (
+		device_input
+		and event.is_action_pressed(&"map")
+		and screen() == GameFlow.Screen.ROUND
+		and _client != null
+	):
+		ui.toggle_map()
 		get_viewport().set_input_as_handled()
 
 
@@ -511,6 +541,9 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 	_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
 	var listening := not GameFlow.frozen(now) and not ui.esc_open()
 	_player.reads_device_input = device_input and listening
+	# The map frees the mouse for its «?» while the player still walks, jumps, picks up and talks
+	# (the designer's answer on #253): the controller only stops looking and recapturing.
+	_player.mouse_free = ui.map_is_open()
 	_life.reads_device_input = device_input
 	_life.listening = listening and now == GameFlow.Screen.ROUND
 	_items.interactions.reads_device_input = device_input
@@ -549,6 +582,11 @@ func _welcomed_model() -> ClientModel:
 func _hud_local() -> HudText.Local:
 	var local := _items.hud_local()
 	local.watching = _life.target()
+	if _player != null and not _player_dead():
+		local.placed = true
+		local.position = _player.global_position
+		var look := _player.look_vector()
+		local.heading = atan2(look.x, -look.z)
 	return local
 
 
@@ -624,6 +662,7 @@ func _place(position: Vector3, velocity: Vector3) -> void:
 ## The map LoadMatch asked for: instanced now, before the session sends LoadAck.
 func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 	_set_level(scene.instantiate(), PhaseSpec.Level.MAP)
+	ui.set_map_data(MapData.from_level(_level, mode))
 
 
 ## Every event, in the session's physics step: the level of a new phase, the own life, and the
@@ -678,6 +717,7 @@ func _clear_level() -> void:
 		_level.queue_free()
 	_level = null
 	_level_kind = PhaseSpec.Level.NONE
+	ui.set_map_data(MapData.new())
 
 
 func _on_host_ended(reason: StringName) -> void:

@@ -91,9 +91,9 @@ func test_esc_cancels_a_capture_and_binds_nothing() -> void:
 
 
 func test_a_key_shared_in_one_phase_is_marked_on_both_rows() -> void:
-	_panel.start_capture(&"task_screen")
+	_panel.start_capture(&"map")
 	_panel.capture(_key(KEY_V, true))
-	assert_bool(_panel.clash_labels[&"task_screen"].visible).is_true()
+	assert_bool(_panel.clash_labels[&"map"].visible).is_true()
 	assert_bool(_panel.clash_labels[&"voice_talk"].visible).is_true()
 	assert_str(_panel.clash_labels[&"voice_talk"].text).is_equal("Same key")
 	assert_bool(_panel.clash_labels[&"give_up"].visible).is_false()

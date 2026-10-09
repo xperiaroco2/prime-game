@@ -17,7 +17,7 @@ const ACTIONS: Array[StringName] = [
 	&"spectate_next",
 	&"spectate_previous",
 	&"swap",
-	&"task_screen",
+	&"map",
 	&"ready",
 	&"voice_talk",
 	&"toggle_fullscreen",
@@ -78,15 +78,32 @@ func test_give_up_is_f_and_the_mouse_buttons_cycle_the_spectate_target() -> void
 	assert_int(previous.button_index).is_equal(MOUSE_BUTTON_RIGHT)
 
 
-func test_swap_is_x_and_the_task_screen_is_tab() -> void:
-	# The M4 ADR's controls (D6, M4-8): X swaps the hand and the belt; Tab held shows the tasks.
-	for pair: Array in [[&"swap", KEY_X], [&"task_screen", KEY_TAB]]:
+func test_swap_is_x_and_the_map_is_m() -> void:
+	# The M4 ADR's controls (D6, M4-8): X swaps the hand and the belt; M opens and closes the map
+	# and tasks screen (#253, which replaced the hold-Tab task screen).
+	for pair: Array in [[&"swap", KEY_X], [&"map", KEY_M]]:
 		var keys: Array[Key] = []
 		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
 			var key := event as InputEventKey
 			if key != null:
 				keys.append(key.physical_keycode)
 		assert_array(keys).contains([pair[1]])
+
+
+func test_tab_is_bound_to_no_action() -> void:
+	# #253: Tab is kept for an inventory later; until then it does nothing.
+	for action: StringName in InputMap.get_actions():
+		if String(action).begins_with("ui_"):
+			continue
+		for event: InputEvent in InputMap.action_get_events(action):
+			var key := event as InputEventKey
+			if key != null:
+				(
+					assert_int(key.physical_keycode)
+					. override_failure_message("%s is on Tab" % action)
+					. is_not_equal(KEY_TAB)
+				)
+	assert_bool(InputMap.has_action(&"task_screen")).is_false()
 
 
 func test_push_to_talk_is_held_on_v() -> void:

@@ -48,6 +48,13 @@ func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: D
 	pass
 
 
+## The spawn tags of the level markers where this type's items may lie (Delivery: its package
+## kind's), for the map screen's zones (#253): the client lights each room that holds a marker of
+## such a tag. Level data every client has, never a place a deal chose. None by default.
+func item_spawn_tags() -> Array[StringName]:
+	return []
+
+
 ## The event classes this type can emit (§9.2).
 func emits() -> Array[Script]:
 	return []

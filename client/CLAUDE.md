@@ -9,7 +9,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   screen, in one persistent main scene that swaps levels under itself (§4.7).
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
   and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
-- UI: lobby, HUD, the Tab task screen (no map for now), end screen, the Esc menu with tabs (#169).
+- UI: lobby, HUD, the map and tasks screen on M (#253), end screen, the Esc menu with tabs (#169).
 - Audio: each remote speaker's voice on its avatar (M5), M4's placeholder world sounds, the dead's lift music.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 
@@ -25,7 +25,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words and its failure state on the connecting screen, #494; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
-  in code (`ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD and the task screen (M4-8), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  in code (`ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD (M4-8), the map and tasks screen `MapScreen` with its pure `MapData` (#253, §4.7.33), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds). `life/` (M4-9): `LifeView` (the cameras,
   inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud`.
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
@@ -63,7 +63,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `Color(...)` or font size in a screen's code; a source test holds it. A bare base control takes its class's row (mapping `base_types`, §4.7.30); a new bare control class needs a row or a named gap in `base_controls_test.gd`. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
 - A key on screen is `KeyLabel`'s (the binding now, on the player's layout), never a letter in a string (#211).
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
-  closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
+  closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse"). The map (#253, §4.7.33) frees the mouse but pauses no key (`PlayerController.mouse_free`); `GameUi` alone holds it open; it draws rooms and zones from level data and no place but the own body's.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,

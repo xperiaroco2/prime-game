@@ -24,7 +24,7 @@ func test_the_default_keys_read_as_their_names() -> void:
 	assert_str(KeyLabel.of_action(&"ready")).is_equal("F")
 	assert_str(KeyLabel.of_action(&"interact")).is_equal("E")
 	assert_str(KeyLabel.of_action(&"sprint")).is_equal("Shift")
-	assert_str(KeyLabel.of_action(&"task_screen")).is_equal("Tab")
+	assert_str(KeyLabel.of_action(&"map")).is_equal("M")
 	assert_str(KeyLabel.of_action(&"voice_talk")).is_equal("V")
 
 

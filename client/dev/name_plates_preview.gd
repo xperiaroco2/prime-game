@@ -55,7 +55,6 @@ func _ready() -> void:
 	camera.make_current()
 	var ui := GameUi.new()
 	add_child(ui)
-	ui.reads_device_input = false
 	ui.plates.avatars = _avatars
 	ui.show_screen(GameFlow.Screen.ROUND)
 	var local := HudText.Local.new()
