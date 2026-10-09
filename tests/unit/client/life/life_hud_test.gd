@@ -125,7 +125,7 @@ func test_the_dead_see_the_respawn_and_the_cycling_keys_only() -> void:
 	var keys := "LMB and RMB: next and previous"
 	assert_array(shown.lines).contains(["Respawn in 25 s", keys])
 	# Nothing of the target's: no health, stamina or role words; whom it watches is the HUD's
-	# "Spectating <name>" (#168), not said twice.
+	# "Watching: <name>" (dead.watching; #168, #489), not said twice.
 	var all := ("\n".join(shown.lines)).to_lower()
 	assert_str(all).not_contains("player1")
 	for word: String in ["health", "stamina", "crew", "dissident", "role"]:

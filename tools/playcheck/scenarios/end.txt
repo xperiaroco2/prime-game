@@ -38,7 +38,7 @@ frames 60
 shot lobby_after_end
 press ready
 wait screen round timeout=60
-wait text hud.role has Role
+wait shown hud.role on
 shot second_round_host
 
 window 2
@@ -60,6 +60,6 @@ shot lobby_after_end_guest
 frames 240
 press ready
 wait screen round timeout=60
-wait text hud.role has Role
+wait shown hud.role on
 frames 30
 shot second_round_guest

@@ -128,22 +128,22 @@ SCREENS = ("menu", "connecting", "lobby", "loading", "pregame", "round", "end", 
 # The event fields that name a player (ScenarioPlay.PLAYER_FIELDS): the scenario writes the player's number.
 PLAYER_FIELDS = ("peer", "raiser", "target")
 ACTIONS = ("press", "hold", "release")
-# What `wait text` and `wait shown` read, the keys of playcheck_window.gd's GameView: the round's Hud labels, the
-# LifePanel (title_label, lines_label, bar_label: its bar's visibility), the LobbyHud, the PregameScreen's role, the
-# EndScreen, the visible Esc tabs' texts joined with ", ", and the kind of the item in the FirstPersonHand under the
-# current camera.
+# What `wait text` and `wait shown` read, the keys of playcheck_window.gd's GameView: the round's Hud (#489: the role,
+# the time, the bars' values as "0.80", the mic as on or off, the slots' item names, the name under the crosshair, the
+# raise bar's value, the "Watching: <name>" line, the crosshair), the LifePanel (title_label, lines_label, bar_label:
+# its bar's visibility), the LobbyHud, the PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined
+# with ", ", and the kind of the item in the FirstPersonHand under the current camera.
 FIELDS = (
     "hud.role",
-    "hud.teammates",
     "hud.clock",
-    "hud.progress",
     "hud.health",
     "hud.stamina",
+    "hud.mic",
     "hud.hand",
     "hud.belt",
+    "hud.aim",
+    "hud.raising",
     "hud.spectating",
-    "hud.destination",
-    "hud.hint",
     "hud.crosshair",
     "life.title",
     "life.lines",

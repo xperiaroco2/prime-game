@@ -27,7 +27,7 @@ const NAMED := {
 	"Button": "the default font size; Godot's StyleBoxes on Copy, Ready and the keys (gap)",
 	"PanelContainer": "Godot's panel, no margins, so no size change (gap)",
 	"ProgressBar": "the default font size; Godot's StyleBoxes on the voice meter (gap)",
-	"TextureRect": "draws its texture only (a how-to card's picture, never tinted, #254)",
+	"TextureRect": "draws its texture only: a how-to card picture (#254), a tinted HUD icon (#489)",
 }
 
 

@@ -1723,7 +1723,7 @@ turns its own player, `PlayerController.look`, to face the nearest resting item 
 paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
 stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
-edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` holds at once on a hidden field
 (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
 off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
 playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
