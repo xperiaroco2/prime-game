@@ -50,6 +50,32 @@ func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	return floor_point if floor_point != NO_FLOOR else stop
 
 
+## The sphere against the floor (its centre stays `radius` above it) and against each wall grown
+## by `radius` (a box, so its edges and corners stop the sphere a little early). Touching counts:
+## a sphere resting on the floor or a wall answers `from`.
+func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	if from.y - radius <= floor_y:
+		return from
+	var stop := to
+	if to.y - radius < floor_y:
+		var t := (from.y - radius - floor_y) / (from.y - to.y)
+		stop = from.lerp(to, t)
+	return sweep_boxes(from, stop, radius, walls)
+
+
+## `stop`, or the first point on the segment from `from` to `stop` where a sphere of `radius`
+## touches one of `boxes`; `from` when it touches one there. For the fake worlds built on this one.
+static func sweep_boxes(from: Vector3, stop: Vector3, radius: float, boxes: Array[AABB]) -> Vector3:
+	for box: AABB in boxes:
+		var grown := box.grow(radius)
+		if grown.has_point(from):
+			return from
+		var hit: Variant = grown.intersects_segment(from, stop)
+		if hit is Vector3:
+			stop = hit
+	return stop
+
+
 func _floor_at(point: Vector3) -> Vector3:
 	if point.y < floor_y:
 		return NO_FLOOR

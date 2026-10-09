@@ -109,6 +109,42 @@ func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	return floor_point if floor_point != NO_FLOOR else stop
 
 
+## A sphere of `radius` (TE2): `from` when it already overlaps a collider there (intersect_shape;
+## cast_motion ignores what the shape already overlaps), else moved along the segment by
+## cast_motion's safe fraction, which stops it short of contact. With no level, `to`. A radius of
+## 0 or less is a point: the ray's hit, or `to`.
+func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	if _current == null:
+		return to
+	if radius <= 0.0:
+		var hit := _ray(from, to)
+		if hit.is_empty():
+			return to
+		var at: Vector3 = hit["position"]
+		return at
+	return _sweep_sphere(from, to, radius)
+
+
+func _sweep_sphere(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	var sphere := SphereShape3D.new()
+	sphere.radius = radius
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, from)
+	query.collision_mask = WORLD_MASK
+	var space := _current.space_state()
+	if not space.intersect_shape(query, 1).is_empty():
+		return from
+	if from == to:
+		return to
+	query.motion = to - from
+	var fractions := space.cast_motion(query)
+	# `to` itself when clear: from + (to - from) can miss it by an ULP in single precision.
+	if fractions[0] >= 1.0:
+		return to
+	return from + (to - from) * fractions[0]
+
+
 func _ray(from: Vector3, to: Vector3) -> Dictionary:
 	if _current == null or from == to:
 		return {}

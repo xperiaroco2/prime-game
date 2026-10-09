@@ -1097,7 +1097,14 @@ round).
   ledge's edge stands on the ledge (§7.1.5's note). Prevents: a package put down within a capsule radius of a low ledge
   resting at the ledge's height beside it, which the delivery check reads (§7.1.14), so the same drop counts or not by the
   ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
-  the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
+  the first hit, then `floor_below`. `sweep(a, b, r)` (37a, #641; TE2 of the throwing ADR): a sphere of radius r,
+  first `intersect_shape` at a (a `PhysicsShapeQueryParameters3D` holding a `SphereShape3D`, mask of layer 1), which
+  answers a when it finds anything, since `cast_motion` ignores a shape the sphere starts in; then a plus the segment
+  times `cast_motion`'s safe fraction (b when nothing is in the way; an r of 0 or less is the ray's hit). Jolt finds a
+  sphere touching a box clear and one 1 mm into it overlapping (`host_world_query_sweep_test.gd`), so
+  `WorldQuery.THROW_RADIUS_MARGIN_M` is 0.01 m: a throw radius at most `min(capsule_radius_m, capsule_height_m -
+  eye_height_m)` less it leaves the sphere at a pressed capsule's eye clear of the wall or ceiling (a technical
+  constant, not a game number). `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
   gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
   query misses, the host waits one physics step after building the worlds, before `MarkerReader` asks them for the
@@ -3130,8 +3137,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 
 #### 7.1.1 Geometry through a port
 `WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric
-questions of the rules: line of sight between two points, the floor below a point, and where an item placed from A
-towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
+questions of the rules: line of sight between two points, the floor below a point (one ray), the floor a player
+stands on (its capsule's footprint), where an item placed from A towards B comes to rest, and how far a sphere swept
+from A towards B gets (`sweep`, a thrown item's flight, §7.1.16). `server/` implements it over its own `World3D` holding the level's static colliders, never
 the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
 is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
 when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
