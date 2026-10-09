@@ -222,8 +222,9 @@ counts 0) and the part of RUNNER_OUTPUT_KINDS, per implementer agent that made a
 CHARS_PER_TOKEN); per task "impl_outputs", and their medians at the end of the compact "task medians" line, to compare
 a wave before a change with one after it. `--compact` cuts each summary line at LINE_CAP characters unless verbose.
 
-Launch prompt size per agent role (#470): the first user message of each workflow agent's transcript (the prompt the
-script gave it), in characters and in tokens (characters / CHARS_PER_TOKEN, an estimate), median and max per role over
+Launch prompt size per agent role (#470): the prompt the script gave each workflow agent, the last user text message
+before its first API call (the harness may relay the user request in a message of its own before it; that relay is the
+same for every agent of a run and is not counted), in characters and in tokens (characters / CHARS_PER_TOKEN, an estimate), median and max per role over
 the counted runs, in the "Launch prompt size per agent role" table of the non-compact output (`--compact` does not
 carry it) and as "prompt_sizes" in the JSON record. Run it over a window before a change and one after it
 (`--since`, `--until`) to read whether a prompt shrank.
@@ -1049,6 +1050,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     stamps: list[float] = []
     model, effort, title = None, None, None
     prompt: str | None = None  # the first user message: the agent's prompt
+    launch: str | None = None  # #470: the last user text message before its first API call: the script's prompt
+    called = False
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
@@ -1103,13 +1106,17 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 continue
             if not isinstance(m, dict):
                 continue
-            if prompt is None and d.get("type") == "user":
+            if d.get("type") == "user" and (prompt is None or not called):
                 content = m.get("content")
                 if isinstance(content, str) or (
                     isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "text" for b in content)
                 ):
-                    prompt = text_of(content)
+                    if prompt is None:
+                        prompt = text_of(content)
+                    if not called:
+                        launch = text_of(content)  # the harness may relay the user request first, on its own
             if d.get("type") == "assistant":
+                called = True
                 msg_model = m.get("model")
                 if msg_model == "<synthetic>":
                     continue  # written by Claude Code itself (an interruption, an API error): no API call
@@ -1233,7 +1240,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "effort": effort,
         "title": title,
         "design": DESIGN_TASK in (prompt or ""),
-        "prompt_chars": len(prompt) if prompt else None,  # #470: the launch prompt's size
+        "prompt_chars": len(launch) if launch else None,  # #470: the launch prompt's size
         "tier": (m.group(1) if (m := REVIEW_TIER.search(prompt or "")) else None),
         "api_calls": len(usage),
         "tokens": dict(tokens),
@@ -2120,7 +2127,7 @@ def code_read_section(counted: list[dict]) -> list[str]:
 
 
 def prompt_record(counted: list[dict]) -> list[dict]:
-    """#470: per agent role, the launch prompt's size over the counted runs' agents (chars; tokens estimated at
+    """#470: per agent role, the launch prompt's size (read_agent's "prompt_chars") over the counted runs' agents (chars; tokens estimated at
     CHARS_PER_TOKEN): agents, median and max. A retried agent counts once per attempt. Most characters first."""
     sizes: dict[str, list[int]] = defaultdict(list)
     for r in counted:
@@ -2146,7 +2153,7 @@ def prompt_section(rows: list[dict]) -> list[str]:
     return [
         "## Launch prompt size per agent role (#470)",
         "",
-        f"The first user message of each workflow agent (the prompt its script gave it); tokens are characters / "
+        f"The prompt its script gave each workflow agent (the last user text message before its first API call); tokens are characters / "
         f"{CHARS_PER_TOKEN}, an estimate.",
         "",
         table(head, body),

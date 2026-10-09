@@ -55,6 +55,12 @@ class PromptSizeTest(unittest.TestCase):
         write_lines(path, [assistant(0, "m1", usage(inp=1))])
         self.assertIsNone(metrics.read_agent(path)["prompt_chars"])
 
+    def test_a_relayed_user_request_before_the_prompt_is_not_counted(self) -> None:
+        path = Path(self.tmp.name) / "agent.jsonl"
+        relay = prompt("[Workflow harness - user request] " + "u" * 100)
+        write_lines(path, [relay, prompt("t" * 700), assistant(0, "m1", usage(inp=1)), prompt("later " * 99)])
+        self.assertEqual(metrics.read_agent(path)["prompt_chars"], 700)
+
     def test_median_and_max_per_role(self) -> None:
         _md, record, _compact = self.build()
         rows = {r["role"]: r for r in record["prompt_sizes"]}
