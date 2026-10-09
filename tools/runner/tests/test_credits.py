@@ -151,6 +151,16 @@ class RepoTest(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("`levels/crate.glb` matches no file", errors[0])
 
+    def test_a_pending_entry_may_match_no_file_yet(self) -> None:
+        # A third-party file the engineer adds by hand later (#520, the font): its entry is written first.
+        pending = ENTRY.replace("- **Author:**", "- **Pending:** the file lands by hand (#520)\n- **Author:**")
+        self.entry(pending)
+        self.main()
+        self.assertEqual(credits.check(self.root).errors, [])
+        # Once its file is there it is an ordinary entry: still green, and it covers the file.
+        write(self.root, "levels/crate.glb", "x")
+        self.assertEqual(credits.check(self.root).errors, [])
+
     def test_a_folder_without_double_star_gets_a_hint(self) -> None:
         self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/props/crate/`"))
         errors = credits.check(self.root).errors

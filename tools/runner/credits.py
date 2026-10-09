@@ -15,7 +15,9 @@ docs/credits/<asset-slug>.md:
 `Files` lists repo-relative globs in backticks (`*` stays inside one folder, `**` crosses folders). More
 `- **Field:** value` lines and free text are allowed and copied into CREDITS.md as they are. An entry that covers an
 LFS asset also carries the art manifest's provenance (#519): `AI generated` and `Public repo OK`, each `true` or
-`false` first (a note may follow), and a public repo takes only `Public repo OK: true`.
+`false` first (a note may follow), and a public repo takes only `Public repo OK: true`. An entry with a non-empty
+`- **Pending:** ...` (what lands, and how) may name files that are not in the repo yet: a third-party file the
+engineer adds by hand later, whose entry and settings are written first (#520, the font).
 """
 
 from __future__ import annotations
@@ -33,6 +35,8 @@ REQUIRED = ("Files", "Author", "Source", "License")
 # The art manifest's ai_generated and public_repo_ok (prime-game-art docs/manifest.md), for an entry that covers an LFS
 # asset (#519; addons' entries cover none).
 PROVENANCE = ("AI generated", "Public repo OK")
+# An entry whose files are still to come (#520): its globs may match nothing.
+PENDING = "Pending"
 # Third-party code with its own LICENSE file; its images are kept out of LFS (.gitattributes) so CI can load them.
 EXEMPT_PREFIX = "addons/"
 FIELD_RE = re.compile(r"^- \*\*([A-Za-z][A-Za-z ]*):\*\*\s*(.*)$")
@@ -243,7 +247,7 @@ def check(root: Path = ROOT) -> Report:
     report.assets = len(assets)
     patterns = [(entry, glob, glob_regex(glob)) for entry in entries for glob in entry.globs]
     for entry, glob, regex in patterns:
-        if not any(regex.fullmatch(name) for name in files):
+        if not any(regex.fullmatch(name) for name in files) and not entry.fields.get(PENDING):
             folder = glob.rstrip("/") + "/"
             hint = (
                 f"it is a folder: write `{folder}**`"
