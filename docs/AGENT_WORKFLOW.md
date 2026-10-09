@@ -2203,6 +2203,8 @@ sounds; a change to them is a table edit, not code. A WAV is read whole and fail
 `mono`, `sample-rate`, `category`, `duration`, `peak` (with the count of samples at full scale), `rms`,
 `leading-silence` or `dc-offset`. An OGG gets its identification header (Vorbis only; channels, rate) and its length
 (the last page's granule position) checked and is "header-checked only": the standard library cannot decode Vorbis.
+Mono or stereo passes for an OGG only (`sfx.OGG_CHANNELS`, #525: Kenney's packs ship stereo Ogg, and without ffmpeg
+nothing folds one to mono; a stereo WAV still fails `mono`).
 The JSON report goes to `tools/out/sfx/<set>.json`; exit 1 on any failure, each printed as `<file>: <rule>:
 <numbers>`. `--page` also writes `tools/out/sfx/<set>.html`: one file with the sounds inside it as data: URLs (no
 server, no external script or font; it still plays when moved), an `<audio>` per file grouped by category with its
