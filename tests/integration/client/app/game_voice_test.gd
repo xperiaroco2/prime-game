@@ -75,6 +75,7 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	# The lobby hints at Settings until a microphone is picked.
 	await get_tree().process_frame
 	assert_bool(host.ui.lobby_hud.voice_hint.visible).is_true()
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_false()
 	# Settings opens on Sound and voice; the talk key counts under the menu too (#488 rule 4).
 	host.open_esc()
 	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
@@ -115,6 +116,9 @@ func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
 	await _frames(2)
 	assert_bool(host.sender().listening).is_true()
 	host.sender().talk_held = true
+	# The lobby HUD's mic follows the sender: on while the talk key is held (live()), off after.
+	await _frames(2)
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_true()
 	mic.capture_chunks(5, 0.5)
 	assert_bool(await _until(func() -> bool: return host.sender().sent > 0)).is_true()
 	# A text field on the menu's page has the keys: V is a letter there.
@@ -150,6 +154,8 @@ func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
 	await _frames(3)
 	assert_bool(host.sender().listening).is_true()
 	host.sender().talk_held = false
+	await _frames(2)
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_false()
 	host.leave()
 	await _frames(2)
 
