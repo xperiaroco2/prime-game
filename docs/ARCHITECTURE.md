@@ -255,7 +255,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 ### 3.6 Pregame, the silent intro (#213, M6.2)
 The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
-Round, like a film's titles: a dark screen (End's `EndBackdrop`, not pure black) shows each player its own role for
+Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight like the end screen's `Night`, not pure black) shows each player its own role for
 about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
 screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
 silent; a test keeps it so.
@@ -2864,12 +2864,14 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
   other line says who won, and no role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by the host's reason
   id (`REASON_KEYS`); any other id hides the line. `MatchEnded` carries only the side until #548 adds the reason, so
-  in a game the line is hidden; `show_reason(id, seconds)` is where #548 feeds it (the previews and tests call it).
+  in a game the line is hidden (and its `Result` box with it, so no empty gap is left); `show_reason(id, seconds)` is where
+  #548 feeds it (the previews and tests call it). Hiding the screen clears the reason, the round's time and the
+  countdown, so the next End starts without the last round's.
 - **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
   (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
   Godot translates.
-- **Behaviour.** Each time the screen shows (End starts), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
+- **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
   its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
   outcomes, which has no asset yet, so nothing plays. Every Control ignores the mouse and takes no focus. Voice is
   silent in End by #213's rule, not by the screen.
