@@ -88,6 +88,21 @@ func test_m_opens_and_closes_the_map_and_the_player_keeps_walking() -> void:
 	await get_tree().process_frame
 
 
+func test_the_pin_gets_the_own_bodys_place_and_heading() -> void:
+	var game := await _round_game(PORT + 3)
+	var player := game.player()
+	# Facing +X (east): a quarter turn clockwise seen from above, the heading of a pin pointing east.
+	player.rotation.y = -PI / 2.0
+	_press(KEY_M)
+	await _frames(2)
+	var local := game.ui.map.local()
+	assert_bool(local.placed).is_true()
+	assert_vector(local.position).is_equal_approx(player.global_position, Vector3.ONE * 0.001)
+	assert_float(local.heading).is_equal_approx(PI / 2.0, 0.01)
+	game.leave()
+	await get_tree().process_frame
+
+
 func test_esc_closes_only_the_map_and_under_the_esc_menu_m_does_nothing() -> void:
 	var game := await _round_game(PORT + 1)
 	var pointer := game.pointer as RecordingPointer
