@@ -89,10 +89,10 @@ mode, and cannot raise either itself.
 - **Your own handover** is the paste again (§2 (c)), unless the human asks for route C once more.
 
 ## 4. The ready kickoff
-What the handover comment's notes end with and the last For-you carries, so no handover needs a prompt written by
-hand: the human's kickoff of the stage (the skill's §10) as he wrote it (his language kept, its `Track:` line included,
-"ultracode" dropped if an older one has it: MANAGERS.md §2), with its "Start from", "If from a design" and "After a
-handover" lines replaced by the "Continue from" line of MANAGERS.md §6:
+What the handover comment's notes end with and the last For-you carries, so no handover needs a prompt written by hand:
+the human's kickoff of the stage (the skill's §10, [kickoff-template.md](kickoff-template.md)) as he wrote it (his
+language kept, its `Track:` line included, "ultracode" dropped if an older one has it: MANAGERS.md §2), with its "Start
+from", "If from a design" and "After a handover" lines replaced by the "Continue from" line of MANAGERS.md §6:
 
 ```text
 Continue from the latest comment titled "Handover to a fresh manager session" on #<plan issue> and every note after

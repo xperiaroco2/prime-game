@@ -5,7 +5,8 @@ engineer chose them on 2026-10-05: every recommendation, N1 (b) to N8 (b)
 ([PR #403 comment 5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)). They apply
 from the weekly reset of 2026-10-06 10:00 UTC, N5 (the Sonnet publisher) already from the answer; the reset comes
 every Tuesday at 10:00 UTC. Read this file at the kickoff, before you plan each wave and before each launch. "Row n"
-is a row of the ADR's "Measured inputs"; "§n" is a section of `SKILL.md` beside this file.
+is a row of the ADR's "Measured inputs"; "§n" is a section of the skill: `SKILL.md` beside this file, or the file
+its index names for that §.
 
 ## The unit
 Every budget is a % of the week: (list $ without cache reads + 0.75 x cache-read $) / $23.0, counted from the reset
@@ -39,11 +40,21 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   session of the three checkouts with its untracked share and that share's largest sessions. Several tracks take one
   budget each, in their order (`--track game meta --budget 26 12`); `--track all` lists every track found and takes no
   `--budget`. Without `--compact` it adds a table of every session with its track and where the track came from.
-- A session's track: its `--session <id>=<track>` label, else the `Track:` line of its kickoff (§10's template, and
-  the handover kickoff of §7, so a successor keeps its track), else its checkout's (`-ui`: ui, `-art`: art), else
-  untracked (the engineer's reserve). A session of your track listed as untracked (a kickoff without the line, or
-  with a translated name): count it with `--session <id>=<track>`.
-- **The budget line**, in every wave comment beside the wave's cost (§6): `<track>: <spent>% of <budget>% this week;
+- A session's track: its `--session <id>=<track>` label, else the `Track:` line of its kickoff (§10's template in
+  [kickoff-template.md](kickoff-template.md), and the handover kickoff of §7, so a successor keeps its track), else its
+  checkout's (`-ui`: ui, `-art`: art), else untracked (the engineer's reserve). A session of your track listed as
+  untracked (a kickoff without the line, or with a translated name): count it with `--session <id>=<track>`.
+- **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
+  <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
+  of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
+  `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
+  running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
+  line of the same command with `--since <stage start>`. This block is the second thing to drop when the budget
+  runs out, after the kickoff's first (§6 asks for both in every wave comment). Where a launch ran a model beyond
+  the shared list, add that model's line from the desktop app's `get_usage` tool (the session-management MCP
+  server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
+  it and weighs it at Opus rates.
+- **The budget line**, in every wave comment beside the wave's cost (above): `<track>: <spent>% of <budget>% this week;
   plan to date <p>%; weekly counter <n>% (get_usage)`. When the counter and the line for every session differ by more
   than 3 points, the wave comment says so (the counter also counts the account's sessions outside the three
   checkouts).
@@ -75,7 +86,7 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 ## Launch args (N4 (b), N5 (a))
 - **`lean`** is the default of `issue-task` and `pr-rebase` since #458 (the engineer's N4 (b), 2026-10-06): pass
   nothing, also for a task that edits `.claude/workflows/` (#557: its agents read `docs/workflow-scripts.md`).
-  `lean: false` needs `lean_reason` (SKILL.md §3's row;
+  `lean: false` needs `lean_reason` ([launch-args.md](launch-args.md) §3's row;
   [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
 - **The launch check** (#557): before each `issue-task` or `pr-rebase` launch or resume, `tools\run.cmd agents-check
   --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
@@ -100,13 +111,15 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
   than "continue", post it on #302 with the table and stop passing `implement` (a keep needs the engineer's yes and
   an amendment of the model-guard ADR).
-- `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch (§7); for a run
-  launched before #458 without `lean`, add `lean: false` and `lean_reason: "a resume of <run id>, launched before
-  #458"` (§3's row), or the lean agent types change its agents and the resume replays nothing past the reviews.
+- `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch
+  ([resume.md](resume.md) §7); for a run launched before #458 without `lean`, add `lean: false` and `lean_reason: "a
+  resume of <run id>, launched before #458"` (launch-args.md §3's row), or the lean agent types change its agents and
+  the resume replays nothing past the reviews.
 
 ## Managers (N6 (b), N7 (a))
-- **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff (§10). The UI
-  and art managers run their own repos' workflows (P5 ports the levers there).
+- **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff
+  ([kickoff-template.md](kickoff-template.md) §10). The UI and art managers run their own repos' workflows (P5 ports the
+  levers there).
 - **The rules every track's manager follows**, UI and art included, are
   [docs/MANAGERS.md](../../../docs/MANAGERS.md) (#511): the mode and effort, the kickoff, the "For you:" block, the
   keep-alive and the handover; the UI and art repos' `CLAUDE.md` files point there.
