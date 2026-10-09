@@ -135,11 +135,12 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   that spans several waves sums them (`--since <wave start>` for one).
 
 A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
-with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui
-and -art checkouts wherever they sit on this machine, each with its worktrees: track_checkouts), whether or not it ran a
-workflow: its own transcript, its hand-run subagents and its workflow runs' agents, each API call counted by its time in
-[--since, --until) (a run in flight or one that began before the reset counts in part), each message id once across
-every file. A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
+with `--since <the weekly reset>` (the moment the counter last restarted: after a reset by hand, #677, that time) reads
+every session of the folders of TRACK_CHECKOUTS (the main checkout, and the -ui and -art checkouts wherever they sit on
+this machine, each with its worktrees: track_checkouts), whether or not it ran a workflow: its own transcript, its
+hand-run subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in
+flight or one that began before the reset counts in part), each message id once across every file.
+A session's track is, the first that holds: its --session ID=TRACK label (under --track --session labels and
 never filters), a `Track: <name>` line in its first user message (the kickoff, the key also `Трек:`, the name in
 English; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the
 engineer's reserve). Per named track it prints the % of the week (week_percent, with the bracket), and with `--budget
@@ -4268,7 +4269,8 @@ def tracks_main(
 ) -> int:
     """`metrics --track`: the tracks' spend since the reset (--since) against their budgets (module docstring)."""
     if not since:
-        raise Failure("--track needs --since <the weekly reset> (ISO 8601): the week's spend counts from it")
+        raise Failure("--track needs --since <the moment the counter last restarted> (ISO 8601): "
+                      "the week's spend counts from it")
     t_since = parse_time(since)
     t_until = parse_time(until) if until else time.time()
     if t_since >= t_until:
