@@ -4560,8 +4560,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
     four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
     still read every map's markers through the flat fake, so those maps must read there without an error: no
-    delivery circle below y = 0 (it would find no floor) and no two markers of different tags at one (x, z) (the
-    fake puts every circle at y = 0). `content_modes_test.gd` reads them so. One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
+    station marker (a delivery circle or a zone, #681) below y = 0 (it would find no floor) and no two markers of
+    different tags at one (x, z) (the fake puts every station marker at y = 0). `content_modes_test.gd` reads them
+    so; ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.
