@@ -8,7 +8,7 @@ from pathlib import Path
 from runner import metrics
 from runner.tests.test_metrics import SESSION, UNTIL, Fixture, assistant, at, usage
 
-LIGHT = "Review tier (#606): light (no path under core/ server/ net/ client/ voice/ tests/harness/): the light chain ran."
+LIGHT = "Review tier (#606): light (no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/): the light chain ran."
 FULL = "Review tier (#606): full (the diff touches core/match/vote.gd)."
 
 

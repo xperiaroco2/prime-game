@@ -2334,11 +2334,15 @@ class CheckpointTest(unittest.TestCase):
 # light ones, makes the run full.
 # A path no rule lists is light (the manager's notes for #606: "otherwise light"; the issue's table said full for
 # "anything else", the ADR amendment says which and why): project.godot and CI's workflow pin that default.
+# client/ui/ is light, the rest of client/ full (the engineer's answer 2b on #302, comment 6085059719): a folder or a
+# file whose name only starts with "ui" is not client/ui/.
 LIGHT_PATHS = ["docs/AGENT_WORKFLOW.md", "content/roles/x.tres", "levels/rooms/x.tscn", "tools/runner/start.py",
                "tests/unit/match/vote_test.gd", "addons/x/plugin.cfg", ".claude/workflows/issue-task.js",
-               "project.godot", ".github/workflows/ci.yml", "tests/integration/net/x_test.gd"]  # fmt: skip
+               "project.godot", ".github/workflows/ci.yml", "tests/integration/net/x_test.gd",
+               "client/ui/hud_text.gd", "client/ui/theme/game_theme.tres", "tests/unit/client/ui/screens_test.gd"]  # fmt: skip
 FULL_PATHS = ["core/match/vote.gd", "server/host_session.gd", "net/protocol/codec.gd", "client/hud/hud.gd",
-              "voice/mixer.gd", "tests/harness/bots/leak_check.gd"]  # fmt: skip
+              "voice/mixer.gd", "tests/harness/bots/leak_check.gd", "client/player/first_person_camera.gd",
+              "client/physics_layers.gd", "client/ui_kit/x.gd", "client/ui.gd"]  # fmt: skip
 # Every option the light tier drops, passed at once, with a major finding for the skeptic to check.
 ALL_OPTIONS = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True}
 TIER_LINE = "Review tier (#606): "
@@ -2400,6 +2404,28 @@ class ReviewTierTest(unittest.TestCase):
         self.assertEqual(full["returned"]["tier"], "full")
         self.assertNotIn("tier_skipped", full["returned"])
         self.assertIn("skeptic", full["returned"])
+
+    def test_a_client_ui_diff_is_light_and_drops_the_netcode_and_test_reviews(self) -> None:
+        # Before 2b every client/ path routed the netcode review (#158) and was production code for test_review; in the
+        # light tier client/ui/ gets neither, and the rest of client/ keeps both.
+        ui, mixed = run_jobs([
+            ("issue-task.js", dict(ARGS, branch="client/7-x", **ALL_OPTIONS), {"paths": ["client/ui/hud.gd", "docs/x.md"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", **ALL_OPTIONS), {"paths": ["client/ui/hud.gd", "client/player/p.gd"], "findings": [MAJOR]}),
+        ])  # fmt: skip
+        for result in (ui, mixed):
+            self.assertIsNone(result["error"])
+        self.assertEqual([e["label"] for e in agents(ui)], ["plan:#7", "review:plan:#7", "implement:#7", "review:code:#7", "review:godot-api:#7", "publish:#7"])
+        self.assertEqual((ui["returned"]["tier"], ui["returned"]["tier_skipped"]), ("light", ["test_review", "second_review", "skeptic"]))
+        why = "the light review tier (#606): the diff's only production code is under client/ui/"
+        self.assertEqual(ui["returned"]["test_review"], {"skipped": why})
+        pub = calls(ui, "publish")[0]["prompt"]
+        self.assertIn("Review tier (#606): light (no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/)", pub)
+        self.assertIn(f"The test review (test_review) was skipped: {why}.", pub)
+        self.assertEqual(mixed["returned"]["tier"], "full")
+        self.assertIn("Review tier (#606): full (the diff touches client/player/p.gd)", calls(mixed, "publish")[0]["prompt"])
+        labels = [e["label"] for e in agents(mixed)]
+        for want in ("review:netcode:#7", "review:netcode-second:#7", "test-review:#7", "skeptic:#7"):
+            self.assertIn(want, labels)
 
     def test_plan_review_follows_the_branch_area_before_the_diff_exists(self) -> None:
         cases = [
@@ -2467,7 +2493,7 @@ class QuickTaskTest(unittest.TestCase):
         return run_jobs([("quick-task.js", dict(ARGS, **args), stub) for args, stub in cases])
 
     def test_a_light_diff_gets_no_reviewer_and_is_ready(self) -> None:
-        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd", "levels/r.tscn"]
+        light = ["docs/AGENT_WORKFLOW.md", "tools/runner/start.py", "content/roles/x.tres", "tests/unit/x_test.gd", "levels/r.tscn", "client/ui/hud.gd"]
         (result,) = self.run_quick(({}, {"queues": {"publish": [quick(light)]}}))
         self.assertIsNone(result["error"])
         self.assertEqual([e["label"] for e in agents(result)], ["publish:#7"])
@@ -2479,7 +2505,7 @@ class QuickTaskTest(unittest.TestCase):
         self.assertEqual((out["pr_url"], out["pr"], out["ci_green"], out["needs_engineer"]), ("https://github.com/o/r/pull/9", 9, True, []))
 
     def test_a_core_or_netcode_diff_gets_both_reviewers(self) -> None:
-        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "client/hud/hud.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
+        cases = [({}, {"queues": {"publish": [quick([p])]}}) for p in ("core/match/vote.gd", "server/h.gd", "net/c.gd", "client/hud/hud.gd", "client/ui_kit/k.gd", "voice/m.gd", "tests/harness/bots/b.gd")]
         cases.append(({}, {"queues": {"publish": [quick([])]}}))  # no paths returned: unknown, so reviewed
         for result in self.run_quick(*cases):
             with self.subTest(why=result["returned"]["reviewed"]["why"]):

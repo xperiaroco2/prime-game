@@ -1,10 +1,10 @@
 export const meta = {
   name: 'quick-task',
   description: 'One small prime-game issue by one agent: change, lint and check, commit, push, PR, CI; fresh reviews only when the diff touches core, server, net, voice or tests/harness',
-  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, client/, voice/ or tests/harness/ adds 2 reviewers and, on a blocker or major, 1 fix agent.',
+  whenToUse: 'The orchestrate-stage skill launches it after `tools\\run.cmd start <n>` for an issue whose `Size:` line says XS or S, one logical change and no design (a rename, a text or value change, a docs fix); CI is the gate. Not for a design task, Size M or larger, or a new mechanic: those take issue-task. args: {n, title, wt, branch, base?, notes, models?}. Agents: 1 (the quick agent); a diff under core/, server/, net/, client/ (but client/ui/), voice/ or tests/harness/ adds 2 reviewers and, on a blocker or major, 1 fix agent.',
   phases: [
     { title: 'Quick', detail: 'one agent: the change, lint and check, commit, push, PR, CI (at most two fix rounds)' },
-    { title: 'Review', detail: 'only for a diff under core/ server/ net/ client/ voice/ tests/harness/: code-reviewer and netcode-security-reviewer, then one fix agent on a blocker or major' },
+    { title: 'Review', detail: 'only for a diff under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: code-reviewer and netcode-security-reviewer, then one fix agent on a blocker or major' },
   ],
 }
 
@@ -38,8 +38,9 @@ const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
 const BASE = A.base || 'main'
 const SCRATCH = `a${N}`
 const QUICK_MODEL = M.quick || 'sonnet'
-// The diff-path rule (#608): only these paths get the fresh reviews; anything else has CI as its gate.
-const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
+// The diff-path rule (#608): only these paths get the fresh reviews; anything else has CI as its gate. client/ui/ (the
+// screens) is not reviewed: the engineer's answer 2b on #302 (comment 6085059719), as issue-task.js's light tier (#606).
+const REVIEWED = /^(?:(?:core|server|net|voice|tests\/harness)\/|client\/(?!ui\/))/
 const SERIOUS = /blocker|major/i
 
 const RULES = [
@@ -133,8 +134,8 @@ const paths = quick.changed_paths || []
 // No paths returned with a PR open: unknown, so reviewed (as issue-task does).
 const touched = paths.filter(p => REVIEWED.test(p))
 if (paths.length && !touched.length) {
-  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ client/ voice/ tests/harness/`)
-  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ client/ voice/ tests/harness/: CI is the gate' }, open_serious: 0 })
+  log(`#${N}: PR ${quick.pr_url}, CI ${quick.ci_green ? 'green' : 'RED'}; no reviewer: no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/`)
+  return brief({ reviewed: { done: false, why: 'no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/: CI is the gate' }, open_serious: 0 })
 }
 
 phase('Review')

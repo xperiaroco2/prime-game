@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff) drops test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier drops the first three and plan_review)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -30,11 +30,12 @@ export const meta = {
 //            engineer's answer on #302: the full chain only where a mistake becomes a cheat, a desync or a leak). The
 //            implementer's changed paths choose, the worst one winning: full for a path under core/ server/ net/
 //            client/ voice/ tests/harness/ (quick-task.js's REVIEWED), no changed paths or a design task; light for any
-//            other diff (docs, content, levels, tooling; UI code lives under client/, so it is full on purpose: a
-//            leak through rendering is an information leak, #158). Light runs the code reviewer (and godot-api-checker
-//            on a .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and drops test_review,
-//            second_review and skeptic even when passed. plan_review runs before the diff exists, so the branch's
-//            area (`start`'s <area>/ prefix) decides it: content, level and tooling skip it, unless tier is 'full'.
+//            other diff (docs, content, levels, tooling, and the UI's client/ui/: the engineer's answer 2b on #302,
+//            comment 6085059719; the rest of client/ stays full, #158). Light runs the code reviewer (and
+//            godot-api-checker on a .gd/.tscn/.tres change; ab_review still adds its pair) and the publisher, and
+//            drops the netcode review, test_review, second_review and skeptic even when passed. plan_review runs
+//            before the diff exists, so the branch's area (`start`'s <area>/ prefix) decides it: content, level and
+//            tooling skip it, unless tier is 'full'.
 //            Only full can be forced: the diff's worst path always wins. The publisher's prompt names the tier
 //            (`metrics` groups the runs by it) and the result carries tier and tier_skipped
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
@@ -542,8 +543,9 @@ const mapRule = m => {
 }
 
 // #606: the review tier, by the change's risk. The diff-path rule is quick-task.js's (#608; test_workflows.py compares
-// the copies): a mistake under these paths can become a cheat, a desync or a hidden-information leak.
-const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
+// the copies): a mistake under these paths can become a cheat, a desync or a hidden-information leak. client/ui/ (the
+// screens) is carved out: the engineer's answer 2b on #302 (comment 6085059719); the rest of client/ stays reviewed.
+const REVIEWED = /^(?:(?:core|server|net|voice|tests\/harness)\/|client\/(?!ui\/))/
 // Before the implementer no diff exists, so plan_review follows the branch's area (`start`'s <area>/ prefix, from the
 // issue's area label): only these areas are light; any other, a design task or a forced full tier plans.
 const LIGHT_AREAS = ['content', 'level', 'tooling']
@@ -558,7 +560,7 @@ const tierOf = paths => {
   const hit = paths.filter(p => REVIEWED.test(p))
   return hit.length
     ? ['full', `the diff touches ${hit.slice(0, 3).join(', ')}${hit.length > 3 ? ', ...' : ''}`]
-    : ['light', 'no path under core/ server/ net/ client/ voice/ tests/harness/']
+    : ['light', 'no path under core/ server/ net/ voice/ tests/harness/ or client/ outside client/ui/']
 }
 
 phase('Implement')
@@ -651,9 +653,10 @@ if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
 const [TIER, TIER_WHY] = tierOf(impl.changed_paths || [])
 const LIGHT = TIER === 'light'
-// The agents the launch passed that this run's tier dropped (#606). In the light tier test_review and second_review
-// would not run anyway (no production path, no netcode review); they are listed so the result says why. What light
-// really removes is the skeptic and plan_review (the `!LIGHT` guard on second_review below only restates that).
+// The agents the launch passed that this run's tier dropped (#606). Light removes the skeptic and plan_review; on a
+// client/ui/ diff it removes the netcode review (the `!LIGHT` guard below) and test_review too, which every other
+// light diff never routed (no netcode path, no production code). test_review and second_review are listed so the
+// result says why.
 const TIER_SKIPPED = [
   PLAN_SKIPPED && 'plan_review', LIGHT && TEST_REVIEW && 'test_review', LIGHT && SECOND_REVIEW && 'second_review',
   LIGHT && SKEPTICS > 0 && 'skeptic',
@@ -679,7 +682,8 @@ if (impl.verify_green) {
   // tests/harness/ holds the information-leak test: #115 touched only tests/ and tools/, and a netcode review run by
   // hand found a major there. client/ renders public data, and a rendering leak is an information leak (#158: the M4
   // manager ran this review by hand on #154 twice, and both runs found real problems).
-  const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
+  // The light tier (#606) has no netcode review: only a client/ui/ diff gets here with a client path.
+  const netcode = !LIGHT && (DESIGN || !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p)))
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
@@ -747,8 +751,12 @@ if (impl.verify_green) {
 
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
+  // The light tier (#606) has no test review either: a light diff with production code has it only under client/ui/.
   if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
     testReviewSkipped = 'no changed path is production code (core/, server/, net/, client/, voice/)'
+    log(`#${N}: test_review skipped: ${testReviewSkipped}`)
+  } else if (TEST_REVIEW && LIGHT) {
+    testReviewSkipped = "the light review tier (#606): the diff's only production code is under client/ui/"
     log(`#${N}: test_review skipped: ${testReviewSkipped}`)
   } else if (TEST_REVIEW) {
     testReview = await agent([
