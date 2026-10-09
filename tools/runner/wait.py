@@ -16,6 +16,9 @@ and 124. No log, or one it cannot read: 2.
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
 
+A machine that sleeps during a wait (#595, suspend.Watch) ends it at the resume: the log is read once more, and a job
+still running gets a "wait: the machine slept or was suspended (<n> s)" line before the still-running line and 124.
+
 `wait --verified` answers whether `publish` would reuse this checkout's newest verify instead of running its own
 (#471): 0 when that record (tools/out/logs/verify-history.jsonl) passed at HEAD, on the same tree and runner, with a
 clean tree, under REUSE_MAX_AGE ago, and the tree is still clean. `reuse_refusal` is that test, which `publish` runs
@@ -33,6 +36,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from . import suspend
 from .common import say
 
 # A poll every 3 minutes keeps a 5-minute cache warm (#555): over 212 calls that ran to their deadline (2026-10-06 to
@@ -218,6 +222,8 @@ def main(
     start = clock()
     deadline = start + max_seconds
     seen = False
+    watch = suspend.Watch(now, clock)  # #595: a machine that sleeps during the wait ends it at the resume
+    slept: float | None = None
     while True:
         try:
             lines = read_lines(path)
@@ -245,14 +251,17 @@ def main(
                 say(f"wait: {path.name} finished: exit={code} (whole log: {path})")
                 return code
         left = deadline - clock()
-        if left <= 0:
+        if left <= 0 or slept is not None:
             break
         sleep(min(poll, left))
+        slept = watch.tick()  # then the log is read once more
     try:
         age = f"last written {max(0.0, now() - path.stat().st_mtime):.0f} s ago"
     except OSError:
         age = "not readable now"
     count = len(lines) if lines is not None else 0
+    if slept is not None:
+        say(f"wait: {suspend.message(slept)} during this wait; a verify stops red on it by itself")
     say(
         f"wait: still running after {clock() - start:.0f} s ({path}: {count} lines, {age}); "
         "call wait again, never start the job again"

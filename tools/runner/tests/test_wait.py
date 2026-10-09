@@ -192,6 +192,60 @@ class WaitTest(unittest.TestCase):
         self.time.on_sleep[2] = lambda: self.write(GREEN_SUMMARY + ["exit=0"])
         self.assertEqual(self.run_wait(180, grace=10)[0], 0)
 
+    def slept_on_poll(self, poll: int, seconds: float, *, mono: bool) -> list[float]:
+        """The machine sleeps `seconds` during sleep number `poll`: the wall clock (`now`, returned to pass to wait)
+        always counts it, the monotonic one only when `mono` (Windows' QueryPerformanceCounter, not Linux')."""
+        wall = [1_760_000_000.0]
+
+        def asleep() -> None:
+            wall[0] += seconds
+            if mono:
+                self.time.t += seconds
+
+        self.time.on_sleep[poll] = asleep
+        return wall
+
+    def test_a_sleep_during_the_wait_ends_it_at_the_resume_and_says_so(self) -> None:
+        # #595: on 2026-10-09 a verify ran through a 10-hour sleep. wait gives back the call at the resume.
+        for mono in (True, False):
+            with self.subTest(monotonic_counts_the_sleep=mono):
+                self.time = Clock()
+                self.write(VERIFY_START + VERIFY_STEPS)
+                wall = self.slept_on_poll(2, 37_277.0, mono=mono)
+                rc, out = self.run_wait(180, now=lambda: wall[0])
+                self.assertEqual(rc, wait.STILL_RUNNING)
+                self.assertEqual(len(self.time.sleeps), 2, "no poll after the resume")
+                self.assertRegex(out[0], r"^wait: the machine slept or was suspended \(372[78]\d s\) during this wait")
+                self.assertTrue(out[1].startswith("wait: still running after "), out)
+                self.assertEqual(len(out), 2, out)
+
+    def test_a_job_that_ended_by_the_resume_gives_its_result(self) -> None:
+        self.write(VERIFY_START + VERIFY_STEPS)
+        wall = self.slept_on_poll(1, 600.0, mono=True)
+        asleep = self.time.on_sleep[1]
+
+        def asleep_then_red() -> None:  # the job stopped red on the suspend before wait read the log again
+            asleep()  # type: ignore[operator]
+            self.append("\n".join(RED_SUMMARY) + "\nexit=1\n")
+
+        self.time.on_sleep[1] = asleep_then_red
+        rc, out = self.run_wait(180, now=lambda: wall[0])
+        self.assertEqual(rc, 1)
+        self.assertEqual(out[0], "verify summary")
+
+    def test_polls_under_a_loaded_pc_are_no_sleep(self) -> None:
+        self.write(VERIFY_START + VERIFY_STEPS)
+        wall = [1_760_000_000.0]
+
+        def slow_poll() -> None:
+            wall[0] += 60.0  # a poll the PC delayed a whole minute: far from a sleep
+
+        for poll in range(1, 4):
+            self.time.on_sleep[poll] = slow_poll
+        rc, out = self.run_wait(30, now=lambda: wall[0])
+        self.assertEqual(rc, wait.STILL_RUNNING)
+        self.assertEqual(len(out), 1, out)
+
     def test_a_log_deleted_during_the_wait_exits_2(self) -> None:
         self.write(VERIFY_START)
         self.time.on_sleep[1] = self.log.unlink

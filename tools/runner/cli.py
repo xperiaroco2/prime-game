@@ -246,7 +246,8 @@ def build_parser() -> argparse.ArgumentParser:
         "slots",
         help="who holds and waits for the verify slots (--status); one slot for a while (--quiet <hours> | off)",
         description="The machine-wide verify slots, shared by every checkout of this PC (docs/AGENT_WORKFLOW.md §11). "
-        "--status prints the quiet window, the holders (worktree, branch, pid, since), the runs waiting for a slot, "
+        "--status prints the quiet window, the holders (worktree, branch, pid, since), STALE if the machine slept "
+        "since it took its slot, the runs waiting for a slot, "
         "the runs going on without one, and the last hour's verify runs that ran without a slot (over the limit), "
         "from the slots folder and the verify history; its last line says whether a run waits or runs over the "
         "limit (a manager launches nothing while one does). --quiet <hours> (more than 0, at most 24) starts a quiet window for the engineer's "
