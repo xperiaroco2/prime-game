@@ -39,15 +39,9 @@ const GAP_WIDTH := 64.0
 const PANEL_WIDTH := 784.0
 const SETTINGS_RECT := Rect2(856, 96, 960, 888)
 const VERSION_INSET := 40.0
-## The pack's pointer.svg (own work, prime-game-ui ui-0.4.0), drawn white for the item's tint.
-## The pack's SVGs are not imported yet (#520): until then the menu rasterises this copy at
-## svg/scale 1 (24 px, as the handoff's notes give); #520 swaps it for the imported file.
-const POINTER_SVG := (
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#ffffff" stroke="#ffffff"'
-	+ ' stroke-width="2" stroke-linejoin="round"><path d="M8 5.5v13l10-6.5z"/></svg>'
-)
-
-static var _pointer: Texture2D
+## The items' icon: the pack's white pointer.svg (own work), #520's imported copy at the pack's
+## svg_scale 1 (24 px, as the handoff's notes give), through ToyIcons; tinted by ToyMenuItem.
+const POINTER := &"pointer"
 
 ## The panel open now.
 var open := Open.NONE
@@ -340,7 +334,7 @@ func _item(item_name: String, key: String, opens: Open) -> Button:
 		made.button_group = item_group
 		made.toggled.connect(_on_item_toggled.bind(opens))
 	made.name = item_name
-	made.icon = pointer_icon()
+	made.icon = ToyIcons.texture(POINTER)
 	made.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	items.add_child(made)
 	return made
@@ -553,15 +547,6 @@ func _on_name_changed(typed: String) -> void:
 func _show_kept_name() -> void:
 	if _settings != null and name_edit.text != _settings.player_name:
 		name_edit.text = _settings.player_name
-
-
-## The pointer icon of the items (POINTER_SVG at 24 px), made once.
-static func pointer_icon() -> Texture2D:
-	if _pointer == null:
-		var image := Image.new()
-		image.load_svg_from_string(POINTER_SVG, 1.0)
-		_pointer = ImageTexture.create_from_image(image)
-	return _pointer
 
 
 ## The first control under `root` that takes the keyboard, in tree order; null for none.

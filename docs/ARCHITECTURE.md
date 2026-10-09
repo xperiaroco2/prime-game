@@ -3264,9 +3264,8 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   The live lobby behind it with an idle camera is not built: no level loads before a session (`GameFlow`), so the
   backdrop dims the empty viewport.
 - **Items.** ToyMenuItem Buttons, left-aligned, each with the pointer icon at 24 px that ToyMenuItem's
-  `icon_*_color` shows only focused, hovered or pressed. The pack's SVGs are not imported until #520, so
-  `MainMenu.pointer_icon()` rasterises a copy of the pack's `pointer.svg` (`Image.load_svg_from_string`, scale 1);
-  #520 swaps in the imported file. Join, Join by address and Settings are `UiParts.toggle`s in one ButtonGroup with
+  `icon_*_color` shows only focused, hovered or pressed: the pack's `pointer.svg` as #520 imported it
+  (`ToyIcons.texture(&"pointer")`, §4.7.34, its `svg_scale` 1). Join, Join by address and Settings are `UiParts.toggle`s in one ButtonGroup with
   `allow_unpress`: pressing one opens its panel (`open_panel`), pressing it again, Back or Esc closes it
   (`close_panel`) and focuses its item. Esc reaches the open panel as #488's overlay `menu_panel` (§4.7.35:
   `GameUi` registers `panel_open()` and `close_panel`, only while the menu shows), so `Game._input` closes it like
@@ -3303,7 +3302,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the logo, the name, the code and the address are data texts. Every
   LineEdit has `context_menu_enabled` false (Godot's menu words are English).
 - Tests: `tests/unit/client/ui/main_menu_test.gd` (the tree node for node: names, classes, variations, anchors,
-  offsets, grow, size flags and minimum sizes; the items, the group and the pointer's colours; every state by its
+  offsets, grow, size flags and minimum sizes; the items, the group, the pointer (the imported file) and its colours; every state by its
   item, Back and another item, seen failing on the group's release order; the focus as drawn; the alphabet, the case, six at most and a long paste, seen
   failing without the filter; Join and Enter only with a whole code; the code kept on a return; Direct's Join and
   Host's port; the Settings panel at its top under large text, seen failing without the scroll back; the name row and its file; the port and version lines in uk; every key in the deck),

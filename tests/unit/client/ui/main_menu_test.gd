@@ -144,6 +144,8 @@ func test_the_items_are_menu_items_with_the_pointer_and_three_toggle_in_one_grou
 		var item := items[index]
 		assert_str(item.text).is_equal(keys[index])
 		assert_object(item.icon).is_not_null()
+		# #520's imported pointer.svg, not a copy rasterised here.
+		assert_str(item.icon.resource_path).is_equal(ToyIcons.IMPORTED % "pointer")
 		assert_that(item.icon.get_size()).is_equal(Vector2(24, 24))
 		assert_int(item.alignment).is_equal(HORIZONTAL_ALIGNMENT_LEFT)
 		assert_int(item.focus_mode).is_equal(Control.FOCUS_ALL)
