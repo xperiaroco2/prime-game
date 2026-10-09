@@ -146,8 +146,10 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	screen.refresh(_ended(&"crew", &"crew"), _mode, 100)
 	# MatchEnded carries no reason yet (#548): the line is hidden until one is shown.
 	assert_bool(screen.reason_label.visible).is_false()
+	assert_bool(screen.result.visible).is_false()
 	screen.show_reason(&"all_tasks", 461)
 	assert_bool(screen.reason_label.visible).is_true()
+	assert_bool(screen.result.visible).is_true()
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 7:41.")
 	screen.show_reason(&"all_tasks", 65)
 	assert_str(screen.reason_label.text).is_equal("All tasks done in 1:05.")
@@ -156,6 +158,7 @@ func test_each_reason_and_an_unknown_one_hides_the_line() -> void:
 	for unknown: StringName in [&"no_crew_present", &""]:
 		screen.show_reason(unknown, 461)
 		assert_bool(screen.reason_label.visible).is_false()
+		assert_bool(screen.result.visible).is_false()
 		assert_str(screen.reason_label.text).is_empty()
 
 
@@ -242,6 +245,34 @@ func test_night_fades_in_over_the_handoffs_time_and_cuts_under_reduced_motion() 
 	assert_float(screen.night.modulate.a).is_equal(1.0)
 	assert_object(screen.fade).is_null()
 	assert_int(began[0]).is_equal(2)
+
+
+func test_the_next_end_starts_without_the_last_rounds_reason_or_countdown() -> void:
+	var screen := _screen()
+	screen.refresh(_ended(&"crew", &"crew"), _mode, 100)
+	screen.show_reason(&"all_tasks", 461)
+	assert_bool(screen.reason_label.visible).is_true()
+	screen.visible = false
+	screen.visible = true
+	assert_bool(screen.reason_label.visible).is_false()
+	assert_bool(screen.result.visible).is_false()
+	assert_str(screen.reason_label.text).is_empty()
+	assert_bool(screen.countdown_label.visible).is_false()
+
+
+func test_a_parent_hidden_and_shown_again_is_not_a_new_end() -> void:
+	UiPrefs.reduced_motion = false
+	var screen := _screen(false)
+	var began: Array[int] = [0]
+	screen.outro_began.connect(func() -> void: began[0] += 1)
+	screen.visible = true
+	screen.fade.custom_step(EndScreen.FADE_SECONDS * 2.0)
+	assert_float(screen.night.modulate.a).is_equal(1.0)
+	_stage.visible = false
+	_stage.visible = true
+	assert_float(screen.night.modulate.a).is_equal(1.0)
+	assert_object(screen.fade).is_null()
+	assert_int(began[0]).is_equal(1)
 
 
 ## An EndScreen on the stage, with the shared theme; `shown` false: hidden, as GameUi starts it.

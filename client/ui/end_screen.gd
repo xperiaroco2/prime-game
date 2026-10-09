@@ -54,6 +54,8 @@ var reason: StringName = &""
 var round_seconds := -1
 ## The seconds the countdown shows; -1 when End has none.
 var _count := -1
+## Whether this End has begun (the fade and the sound ran): cleared when the screen is hidden.
+var _playing := false
 
 
 func _init() -> void:
@@ -149,10 +151,27 @@ func _notification(what: int) -> void:
 		_retext()
 	elif what == NOTIFICATION_VISIBILITY_CHANGED:
 		if is_visible_in_tree():
-			_begin()
-		elif fade != null:
-			fade.kill()
-			fade = null
+			# A parent shown again while End is up is not a new End: no second fade, no second sound.
+			if not _playing:
+				_playing = true
+				_begin()
+		else:
+			if fade != null:
+				fade.kill()
+				fade = null
+				night.modulate.a = 1.0
+			if not visible:
+				_end_over()
+
+
+## End is over (the screen itself is hidden): the next End starts with no reason and no countdown
+## until the host gives them, never the last round's.
+func _end_over() -> void:
+	_playing = false
+	reason = &""
+	round_seconds = -1
+	_count = -1
+	_retext()
 
 
 ## End started: Night fades in (a cut under reduced motion) and the outro's sound is due.
@@ -181,6 +200,8 @@ func _show_winner(side: StringName, won: bool) -> void:
 func _retext() -> void:
 	var reason_key: String = REASON_KEYS.get(reason, "")
 	reason_label.visible = not reason_key.is_empty()
+	# Without the line the Result box would still count as a child and add a gap of its own.
+	result.visible = not reason_key.is_empty()
 	if reason_key.is_empty():
 		reason_label.text = ""
 	else:
