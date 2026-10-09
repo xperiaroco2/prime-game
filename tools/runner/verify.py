@@ -25,6 +25,7 @@ import multiprocessing
 import os
 import random
 import re
+import signal
 import socket
 import subprocess
 import sys
@@ -43,6 +44,7 @@ from typing import IO
 from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots
 from .common import (
     IS_CI,
+    IS_WINDOWS,
     LOGS,
     ROOT,
     Failure,
@@ -52,6 +54,7 @@ from .common import (
     git,
     git_status,
     group_kwargs,
+    kill_running,
     kill_tree,
     ok,
     say,
@@ -350,20 +353,45 @@ def wait_for_steps(needed: tuple[str, ...], stream: IO[str] | None = None) -> No
 
 def lane_main(lane: str, wait: WaitFor | None = None) -> int:
     """The body of a lane process: its steps in order, each after its AFTER steps have ended (`wait`, by default
-    wait_for_steps) and followed by a MARK line with its result."""
-    for name in LANES[lane]:
-        (wait or wait_for_steps)(AFTER.get(name, ()))
-        started = time.monotonic()
-        rc = run_step(name)
-        seconds = time.monotonic() - started
-        say()
-        sys.stdout.flush()
-        mark: dict[str, object] = {"step": name, "rc": rc, "seconds": round(seconds, 1)}
-        detail = step_detail(name)
-        if detail:
-            mark["detail"] = detail
-        print(MARK + json.dumps(mark), flush=True)
+    wait_for_steps) and followed by a MARK line with its result. On Linux and macOS a SIGTERM (stop_lane) kills the
+    processes common.run started before the lane ends (#574)."""
+    with term_kills_children():
+        for name in LANES[lane]:
+            (wait or wait_for_steps)(AFTER.get(name, ()))
+            started = time.monotonic()
+            rc = run_step(name)
+            seconds = time.monotonic() - started
+            say()
+            sys.stdout.flush()
+            mark: dict[str, object] = {"step": name, "rc": rc, "seconds": round(seconds, 1)}
+            detail = step_detail(name)
+            if detail:
+                mark["detail"] = detail
+            print(MARK + json.dumps(mark), flush=True)
     return 0
+
+
+def lane_stopped(signum: int, _frame: object) -> None:
+    """A lane process's SIGTERM handler (#574): kill the processes common.run started, each in a group of its own that
+    the parent's kill of the lane's group never reaches, then end at once (os._exit: nothing that could wait; the
+    parent kills the lane's group next)."""
+    kill_running()
+    os._exit(128 + signum)
+
+
+@contextlib.contextmanager
+def term_kills_children() -> Iterator[None]:
+    """lane_stopped is the SIGTERM handler while the block runs, on Linux and macOS in the main thread (the one place
+    Python runs a handler); the earlier handler comes back after it. On Windows nothing changes: stop_lane's
+    `taskkill /T` reaches the whole tree."""
+    if IS_WINDOWS or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = signal.signal(signal.SIGTERM, lane_stopped)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous if previous is not None else signal.SIG_DFL)
 
 
 def step_detail(name: str) -> dict[str, object] | None:
@@ -471,6 +499,21 @@ class Gate:
 
 
 _GATE = Gate()
+# How long stop_lane gives a lane process to kill its children after SIGTERM, before it kills the lane's group.
+LANE_TERM_GRACE = 5.0
+
+
+def stop_lane(proc: subprocess.Popen[bytes]) -> None:
+    """Stop a lane process with every process it started (verify --fail-fast, the lane timeout, Ctrl+C). On Linux and
+    macOS a SIGTERM to the lane process alone comes first: its handler (lane_main) kills the processes common.run
+    started, each in a group of its own that the kill of the lane's group never reaches (#574). Then kill_tree, which
+    on Windows alone reaches the whole tree (`taskkill /T`)."""
+    if not IS_WINDOWS and proc.poll() is None:
+        with contextlib.suppress(ProcessLookupError):
+            proc.terminate()
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            proc.wait(timeout=LANE_TERM_GRACE)
+    kill_tree(proc)
 
 
 def stop_lanes() -> None:
@@ -479,7 +522,7 @@ def stop_lanes() -> None:
     with _LIVE_LOCK:
         live = list(_LIVE)
     for proc in live:
-        kill_tree(proc)
+        stop_lane(proc)
 
 
 def run_lane_process(
@@ -509,7 +552,7 @@ def run_lane_process(
     with _LIVE_LOCK:
         _LIVE.add(proc)
     if _STOP.is_set():  # stopped while it started: stop_lanes may have missed it
-        kill_tree(proc)
+        stop_lane(proc)
     pipe = proc.stdin
     if pipe is not None:
         _GATE.attach(pipe)
@@ -518,7 +561,7 @@ def run_lane_process(
 
     def stop() -> None:
         fired.set()
-        kill_tree(proc)
+        stop_lane(proc)
 
     timer = threading.Timer(timeout, stop)
     timer.daemon = True
@@ -579,7 +622,7 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
         with _LIVE_LOCK:
             live = list(_LIVE)
         for proc in live:
-            kill_tree(proc)
+            stop_lane(proc)
         raise
     return walls
 
