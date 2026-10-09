@@ -229,8 +229,9 @@ func test_the_map_opens_with_its_rows_and_the_esc_menu_closes_it() -> void:
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
 	ui.open_map()
-	# Its rows are there on the first frame it shows, before the next refresh_round.
-	assert_int(ui.map.rows_box.get_child_count()).is_equal(2)
+	# Its rows are there on the first frame it shows, before the next refresh_round: one per task
+	# type (#490), so the fake round's two Delivery tasks share one.
+	assert_int(ui.map.rows_box.get_child_count()).is_equal(1)
 	var closed_under_menu: Array[bool] = []
 	ui.map_closed.connect(func() -> void: closed_under_menu.append(ui.esc_open()))
 	ui.open_esc(false)

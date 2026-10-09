@@ -22,26 +22,28 @@ const PACKAGE := 7
 const KNIFE := 3
 const CIRCLE := 2
 const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
-## The fake house's rooms (fake_level): id, north-west corner, size in metres.
+## The fake house's rooms (fake_level): id, north-west corner, size in metres; laid out as the
+## sample rooms of prime-game-ui's s08 handoff (ui-0.4.0) at about 24 px a metre, in its order.
 const FAKE_ROOMS: Array[Array] = [
-	[&"storage", Vector3(-20, 0, -16), Vector2i(12, 10)],
-	[&"hall", Vector3(-8, 0, -16), Vector2i(16, 10)],
-	[&"kitchen", Vector3(8, 0, -16), Vector2i(12, 10)],
-	[&"lab", Vector3(-20, 0, -6), Vector2i(14, 12)],
-	[&"office", Vector3(-6, 0, -6), Vector2i(12, 12)],
-	[&"lounge", Vector3(6, 0, -6), Vector2i(14, 12)],
+	[&"storage", Vector3(-20, 0, -16), Vector2i(14, 12)],
+	[&"kitchen", Vector3(-4, 0, -16), Vector2i(11, 12)],
+	[&"lab", Vector3(9, 0, -16), Vector2i(12, 16)],
+	[&"office", Vector3(-20, 0, 1), Vector2i(10, 16)],
+	[&"hall", Vector3(-8, 0, 1), Vector2i(15, 16)],
+	[&"lounge", Vector3(9, 0, 2), Vector2i(12, 15)],
 ]
 ## The fake house's markers: group and position.
 const FAKE_MARKERS: Array[Array] = [
 	["spawn_package", Vector3(-17, 0, -13)],
 	["spawn_package", Vector3(-12, 0, -9)],
-	["spawn_package", Vector3(-15, 0, 2)],
-	["spawn_circle", Vector3(14, 0, -11)],
-	["spawn_round_player", Vector3(-2, 0, -11)],
-	["spawn_round_player", Vector3(2, 0, -11)],
+	["spawn_package", Vector3(15, 0, -8)],
+	["spawn_circle", Vector3(1, 0, -10)],
+	["spawn_round_player", Vector3(-2, 0, 8)],
+	["spawn_round_player", Vector3(2, 0, 8)],
 ]
-## The own player's place in the fake house (the hall) and its heading, radians from north.
-const FAKE_OWN_PLACE := Vector3(-5, 0, -8)
+## The own player's place in the fake house (the hall, off its name) and its heading, radians
+## from north.
+const FAKE_OWN_PLACE := Vector3(-5, 0, 14)
 const FAKE_OWN_HEADING := 0.6
 
 @export var preview := Preview.MENU
@@ -69,7 +71,8 @@ const FAKE_OWN_HEADING := 0.6
 ## The connecting screen's state (Preview.CONNECTING; #494): finding, connecting-direct, joined,
 ## a failure's (ConnectingScreen.FAILURES), or load (Preview.LOADING shows load).
 @export var s3_state: StringName = &"finding"
-## The map (Preview.MAP, #253) with the zones of this task type lit, as when its row is hovered.
+## The map (Preview.MAP, #253) with this task type's «?» focused by the keyboard, so its zones
+## light (s8's `zone`).
 @export var map_lit: StringName = &""
 ## The how-to card of this task type (#254): open over the map (Preview.MAP), or on the loading
 ## screen (Preview.LOADING, load-card).
@@ -158,7 +161,7 @@ func _ready() -> void:
 				house.free()
 				ui.open_map()
 				if not map_lit.is_empty():
-					ui.map.light(map_lit)
+					ui.map.focus_help(map_lit)
 				if not howto_card.is_empty():
 					ui.map.open_howto(howto_card)
 	ui.refresh(model, mode, 100, hosting)
