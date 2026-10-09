@@ -1,6 +1,7 @@
-[gd_scene format=3 uid="uid://cb07d0hfsbbv6"]
+[gd_scene format=3 uid="uid://ded6mlwpcymok"]
 
 [ext_resource type="Script" uid="uid://c3i1sn4qpt8he" path="res://client/dev/hud_preview.gd" id="1_preview"]
 
-[node name="HudPreview" type="Node3D" unique_id=258641803]
+[node name="HudPreview" type="Node3D" unique_id=1916854293]
 script = ExtResource("1_preview")
+state = "tired"
