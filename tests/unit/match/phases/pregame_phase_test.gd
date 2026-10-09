@@ -91,6 +91,7 @@ func test_a_move_claim_is_dropped_and_every_other_intent_is_not_accepted() -> vo
 		Intents.LOAD_ACK,
 		Intents.SET_READY,
 		Intents.RETURN_TO_LOBBY,
+		Intents.NEXT_STAGE,
 	]
 	var seq := 2
 	for intent: StringName in intents:

@@ -291,6 +291,17 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
 
 
+func test_the_base_mode_accepts_next_stage_in_no_phase() -> void:
+	# #599, E65: NextStage is a scripted mode's control; the base mode's host cannot skip a phase.
+	# The chaos oracle (ChaosOracle.NEVER_ACCEPTED) relies on this.
+	for spec: PhaseSpec in _base_mode().phases:
+		(
+			assert_int(spec.senders_of(Intents.NEXT_STAGE))
+			. override_failure_message(str(spec.id))
+			. is_equal(0)
+		)
+
+
 func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
 	# M4-4, E27: the raise rule's numbers (3 s, the pick-up's 2 m, 50 health), Round's accepts
 	# (Raise and StopRaise from the living, GiveUp from the downed) and ChannelTicks after LifeTicks.

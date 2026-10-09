@@ -644,6 +644,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `ReturnToLobby()` | the host only; End | none: End reports `back` at once, before its end tick; since #212 no screen sends it (the tests and the bots' `ReturnToLobby` step do) |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
+| `NextStage()` | the host (peer 1) only, `AcceptSpec` HOST; only a scripted mode's phase that lists it (the tutorial's `lessons` and `raise_stage`, `docs/design/tutorial.md` §2.4, E65). The base mode lists it in no phase: `not_accepted` (#599) | nothing more: the phase's rule reports `next` (§9.4 `ReportOutcome`) and its one `next` row runs. A session control like `ReturnToLobby` (not in `Intents.PLAYER_ACTIONS`), so the client does not resend it; as every applied intent it stops the sender's own channel first |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 
@@ -780,6 +781,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
 | 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
+| 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -863,9 +865,9 @@ The rules of the table:
   `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
   `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), 10
   when #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster,
-  and is 11 since #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
+  11 when #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
   and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
-  97. The tutorial's `NextStage` (T1 #599, E65) takes 12 or later. M4's protocol PRs each set
+  97, and is 12 since T1 (#599, E65) added the tutorial's `NextStage` (15). M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts

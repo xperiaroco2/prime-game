@@ -14,7 +14,7 @@ extends RefCounted
 ## decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 11
+const PROTOCOL_VERSION := 12
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
