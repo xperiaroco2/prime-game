@@ -189,6 +189,23 @@ func test_on_light_inks_the_texts_and_keeps_each_check_box_working() -> void:
 	panel.show_facts(_shown())
 	panel.denoise_check.button_pressed = false
 	assert_array(_got).contains_exactly([["denoise", false]])
+	# A click on the words toggles the box, as on the Esc menu's check box with text; a right
+	# click or a release does not.
+	var right := InputEventMouseButton.new()
+	right.button_index = MOUSE_BUTTON_RIGHT
+	right.pressed = true
+	noise.gui_input.emit(right)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	noise.gui_input.emit(release)
+	assert_bool(panel.denoise_check.button_pressed).is_false()
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	noise.gui_input.emit(click)
+	assert_bool(panel.denoise_check.button_pressed).is_true()
+	assert_array(_got).contains_exactly([["denoise", false], ["denoise", true]])
+	assert_int(noise.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 
 func _shown() -> VoicePanel.Shown:

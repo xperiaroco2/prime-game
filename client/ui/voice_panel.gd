@@ -146,7 +146,8 @@ func _init() -> void:
 ## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight; the microphone
 ## notice too, as the pack has no warning text for a light panel and Shortfalls' amber is
 ## unreadable on cream), and each check box's words beside it in ink (a CheckBox has no light
-## variation in the pack). The logic stays.
+## variation in the pack); a click on the words toggles the box, as on a CheckBox with text.
+## The logic stays.
 func on_light() -> void:
 	for label: Label in _labels(self):
 		match label.theme_type_variation:
@@ -163,6 +164,8 @@ func on_light() -> void:
 		row.add_child(check)
 		var words := UiParts.styled_label(check.text, &"ToyTextOnLight")
 		words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		words.mouse_filter = Control.MOUSE_FILTER_STOP
+		words.gui_input.connect(_on_words_input.bind(check))
 		row.add_child(words)
 		check.text = ""
 		holder.add_child(row)
@@ -221,6 +224,13 @@ func _on_device(index: int) -> void:
 
 func _on_mode(index: int) -> void:
 	mode_picked.emit(mode_button.get_item_id(index) as UserSettings.Mode)
+
+
+## A left click on a check box's words (on_light) toggles it, its toggled signal included.
+static func _on_words_input(event: InputEvent, check: CheckBox) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		check.button_pressed = not check.button_pressed
 
 
 ## Every Label under `root`.
