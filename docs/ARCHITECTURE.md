@@ -4552,8 +4552,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
     harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
-    (`PerfScenario`) keeps the default draw, both task types since #649: two of the 10 spokes cross the greybox's
-    zones, so it meters `ZoneProgress` too.
+    (`PerfScenario`) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
+    zone markers lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one spoke crosses it and the
+    run meters `ZoneProgress` too.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
