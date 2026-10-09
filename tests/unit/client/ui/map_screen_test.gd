@@ -116,16 +116,10 @@ func test_a_question_mark_opens_its_types_card_over_the_map() -> void:
 	assert_bool(screen.howto_open()).is_false()
 
 
-func test_esc_or_the_map_key_closes_only_the_card_and_so_does_hiding_the_map() -> void:
+## Esc and the map key close the card through GameUi.overlays (game_ui_overlays_test.gd,
+## map_input_test.gd); the map hiding closes it here.
+func test_hiding_the_map_closes_the_card() -> void:
 	var screen := _screen(_round_model())
-	for action: StringName in [&"ui_cancel", &"map"]:
-		assert_bool(screen.open_howto(&"delivery")).is_true()
-		_press_action(action)
-		assert_bool(screen.howto_open()).override_failure_message(action).is_false()
-		assert_bool(screen.visible).is_true()
-	# Without a card the screen leaves both keys to the game.
-	_press_action(&"ui_cancel")
-	assert_bool(screen.visible).is_true()
 	screen.open_howto(&"delivery")
 	screen.visible = false
 	assert_bool(screen.howto_open()).is_false()
@@ -250,16 +244,6 @@ func test_other_players_items_and_circles_change_nothing_on_the_screen() -> void
 	assert_str(all).not_contains("Stranger")
 	for item: ClientModel.Item in busy.items.values():
 		assert_str(all).not_contains(str(item.position))
-
-
-## `action` pressed and released through Input, as a key would be.
-func _press_action(action: StringName) -> void:
-	for pressed: bool in [true, false]:
-		var event := InputEventAction.new()
-		event.action = action
-		event.pressed = pressed
-		Input.parse_input_event(event)
-		Input.flush_buffered_events()
 
 
 func _screen(model: ClientModel, local: HudText.Local = _local()) -> MapScreen:

@@ -3086,9 +3086,9 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
   `ui.overlays.close_top()`, then, with a session only, opens the Esc menu. A key capture in Settings › Controls
   takes its Esc in its own `_input`, which runs before the game's, so it is no overlay here.
-- **The how-to card's seam** (#254, not built yet): the card registers itself, `ui.overlays.add(&"howto_card",
-  UiOverlays.CARD, <is open>, <close>, true)`; the last argument makes the map key close it too. It closes with the
-  map (`map_closed`), which `open_esc` closes. The tests use a stub card.
+- **The how-to card's seam** (#254, built there, §4.7.36): `GameUi` registers the map's card,
+  `overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)`; the last argument makes the
+  map key close it too. It closes with the map (`map_closed`), which `open_esc` closes. #488's tests use a stub card.
 - **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
   the map key closes), else toggles the map; under the Esc menu it does nothing and returns false.
 - **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
@@ -3139,9 +3139,9 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   `Art`, a TextureRect that keeps its aspect); the art is 320x240 on the map, 352x264 on the loading screen and
   160x120 in the Guide; the map's card adds `Bar` with Close. Words set in code follow the language live.
 - **On the map** (`MapScreen.open_howto`, s8's `guide`): a «?» opens its type's card centred over the map on `Dim2`
-  (ToyBackdrop, it stops the mouse), 1536 px wide. Close, Esc or the map key closes only the card: the map screen
-  reads them in `_input`, before `Game`'s Esc and map key, and marks them handled (a minimal form of #488's rules 2
-  and 3, which #488 generalises). While it is open the task list and the board take no focus
+  (ToyBackdrop, it stops the mouse), 1536 px wide. Close, Esc or the map key closes only the card: `GameUi`
+  registers it in its `overlays` as `howto_card` on `UiOverlays.CARD`, above the map, closed by the map key too
+  (#488's rules 2 and 3, §4.7.35; until the rebase on #488 the map screen read both keys in its own `_input`). While it is open the task list and the board take no focus
   (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
 - **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` (`client/app/GameHowto`) shows
   the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
@@ -3167,13 +3167,14 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   deck, and every picture in the game once the pack's folder is), `tests/unit/client/ui/howto_card_test.gd` (a card's
   checks, the dealable types, the tree node for node, the placeholder, the words with the bound key in both
   languages), `guide_panel_test.gd` (the list, the selection, both languages, the dark page, the Esc menu's tab),
-  `map_screen_test.gd` (the card over the map, Dim2, focus, Close; Esc and the map key close only the card),
+  `map_screen_test.gd` (the card over the map, Dim2, focus, Close, the map hiding closes it),
+  `game_ui_overlays_test.gd` (Esc and the map key close only the card, then Esc closes the map),
   `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
   then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
   shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
   finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
   type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
-  card's input rule). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
+  card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
 
 ### 4.8 Signalling (M6-5a, #366)

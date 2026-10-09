@@ -16,7 +16,7 @@ extends CanvasLayer
 ##
 ## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main menu's
 ## page, the map, a card over the map, the Esc menu and its question to the host register here;
-## the how-to card (#254) registers itself (UiOverlays.CARD, the map key closing it too).
+## the how-to card over the map (#254, `howto_card`: UiOverlays.CARD, the map key closing it too).
 
 ## The map and tasks screen opened (the game frees the mouse; the tutorial's `map_opened`).
 signal map_opened
@@ -76,6 +76,8 @@ func _init() -> void:
 	close_esc()
 	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_voice)
 	overlays.add(&"map", UiOverlays.MAP, map_is_open, close_map)
+	# The how-to card over the map (#254): Esc and the map key close it before the map.
+	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
 	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
 	overlays.add(
 		&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.press.bind(EscMenuState.Tab.RESUME)

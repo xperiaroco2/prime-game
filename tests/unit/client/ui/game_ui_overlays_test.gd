@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## GameUi's overlays (#488 rule 2 and 3): what each Esc closes, the main menu's page only on the
-## main menu, and the map key. The game's keys through Input: esc_menu_input_test.gd and
-## map_input_test.gd.
+## main menu, the map key, and the how-to card over the map (#254). The game's keys through Input:
+## esc_menu_input_test.gd and map_input_test.gd.
 
 const S := GameFlow.Screen
 
@@ -47,6 +47,27 @@ func test_the_map_key_toggles_the_map_and_is_ignored_under_the_esc_menu() -> voi
 	ui.open_esc(false)
 	assert_bool(ui.press_map_key()).is_false()
 	assert_bool(ui.map_is_open()).is_false()
+
+
+## #254's how-to card over the map (`howto_card`, above the map): Esc and the map key close only
+## the card, one press one overlay; then Esc is the map's again.
+func test_the_how_to_card_closes_before_the_map_on_esc_and_on_the_map_key() -> void:
+	var ui := _ui()
+	ui.show_screen(S.ROUND)
+	assert_bool(ui.press_map_key()).is_true()
+	assert_bool(ui.map.open_howto(&"delivery")).is_true()
+	assert_str(String(ui.overlays.top())).is_equal("howto_card")
+	assert_str(String(ui.overlays.close_top())).is_equal("howto_card")
+	assert_bool(ui.map.howto_open()).is_false()
+	assert_bool(ui.map_is_open()).is_true()
+	assert_bool(ui.map.open_howto(&"delivery")).is_true()
+	assert_bool(ui.press_map_key()).is_true()
+	assert_bool(ui.map.howto_open()).is_false()
+	assert_bool(ui.map_is_open()).is_true()
+	assert_str(String(ui.overlays.close_top())).is_equal("map")
+	assert_bool(ui.map_is_open()).is_false()
+	# The closed cards are freed at the end of the frame.
+	await get_tree().process_frame
 
 
 func _ui() -> GameUi:

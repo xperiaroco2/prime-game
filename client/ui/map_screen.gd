@@ -7,9 +7,9 @@ extends Control
 ## (howto_requested; the card is #254). Right, the level's map (MapData): the rooms by name, the
 ## own place and heading as a pin with "you are here", and while a task row is hovered the zones
 ## where that type's items may lie. Then the match clock. A «?» opens its type's how-to card (#254,
-## s8's `guide`) over the map on Dim2: Close, Esc or the map key closes only the card (this screen
-## reads them first and marks them handled, #488's rule 2 and 3); while it is open the task list
-## and the board take no focus.
+## s8's `guide`) over the map on Dim2: Close, Esc or the map key closes only the card (Esc and the
+## key through GameUi.overlays, its `howto_card` on top of the map, #488's rules 2 and 3); while it
+## is open the task list and the board take no focus.
 ##
 ## Never another player's place, an item's or a circle's: the screen reads only the model's tasks
 ## and clock, and the own place the game passes in (HudText.Local); zones are level data (the M4
@@ -120,16 +120,6 @@ func _process(_delta: float) -> void:
 		unlight()
 	else:
 		light(hovered)
-
-
-## Close, Esc (ui_cancel) or the map key with the card open closes only the card: read here, before
-## the game's own Esc and map key, and marked handled.
-func _input(event: InputEvent) -> void:
-	if howto == null or not is_visible_in_tree():
-		return
-	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"map"):
-		close_howto()
-		get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
