@@ -105,6 +105,12 @@ static func largest_radius(rules: PlayerRules) -> float:
 	)
 
 
+## The condition classes a rule holding this effect must hold, not negated (ModeCheck): HoldsItem,
+## so a belt item is never thrown, and OverFloor, so no throw leaves its item in the air.
+func required_conditions() -> Array[Script]:
+	return [HoldsItem, OverFloor]
+
+
 func emits() -> Array[Script]:
 	return [ItemThrownEvent]
 
