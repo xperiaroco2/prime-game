@@ -1802,7 +1802,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
 | no session | main menu: address, port, Host, Join, Voice (its Voice page, #301), Quit, and why the last session ended | none | none |
-| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.30): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
+| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.31): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
@@ -1864,7 +1864,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
-  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.30) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.31) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
   `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
   (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
