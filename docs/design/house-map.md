@@ -239,4 +239,5 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
   - how dissidents interfere with each chain (a wrong herb or part, letting the lift go, a wrong pose or a spoiled
     shot, switching the generator's switches off);
   - the street as a spawn point at the start of a round;
-  - the counts: 3 kinds of buns, 4 to 5 herbs in the greenhouse; whether the loot on the roof is a weapon.
+  - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
+    [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).
