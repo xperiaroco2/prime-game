@@ -81,6 +81,10 @@ var settings: UserSettings
 ## InputMap at the start, or the project's defaults in memory, untouched, with `read_command_line`
 ## off, unless a test sets one before _ready. The Esc menu's Controls tab changes them.
 var controls: Controls
+## What the player has seen and done of each task type, for the loading screen's how-to card
+## (#254): the player's file under user:// (HowtoProgress.for_this_player()), or in memory with
+## `read_command_line` off, unless a test sets one before _ready.
+var howto: HowtoProgress
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -147,6 +151,9 @@ func _ready() -> void:
 	ui.esc.quit_requested.connect(quit)
 	ui.map_opened.connect(_on_map_opened)
 	ui.map_closed.connect(_on_map_closed)
+	ui.loading_started.connect(_on_loading_started)
+	if howto == null:
+		howto = HowtoProgress.for_this_player() if read_command_line else HowtoProgress.new()
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
@@ -358,6 +365,15 @@ func close_esc() -> void:
 		pointer.capture(true)
 
 
+## The map loading started: the how-to card of a task type this round may deal that the player has
+## not completed, shown at most HowtoProgress.LOADING_SHOWS times (#254), instead of the tip.
+func _on_loading_started() -> void:
+	var model := _client.model if _client != null else null
+	var type := howto.loading_pick(HowtoCards.dealable(mode, model))
+	if not type.is_empty() and ui.show_loading_card(type):
+		howto.note_loading_shown(type)
+
+
 ## The map opened (#253): the mouse is free for its «?»; the player keeps walking.
 func _on_map_opened() -> void:
 	pointer.capture(false)
@@ -468,6 +484,9 @@ func _process(_delta: float) -> void:
 			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
+		if now == GameFlow.Screen.ROUND or now == GameFlow.Screen.END:
+			# The round's last task can finish in the frame the match ends.
+			howto.follow(_client.model)
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
 	_refresh_overlay()
 	_refresh_voice()

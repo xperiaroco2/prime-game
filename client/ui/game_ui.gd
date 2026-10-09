@@ -22,6 +22,9 @@ extends CanvasLayer
 signal map_opened
 ## It closed: by the key, Esc, the Esc menu or the end of the round.
 signal map_closed
+## The map loading started (the connecting screen shows its players and a tip): the game may put a
+## how-to card there instead (show_loading_card, #254).
+signal loading_started
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
@@ -83,7 +86,8 @@ func _init() -> void:
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
 ## loading); the connecting and failure parts are the game's to set (show_join, show_failure).
 func show_screen(which: GameFlow.Screen) -> void:
-	if which == GameFlow.Screen.LOADING and screen != which:
+	var loading_now := which == GameFlow.Screen.LOADING and screen != which
+	if loading_now:
 		connecting.show_loading()
 	screen = which
 	plates.visible = which == GameFlow.Screen.LOBBY or which == GameFlow.Screen.ROUND
@@ -97,6 +101,18 @@ func show_screen(which: GameFlow.Screen) -> void:
 	if which != GameFlow.Screen.ROUND:
 		close_map()
 	_show_map()
+	if loading_now:
+		loading_started.emit()
+
+
+## The loading screen shows `type`'s how-to card instead of the players and the tip (load-card,
+## #254); false when the type has no card.
+func show_loading_card(type: StringName) -> bool:
+	var card := HowtoCards.of_task(type)
+	if card == null:
+		return false
+	connecting.show_card(HowtoCardView.raised(card, HowtoCardView.LOADING_ART, ToyHints.DARK))
+	return true
 
 
 ## Opens the map and tasks screen, in the round with no Esc menu only.
