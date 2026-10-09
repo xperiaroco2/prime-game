@@ -157,3 +157,8 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
   [vision revision 1](decisions/2026-10-01-vision-revision-1.md) everyone sees a downed player, a body (it stays until
   its player respawns), the item in a player's hand and the one on their belt, and a player's few seconds of
   invulnerability, so each must read at a glance; how they look is open.
+
+## 15. Tutorial
+
+[`docs/design/tutorial.md`](design/tutorial.md) (#552, proposed): an offline solo session in a room of its own,
+the UI track's nine lessons, and its open points (D25 to D36) for the engineer.
