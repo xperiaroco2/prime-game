@@ -121,13 +121,19 @@ def summary_lines(lines: list[str], tail: int = TAIL_LINES) -> list[str]:
 def failing_lines(lines: list[str]) -> list[str]:
     """The first FAILING_SHOWN lines before the summary block that name a failure (a red step's FAIL line, a test's
     assertion, a traceback), for a red job; none when the log has no summary block (summary_lines then already
-    printed the last lines)."""
+    printed the last lines). Below a verify summary only the lines after the previous summary block count (a publish
+    retried in the same log: the earlier attempt's failures are not this exit code's); a merge-train's summary
+    counts every PR it tried, so its whole log does."""
     end = max(i for i, line in enumerate(lines) if line.strip())  # the marker
     body = lines[:end]
     heads = [i for i, line in enumerate(body) if line.startswith(SUMMARY_HEADS)]
     if not heads:
         return []
-    return [line for line in body[: heads[-1]] if FAILING_LINE.search(line)][:FAILING_SHOWN]
+    start = 0
+    if body[heads[-1]].startswith("verify summary"):
+        earlier = [i for i, line in enumerate(body[: heads[-1]]) if VERIFY_END_LINE.match(line)]
+        start = earlier[-1] + 1 if earlier else 0
+    return [line for line in body[start : heads[-1]] if FAILING_LINE.search(line)][:FAILING_SHOWN]
 
 
 def quiet_report(lines: list[str], code: int, whole: str) -> list[str]:

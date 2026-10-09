@@ -249,6 +249,22 @@ class QuietWaitTest(unittest.TestCase):
         self.assertLessEqual(len(text.encode()), common.FAILURE_CAP + 400)
         self.assertRegex(out[-1], r"finished: exit=1 \(whole log: .*verify-1\.log\)$")
 
+    def test_a_red_publish_retried_in_one_log_shows_only_the_last_attempts_failing_lines(self) -> None:
+        first = ["== test", "  FAIL  old_suite failed", "verify summary", "  FAILED  test   1.0s", "verify: FAILED in 1.0s"]
+        second = ["== lint", "  FAIL  net/b.gd:9: new failure", "verify summary", "  FAILED  lint   1.0s"]
+        rc, out = self.wait([*first, *second, "verify: FAILED in 2.0s", "exit=1"])
+        self.assertEqual(rc, 1)
+        text = "\n".join(out)
+        self.assertIn("  FAIL  net/b.gd:9: new failure", text)
+        self.assertNotIn("old_suite", text)
+
+    def test_a_red_merge_train_shows_the_failing_lines_of_every_pr_it_tried(self) -> None:
+        log = ["== #1", "  FAIL  suite_a failed", "verify summary", "verify: FAILED in 1.0s"]
+        log += ["== #2", "verify summary", "verify: passed in 1.0s", "merge-train summary", "  skipped #1", "  merged  #2"]
+        rc, out = self.wait([*log, "merge-train: 1 merged, 1 skipped of 2 PRs", "exit=1"])
+        self.assertEqual(rc, 1)
+        self.assertIn("  FAIL  suite_a failed", "\n".join(out))
+
     def test_a_red_log_without_a_summary_block_prints_its_last_lines_and_the_exit_code(self) -> None:
         rc, out = self.wait(["publish: rebase failed", "exit=3"])
         self.assertEqual(rc, 3)
