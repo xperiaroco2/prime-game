@@ -46,6 +46,13 @@ static func host_next_stage() -> AcceptSpec:
 	return AcceptSpec.of(Intents.NEXT_STAGE, AcceptSpec.From.HOST)
 
 
+static func knock_down(pick: int, then_die: bool = false) -> KnockDown:
+	var effect := KnockDown.new()
+	effect.pick = pick
+	effect.then_die = then_die
+	return effect
+
+
 ## `peer` sends NextStage, applied on the next host tick.
 static func next_stage(game: Match, peer: int, seq: int = 0) -> void:
 	FixtureModes.send(game, Intents.NEXT_STAGE, peer, {}, seq)
