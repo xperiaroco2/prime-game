@@ -66,8 +66,9 @@ GitHub retargets to `main` when its parent's branch is deleted.
 ## Consequences
 - The engineer reviews a stage as one PR into `main`, with every task PR, review table and answer linked from it,
   instead of one click per task. The task PRs keep their own reviews and CI runs.
-- CI runs on pull requests and on pushes to `main` only, so a push to `release/m<k>` runs no CI: `verify` on the
-  merged tree is the gate there, and the closing PR runs CI on the whole stage.
+- CI ran on pull requests and on pushes to `main` only, so a push to `release/m<k>` ran no CI and `verify` on the
+  merged tree was the gate there; since #622 `merge` into a release branch needs CI green on a head up to date with it
+  (as into `main`), CI runs on pushes to `release/**`, and the closing PR runs CI on the whole stage.
 - Merging the closing PR deletes `release/m<k>` (auto-delete is on) and would retarget any PR still based on it to
   `main`: the manager opens it only when no task PR targets the release branch, or says which do.
 - On the M3 night `publish` treated a `release/*` base that equalled `main` as a merged parent. Since #113 it keeps

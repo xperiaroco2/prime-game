@@ -29,5 +29,6 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
 - A red test is found on the PR, not before the push: a red CI round costs about 8 minutes plus a fix and a push.
 - Windows-only failures (CI runs Linux, without the TwoVoIP addon) are no longer caught locally; run
   `verify --full` locally before a release, or when a change touches Windows-only code.
-- A push to `release/m<k>` runs no CI, so a merge there now checks only lint and check locally until `merge` and
-  `merge-train` wait for CI on an up-to-date head (#605's remaining criteria).
+- A push to `release/m<k>` ran no CI, so a merge there checked only lint and check locally until `merge` waited for
+  CI on an up-to-date head, as the gate into `main` does, and CI ran on pushes to `release/**` (#622, #605's remaining
+  criteria): `merge --base release/m<k>` and `--sync-main` run no local verify.

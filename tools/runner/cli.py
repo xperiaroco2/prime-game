@@ -332,11 +332,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p = sub.add_parser(
         "merge",
-        help="merge a PR (or main) into release/<x> (verify on the merged tree, push by hash), or a PR into main "
-        "through GitHub when its gate passes",
-        description="A manager's merge (docs/AGENT_WORKFLOW.md §7.1). --base release/<x>: the PR (or, with "
-        "--sync-main, origin/main) merged into it, verify on the merged tree, push by hash. --base main: the PR "
-        "merged through GitHub when its gate passes.",
+        help="merge a PR into release/<x> or main through GitHub when its gate passes (CI green on an up-to-date head), "
+        "or main into release/<x> (--sync-main, push by hash); no local verify",
+        description="A manager's merge (docs/AGENT_WORKFLOW.md §7.1). --base release/<x>: the PR merged "
+        "through GitHub when CI is green on a head that contains the branch; with --sync-main, origin/main merged "
+        "into it and pushed by hash. --base main: the PR merged through GitHub when its gate passes. No local verify: "
+        "CI tests the merged tree (it runs on pushes to release/**).",
     )
     p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
