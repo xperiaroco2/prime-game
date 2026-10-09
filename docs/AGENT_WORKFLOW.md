@@ -1813,10 +1813,13 @@ verify in flight reported a step of about 38,000 s, ending after the resume: a W
 count a sleep, while `time.monotonic` (QueryPerformanceCounter) and the wall clock do; on Linux the monotonic clock
 stops and the wall clock jumps. So a thread of `verify` (`suspend.Watch`, `tools/runner/suspend.py`) reads both clocks
 every 5 s while the lanes run; a gap of 120 s or more between two reads (`SUSPEND_GAP`: a loaded PC delays a thread by
-seconds; a shorter sleep is survived) stops every lane at once, as `--fail-fast` does: each lane's running step
+seconds; a shorter sleep is survived) stops every lane at once, as `--fail-fast` does (`stop_lanes_firmly`: one
+thread per lane, repeated up to 6 times 5 s apart, as Windows may not start `taskkill` just after a wake; a suspend
+noticed after the last step ended changes nothing): each lane's running step
 (`steps_in_flight`: not one still waiting for its `AFTER` step) is red with the first line `the machine slept or was
 suspended (<n> s): verify stopped this step`, its `failure` in the record; the rest is `not run`; the end line adds `,
-stopped early at <steps>: the machine slept or was suspended (<n> s)` (so `metrics` leaves the run out of its totals),
+stopped early at <steps>: the machine slept or was suspended (<n> s)` (`metrics` counts no step of such a run, red
+or not: neither its totals nor its red rates),
 and the record's `stopped` is {`at`: null, `suspended`: n, `not_run`}. `wait` reads the same two clocks at its polls:
 after such a gap it reads the log once more and, with the job still running, prints `wait: the machine slept or was
 suspended (<n> s) during this wait; ...` before its still-running line (124). Tests:
