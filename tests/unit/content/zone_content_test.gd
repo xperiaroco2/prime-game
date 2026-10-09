@@ -2,12 +2,12 @@ extends GdUnitTestSuite
 ## The base mode's zone task in `content/` (ARCHITECTURE §9.5.17; the zone task ADR, ZD7, ZD8 (a),
 ## ZE9; #649): Hold the zone with the engineer's provisional numbers and names (#302 comment
 ## 6085251071), its `zones` setting, the greybox's fit at the most zones and packages, and ZE9's
-## spacing on every map of the base mode (`zone_spacing.gd`, which the House map's marker test
-## shares, #651). The wall and ceiling clearance is a level convention (`levels/CLAUDE.md`),
-## checked by a `shot`, and on House by its marker test too. Like the mode check, this test loads
-## `content/` on purpose (§9.6).
+## spacing on every map of the base mode (`fixture_zone_spacing.gd`, which the House map's
+## marker test shares, #651). The wall and ceiling clearance is a level convention
+## (`levels/CLAUDE.md`), checked by a `shot`, and on House by its marker test too. Like the mode
+## check, this test loads `content/` on purpose (§9.6).
 
-const Spacing := preload("res://tests/unit/content/zone_spacing.gd")
+const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
 
 

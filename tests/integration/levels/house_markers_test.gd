@@ -9,7 +9,7 @@ extends GdUnitTestSuite
 ## collision world; a `shot` still shows it). The map is not in the base mode's list yet (#623):
 ## the scenarios' fake world is one flat floor.
 
-const Spacing := preload("res://tests/unit/content/zone_spacing.gd")
+const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 ## The cylinder's bottom this far above the floor its marker snaps to, so that floor is no hit.

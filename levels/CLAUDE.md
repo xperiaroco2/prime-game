@@ -44,7 +44,7 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
     mode: any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least its
     radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
     circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
-    are not compared (the check is `tests/unit/content/zone_spacing.gd`, which House's marker test runs too).
+    are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
 - Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
   start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
   "not a decision" (#649); House's three (the generator hall, the garden, the landing) are #651's placeholders until

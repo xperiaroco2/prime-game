@@ -4390,7 +4390,7 @@ trip), `zone_role_swap_test.gd` (two roles swapped emit the same task events; pl
 failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movement/movement_rule_claim_age_test.gd`,
 `tests/unit/content/mode_check_stations_test.gd`; fixtures `tests/fixtures/tasks/fixture_zone_modes.gd`. House's zones
 (#651): `tests/integration/levels/house_markers_test.gd` (ZE9's spacing through the shared
-`tests/unit/content/zone_spacing.gd`, the fit at the most zones, each cylinder on flat floor clear of walls and
+`tests/fixtures/tasks/fixture_zone_spacing.gd`, the fit at the most zones, each cylinder on flat floor clear of walls and
 ceilings in the host's collision world, and a zone by a wall or over the stairs refused).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
