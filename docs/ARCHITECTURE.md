@@ -1802,13 +1802,13 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
 | no session | main menu: address, port, Host, Join, Voice (its Voice page, #301), Quit, and why the last session ended | none | none |
-| connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
+| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.30): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
 | Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
-| Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
+| Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
-| ended | main menu with the reason in words | none | none |
+| ended | the connecting screen's failure in plain words until Back (#494), then the main menu with the reason in words; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
   mode's `lobby_level`, loaded synchronously at `Welcome` and when a lobby phase follows a map phase (End → Lobby,
@@ -1839,7 +1839,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
-  when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu,
+  when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
   Connecting and the end screen free it (the first two for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
@@ -1864,7 +1864,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
-  the views and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.30) and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
   `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
   (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
@@ -1882,7 +1882,7 @@ one that accepts `ReturnToLobby` or a match with a winner the end screen, any ot
 `SessionNode` (-90), `LaunchOptions` (the command line, which `headless_session.gd` also reads) and `EndReasons`
 (the reasons in words; it writes the host's own reasons as ids, since `client/` may not name `HostSession`, and a
 test pins them to `server/`'s). `client/ui/` holds the screens, built in code under `GameUi` (the `Ui` layer):
-`MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen`, `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
+`MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen` (folded into `ConnectingScreen` by #494), `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
 (`Avatars`, -80) showed a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaced
 with `SnapshotBuffer`'s poses. What the build pinned:
 - `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
@@ -2885,6 +2885,50 @@ client; a language switch; no focus or input; the fade, its cut and the outro ho
 `--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
 `end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
 own: `tools\run.cmd playcheck end`.
+
+#### 4.7.32 Built in #494 (M6.2), the connecting, failure and loading screen
+prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; the issue linked `ui-0.2.0`, and
+where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
+- **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
+  `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
+  `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It stays in the `Ui` layer under the Esc
+  menu, not on the handoff's black-screen CanvasLayer 6: the Esc menu (layer 4 in that table) opens in Loading, and a
+  layer 6 would hide it (the PR asks the engineer).
+- **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until #214 sends the lobby's name
+  (`set_lobby(typed, host_name)`: `connect.connecting` with the typed name, or `lobby.default_name` with the host's
+  name), the step from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
+  `UiParts.sized`, 42 under large text) and the time since Join (m:ss, Game's `_refresh_join`); a Direct join and a
+  host show no code row and no address. The spinner turns once a second about its centre, half as fast under
+  `UiPrefs.reduced_motion`. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
+  fields keep what was typed (a command-line join fills them first, `Game._fill_menu`).
+- **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
+  (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
+  end as `Game.failure` (GameFlow's `FAILED` session, `FAILURE` screen, the pointer free) until Back
+  (`back_to_menu`, also Esc), Try again (`retry`: `Game._retry`, the last `join_target`, `host` or `host_with_code`
+  with the same arguments) or Join directly (`open_direct`: the menu's address field focused, the code kept; #493's
+  Direct panel takes over). Primary is focused with a flat BackGhost beside it, or the raised BackSolo stands alone and
+  focused. A code join that the service's `found` ended on another version shows both versions
+  (`JoinProgress.found_versions`: "<protocol> (<first six hex digits of the content hash>)"); a Rejected Hello names
+  none. The menu's reason line stays as before (#493 redraws the menu).
+- **Loading.** `GameUi.show_screen` starts it on entering `LOADING` (`show_loading`: one random `TIPS` key, a test
+  holds the list to the deck's `tip.*`); `refresh_loading(model)` lists the host (`NetTransport.HOST_ID`) first, then
+  the roster's order, the own row `player.you`, each `loading.player_loading` muted until its `PlayerLoaded`; the bar
+  is `ClientSession.load_progress()` (the threaded load's progress, 1 once its `LoadAck` went out). `load-card` is a
+  hook: `show_card(card)` places #490's card (a `ToyRaised` of ToyPanelHowto) as drawn with `Head`; #254 picks it.
+- Every text is a deck key; the title, the version lines, the code, the names and the time are set from code with
+  `auto_translate_mode` DISABLED and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`.
+- Tests: `tests/unit/client/ui/connecting_screen_test.gd` (the tree node for node: names, classes, variations,
+  anchors, offsets, grow, size flags and minimum sizes; every end reason's state, texts and buttons; the join states;
+  the title's lobby name in both languages; the version lines; the focus as drawn; the loading rows; the tips against
+  the deck; the card hook; the spinner's speed; the keycap under large text; every key in the deck),
+  `end_reasons_test.gd` (every end but leaving has a state the screen draws), `game_flow_test.gd`,
+  `join_progress_test.gd` (the version lines), `client_session_load_test.gd` (the progress),
+  `tests/integration/client/app/esc_menu_input_test.gd` (Esc cancels a join and leaves a failure, the address kept,
+  Try again focused), `game_loop_test.gd` (`lost` after the host left, `fail-no-answer` then Try again then Back with
+  the address kept, `host-failed` then Try again hosting the same way) and `game_code_join_test.gd` (the code on the
+  connecting screen, `fail-no-room` and Back with the code kept, `fail-service` and Join directly). The look: a `shot`
+  of each state in en and uk, default and large text, from `client/dev/screen_preview.gd` (`s3_state`, `language`,
+  `large_text`) in the PR.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
