@@ -95,12 +95,17 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	assert_bool(_all_on(games, S.END, 3)).is_false()
 	for game: Game in games:
 		game.set_process(true)
-	# The end screen names the winning side by its display name.
+	# The end screen names the winning side (#498): on the title plate for its players, as plain
+	# text for the others.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
 	for game: Game in games:
-		var winner := game.mode.find_side(game.client().model.winner)
-		assert_object(winner).is_not_null()
-		assert_str(game.ui.end.winner_label.text).is_equal("The %s won" % winner.display_name)
+		var model := game.client().model
+		assert_object(game.mode.find_side(model.winner)).is_not_null()
+		var won := game.mode.find_role(model.role).side == model.winner
+		var shown := game.ui.end.winner_shown()
+		assert_object(shown).is_same(game.ui.end.winner_label if won else game.ui.end.loser_label)
+		assert_bool(shown.is_visible_in_tree()).is_true()
+		assert_str(shown.text).is_equal(EndScreen.SIDE_KEYS[model.winner])
 		# Everyone, the host too, sees the countdown to the lobby and no button (#212).
 		assert_str(game.ui.end.countdown_label.text).starts_with("Back to the lobby in ")
 		assert_array(game.ui.end.find_children("*", "BaseButton", true, false)).is_empty()

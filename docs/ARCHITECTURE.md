@@ -255,7 +255,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 ### 3.6 Pregame, the silent intro (#213, M6.2)
 The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
-Round, like a film's titles: a dark screen (End's `EndBackdrop`, not pure black) shows each player its own role for
+Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight like the end screen's `Night`, not pure black) shows each player its own role for
 about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
 screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
 silent; a test keeps it so.
@@ -270,7 +270,7 @@ silent; a test keeps it so.
   the round's `PhaseChanged` its clock end. No win condition is checked in the pregame: a leave that empties the
   crew there is seen by the round's entry, in the same step (`Match._finish_step`), before any of its ticks.
 - **The client** (`GameFlow.Screen.PREGAME`, `client/ui/pregame_screen.gd`): chosen by the own copy's `PhaseSpec`,
-  its class `PregamePhase`, never by the phase's name. A dark backdrop (`EndBackdrop`, the end screen's), the copy
+  its class `PregamePhase`, never by the phase's name. A dark backdrop (`EndBackdrop`, the greybox end screen's before #498), the copy
   deck's `pregame.your_role` and the own role's display name from the own mode; nothing of any other player. Frozen
   as Loading and End, and the mouse kept as in Loading (#517). A greybox: the Toy role reveal is #496.
 - **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175). None exists yet, so
@@ -1807,7 +1807,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Pregame | pregame screen: dark backdrop, "Your role" and the own role's display name (#213, §3.6) | the map, not drawn | frozen |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
-| End | end screen: black, "The <side's display name> won"; "Back to the lobby in 3" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
+| End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | main menu with the reason in words | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
@@ -1828,9 +1828,10 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
-- **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and the seconds left
-  until End's `end_tick` (`EndScreen.countdown_text`, hidden when End has none), and nothing else (§3.2: no names, no
-  roles, no button since #212: End returns everyone by itself).
+- **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
+  own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
+  (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
+  #212: End returns everyone by itself).
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
   `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
@@ -2521,7 +2522,8 @@ turn that makes a real `PlayerController` face a target). The scenarios `esc_men
 roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
 and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner, its
 countdown (`end.countdown`) and the return with no button press, the lobby's
-cleared ready flags after End and a second round.
+cleared ready flags after End and a second round. A text wait reads a Label as drawn, `atr(text)` (a deck key's
+translation; #498), and `end.winner` the winner line shown (`EndScreen.winner_shown()`).
 
 #### 4.7.23 Tests
 The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
@@ -2849,6 +2851,40 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
   in the class reference, a planted typo named); `base_resolution_test.gd` (the scale, 1.6667). The `shot`s of every
   preview in `client/dev/` before and after: only the Esc menu's tabs and the main menu's fields change (PR of
   #576).
+
+#### 4.7.31 Built in #498 (M6.2), the post game screen
+`EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
+`docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
+(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title` (`end.title`), the winner line,
+`Result` (ToyColumnEight) holding `Reason`, the 8 px `Gap` and `Back`. Pack variations only, no override.
+- **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
+  mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
+  (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
+  (`WinnerRaised`, a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
+  other line says who won, and no role is shown.
+- **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by the host's reason
+  id (`REASON_KEYS`); any other id hides the line. `MatchEnded` carries only the side until #548 adds the reason, so
+  in a game the line is hidden (and its `Result` box with it, so no empty gap is left); `show_reason(id, seconds)` is where
+  #548 feeds it (the previews and tests call it). Hiding the screen clears the reason, the round's time and the
+  countdown, so the next End starts without the last round's.
+- **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
+  over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
+  (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
+  Godot translates.
+- **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
+  its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
+  outcomes, which has no asset yet, so nothing plays. Every Control ignores the mouse and takes no focus. Voice is
+  silent in End by #213's rule, not by the screen.
+- **Not built here.** The handoff's black-screen CanvasLayer 6: the screen stays a child of `GameUi`'s one layer,
+  under the Esc menu, until the black screens share a layer (#494's connecting and loading screens use it too).
+Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
+minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
+without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
+client; a language switch; no focus or input; the fade, its cut and the outro hook once per End),
+`tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
+`--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
+`end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
+own: `tools\run.cmd playcheck end`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -4126,7 +4162,7 @@ phase classes come in the task each row names.
 - **`Transition`**: from phase, outcome, to phase, and its actions (effects) in order, which see the outcome and its
   argument (`EndMatch` reads the side of `won`).
 - **`GameMode`**: players (minimum, maximum); its match settings; `PlayerRules` (health, stamina, speeds, capsule);
-  its sides (`SideSpec`: id and display name, which `MatchEnded`'s end screen shows); its roles; its item kinds; the
+  its sides (`SideSpec`: id and display name; `MatchEnded` names the winner's id, which the end screen shows as a deck line, §4.7.31); its roles; its item kinds; the
   lobby level and the maps (paths that `server/` loads); its actions and reactions; its task types and win
   conditions, in order; its phases, the first phase and the transitions. Validation (§9.1) refuses a role, side or
   item kind that a part names and these lists lack.

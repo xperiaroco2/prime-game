@@ -30,15 +30,26 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 ## The Controls tab (#211) with Map and tasks on V, Talk's key: both rows marked "Same key". The
 ## preview's controls stay in memory and the InputMap untouched.
 @export var controls_clash := false
+## The language of the words (Languages.ENGLISH or UKRAINIAN) and the large-text theme (#289).
+@export var language := Languages.ENGLISH
+@export var large_text := false
+## The post game (Preview.END, #498), from an Engineer's view as the handoff draws it: the side
+## that won (`crew`: the own team, the plate; `dissidents`: plain text), the host's reason id
+## and the round's seconds (the handoff's sample 7:41).
+@export var end_winner: StringName = &"crew"
+@export var end_reason: StringName = &"all_tasks"
+@export var end_round_seconds := 461
 
 
 func _ready() -> void:
 	var mode := load(MODE) as GameMode
-	# English on every machine, as a Game with no command line (Languages.apply): the words built
-	# in code (the Controls tab's, #211) follow the language, so a shot would follow the PC's.
-	TranslationServer.set_locale(Languages.ENGLISH)
+	# English on every machine unless `language` says otherwise, as a Game with no command line
+	# (Languages.apply): the words built in code (the Controls tab's, #211) follow the language,
+	# so a shot would follow the PC's.
+	TranslationServer.set_locale(language)
 	var ui := GameUi.new()
 	add_child(ui)
+	ui.set_large_text(large_text)
 	ui.esc.lobby.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	ui.reads_device_input = false
@@ -74,8 +85,10 @@ func _ready() -> void:
 			model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
 			ui.show_screen(GameFlow.Screen.PREGAME)
 		Preview.END:
+			model.fold(&"RoleAssigned", {"role": &"crew"})
 			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
-			model.fold(&"MatchEnded", {"side": &"dissidents"})
+			model.fold(&"MatchEnded", {"side": end_winner})
+			ui.end.show_reason(end_reason, end_round_seconds)
 			ui.show_screen(GameFlow.Screen.END)
 		Preview.ESC:
 			if esc_in_round:

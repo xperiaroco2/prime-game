@@ -1,7 +1,7 @@
 class_name SideSpec
 extends ContentPart
 ## A side a player can win with (ARCHITECTURE §9.3): the base mode's `crew` and `dissidents`.
-## MatchEnded names only the winning side, and the end screen shows its display name.
+## MatchEnded names only the winning side; the end screen shows the copy deck's line for its id.
 
 @export var id: StringName
 @export var display_name: String
