@@ -150,9 +150,10 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool(menu.lobby.visible).is_false()
 
 
-func test_the_pregame_screen_shows_the_own_role_alone_and_no_word_on_the_microphone() -> void:
-	# #213: black, "Your role" and the own role's display name; nothing about the microphone (the
-	# engineer, 2026-10-02), no other player (the Teammates a dissident holds stay off it).
+func test_the_pregame_screen_shows_the_own_role_and_no_word_on_the_microphone() -> void:
+	# #213: black, "Your role" and the own role; nothing about the microphone (the engineer,
+	# 2026-10-02). No player but a dissident's teammates (the engineer on #175, 2026-10-02, #496):
+	# never the own name, never a player outside the own role's Teammates.
 	var mode := load(MODE) as GameMode
 	var model := Preview.fake_model(mode, true)
 	model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
@@ -163,16 +164,13 @@ func test_the_pregame_screen_shows_the_own_role_alone_and_no_word_on_the_microph
 	model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([1, 3])})
 	screen.refresh(model, mode)
 	assert_str(screen.title_label.text).is_equal(PregameScreen.TITLE_KEY)
-	assert_str(screen.role_label.text).is_equal(mode.find_role(&"dissident").display_name)
+	assert_str(screen.role_label.text).is_equal("role.dissident")
+	_assert_pregame_names(screen, ["mic", "voice", "hear", "player1", "player2"])
 	model.fold(&"RoleAssigned", {"role": &"crew"})
 	screen.refresh(model, mode)
-	assert_str(screen.role_label.text).is_equal(mode.find_role(&"crew").display_name)
+	assert_str(screen.role_label.text).is_equal("role.engineer")
 	assert_array(screen.find_children("*", "BaseButton", true, false)).is_empty()
-	for found: Node in screen.find_children("*", "Label", true, false):
-		var label := found as Label
-		var shown := (label.text + " " + tr(label.text)).to_lower()
-		for word: String in ["mic", "voice", "hear", "player1", "player2", "player3"]:
-			assert_str(shown).override_failure_message("%s: %s" % [word, shown]).not_contains(word)
+	_assert_pregame_names(screen, ["mic", "voice", "hear", "player1", "player2", "player3"])
 
 
 func test_the_ui_shows_the_pregame_screen_alone_in_the_pregame() -> void:
@@ -181,6 +179,8 @@ func test_the_ui_shows_the_pregame_screen_alone_in_the_pregame() -> void:
 	assert_bool(ui.pregame.visible).is_true()
 	for other: Control in [ui.connecting, ui.hud, ui.life, ui.end, ui.lobby_hud]:
 		assert_bool(other.visible).override_failure_message(other.name).is_false()
+	# Outside the tree nothing draws, so the round cuts it; its fade over the HUD in the tree:
+	# pregame_screen_test.gd (#496).
 	ui.show_screen(GameFlow.Screen.ROUND)
 	assert_bool(ui.pregame.visible).is_false()
 
@@ -222,3 +222,12 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	menu.tab_buttons[EscMenuState.Tab.RESUME].pressed.emit()
 	assert_array(said).is_equal(["leave", "quit", "resume"])
 	assert_bool(menu.visible).is_false()
+
+
+## No label of `screen` shows any of `words`, as a key or translated.
+func _assert_pregame_names(screen: PregameScreen, words: Array) -> void:
+	for found: Node in screen.find_children("*", "Label", true, false):
+		var label := found as Label
+		var shown := (label.text + " " + tr(label.text)).to_lower()
+		for word: String in words:
+			assert_str(shown).override_failure_message("%s: %s" % [word, shown]).not_contains(word)
