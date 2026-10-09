@@ -4727,13 +4727,14 @@ assets/
   {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
   with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
   (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
-- **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green; for a visible asset `shot`
-  images in the PR (the art pipeline's step 15).
+- **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
+  locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
+  (the art pipeline's step 15).
 
 ### 11.3 The import check
 `tools/assets/asset_check.gd` over `tools/assets/asset_contract.json`, run by
-`tests/unit/tools/asset_import_test.gd` (so `test` and `verify` run it; alone: `tools\run.cmd test
-tests/unit/tools/asset_import_test.gd`):
+`tests/unit/tools/asset_import_test.gd` (so `test`, `verify --full` and CI run it; a plain `verify` runs no tests,
+#605; alone: `tools\run.cmd test tests/unit/tools/asset_import_test.gd`):
 - every GLB under `res://` (not `addons/`, `.godot/`, `tools/out/`, `tests/scratch/`) has a committed `.import`
   with §11.2's options and loads headless as a `PackedScene` that instantiates;
 - a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract and one
@@ -4746,7 +4747,7 @@ Each problem is one line that starts with the asset's path and names what is mis
 fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
 compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
 committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
-clips, which the local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
+clips, which a local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
 
 **The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
 `CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to
