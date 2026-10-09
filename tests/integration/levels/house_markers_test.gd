@@ -6,8 +6,8 @@ extends GdUnitTestSuite
 ## M7-Z5; ZD10 (a), provisional until the engineer moves them) keep ZE9's spacing, fit the mode
 ## at the most zones and packages, and each zone's cylinder stands on flat floor clear of walls,
 ## ceilings and furniture (the convention in `levels/CLAUDE.md`, checked here in the host's
-## collision world; a `shot` still shows it). The map is not in the base mode's list yet (#623):
-## the scenarios' fake world is one flat floor.
+## collision world; a `shot` still shows it). The House is the base mode's second map (#626); the
+## scenarios play only its flat first map (ARCHITECTURE §9.7), whose fake world is one flat floor.
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"

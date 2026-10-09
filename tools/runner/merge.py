@@ -44,12 +44,15 @@ the engineer's manager merges a PR into `main` through GitHub when a determinist
 every refusal (a dry run prints them all): not open into `main`; a draft; not authored by the engineer's account, or
 gh not running as it (the designer's PRs go to the engineer); CI not green on its head; GitHub's `mergeable`
 CONFLICTING; `origin/<head>` not at the PR's head; `origin/main` not in the head (behind: CI did not test the tree that
-lands); the exceptions in the paths it changes since its fork (the content area, or an ADR added, changed or deleted,
-without an "Approved by the engineer: <GitHub link>" line (#563); `.claude/settings*.json`, `.claude/githooks/` and
+lands) unless no path it changes since its fork is one `main` changed since then and GitHub reports it MERGEABLE (#632:
+it merges and CI runs on `main` after the merge; else the overlapping paths are named); the exceptions in the paths
+it changes since its fork (the content area, or an ADR added, changed or deleted, without an "Approved by the
+engineer: <GitHub link>" line (#563); `.claude/settings*.json`, `.claude/githooks/` and
 the guard, always); a milestone's closing PR (head `release/*`) without that line, the engineer's go; and an item under
 "Needs the engineer" without "Answered: <GitHub link>" (an unreadable section refuses too). Markers in HTML comments
 do not count. No local verify: the head contains `main`, so the merged tree is the one CI tested on an up-to-date
-head (the gate above); `release/m<k>` takes the same CI check below (#622).
+head, or (behind with no overlap) CI tests it on `main` after the merge; `release/m<k>` takes the same check below
+(#622).
 merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
 printed as notes that never refuse: a partner is behind `main` after the merge and its own re-publish tests the pair.
 Then `origin/main` is read again (`git ls-remote`; moved: refused), `gh pr merge <n> --merge --match-head-commit
@@ -61,7 +64,8 @@ commit. A real merge refuses a task checkout; `--dry-run` merges nothing and run
 CI only). It refuses any other base and a task checkout (a `.claude/worktrees/<n>` worktree or a task branch, here or
 in the current folder); fetches only when a human already merged the PR; requires a ready, open PR into that base with
 green CI (`gh pr checks`) whose head origin has and which contains `origin/<base>` (the check of the gate into `main`:
-CI tested the tree that lands; a behind head is refused with the reason: rebase it with publish and wait for its CI).
+CI tested the tree that lands), or is behind it with no overlap and MERGEABLE, as above (#632); an overlap is refused
+with its paths: rebase it with publish and wait for its CI.
 `origin/<base>` is read again before the merge (moved: refused). Then `gh pr merge <n> --merge --match-head-commit
 <oid>` merges through GitHub, GitHub's merge commit is fetched and one line for the wave comment is printed. CI runs on
 the push to `release/**` (ci.yml), so the merged tree is tested there. `merge --sync-main --base release/<x>` takes
@@ -70,6 +74,11 @@ merge commit by its hash (`git push origin <sha>:refs/heads/<base>`, a fast-forw
 verify, CI tests the push (the wave-boundary sync of the engineer's N2 answer; a conflict pushes nothing and leaves
 nothing to undo). The fresh reviews' gate (no open blocker or major) stays the manager's call, for both bases.
 `--dry-run` stops before the merge.
+
+Both commands are quiet by default (#572, common.quiet; `--verbose` prints it all): the whole output goes to
+tools/out/logs/merge-check-<PRs>-output.log or merge-<pr>-output.log (one per run: managers merge at once).
+merge-check prints the tables' flagged rows, a count of the clean ones and the verdict (clean_rows_counted); merge
+drops its `ok` progress lines; the verdict, the `wave:` line and the exit code are the same. `wave` calls `check` itself and gets every line, as before.
 
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
@@ -101,10 +110,12 @@ from .common import (
     bad,
     ensure_out,
     ok,
+    quiet,
     remove_own_user_dir,
     run,
     say,
     warn,
+    without_ok,
     worktree_user_dir,
 )
 
@@ -118,6 +129,8 @@ VERIFY_TIMEOUT = 3600
 REMOVE_TIMEOUT = 600
 # After the push, how long to wait for GitHub to show the PR merged.
 CONFIRM_TRIES, CONFIRM_WAIT = 12, 5.0
+# GitHub computes `mergeable` lazily after its base moves (UNKNOWN meanwhile): how long a behind PR's gate waits for it.
+MERGEABLE_TRIES, MERGEABLE_WAIT = 4, 3.0
 TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 TASK_WORKTREE_RE = re.compile(r"[\\/]\.claude[\\/]worktrees[\\/][0-9]+$")
 PR_FIELDS = "number,title,state,baseRefName,headRefName,headRefOid,isDraft,headRepositoryOwner"
@@ -1230,6 +1243,42 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
 # --- scratch worktrees, verify, trial ---------------------------------------------------------------------------------
 
 
+def clean_rows_counted(lines: list[str]) -> list[str]:
+    """merge-check's quiet lines (#572): in each table the rows whose textual and semantic cells are both `clean` are
+    counted on a line after it, not listed; a table with no other row is that one line; the `ok` progress lines go."""
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if not lines[i].startswith("|"):
+            if not lines[i].startswith("  ok    "):
+                out.append(lines[i])
+            i += 1
+            continue
+        j = i
+        while j < len(lines) and lines[j].startswith("|"):
+            j += 1
+        head, rows = lines[i : i + 2], lines[i + 2 : j]
+        flagged = [row for row in rows if [cell.strip() for cell in row.strip("|").split("|")[-2:]] != ["clean"] * 2]
+        clean = len(rows) - len(flagged)
+        if flagged:
+            out += head + flagged
+            if clean:
+                out.append(f"{clean} more clean (--verbose lists them)")
+        else:
+            out.append(f"{clean} check{'s' if clean != 1 else ''}, all clean (--verbose lists them)")
+        i = j
+    return out
+
+
+def check_command(numbers: list[int], base: str | None = None, trial: bool = False, verbose: bool = False) -> int:
+    """`merge-check`: check, quiet unless verbose (#572); the verdict and the line after it (across bases) always."""
+    which = "-".join(str(n) for n in sorted(numbers)) or "all"  # runs that overlap each get their own log
+    log_name = "merge-check-" + (which if len(which) <= 40 else "many")
+    return quiet(
+        "merge-check", lambda: check(numbers, base, trial), verbose, brief=clean_rows_counted, keep_end=2, log_name=log_name
+    )
+
+
 def _remove(path: Path) -> None:
     res = _git("worktree", "remove", "--force", str(path), timeout=REMOVE_TIMEOUT)
     if res.rc != 0 or res.timed_out:
@@ -1438,10 +1487,14 @@ def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool 
         raise Failure(f"{REMOTE}/{base} not found after the fetch")
     if _is_ancestor(pr.oid, tip):
         raise Failure(f"{REMOTE}/{base} already has #{number}'s head {pr.oid[:10]}; check gh pr view {number}")
+    gate = "CI green on an up-to-date head"
     if not _is_ancestor(tip, pr.oid):
-        raise Failure(f"#{number} is {behind_reason(pr, base, tip)}. Nothing was changed.")
+        why = behind_reason(pr, base, tip, mergeable_state(pr))
+        if why:
+            raise Failure(f"#{number} is {why}. Nothing was changed.")
+        gate = f"CI green, {behind_note(pr, base, tip)}"
     if dry_run:
-        say(f"gate: #{number} would merge into {base} through GitHub (CI green on an up-to-date head, no local verify)")
+        say(f"gate: #{number} would merge into {base} through GitHub ({gate}, no local verify)")
         return 0
     moved = base_moved(base, tip)
     if moved:
@@ -1451,11 +1504,22 @@ def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool 
     if not confirmed:
         warn(f"GitHub does not show #{number} merged yet: check gh pr view {number} --json state")
     say(
-        f"wave: merged #{number} ({pr.head}) into {base} as {sha[:12] or '?'} through GitHub; gate: CI green on an "
-        "up-to-date head, no local verify (CI tests the push)"
+        f"wave: merged #{number} ({pr.head}) into {base} as {sha[:12] or '?'} through GitHub; gate: {gate}, no local "
+        "verify (CI tests the push)"
         + ("" if confirmed else "; GitHub did not show it merged yet")
     )
     return 0
+
+
+def merge_command(
+    number: int | None, base: str, sync_main: bool = False, dry_run: bool = False, verbose: bool = False
+) -> int:
+    """`merge`: merge, quiet unless verbose (#572): without its `ok` progress lines; the `wave:` line always, then the
+    path of the log (merge-<pr>-output.log: managers merging at once each keep their own)."""
+    log_name = f"merge-{number}" if number is not None else "merge-sync"
+    return quiet(
+        "merge", lambda: merge(number, base, sync_main, dry_run), verbose, brief=without_ok, keep_end=1, log_name=log_name
+    )
 
 
 def _sync_main(base: str, dry_run: bool = False) -> int:
@@ -1698,18 +1762,52 @@ def main_gate(pr: PullRequest) -> tuple[list[str], list[str], str]:
     if not tip:
         raise Failure(f"{REMOTE}/main not found after the fetch")
     if not _is_ancestor(tip, pr.oid):
-        reasons.append(behind_reason(pr, "main", tip))
+        why = behind_reason(pr, "main", tip, mergeable_state(pr, str(view.get("mergeable") or "")))
+        if why:
+            reasons.append(why)
     reasons += _content_refusals(pr, view, tip)
     return reasons, gate_notes(pr), tip
 
 
-def behind_reason(pr: PullRequest, base: str, tip: str) -> str:
-    """Why a head without the base's tip is refused (the gate into main and into a release branch, #622): CI tested the
-    head's own tree, not the tree that would land."""
+def behind_reason(pr: PullRequest, base: str, tip: str, mergeable: str) -> str:
+    """"" when a head without the base's tip may merge anyway (#632, the gate into main and into a release branch, and
+    merge-train's way): no path it changes since its fork is one the base changed since then, and GitHub reports it
+    MERGEABLE; CI green on its head is the caller's own check, and CI runs on the base after the merge. Else why it is
+    refused (#622): CI tested the head's own tree, not the tree that would land, which differs where it counts."""
+    fork = _out("merge-base", tip, pr.oid).strip()
+    both = sorted({p for _, p in changed_paths(fork, pr.oid)} & {p for _, p in changed_paths(fork, tip)})
+    if both:
+        why = f"{base} changed {len(both)} of its files since its fork: {', '.join(both)}"
+    elif mergeable != "MERGEABLE":
+        why = f"GitHub does not report it MERGEABLE ({mergeable or 'no answer'})"
+    else:
+        return ""
     return (
-        f"behind {base} ({REMOTE}/{base} {tip[:10]} is not in its head, so CI did not test the tree that would land): "
-        "rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
+        f"behind {base} ({REMOTE}/{base} {tip[:10]} is not in its head, so CI did not test the tree that would land)"
+        f" and {why}: rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
     )
+
+
+def behind_note(pr: PullRequest, base: str, tip: str) -> str:
+    """The gate's words for a behind head that passed behind_reason, for the wave line."""
+    n = int(_out("rev-list", "--count", f"{pr.oid}..{tip}").strip() or 0)
+    return f"behind by {n} commit{'' if n == 1 else 's'}, no overlap: merged; CI runs on {base}"
+
+
+def mergeable_state(pr: PullRequest, known: str = "") -> str:
+    """GitHub's `mergeable` for the PR (MERGEABLE, CONFLICTING or UNKNOWN), asked again while GitHub still computes it
+    (UNKNOWN or no answer) at most MERGEABLE_TRIES times."""
+    state = known
+    for attempt in range(MERGEABLE_TRIES):
+        if state in ("MERGEABLE", "CONFLICTING"):
+            break
+        if attempt:
+            time.sleep(MERGEABLE_WAIT)
+        try:
+            state = str(gh_json("pr", "view", str(pr.number), "--json", "mergeable").get("mergeable") or "")
+        except Failure:
+            state = ""
+    return state
 
 
 def base_moved(base: str, tip: str) -> str:
@@ -1803,21 +1901,25 @@ def _merge_main(number: int, dry_run: bool) -> int:
         say(f"gate: #{number} into main: refused ({len(reasons)} reason{'s' if len(reasons) > 1 else ''}); "
             "nothing was merged")  # fmt: skip
         return 1
+    # The gate passed, so a head behind main passed behind_reason (#632).
+    gate = "CI green on an up-to-date head"
+    if not _is_ancestor(tip, pr.oid):
+        gate = f"CI green, {behind_note(pr, 'main', tip)}"
     if dry_run:
-        say(f"gate: #{number} would merge into main (CI green on an up-to-date head, no exception, nothing open)")
+        say(f"gate: #{number} would merge into main ({gate}, no exception, nothing open)")
         return 0
     moved = base_moved("main", tip)
     if moved:
         raise Failure(
-            f"{moved}: #{number} is behind it now. Nothing was merged; run merge again (the gate asks for a rebase)."
+            f"{moved}: #{number} is behind it now. Nothing was merged; run merge again (the gate checks what landed)."
         )
     ok(f"#{number}: the gate passed; merging through GitHub at {pr.oid[:10]}")
     sha, confirmed = _merge_on_github(pr)
     if not confirmed:
         warn(f"GitHub does not show #{number} merged yet: check gh pr view {number} --json state")
     say(
-        f"wave: merged #{number} ({pr.head}) into main as {sha[:12] or '?'} through GitHub; gate: CI green on an "
-        "up-to-date head, no exception, nothing open"
+        f"wave: merged #{number} ({pr.head}) into main as {sha[:12] or '?'} through GitHub; gate: {gate}, no "
+        "exception, nothing open"
         + (f"; {len(notes)} gate note{'s' if len(notes) > 1 else ''} above" if notes else "")
         + ("" if confirmed else "; GitHub did not show it merged yet")
     )

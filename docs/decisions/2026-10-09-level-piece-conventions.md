@@ -2,6 +2,8 @@
 
 - **Status:** Proposed in #607; accepted when the engineer merges its PR (the content area: `levels/` and the skill
   `new-level-piece`)
+- **Amended 2026-10-09 (#658):** greybox role materials in `levels/kit/` and a `Name` label per room, after the
+  first playtest found one grey unreadable ("Looks and collision" below).
 - **Date:** 2026-10-09
 - **Deciders:** the engineer. He approved the level-design track's recommendations in chat on 2026-10-09 ("з усім
   рекомендаціями згоден") and reviews their written form here.
@@ -27,7 +29,7 @@ Two things go wrong without shared conventions:
 | `levels/<map>/rooms/<room>.tscn` | One scene per room of the map's design doc. |
 | `levels/stations/<station>.tscn` | Task stations, reusable on any map (a generator switch, the grill, the lift). |
 | `levels/props/<prop>.tscn` | Dressing props. |
-| `levels/kit/<piece>.tscn` | Thin wrappers of the art kit's GLBs (a wall module, a floor, stairs), each with its own collision. |
+| `levels/kit/<piece>.tscn` | Thin wrappers of the art kit's GLBs (a wall module, a floor, stairs), each with its own collision; until the kit lands, the greybox role materials. |
 
 The MVP scenes the base mode names (`levels/lobby/lobby.tscn`, `levels/greybox/greybox.tscn`) stay where they are.
 
@@ -56,8 +58,10 @@ Replacing a room is replacing one instance in the map.
 - Collision as `levels/CLAUDE.md` already says: `StaticBody3D` with `CollisionShape3D` on layer 1, in each kit piece
   and each station; meshes (and CSG, if used) for looks only.
 - Until the art kit lands, a piece is greyboxed with box meshes (`MeshInstance3D` with a `BoxMesh`, as
-  `levels/greybox/` does; CSG where a shape needs it) and one shared neutral material. The kit's GLBs then replace
-  the greybox inside the same piece, and the map does not change.
+  `levels/greybox/` does; CSG where a shape needs it) and the shared greybox materials of `levels/kit/`, one per
+  role: walls, a floor per zone, stairs and door frames, with a floating `Label3D` name per room (#658: a single
+  grey hid the doors and the structure in the first playtest). The kit's GLBs then replace the greybox inside the
+  same piece, and the map does not change.
 
 ### A check
 A test reads the map scene and its design doc's room table and fails when a room's position or size differs, so the
