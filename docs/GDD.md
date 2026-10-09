@@ -99,6 +99,12 @@ Open questions:
 
 - How are items found or given, and can they be traded or stolen?
 - Which items affect voice (for example radios, which the brief mentions)?
+- Throwing a held item (#37): how strong and how far; which items; does a thrown item hurt or stop a player it meets;
+  does a thrown package count when it lands in its circle; may an item land where nobody can reach it; does a throw
+  cost anything; which key; can a flying item be caught; does it bounce or stop where it hits; does a running throw
+  go farther; where does an item thrown off the map end up; does a downed player stop it? The options and a
+  recommendation for each are in the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) (TD1 to TD12), for
+  the engineer.
 
 ## 7. Sabotages
 
