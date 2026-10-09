@@ -71,7 +71,7 @@ func test_each_rows_question_mark_asks_for_its_types_card() -> void:
 	assert_int(helps.size()).is_equal(2)
 	(helps[1] as Button).pressed.emit()
 	assert_array(asked).contains_exactly([&"delivery"])
-	# Space (ui_accept, jump) never presses a «?» the mouse clicked last.
+	# Only the mouse presses a «?» until #490 gives them keyboard focus.
 	assert_int((helps[0] as Button).focus_mode).is_equal(Control.FOCUS_NONE)
 
 

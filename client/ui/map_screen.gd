@@ -307,8 +307,9 @@ func _task_row(row: Row) -> Control:
 	help.text = "?"
 	help.theme_type_variation = &"ToyKeyRoundButton"
 	help.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	# Space jumps while the map is open and is also ui_accept: a focused «?» would press with every
-	# jump (#488 moves Space out of ui_accept). The mouse presses it.
+	# The mouse presses it; keyboard focus on the «?» (the first ui_down, the zones lit on focus)
+	# is #490's and #254's. Space is out of ui_accept (#488), so a focused «?» would not press
+	# with a jump.
 	help.focus_mode = Control.FOCUS_NONE
 	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	help.pressed.connect(func() -> void: howto_requested.emit(row.type))
