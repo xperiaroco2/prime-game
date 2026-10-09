@@ -22,6 +22,8 @@ gdformatrc text eol=lf
 client/ui/theme/pack/** -text
 # Its imported copy's SVGs too (#520: ui-sync checks each against the same lock); its PNGs stay in LFS below.
 assets/ui/toy_pack/**/*.svg -text
+# The OFL text is the primary source's file byte for byte (CRLF), under its hash in docs/credits/licenses/README.md (#684).
+docs/credits/licenses/comfortaa/OFL.txt -text
 
 # Windows batch files need CRLF.
 *.cmd text eol=crlf
