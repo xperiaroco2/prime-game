@@ -136,7 +136,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="With no flag (#605): doctor, then lint and check at once, then the clean-tree check; no verify "
         "slot and no test: every test runs on GitHub CI, whose job runs verify --full. --full: everything CI runs, "
         "in the same order: doctor, then a Python lane, a Godot lane and a lane of the runner tests that start Godot "
-        "at once (each step's output whole when it ends); on a PC a --full run first takes one of 2 machine-wide "
+        "at once (each step's output whole in tools/out/logs/verify-output.log when it ends); on a PC a --full run first takes one of 2 machine-wide "
         "slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The definition-of-done "
         "gate, either way: every step runs and a red one fails it. Every agent runs it in the background into a log and polls it with wait "
         "(docs/AGENT_WORKFLOW.md §11.16).",

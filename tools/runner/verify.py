@@ -13,7 +13,8 @@ network runs `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`, `webrtc-fre
 (the runner tests that start Godot). A step of AFTER starts only once its steps of other lanes have ended: the runner
 tests that start Godot after `check` (its import), beside `test`, and the network runs after them, so no other Godot
 run overlaps a timing-sensitive network run, and the network runs never overlap each other (#556).
-Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. With
+Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends (to the log in a
+quiet run, below). With
 `--fail-fast` (#556) the first red step stops the lanes instead: the steps that had not ended are `not run`. After the
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped; not after a run stopped early). The summary lists the steps in

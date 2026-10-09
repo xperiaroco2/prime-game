@@ -1615,7 +1615,10 @@ continuations), API calls, those over 200k of context and their API list $, agai
 the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and where each implementer crossed 150k; the
 `<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
 `metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
-compact "task medians" line), the Sonnet implementer trial (#560: per trial task, against the
+compact "task medians" line), the tool output per implementer (#572: the characters of its tool calls' text outputs
+and the part of the runner commands made quiet, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
+in tokens; per task `impl_outputs` in `metrics.json`, one pair per implementer that made a tool call; their medians at
+the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
 and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
 [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
@@ -1646,7 +1649,8 @@ pays for it on each; also at the end of the compact summary's first line and as 
 heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
 lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
-the % of the week, `verify` medians): the manager pastes
+the % of the week, `verify` medians), each cut at 400 characters unless `--verbose` (#572; `metrics.md` holds them
+whole, and a last line says so when one was cut): the manager pastes
 `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
 weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
 0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
@@ -1772,11 +1776,17 @@ tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export
 `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
-`tools/out/gdunit/`. `lint`, `check` and `wait` are quiet by default (#590): a summary when green, a capped
-excerpt with the exit code and the log's path when red (`lint` and `check` keep their whole output in
-`tools/out/logs/<command>-output.log`, written as it runs, `wait` points to the job's own log; `--verbose` prints the
-whole output; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch
-changes always print); read a log by search (grep the failing test), never whole. Outside a Claude Code session (a human's PowerShell) the runner
+`tools/out/gdunit/`. The commands agents run in loops are quiet by default (#590, #572; `--verbose` prints the whole
+output): a summary when green, a capped excerpt (about 4 KB) with the exit code and the log's path when red. `lint`,
+`check`, `merge-check` and `merge` keep their whole output in `tools/out/logs/<command>-output.log`, written as it
+runs; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch changes
+always print; `merge-check` lists only the rows that flag something and counts the clean ones; `merge` leaves out its
+`ok` progress lines (its verdict, `wave:` line and exit code are unchanged). `verify` (and `publish`, which runs it)
+writes its whole output to `tools/out/logs/verify-output.log` and prints each red step's failure lines and the summary
+block, whole, with that path in it; CI's `verify --full` stays verbose (its job log is the only log there). `wait`
+points to the job's own log; `metrics --compact` cuts each summary line at 400 characters (`metrics.md` has them
+whole). Read a log by search (grep the failing test or `FAIL`), never whole: a log read whole is carried on every
+later call. Outside a Claude Code session (a human's PowerShell) the runner
 takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
@@ -1819,8 +1829,9 @@ since `verify-history.jsonl` survives only in the live worktrees): `verify` 455 
 s), the Godot lane 452 s against 527 s, the Python lane 212 s against 336 s, `selftest` 144 s against 265 s, and `test`
 beside the new lane 123 s against 130 s. If `test` turns flaky under the extra load (see its red rate in `metrics`),
 `AFTER["selftest-godot"] = ("check", "test")` puts the lane after `test` again. Every step runs and any red step fails
-it; each step's output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`).
-After the lanes: the
+it; each step's output goes whole to `tools/out/logs/verify-output.log` when the step ends (`== <step> (<lane> lane,
+<seconds>, <status>)`), and a red step's failure lines to the terminal too (quiet by default, §11.15; `--verbose` and
+CI print every step whole). After the lanes: the
 clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
 it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
 `selftest --group python|godot` runs one group without it). The

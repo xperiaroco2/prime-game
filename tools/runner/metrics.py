@@ -215,6 +215,11 @@ reminder after each tool result (an attachment of type total_tokens_reminder in 
 when N plus the context of the API call before it (its four token fields, output included) equals the agent's budget
 (the most common such sum), for every agent of the counted runs. The per-task records carry handoffs, impl_calls,
 over200_calls and over200_usd; the JSON record's "handoffs" holds the rows, the proxy and the reminder check.
+
+Tool output per implementer (#572, the quiet runner output): each tool call's text output in characters (an image
+counts 0) and the part of RUNNER_OUTPUT_KINDS, per implementer agent that made a tool call, in tokens (characters /
+CHARS_PER_TOKEN); per task "impl_outputs", and their medians at the end of the compact "task medians" line, to compare
+a wave before a change with one after it. `--compact` cuts each summary line at LINE_CAP characters unless verbose.
 """
 
 from __future__ import annotations
