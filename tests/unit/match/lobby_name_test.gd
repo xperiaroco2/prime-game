@@ -48,5 +48,13 @@ func test_a_players_name_still_keeps_16() -> void:
 	assert_str(PlayerNames.clean_to("x".repeat(20), 16)).is_equal("x".repeat(16))
 
 
+func test_both_limits_fit_the_wires_name_type() -> void:
+	# net/ may not name core/'s classes, so the wire's bound is a number; this pins it to both.
+	var emoji := _c(0x1F600)
+	for most: int in [PlayerNames.MAX_CHARS, LobbyName.MAX_CHARS]:
+		assert_int(most * 4).is_less_equal(WireField.NAME_MAX_BYTES)
+		assert_bool(WireField.is_name(emoji.repeat(most))).is_true()
+
+
 func _c(code: int) -> String:
 	return String.chr(code)

@@ -51,7 +51,8 @@ static func settings_changed(ctx: MatchContext) -> SettingsChangedEvent:
 		needed,
 		ctx.map_layout(),
 		shortfalls(ctx, needed),
-		id_sets(ctx)
+		id_sets(ctx),
+		ctx.state.lobby_name
 	)
 
 

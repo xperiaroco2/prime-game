@@ -38,8 +38,8 @@ enum Type {
 	## An Opus frame anywhere in a payload: a u16 length, then that many bytes (the batched voice
 	## row's frames, M5-4b); OPUS is the rest of the payload and only a row's last field.
 	SIZED_OPUS,
-	## A player's name (#550): a u8 length, then that many bytes of well-formed UTF-8, at most
-	## NAME_MAX_BYTES, without the characters is_name_char refuses.
+	## A player's or the lobby's name (#550, #214): a u8 length, then that many bytes of
+	## well-formed UTF-8, at most NAME_MAX_BYTES, without the characters is_name_char refuses.
 	NAME,
 }
 
@@ -50,8 +50,9 @@ enum Slot { FIELD, SEQ, PEER }
 const ID_MAX := 32
 const PATH_MAX := 255
 const TEXT_MAX := 64
-## A name's most bytes: core/'s 16 characters at 4 UTF-8 bytes each (PlayerNames.MAX_CHARS).
-const NAME_MAX_BYTES := 64
+## A name's most bytes: core/'s longest name at 4 UTF-8 bytes per character, the lobby's 20
+## (LobbyName.MAX_CHARS, #214; a player's is 16, PlayerNames.MAX_CHARS). A test in tests/ pins it.
+const NAME_MAX_BYTES := 80
 const NOTE_MAX := 320
 const PATH_PREFIX := "res://"
 const PEER_MAX := 0x7FFFFFFF
