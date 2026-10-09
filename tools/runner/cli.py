@@ -155,7 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--verbose",
         action="store_true",
-        help="print every step's whole output as it ends (default, and always on CI: each red step's failure lines, "
+        help="print every step's whole output as it ends (always on CI; default: each red step's failure lines, "
         "at most about 4 KB, and the summary; the whole output is in tools/out/logs/verify-output.log)",
     )
     p = sub.add_parser(

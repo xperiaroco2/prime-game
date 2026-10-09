@@ -1616,7 +1616,7 @@ the tool-call count as a proxy for context per 40, 60, 80 and 100 calls and wher
 `<total_tokens>` reminder check, readings that equal the budget less the previous call's context; `handoffs` in
 `metrics.json`, per task `handoffs`, `impl_calls`, `over200_calls` and `over200_usd`, the share and the handoffs on the
 compact "task medians" line), the tool output per implementer (#572: the characters of its tool calls' text outputs
-and the part of the runner commands made quiet, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
+and the part of the runner commands agents run in loops, `wait`, `verify`, `publish`, `lint`, `check`, `test` and `selftest`,
 in tokens; per task `impl_outputs` in `metrics.json`, one pair per implementer that made a tool call; their medians at
 the end of the compact "task medians" line: run it for a wave before a change and one after it to compare), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
@@ -1648,10 +1648,11 @@ average or 300k peak, with run, issue, calls, average and peak: an agent that ca
 pays for it on each; also at the end of the compact summary's first line and as `--run`'s last line, which lists the
 heavy agents first, at most ten; `context_per_call` in `metrics.json`), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
 window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-lines (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
+lines, plus a note line when one was cut (time and API list $ per task and in total, the re-writes' count and $ at the end of the total line, quality,
 the % of the week, `verify` medians), each cut at 400 characters unless `--verbose` (#572; `metrics.md` holds them
-whole, and a last line says so when one was cut): the manager pastes
-`metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
+whole, and a last line says so when one was cut): the manager writes
+`metrics --since <wave start> --compact --verbose` (the lines whole: a wave comment is the durable record) straight into the
+comment's `--body-file`, without reading it. The % of the week counts cache reads at the central
 weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
 0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
 range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
@@ -1781,8 +1782,11 @@ output): a summary when green, a capped excerpt (about 4 KB) with the exit code 
 `check`, `merge-check` and `merge` keep their whole output in `tools/out/logs/<command>-output.log`, written as it
 runs; a green `check` counts the script warnings after the first 3, but those of the `.gd` files the branch changes
 always print; `merge-check` lists only the rows that flag something and counts the clean ones; `merge` leaves out its
-`ok` progress lines (its verdict, `wave:` line and exit code are unchanged). `verify` (and `publish`, which runs it)
-writes its whole output to `tools/out/logs/verify-output.log` and prints each red step's failure lines and the summary
+`ok` progress lines (its verdict, `wave:` line and exit code are unchanged; the log's path follows them). `merge` and
+`merge-check` write `merge-<pr>-output.log` and `merge-check-<PRs>-output.log`, one per run, so managers merging at
+once keep their own. `verify` (and `publish`, which runs it) writes its whole output to
+`tools/out/logs/verify-output.log` (the run before it stays as `verify-output.prev.log`: a retry in the same worktree
+keeps the red run) and prints each red step's failure lines and the summary
 block, whole, with that path in it; CI's `verify --full` stays verbose (its job log is the only log there). `wait`
 points to the job's own log; `metrics --compact` cuts each summary line at 400 characters (`metrics.md` has them
 whole). Read a log by search (grep the failing test or `FAIL`), never whole: a log read whole is carried on every

@@ -333,7 +333,7 @@ GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to
 # A workflow agent's prompt cache lives 5 minutes; the bounded waits (#555): the tool calls that poll a long job.
 CACHE_TTL = 300
 BOUNDED_WAITS = (("wait", "`wait` calls"), ("ci-wait", "CI waits (`gh pr checks --watch`, `gh run watch`)"))
-# The runner commands whose output #572 made quiet, as CMD_KINDS names them: their share of an implementer's tool output.
+# The runner commands agents run in loops, as CMD_KINDS names them: their share of an implementer's tool output (#572).
 RUNNER_OUTPUT_KINDS = frozenset({"wait", "publish", "verify", "selftest", "test", "check", "lint"})
 # #568: the classes of tool calls whose start-to-output time `metrics` reports, in its order: (key, what it is).
 LATENCY_CLASSES = (
