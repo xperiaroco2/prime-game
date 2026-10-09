@@ -249,16 +249,17 @@ greenhouse, where a board decodes the order's herb icon.
 - Sabotage: a dissident may take a box and hide it; the others must search for it (the same play as hiding a
   package). Beyond that, the rules above already let anyone take items, burn a patty or put a wrong ingredient on a
   plate.
-- A dissident plays by the same rules as an engineer, and only living players do subtasks (#79; vision revision 1,
-  V4). Busy hands, as for the Generator: a player holding a two-handed item (a box, a package) cannot use the grill,
-  a bed or a plate, nor take from a box.
+- A dissident plays the same character as an engineer (role `crew`), under the same rules, and only living players
+  do subtasks (#79; vision revision 1, V4). Busy hands, as for the Generator: a player holding a two-handed item (a
+  box, a package) cannot use the grill or a plate. Whether one may still pick a herb or take from another box is
+  open (below).
 
 **Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
 board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
 
 **Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
-goes and looks (the open-knowledge pillar, §1); the code is shown nowhere else, so an order's herb is known only by
-reading both boards. What lies on a plate, red or green, is seen at the plate; the burgers done show on the HUD and
+goes and looks (the open-knowledge pillar, §1); the code is shown only on the herb board, but a green herb on a plate
+also tells anyone looking which herb that order's icon means. What lies on a plate, red or green, is seen at the plate; the burgers done show on the HUD and
 the task screen.
 
 **Numbers** (the engineer's starting values, to tune): 1 burger by default (the maximum still open); 3 buns, 3 patties,
@@ -275,8 +276,8 @@ Open questions (the engineer's; the ADR's CD items, each with options and a reco
 - The burger count's maximum (#682's open item).
 - The looks of the buns, the patties and the boxes; the five herbs' looks and names and the five icons; the item
   names, the lobby setting's label, and whether "Cooking" stays (#682's open item).
-- A two-handed box and a herb at once (#682's open item: no, by the Generator's busy-hands rule, unless the engineer
-  says otherwise).
+- A two-handed box and a herb at once (#682's open item): may a box carrier pick a herb onto the belt, or take from
+  another box? Recommended: no, every take refused, as the Generator's busy-hands rule refuses every use.
 - E both takes from a box and would pick it up: does a tap take an ingredient and holding E pick the box up, or does
   another key pick it up?
 - With one item in the hand and one on the belt, is a take refused?
