@@ -203,6 +203,7 @@ def quiet(
     *,
     brief: Callable[[list[str]], list[str]] | None = None,
     keep_end: int = 0,
+    log_name: str | None = None,
 ) -> int:
     """Run `body` (a command's main, which prints with say/ok/bad and returns its exit code) with its output captured.
 
@@ -210,11 +211,12 @@ def quiet(
     the summary or the excerpt described above. An exception from `body` (a Failure, a crash) first prints the excerpt
     of what it had printed, then goes on up unchanged: nothing is hidden and the exit code stays the caller's.
     `brief` shortens the printed lines first, green or red (merge-check: its clean rows counted, #572); the last
-    `keep_end` lines always print (a verdict or `wave:` line that comes last)."""
+    `keep_end` lines always print (a verdict or `wave:` line that comes last; the log's path follows them). `log_name`
+    (default `name`) names the log: runs that may overlap (two managers' merges) each get their own file."""
     if verbose:
         return body()
     ensure_out()
-    log = quiet_log(name)
+    log = quiet_log(log_name or name)
     buffer = io.StringIO()
     rc = 1
     error: BaseException | None = None

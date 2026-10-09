@@ -76,9 +76,9 @@ nothing to undo). The fresh reviews' gate (no open blocker or major) stays the m
 `--dry-run` stops before the merge.
 
 Both commands are quiet by default (#572, common.quiet; `--verbose` prints it all): the whole output goes to
-tools/out/logs/merge-check-output.log or merge-output.log. merge-check prints the tables' flagged rows, a count of the
-clean ones and the verdict (clean_rows_counted); merge drops its `ok` progress lines; the verdict, the `wave:` line and
-the exit code are the same. `wave` calls `check` itself and gets every line, as before.
+tools/out/logs/merge-check-<PRs>-output.log or merge-<pr>-output.log (one per run: managers merge at once).
+merge-check prints the tables' flagged rows, a count of the clean ones and the verdict (clean_rows_counted); merge
+drops its `ok` progress lines; the verdict, the `wave:` line and the exit code are the same. `wave` calls `check` itself and gets every line, as before.
 
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
@@ -1272,7 +1272,11 @@ def clean_rows_counted(lines: list[str]) -> list[str]:
 
 def check_command(numbers: list[int], base: str | None = None, trial: bool = False, verbose: bool = False) -> int:
     """`merge-check`: check, quiet unless verbose (#572); the verdict and the line after it (across bases) always."""
-    return quiet("merge-check", lambda: check(numbers, base, trial), verbose, brief=clean_rows_counted, keep_end=2)
+    which = "-".join(str(n) for n in sorted(numbers)) or "all"  # runs that overlap each get their own log
+    log_name = "merge-check-" + (which if len(which) <= 40 else "many")
+    return quiet(
+        "merge-check", lambda: check(numbers, base, trial), verbose, brief=clean_rows_counted, keep_end=2, log_name=log_name
+    )
 
 
 def _remove(path: Path) -> None:
@@ -1510,8 +1514,12 @@ def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool 
 def merge_command(
     number: int | None, base: str, sync_main: bool = False, dry_run: bool = False, verbose: bool = False
 ) -> int:
-    """`merge`: merge, quiet unless verbose (#572): without its `ok` progress lines; the `wave:` line, last, always."""
-    return quiet("merge", lambda: merge(number, base, sync_main, dry_run), verbose, brief=without_ok, keep_end=1)
+    """`merge`: merge, quiet unless verbose (#572): without its `ok` progress lines; the `wave:` line always, then the
+    path of the log (merge-<pr>-output.log: managers merging at once each keep their own)."""
+    log_name = f"merge-{number}" if number is not None else "merge-sync"
+    return quiet(
+        "merge", lambda: merge(number, base, sync_main, dry_run), verbose, brief=without_ok, keep_end=1, log_name=log_name
+    )
 
 
 def _sync_main(base: str, dry_run: bool = False) -> int:

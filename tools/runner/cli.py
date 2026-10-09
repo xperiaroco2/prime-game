@@ -362,7 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose",
         action="store_true",
         help="print every row and progress line (default: the rows that flag something, a count of the clean ones "
-        "and the verdict; the whole output is in tools/out/logs/merge-check-output.log)",
+        "and the verdict; the whole output is in tools/out/logs/merge-check-<PRs>-output.log)",
     )
     p = sub.add_parser(
         "merge",
@@ -380,8 +380,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--verbose",
         action="store_true",
-        help="print the progress lines too (default: the gate's notes, refusals and verdict, the wave: line last; the "
-        "whole output is in tools/out/logs/merge-output.log)",
+        help="print the progress lines too (default: the gate's notes, refusals and verdict, the wave: line, then the "
+        "log's path: tools/out/logs/merge-<pr>-output.log, all of the output)",
     )
     p = sub.add_parser(
         "merge-train",

@@ -304,9 +304,9 @@ class QuietMergeTest(unittest.TestCase):
         lines = out.splitlines()
         self.assertEqual(rc, 0)
         self.assertEqual(lines[-2], CLEAN_CHECK[-1])
-        self.assertIn("full output: tools/out/logs/merge-check-output.log", lines[-1])
+        self.assertIn("full output: tools/out/logs/merge-check-all-output.log", lines[-1])
         self.assertNotIn("| #663 + #664 | clean | clean |", out)
-        self.assertIn("| #663 + #664 | clean | clean |", self.log("merge-check"))
+        self.assertIn("| #663 + #664 | clean | clean |", self.log("merge-check-all"))
 
     def test_a_red_merge_check_keeps_its_flagged_rows_its_verdict_and_its_exit_code(self) -> None:
         with self.check_with(RED_CHECK, 1):
@@ -329,7 +329,21 @@ class QuietMergeTest(unittest.TestCase):
             rc, out = printed(merge.merge_command, 5, "main")
         self.assertEqual(rc, 0)
         self.assertEqual(out.splitlines()[:-1], [lines[0], lines[2]])
-        self.assertIn("full output: tools/out/logs/merge-output.log", out.splitlines()[-1])
+        self.assertIn("full output: tools/out/logs/merge-5-output.log", out.splitlines()[-1])
+
+    def test_overlapping_merge_runs_each_keep_their_own_log(self) -> None:
+        """Two managers merging at once (#572 review): one fixed log would be truncated by the second run."""
+        for number in (5, 6):
+            lines = [f"merge #{number} --base main", f"  ok    #{number}: the gate passed", f"wave: merged #{number}"]
+            with mock.patch.object(merge, "merge", side_effect=lambda *_a, _l=lines, **_k: self.body(_l, 0)()):
+                printed(merge.merge_command, number, "main")
+        self.assertIn("wave: merged #5", self.log("merge-5"))
+        self.assertIn("wave: merged #6", self.log("merge-6"))
+        with self.check_with(CLEAN_CHECK, 0):
+            printed(merge.check_command, [664, 663], None)
+            printed(merge.check_command, [700], None)
+        self.assertIn("### release/m6.2", self.log("merge-check-663-664"))
+        self.assertIn("### release/m6.2", self.log("merge-check-700"))
 
     def test_a_refused_merge_raises_as_before_after_its_excerpt(self) -> None:
         def refuse(*_a: object, **_k: object) -> int:
