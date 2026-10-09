@@ -55,6 +55,10 @@ skill and its `handover.md`.
   arm none: over 250k, hand over instead (§5). A wake re-reads only your state lines (session start, timer, wake
   count) and is silent unless it hands over or needs him. At most 14 wakes in a row (a message from him resets the
   count); none after a handover.
+- **Before work that must outlast his presence** (a night, #595): call the desktop app's `request_keep_awake` tool
+  (`until: "session_idle"`), and your For-you asks him to leave the lid open and the machine on mains power, sleep
+  "never" on mains (a closed lid or a manual sleep still sleeps). A run the machine slept through stops red at the
+  resume ("the machine slept or was suspended"): relaunch it fresh.
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`

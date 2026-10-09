@@ -1,4 +1,5 @@
-# CI runs exactly what `tools/run.sh verify` runs locally (the definition of done), on Linux.
+# CI runs the whole suite, `tools/run.sh verify --full` (the definition of done's test gate), on Linux; a local
+# `verify` runs only doctor, lint and check (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md).
 # Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
 # docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
@@ -49,7 +50,7 @@ jobs:
       # Its test step runs the frame-bound client suites (gdunit.FIXED_FPS_SUITES) at --fixed-fps 60 in shards of
       # their own and the rest in real time (#341); nightly.yml's flaky job keeps all of them real-time.
       - name: verify
-        run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full
 
       - name: Upload test reports and logs
         if: always()

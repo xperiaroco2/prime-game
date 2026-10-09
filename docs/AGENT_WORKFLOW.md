@@ -212,8 +212,11 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots`, `bots-enet` and `bots-webrtc`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. A plain `verify` runs only
+   `doctor --quick`, `lint` and `check` (no test, no verify slot); every test, the bot matches included, runs on CI's
+   `verify --full`, so CI green on the PR is the test gate (#605,
+   [ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)); `verify --full` runs the whole suite here when
+   needed (§11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 180 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
@@ -1750,7 +1753,12 @@ Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/ou
 Claude settings (§2).
 
 ### 11.16 CI [applied]
-`.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
+A plain `verify` runs only `doctor --quick`, `lint` and `check` (one lane each, at once) and the clean-tree check,
+takes no verify slot, prints "fast verify: lint and check; the tests run on CI" and records `"mode": "fast"` (`metrics`
+leaves its total out of the full runs'); every test runs on CI (#605,
+[ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)). What follows about steps, lanes and slots is
+`verify --full`, CI's run, which an agent runs locally only when it needs to (a Windows-only failure, a release).
+`.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify --full` on every PR
 (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
 pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
 (the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
@@ -1809,6 +1817,22 @@ whole run. Never for the run that gates: the green verify that the definition of
 `verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
 stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
 (`AfterTest`, `FailFastTest`, `LaneTermTest`, whose stopped lane with a live child runs on Linux and macOS only).
+**A machine that slept (#595):** on 2026-10-08 the laptop slept from 20:59:58Z to 07:21:15Z (Modern Standby) and each
+verify in flight reported a step of about 38,000 s, ending after the resume: a Windows wait (the lane timer) does not
+count a sleep, while `time.monotonic` (QueryPerformanceCounter) and the wall clock do; on Linux the monotonic clock
+stops and the wall clock jumps. So a thread of `verify` (`suspend.Watch`, `tools/runner/suspend.py`) reads both clocks
+every 5 s while the lanes run; a gap of 120 s or more between two reads (`SUSPEND_GAP`: a loaded PC delays a thread by
+seconds; a shorter sleep is survived) stops every lane at once, as `--fail-fast` does (`stop_lanes_firmly`: one
+thread per lane, repeated up to 6 times 5 s apart, as Windows may not start `taskkill` just after a wake; a suspend
+noticed after the last step ended changes nothing): each lane's running step
+(`steps_in_flight`: not one still waiting for its `AFTER` step) is red with the first line `the machine slept or was
+suspended (<n> s): verify stopped this step`, its `failure` in the record; the rest is `not run`; the end line adds `,
+stopped early at <steps>: the machine slept or was suspended (<n> s)` (`metrics` counts no step of such a run, red
+or not: neither its totals nor its red rates),
+and the record's `stopped` is {`at`: null, `suspended`: n, `not_run`}. `wait` reads the same two clocks at its polls:
+after such a gap it reads the log once more and, with the job still running, prints `wait: the machine slept or was
+suspended (<n> s) during this wait; ...` before its still-running line (124). Tests:
+`tools/runner/tests/test_suspend.py` (injected clocks), `SuspendTest` in `test_verify.py`, `test_wait.py`.
 Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
 `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
 at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
@@ -1840,7 +1864,7 @@ printed a line or lived 10 s is never started again, whatever it returned, so no
 that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
 are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
 `NOT STARTED` line. Tests: `tools/runner/tests/test_not_started.py`.
-**Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
+**Verify slots (#185):** on a PC, after `doctor`, `verify --full` (a plain `verify` takes none, #605) takes one of N
 machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
 a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
 `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
@@ -1879,8 +1903,13 @@ scratch folder), runs its own steps after the log's `load: running` line, and le
 `wait <log>`.
 **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
 one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
-machine-wide: a run already in a slot finishes there, a run already waiting joins the window.
-Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
+machine-wide: a run already in a slot finishes there, a run already waiting joins the window. Since #595 a holder file
+records how long the machine had slept since its boot (`suspend.asleep_seconds`: Windows' interrupt time minus its
+unbiased interrupt time, which Modern Standby stops too; Linux' `CLOCK_BOOTTIME` minus `CLOCK_MONOTONIC`), and
+`--status` marks a live holder STALE, not held, when the machine slept 120 s or more since it took its slot, or, for a
+holder file without the counter (an older runner), when it took its slot before the System log's last resume from
+sleep (Kernel-Power 507 with `SleepEntered` true, or 107): such a verify stops at the resume, an older one may hang.
+Tests: `tools/runner/tests/test_slots.py` (`SleptHolderTest`), `tools/runner/tests/test_load.py`.
 The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
 then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
 quiet window), its `seconds` leave the wait out, and the summary's last

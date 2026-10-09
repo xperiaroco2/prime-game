@@ -310,6 +310,11 @@ EXIT_CRASH_NOTE = "crashed at exit"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # The end line of a run that `verify --fail-fast` stopped at its first red step (#556): its total is no run's length.
 STOPPED_EARLY = ", stopped early at "
+# A run the machine's sleep stopped (#595; suspend.message): the steps it was running are red only because of the
+# sleep, with hours-long seconds, so no step of it counts, in the history or in a transcript.
+SUSPENDED_RUN = "the machine slept or was suspended"
+# A fast run's summary line (#605; verify.FAST_LINE): doctor, lint and check only, so its total is no full run's.
+FAST_RUN = "fast verify: "
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
@@ -667,14 +672,15 @@ def parse_verify(text: str) -> dict | None:
     """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over,
     exit_crashes, stopped}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether
     it ran without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449), stopped whether
-    `--fail-fast` stopped it early (#556; its `not run` rows are no steps)."""
+    `--fail-fast` stopped it early (#556; its `not run` rows are no steps); a fast run (#605) has "fast": True."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
     exit_crashes: list[str] = []
-    total_s, status, wait, over, stopped = None, None, None, False, False
+    total_s, status, wait, over, stopped, fast = None, None, None, False, False, False
     for line in text[i:].splitlines()[1:]:
+        fast = fast or line.strip().startswith(FAST_RUN)
         m = STEP_LINE.match(line)
         if m:
             steps[m.group(2)] = (m.group(1), float(m.group(3)))
@@ -688,11 +694,14 @@ def parse_verify(text: str) -> dict | None:
             wait = float(waited.group(1)) if waited else None
             over = OVER_LIMIT in line
             stopped = STOPPED_EARLY in line
+            if SUSPENDED_RUN in line:
+                return None
             break
     if not steps:
         return None
-    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over, "exit_crashes": exit_crashes,
-            "stopped": stopped}
+    found = {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over,
+             "exit_crashes": exit_crashes, "stopped": stopped}  # fmt: skip
+    return {**found, "fast": True} if fast else found
 
 
 def timer_seconds(block: object) -> float | None:
@@ -1503,6 +1512,9 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             start = stamp(rec.get("start") or rec.get("started") or rec.get("time"))
             if start is None or start >= until or (since is not None and start < since):
                 continue
+            stopped_by = rec.get("stopped")
+            if isinstance(stopped_by, dict) and stopped_by.get("suspended") is not None:
+                continue  # the machine slept (#595): its red steps are no step's flake
             raw = rec.get("steps")
             if isinstance(raw, dict):
                 items = list(raw.items())
@@ -1538,7 +1550,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
                               "wait": wait, "over": over, "exit_crashes": exit_crashes,
                               "stopped": bool(rec.get("stopped")),
-                              "exit_tracked": exit_tracked, **red})  # fmt: skip
+                              "exit_tracked": exit_tracked, **red,
+                              **({"fast": True} if rec.get("mode") == "fast" else {})})  # fmt: skip
     return found
 
 
@@ -2535,7 +2548,7 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
         for s in step_names:
             vals = [v["steps"][s][1] for v in lst if s in v["steps"]]
             row.append(f"{med(vals):.0f}" if vals else "")
-        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
+        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast")]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
         if with_slots:
             waits, over = slot_waits(lst)
@@ -3747,7 +3760,7 @@ def compact_lines(
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
-            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped")]
+            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast")]
             names: list[str] = []
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]

@@ -120,12 +120,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "verify",
-        help="everything CI runs, in the same order (definition of done)",
-        description="Everything CI runs, in the same order: doctor, then a Python lane, a Godot lane and a lane of the "
-        "runner tests that start Godot at once (each step's output whole when it ends). On a PC a run first takes "
-        "one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The "
-        "definition-of-done gate: every step runs and a red one fails it. "
-        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11.16).",
+        help="doctor, lint and check (definition of done; the tests run on CI); --full: everything CI runs",
+        description="With no flag (#605): doctor, then lint and check at once, then the clean-tree check; no verify "
+        "slot and no test: every test runs on GitHub CI, whose job runs verify --full. --full: everything CI runs, "
+        "in the same order: doctor, then a Python lane, a Godot lane and a lane of the runner tests that start Godot "
+        "at once (each step's output whole when it ends); on a PC a --full run first takes one of 2 machine-wide "
+        "slots, waiting at most 600 s (in a quiet window of slots --quiet, the one slot). The definition-of-done "
+        "gate, either way: every step runs and a red one fails it. Every agent runs it in the background into a log and polls it with wait "
+        "(docs/AGENT_WORKFLOW.md §11.16).",
+    )
+    p.add_argument(
+        "--full",
+        action="store_true",
+        help="the whole suite CI runs (every test, in a verify slot); without it only doctor, lint and check",
     )
     p.add_argument(
         "--fail-fast",
@@ -246,7 +253,8 @@ def build_parser() -> argparse.ArgumentParser:
         "slots",
         help="who holds and waits for the verify slots (--status); one slot for a while (--quiet <hours> | off)",
         description="The machine-wide verify slots, shared by every checkout of this PC (docs/AGENT_WORKFLOW.md §11). "
-        "--status prints the quiet window, the holders (worktree, branch, pid, since), the runs waiting for a slot, "
+        "--status prints the quiet window, the holders (worktree, branch, pid, since), STALE if the machine slept "
+        "since it took its slot, the runs waiting for a slot, "
         "the runs going on without one, and the last hour's verify runs that ran without a slot (over the limit), "
         "from the slots folder and the verify history; its last line says whether a run waits or runs over the "
         "limit (a manager launches nothing while one does). --quiet <hours> (more than 0, at most 24) starts a quiet window for the engineer's "
@@ -727,7 +735,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main(fail_fast=args.fail_fast)
+            return verify.main(full=args.full, fail_fast=args.fail_fast)
         if args.command == "selftest":
             from . import verify
 

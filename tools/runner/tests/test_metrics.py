@@ -363,6 +363,24 @@ class MetricsTest(unittest.TestCase):
         self.assertIn("slot wait (median / max) | over the limit |", text)
         self.assertIn("| 90 / 150 | 1 |", text)
 
+    def test_a_fast_run_is_never_a_full_runs_total(self) -> None:
+        # #605: a plain verify runs doctor, lint and check only; its total stays out of the full runs' totals.
+        fast = SUMMARY.replace("verify: FAILED", "  fast verify: lint and check; the tests run on CI\nverify: FAILED")
+        self.assertIs(metrics.parse_verify(fast)["fast"], True)
+        self.assertNotIn("fast", metrics.parse_verify(SUMMARY))
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 250, "mode": "full",
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "b", "seconds": 60, "mode": "fast",
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v.get("fast", False) for v in found], [False, True])
+        _md, _record, compact = self.build(history=found)
+        line = next(line for line in compact if line.startswith("local verify (history file)"))
+        self.assertIn("2 runs, 0 red, median 250 s (max 250)", line)
+
     def test_the_verify_history_file(self) -> None:
         path = self.root / "verify-history.jsonl"
         write_lines(path, [
@@ -406,6 +424,23 @@ class MetricsTest(unittest.TestCase):
         line = next(line for line in compact if line.startswith("local verify (history file)"))
         self.assertIn("2 runs, 1 red, median 300 s (max 300)", line)
         self.assertIn("test 90", line)
+
+    def test_a_run_the_machines_sleep_stopped_counts_no_step(self) -> None:
+        # #595: the steps verify stopped at a resume are red only because of the sleep, with hours-long seconds.
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 300,
+             "steps": [{"name": "test", "status": "passed", "seconds": 90}], "stopped": None},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "a", "seconds": 37954,
+             "steps": [{"name": "test", "status": "FAILED", "seconds": 37954},
+                       {"name": "selftest", "status": "FAILED", "seconds": 37900}],
+             "stopped": {"at": None, "suspended": 37954, "not_run": []}},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v["steps"] for v in found], [{"test": ("passed", 90.0)}])
+        text = ("verify summary\n  FAILED  test            37954.0s\n"
+                "verify: FAILED in 37954.0s, stopped early at test: the machine slept or was suspended (37954 s)\n")
+        self.assertIsNone(metrics.parse_verify(text))
 
     def test_checks_that_passed_after_godot_crashed_at_exit_are_counted(self) -> None:
         # #449: the history record's `exit_crash` on the check step (#442's loud pass) gives the crash rate over the

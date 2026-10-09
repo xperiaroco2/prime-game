@@ -40,7 +40,7 @@ number (a split section's second part repeats its number). After a compaction, r
 |---|---|---|
 | §2 (steps 3-5, 7, 8) | a new milestone or stage, a design handoff, tasks sharing files | [stage-setup.md](stage-setup.md) |
 | §3 (the args) | composing a launch's `args` | [launch-args.md](launch-args.md) |
-| §4, §7 (parts) | a failed or stopped run; a crash, restart, plan limit or new session with runs | [resume.md](resume.md) |
+| §4, §7 (parts) | a failed or stopped run; a crash, restart, sleep, plan limit or new session with runs | [resume.md](resume.md) |
 | §5 | a merge, a rebase, a conflict, `--sync-main`, the stage's end | [merges.md](merges.md) |
 | §8 | the human is needed; a merged task's worktree | [notifications.md](notifications.md) |
 | §9 | a stage's first kickoff (not a handover's); a failure you have not seen | [gotchas.md](gotchas.md) |
@@ -167,7 +167,8 @@ A workflow that threw, a crash, a PC restart, a plan limit, or a new session wit
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
   timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order
   says, one at a time (its task id and arm time in the state file); it fires before the cache your latest call refreshed
-  expires.
+  expires. A sleeping machine fires no timer: before a night, `request_keep_awake` (MANAGERS.md §4,
+  [resume.md](resume.md) §7).
 - **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
   this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking
   you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json number,mergedAt`). Then follow the turn-end

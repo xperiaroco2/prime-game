@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer (#518; the designer is optional and may contribute through PRs to the engineer). Agents never fill in or change design content here without the engineer's word. |
-| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided except §1's pillars, §3's base mode and what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14; examples inside a question are prompts for the designer, not proposals. |
+| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided except §1's pillars, §3's base mode, §13's first map and what [vision revision 1](decisions/2026-10-01-vision-revision-1.md) settled in §9, §10, §11 and §14; examples inside a question are prompts for the designer, not proposals. |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |
 
@@ -28,8 +28,10 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Death does not take you out of the game, and killing is not a win.**
 - **Action over long discussions.** Run, do tasks, outwit.
 - **Cringe-fun vibe**, and an audience that is not only guys.
-- **Macro skill over micro skill.** Simple mechanics, no aim-heavy or one-shot mechanics: decisions, teamwork and
-  communication win, and a player who never plays shooters has as much fun as anyone.
+- **Macro skill over micro skill.** Simple mechanics, no aim-heavy mechanics: decisions, teamwork and communication
+  win, and a player who never plays shooters has as much fun as anyone. One-shot kills exist only as rare moments that
+  are hard to abuse: the dropped car now, maybe later a single-shot weapon that is very hard to get. The player
+  respawns as usual (the ADR's amendment of 2026-10-08, #591).
 - **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the zones
   where items may appear) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but
   it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
@@ -146,8 +148,12 @@ they watch and lift music. There are no meetings.
 
 ## 13. Maps
 
-- How many maps at first, how big, and for how many players?
-- Which rooms and interactables does the first map need?
+The first map is [House](design/house-map.md) (decided by the engineer on 2026-10-08, #591): a country house with a
+yard on an 80 x 60 m plot, for 4 to 10 players, on four levels (basement, ground floor with the yard, second floor,
+attic and roof), laid out for the five task chains. Its sizes and positions are a working draft until a greybox
+playtest.
+
+- How many maps in all, and do later maps keep the same scale and player count?
 
 ## 14. Art and audio direction
 
