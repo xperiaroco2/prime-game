@@ -19,7 +19,7 @@ signal lobby_name_changed(text: String)
 ## The host's pick of the match's map, one of the own mode's maps (#627).
 signal map_changed(map: String)
 
-const READ_ONLY := "The settings below: only the host changes them, in the lobby."
+const READ_ONLY := "Only the host changes the lobby's name, map and settings, in the lobby."
 const NAME_LABEL := "lobby.setting.name"
 ## Plain text, as "Settings": the UI deck has no key for it yet (a change goes to prime-game-ui).
 const MAP_LABEL := "Map"
