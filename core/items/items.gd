@@ -13,6 +13,10 @@ extends RefCounted
 ## - drop_carried(): a leaving player's items, the hand's first, fall to the floor below the
 ##   player's last accepted position: ItemPlaced (leave), then item_rested, for each. The life
 ##   rule (2g) calls it after the life state changed and player_left was raised.
+## - launch(): a thrown item leaves the hand or belt into its flight (ItemState.Where.FLYING);
+##   FlightTicks flies it and rests it through place() with the cause `thrown` (§7.1.16).
+## - fallback_rest(): where a thrown item rests when its flight ends over no floor, asked at the
+##   launch.
 ## - raise_rested(): item_rested for an item that is already at rest and announced by its own
 ##   event (the spawn: SpawnItems 2c and Delivery's deal 2f emit ItemSpawned, then call this).
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
@@ -33,6 +37,8 @@ const DEATH := &"death"
 const LEAVE := &"leave"
 ## item_rested only: the item was placed by a deal (ItemSpawned announces it).
 const SPAWN := &"spawn"
+## The end of a thrown item's flight (FlightTicks, §7.1.16).
+const THROWN := &"thrown"
 
 
 ## The item an intent or a fact is about: the `item` field of the intent being handled, else the
@@ -122,20 +128,37 @@ static func swap(ctx: MatchContext, peer: int) -> void:
 	ctx.emit(SwappedEvent.new(peer))
 
 
-## `item` comes to rest at `at` for `cause`: on the ground, out of any hand or belt. Emits
-## ItemPlaced to everyone, then raises item_rested (Delivery's check runs on it, §7.1).
+## `item` comes to rest at `at` for `cause`: on the ground, out of any hand, belt or flight.
+## Emits ItemPlaced to everyone, then raises item_rested (Delivery's check runs on it, §7.1).
 static func place(ctx: MatchContext, item: ItemState, at: Vector3, cause: StringName) -> void:
-	if item.is_carried():
-		var holder := ctx.state.player(item.holder)
-		if holder != null and holder.held_item == item.id:
-			holder.held_item = -1
-		if holder != null and holder.belt_item == item.id:
-			holder.belt_item = -1
+	_release(ctx, item)
 	item.where = ItemState.Where.GROUND
 	item.holder = 0
 	item.position = at
+	item.flight = null
 	ctx.emit(ItemPlacedEvent.new(item.id, at, cause))
 	raise_rested(ctx, item, cause)
+
+
+## `item` leaves the hand or belt that holds it into `flight` (§7.1.16): FLYING, held by nobody,
+## its position the flight's origin. The launch tick is this one, in which FlightTicks does not
+## move it. Emits nothing: the throw's own effect announces it. FlightTicks ends the flight.
+static func launch(ctx: MatchContext, item: ItemState, flight: ItemFlight) -> void:
+	_release(ctx, item)
+	flight.launch_tick = ctx.tick
+	item.where = ItemState.Where.FLYING
+	item.holder = 0
+	item.position = flight.origin
+	item.flight = flight
+
+
+## Where a thrown item rests when its flight ends over no floor (TD11 (a)): the floor below the
+## thrower's feet `feet` (its last accepted position, lifted as for a drop), asked once at the
+## launch and kept in the flight. NO_FLOOR when there is none there either. Never the eye less
+## the eye height: Items.eye_of stands on the footprint, so at a ledge's edge that point is in the
+## air.
+static func fallback_rest(ctx: MatchContext, feet: Vector3) -> Vector3:
+	return ctx.world.floor_below(lifted(feet))
 
 
 ## Drops the items `peer` carries, the hand's first, then the belt's, to the floor below the
@@ -180,13 +203,14 @@ static func raise_rested(ctx: MatchContext, item: ItemState, cause: StringName) 
 
 ## The markers of `tag` in the level being entered, in level order, on which no item rests: a
 ## deal puts at most one item on a marker (§3.3, §9.6), so every part that places items in a deal
-## (SpawnItems, Delivery's packages) draws from these. Needs ctx.layout.
+## (SpawnItems, Delivery's packages) draws from these. An item in flight rests nowhere yet (its
+## position is the launch's origin). Needs ctx.layout.
 static func free_markers(ctx: MatchContext, tag: StringName) -> PackedVector3Array:
 	var free := PackedVector3Array()
 	for at: Vector3 in ctx.layout.positions(tag):
 		var taken := false
 		for item: ItemState in ctx.state.items.values():
-			if not item.is_carried() and item.position == at:
+			if not item.is_carried() and not item.is_in_flight() and item.position == at:
 				taken = true
 				break
 		if not taken:
@@ -210,6 +234,17 @@ static func eye_of(ctx: MatchContext, player: PlayerState) -> Vector3:
 ## `point` lifted by SURFACE_CLEARANCE_M, off the surface it lies on.
 static func lifted(point: Vector3) -> Vector3:
 	return point + Vector3.UP * SURFACE_CLEARANCE_M
+
+
+## Empties the hand or belt slot that holds `item`, if any.
+static func _release(ctx: MatchContext, item: ItemState) -> void:
+	if not item.is_carried():
+		return
+	var holder := ctx.state.player(item.holder)
+	if holder != null and holder.held_item == item.id:
+		holder.held_item = -1
+	if holder != null and holder.belt_item == item.id:
+		holder.belt_item = -1
 
 
 static func _id(item: ItemState) -> String:

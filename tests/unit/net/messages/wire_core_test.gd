@@ -294,7 +294,10 @@ func test_cores_constant_ids_fit_the_wire() -> void:
 		for value: Variant in script.get_script_constant_map().values():
 			if value is StringName:
 				ids.append(str(value))
-	for cause: StringName in [Items.PUT_DOWN, Items.SWAP, Items.DEATH, Items.LEAVE, Items.SPAWN]:
+	var causes: Array[StringName] = [
+		Items.PUT_DOWN, Items.SWAP, Items.DEATH, Items.LEAVE, Items.SPAWN, Items.THROWN
+	]
+	for cause: StringName in causes:
 		ids.append(str(cause))
 	assert_int(ids.size()).is_greater(15)
 	for id: String in ids:
@@ -308,7 +311,7 @@ func test_the_items_causes_are_every_string_name_constant_of_items() -> void:
 		if value is StringName:
 			causes.append(str(value))
 	assert_array(causes).contains_exactly_in_any_order(
-		["put_down", "swap", "death", "leave", "spawn"]
+		["put_down", "swap", "death", "leave", "spawn", "thrown"]
 	)
 
 
