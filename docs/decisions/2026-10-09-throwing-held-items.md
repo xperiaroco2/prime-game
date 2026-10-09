@@ -17,7 +17,8 @@
   (protocol 12 on `release/m7`). One part this text did not count: the condition `OverFloor` (`no_floor`, TD11 (a)).
   A refusal inside `ThrowItem` would come after `RuleRunner` stops the thrower's raise and give the client no
   `Rejected`, so the refusal is a condition, and ModeCheck requires `HoldsItem` and `OverFloor`, not negated, in every
-  rule that holds a `ThrowItem`. No change to a TD or TE answer.
+  rule that holds a `ThrowItem`. So ARCHITECTURE §9.8 counts three part classes for throwing, not two. No change to
+  a TD or TE answer.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
@@ -259,9 +260,8 @@ keeps the flying state with `ItemRested` as a command of `server/`'s, and 37e dr
 ## Consequences
 - ARCHITECTURE §7.1.16 holds this design's authority rules. §3.3, §7.1.14, §9.2 and §9.8 no longer say that `server/`
   reports a throw's rest from its physics, and §10 lists TD1 to TD12 and TE1. GDD §6 lists the questions.
-- The content API gains one intent, one effect, one tick system, one condition (`OverFloor`, added in 37c), one
-  event, one fact cause and one `WorldQuery` question, and no change to `Match` or the phase loop. ARCHITECTURE §9.8's
-  row for throwing counts three part classes instead of one (the effect, the flight's tick system and the condition)
-  and no simulation in `server/`.
+- The content API gains one intent, one effect, one tick system, one event, one fact cause and one `WorldQuery`
+  question, and no change to `Match` or the phase loop. ARCHITECTURE §9.8's row for throwing counts two part classes
+  instead of one (the effect, and the flight's tick system) and no simulation in `server/`.
 - Whatever the answers, the rest of a throw goes through `Items.place` and `item_rested`, so the delivery check, the
   win check and the drops at a death stay as they are.
