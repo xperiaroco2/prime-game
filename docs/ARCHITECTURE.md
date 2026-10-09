@@ -3467,7 +3467,7 @@ there would not follow from the commands.
   without `FlightTicks` pauses it rather than making it jump), through a new
   `WorldQuery.sweep(from, to, radius)`: the farthest point a sphere reaches, `from` itself when the sphere starts in
   the world. `server/` answers with `intersect_shape`, then `cast_motion`, which ignores a shape the sphere starts
-  in. The mode check keeps the throw's sphere inside the player's capsule at the eye, so a thrower pressed against a
+  in. The mode check keeps the throw's sphere inside the player's capsule at the eye, with a margin, so a thrower pressed against a
   wall can still throw away from it. A living player other than the thrower stops it too (their capsule at the last
   accepted position, as hits read it); the downed are flown over (TD12). Prevents: an item through a crack or a ceiling, and
   a landing that differs between two runs of the same commands.
