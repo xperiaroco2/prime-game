@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bq73ldtdyk6av"]
 
 [ext_resource type="Material" uid="uid://cmhfb45yyhj7t" path="res://levels/kit/greybox_material.tres" id="1_greybox"]
+[ext_resource type="Material" uid="uid://cl80xooe3d8eo" path="res://levels/kit/greybox_floor_roof.tres" id="2_floor"]
 
 [sub_resource type="BoxShape3D" id="Shape_1"]
 size = Vector3(3, 0.2, 14)
@@ -78,18 +79,22 @@ shape = SubResource("Shape_5")
 
 [node name="Floor1" type="MeshInstance3D" parent="Looks" unique_id=510064864]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, -0.1, 10)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
 
 [node name="Floor2" type="MeshInstance3D" parent="Looks" unique_id=1347719757]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 1.5)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_2")
 
 [node name="Floor3" type="MeshInstance3D" parent="Looks" unique_id=260428624]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, -0.1, 19.5)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_3")
 
 [node name="Floor4" type="MeshInstance3D" parent="Looks" unique_id=153716833]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -0.1, 10)
+material_override = ExtResource("2_floor")
 mesh = SubResource("Mesh_1")
 
 [node name="Wall1" type="MeshInstance3D" parent="Looks" unique_id=1476644104]
@@ -107,6 +112,13 @@ mesh = SubResource("Mesh_5")
 [node name="Wall4" type="MeshInstance3D" parent="Looks" unique_id=540832278]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.95, 0.4, 11)
 mesh = SubResource("Mesh_5")
+
+[node name="Name" type="Label3D" parent="." unique_id=114009347]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 2.4, 1.5)
+billboard = 1
+text = "Roof"
+font_size = 72
+outline_size = 16
 
 [node name="Doors" type="Node3D" parent="." unique_id=1428482830]
 
