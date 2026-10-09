@@ -1,6 +1,6 @@
 class_name MainMenu
 extends Control
-## The main menu (prime-game-ui's s2 handoff at ui-0.4.0, #493; ARCHITECTURE §4.7.34), node for
+## The main menu (prime-game-ui's s2 handoff at ui-0.4.0, #493; ARCHITECTURE §4.7.38), node for
 ## node as drawn: the dim Backdrop, then Column (the logo, the own name, and Body: the Items and
 ## the open panel to their right), the Settings panel, a root of its own, and the Version.
 ## - Items: Host (a game with a code), Join, Join by address (Direct), Tutorial, Settings, Quit.
