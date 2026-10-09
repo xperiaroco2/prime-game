@@ -102,7 +102,7 @@ var _sender := VoiceSender.new()
 var _voice_control: VoiceControl
 ## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
 ## is read again when one opens.
-var _voice_tab_shown := false
+var _voice_panel_shown := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -800,9 +800,9 @@ func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
 	_sender.listening = not ui.esc_open()
 	var panel := shown_voice_panel()
-	if panel != null and not _voice_tab_shown:
+	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
-	_voice_tab_shown = panel != null
+	_voice_panel_shown = panel != null
 	if panel != null:
 		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
