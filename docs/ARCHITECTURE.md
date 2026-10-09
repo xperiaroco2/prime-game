@@ -4596,9 +4596,12 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `ChangeSettings` (ZE7), so it deals Delivery alone. Three play the zone, each expecting `crew`:
   `crew_works_every_zone` (the default draw with one package: a crew bot delivers it, another walks to `station(zone,
   1)` and holds it until its `ZoneProgress` at 200 ticks, and the crew wins on the second subtask),
-  `zone_paused_by_a_knockdown` (Delivery banned: a dissident knocks the crew bot in the zone down and walks out, so
-  the zone stops counting; a crew bot raises it from 1.8 m, outside the zone and inside the raise's 2 m reach; the
-  zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
+  `zone_paused_by_a_knockdown` (Delivery banned: the crew bot holds the zone from 1.2 m short of its centre, on its
+  approach side; the dissident strikes it from 1 m further out, outside the zone and inside the knife's reach, and
+  knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
+  the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
+  it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
+  inside the raise's 2 m reach; the zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
   a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
 
 ### 9.8 The extensibility test

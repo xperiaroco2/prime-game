@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://dbi25yv13uquw"]
 
 [ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="expect"]
+[ext_resource type="Script" uid="uid://btw85s6sw667k" path="res://core/content/scenario/step_expect_none.gd" id="expect_none"]
 [ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="mode"]
 [ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="never"]
 [ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="pick_up"]
@@ -104,12 +105,13 @@ fields = {
 "peer": 3
 }
 
-[sub_resource type="Resource" id="wait_for_10"]
-script = ExtResource("wait_for")
+[sub_resource type="Resource" id="expect_31"]
+script = ExtResource("expect")
 event = &"ZoneProgress"
 fields = {
 "counting": false
 }
+within_s = 0.5
 
 [sub_resource type="Resource" id="walk_to_21"]
 script = ExtResource("walk_to")
@@ -131,7 +133,7 @@ fields = {
 
 [sub_resource type="Resource" id="script_24"]
 script = ExtResource("script")
-steps = Array[ExtResource("step")]([SubResource("ready_1"), SubResource("wait_for_2"), SubResource("wait_for_11"), SubResource("wait_for_10"), SubResource("walk_to_21"), SubResource("raise_22"), SubResource("expect_23"), SubResource("wait_for_3")])
+steps = Array[ExtResource("step")]([SubResource("ready_1"), SubResource("wait_for_2"), SubResource("wait_for_11"), SubResource("expect_31"), SubResource("walk_to_21"), SubResource("raise_22"), SubResource("expect_23"), SubResource("wait_for_3")])
 
 [sub_resource type="Resource" id="target_7"]
 script = ExtResource("target")
@@ -142,7 +144,7 @@ station_kind = &"zone"
 script = ExtResource("walk_to")
 target = SubResource("target_7")
 sprint = true
-stop_m = 0.0
+stop_m = 1.2
 
 [sub_resource type="Resource" id="expect_26"]
 script = ExtResource("expect")
@@ -151,6 +153,14 @@ fields = {
 "counting": true
 }
 within_s = 1.0
+
+[sub_resource type="Resource" id="expect_none_32"]
+script = ExtResource("expect_none")
+event = &"ZoneProgress"
+fields = {
+"counting": true
+}
+for_s = 3.0
 
 [sub_resource type="Resource" id="wait_for_12"]
 script = ExtResource("wait_for")
@@ -185,7 +195,7 @@ within_s = 1.0
 
 [sub_resource type="Resource" id="script_29"]
 script = ExtResource("script")
-steps = Array[ExtResource("step")]([SubResource("ready_1"), SubResource("wait_for_2"), SubResource("walk_to_25"), SubResource("expect_26"), SubResource("wait_for_11"), SubResource("wait_for_10"), SubResource("wait_for_12"), SubResource("expect_27"), SubResource("wait_for_28"), SubResource("expect_4")])
+steps = Array[ExtResource("step")]([SubResource("ready_1"), SubResource("wait_for_2"), SubResource("walk_to_25"), SubResource("expect_26"), SubResource("wait_for_11"), SubResource("expect_31"), SubResource("expect_none_32"), SubResource("wait_for_12"), SubResource("expect_27"), SubResource("wait_for_28"), SubResource("expect_4")])
 
 [resource]
 script = ExtResource("scenario")
