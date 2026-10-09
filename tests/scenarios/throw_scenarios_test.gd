@@ -26,6 +26,8 @@ func after_test() -> void:
 		assert_str(String(accepted.intent)).is_not_equal(String(Intents.THROW))
 	for system: TickSystem in round_spec.tick_systems:
 		assert_bool(system is FlightTicks).is_false()
+	for rule: Rule in _base.actions:
+		assert_str(String(rule.trigger)).is_not_equal(String(Intents.THROW))
 	if not DirAccess.dir_exists_absolute(OUT):
 		return
 	for file: String in DirAccess.get_files_at(OUT):
@@ -53,6 +55,7 @@ func test_a_bot_throws_a_package_through_the_network_and_nothing_leaks() -> void
 	for bot: ScenarioBot in runner.bots:
 		var view := runner.clients[bot.number].view
 		assert_array(view.event_names()).contains([&"ItemThrown"])
+		_assert_model_rested(runner.clients[bot.number].model, bot, runner.bots[0])
 
 
 func test_the_base_mode_refuses_a_throw_as_not_accepted() -> void:
@@ -112,6 +115,20 @@ func _throw_scenario(mode: GameMode) -> BotScenario:
 		made.append(script)
 	scenario.scripts = made
 	return scenario
+
+
+## The ClientModel a bot's real session built from the decoded events: the thrown item is no
+## longer in flight, nobody holds it, and its launch is what the ItemThrown carried.
+func _assert_model_rested(model: ClientModel, bot: ScenarioBot, thrower: ScenarioBot) -> void:
+	var thrown := bot.find_since(
+		0, func(event: WireMessage) -> bool: return event.name == &"ItemThrown"
+	)
+	var item := thrown.fields["item"] as int
+	var folded: ClientModel.Item = model.items[item]
+	assert_bool(folded.flying).is_false()
+	assert_int(folded.thrower).is_equal(thrower.peer)
+	assert_int(folded.flight_tick).is_equal(thrown.fields["tick"] as int)
+	assert_int(model.hand_item(thrower.peer)).is_equal(-1)
 
 
 ## Each bot saw the ItemThrown of bot 1's package and then its ItemPlaced (cause thrown), and
