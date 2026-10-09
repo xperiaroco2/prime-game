@@ -3709,7 +3709,10 @@ part is usable in data once its row or entry names the PR that built it. Every n
     lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`) but
     lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a phase that accepts an intent whose
+    rule throws (a `ThrowItem`) but lists no `FlightTicks` (#643); a `ThrowItem` outside an action or in a rule that
+    lacks `HoldsItem` or `OverFloor` (`ThrowItem.required_conditions`); a required condition counts only when it is
+    not negated (#643); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
     (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
     condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
