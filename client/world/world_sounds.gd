@@ -41,6 +41,13 @@ var _feet: Dictionary[int, Vector3] = {}
 var _cadences: Dictionary[int, FootstepCadence] = {}
 
 
+## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
+## serves the UI click too).
+func _ready() -> void:
+	for id: StringName in SfxSet.ids():
+		sfx.stream_for(id)
+
+
 ## The session's events (connected by the game to ClientSession.event_received).
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if model == null:
