@@ -131,6 +131,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.STOP_RAISE,
 		Intents.RAISE,
 		Intents.HELLO,
+		Intents.NEXT_STAGE,
 	]
 	if phase != &"round" or life == ClientModel.Life.DEAD:
 		# Outside the round, or dead, nothing can turn a GiveUp into a death.
