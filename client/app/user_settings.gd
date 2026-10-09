@@ -2,8 +2,9 @@ class_name UserSettings
 extends RefCounted
 ## The player's own settings on this machine (the M5 ADR §1.7, E43 (a), E47 as amended): the
 ## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
-## §1.1's "opening" mark and the interface language (#208), in a ConfigFile under user://, read at
-## the start and written on each change. Never sent to anyone. Key bindings get their own file.
+## §1.1's "opening" mark, the interface language (#208) and the player's own name (#550), in a
+## ConfigFile under user://, read at the start and written on each change. Only the name is ever
+## sent (in Hello). Key bindings get their own file.
 ##
 ## The windows that `tools\run.cmd host --clients N` starts on one PC share one user:// folder, and
 ## the runner gives each its PRIME_INSTANCE (1 the host, 2 and on the clients): the file is
@@ -53,6 +54,16 @@ var opening := ""
 var language := "":
 	set(value):
 		language = value if Languages.ALL.has(value) else ""
+## The player's own name (#550, the engineer's answers on #73), which Hello asks the host for, or
+## "" before the player chose one (the host then names them Player<n>). Kept as PlayerNames.clean
+## leaves it (at most 16 characters, no controls, no blank edges), so Hello always encodes; a value
+## that cleans to nothing keeps the name there was: a chosen name is never empty. The main menu's
+## name row (#493) and the Esc menu's Character tab (#491) set it.
+var player_name := "":
+	set(value):
+		var cleaned := PlayerNames.clean(value)
+		if not cleaned.is_empty():
+			player_name = cleaned
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -113,6 +124,7 @@ func read() -> Error:
 	denoise = file.get_value("voice", "denoise", true) == true
 	opening = str(file.get_value("voice", "opening", ""))
 	language = str(file.get_value("interface", "language", ""))
+	player_name = str(file.get_value("player", "name", ""))
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -129,6 +141,7 @@ func write() -> Error:
 	file.set_value("voice", "denoise", denoise)
 	file.set_value("voice", "opening", opening)
 	file.set_value("interface", "language", language)
+	file.set_value("player", "name", player_name)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)
