@@ -1997,7 +1997,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
-  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8).
+  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8); `client/app/OverlayFeed`
+  feeds it each frame (out of `game.gd` since #254).
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
@@ -3142,13 +3143,13 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   reads them in `_input`, before `Game`'s Esc and map key, and marks them handled (a minimal form of #488's rules 2
   and 3, which #488 generalises). While it is open the task list and the board take no focus
   (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
-- **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` shows
+- **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` (`client/app/GameHowto`) shows
   the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
   bans in the set its `banned_setting` names; DealTasks draws them at the end of Loading, so no more is known) that
   has a card (`HowtoCards.with_card`), the player has not completed and has seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
 - **Seen and completed** (`client/app/HowtoProgress`, `user://howto.cfg`, one file per player as the controls): the
   loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
-  (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`). Tasks are
+  (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`, `GameHowto.follow`). Tasks are
   shared (#79) and no event names who did a subtask, so this is what the client can see. A `Game` with no command
   line keeps it in memory. Each write merges the file as it is (another window of the PC, `host` and `join`, may have
   written): a showing counts on top of the file's count, a completion stays.
@@ -3157,6 +3158,10 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
   control, so #491's restyle hosts it; it draws for a light page (the handoff's) or, in today's dark greybox menu, a
   dark one (`...OnDark` captions and chips).
+- **In `Game`** (`client/app/GameHowto`): its `howto` progress, the Guide tab's mode, the loading card and the follow, as
+  static calls on the `Game`, read at each call (a test's `howto` set after `_ready` is the one used). They left
+  `game.gd` when #488's lines and these took it past lint's 1000 (with the debug overlay's feed, `client/app/OverlayFeed`,
+  §4.7.7), so #493's and #489's lines fit.
 - Tests: `tests/unit/content/howto_content_test.gd` (every task type of every mode has a valid card, a task type
   without one fails the check; Delivery's four pictures with the finish last; the basics' words; every key in the
   deck, and every picture in the game once the pack's folder is), `tests/unit/client/ui/howto_card_test.gd` (a card's
@@ -3166,7 +3171,7 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
   `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
   then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
   shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
-  finished in the round completes its type for the next loading, seen failing without `Game._process`'s follow; a banned
+  finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
   type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
   card's input rule). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
   `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
