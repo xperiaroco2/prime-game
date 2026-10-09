@@ -23,7 +23,7 @@ extends Node
 ## Movement on the network (M4-7): the local PlayerController takes the mode's PlayerRules and
 ## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
 ## others and the countdown and the clock read the estimated host tick. A debug build has the
-## debug overlay (F3), with the own connection's kind and round trip (#431).
+## debug overlay (F3), with the own connection's kind and round trip (#431), fed by OverlayFeed.
 ##
 ## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
 ## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
@@ -81,6 +81,10 @@ var settings: UserSettings
 ## InputMap at the start, or the project's defaults in memory, untouched, with `read_command_line`
 ## off, unless a test sets one before _ready. The Esc menu's Controls tab changes them.
 var controls: Controls
+## What the player has seen and done of each task type, for the loading screen's how-to card
+## (#254): the player's file under user:// (HowtoProgress.for_this_player()), or in memory with
+## `read_command_line` off, unless a test sets one; GameHowto wires the cards to it.
+var howto: HowtoProgress
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -147,6 +151,7 @@ func _ready() -> void:
 	ui.esc.quit_requested.connect(quit)
 	ui.map_opened.connect(_on_map_opened)
 	ui.map_closed.connect(_on_map_closed)
+	GameHowto.setup(self)
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
@@ -468,8 +473,9 @@ func _process(_delta: float) -> void:
 			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
+		GameHowto.follow(self, now)
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
-	_refresh_overlay()
+	OverlayFeed.refresh(_overlay, _client, _host, _avatars, _sender, _voices)
 	_refresh_voice()
 	_apply_player_flags(now)
 
@@ -819,47 +825,6 @@ func _refresh_join() -> void:
 	var line := JoinProgress.code_text(code, _room != null and _room.gone(), _room != null)
 	ui.lobby_hud.show_code(line)
 	ui.esc.lobby.show_code(line, code)
-
-
-## The overlay's numbers, while it shows: the own client's, its own connection (only its own
-## ClientSession's, the M6 design §3 item 4), and on the host the session's counters and, outside a
-## Round, the voice relay's (DebugOverlay.shows_relay). The own session measures its round trip
-## only while the overlay shows (WebRTC pings for it).
-func _refresh_overlay() -> void:
-	var shown := _overlay != null and _overlay.visible
-	if _client != null:
-		_client.set_measuring_round_trip(shown)
-	if not shown:
-		return
-	var counters: Dictionary[StringName, int] = {}
-	_refresh_voice_overlay()
-	if _client == null:
-		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
-		_overlay.show_relay(counters, null)
-		_overlay.show_connection(NetTransport.Route.NONE, -1)
-		return
-	_overlay.show_connection(_client.route(), _client.round_trip_ms())
-	var relay: Dictionary[StringName, int] = {}
-	if _host != null:
-		counters = _host.counters()
-		relay = _host.relay_counters()
-	_overlay.show_numbers(
-		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
-	)
-	_overlay.show_relay(relay, _client.model.phase_spec())
-
-
-## The overlay's voice lines: the own voice, then one per speaker played, by index of first
-## arrival (E47).
-func _refresh_voice_overlay() -> void:
-	_overlay.show_own_voice(
-		_sender.is_open(),
-		_sender.gate.is_open(),
-		_sender.peak,
-		_sender.frame_age_usec,
-		_sender.encode_usec
-	)
-	_overlay.show_voice(_voices.stats())
 
 
 ## This window's settings, and their interface language applied (#208): the player's choice, or

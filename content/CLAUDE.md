@@ -13,7 +13,9 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   conditions and the game mode's phases are parts too. §9 lists every part, its settings, the events it emits and
   what its refusal reveals; a part is usable once its entry names the PR that built it. Use only those.
 - Where the data lives (§9.6): `modes/`, `roles/`, `items/`, `tasks/`, `win_conditions/`, and `scenarios/` for
-  bot scenarios (§9.7). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
+  bot scenarios (§9.7). `howto/` holds the how-to cards (#254, §4.7.36): one per task type in `howto/tasks/`
+  (a content test fails a task type without one) and the Esc menu Guide's basics in `howto/basics/`; they are what
+  the client draws, not rules (their classes, `HowtoCard` and `HowtoFrame`, are content API in `core/content/howto/`, §9.3). The MVP's first data is provisional: the engineer's agent builds it in M2 under the MVP
   content ADR, each PR approved by the engineer and marked provisional.
 
 ## The designer's agent never edits engine code

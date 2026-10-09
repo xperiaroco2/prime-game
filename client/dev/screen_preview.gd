@@ -68,6 +68,12 @@ const FAKE_OWN_HEADING := 0.6
 @export var s3_state: StringName = &"finding"
 ## The map (Preview.MAP, #253) with the zones of this task type lit, as when its row is hovered.
 @export var map_lit: StringName = &""
+## The how-to card of this task type (#254): open over the map (Preview.MAP), or on the loading
+## screen (Preview.LOADING, load-card).
+@export var howto_card: StringName = &""
+## The Guide tab's selected card (Preview.ESC with esc_tab GUIDE, #254): a basic's id or a task
+## type's; empty keeps the Guide's own first pick.
+@export var guide_card: StringName = &""
 
 
 func _ready() -> void:
@@ -80,6 +86,7 @@ func _ready() -> void:
 	add_child(ui)
 	ui.set_large_text(large_text)
 	ui.esc.lobby.set_mode(mode)
+	ui.esc.guide.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
 	ui.lobby_hud.show_code(code_line)
@@ -105,6 +112,8 @@ func _ready() -> void:
 			model.fold(&"PlayerLoaded", {"peer": 1})
 			ui.show_screen(GameFlow.Screen.LOADING)
 			ui.connecting.set_load_fraction(0.62)
+			if not howto_card.is_empty():
+				ui.show_loading_card(howto_card)
 		Preview.PREGAME:
 			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
 			model.fold(&"RoleAssigned", {"role": &"dissident"})
@@ -125,6 +134,8 @@ func _ready() -> void:
 				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
 				ui.esc.press(esc_tab)
 			ui.esc.voice.show_facts(fake_voice(not voice_unavailable))
+			if not guide_card.is_empty():
+				ui.esc.guide.select(guide_card)
 			if controls_clash:
 				var key := InputEventKey.new()
 				key.physical_keycode = KEY_V
@@ -147,6 +158,8 @@ func _ready() -> void:
 				ui.open_map()
 				if not map_lit.is_empty():
 					ui.map.light(map_lit)
+				if not howto_card.is_empty():
+					ui.map.open_howto(howto_card)
 	ui.refresh(model, mode, 100, hosting)
 
 

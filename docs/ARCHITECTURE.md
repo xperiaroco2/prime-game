@@ -15,7 +15,7 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7) and how-to cards (§4.7.36), whose data classes are part of the content API | the content API only | engineer (#518) |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
 | `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -1857,9 +1857,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
   (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
   #212: End returns everyone by itself).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (one Esc closes one overlay, the topmost first: a card, the map, the host's Leave or Quit question before the menu, §4.7.35), and where
-  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
-  Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (one Esc closes one overlay, the topmost first: a card (a how-to card, §4.7.36), the map, the host's Leave or Quit question before the menu, §4.7.35), and where
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Guide, in every screen, #254, §4.7.36; Lobby, in the lobby and the countdown;
+  Voice, in every screen, M5-6; Controls, in every screen, §4.7.28; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
@@ -1997,7 +1997,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
-  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8).
+  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8); `client/app/OverlayFeed`
+  feeds it each frame (out of `game.gd` since #254).
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
@@ -2960,7 +2961,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   holds the list to the deck's `tip.*`); `refresh_loading(model)` lists the host (`NetTransport.HOST_ID`) first, then
   the roster's order, the own row `player.you`, each `loading.player_loading` muted until its `PlayerLoaded`; the bar
   is `ClientSession.load_progress()` (the threaded load's progress, 1 once its `LoadAck` went out). `load-card` is a
-  hook: `show_card(card)` places #490's card (a `ToyRaised` of ToyPanelHowto) as drawn with `Head`; #254 picks it.
+  hook: `show_card(card)` places #490's card (a `ToyRaised` of ToyPanelHowto) as drawn with `Head`; #254 picks it (§4.7.36).
 - Every text is a deck key; the title, the version lines, the code, the names and the time are set from code with
   `auto_translate_mode` DISABLED and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`.
 - Tests: `tests/unit/client/ui/connecting_screen_test.gd` (the tree node for node: names, classes, variations,
@@ -2979,7 +2980,7 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
 #### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
 The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
 the designer, 2026-10-03, on #253). Its look is provisional (Toy variations already in the theme, no overrides);
-the Toy restyle is #490 and the how-to card #254.
+the Toy restyle is #490 and the how-to card #254 (§4.7.36).
 - **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
   for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
   any life. A saved binding under the old name reads as an unknown action and keeps the default. `Game` reads it in
@@ -2998,8 +2999,8 @@ the Toy restyle is #490 and the how-to card #254.
   (the mouse presses them; their keyboard focus is #490's and #254's); Space, which jumps, is out of `ui_accept`
   since #488, so a focused one would not press with a jump.
 - **What it shows** (`client/ui/MapScreen`): the tasks, one row per task by id with its name (`task.<id>`, else the
-  mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)` (#254
-  connects the card); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
+  mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
+  screen opens that type's how-to card (§4.7.36); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
   progress line (the HUD has it); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
   the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
@@ -3085,9 +3086,9 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
   `ui.overlays.close_top()`, then, with a session only, opens the Esc menu. A key capture in Settings › Controls
   takes its Esc in its own `_input`, which runs before the game's, so it is no overlay here.
-- **The how-to card's seam** (#254, not built yet): the card registers itself, `ui.overlays.add(&"howto_card",
-  UiOverlays.CARD, <is open>, <close>, true)`; the last argument makes the map key close it too. It closes with the
-  map (`map_closed`), which `open_esc` closes. The tests use a stub card.
+- **The how-to card's seam** (#254, built there, §4.7.36): `GameUi` registers the map's card,
+  `overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)`; the last argument makes the
+  map key close it too. It closes with the map (`map_closed`), which `open_esc` closes. #488's tests use a stub card.
 - **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
   the map key closes), else toggles the map; under the Esc menu it does nothing and returns false.
 - **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
@@ -3118,6 +3119,63 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   menu does nothing, the keys work and the look stops with the map open), `game_voice_test.gd` (Talk sends under
   the menu, a focused text field or a capture stops it; seen failing without `_typing`). The playcheck scenarios
   `esc_menu` (the host's Leave question, one Esc back) and `map`.
+
+#### 4.7.36 Built in #254 (M6.2), how-to cards per task type
+Every task type has a **how-to card**: 3 to 4 wordless frames, one action each, like an airline safety card (the
+designer's answers on #254: cards for task types first, a calm tone; the engineer's ui-0.4.0 note: no captions, only
+the title and `howto.label`; the 2026-10-05 text decision: no NEW mark, no "new task" line). It shows in three places:
+the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HUD.
+- **Content data** (`HowtoCard`, `HowtoFrame`: content-API data classes in `core/content/howto/`, §9.3, as the bot scenarios', so `content/` names only the content API, §1): an id, a title deck key and its frames; a frame is a
+  picture (a `res://` PNG path of the UI pack) or, until its art is drawn, the words of a deck key (`{key}` filled
+  with an action's bound key through `KeyLabel`), and the finish frame is the last (`done`, ToyHowtoFrameDone). A
+  task type's card is `content/howto/tasks/<id>.tres`, the Guide's basics `content/howto/basics/<id>.tres` (the
+  spec's: moving and hands, voice, downed and back, from the tutorial's keys). The cards are not rules: the host never
+  reads them, and they are not part of the mode or its content hash. A path, not a Texture2D, so a card loads while
+  its PNG is missing: Delivery's pictures are #520's (`assets/ui/toy_pack/cards/delivery-1.png` to `-4.png`); until
+  they are in the game each frame shows a placeholder naming the file. `HowtoCards` finds a card and checks every
+  task type of a mode has a valid one (`problems_of`).
+- **The card** (`client/ui/HowtoCardView`, a ToyRaised of ToyPanelHowto through `raised()`): prime-game-ui's P8 tree
+  at ui-0.4.0, `V` with `Head` (`Title`, `Note`) and `Frames` (`Frame1`..`Frame4`, each a ToyHowtoFrame holding its
+  `Art`, a TextureRect that keeps its aspect); the art is 320x240 on the map, 352x264 on the loading screen and
+  160x120 in the Guide; the map's card adds `Bar` with Close. Words set in code follow the language live.
+- **On the map** (`MapScreen.open_howto`, s8's `guide`): a «?» opens its type's card centred over the map on `Dim2`
+  (ToyBackdrop, it stops the mouse), 1536 px wide. Close, Esc or the map key closes only the card: `GameUi`
+  registers it in its `overlays` as `howto_card` on `UiOverlays.CARD`, above the map, closed by the map key too
+  (#488's rules 2 and 3, §4.7.35; until the rebase on #488 the map screen read both keys in its own `_input`). While it is open the task list and the board take no focus
+  (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
+- **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` (`client/app/GameHowto`) shows
+  the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
+  bans in the set its `banned_setting` names; DealTasks draws them at the end of Loading, so no more is known) that
+  has a card (`HowtoCards.with_card`), the player has not completed and has seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
+- **Seen and completed** (`client/app/HowtoProgress`, `user://howto.cfg`, one file per player as the controls): the
+  loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
+  (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`, `GameHowto.follow`). Tasks are
+  shared (#79) and no event names who did a subtask, so this is what the client can see. A `Game` with no command
+  line keeps it in memory. Each write merges the file as it is (another window of the PC, `host` and `join`, may have
+  written): a showing counts on top of the file's count, a completion stays.
+- **The Guide** (`client/ui/GuidePanel`, s5's `guide`): a Guide tab after Resume in every screen, the lobby
+  included (`EscMenuState.Tab.GUIDE`, its label the deck's `esc.tab.guide`); the basics' chips and one chip per task
+  type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
+  control, so #491's restyle hosts it; it draws for a light page (the handoff's) or, in today's dark greybox menu, a
+  dark one (`...OnDark` captions and chips).
+- **In `Game`** (`client/app/GameHowto`): its `howto` progress, the Guide tab's mode, the loading card and the follow, as
+  static calls on the `Game`, read at each call (a test's `howto` set after `_ready` is the one used). They left
+  `game.gd` when #488's lines and these took it past lint's 1000 (with the debug overlay's feed, `client/app/OverlayFeed`,
+  §4.7.7), so #493's and #489's lines fit.
+- Tests: `tests/unit/content/howto_content_test.gd` (every task type of every mode has a valid card, a task type
+  without one fails the check; Delivery's four pictures with the finish last; the basics' words; every key in the
+  deck, and every picture in the game once the pack's folder is), `tests/unit/client/ui/howto_card_test.gd` (a card's
+  checks, the dealable types, the tree node for node, the placeholder, the words with the bound key in both
+  languages), `guide_panel_test.gd` (the list, the selection, both languages, the dark page, the Esc menu's tab),
+  `map_screen_test.gd` (the card over the map, Dim2, focus, Close, the map hiding closes it),
+  `game_ui_overlays_test.gd` (Esc and the map key close only the card, then Esc closes the map),
+  `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
+  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
+  shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
+  finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
+  type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
+  card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
+  `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -4382,12 +4440,13 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253, the how-to card of #254 will); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
+| How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -4808,6 +4867,8 @@ content/
   tasks/delivery.tres              with its circle station inside it
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
+  howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers

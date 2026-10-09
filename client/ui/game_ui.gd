@@ -16,12 +16,15 @@ extends CanvasLayer
 ##
 ## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main menu's
 ## page, the map, a card over the map, the Esc menu and its question to the host register here;
-## the how-to card (#254) registers itself (UiOverlays.CARD, the map key closing it too).
+## the how-to card over the map (#254, `howto_card`: UiOverlays.CARD, the map key closing it too).
 
 ## The map and tasks screen opened (the game frees the mouse; the tutorial's `map_opened`).
 signal map_opened
 ## It closed: by the key, Esc, the Esc menu or the end of the round.
 signal map_closed
+## The map loading started (the connecting screen shows its players and a tip): the game may put a
+## how-to card there instead (show_loading_card, #254).
+signal loading_started
 
 const THEME := preload("res://client/ui/theme/game_theme.tres")
 const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
@@ -73,6 +76,8 @@ func _init() -> void:
 	close_esc()
 	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_voice)
 	overlays.add(&"map", UiOverlays.MAP, map_is_open, close_map)
+	# The how-to card over the map (#254): Esc and the map key close it before the map.
+	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
 	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
 	overlays.add(
 		&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.press.bind(EscMenuState.Tab.RESUME)
@@ -83,7 +88,8 @@ func _init() -> void:
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
 ## loading); the connecting and failure parts are the game's to set (show_join, show_failure).
 func show_screen(which: GameFlow.Screen) -> void:
-	if which == GameFlow.Screen.LOADING and screen != which:
+	var loading_now := which == GameFlow.Screen.LOADING and screen != which
+	if loading_now:
 		connecting.show_loading()
 	screen = which
 	plates.visible = which == GameFlow.Screen.LOBBY or which == GameFlow.Screen.ROUND
@@ -97,6 +103,18 @@ func show_screen(which: GameFlow.Screen) -> void:
 	if which != GameFlow.Screen.ROUND:
 		close_map()
 	_show_map()
+	if loading_now:
+		loading_started.emit()
+
+
+## The loading screen shows `type`'s how-to card instead of the players and the tip (load-card,
+## #254); false when the type has no card.
+func show_loading_card(type: StringName) -> bool:
+	var card := HowtoCards.of_task(type)
+	if card == null:
+		return false
+	connecting.show_card(HowtoCardView.raised(card, HowtoCardView.LOADING_ART, ToyHints.DARK))
+	return true
 
 
 ## Opens the map and tasks screen, in the round with no Esc menu only.
