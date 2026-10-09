@@ -584,8 +584,8 @@ func _room_name(id: StringName) -> String:
 
 
 ## The zones' tag under the first lit room, its left edge on the room's: the deck's
-## `map.zone_hint.<type>`, else `map.zone_hint`; wrapped to the room's width when the words are
-## wider.
+## `map.zone_hint.<type>`, else `map.zone_hint`; on one line, wider than the room if it must,
+## and wrapped only where it would pass the board's right edge.
 func _show_zone_hint() -> void:
 	var rooms := _data.zone_of(_lit) if not _lit.is_empty() else PackedStringArray()
 	var tile: PanelContainer = _tiles.get(StringName(rooms[0])) if not rooms.is_empty() else null
@@ -601,9 +601,10 @@ func _show_zone_hint() -> void:
 	_zone_hint_label.custom_minimum_size = Vector2.ZERO
 	var chip_width := zone_hint.get_combined_minimum_size().x
 	var padding := chip_width - _zone_hint_label.get_combined_minimum_size().x
-	if chip_width > tile.size.x:
+	var room_for := ROOMS_SIZE.x - tile.position.x
+	if chip_width > room_for:
 		_zone_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_zone_hint_label.custom_minimum_size.x = maxf(tile.size.x - padding, 1.0)
+		_zone_hint_label.custom_minimum_size.x = maxf(room_for - padding, 1.0)
 	zone_hint.reset_size()
 	zone_hint.position = tile.position + Vector2(0, tile.size.y + ZONE_HINT_GAP)
 	# A wrapped label knows its height only once laid out at its width: shrink the chip again then.

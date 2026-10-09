@@ -315,14 +315,27 @@ func test_lighting_a_type_shows_its_zones_and_their_tag_only() -> void:
 	assert_bool(screen.zone_hint.visible).is_false()
 
 
-func test_the_zone_tag_sits_under_its_room_within_its_width_in_a_long_language() -> void:
+func test_the_zone_tag_sits_under_its_room_and_wraps_only_at_the_boards_edge() -> void:
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	var screen := _screen(_round_model())
 	screen.light(&"delivery")
 	var tile := screen.plan.get_node("Storage") as Control
-	assert_float(screen.zone_hint.get_combined_minimum_size().x).is_less_equal(tile.size.x + 0.01)
 	assert_vector(screen.zone_hint.position).is_equal(
 		tile.position + Vector2(0, tile.size.y + MapScreen.ZONE_HINT_GAP)
+	)
+	var label := screen.zone_hint.get_node("Text") as Label
+	assert_int(label.autowrap_mode).is_equal(TextServer.AUTOWRAP_OFF)
+	# A narrow room at the board's right edge: the tag wraps rather than leave the board.
+	var data := MapData.new()
+	data.rooms.append(MapData.Room.new(&"hall", Rect2(0, 0, 30, 10)))
+	data.rooms.append(MapData.Room.new(&"lab", Rect2(31, 0, 2, 10)))
+	data.zones[&"delivery"] = PackedStringArray(["lab"])
+	screen.set_data(data)
+	screen.light(&"delivery")
+	assert_int(label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
+	(
+		assert_float(screen.zone_hint.position.x + screen.zone_hint.get_combined_minimum_size().x)
+		. is_less_equal(MapScreen.ROOMS_SIZE.x + 0.01)
 	)
 
 
