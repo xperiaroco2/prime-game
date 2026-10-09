@@ -48,8 +48,9 @@ lands); the exceptions in the paths it changes since its fork (the content area,
 without an "Approved by the engineer: <GitHub link>" line (#563); `.claude/settings*.json`, `.claude/githooks/` and
 the guard, always); a milestone's closing PR (head `release/*`) without that line, the engineer's go; and an item under
 "Needs the engineer" without "Answered: <GitHub link>" (an unreadable section refuses too). Markers in HTML comments
-do not count. No local verify: the head contains `main`, so the merged tree is the one `publish` verified and CI
-tested. merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
+do not count. No local verify: the head contains `main`, so the merged tree is the one CI tested on an up-to-date
+head (the gate above); for `release/m<k>` see below (the fast verify, until #605's rest makes it wait for CI).
+merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
 printed as notes that never refuse: a partner is behind `main` after the merge and its own re-publish tests the pair.
 Then `origin/main` is read again (`git ls-remote`; moved: refused), `gh pr merge <n> --merge --match-head-commit
 <oid>` runs as the runner's subprocess (a typed `gh pr merge` stays denied), and one `wave:` line names the merge
@@ -60,7 +61,8 @@ commit. A real merge refuses a task checkout; `--dry-run` merges nothing and run
 `.claude/worktrees/<n>` worktree or a task branch, here or in the current folder); fetches only when a human
 already merged the PR; requires green CI (`gh pr checks`) on a ready, open PR
 into that base whose head origin has; then merges `--no-ff` with GitHub's message in a scratch detached worktree at
-`origin/<base>`, runs `verify` on the merged tree (always: the release-branch gate; no tree-equality shortcut), pushes
+`origin/<base>`, runs the fast `verify` (lint and check) on the merged tree (always: the release-branch gate; no
+tree-equality shortcut), pushes
 the merge commit by its hash (`git push origin <sha>:refs/heads/<base>`, a fast-forward the pre-push hook allows),
 removes the worktree, confirms that GitHub shows the PR merged and prints one line for the wave comment. A red
 `verify` or a conflict pushes nothing and leaves nothing to undo. `merge --sync-main --base release/<x>` takes
@@ -1263,7 +1265,7 @@ def scratch_worktree(commit: str, label: str) -> Iterator[Path]:
 
 
 def verify_in(path: Path, log: str) -> Result:
-    """The merged tree's own `verify` (its runner, its tests), as CI would run it on the merge."""
+    """The merged tree's own plain `verify`: the fast verify (lint and check); the tests run on CI."""
     say(f"verify on the merged tree (log: tools/out/logs/{log}.log)")
     return run(
         [sys.executable, str(path / "tools" / "run.py"), "verify"], cwd=path, timeout=VERIFY_TIMEOUT, log=log, echo=True
