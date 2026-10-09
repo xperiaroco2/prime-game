@@ -1840,7 +1840,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
   when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
-  Connecting and the end screen free it (the first two for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
+  Connecting and the end screen free it (the first three for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
   menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
@@ -2899,7 +2899,8 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   name), the step from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
   `UiParts.sized`, 42 under large text) and the time since Join (m:ss, Game's `_refresh_join`); a Direct join and a
   host show no code row and no address. The spinner turns once a second about its centre, half as fast under
-  `UiPrefs.reduced_motion`. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
+  `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the
+  handoff's tree), because a container resets a child's rotation at every sort. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
   fields keep what was typed (a command-line join fills them first, `Game._fill_menu`).
 - **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
   (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
