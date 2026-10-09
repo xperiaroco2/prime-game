@@ -20,6 +20,8 @@ const PREVIEW_OWN_VERSION := "12 (9f8e7d)"
 const ROUND_END_TICK := 100 + 20 * 271
 ## The pregame's `after` (#496): the round's first second, its clock at the handoff's 09:57.
 const AFTER_END_TICK := 100 + 20 * 597
+## How far through its fade the `after` preview freezes Night (a fraction of the fade's length).
+const PREGAME_FADE_SHOT := 0.5
 const PACKAGE := 7
 const KNIFE := 3
 const CIRCLE := 2
@@ -127,7 +129,6 @@ func _ready() -> void:
 			if not howto_card.is_empty():
 				ui.show_loading_card(howto_card)
 		Preview.PREGAME:
-			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
 			fold_pregame(model, pregame_role, not pregame_alone)
 			ui.show_screen(GameFlow.Screen.PREGAME)
 			if pregame_after:
@@ -137,6 +138,10 @@ func _ready() -> void:
 				var first := HudText.Local.new()
 				first.mic = true
 				ui.refresh_round(model, mode, 100, first)
+				if ui.pregame.fade != null:
+					# Freeze Night partway so the shot shows the fade over the HUD, not after it.
+					ui.pregame.fade.pause()
+					ui.pregame.fade.custom_step(PregameScreen.FADE_SECONDS * PREGAME_FADE_SHOT)
 		Preview.END:
 			model.fold(&"RoleAssigned", {"role": &"crew"})
 			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
