@@ -463,6 +463,13 @@ func _is_chaos_answer(event_name: StringName, fields: Dictionary, bot: ScenarioB
 	return false
 
 
+## Bot 4's honest claim and the host's answer to it (ChaosHonestClaims, #693); other commands pass.
+func _note_honest_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
+	var peer := hostile_peer()
+	var player := game.state.player(peer) if peer != 0 else null
+	honest_claims.check(command, slice, player, peer, chaos_seed)
+
+
 func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 	super(at_tick, command, slice)
 	if command != null and _is_chaos_command(command):
@@ -472,9 +479,7 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 		else:
 			_check_intent(command, slice)
 	elif command != null:
-		var corrected := honest_claims.check(command, slice, hostile_peer(), chaos_seed)
-		if not corrected.is_empty():
-			failures.append(corrected)
+		_note_honest_claim(command, slice)
 	for emitted: EmittedEvent in slice:
 		var welcome := emitted.event as WelcomeEvent
 		if welcome != null:
@@ -602,8 +607,9 @@ func _check_after() -> void:
 	super()
 	if freeze_gained < 0:
 		failures.append("bot 4 never ended its freeze in the zone")
-	if honest_claims.count == 0:
-		failures.append("chaos: no honest MoveClaim of bot 4 reached the host")
+	failures.append_array(honest_claims.failures())
+	if honest_claims.accepted == 0:
+		failures.append("chaos: the host accepted no honest MoveClaim of bot 4")
 	var label := "malformed peer"
 	failures.append_array(leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(

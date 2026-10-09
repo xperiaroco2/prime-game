@@ -205,30 +205,73 @@ func test_the_claim_after_the_freeze_fits_its_credit_with_lost_claims() -> void:
 ## chaos claim or another peer's claim is not checked here.
 func test_a_correction_of_the_hostile_bots_honest_claim_fails_naming_the_seed() -> void:
 	var claims := ChaosHonestClaims.new()
-	var at := Vector3(20, 0, -20)
-	var fields := {"epoch": 2, "client_tick": 372, "position": at, "velocity": Vector3(1, 0, 0)}
+	var fields := _claim_fields(372)
 	var honest := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, fields)
 	assert_int(ChaosFrames.claim_shape(honest.args)).is_equal(-1)
+	var player := PlayerState.new(4, "bot 4")
 	var corrected: Array[EmittedEvent] = [_correction_to(4, 3)]
-	var found := claims.check(honest, corrected, 4, 7)
-	assert_str(found).contains("chaos seed 7: the host corrected an honest claim of bot 4")
-	assert_str(found).contains("client tick 372")
+	claims.check(honest, corrected, player, 4, 7)
+	assert_int(claims.corrected).is_equal(1)
+	assert_str(claims.failures()[0]).contains("chaos seed 7: the host corrected an honest claim")
+	assert_str(claims.failures()[0]).contains("client tick 372")
+	assert_str(claims.failures()[0]).ends_with("(and 0 more)")
+	# A Correction to another peer, or none, is no failure.
 	var none: Array[EmittedEvent] = []
-	assert_str(claims.check(honest, none, 4, 7)).is_empty()
 	var to_another: Array[EmittedEvent] = [_correction_to(5, 3)]
-	assert_str(claims.check(honest, to_another, 4, 7)).is_empty()
-	assert_int(claims.count).is_equal(3)
+	claims.check(honest, to_another, player, 4, 7)
+	claims.check(honest, none, player, 4, 7)
+	assert_int(claims.corrected).is_equal(1)
+	# Only a claim the movement rule accepted (the player's claim_tick is the claim's) is counted.
+	assert_int(claims.accepted).is_equal(0)
+	player.claim_tick = 372
+	claims.check(honest, none, player, 4, 7)
+	assert_int(claims.accepted).is_equal(1)
+	# Later corrections are counted, not reported again: the first one stays the failure.
+	claims.check(honest, corrected, player, 4, 8)
+	claims.check(honest, corrected, player, 4, 8)
+	assert_int(claims.corrected).is_equal(3)
+	assert_int(claims.failures().size()).is_equal(1)
+	assert_str(claims.failures()[0]).contains("chaos seed 7").ends_with("(and 2 more)")
 	var tagged := fields.duplicate()
 	tagged["velocity"] = Vector3(0, ChaosFrames.CLAIM_TAG + ChaosFrames.Claim.TELEPORT, 0)
 	var chaos := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, tagged)
 	assert_int(ChaosFrames.claim_shape(chaos.args)).is_equal(ChaosFrames.Claim.TELEPORT)
-	assert_str(claims.check(chaos, corrected, 4, 7)).is_empty()
+	claims.check(chaos, corrected, player, 4, 7)
 	var from_bot_1 := MatchCommand.new(Intents.MOVE_CLAIM, 1, 300, fields)
-	var to_bot_1: Array[EmittedEvent] = [_correction_to(1, 3)]
-	assert_str(claims.check(from_bot_1, to_bot_1, 4, 7)).is_empty()
+	claims.check(from_bot_1, [_correction_to(1, 3)], player, 4, 7)
 	# Before bot 4 has a peer id (hostile_peer 0), nothing is bot 4's.
-	assert_str(claims.check(honest, corrected, 0, 7)).is_empty()
-	assert_int(claims.count).is_equal(3)
+	claims.check(honest, corrected, player, 0, 7)
+	assert_int(claims.corrected).is_equal(3)
+	assert_int(claims.accepted).is_equal(1)
+
+
+## The wiring (#693): ChaosRun hands bot 4's honest claim and the host's answer to the check, which
+## the run reports in its failures; a chaos claim, and an honest claim of another peer, it does not.
+func test_the_run_reports_a_corrected_honest_claim_of_bot_4_and_counts_the_accepted() -> void:
+	var run := ChaosRun.new(false, ChaosRun.Mode.CHAOS, 188001)
+	run.peers.set_peer(ChaosScenario.HOSTILE, 4)
+	run.game = Match.new(GameMode.new(), 1, WorldQuery.new(), {})
+	var player := run.game.state.add_player(4, "bot 4")
+	player.claim_tick = 372
+	var honest := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, _claim_fields(372))
+	var none: Array[EmittedEvent] = []
+	run._note_honest_claim(honest, none)
+	assert_int(run.honest_claims.accepted).is_equal(1)
+	assert_array(run.honest_claims.failures()).is_empty()
+	var corrected: Array[EmittedEvent] = [_correction_to(4, 3)]
+	run._note_honest_claim(honest, corrected)
+	var found := run.honest_claims.failures()
+	assert_int(found.size()).is_equal(1)
+	assert_str(found[0]).contains("chaos seed 188001: the host corrected an honest claim of bot 4")
+
+
+func _claim_fields(tick: int) -> Dictionary:
+	return {
+		"epoch": 2,
+		"client_tick": tick,
+		"position": Vector3(20, 0, -20),
+		"velocity": Vector3(1, 0, 0)
+	}
 
 
 func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> void:
