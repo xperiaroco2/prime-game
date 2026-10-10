@@ -1,17 +1,23 @@
 # The knockdown reworked (#728): still and mute, a ragdoll, and the body's motion in `core/`
 
-- **Status:** Proposed on 2026-10-10 for the engineer's review on the design PR. Nothing here is built. The rules
-  marked decided are his: #728's "Decided" list and his answer A in its comment 6095620279 (first given as RD7 on
-  PR #709, comment 6095445261). The KD items are his too (game rules and taste: the
-  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s "ask and wait"), and no task opens on a KD
-  item before his answer. KE1 and KE5 are his too: KE1 answers #728's open question 4 ("Open (the engineer's)") and
-  departs from its sketch (a client-only ragdoll, the host keeping the rest position), as the throwing ADR's TE1 is
-  his; KE5 changes ARCHITECTURE §5's per-peer rule "nobody gets their own avatar", an architecture boundary. The
-  other KE items are technical, and each recommendation stands until he says otherwise. The
-  design follows every KD recommendation where it can be reverted, and proposes no number.
+- **Status:** Proposed on 2026-10-10. Nothing here is built, and nothing will be until the engineer says so: for now
+  the track only designs
+  ([PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). The
+  rules are his: #728's "Decided" list and his answer A in its comment 6095620279 (first given as RD7 on PR #709,
+  comment 6095445261). The KD items are game rules and taste (the
+  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s "ask and wait"), and KE1 and KE5 are his
+  too: KE1 answers #728's open question 4 ("Open (the engineer's)") and departs from its sketch (a client-only
+  ragdoll, the host keeping the rest position), as the throwing ADR's TE1 is his; KE5 changes ARCHITECTURE §5's
+  per-peer rule "nobody gets their own avatar", an architecture boundary. **He answered every one on 2026-10-10**
+  ([PR #754, comment 6097876326](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6097876326), chat
+  with the game-design manager session: "agrees with every recommendation"): KD1 to KD8 (a), KD9 (b), KE1 (a) and
+  KE5 (a), each in its row's "Decided" column (§2, §3), and the launch and the slide play on **the House only**: the
+  flat greybox keeps the reworked knockdown (still, mute, a ragdoll) with no launch and no slide (KE12). The other KE
+  items are technical, and each recommendation stands until he says otherwise. No number here is his: each is a
+  placeholder marked "not a decision" (KD9 (b)).
 - **Date:** 2026-10-10
-- **Deciders:** the engineer (the decided rules; KD1 to KD9, KE1 and KE5); designed by the agent of #728 in the game-design
-  manager session's workflow (#676)
+- **Deciders:** the engineer (the decided rules; his answers to KD1 to KD9, KE1 and KE5, and the House only, in PR
+  #754's comment 6097876326); designed by the agent of #728 in the game-design manager session's workflow (#676)
 - **Builds on:** [vision revision 1](2026-10-01-vision-revision-1.md) (Life: knockdown, death, respawn; Voice;
   Hidden information), [the M4 client design](2026-10-01-m4-first-person-client.md) (its §3, the render checklist,
   items 1, 3 and 5), [the M5 voice design](2026-10-02-m5-voice-integrated-with-the-rules.md) (E40, the ears; E41, the
@@ -22,7 +28,8 @@
   speed, and its "Needs the engineer" 8, the hold while raised), and ARCHITECTURE §7.1.7 and §7.1.8. A dated note in
   vision revision 1 points here.
 - **Words:** "knocked down" is the players' word and this ADR's; `DOWNED` stays the code's name for it (KE11).
-- **Numbering:** KD1 to KD9 (the engineer's), KE1 to KE11 (technical), and the proposed issues 728a to 728e.
+- **Numbering:** KD1 to KD9 (the engineer's), KE1 to KE12 (technical, KE1 and KE5 the engineer's), and the proposed
+  issues 728a to 728e.
 
 ## Context
 
@@ -54,7 +61,10 @@ client-side, and `Correction` settles disagreement (ARCHITECTURE §5).
 knocked down, another player can raise it, else it dies after a while), with these changes only. There is no separate
 "downed/wounded" state. The knocked-down player **cannot move** and **cannot talk** (it hears, but cannot speak).
 There is no animation but **a rigid body**: "a hit can send the body flying (for example a punch), and a body knocked
-down on the sloped roof can roll off the roof".
+down on the sloped roof can roll off the roof". His answers to this design (PR #754, comment 6097876326) take every
+recommendation below, and add where it plays: "the launch and the slide play on **the House only**. The flat greybox
+keeps the knockdown without launch or slide (the standing rule: no new mechanic on the greybox) ... The rework itself
+(still, mute, ragdoll) applies wherever today's knockdown does."
 
 **What that asks of the engine.** Mute is built. Still is a removal: the crawl. The ragdoll is new looks. The motion
 is the hard part: a body that flies or rolls moves the point that the raise, the voice and the car read. A ragdoll
@@ -63,7 +73,7 @@ keeps no ragdoll, would keep the body where it fell: a teammate standing over th
 it, because for the host it still lies on the roof. So the body's place stays the host's, the host moves it, and the
 ragdoll is only how each client draws a body at that place.
 
-## Decision (proposed)
+## Decision
 
 ### 1. The rules as the engine runs them
 
@@ -79,29 +89,33 @@ ragdoll is only how each client draws a body at that place.
 | 8 | A body on a sloped roof can roll off it | the motion's slide, in `LifeTicks` | none | §4 (KD3) |
 | 9 | The lift's drop kills the living and the knocked-down under the car (RD7) | #688's drop, `LifeRules.kill` (PR #709, its RE6) | designed in #688 | it reads the body's point at the drop's tick, moving or not (§7) |
 
-### 2. The engineer's questions (KD)
+### 2. The engineer's questions (KD), answered
 
-| Item | Question | Options | Recommendation, and the failure it prevents |
-|---|---|---|---|
-| **KD1** | Which hits send a body flying (two readings of "a hit can send the body flying, for example a punch") | (a) only the blow that knocks the player down launches its body; strikes skip a knocked-down body afterwards, as today; (b) as (a), and a later hit on a knocked-down body launches it again, with no damage | **(a)**. (b) lets a dissident keep a body away from its raisers, one swing per cooldown (a raise stops when its body moves, KD4), or knock a package carrier's body off a ledge at will, and it brings back hits on a lying body, which vision revision 1 ruled out ("cannot be hit"). (b) can come later as a flag on a weapon's strike |
-| **KD2** | The launch: which weapon launches a body, which way, how hard | (a) every strike has a launch in its data, a speed away from the attacker and one upwards, 0 launching nothing; the knife's numbers come with KD9; (b) the knife launches nothing (the body drops where it stands, as today) until a weapon made for it exists: the game has no punch; (c) as (a), in a random direction | **(a)**: the knife is the only weapon, so (b) shows the launch to nobody until a new item. A body flying away from the blow shows which side the blow came from to every present peer, the victim, the dead and players across the map, whatever their sight: the moving position and the launch velocity are in every snapshot, as every position is public; no event names anyone, and most victims saw the swing. It is an accepted hint, as the knockdown itself confirms the hit (vision revision 1). (c) hides it, but a body flying towards its attacker reads as a bug |
-| **KD3** | Which floors make a body roll | (a) a floor steeper than an angle (data) makes a resting body slide downhill at a speed (data) until a gentler floor, a wall, or an edge, off which it falls and lands again; stairs do not (their treads are flat); (b) only surfaces a level marks (a group on the collider) make a body slide; (c) no slide: a body rests where it lands | **(a)**: one rule for every map, read from the floor's own slope; the roof of the example needs no marking. (b) is the fallback if (a) catches a slope the levels did not mean (a steep driveway); (c) drops half of the example. House's roof door is locked in the MVP (its decision 11), so on House (a) shows once a key or a lockpick exists |
-| **KD4** | Raising a body that still moves (flying or sliding) | (a) refused until it rests: `TargetDowned` rejects `moving`, and a raise stops if its body starts to move (that happens only under KD1 (b)); (b) a raise catches a sliding body and stops it | **(a)**: a flight lasts about a second and a slide as long as the roof, and a raise needs a body that stays within reach. (b) adds a rule for what a caught body does on a slope or in the air |
-| **KD5** | "Hears, but cannot speak": whom a knocked-down player hears | (a) as today: the living within the voice radius, from where its body is (which now moves with it); (b) every living player, at any distance | **(a)**: nothing changes in `core/` or in the client's cutoff (E41). (b) makes a knockdown a way to overhear the whole map: an information gain from being hit |
-| **KD6** | What a knocked-down player sees and does | (a) today's camera above the body (the arm and its mouse look, the render checklist's item 3), following the body through its motion; it may give up and open the task screen and the Esc menu, nothing else; (b) first person from the ragdoll's head; (c) a fixed camera with no look | **(a)**: built and tested, and the player watches its own ragdoll. (b) tumbles with physics that differ on each screen, and its eye can pass through a wall the host knows nothing of. (c) leaves ten seconds with nothing to do |
-| **KD7** | How a dead body and a revive look | (a) at the death the ragdoll keeps its pose, greyed and with today's dark cross, until the respawn removes it; a revived player stands up at once, with no clip; (b) the dead switch to today's body capsule; (c) as (a), plus a get-up clip from #522's set, blended from the ragdoll's pose | **(a)**: no pop at the death, and a dead body still reads as dead at a glance (GDD §14). (c) needs a clip and a blend that #522 does not plan; it can replace the pop-up later |
-| **KD8** | A death during the motion (the time running out, a give-up, the car's drop) | (a) the motion ends: the body lies on the floor below its point at that tick, and both slots drop there, as a death does today; (b) the body moves on to where its motion ends, and its items drop below where it died | **(a)**: a body and its items stay together, and the dead body never becomes a second moving thing. Such a death is rare (a flight lasts about a second; a give-up takes a 1 s hold). Its cost: a body that stops short on a roof |
-| **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing, and a slide speed of 0 is valid and slides nothing |
+Every "Decided" is the engineer's answer of 2026-10-10
+([PR #754, comment 6097876326](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6097876326)): each
+recommendation. By the same answer the launch (KD1, KD2) and the slide (KD3) play on the House only (KE12).
+
+| Item | Question | Options | Recommendation, and the failure it prevents | Decided |
+|---|---|---|---|---|
+| **KD1** | Which hits send a body flying (two readings of "a hit can send the body flying, for example a punch") | (a) only the blow that knocks the player down launches its body; strikes skip a knocked-down body afterwards, as today; (b) as (a), and a later hit on a knocked-down body launches it again, with no damage | **(a)**. (b) lets a dissident keep a body away from its raisers, one swing per cooldown (a raise stops when its body moves, KD4), or knock a package carrier's body off a ledge at will, and it brings back hits on a lying body, which vision revision 1 ruled out ("cannot be hit"). (b) can come later as a flag on a weapon's strike | **(a), the engineer**: only the blow that knocks a player down launches its body |
+| **KD2** | The launch: which weapon launches a body, which way, how hard | (a) every strike has a launch in its data, a speed away from the attacker and one upwards, 0 launching nothing; the knife's numbers come with KD9; (b) the knife launches nothing (the body drops where it stands, as today) until a weapon made for it exists: the game has no punch; (c) as (a), in a random direction | **(a)**: the knife is the only weapon, so (b) shows the launch to nobody until a new item. A body flying away from the blow shows which side the blow came from to every present peer, the victim, the dead and players across the map, whatever their sight: the moving position and the launch velocity are in every snapshot, as every position is public; no event names anyone, and most victims saw the swing. It is an accepted hint, as the knockdown itself confirms the hit (vision revision 1). (c) hides it, but a body flying towards its attacker reads as a bug | **(a), the engineer**: every strike has a launch, the knife's too; on the House only (KE12) |
+| **KD3** | Which floors make a body roll | (a) a floor steeper than an angle (data) makes a resting body slide downhill at a speed (data) until a gentler floor, a wall, or an edge, off which it falls and lands again; stairs do not (their treads are flat); (b) only surfaces a level marks (a group on the collider) make a body slide; (c) no slide: a body rests where it lands | **(a)**: one rule for every map, read from the floor's own slope; the roof of the example needs no marking. (b) is the fallback if (a) catches a slope the levels did not mean (a steep driveway); (c) drops half of the example. House's roof door is locked in the MVP (its decision 11), so on House (a) shows once a key or a lockpick exists | **(a), the engineer**: floors steeper than the angle slide a body, stairs excluded; on the House only (KE12) |
+| **KD4** | Raising a body that still moves (flying or sliding) | (a) refused until it rests: `TargetDowned` rejects `moving`, and a raise stops if its body starts to move (that happens only under KD1 (b)); (b) a raise catches a sliding body and stops it | **(a)**: a flight lasts about a second and a slide as long as the roof, and a raise needs a body that stays within reach. (b) adds a rule for what a caught body does on a slope or in the air | **(a), the engineer**: a moving body cannot be raised (`moving`) |
+| **KD5** | "Hears, but cannot speak": whom a knocked-down player hears | (a) as today: the living within the voice radius, from where its body is (which now moves with it); (b) every living player, at any distance | **(a)**: nothing changes in `core/` or in the client's cutoff (E41). (b) makes a knockdown a way to overhear the whole map: an information gain from being hit | **(a), the engineer**: the living within the radius, as today |
+| **KD6** | What a knocked-down player sees and does | (a) today's camera above the body (the arm and its mouse look, the render checklist's item 3), following the body through its motion; it may give up and open the task screen and the Esc menu, nothing else; (b) first person from the ragdoll's head; (c) a fixed camera with no look | **(a)**: built and tested, and the player watches its own ragdoll. (b) tumbles with physics that differ on each screen, and its eye can pass through a wall the host knows nothing of. (c) leaves ten seconds with nothing to do | **(a), the engineer**: the camera as today, above the body, following it |
+| **KD7** | How a dead body and a revive look | (a) at the death the ragdoll keeps its pose, greyed and with today's dark cross, until the respawn removes it; a revived player stands up at once, with no clip; (b) the dead switch to today's body capsule; (c) as (a), plus a get-up clip from #522's set, blended from the ragdoll's pose | **(a)**: no pop at the death, and a dead body still reads as dead at a glance (GDD §14). (c) needs a clip and a blend that #522 does not plan; it can replace the pop-up later | **(a), the engineer**: a grey ragdoll with the cross; a raised player stands up |
+| **KD8** | A death during the motion (the time running out, a give-up, the car's drop) | (a) the motion ends: the body lies on the floor below its point at that tick, and both slots drop there, as a death does today; (b) the body moves on to where its motion ends, and its items drop below where it died | **(a)**: a body and its items stay together, and the dead body never becomes a second moving thing. Such a death is rare (a flight lasts about a second; a give-up takes a 1 s hold). Its cost: a body that stops short on a roof | **(a), the engineer**: the motion ends; the body and its items rest where it stopped |
+| **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing, and a slide speed of 0 is valid and slides nothing | **(b), the engineer**: the agents set placeholders marked "not a decision" |
 
 ### 3. The technical choices (KE)
 
 | Item | Choice | Options | Recommendation, and the failure it prevents |
 |---|---|---|---|
-| **KE1** (the engineer's) | Where the body's motion runs | (a) in `core/`: the throw's arc swept through `WorldQuery.sweep` each core tick, a stop and drop, and a slide down a steep floor (§4); (b) `server/` simulates a rigid body in the host's level space and reports where it rests; (c) the knocked-down player's own client simulates its ragdoll and claims where its body is, as it claimed its crawl | **(a)**: the place is the host's and follows from the commands, so replays and bot tests hold, and it reuses the throw's two parts. (b) fails as the throwing design's TE1 (b) does: Godot 4.7.2 steps the host's spaces by physics frames, with no call that steps one space, so the same commands can rest a body in two places on two runs, and those spaces hold no players. (c) breaks invariant 1 for the rule "cannot move": a hacked client rolls its body, and the package it holds, along any slope into its place; the host could check it only with (a)'s model; and headless bots have no ragdoll |
+| **KE1** (the engineer's: **(a)**, PR #754 comment 6097876326) | Where the body's motion runs | (a) in `core/`: the throw's arc swept through `WorldQuery.sweep` each core tick, a stop and drop, and a slide down a steep floor (§4); (b) `server/` simulates a rigid body in the host's level space and reports where it rests; (c) the knocked-down player's own client simulates its ragdoll and claims where its body is, as it claimed its crawl | **(a)**: the place is the host's and follows from the commands, so replays and bot tests hold, and it reuses the throw's two parts. (b) fails as the throwing design's TE1 (b) does: Godot 4.7.2 steps the host's spaces by physics frames, with no call that steps one space, so the same commands can rest a body in two places on two runs, and those spaces hold no players. (c) breaks invariant 1 for the rule "cannot move": a hacked client rolls its body, and the package it holds, along any slope into its place; the host could check it only with (a)'s model; and headless bots have no ragdoll |
 | **KE2** | The slope | Under KD3 (a), a new `WorldQuery` answer, `floor_normal_below(p) -> Vector3`: the normal of the floor that `floor_below(p)` finds, from the same downward ray (`PhysicsDirectSpaceState3D.intersect_ray`'s `normal`, checked in 4.7.2's API), `Vector3.ZERO` with no floor; logged like every answer; the flat fake answers `Vector3.UP` | Prevents: a slope read from several `floor_below` points, which takes a staircase for a slope and costs four answers per tick |
 | **KE3** | Where the motion's state lives | `PlayerState.motion`, a `BodyMotion` (`RefCounted`, `core/life/`): flying or sliding, the origin, velocity and gravity as `Vector3`s, its own tick count and the fallback rest; null at rest. `LifeTicks` advances it before the deadlines, in peer-id order; `die`, `leave`, `revive` and `ResetMatch` clear it | Prevents: a new tick system every mode must list (the mode check already demands `LifeTicks` where a rule can knock down, ARCHITECTURE §9.1); and its own tick count makes a phase without `LifeTicks` pause a motion instead of jumping it, as a thrown item's flight does |
 | **KE4** | What a knocked-down player's `MoveClaim` does | The host takes its facing only (unit, as for every claim) and ignores its position, velocity, jumps, sprint and crouch: no movement check, no `Correction`, no stamina spent (it regenerates as today). Today a malformed claim, a negative client tick and a claim past its credit each get a `Correction` (`MovementRule.apply`); from a knocked-down sender each is dropped instead, with no `Correction` and its facing not taken, since the host takes no place from it to correct; a claim of an old epoch is dropped as stale, as today. `ChaosOracle`'s class 5 (ARCHITECTURE §4.6.5) is rewritten from this rule, not from the docs: no `Correction` to a knocked-down peer | The facing still matters: a dead player watching a knocked-down target looks through that target's look (vision revision 1, V9: "a downed player's third person"). Prevents: a client that still crawls (an old build, a hostile peer) moving its body, and a `Correction` storm while the host moves a body its client does not predict |
-| **KE5** (the engineer's) | How a knocked-down client learns where its own body is | Its snapshot holds its own avatar while it is knocked down (`Snapshots.for_peer` skips the viewer's avatar unless it is `DOWNED`); the client draws its body and places its camera and ears from it, on the interpolated timeline of the other avatars | Prevents: a `Correction` on every tick of a motion (reliable, at 20 Hz), and a client computing the motion from answers only the host's world gives. Nothing hidden: a player's own place. The wire bounds a snapshot's avatars by `WireSchema.MAX_AVATARS`, today `MAX_PLAYERS - 1` (15, "a snapshot never holds the viewer's own avatar"), and the codec refuses a map past it on both ends: in a full 16-player match a knocked-down player's snapshot would be refused for the whole knockdown. So `MAX_AVATARS` becomes `MAX_PLAYERS` (16) with its comment, and the cap holds at the declared maximum: 16 avatars take about 725 bytes of the 1024 (45 bytes each with its key; today 15 take 680, pinned in `wire_schema_test.gd`). It changes ARCHITECTURE §5's "nobody gets their own avatar" and §4.3.5's `Snapshot` row, and the protocol number goes up with it: an older client would draw itself as a stranger |
+| **KE5** (the engineer's: **(a)**, PR #754 comment 6097876326) | How a knocked-down client learns where its own body is | Its snapshot holds its own avatar while it is knocked down (`Snapshots.for_peer` skips the viewer's avatar unless it is `DOWNED`); the client draws its body and places its camera and ears from it, on the interpolated timeline of the other avatars | Prevents: a `Correction` on every tick of a motion (reliable, at 20 Hz), and a client computing the motion from answers only the host's world gives. Nothing hidden: a player's own place. The wire bounds a snapshot's avatars by `WireSchema.MAX_AVATARS`, today `MAX_PLAYERS - 1` (15, "a snapshot never holds the viewer's own avatar"), and the codec refuses a map past it on both ends: in a full 16-player match a knocked-down player's snapshot would be refused for the whole knockdown. So `MAX_AVATARS` becomes `MAX_PLAYERS` (16) with its comment, and the cap holds at the declared maximum: 16 avatars take about 725 bytes of the 1024 (45 bytes each with its key; today 15 take 680, pinned in `wire_schema_test.gd`). It changes ARCHITECTURE §5's "nobody gets their own avatar" and §4.3.5's `Snapshot` row, and the protocol number goes up with it: an older client would draw itself as a stranger |
 | **KE6** | The revive | `revive` sends a `Correction` (a new epoch, the body's rest point), as a respawn does | Today it sends none, because a raised client claimed where it lay. A knocked-down client now claims no place, so without one it would stand up where its last walking claim was. The revive becomes a placement: `ScenarioBot`, which fails any `Correction` outside one, expects it, and the honest-bot check stays as strict (728a) |
 | **KE7** | The ragdoll | Looks only, on each client: every knocked-down avatar (the own included) and every body is a ragdoll whose root is held to the host's point by a spring each physics step (`_integrate_forces` of a `PhysicalBone3D` or a `RigidBody3D`), and moved there at once when farther than a snap distance (a client constant). Its parts are on the `downed` layer and collide with the world layer only: never with players, another ragdoll or a client-only object (#688's car). On the greybox avatar it is one `RigidBody3D` capsule; with #522's character, the skeleton's `PhysicalBone3D`s under a `PhysicalBoneSimulator3D`. It starts from the standing pose with the avatar's velocity. Nothing reads it: the raise's reach, the camera, the ears and `SightHider` use the host's point | Prevents: two screens disagreeing on where a body is by more than its limbs, and a pose that feeds back into what the client shows (the render checklist's item 1). Each Godot name is checked in 4.7.2's API |
 | **KE8** | The camera and the ears of a moving body | `DownedCamera`'s pivot, for its own knocked-down player and for a spectator watching a knocked-down target alike (ARCHITECTURE §4.7.9), rises from the body's point by the standing eye height, but never higher than the standing eye height above the floor below the point (a ray down the client's own level), so a body in flight or falling off a ledge lifts it no higher than a player standing under the body would see; and it stops 0.1 m (a placeholder) below the first world hit straight above it; the arm and `SightHider` work from it as today. The ears stay at the body's lying head height above the point (today's "the own body's head") | Prevents: a body flying up against a ceiling, or lying under a low one, lifting the pivot into the room above (the render checklist's item 3: never through the level), and a body in mid-air showing its player, or a dead spectator, over a fence or onto the locked roof (item 3: never over cover more than standing at the body). Today a body lies only where a player stood, so the eye height always fitted |
@@ -109,7 +123,7 @@ ragdoll is only how each client draws a body at that place.
 | **KE10** | Voice and the mic | No change: `VoiceRule.speakers_of` drops every speaker who is not living, `VoiceSender.may_speak_of` sends nothing unless the own life is living, and #489's mic, once built, shows off while downed. The tests that pin the first two stay (ARCHITECTURE §6.3) | Prevents: a second mute path (a knocked-down check inside a voice rule) that a mode's data could route around |
 | **KE11** | The code's name | `PlayerState.Life.DOWNED`, the wire's `downed` and the tests keep their names; players read "knocked down" ("You're down", #497's planned `downed.title`) | The engineer's "no downed state" is about the game (no wounded state that crawls), not an identifier. A rename touches about 160 files and the wire's flag for no change in behaviour |
 
-### 4. The body's motion (KE1 (a); KD1 to KD4 and KD8 as recommended)
+### 4. The body's motion (KE1 (a); KD1 to KD4 and KD8 (a), the engineer's)
 
 The body is a point: the knocked-down player's last accepted position (`PlayerState.position`), the floor point under
 the body at rest, as an item's rest is its base point. In motion, a sphere moves whose bottom is that point and whose
@@ -291,7 +305,7 @@ content file named is provisional under the
   row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the snapshot's 15 avatars take 680 bytes"); §4.6.1.1
   and §4.6.1.2 ("the own player's never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and
   their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §7.1.17.
-  Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (it opens only after his answers on KE1 and KE5).
+  Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all answered).
   Files: `core/life/`, `core/combat/strike.gd`, `core/match/player_state.gd`, `core/match/snapshots.gd`,
   `core/match/reset_match.gd`, `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd`
   (`MAX_AVATARS`), `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
@@ -335,16 +349,21 @@ content file named is provisional under the
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
   revived" follows KD7; the manager adds this to #522.
 
-### 11. Needs the engineer
+### 11. The engineer's answers
 
-One batch, each with the recommendation the design follows until he answers: **KD1** (a) only the knocking blow
-launches; **KD2** (a) every strike has a launch, the knife's included; **KD3** (a) floors steeper than an angle make a
-body slide; **KD4** (a) no raise while a body moves; **KD5** (a) it hears the living within the radius, as today;
-**KD6** (a) today's camera above the body; **KD7** (a) the dead ragdoll stays, greyed with the cross, and a revive
-pops up; **KD8** (a) a death ends the motion; **KD9** (b) the agents pick placeholders, "not a decision"; **KE1** (a)
-the body's motion runs in `core/`; **KE5** (a knocked-down player's snapshot holds its own avatar, the one
-exception to §5's "nobody gets their own avatar"). 728b opens only after his answers on KE1 and KE5 (with KD1, KD2,
-KD4 and KD8); 728a needs neither.
+All answered on 2026-10-10
+([PR #754, comment 6097876326](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6097876326)), every
+recommendation: **KD1** (a) only the knocking blow launches; **KD2** (a) every strike has a launch, the knife's
+included; **KD3** (a) floors steeper than an angle slide a body, stairs excluded; **KD4** (a) a moving body cannot be
+raised (`moving`); **KD5** (a) it hears the living within the radius, as today; **KD6** (a) today's camera above the
+body, following it; **KD7** (a) a grey ragdoll with the cross, and a raised player stands up; **KD8** (a) a death
+ends the motion, and the body and its items rest where it stopped; **KD9** (b) the agents set placeholders marked
+"not a decision"; **KE1** (a) the body's motion runs in `core/`, the host owns the position, and replays are
+deterministic; **KE5** (a) the host sends a knocked-down player its own avatar, the one exception to §5's "nobody
+gets their own avatar" (`MAX_AVATARS` 16, a protocol bump). And **the House only**: the launch and the slide play on
+the House; the flat greybox keeps the reworked knockdown (still, mute, a ragdoll) with no launch and no slide (KE12),
+and no bot scenario plays them (728e). Nothing is left open for him in this design; its issues open as proposals for
+the M7 backlog, none built until he says so.
 
 ## Alternatives
 
