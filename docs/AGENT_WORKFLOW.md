@@ -626,6 +626,10 @@ Rules for every workflow run:
     merged and skipped PRs (exit 0 only when all merged); a git call that hangs skips its PR, and the summary is printed
     even when the train stops on an unexpected error. `--dry-run` prints each PR's worktree and way, or why it would be
     skipped, and each gate's verdict now, and changes nothing. It never pushes `main` and never merges a gate exception.
+    One run asks git each question once (#724): merge-base, ancestry, diffs and textual merges by commit hash, a ref
+    until the run itself fetches, pushes or publishes; a 2-PR dry run went from 72 git processes to 32 (those the
+    runner starts, counted by the tests' `GitCounter`; the gh stand-in's own git calls are left out, so the issue's
+    rougher figure of about 200 is a different count).
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
   its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
@@ -730,9 +734,12 @@ pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` ren
 result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
 then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 180 s
 (§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
-minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
-known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
-the engineer's screen.
+minutes old as "probably waits on a permission card", and names the session and the tool. A session known to
+sit on a card was seen on the night of 2026-10-09/10 (#731); whether `lastActivityAt` stayed frozen meanwhile was not
+checked. The transcript shows the card: its call has a PreToolUse
+`hook_success` record whose `permissionDecision` is `ask`, then no result. The session's notifications pile up as
+queue `enqueue` records with nothing delivered. `tools\run.cmd wave --stalled` (§11.11) reads those records and names
+the session, the card and the guard's reason.
 
 **Set up** (the engineer, once): the issue and its pin.
 ```powershell
@@ -1522,7 +1529,7 @@ fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a rep
 pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
 with a release host's cost.
 
-### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]
+### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE] | --stalled [--minutes M]` [applied]
 (#277, #278; round 2 of the AI productivity track, a
 cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
 journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
@@ -1592,6 +1599,23 @@ writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is o
 fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
 manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
 `args-<n>.json` files, in #279.
+`--stalled [--minutes M]` (#731, `wave_stall.py`) looks at the other sessions instead of this one. On 2026-10-09 a
+manager's guarded cleanup command (a branch delete outside a task branch) became a permission card at 22:06Z. Claude
+Code held every task notification of that session behind it, four finished runs and the keep-alive timer, until the
+engineer allowed the call at 07:29Z. It reads every transcript of the three track checkouts and their worktrees
+written in the last 24 hours, except the caller's own. It flags a session whose process is alive when it has had no
+turn since either (a session no file in `~/.claude/sessions` names is closed, Claude Code removes the file at exit;
+with no file at all, the process is unknown and the session is flagged):
+- a run of its own finished more than M minutes ago (default 30; a stopped or killed run starts no turn and does not
+  count); or
+- a notification has waited undelivered in its queue that long, after the session's last turn (before it, only when a
+  permission card waits): an `enqueue` record that no `remove`, `dequeue` or delivering user record took out.
+
+One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
+call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
+the guard's reason; the line ends with what the engineer does. The command is read-only. It exits 3 when it flags a
+session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
+refused.
 
 ### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
@@ -1831,17 +1855,23 @@ which it has none of today). The game targets Windows for now; CI stays on GitHu
 and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs it too
 (`on.push.branches`: `main` and `release/**`, #622), so the tree a `merge` or `merge --sync-main` leaves there is tested
 (§7.1). A second job, `python-min` (#349), sets up the pinned minimum Python (`pins --get python_min`, 3.11), checks it
-runs that version, compiles every runner file and runs `selftest --group python` (199 s on 3.11 in a cloud session,
-beside `verify`; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated minimum, and
-3.12-only code broke `verify` in a cloud
-session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
-merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
-first (red: nothing else runs), then three lanes at once, each a process of its own and serial inside: the Python lane
-(`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner tests
-that start no Godot, each test in one of the worker processes: half the logical CPUs on a machine with at least 8, so 8
-on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside most of them),
-else a quarter and at least one, 1 on CI), the Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and
-`stall` (the headless ENet runs of `net/`, below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
+runs that version, compiles every runner file and runs `selftest --group python` (221 s on CI on 2026-10-09, 120 s of
+it one test waiting out a child that `kill_tree` never killed on Linux, fixed in #603; alone on its runner it takes
+all 4 vCPUs since #603; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated
+minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). It is a required check of `main` like
+`verify` (§8.5), so neither `merge` nor a human's merge button takes a PR while it is red. `verify` (#179) runs
+`doctor --quick` first (red: nothing else runs), then three lanes at once, each a process of its own and serial
+inside: the Python lane (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then
+`selftest`: the runner tests that start no Godot, in worker processes: half the logical CPUs on a machine with at
+least 8, so 8 on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside
+most of them), else a quarter and at least one, 1 on CI; `selftest --group python` outside a verify lane takes every
+CPU of a smaller machine and at least 7 of a bigger one. Since #603 each worker runs a class's tests in batches, in
+their serial order with the class's fixtures once, as a serial run has them (before, each test ran alone and rebuilt
+its class's fixtures); a class is cut so no batch holds more than the last run's seconds over workers times 4,
+longest batches first; on Windows the tests' own processes are the cost: about 8,000 a run, mostly git, which on the
+PC kept all 16 logical CPUs busy at 8 workers, Defender's scan about 2 of them, and 16 workers ran slower, #603), the
+Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and `stall` (the headless ENet runs of `net/`,
+below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
 `webrtc-silence`, `bots`, `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot
 lane (`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
 starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process every

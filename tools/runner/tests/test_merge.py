@@ -1,6 +1,7 @@
 """merge-check and merge (#181): the symbol reader, the semantic check on the M4 failures rebuilt as small git
 repositories, the trial, the merge's refusals and pushes, and the commands a manager types through the guard."""
 
+import collections
 import json
 import os
 import re
@@ -213,6 +214,48 @@ class Repo:
 
     def remote(self, ref: str) -> str:
         return _git(self.tmp / "remote.git", "rev-parse", ref)
+
+
+class GitCounter:
+    """The git processes started inside the block, by subcommand (#724). A gh stand-in (FakeGitHub runs git to answer)
+    is not counted: pass it as `gh` and its calls are paused."""
+
+    def __init__(self, gh: object | None = None) -> None:
+        self.counts: collections.Counter[str] = collections.Counter()
+        self.paused = 0
+        self.gh = gh
+
+    @property
+    def total(self) -> int:
+        return sum(self.counts.values())
+
+    def __enter__(self) -> "GitCounter":
+        counter, real = self, subprocess.Popen
+
+        class Counting(real):  # type: ignore[valid-type, misc]
+            def __init__(self, args, *rest, **named):  # type: ignore[no-untyped-def]
+                if not counter.paused and isinstance(args, list) and Path(str(args[0])).stem == "git":
+                    words = [a for a in args[1:] if not a.startswith("-") and "=" not in a]
+                    counter.counts[words[0] if words else "?"] += 1
+                super().__init__(args, *rest, **named)
+
+        def paused_gh(*args: str) -> Result:
+            self.paused += 1
+            try:
+                return self.gh(*args)  # type: ignore[operator]
+            finally:
+                self.paused -= 1
+
+        self.patches = [mock.patch.object(subprocess, "Popen", Counting)]
+        if self.gh is not None:
+            self.patches.append(mock.patch.object(merge, "gh", paused_gh))
+        for patch in self.patches:
+            patch.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        for patch in reversed(self.patches):
+            patch.stop()
 
 
 def _change(label: str, before: str, after: str) -> merge.Change:
@@ -1562,6 +1605,102 @@ class TypedCommandsTest(unittest.TestCase):
         self.assertEqual((args.prs, args.trial, args.base), ([1, 2], True, None))
         with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
             parser.parse_args(["merge", "154"])  # --base is required
+
+
+class RunCacheTest(MergeCase):
+    """One run's git answers (#724): asked once inside merge.one_run, forgotten at a fetch, a push or the run's end."""
+
+    MAIN_REF = f"refs/remotes/{merge.REMOTE}/main"
+
+    def main_moves_unseen(self) -> str:
+        """A commit on the remote's main that this checkout has not fetched (GitHub merged another PR)."""
+        remote = self.repo.tmp / "remote.git"
+        tip = _git(remote, "rev-parse", "refs/heads/main")
+        tree = _git(remote, "rev-parse", f"{tip}^{{tree}}")
+        commit = _git(remote, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", tree, "-p", tip,
+                      "-m", "another merge")  # fmt: skip
+        _git(remote, "update-ref", "refs/heads/main", commit, tip)
+        return commit
+
+    def test_outside_a_run_every_question_goes_to_git(self) -> None:
+        head = self.repo.remote("main")
+        with GitCounter() as git:
+            for _ in range(3):
+                self.assertEqual(merge._sha(self.MAIN_REF), head)
+                self.assertTrue(merge._is_ancestor(head, head))
+        self.assertEqual((git.counts["rev-parse"], git.counts["merge-base"]), (3, 3))
+
+    def test_inside_a_run_a_question_is_asked_once(self) -> None:
+        self.task(7, {"core/a.gd": "extends Node\n"}, base="main")
+        head = _git(self.repo.work, "rev-parse", "refs/remotes/origin/core/7-task")
+        base = self.repo.remote("main")
+        with GitCounter() as git, merge.one_run():
+            for _ in range(3):
+                self.assertEqual(merge._sha(self.MAIN_REF), base)
+                self.assertEqual(merge._sha(head), head)
+                self.assertEqual(merge._merge_base(base, head), base)
+                self.assertTrue(merge._is_ancestor(base, head))
+                self.assertFalse(merge._is_ancestor(head, base))
+                self.assertEqual(merge.changed_paths(base, head), [("A", "core/a.gd")])
+                self.assertEqual(merge.textual(base, head), [])
+                self.assertEqual(merge._count_since(base, head), 1)
+        self.assertEqual(
+            dict(git.counts),
+            {"rev-parse": 2, "merge-base": 3, "diff": 1, "merge-tree": 1, "rev-list": 1},  # 2 is-ancestor, 1 base
+        )
+
+    def test_a_fetch_inside_a_run_forgets_the_refs(self) -> None:
+        old = self.repo.remote("main")
+        with merge.one_run():
+            self.assertEqual(merge._sha(self.MAIN_REF), old)
+            new = self.main_moves_unseen()
+            self.assertEqual(merge._sha(self.MAIN_REF), old)  # not fetched yet: the run's own answer
+            merge.fetch()
+            self.assertEqual(merge._sha(self.MAIN_REF), new)
+
+    def test_a_hash_not_found_is_asked_again_after_a_fetch(self) -> None:
+        new = self.main_moves_unseen()
+        with merge.one_run():
+            self.assertEqual(merge._sha(new), "")  # not here yet; never kept as an answer
+            merge.fetch()
+            self.assertEqual(merge._sha(new), new)
+
+    def test_an_ancestry_git_could_not_answer_is_asked_again(self) -> None:
+        old = self.repo.remote("main")
+        new = self.main_moves_unseen()
+        with merge.one_run():
+            self.assertFalse(merge._is_ancestor(old, new))  # git exits 128: the commit is not here yet
+            merge.fetch()
+            self.assertTrue(merge._is_ancestor(old, new))  # the no was not kept
+        hang = Result(-1, "", True, 1.0)
+        with merge.one_run():
+            with mock.patch.object(merge, "_git", return_value=hang):
+                self.assertFalse(merge._is_ancestor(old, old))
+            self.assertTrue(merge._is_ancestor(old, old))  # a hang was not kept either
+
+    def test_a_push_inside_a_run_forgets_the_refs(self) -> None:
+        ref = f"refs/remotes/{merge.REMOTE}/release/m1"
+        old = self.repo.remote("release/m1")
+        self.repo.branch("work-on-release", "origin/release/m1")
+        new = self.repo.commit({"core/x.gd": "extends Node\n"}, "release moves")
+        with merge.one_run():
+            self.assertEqual(merge._sha(ref), old)
+            merge._push(new, "release/m1")
+            self.assertEqual(merge._sha(ref), new)
+
+    def test_the_cache_is_gone_when_the_run_ends_and_nested_runs_share_it(self) -> None:
+        head = self.repo.remote("main")
+        with merge.one_run():
+            with merge.one_run():
+                merge._sha(self.MAIN_REF)
+                merge._sha(head)
+            self.assertEqual((len(merge.CACHE.refs), len(merge.CACHE.facts)), (1, 1))  # the inner end kept them
+        self.assertEqual((merge.CACHE.depth, merge.CACHE.refs, merge.CACHE.facts), (0, {}, {}))
+
+    def test_a_run_that_fails_leaves_no_cache_behind(self) -> None:
+        with self.assertRaises(Failure):
+            merge.merge(None, base="main", dry_run=True)  # neither a PR nor --sync-main: refused inside the run
+        self.assertEqual((merge.CACHE.depth, merge.CACHE.refs, merge.CACHE.facts), (0, {}, {}))
 
 
 if __name__ == "__main__":

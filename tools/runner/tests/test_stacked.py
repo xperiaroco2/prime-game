@@ -5,14 +5,13 @@ stubbed."""
 
 import json
 import shutil
-import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from runner import publish, start
-from runner.common import ROOT, Failure, force_rmtree
-from runner.tests.test_start import git
+from runner.common import ROOT, Failure
+from runner.tests.test_start import copy_template, git, make_template
 
 PARENT = "core/32-parent"
 CHILD = "tooling/33-child"
@@ -22,22 +21,29 @@ RELEASE = "release/m3"
 class Repos(unittest.TestCase):
     """The remote, the task's checkout and GitHub's side (the parent's session, the merge button, the manager)."""
 
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="stacked-"))
-        self.addCleanup(force_rmtree, str(self.tmp))
-        hooks = self.tmp / "hooks"
+    template: Path  # the remote and the two clones below, built once for the class
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.template = make_template(cls, "stacked-template-")
+        hooks = cls.template / "hooks"
         hooks.mkdir()
         shutil.copy(ROOT / ".claude" / "githooks" / "pre-push", hooks / "pre-push")
         (hooks / "pre-push").chmod(0o755)
-        git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
-        self.work = self.clone("work")  # the child's session
-        self.commit(self.work, "f.txt", "c1")
-        git(self.work, "push", "-q", "origin", "main")
-        git(self.work, "config", "core.hooksPath", str(hooks))
-        self.github = self.clone("github")  # the parent's session and the human's merge button
-        git(self.github, "switch", "-q", "-c", PARENT)
-        self.commit(self.github, "p.txt", "parent")
-        git(self.github, "push", "-q", "origin", PARENT)
+        git(cls.template, "init", "-q", "--bare", "-b", "main", "remote.git")
+        work = cls.clone_in(cls.template, "work")  # the child's session
+        cls.commit(work, "f.txt", "c1")
+        git(work, "push", "-q", "origin", "main")
+        git(work, "config", "core.hooksPath", hooks.as_posix())  # copy_template points it at each test's copy
+        github = cls.clone_in(cls.template, "github")  # the parent's session and the human's merge button
+        git(github, "switch", "-q", "-c", PARENT)
+        cls.commit(github, "p.txt", "parent")
+        git(github, "push", "-q", "origin", PARENT)
+
+    def setUp(self) -> None:
+        self.tmp = copy_template(self, self.template, "stacked-", ("work", "github"))
+        self.work = self.tmp / "work"
+        self.github = self.tmp / "github"
 
         self.pr_base: str | None = None  # the child's open PR's base, as gh would report it
         issue = {"number": 33, "title": "Child", "state": "OPEN", "labels": [{"name": "area:tooling"}]}
@@ -62,9 +68,10 @@ class Repos(unittest.TestCase):
                     patch.start()
                     self.addCleanup(patch.stop)
 
-    def clone(self, name: str) -> Path:
-        git(self.tmp, "clone", "-q", str(self.tmp / "remote.git"), name)
-        where = self.tmp / name
+    @staticmethod
+    def clone_in(base: Path, name: str) -> Path:
+        git(base, "clone", "-q", (base / "remote.git").as_posix(), name)
+        where = base / name
         for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
             git(where, "config", key, value)
         return where

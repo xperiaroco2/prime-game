@@ -1494,6 +1494,68 @@ class WithGodot(unittest.TestCase):
 '''
 
 
+BATCH_FIXTURE = """
+import os
+import unittest
+
+
+class Shared(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(os.environ["SELFTEST_BATCH_SETUPS"], "a", encoding="utf-8") as f:
+            print("Shared", file=f)
+
+    def test_a(self):
+        pass
+
+    def test_b(self):
+        pass
+
+    def test_c(self):
+        pass
+
+
+class Broken(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        raise RuntimeError("no class for you")
+
+    def test_a(self):
+        pass
+
+    def test_b(self):
+        pass
+
+
+class SkippedClass(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        raise unittest.SkipTest("not today")
+
+    def test_a(self):
+        pass
+
+
+class Sub(unittest.TestCase):
+    def test_a(self):
+        for n in (1, 2):
+            with self.subTest(n=n):
+                self.assertEqual(n, 1)
+
+
+class Torn(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        raise RuntimeError("torn")
+
+    def test_a(self):
+        pass
+
+    def test_b(self):
+        pass
+"""
+
+
 class SelftestTest(unittest.TestCase):
     def selftest_on_fixture(
         self, group: str, fail: bool = False, leak: bool = False
@@ -1621,6 +1683,28 @@ class SelftestTest(unittest.TestCase):
         cpus = (1, 2, 4, 6, 7, 8, 16, 32)
         self.assertEqual([verify.selftest_workers(n) for n in cpus], [1, 1, 1, 1, 1, 4, 8, 16])
 
+    def test_alone_a_small_machine_gives_every_cpu_a_big_one_still_half(self) -> None:
+        # #603: CI's minimum-Python job (4 vCPUs, nothing beside it) runs on 4 workers; the PC keeps 8 of 16.
+        # A bigger machine never gets fewer than a smaller one (#603 review: 8 CPUs gave 4, 7 gave 7).
+        cpus = (1, 2, 4, 6, 7, 8, 9, 14, 15, 16, 32)
+        expected = [1, 2, 4, 6, 7, 7, 7, 7, 7, 8, 16]
+        self.assertEqual([verify.selftest_workers(n, alone=True) for n in cpus], expected)
+        self.assertEqual(expected, sorted(expected))
+
+    def test_selftest_in_a_verify_lane_shares_the_machine_and_alone_does_not(self) -> None:
+        # `all` runs the selftest-godot group beside the Python one, so outside a lane it is not alone either.
+        for group, inside, alone in (("python", "1", False), ("python", "", True), ("all", "", False)):
+            with (
+                self.subTest(group=group, inside=inside),
+                mock.patch.dict(os.environ, {verify.INSIDE_VAR: inside}),
+                mock.patch.object(verify, "discover", return_value=[]),
+                mock.patch.object(verify, "selftest_workers", return_value=3) as workers,
+                mock.patch.object(verify, "_run_group", return_value=([], 0.0)),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                verify.selftest(group)
+                workers.assert_called_once_with(alone=alone)
+
     def test_workers_report_each_outcome_like_a_serial_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             name = f"selftest_fixture_{uuid.uuid4().hex}"
@@ -1629,22 +1713,65 @@ class SelftestTest(unittest.TestCase):
             self.addCleanup(sys.path.remove, tmp)
             names = ("test_passes", "test_fails", "test_skipped_by_a_decorator", "test_skipped_when_it_runs")
             ids = [f"{name}.T.{test}" for test in names]
-            entries = {e["id"]: e for e in verify.run_in_workers(ids, 2)}
+            # One batch, two, or a test a batch (#603): the same outcome for each test.
+            runs = [verify.run_in_workers(b, 2) for b in ([ids], [ids[:2], ids[2:]], [[i] for i in ids])]
             serial = unittest.TestResult()
             unittest.defaultTestLoader.loadTestsFromName(f"{name}.T").run(serial)
             sys.modules.pop(name, None)
-        outcome = {test_id.rsplit(".", 1)[1]: (e["outcome"], e["static"]) for test_id, e in entries.items()}
+        for run in runs:
+            entries = {e["id"]: e for e in run}
+            outcome = {test_id.rsplit(".", 1)[1]: (e["outcome"], e["static"]) for test_id, e in entries.items()}
+            self.assertEqual(
+                outcome,
+                {
+                    "test_passes": ("passed", False),
+                    "test_fails": ("failed", False),
+                    "test_skipped_by_a_decorator": ("skipped", True),
+                    "test_skipped_when_it_runs": ("skipped", False),
+                },
+            )
+            self.assertIn("AssertionError: 1 != 2", str(entries[ids[1]]["detail"]))
+            self.assertEqual(entries[ids[3]]["detail"], "at run time")
+        self.assertEqual((serial.testsRun, len(serial.failures), len(serial.skipped)), (4, 1, 2))
+
+    def test_a_batch_runs_class_fixtures_once_and_gives_their_errors_and_skips_to_their_tests(self) -> None:
+        # #603: a batch is a serial run of its tests; a fixture's outcome is each of its class's tests' in the batch.
+        with tempfile.TemporaryDirectory() as tmp:
+            name = f"selftest_batch_fixture_{uuid.uuid4().hex}"
+            (Path(tmp) / f"{name}.py").write_text(BATCH_FIXTURE, encoding="utf-8")
+            sys.path.insert(0, tmp)
+            self.addCleanup(sys.path.remove, tmp)
+            self.addCleanup(sys.modules.pop, name, None)
+            setups = Path(tmp) / "setups.txt"
+            with mock.patch.dict(os.environ, {"SELFTEST_BATCH_SETUPS": str(setups)}):
+                tests = list(verify._flatten(unittest.defaultTestLoader.loadTestsFromName(name)))
+                ids = [t.id() for t in tests]
+                started = time.monotonic()
+                entries = verify.run_batch(tests, ids)
+                took = time.monotonic() - started
+                serial = unittest.TestResult()
+                unittest.defaultTestLoader.loadTestsFromName(name).run(serial)
+            self.assertEqual(setups.read_text(encoding="utf-8").splitlines(), ["Shared", "Shared"])
+        outcome = {".".join(str(e["id"]).split(".")[-2:]): e["outcome"] for e in entries}
         self.assertEqual(
             outcome,
             {
-                "test_passes": ("passed", False),
-                "test_fails": ("failed", False),
-                "test_skipped_by_a_decorator": ("skipped", True),
-                "test_skipped_when_it_runs": ("skipped", False),
+                "Broken.test_a": "failed", "Broken.test_b": "failed",
+                "Shared.test_a": "passed", "Shared.test_b": "passed", "Shared.test_c": "passed",
+                "SkippedClass.test_a": "skipped",
+                "Sub.test_a": "failed",
+                "Torn.test_a": "failed", "Torn.test_b": "failed",
             },
-        )
-        self.assertIn("AssertionError: 1 != 2", str(entries[ids[1]]["detail"]))
-        self.assertEqual((serial.testsRun, len(serial.failures), len(serial.skipped)), (4, 1, 2))
+        )  # fmt: skip
+        detail = {".".join(str(e["id"]).split(".")[-2:]): str(e["detail"]) for e in entries}
+        self.assertIn("RuntimeError: no class for you", detail["Broken.test_b"])
+        self.assertEqual(detail["SkippedClass.test_a"], "not today")
+        self.assertIn("AssertionError: 2 != 1", detail["Sub.test_a"])
+        self.assertIn("RuntimeError: torn", detail["Torn.test_a"])
+        self.assertEqual(ids, [e["id"] for e in entries])
+        self.assertAlmostEqual(sum(float(str(e["seconds"])) for e in entries), took, delta=0.5)
+        # The serial run: Broken's and Torn's fixture errors, Sub's subtest failure; the skipped class's fixture.
+        self.assertEqual((serial.testsRun, len(serial.errors), len(serial.failures)), (6, 2, 1))
 
     def test_the_count_matches_a_serial_discovery(self) -> None:
         reference = {"a": False, "b": True}
@@ -1679,11 +1806,43 @@ class SelftestTest(unittest.TestCase):
 
     def test_the_last_runs_slowest_tests_start_first_and_new_ones_before_them(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            record = {"tests": [{"id": "fast", "seconds": 0.1}, {"id": "slow", "seconds": 9.0}]}
+            record = {"tests": [{"id": "m.A.fast", "seconds": 0.1}, {"id": "m.B.slow", "seconds": 9.0}]}
             (Path(tmp) / "selftest-python.json").write_text(json.dumps(record), encoding="utf-8")
             with mock.patch.object(verify, "LOGS", Path(tmp)):
-                self.assertEqual(verify._slowest_first("python", ["fast", "slow", "new"]), ["new", "slow", "fast"])
-                self.assertEqual(verify._slowest_first("godot", ["b", "a"]), ["b", "a"])
+                seconds = verify.last_seconds("python")
+                self.assertEqual(seconds, {"m.A.fast": 0.1, "m.B.slow": 9.0})
+                batches = verify.plan_batches(["m.A.fast", "m.B.slow", "m.C.new"], seconds, 1)
+                self.assertEqual(batches, [["m.C.new"], ["m.B.slow"], ["m.A.fast"]])
+                self.assertEqual(verify.last_seconds("godot"), {})
+                self.assertEqual(verify.plan_batches(["m.A.b", "m.B.a"], {}, 4), [["m.A.b"], ["m.B.a"]])
+
+    def test_a_class_runs_in_batches_of_its_tests_in_their_order_none_over_its_share(self) -> None:
+        # #603: 16 s of tests on 1 worker: no batch over 16 / (1 * BATCHES_PER_WORKER) = 4 s, unless one test is.
+        ids = [f"m.Big.t{i}" for i in range(6)] + ["m.Lone.t0", "m.Small.a", "m.Small.b", "m.Small.c"]
+        seconds = {
+            "m.Big.t0": 2.0, "m.Big.t1": 1.5, "m.Big.t2": 0.5, "m.Big.t3": 1.0, "m.Big.t4": 2.0, "m.Big.t5": 2.5,
+            "m.Lone.t0": 5.0, "m.Small.a": 0.5, "m.Small.b": 0.5, "m.Small.c": 0.5,
+        }  # fmt: skip
+        with mock.patch.object(verify, "BATCHES_PER_WORKER", 4):
+            batches = verify.plan_batches(ids, seconds, 1)
+        self.assertEqual(
+            batches,
+            [
+                ["m.Lone.t0"],  # 5 s: one test over the share runs alone, and first
+                ["m.Big.t0", "m.Big.t1", "m.Big.t2"],  # 4 s
+                ["m.Big.t3", "m.Big.t4"],  # 3 s
+                ["m.Big.t5"],  # 2.5 s
+                ["m.Small.a", "m.Small.b", "m.Small.c"],  # 1.5 s: a class never shares a batch with another
+            ],
+        )
+        self.assertEqual(sorted(t for batch in batches for t in batch), sorted(ids))
+        self.assertEqual(verify.plan_batches([], {}, 8), [])
+
+    def test_more_workers_cut_a_class_finer_and_new_tests_count_a_second(self) -> None:
+        ids = [f"m.C.t{i}" for i in range(8)]
+        # 8 unknown seconds over 1 worker * 4 batches: 2 tests a batch; over 2 workers * 4: 1 a batch.
+        self.assertEqual(verify.plan_batches(ids, {}, 1), [ids[0:2], ids[2:4], ids[4:6], ids[6:8]])
+        self.assertEqual(verify.plan_batches(ids, {}, 2), [[test_id] for test_id in ids])
 
     def test_verify_counts_the_results_of_this_run_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
