@@ -86,10 +86,19 @@ with three changes:
   on a sloped roof can roll off. Everyone sees it in the same place: the host moves the body, and each screen draws
   its own ragdoll there.
 
-Open for the engineer, with options and recommendations in the
-[knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (KD1 to KD9): which hits launch a body and how hard,
-which floors make it roll, whether a body still moving can be raised, whom a knocked-down player hears, its camera,
-how a dead body and a revive look, a death during the motion, and the numbers.
+His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comment 6097876326, the
+same day):
+- Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
+  launch, the knife's too.
+- A floor steeper than an angle makes a body slide downhill and off its edge; stairs do not.
+- A body still flying or sliding cannot be raised.
+- A knocked-down player hears the living near its body, as before, and its camera stays above its body, following it.
+- A dead body stays a ragdoll, greyed, with the cross; a raised player stands up at once.
+- A death in mid-flight or mid-slide ends the motion: the body and its items rest where it stopped.
+- **The launch and the slide play on the House only.** On the flat greybox a knocked-down body lies still where it
+  fell, as a ragdoll, with no launch and no slide.
+- The numbers (how hard a blow launches, how steep a floor slides, how fast) are placeholders, "not a decision",
+  until a playtest.
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
