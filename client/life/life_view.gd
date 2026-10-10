@@ -202,8 +202,8 @@ func raise_shown(tick: float) -> float:
 func raise_cue() -> String:
 	if model == null or _own_life() != ClientModel.Life.ALIVE:
 		return ""
-	var target := raise_target()
-	if target == 0 or model.raiser_of(target) != 0:
+	var downed := raise_target()
+	if downed == 0 or model.raiser_of(downed) != 0:
 		return ""
 	return KeyLabel.of_action(&"interact")
 
