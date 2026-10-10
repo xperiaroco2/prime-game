@@ -22,4 +22,7 @@ budget; root `CLAUDE.md` applies in full.
 - Code like docs (#468): a file over 400 lines by `cd <your worktree> && tools/run.sh section <file>` (its symbols)
   or `grep -n` first, then only the range you need. Read again only after an edit, a rebase, a checkout, a failed
   Edit or a compaction. Independent reads go in one message, as parallel calls.
+- What a command prints stays in your context to the end: read a log by search (`grep -n -E "FAIL|Error" <log>`, then
+  only the lines around a hit), never whole; `| head -c 6000` on `gh pr view --comments`, `gh pr checks`, `gh pr diff`
+  and `git diff` (`--stat` first); `section <doc>` outline first.
 - End by returning the structured result once.
