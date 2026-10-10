@@ -392,6 +392,8 @@ func test_the_large_theme_differs_only_in_text_sizes() -> void:
 					(
 						lines_normal[index].contains("/font_sizes/font_size")
 						or lines_normal[index].contains("/constants/min_width")
+						# A Label's spacing follows its text size (#685; the line spacing test).
+						or lines_normal[index].contains("/constants/line_spacing")
 					)
 				)
 				. override_failure_message(lines_normal[index])
@@ -573,6 +575,67 @@ func test_the_font_becomes_a_variation_per_label_weight() -> void:
 	var none := Builder.build_with_font(_pack, _mapping, "default", null)
 	assert_object(none.default_font).is_null()
 	assert_array(Array(none.get_font_list(&"ToyButtonPrimary"))).is_empty()
+
+
+## Each Label variation's line is its label token's lineHeight tall with Comfortaa (#685): the
+## spacing comes from the committed metrics, so a build with CI's stand-in font writes the same
+## value; where the real font is in the project, its own heights must give that line.
+func test_label_line_spacing_meets_the_token_line_height() -> void:
+	var stand_in := ThemeDB.fallback_font
+	# Spot values: 22 px x 1.25 = 27.5, so a 28 px line over Comfortaa's 26 px; 36 px: 45 over 41.
+	var spots := {
+		"default": {&"ToyTextOnDark": 2, &"ToyTitleOnDark": 4, &"ToyTitlePlate": 12},
+		"large": {&"ToyTextOnDark": 3, &"ToyTitleOnDark": 5},
+	}
+	var real := Builder.base_font(_mapping)
+	var is_real := real != null and (real as FontFile).font_name == "Comfortaa"
+	var wght := TextServerManager.get_primary_interface().name_to_tag("wght")
+	if is_real:
+		# The committed metrics are the real font's (measured at size 1000).
+		var metrics: Dictionary = (_mapping["font"] as Dictionary)["metrics"]
+		var at: int = metrics["size"]
+		var ascent: float = metrics["ascent"]
+		var descent: float = metrics["descent"]
+		assert_float(real.get_ascent(at)).is_equal(ascent)
+		assert_float(real.get_descent(at)).is_equal(descent)
+	for text_size: String in spots:
+		var theme := Builder.build_with_font(_pack, _mapping, text_size, stand_in)
+		var spot: Dictionary = spots[text_size]
+		for type_name: StringName in spot:
+			assert_int(theme.get_constant(&"line_spacing", type_name)).is_equal(spot[type_name])
+		var tokens := _tokens(_pack)
+		var large: Dictionary = ((_pack["modes"] as Dictionary)["textSize"] as Dictionary)["large"]
+		var owned := Builder.tokens_by_variation(_pack)
+		var checked := 0
+		for variation_name in Builder.generated_names(_pack):
+			var key := "%s.label" % _variation(_pack, variation_name)["prefix"]
+			if _engine_class(theme, variation_name) != "Label":
+				continue
+			if not (owned[variation_name] as Array).has(key):
+				continue
+			checked += 1
+			var record: Dictionary = tokens[key]
+			if text_size == "large" and large.has(key):
+				record = large[key]
+			var size: int = record["fontSizePx"]
+			var line_height: float = record["lineHeight"]
+			var weight: int = record["fontWeight"]
+			var line := roundi(size * line_height)
+			var spacing := theme.get_constant(&"line_spacing", variation_name)
+			if is_real:
+				var face := FontVariation.new()
+				face.base_font = real
+				face.variation_opentype = {wght: weight}
+				(
+					assert_int(roundi(face.get_height(size)) + spacing)
+					. override_failure_message("%s %s at %d" % [text_size, variation_name, size])
+					. is_equal(line)
+				)
+			assert_int(spacing).is_between(0, line)
+		assert_int(checked).is_greater(20)
+	# No font in the project: no spacing either, so Godot's default font keeps the base Label's.
+	var none := Builder.build_with_font(_pack, _mapping, "default", null)
+	assert_bool(none.has_constant(&"line_spacing", &"ToyTextOnDark")).is_false()
 
 
 ## Engine items the mapping writes that Godot's default theme does not list for the class (or a
