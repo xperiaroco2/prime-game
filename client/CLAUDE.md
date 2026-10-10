@@ -10,7 +10,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
   and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
 - UI: lobby, HUD, the map and tasks screen on M (#253), end screen, the Esc menu with tabs (#169).
-- Audio: each remote speaker's voice on its avatar (M5), M4's placeholder world sounds, the dead's lift music.
+- Audio: each remote speaker's voice on its avatar (M5), world sounds, footsteps and UI clicks (#525), the lift music.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 
 ## Map
@@ -26,10 +26,10 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `OverlayFeed` (the debug overlay's numbers, #254), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words and its failure state on the connecting screen, #494; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
   in code (`MainMenu`: the items, the code, Direct and Settings panels and the name row, #493, §4.7.38; `ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD (M4-8), the map and tasks screen `MapScreen` with its pure `MapData` (#253, §4.7.33; its Toy look and focus #490, §4.7.41), the how-to cards (their data `content/howto/` of the content API's `HowtoCard` and `HowtoFrame` in `core/content/howto/`, `HowtoCardView`, `HowtoCards`, the Esc menu's `GuidePanel`, `app/HowtoProgress`, `app/GameHowto` (Game's wiring of them); #254, §4.7.36), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29), the Toy round HUD (`Hud`, `HudSlot`, the pure `HudText`, the pack's icons `ToyIcons`; #489, §4.7.37), the Toy pregame role reveal (`PregameScreen`; #496, §4.7.39). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
-  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds). `life/` (M4-9): `LifeView` (the cameras,
+  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds: `WorldSounds`, `FootstepCadence`, `FootstepSurface`, #525). `life/` (M4-9): `LifeView` (the cameras,
   inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud`.
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
-  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `dev/`: dev rooms, previews.
+  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `audio/SfxSet`, `ui/UiSounds` (#525). `dev/`: dev rooms, previews.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -52,7 +52,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera);
-  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls.
+  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525).
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.

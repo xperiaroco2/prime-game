@@ -279,8 +279,17 @@ class OggTest(Fixtures):
         self.assertEqual(sound.numbers, {"format": "Ogg Vorbis", "channels": 1, "sample_rate": 44100, "duration_s": 0.3})
         self.assertTrue(any("header-checked only" in note for note in sound.notes))
 
+    def test_a_stereo_vorbis_file_passes_and_a_stereo_wav_does_not(self) -> None:
+        # #525: Kenney's packs ship stereo Ogg only; a WAV stays mono (test_a_stereo_file_fails_mono).
+        sound = self.check(self.write("step_stereo.ogg", vorbis(channels=2)))
+        self.assertEqual(sound.failures, [])
+        self.assertEqual(sound.status, "header-checked")
+        self.assertEqual(sound.numbers["channels"], 2)
+        wav = self.check(write_wav(self.dir / "step_stereo.wav", channels=2))
+        self.assertEqual(self.rules(wav), ["mono"])
+
     def test_its_header_and_length_fail_like_a_wav(self) -> None:
-        sound = self.check(self.write("step_bad.ogg", vorbis(channels=2, rate=32000, seconds=2.0)))
+        sound = self.check(self.write("step_bad.ogg", vorbis(channels=3, rate=32000, seconds=2.0)))
         self.assertEqual(self.rules(sound), ["mono", "sample-rate", "duration"])
 
     def test_opus_and_garbage_fail_format(self) -> None:

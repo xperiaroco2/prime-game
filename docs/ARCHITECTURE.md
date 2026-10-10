@@ -2216,9 +2216,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
-  sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds are 0.15 s blips generated in
-  code (no asset), until the engineer's CC0 files arrive with their `docs/credits/` entries (#144; M6.2's #525,
-  each file passing `sfx-check` first, AGENT_WORKFLOW §11.25).
+  sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
+  code until #525 (§4.7.40) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
+  and added footsteps.
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
 - `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.37); `TaskScreen` (its rows pure: each `TaskState` by task
@@ -2390,8 +2390,8 @@ follows the M5 ADR's checklist (its §3; §6 below).
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
 #### 4.7.16 Built in M5-7 (#221), occlusion's muffle
-(the CC0 files had not arrived: they, their credits and CI's LFS step are
-a follow-up on #144 and #145):
+(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.40;
+CI's LFS step with #515):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
   out, so a ray flickering at an edge does not flip it), and jumps to the ray's answer at a speaker's first audible
@@ -3476,6 +3476,54 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
   the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
   The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
+#### 4.7.40 Built in #525 (M6.2), basic sound from Kenney's CC0 packs
+No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
+nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
+- **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
+  each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
+  (`click_1..3`), Ogg Vorbis through LFS, one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
+  the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
+  file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
+- `client/audio/`: `SfxSet` gives each sound id one `AudioStreamRandomizer` of its files (no repeats, pitch ×1/1.06
+  to ×1.06, ±1.5 dB: placeholders), loaded at its first play; a file that does not load is left out and an id with
+  none plays nothing. `AudioBuses.UI` sends to Master at −6 dB (no slider of its own, Master's applies; §6.5.5).
+- `client/world/`: `WorldSounds` plays `Swung`, `ItemPickedUp` and `ItemPlaced` with their `SfxSet` streams, as
+  before (the 12 m range, the one muffle ray), and footsteps each physics frame:
+  - **Who:** the local player while living and on the floor, from its own movement; every other player the client
+    draws while the model knows it living (not downed, dead or gone) and its snapshot not downed, from how far its
+    interpolated pose (`AvatarViews`' body) moved. Never a claimed velocity (client/CLAUDE.md): a peer that claims
+    to stand while it runs still steps, one that claims to run while it stands is silent.
+  - **When:** `FootstepCadence` (pure): the step interval from the horizontal speed, 0.45 s at the mode's walk
+    speed and 0.32 s at its sprint speed, the stride interpolated between them and held outside (placeholders);
+    none below 0.5 m/s, and a still frame keeps the place in the step; a move faster than
+    `SnapshotBuffer.SNAP_SPEED_MPS` in a frame (a respawn, a round start, a correction) plays none and starts the
+    cadence again.
+  - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
+    player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
+    none (never muffled).
+  - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
+    hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
+    untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
+    Tagging the house's floors is #523's (the content area).
+- `client/ui/`: `UiSounds.click`, from `ToyPress.on_button_down` (every Toy button and toggle: `UiParts.button`,
+  `UiParts.toggle`, the connecting screen's back ghost, the map's help, the theme showcase): a mouse or touch
+  press or `ui_accept`, never hover, release or a toggle's change alone; a disabled button sends no
+  `button_down`. One `AudioStreamPlayer` (polyphony 4) under the window's root on the UI bus, made at the first
+  click and kept, so a press that frees its screen does not cut its click; a button outside the tree clicks
+  nothing.
+- Tests: `tests/unit/client/world/footstep_cadence_test.gd` (the interval at walk and sprint speed, between and
+  below; one step per interval; none standing; a still frame; a placement; only horizontal movement),
+  `footstep_surface_test.gd` (the tag, the nearest ancestor's, the default), `sound_chooser_test.gd` (the step's
+  12 m cut-off and aim; each former stub event plays its own files, replacing the blips' length test),
+  `tests/unit/client/audio/sfx_set_test.gd` (every file exists and loads, one randomizer per id, five footsteps a
+  surface, none for an id with no file), `audio_buses_test.gd` (the UI bus), `tests/unit/client/ui/toy_press_test.gd`
+  (a press clicks on the UI bus, hover, release and toggle do not, the click outlives its button, none outside the
+  tree), `tests/integration/client/world/world_sounds_steps_test.gd` (a walker steps from its poses with a zero
+  claimed velocity, a claimed run standing still is silent, none and no ray beyond 12 m, muffled behind a wall,
+  none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
+  downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
+  engineer's, in a two-client `host`/`join` session (the PR).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -3954,8 +4002,9 @@ docs; the game always has one). `WorldSounds` measures its 12 m from the ears to
 concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
 
 #### 6.5.5 Buses and the mix (E43, D15)
-`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
-Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
+`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
+buttons' click at −6 dB with no slider of its own, §4.7.40),
+in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
 Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
@@ -5503,6 +5552,10 @@ assets/
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/comfortaa/comfortaa.ttf` (#520).
+- The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
+  `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
+  file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
+  listening page, in `audio/sfx-verdicts.json`.
 - Not here: the pinned UI pack (`client/ui/theme/pack/`, `ui-sync`, #288, text Godot does not import), addons with
   their own files (`addons/`), and test fixtures (`tests/fixtures/`).
 

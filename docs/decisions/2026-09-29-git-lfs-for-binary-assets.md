@@ -84,3 +84,11 @@ bandwidth on `verify`.
 TTF and OTF fonts now have a stand-in too (`lfs.STAND_INS`: a minimal TrueType font), so in CI they no longer go
 aside with their `.import` file as the decision above says: the generated theme refers to the font, and without a
 stand-in a pointer-file TTF broke every user of the theme. `test_lfs.py`'s `RealPointerTest` imports it.
+
+## Amendment 2026-10-10: Ogg audio gets a stand-in (#525)
+Ogg Vorbis now has a stand-in too (`lfs.STAND_INS[".ogg"]`): Python has no Vorbis encoder and Godot's importer reads
+all three Vorbis headers, so it is a real file, Kenney Interface Sounds' `click_002.ogg` (CC0, 4275 bytes, mono
+44.1 kHz, 10 ms), its provenance and SHA-256 in `lfs.py`. The game's sound effects (#525) load their Ogg files, so
+without it CI loaded no sound and every test of them saw none. Where the decision and the amendment of 2026-10-07
+list Ogg (or a font, #520) among the types that go aside with their `.import` file, read MP3 alone.
+`test_lfs.py`'s `RealPointerTest` imports it, and its format test reads its Vorbis header as sfx-check does.

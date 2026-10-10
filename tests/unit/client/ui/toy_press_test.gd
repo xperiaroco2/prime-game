@@ -2,13 +2,16 @@ extends GdUnitTestSuite
 ## ToyPress and ToyRaised (#289; prime-game-ui spec §6). The tests call the handlers directly (a
 ## headless run has no pointer) and assert the target offsets from the theme, the base's
 ## visibility, the tween started only on a changed target, reduced motion, the raised toggle that
-## stays on, and that a container's sort and a theme swap leave the visual offset alone.
+## stays on, that a container's sort and a theme swap leave the visual offset alone, and the
+## click of a press (UiSounds, #525): on the UI bus, none on hover, release or toggle, kept past
+## its button.
 
 var _stage: Control
 
 
 func before_test() -> void:
 	UiPrefs.reduced_motion = true
+	_free_clicker()
 	_stage = auto_free(Control.new())
 	_stage.theme = GameUi.THEME
 	add_child(_stage)
@@ -16,6 +19,14 @@ func before_test() -> void:
 
 func after_test() -> void:
 	UiPrefs.reset()
+	_free_clicker()
+
+
+## A click player left by any earlier suite in this process: every test starts and ends without one.
+func _free_clicker() -> void:
+	var clicker := UiSounds.player_in(get_tree())
+	if clicker != null:
+		clicker.free()
 
 
 func test_the_targets_follow_hover_held_and_disabled() -> void:
@@ -129,6 +140,53 @@ func test_a_sort_and_a_theme_swap_leave_the_offset_alone() -> void:
 	assert_float(face.offset_transform_position.y).is_equal(4.0)
 	# The base stays where the layout put it: only the face moves.
 	assert_that(raised.base.get_rect()).is_equal(raised.face.get_rect())
+
+
+func test_a_press_clicks_on_the_ui_bus_and_hover_release_and_toggle_do_not() -> void:
+	# #525: the click is the press's, from a raised button and a flat toggle alike.
+	AudioBuses.ensure()
+	var raised := _raised(&"ToyButtonSecondary")
+	var press := _press(raised)
+	var before := UiSounds.clicks
+	press.on_mouse_entered()
+	press.on_mouse_exited()
+	assert_int(UiSounds.clicks).is_equal(before)
+	assert_object(UiSounds.player_in(get_tree())).is_null()
+	press.on_button_down()
+	assert_int(UiSounds.clicks).is_equal(before + 1)
+	var clicker := UiSounds.player_in(get_tree())
+	assert_object(clicker).is_not_null()
+	assert_str(String(clicker.bus)).is_equal(String(AudioBuses.UI))
+	var stream := clicker.stream as AudioStreamRandomizer
+	assert_int(stream.streams_count).is_equal(SfxSet.paths_for(SfxSet.UI_CLICK).size())
+	assert_bool(clicker.playing).is_true()
+	press.on_button_up()
+	press.on_toggled(true)
+	assert_int(UiSounds.clicks).is_equal(before + 1)
+	var chip := UiParts.toggle("Chip")
+	_stage.add_child(chip)
+	(chip.get_node(^"ToyPress") as ToyPress).on_button_down()
+	assert_int(UiSounds.clicks).is_equal(before + 2)
+	# One player for every click: the second press made none.
+	assert_object(UiSounds.player_in(get_tree())).is_same(clicker)
+
+
+func test_the_click_outlives_its_button() -> void:
+	# A press that frees its screen (Back, Leave) frees the button, not the click.
+	var raised := _raised(&"ToyButtonSecondary")
+	_press(raised).on_button_down()
+	raised.free()
+	var clicker := UiSounds.player_in(get_tree())
+	assert_object(clicker).is_not_null()
+	assert_bool(clicker.playing).is_true()
+
+
+func test_a_button_outside_the_tree_clicks_nothing() -> void:
+	var raised: ToyRaised = auto_free(UiParts.button("Go"))
+	var before := UiSounds.clicks
+	_press(raised).on_button_down()
+	assert_int(UiSounds.clicks).is_equal(before)
+	assert_object(UiSounds.player_in(get_tree())).is_null()
 
 
 func _raised(variation: StringName) -> ToyRaised:

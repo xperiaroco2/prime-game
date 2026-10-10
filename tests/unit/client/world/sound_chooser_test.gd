@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The sound chooser (client/world/sound_chooser.gd; ARCHITECTURE §4.7, a hearing range; the M4
 ## ADR's §3 item 10, E33 (a)): Swung, ItemPickedUp and ItemPlaced play at their places only within
 ## the hearing range of the listener's camera, and nothing at all for an event from farther away;
-## every other event is silent. And WorldSounds sets each player's max_distance to the same range.
+## every other event is silent; a footstep (#525) is cut at the same range. WorldSounds sets each
+## player's max_distance to the same range and plays each event's own files (SfxSet).
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 
@@ -87,11 +88,58 @@ func test_world_sounds_plays_with_the_range_as_max_distance() -> void:
 	assert_int(sounds.played()).is_equal(1)
 
 
-func test_the_placeholder_blips_are_short_sound() -> void:
-	for id: StringName in [SoundChooser.SWING, SoundChooser.PICK_UP, SoundChooser.PUT_DOWN]:
-		var blip := WorldSounds.blip(id)
-		assert_float(blip.get_length()).is_between(0.05, 0.5)
-		assert_int(blip.data.size()).is_greater(1000)
+func test_a_footstep_plays_at_the_feet_within_the_range_only() -> void:
+	# #525: the same 12 m cut-off as every world sound, before any ray.
+	var sound := SoundChooser.step(Vector3(RANGE, 0, 0), Vector3.ZERO)
+	assert_object(sound).is_not_null()
+	assert_str(String(sound.id)).is_equal(String(SoundChooser.FOOTSTEP))
+	assert_that(sound.position).is_equal(Vector3(RANGE, 0, 0))
+	# The muffle ray aims a hand above the floor, not into it.
+	assert_that(sound.aim).is_equal(Vector3(RANGE, SoundChooser.STEP_AIM_M, 0))
+	assert_float(SoundChooser.STEP_AIM_M).is_greater(0.0)
+	assert_object(SoundChooser.step(Vector3(RANGE + 0.01, 0, 0), Vector3.ZERO)).is_null()
+	assert_object(SoundChooser.step(Vector3(0, 0, 0), Vector3(0, 0, 30))).is_null()
+
+
+func test_each_former_stub_event_plays_its_own_files() -> void:
+	# #525 replaced the generated blips (this test replaces the blips' length test): Swung,
+	# ItemPickedUp and ItemPlaced each play their SfxSet randomizer of Kenney files.
+	var sounds: WorldSounds = auto_free(WorldSounds.new())
+	add_child(sounds)
+	sounds.model = _model
+	sounds.listener = func() -> Variant: return Vector3.ZERO
+	var swung := {"peer": 2, "facing": Vector3.FORWARD}
+	var picked := {"peer": 2, "item": 5}
+	var placed := {"item": 5, "position": Vector3(0, 0, 2), "cause": &"put_down"}
+	var events: Array[Array] = [
+		[&"Swung", swung, SoundChooser.SWING, "swing_"],
+		[&"ItemPickedUp", picked, SoundChooser.PICK_UP, "pick_up_"],
+		[&"ItemPlaced", placed, SoundChooser.PUT_DOWN, "put_down_"],
+	]
+	for each: Array in events:
+		var id := each[2] as StringName
+		var sound := _choose(each[0] as StringName, each[1] as Dictionary, Vector3.ZERO)
+		assert_str(String(sound.id)).is_equal(String(id))
+		var paths := SfxSet.paths_for(id)
+		assert_int(paths.size()).is_greater(1)
+		for path: String in paths:
+			assert_str(path).starts_with(SfxSet.RPG + (each[3] as String))
+			assert_bool(ResourceLoader.exists(path)).is_true()
+		var stream := sounds.sfx.stream_for(id)
+		assert_int(stream.streams_count).is_equal(paths.size())
+		assert_float(stream.random_pitch).is_greater(1.0)
+		assert_float(stream.random_volume_offset_db).is_greater(0.0)
+	# What WorldSounds starts is that stream (a swing needs a drawn swinger: world_sounds_test).
+	sounds.on_event(&"ItemPickedUp", picked)
+	sounds.on_event(&"ItemPlaced", placed)
+	assert_int(sounds.played()).is_equal(2)
+	var started := sounds.find_children("*", "AudioStreamPlayer3D", false, false)
+	assert_object((started[0] as AudioStreamPlayer3D).stream).is_same(
+		sounds.sfx.stream_for(SoundChooser.PICK_UP)
+	)
+	assert_object((started[1] as AudioStreamPlayer3D).stream).is_same(
+		sounds.sfx.stream_for(SoundChooser.PUT_DOWN)
+	)
 
 
 func _choose(event_name: StringName, fields: Dictionary, listener: Vector3) -> SoundChooser.Sound:

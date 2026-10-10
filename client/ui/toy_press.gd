@@ -14,6 +14,7 @@ extends Node
 ##
 ## A toggle that stays on (the Esc menu's Ready, a selected preset card) rests at `press_held`,
 ## sunk onto its base with its pressed look (#289's decision; the flat tabs and chips hold 0).
+## A press (`button_down`) also plays the UI's click (UiSounds, #525); hover plays nothing.
 ## The handlers are public so the tests call them (a headless run has no pointer).
 
 ## The button that moves.
@@ -90,6 +91,7 @@ func refresh() -> void:
 func on_button_down() -> void:
 	_held = true
 	refresh()
+	UiSounds.click(face)
 
 
 func on_button_up() -> void:
