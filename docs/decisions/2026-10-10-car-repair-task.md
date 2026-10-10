@@ -210,7 +210,7 @@ What already holds (ARCHITECTURE §9, §5, §7.1), checked live on main:
 | Who is under the car | nobody, through a screen; by sight, where the level allows it | the snapshots (every avatar, §5); the panel's use spot has no line of sight into the space under the car (R5, R8) |
 | Who fits | every client receives it (to draw the crouched fitter at work); shown on the avatar in the world only, and no sound plays while a fit runs (RD14 (a)), so the holder does not hear it through the wall | `FitChanged(station, fitter, tick)`; the crouch itself from #727's movement state |
 | Who died under the car | everyone | `Died(peer, position)` per victim, as every death; no cause, no killer |
-| Parts fitted out of needed | everyone, on the task screen too | `TaskState` and `TaskProgress` (generic) |
+| Parts fitted out of needed | everyone, on the task screen too: the Car repair row, struck through once done, with no shared total of all tasks (#738) | `TaskState` and `TaskProgress` (generic) |
 
 "No view of who is under the car" and "nobody is told who let go" hold for every honest client. A modified client
 could show every avatar's position and so who is under the car, as it can show a hidden package today, and
