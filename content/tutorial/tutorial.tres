@@ -1,0 +1,230 @@
+[gd_resource type="Resource" script_class="TutorialLessons" format=3 uid="uid://c6nbnubcueinf"]
+
+[ext_resource type="Script" uid="uid://ook6wwo8tokd" path="res://core/content/tutorial/tutorial_lessons.gd" id="1_lessons"]
+[ext_resource type="Script" uid="uid://knr8y6k0yycd" path="res://core/content/tutorial/tutorial_lesson.gd" id="2_lesson"]
+[ext_resource type="Script" uid="uid://cclfme3plyn3g" path="res://core/content/tutorial/tutorial_step.gd" id="3_step"]
+[ext_resource type="Script" uid="uid://cjmm41ngr3ndi" path="res://core/content/tutorial/tutorial_trigger.gd" id="4_trigger"]
+[ext_resource type="Script" uid="uid://cmaycrqrtl658" path="res://core/content/tutorial/tutorial_condition.gd" id="5_condition"]
+[ext_resource type="Script" uid="uid://bfk7d2wqka4hx" path="res://core/content/tutorial/tutorial_action.gd" id="6_action"]
+[ext_resource type="Script" uid="uid://btowmrnkhd8wg" path="res://core/content/tutorial/event_seen.gd" id="7_event_seen"]
+[ext_resource type="Script" uid="uid://dujitjr5ca4hk" path="res://core/content/tutorial/client_seen.gd" id="8_client_seen"]
+[ext_resource type="Script" uid="uid://byqkvycd5044y" path="res://core/content/tutorial/own_life.gd" id="9_own_life"]
+[ext_resource type="Script" uid="uid://b1knp26j85ltw" path="res://core/content/tutorial/other_within.gd" id="10_other_within"]
+[ext_resource type="Script" uid="uid://cjnl13uy2naxw" path="res://core/content/tutorial/item_kind_is.gd" id="11_item_kind_is"]
+[ext_resource type="Script" uid="uid://dys0egc83oj0s" path="res://core/content/tutorial/tasks_done.gd" id="12_tasks_done"]
+[ext_resource type="Script" uid="uid://dqdbxfuhry7gv" path="res://core/content/tutorial/request_stage.gd" id="13_request_stage"]
+
+[sub_resource type="Resource" id="Seen_moved"]
+script = ExtResource("8_client_seen")
+signal_name = &"moved"
+amount = 1.0
+
+[sub_resource type="Resource" id="Step_move"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.move.title"
+keys = Array[StringName]([&"move_forward", &"move_left", &"move_back", &"move_right", &"sprint", &"jump"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_moved")])
+
+[sub_resource type="Resource" id="Lesson_move"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.move"
+steps = Array[ExtResource("3_step")]([SubResource("Step_move")])
+
+[sub_resource type="Resource" id="Kind_package"]
+script = ExtResource("11_item_kind_is")
+kind = &"package"
+
+[sub_resource type="Resource" id="Event_picked_up"]
+script = ExtResource("7_event_seen")
+event = &"ItemPickedUp"
+fields = {
+"peer": &"own"
+}
+
+[sub_resource type="Resource" id="Step_pick_up"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.pick_up.title"
+how_key = &"tutorial.step.pick_up.how"
+keys = Array[StringName]([&"interact"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_picked_up")])
+conditions = Array[ExtResource("5_condition")]([SubResource("Kind_package")])
+
+[sub_resource type="Resource" id="Event_put_down"]
+script = ExtResource("7_event_seen")
+event = &"ItemPlaced"
+fields = {
+"cause": &"put_down",
+"item": &"held"
+}
+
+[sub_resource type="Resource" id="Step_put_down"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.put_down.title"
+how_key = &"tutorial.step.press"
+keys = Array[StringName]([&"put_down"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_put_down")])
+
+[sub_resource type="Resource" id="Lesson_pick_up"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.pick_up"
+steps = Array[ExtResource("3_step")]([SubResource("Step_pick_up"), SubResource("Step_put_down")])
+
+[sub_resource type="Resource" id="Event_swapped"]
+script = ExtResource("7_event_seen")
+event = &"Swapped"
+fields = {
+"peer": &"own"
+}
+
+[sub_resource type="Resource" id="Step_hand_belt"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.hand_belt.title"
+how_key = &"tutorial.step.press"
+keys = Array[StringName]([&"swap"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_swapped")])
+
+[sub_resource type="Resource" id="Lesson_hand_belt"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.hand_belt"
+steps = Array[ExtResource("3_step")]([SubResource("Step_hand_belt")])
+
+[sub_resource type="Resource" id="Tasks_done"]
+script = ExtResource("12_tasks_done")
+
+[sub_resource type="Resource" id="Event_delivered"]
+script = ExtResource("7_event_seen")
+event = &"PackageDelivered"
+
+[sub_resource type="Resource" id="Step_deliver"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.deliver.title"
+how_key = &"tutorial.step.deliver.how"
+done_when = Array[ExtResource("5_condition")]([SubResource("Tasks_done")])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_delivered")])
+
+[sub_resource type="Resource" id="Lesson_deliver"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.deliver"
+steps = Array[ExtResource("3_step")]([SubResource("Step_deliver")])
+
+[sub_resource type="Resource" id="Seen_map"]
+script = ExtResource("8_client_seen")
+signal_name = &"map_opened"
+
+[sub_resource type="Resource" id="Step_map"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.map.title"
+how_key = &"tutorial.step.press"
+keys = Array[StringName]([&"map"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_map")])
+
+[sub_resource type="Resource" id="Seen_howto"]
+script = ExtResource("8_client_seen")
+signal_name = &"howto_opened"
+
+[sub_resource type="Resource" id="Step_howto"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.howto.title"
+how_key = &"tutorial.step.howto.how"
+keys = Array[StringName]([&"howto_glyph"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_howto")])
+
+[sub_resource type="Resource" id="Lesson_map"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.map"
+list_action = &"map"
+steps = Array[ExtResource("3_step")]([SubResource("Step_map"), SubResource("Step_howto")])
+
+[sub_resource type="Resource" id="Stage_raise"]
+script = ExtResource("13_request_stage")
+
+[sub_resource type="Resource" id="Event_revived"]
+script = ExtResource("7_event_seen")
+event = &"Revived"
+fields = {
+"peer": &"other"
+}
+
+[sub_resource type="Resource" id="Step_downed"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.downed.title"
+how_key = &"tutorial.step.downed.how"
+keys = Array[StringName]([&"interact"])
+on_start = Array[ExtResource("6_action")]([SubResource("Stage_raise")])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Event_revived")])
+
+[sub_resource type="Resource" id="Lesson_downed"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.downed"
+steps = Array[ExtResource("3_step")]([SubResource("Step_downed")])
+
+[sub_resource type="Resource" id="Stage_death"]
+script = ExtResource("13_request_stage")
+
+[sub_resource type="Resource" id="Seen_switched"]
+script = ExtResource("8_client_seen")
+signal_name = &"spectate_switched"
+
+[sub_resource type="Resource" id="Event_respawned"]
+script = ExtResource("7_event_seen")
+event = &"Respawned"
+fields = {
+"peer": &"own"
+}
+
+[sub_resource type="Resource" id="Step_death"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.death.title"
+how_key = &"tutorial.step.death.how"
+keys = Array[StringName]([&"spectate_next"])
+on_start = Array[ExtResource("6_action")]([SubResource("Stage_death")])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_switched"), SubResource("Event_respawned")])
+
+[sub_resource type="Resource" id="Lesson_death"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.death"
+steps = Array[ExtResource("3_step")]([SubResource("Step_death")])
+
+[sub_resource type="Resource" id="Within_radius"]
+script = ExtResource("10_other_within")
+
+[sub_resource type="Resource" id="Living"]
+script = ExtResource("9_own_life")
+
+[sub_resource type="Resource" id="Seen_voice"]
+script = ExtResource("8_client_seen")
+signal_name = &"voice_sent"
+amount = 3.0
+
+[sub_resource type="Resource" id="Step_voice"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.voice.title"
+how_key = &"tutorial.step.voice.how"
+starts_when = Array[ExtResource("5_condition")]([SubResource("Living")])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_voice")])
+conditions = Array[ExtResource("5_condition")]([SubResource("Within_radius")])
+
+[sub_resource type="Resource" id="Lesson_voice"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.voice"
+steps = Array[ExtResource("3_step")]([SubResource("Step_voice")])
+
+[sub_resource type="Resource" id="Seen_esc"]
+script = ExtResource("8_client_seen")
+signal_name = &"esc_opened"
+
+[sub_resource type="Resource" id="Step_menu"]
+script = ExtResource("3_step")
+title_key = &"tutorial.step.menu.title"
+how_key = &"tutorial.step.press"
+keys = Array[StringName]([&"ui_cancel"])
+triggers = Array[ExtResource("4_trigger")]([SubResource("Seen_esc")])
+
+[sub_resource type="Resource" id="Lesson_menu"]
+script = ExtResource("2_lesson")
+list_key = &"tutorial.list.menu"
+steps = Array[ExtResource("3_step")]([SubResource("Step_menu")])
+
+[resource]
+script = ExtResource("1_lessons")
+lessons = Array[ExtResource("2_lesson")]([SubResource("Lesson_move"), SubResource("Lesson_pick_up"), SubResource("Lesson_hand_belt"), SubResource("Lesson_deliver"), SubResource("Lesson_map"), SubResource("Lesson_downed"), SubResource("Lesson_death"), SubResource("Lesson_voice"), SubResource("Lesson_menu")])
