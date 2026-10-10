@@ -145,12 +145,12 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 
 | Chain | Point | Level | x, y | Room |
 |---|---|---|---|---|
-| Delivery | Wine rack (source) | -1 | 16, 26 | Storage |
-| Delivery | Boxes (source) | -1 | 21, 29 | Storage |
+| Delivery | Wine rack (a source: any Delivery item starts on any storage spot, decided in #683) | -1 | 16, 26 | Storage |
+| Delivery | Boxes (a source, as the wine rack) | -1 | 21, 29 | Storage |
 | Delivery | Dining table (drop-off, the wine) | 0 | 36, 27 | Dining room |
-| Delivery | Terrace table (drop-off) | 0 | 29, 20 | Terrace |
-| Delivery | Garden drop-off | 0 | 62, 24 | Garden |
-| Delivery | Workbench (drop-off) | 0 | 70, 37 | Garage |
+| Delivery | Terrace table (drop-off, the parasol: a draft for the engineer, #683) | 0 | 29, 20 | Terrace |
+| Delivery | Garden drop-off (the garden gnome: a draft for the engineer, #683) | 0 | 62, 24 | Garden |
+| Delivery | Workbench (drop-off, the motor oil) | 0 | 70, 37 | Garage |
 | Generator | Generator | -1 | 49, 32 | Generator hall |
 | Generator | Switch A | -1 | 16, 32 | Storage |
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
