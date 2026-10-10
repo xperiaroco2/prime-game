@@ -36,11 +36,19 @@ func test_a_row_per_action_with_the_bound_keys_and_no_clash_by_default() -> void
 	assert_str(_panel.key_buttons[&"jump"].text).is_equal("Space")
 	assert_str(_panel.key_buttons[&"spectate_previous"].text).is_equal("RMB")
 	for action: StringName in Controls.ACTIONS:
-		assert_bool(_panel.clash_labels[action].visible).override_failure_message(action).is_false()
+		assert_bool(_panel.clash_chips[action].visible).override_failure_message(action).is_false()
 	assert_str(_panel.reset_button.text).is_equal("Reset to defaults")
-	# Reset is a Toy button (#289): the face of a ToyRaised, the panel's child.
-	assert_object(_panel.reset_button.get_parent()).is_instanceof(ToyRaised)
-	assert_object(_panel.reset_button.get_parent().get_parent()).is_same(_panel)
+	# The Toy rows (#491, s05 settings-controls): the flat ghost Reset after ResetGap, and each row
+	# a ToySettingRow with its name, the ToyChipAlert and the wide ToyKeyButton.
+	assert_str(String(_panel.reset_button.theme_type_variation)).is_equal("ToyButtonGhostOnLight")
+	assert_object(_panel.reset_button.get_parent()).is_same(_panel)
+	var gap := _panel.get_child(_panel.reset_button.get_index() - 1)
+	assert_str(String(gap.name)).is_equal("ResetGap")
+	var row := _panel.get_node(^"Talk") as PanelContainer
+	assert_str(String(row.theme_type_variation)).is_equal("ToySettingRow")
+	assert_object(row.get_node(^"H/Bind")).is_same(_panel.key_buttons[&"voice_talk"])
+	var alert := String(_panel.clash_chips[&"voice_talk"].theme_type_variation)
+	assert_str(alert).is_equal("ToyChipAlert")
 
 
 func test_a_capture_binds_the_next_key_press_applies_and_saves_it() -> void:
@@ -93,11 +101,11 @@ func test_esc_cancels_a_capture_and_binds_nothing() -> void:
 func test_a_key_shared_in_one_phase_is_marked_on_both_rows() -> void:
 	_panel.start_capture(&"map")
 	_panel.capture(_key(KEY_V, true))
-	assert_bool(_panel.clash_labels[&"map"].visible).is_true()
-	assert_bool(_panel.clash_labels[&"voice_talk"].visible).is_true()
+	assert_bool(_panel.clash_chips[&"map"].visible).is_true()
+	assert_bool(_panel.clash_chips[&"voice_talk"].visible).is_true()
 	assert_str(_panel.clash_labels[&"voice_talk"].text).is_equal("Same key")
-	assert_bool(_panel.clash_labels[&"give_up"].visible).is_false()
-	assert_bool(_panel.clash_labels[&"ready"].visible).is_false()
+	assert_bool(_panel.clash_chips[&"give_up"].visible).is_false()
+	assert_bool(_panel.clash_chips[&"ready"].visible).is_false()
 
 
 func test_reset_restores_every_default() -> void:

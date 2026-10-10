@@ -1,14 +1,22 @@
 extends GdUnitTestSuite
-## The Esc menu's Voice tab (client/ui/voice_panel.gd; the M5 ADR §1.7, D11, D15): what it shows of
-## VoiceControl's facts, the words it must say (unavailable without the addon, loudspeakers echo,
+## Settings › Sound and voice (client/ui/voice_panel.gd; the M5 ADR §1.7, D11, D15): what it shows
+## of VoiceControl's facts, the words it must say (unavailable without the addon, loudspeakers echo,
 ## the headset and #22 advice), its bounds (the threshold slider never reaches 0), and the signals
-## a change sends. How it looks: `shot client/dev/esc_voice_preview.tscn`.
+## a change sends. How it looks: `shot client/dev/esc_settings_sound_preview.tscn`.
 
 var _got: Array = []
+var _locale := ""
 
 
 func before_test() -> void:
 	_got.clear()
+	# The words below are the English deck's, whatever the machine speaks.
+	_locale = TranslationServer.get_locale()
+	TranslationServer.set_locale(Languages.ENGLISH)
+
+
+func after_test() -> void:
+	TranslationServer.set_locale(_locale)
 
 
 func test_it_shows_the_microphones_the_mode_and_the_volumes() -> void:
@@ -22,13 +30,13 @@ func test_it_shows_the_microphones_the_mode_and_the_volumes() -> void:
 	shown.volumes[AudioBuses.MUSIC] = -20.0
 	panel.show_facts(shown)
 	assert_bool(panel.unavailable_label.visible).is_false()
-	assert_bool(panel.microphone_box.visible).is_true()
+	assert_bool(panel.mic_row.visible).is_true()
 	# The Windows default first by that name, then each device; no Off entry (Off is a mode).
 	var names := PackedStringArray()
 	for i: int in panel.device_button.item_count:
 		names.append(panel.device_button.get_item_text(i))
 	assert_array(Array(names)).contains_exactly(
-		["Windows default", "Headset Microphone", "Microphone Array"]
+		["Default", "Headset Microphone", "Microphone Array"]
 	)
 	assert_str(panel.device_button.get_item_text(panel.device_button.selected)).is_equal(
 		"Headset Microphone"
@@ -36,7 +44,7 @@ func test_it_shows_the_microphones_the_mode_and_the_volumes() -> void:
 	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
 	assert_float(panel.threshold_slider.value).is_equal_approx(0.3, 0.001)
 	assert_float(panel.meter.value).is_equal_approx(0.2, 0.001)
-	assert_bool(panel.denoise_check.button_pressed).is_false()
+	assert_bool(panel.denoise_on()).is_false()
 	assert_float(panel.volume_sliders[AudioBuses.MUSIC].value).is_equal(-20.0)
 	assert_float(panel.volume_sliders[AudioBuses.EFFECTS].value).is_equal(-6.0)
 	# Before any pick the Windows default shows as picked.
@@ -45,13 +53,28 @@ func test_it_shows_the_microphones_the_mode_and_the_volumes() -> void:
 	assert_int(panel.device_button.selected).is_equal(0)
 
 
-func test_the_modes_name_voice_activity_the_default_and_the_talk_key() -> void:
+func test_the_modes_name_voice_activity_first_in_the_decks_words() -> void:
+	# #491: the deck's words (settings.talk_mode.*, common.off), translated from code; the Talk
+	# key shows on Settings > Controls.
 	var panel: VoicePanel = auto_free(VoicePanel.new())
 	assert_int(panel.mode_button.item_count).is_equal(3)
-	assert_str(panel.mode_button.get_item_text(0)).contains("default")
-	assert_str(panel.mode_button.get_item_text(1)).contains("V")
-	assert_str(panel.mode_button.get_item_text(2)).starts_with("Off")
+	assert_str(panel.mode_button.get_item_text(0)).is_equal("Voice activation")
+	assert_str(panel.mode_button.get_item_text(1)).is_equal("Push to talk")
+	assert_str(panel.mode_button.get_item_text(2)).is_equal("Off")
+	assert_int(panel.mode_button.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	assert_str(VoicePanel.talk_key()).is_equal("V")
+
+
+func test_the_threshold_row_shows_for_voice_activation_only() -> void:
+	var panel: VoicePanel = auto_free(VoicePanel.new())
+	var shown := _shown()
+	panel.show_facts(shown)
+	assert_bool(panel.threshold_row.visible).is_true()
+	shown.mode = UserSettings.Mode.PUSH_TO_TALK
+	panel.show_facts(shown)
+	assert_bool(panel.threshold_row.visible).is_false()
+	panel.mode_button.item_selected.emit(0)
+	assert_bool(panel.threshold_row.visible).is_true()
 
 
 func test_it_says_voice_is_unavailable_without_the_addon() -> void:
@@ -62,7 +85,7 @@ func test_it_says_voice_is_unavailable_without_the_addon() -> void:
 	panel.show_facts(shown)
 	assert_bool(panel.unavailable_label.visible).is_true()
 	assert_str(panel.unavailable_label.text).contains("unavailable")
-	assert_bool(panel.microphone_box.visible).is_false()
+	assert_bool(panel.mic_row.visible).is_false()
 	assert_bool(panel.debug_box.visible).is_false()
 	# The volumes still apply.
 	assert_bool(panel.volume_sliders[AudioBuses.MASTER].is_visible_in_tree()).is_false()
@@ -107,8 +130,8 @@ func test_the_debug_tools_show_only_in_a_debug_build() -> void:
 	shown.tone = true
 	panel.show_facts(shown)
 	assert_bool(panel.debug_box.visible).is_true()
-	assert_bool(panel.tone_check.button_pressed).is_true()
-	assert_bool(panel.mute_check.button_pressed).is_false()
+	assert_bool(panel.tone_chip.button_pressed).is_true()
+	assert_bool(panel.mute_chip.button_pressed).is_false()
 
 
 ## Picking the microphone the list already shows is a pick: the Windows default before any pick
@@ -147,10 +170,10 @@ func test_each_change_sends_its_signal_and_showing_sends_none() -> void:
 	panel.device_button.item_selected.emit(2)
 	panel.mode_button.item_selected.emit(2)
 	panel.threshold_slider.value = 0.25
-	panel.denoise_check.button_pressed = false
+	(panel.denoise_chips.get_node(^"Off") as Button).pressed.emit()
 	panel.volume_sliders[AudioBuses.VOICE].value = -12.0
-	panel.tone_check.button_pressed = true
-	panel.mute_check.button_pressed = true
+	panel.tone_chip.button_pressed = true
+	panel.mute_chip.button_pressed = true
 	(
 		assert_array(_got)
 		. is_equal(
@@ -167,45 +190,25 @@ func test_each_change_sends_its_signal_and_showing_sends_none() -> void:
 	)
 
 
-## The main menu's Settings panel (#493) is cream: on_light() inks every text and puts each check
-## box's words beside it, the logic as before.
-func test_on_light_inks_the_texts_and_keeps_each_check_box_working() -> void:
+## Both Settings pages are cream (the Esc menu's, the main menu's, #493): every text is ink on light
+## (no greybox variation: Shortfalls' amber on cream is about 1.5:1, #493 review), and the noise
+## chips switch RNNoise as the check box did.
+func test_every_text_is_ink_on_light_and_the_noise_chips_switch_rnnoise() -> void:
 	var panel: VoicePanel = auto_free(VoicePanel.new())
-	panel.on_light()
-	# The microphone notice too: Shortfalls' amber on cream is about 1.5:1 (#493 review).
-	for label: Label in [
-		panel.unavailable_label, panel.notice_label, panel.echo_label, panel.headset_label
-	]:
-		assert_str(String(label.theme_type_variation)).is_equal("ToyTextOnLight")
-	for check: CheckBox in [panel.denoise_check, panel.tone_check, panel.mute_check]:
-		assert_str(check.text).is_empty()
-		var row := check.get_parent() as HBoxContainer
-		assert_str(String(row.theme_type_variation)).is_equal("ToyRowEight")
-		var words := row.get_child(1) as Label
-		assert_str(String(words.theme_type_variation)).is_equal("ToyTextOnLight")
-	var noise := panel.denoise_check.get_parent().get_child(1) as Label
-	assert_str(noise.text).contains("RNNoise")
+	var light := ["ToySettingRowText", "ToyTextMutedOnLight", "ToyTextOnLight"]
+	for found: Node in panel.find_children("*", "Label", true, false):
+		var variation := String((found as Label).theme_type_variation)
+		assert_array(light).override_failure_message(found.name + ": " + variation).contains(
+			[variation]
+		)
+	for chip: Button in [panel.tone_chip, panel.mute_chip]:
+		assert_str(String(chip.theme_type_variation)).starts_with("ToyChipToggleOnLight")
 	panel.denoise_toggled.connect(func(on: bool) -> void: _got.append(["denoise", on]))
 	panel.show_facts(_shown())
-	panel.denoise_check.button_pressed = false
-	assert_array(_got).contains_exactly([["denoise", false]])
-	# A click on the words toggles the box, as on the Esc menu's check box with text; a right
-	# click or a release does not.
-	var right := InputEventMouseButton.new()
-	right.button_index = MOUSE_BUTTON_RIGHT
-	right.pressed = true
-	noise.gui_input.emit(right)
-	var release := InputEventMouseButton.new()
-	release.button_index = MOUSE_BUTTON_LEFT
-	noise.gui_input.emit(release)
-	assert_bool(panel.denoise_check.button_pressed).is_false()
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	noise.gui_input.emit(click)
-	assert_bool(panel.denoise_check.button_pressed).is_true()
+	assert_bool(panel.denoise_on()).is_true()
+	(panel.denoise_chips.get_node(^"Off") as Button).pressed.emit()
+	(panel.denoise_chips.get_node(^"On") as Button).pressed.emit()
 	assert_array(_got).contains_exactly([["denoise", false], ["denoise", true]])
-	assert_int(noise.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
 
 
 func _shown() -> VoicePanel.Shown:

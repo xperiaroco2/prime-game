@@ -1,9 +1,10 @@
 class_name ControlsPanel
 extends VBoxContainer
-## Settings › Controls (#211): a row per rebindable action (Controls.ACTIONS) with its name, a
-## button with the bound key's label (KeyLabel) and "Same key" when another action of one of its
-## phases has that key; Reset to defaults below. The Esc menu's Controls tab shows it today; the Toy
-## Esc menu (#491) hosts this panel in its Settings page and gives it the Toy look.
+## Settings › Controls (#211; the Toy look of #491, prime-game-ui handoff s05 `settings-controls`
+## at ui-0.4.0): a 64 px ToySettingRow per rebindable action (Controls.ACTIONS) with its name, the
+## ToyChipAlert "Same key" when another action of one of its phases has that key, and a wide
+## ToyKeyButton with the bound key's label (KeyLabel); ResetGap and Reset to defaults below. A
+## SettingsPage holds it, in the Esc menu and in the main menu's Settings (each its own).
 ##
 ## A click on a key button (or ui_accept on it) starts a capture: the button reads "Press a key…"
 ## and the next key press or mouse button press binds, applied to the InputMap and saved at once
@@ -13,16 +14,33 @@ extends VBoxContainer
 ## click on another key or on Reset cancels and reaches that button; a click on the capturing key
 ## binds the left mouse button. The capture runs in _input and consumes every other event but the
 ## wheel (it scrolls the page and never binds), so neither the menu (Esc), the focus (the arrows,
-## ui_accept) nor the game sees one; it is cancelled when the panel hides. Built in code, styled
-## only through the shared theme (#150).
+## ui_accept) nor the game sees one; it is cancelled when the panel hides. The rows read the
+## controls again whenever the panel shows: the other SettingsPage may have changed them.
 
 ## Emitted after a binding or a reset changed the controls.
 signal changed
 
-## The row name's and the key button's room (layout, on the 1920x1080 base): the longest English
-## name, "Swap hand and belt", fits.
-const NAME_WIDTH := 330.0
-const KEY_WIDTH := 200.0
+## Each action's row name in the handoff.
+const ROW_NAMES: Dictionary[StringName, String] = {
+	&"move_forward": "Forward",
+	&"move_back": "Backward",
+	&"move_left": "Left",
+	&"move_right": "Right",
+	&"sprint": "Sprint",
+	&"jump": "Jump",
+	&"interact": "Interact",
+	&"use": "Use",
+	&"put_down": "PutDown",
+	&"swap": "Swap",
+	&"map": "Map",
+	&"give_up": "GiveUp",
+	&"ready": "ReadyKey",
+	&"voice_talk": "Talk",
+	&"spectate_next": "SpectateNext",
+	&"spectate_previous": "SpectatePrevious",
+}
+## The gap above Reset (the handoff's ResetGap: 4 + 12 + 4 = 20 px), layout.
+const RESET_GAP := Vector2(0, 12)
 
 ## The controls this panel changes; in memory until the game gives it the player's.
 var controls := Controls.new()
@@ -30,37 +48,53 @@ var controls := Controls.new()
 var name_labels: Dictionary[StringName, Label] = {}
 ## The key button of each action.
 var key_buttons: Dictionary[StringName, Button] = {}
-## The "Same key" mark of each action.
+## The "Same key" chip of each action, and its text.
+var clash_chips: Dictionary[StringName, PanelContainer] = {}
 var clash_labels: Dictionary[StringName, Label] = {}
-## Reset to defaults: the face of a Toy button (UiParts.button(), #289).
-var reset_button: Button
+## Reset to defaults (ToyButtonGhostOnLight).
+var reset_button := Button.new()
 ## The action a capture binds; &"" while none runs.
 var capturing: StringName = &""
 
 
 func _init() -> void:
 	name = "Controls"
-	theme_type_variation = &"EscPage"
+	theme_type_variation = &"ToyColumnEight"
 	for action: StringName in Controls.ACTIONS:
 		var key := Button.new()
-		key.name = String(action)
-		key.custom_minimum_size = Vector2(KEY_WIDTH, 0)
+		key.name = "Bind"
+		key.theme_type_variation = &"ToyKeyButton"
+		key.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		key.pressed.connect(start_capture.bind(action))
+		UiParts.sized(key, true)
 		key_buttons[action] = key
-		var clash := UiParts.styled_label("", &"Shortfalls")
+		var chip := PanelContainer.new()
+		chip.name = "Same"
+		chip.theme_type_variation = &"ToyChipAlert"
+		var clash := UiParts.styled_label("", &"ToyChipAlertText")
+		clash.name = "Text"
+		clash.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		chip.add_child(clash)
+		clash_chips[action] = chip
 		clash_labels[action] = clash
-		var row := HBoxContainer.new()
-		var label := Label.new()
-		label.custom_minimum_size = Vector2(NAME_WIDTH, 0)
+		var row := SettingRows.row(str(ROW_NAMES.get(action, action)), "", chip)
+		var label := SettingRows.name_of(row)
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		name_labels[action] = label
-		row.add_child(label)
-		row.add_child(key)
-		row.add_child(clash)
+		key.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.get_node(^"H").add_child(key)
 		add_child(row)
-	var reset_raised := UiParts.button("", reset)
-	reset_raised.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	add_child(reset_raised)
-	reset_button = reset_raised.face as Button
+	var gap := Control.new()
+	gap.name = "ResetGap"
+	gap.custom_minimum_size = RESET_GAP
+	add_child(gap)
+	reset_button.name = "Reset"
+	reset_button.theme_type_variation = &"ToyButtonGhostOnLight"
+	reset_button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	reset_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	reset_button.pressed.connect(reset)
+	ToyPress.attach(reset_button)
+	add_child(reset_button)
 	retext()
 
 
@@ -137,7 +171,7 @@ func refresh() -> void:
 		key.toggle_mode = on
 		key.set_pressed_no_signal(on)
 		key.text = KeyLabel.word(&"settings.controls.press_key") if on else _label(action)
-		clash_labels[action].visible = not controls.clashes_of(action).is_empty()
+		clash_chips[action].visible = not controls.clashes_of(action).is_empty()
 
 
 func _input(event: InputEvent) -> void:
@@ -153,8 +187,12 @@ func _input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		retext()
-	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree() and is_capturing():
-		cancel_capture()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED:
+		if not is_visible_in_tree() and is_capturing():
+			cancel_capture()
+		elif is_visible_in_tree():
+			# The other SettingsPage (the main menu's, the Esc menu's) may have rebound a key.
+			refresh()
 
 
 func _bind(event: InputEvent) -> void:

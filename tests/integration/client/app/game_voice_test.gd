@@ -72,18 +72,18 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 		-20.0
 	)
 	assert_bool(await _until(func() -> bool: return host.screen() == S.LOBBY)).is_true()
-	# The lobby hints at the Voice tab until a microphone is picked.
+	# The lobby hints at Settings until a microphone is picked.
 	await get_tree().process_frame
 	assert_bool(host.ui.lobby_hud.voice_label.visible).is_true()
-	# The Voice tab shows the settings; the talk key counts under the menu too (#488 rule 4).
+	# Settings opens on Sound and voice; the talk key counts under the menu too (#488 rule 4).
 	host.open_esc()
-	host.ui.esc.press(EscMenuState.Tab.VOICE)
+	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
 	await get_tree().process_frame
 	assert_bool(host.ui.esc.voice.visible).is_true()
 	assert_bool(host.sender().listening).is_true()
 	var panel := host.ui.esc.voice
 	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
-	assert_bool(panel.microphone_box.visible).is_true()
+	assert_bool(panel.mic_row.visible).is_true()
 	# A change in the tab is applied and saved at once.
 	panel.mode_picked.emit(UserSettings.Mode.VOICE_ACTIVITY)
 	panel.device_picked.emit("Headset Microphone")
@@ -129,7 +129,8 @@ func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
 	await _frames(2)
 	assert_bool(host.sender().listening).is_true()
 	# A key capture: the key pressed is the binding, not talk.
-	host.ui.esc.press(EscMenuState.Tab.CONTROLS)
+	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
+	host.ui.esc.settings.show_page(SettingsPage.Page.CONTROLS)
 	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
 	assert_bool(host.ui.esc.controls.is_capturing()).is_true()
 	await _frames(2)
@@ -195,7 +196,7 @@ func test_the_main_menus_voice_page_saves_a_pick_and_opens_it_under_the_mark() -
 	var panel := game.ui.menu.voice
 	assert_object(game.shown_voice_panel()).is_same(panel)
 	assert_bool(panel.is_visible_in_tree()).is_true()
-	assert_bool(panel.microphone_box.visible).is_true()
+	assert_bool(panel.mic_row.visible).is_true()
 	# The device list was read as the page opened: the fake's microphones (its first the Windows
 	# default) are there to pick.
 	assert_int(panel.device_button.item_count).is_equal(mic.names.size())

@@ -10,9 +10,8 @@ extends Control
 ## - CodePanel: the code field (only the code alphabet, upper case, at most 6), Join once it holds
 ##   a whole code, Enter = Join. DirectPanel: the host's address[:port], Join once it parses
 ##   (JoinTarget), Host on the port typed or the default, the default port's line.
-## - SettingsPanel holds the settings (`settings_page`, built by _build_settings): today the
-##   VoicePanel of #301 in a ToyScroll, which the game feeds as the Esc menu's Voice tab; #491's
-##   Settings scene, shared with the Esc menu, takes its place there (the one seam).
+## - SettingsPanel holds the settings (`settings_page`): the SettingsPage of #491, the scene the
+##   Esc menu's Settings tab has too, opened on Sound and voice; focus starts on its sub-page chip.
 ## - The name row binds to UserSettings.player_name (bind_name): kept between sessions, cleaned by
 ##   PlayerNames; an empty field keeps the name there was.
 ## Every text is a deck key; the version, the port line and the data texts (the logo, the name,
@@ -75,10 +74,10 @@ var direct_join: ToyRaised
 var direct_host: ToyRaised
 var direct_back := Button.new()
 var settings_panel: ToyRaised
-## What the Settings panel holds: the seam #491's Settings scene takes.
-var settings_page: Control
-## The Voice settings (#301) the Settings panel shows until #491; the game feeds it.
-var voice := VoicePanel.new()
+## What the Settings panel holds: the Settings scene the Esc menu has too (#491).
+var settings_page := SettingsPage.new()
+## Its Sound and voice (#301); the game feeds it.
+var voice: VoicePanel = settings_page.voice
 var version_label := Label.new()
 
 ## The settings the name row binds to (bind_name); null shows and keeps nothing.
@@ -242,9 +241,7 @@ func _focus() -> void:
 			address_edit.grab_focus()
 			address_edit.caret_column = address_edit.text.length()
 		Open.SETTINGS:
-			var first := _first_focusable(settings_page)
-			if first != null:
-				first.grab_focus()
+			settings_page.first_focus().grab_focus()
 			# follow_focus scrolls to the focused row before the panel's first sort, with the
 			# sizes before it (seen at large text: the first row cut off): the top it is.
 			_scroll_to_top.call_deferred()
@@ -253,9 +250,7 @@ func _focus() -> void:
 
 
 func _scroll_to_top() -> void:
-	var scroll := settings_page as ScrollContainer
-	if scroll != null:
-		scroll.scroll_vertical = 0
+	settings_page.scroll.scroll_vertical = 0
 
 
 ## An item of the group pressed or released; pressing another releases this one first (its
@@ -398,21 +393,7 @@ func _build_settings_panel() -> void:
 	settings_panel.grow_horizontal = Control.GROW_DIRECTION_END
 	settings_panel.grow_vertical = Control.GROW_DIRECTION_END
 	add_child(settings_panel)
-	settings_page = _build_settings()
 	face.add_child(settings_page)
-
-
-## The seam (#491 swaps it for its Settings scene, opened on Sound and voice): today the Voice
-## settings of #301 in a ToyScroll.
-func _build_settings() -> Control:
-	var scroll := UiParts.scroll()
-	scroll.name = "Settings"
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus = true
-	voice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	voice.on_light()
-	scroll.add_child(voice)
-	return scroll
 
 
 ## A raised ToyPanelMenu named `face_name` holding `inside`, in Body after the gap.
@@ -547,20 +528,6 @@ func _on_name_changed(typed: String) -> void:
 func _show_kept_name() -> void:
 	if _settings != null and name_edit.text != _settings.player_name:
 		name_edit.text = _settings.player_name
-
-
-## The first control under `root` that takes the keyboard, in tree order; null for none.
-static func _first_focusable(root: Node) -> Control:
-	for child: Node in root.get_children():
-		var control := child as Control
-		if control == null or not control.visible:
-			continue
-		if control.focus_mode == Control.FOCUS_ALL:
-			return control
-		var inner := _first_focusable(control)
-		if inner != null:
-			return inner
-	return null
 
 
 ## Anchored offsets: `at` on both edges, growing `grow` both ways.
