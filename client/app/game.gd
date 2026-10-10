@@ -503,10 +503,7 @@ func _process(_delta: float) -> void:
 	if now != _screen:
 		_screen = now
 		# A new screen closes the Esc menu opened over another, its question too (#726).
-		var menu_closed := ui.esc_open() and ui.esc.state.over_screen != now
-		if menu_closed:
-			ui.close_esc()
-		_point_for(now, menu_closed)
+		_point_for(now, ui.close_esc_left(now))
 	ui.show_screen(now)
 	if _client != null:
 		_refresh_join()
