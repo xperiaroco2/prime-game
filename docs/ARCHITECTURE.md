@@ -3580,7 +3580,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   settings)` holds only with no launch option at all (`LaunchOptions.given`, a wrong one too), the settings read from
   a file (`UserSettings.path` set) and `UserSettings.tutorial_seen` (`[player] tutorial_seen`) false. A Game with no
   command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
-  windows pass options: none of them starts it. `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in
+  windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in
   the headless session, is a problem. `invite_open` says the invite is due (#492 draws it); until #492's Start and
   Skip set the flag, the end of a tutorial that started with the invite sets it (`GameTutorial.mark_seen`, written),
   so a plain launch does not start it every time (a choice under "Needs the engineer" in the PR).

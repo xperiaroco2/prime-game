@@ -263,6 +263,8 @@ func _game(args: Array[String], which: int) -> Game:
 	game.device_input = false
 	var settings := UserSettings.new(PATHS[which])
 	settings.read()
+	# A player who has seen the tutorial: a first launch would start it (E70, #601).
+	settings.tutorial_seen = true
 	game.settings = settings
 	var machine := SubViewport.new()
 	machine.own_world_3d = true
