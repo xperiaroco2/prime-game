@@ -101,7 +101,7 @@ ragdoll is only how each client draws a body at that place.
 | **KE3** | Where the motion's state lives | `PlayerState.motion`, a `BodyMotion` (`RefCounted`, `core/life/`): flying or sliding, the origin, velocity and gravity as `Vector3`s, its own tick count and the fallback rest; null at rest. `LifeTicks` advances it before the deadlines, in peer-id order; `die`, `leave`, `revive` and `ResetMatch` clear it | Prevents: a new tick system every mode must list (the mode check already demands `LifeTicks` where a rule can knock down, ARCHITECTURE §9.1); and its own tick count makes a phase without `LifeTicks` pause a motion instead of jumping it, as a thrown item's flight does |
 | **KE4** | What a knocked-down player's `MoveClaim` does | The host takes its facing only (unit, as for every claim) and ignores its position, velocity, jumps, sprint and crouch: no movement check, no `Correction`, no stamina spent (it regenerates as today). Today a malformed claim, a negative client tick and a claim past its credit each get a `Correction` (`MovementRule.apply`); from a knocked-down sender each is dropped instead, with no `Correction` and its facing not taken, since the host takes no place from it to correct; a claim of an old epoch is dropped as stale, as today. `ChaosOracle`'s class 5 (ARCHITECTURE §4.6.5) is rewritten from this rule, not from the docs: no `Correction` to a knocked-down peer | The facing still matters: a dead player watching a knocked-down target looks through that target's look (vision revision 1, V9: "a downed player's third person"). Prevents: a client that still crawls (an old build, a hostile peer) moving its body, and a `Correction` storm while the host moves a body its client does not predict |
 | **KE5** (the engineer's) | How a knocked-down client learns where its own body is | Its snapshot holds its own avatar while it is knocked down (`Snapshots.for_peer` skips the viewer's avatar unless it is `DOWNED`); the client draws its body and places its camera and ears from it, on the interpolated timeline of the other avatars | Prevents: a `Correction` on every tick of a motion (reliable, at 20 Hz), and a client computing the motion from answers only the host's world gives. Nothing hidden: a player's own place. The wire bounds a snapshot's avatars by `WireSchema.MAX_AVATARS`, today `MAX_PLAYERS - 1` (15, "a snapshot never holds the viewer's own avatar"), and the codec refuses a map past it on both ends: in a full 16-player match a knocked-down player's snapshot would be refused for the whole knockdown. So `MAX_AVATARS` becomes `MAX_PLAYERS` (16) with its comment, and the cap holds at the declared maximum: 16 avatars take about 725 bytes of the 1024 (45 bytes each with its key; today 15 take 680, pinned in `wire_schema_test.gd`). It changes ARCHITECTURE §5's "nobody gets their own avatar" and §4.3.5's `Snapshot` row, and the protocol number goes up with it: an older client would draw itself as a stranger |
-| **KE6** | The revive | `revive` sends a `Correction` (a new epoch, the body's rest point), as a respawn does | Today it sends none, because a raised client claimed where it lay. A knocked-down client now claims no place, so without one it would stand up where its last walking claim was |
+| **KE6** | The revive | `revive` sends a `Correction` (a new epoch, the body's rest point), as a respawn does | Today it sends none, because a raised client claimed where it lay. A knocked-down client now claims no place, so without one it would stand up where its last walking claim was. The revive becomes a placement: `ScenarioBot`, which fails any `Correction` outside one, expects it, and the honest-bot check stays as strict (728a) |
 | **KE7** | The ragdoll | Looks only, on each client: every knocked-down avatar (the own included) and every body is a ragdoll whose root is held to the host's point by a spring each physics step (`_integrate_forces` of a `PhysicalBone3D` or a `RigidBody3D`), and moved there at once when farther than a snap distance (a client constant). Its parts are on the `downed` layer and collide with the world layer only: never with players, another ragdoll or a client-only object (#688's car). On the greybox avatar it is one `RigidBody3D` capsule; with #522's character, the skeleton's `PhysicalBone3D`s under a `PhysicalBoneSimulator3D`. It starts from the standing pose with the avatar's velocity. Nothing reads it: the raise's reach, the camera, the ears and `SightHider` use the host's point | Prevents: two screens disagreeing on where a body is by more than its limbs, and a pose that feeds back into what the client shows (the render checklist's item 1). Each Godot name is checked in 4.7.2's API |
 | **KE8** | The camera and the ears of a moving body | `DownedCamera`'s pivot, for its own knocked-down player and for a spectator watching a knocked-down target alike (ARCHITECTURE §4.7.9), rises from the body's point by the standing eye height, but never higher than the standing eye height above the floor below the point (a ray down the client's own level), so a body in flight or falling off a ledge lifts it no higher than a player standing under the body would see; and it stops 0.1 m (a placeholder) below the first world hit straight above it; the arm and `SightHider` work from it as today. The ears stay at the body's lying head height above the point (today's "the own body's head") | Prevents: a body flying up against a ceiling, or lying under a low one, lifting the pivot into the room above (the render checklist's item 3: never through the level), and a body in mid-air showing its player, or a dead spectator, over a fence or onto the locked roof (item 3: never over cover more than standing at the body). Today a body lies only where a player stood, so the eye height always fitted |
 | **KE9** | The launch's direction | Horizontal, from the attacker's feet towards the victim's (both last accepted positions); when they coincide, the horizontal part of the attacker's facing; when that has none, straight up only | Prevents: the direction resting on a claimed facing (harmless, but a glancing swing would launch a body sideways) |
@@ -152,9 +152,10 @@ knockdown (the same event, the same `Correction`, no motion, so a `Raise` on the
 `moving`), and every life test of today holds with the knife's launch and the slide speed at 0.
 
 Where a body may come to rest follows the throwing design's TD5 for items: a body that rests where no player can
-stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a body
-reaches nothing a throw does not, and House's check that no throw reaches the locked roof (#646) gets a launched body
-beside it (728e).
+stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a launched
+body reaches nothing a throw does not; a slide is new, since items do not slide, so a body sliding off a roof players
+can reach may land where no throw does. House's check that no throw reaches the locked roof (#646) gets a launched
+and a sliding body beside it (728e).
 
 ### 5. Voice and the mic
 
@@ -251,16 +252,25 @@ content file named is provisional under the
 - **728a core and client: a knocked-down player holds still and looks** (size M). Goal: a knocked-down player cannot
   move; its claims carry its look only. Acceptance: `MovementRule` takes a knocked-down claim's facing only (KE4),
   ignores the rest, sends no `Correction`, and settles stamina as regenerating; the crawl check,
-  `CRAWL_SLACK_FRACTION`, `held_against`, `HOLD_SLACK_M` and `Channel.held_at` go; `PlayerRules.crawl_speed_mps` and
-  its bound go, from `content/modes/base_mode.tres` and the fixtures too; `revive` sends a `Correction` (KE6);
-  `PlayerController` no longer crawls (a knocked-down controller moves nothing and claims its look);
-  `ScenarioBot`'s `WalkTo` fails while knocked down; `dissident_kills_the_crew` without the crawl; the chaos rows,
-  and `ChaosOracle`'s class 5 expecting no `Correction` to a knocked-down peer for any claim (KE4);
-  the tests of §9 that need no motion; ARCHITECTURE §4.1's `MoveClaim` row, §7.1.7, §7.1.8, §4.7.7 and §4.7.9.
-  Depends on: nothing (decided). Files: `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
-  `core/life/life_rules.gd`, `core/channel/`, `client/player/player_controller.gd`, `tests/harness/scenario_bot.gd`,
-  `tests/harness/chaos/`, `tests/unit/movement/`, `tests/unit/life/`, `tests/integration/client/`,
-  `content/modes/base_mode.tres`, `content/scenarios/dissident_kills_the_crew.tres`, `docs/ARCHITECTURE.md`.
+  `CRAWL_SLACK_FRACTION`, `held_against`, `HOLD_SLACK_M` and `Channel.held_at` go, and with them what only the hold
+  used: `RaiseDowned`'s `holds_target` and its `held_at`, `ChannelEffect.holds_target`, `Channels.holds` and
+  `holding`; `PlayerRules.crawl_speed_mps` and its bound go, from `content/modes/base_mode.tres`, the fixture modes,
+  `player_rules_test.gd` and the harness's `WalkTo` crawl (`scenario_play.gd`) too; `revive` sends a `Correction`
+  (KE6), and the revive is a placement for the honest bot: `ScenarioBot`'s `Revived` branch sets its correction due
+  (as `KnockedDown` and `Respawned` do), `ChaosRun`'s `Correction` accounting counts it, and the check that an honest
+  bot is never corrected outside a placement stays as strict; `PlayerController` no longer crawls (a knocked-down
+  controller moves nothing and claims its look), and the game's raised-player hold (`game.gd`'s `_player.held`) and
+  the test room's F1 "downed mode crawls" go with the crawl; the harness's `WalkTo` fails while knocked down;
+  `dissident_kills_the_crew` without the crawl; the chaos rows, and `ChaosOracle`'s class 5 expecting no
+  `Correction` to a knocked-down peer for any claim (KE4); the tests of §9 that need no motion; ARCHITECTURE §4.1's
+  `MoveClaim` row, §4.2's `Revived` and `Correction` rows ("none at a revive"), §4.6.5, §7.1.7, §7.1.8, §4.7.7 and
+  §4.7.9. Depends on: nothing (decided). Files: `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
+  `core/life/life_rules.gd`, `core/life/raise_downed.gd`, `core/channel/` (`channel.gd`, `channel_effect.gd`,
+  `channels.gd`), `client/player/player_controller.gd`, `client/app/game.gd`, `client/dev/test_room.gd`,
+  `tests/harness/scenario_bot.gd`, `tests/harness/scenario_play.gd`, `tests/harness/chaos/` (`chaos_oracle.gd`,
+  `chaos_run.gd`), `tests/fixtures/match/fixture_modes.gd`, `tests/unit/content/player_rules_test.gd`,
+  `tests/unit/movement/`, `tests/unit/life/`, `tests/integration/client/`, `content/modes/base_mode.tres`,
+  `content/scenarios/dissident_kills_the_crew.tres`, `docs/ARCHITECTURE.md`.
 - **728b core: the body's motion: the launch, the flight and the rest** (size M). Goal: a knockdown blow can launch
   the body, and the host moves it to its rest, where everyone sees it. Acceptance: `BodyMotion` in
   `PlayerState.motion` (KE3); `Strike`'s `launch_mps` and `launch_up_mps` with their bounds; `damage` and
@@ -268,47 +278,56 @@ content file named is provisional under the
   `moving`; KD8 in `die`; `leave` and `ResetMatch` clear it; the own avatar in a knocked-down viewer's snapshot
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
   gets its 16-avatar snapshot, the own-avatar check of §9 (from the life state, not from `for_peer`) in `LeakCheck`
-  and `ScenarioInvariants`, seen failing on both plants, and the protocol number, and the client's `AvatarViews` and the bots' fold
-  skipping it until 728d draws it, so no client draws itself as a stranger in between; a knockdown with no launch is
-  today's, step for step (§4, step 2); 728b ships with every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a
-  launched player's camera and ears would stay where the knockdown started while every other screen showed the body
-  fly, and its client's voice cutoff (E41) would measure from the wrong place; ARCHITECTURE §5,
-  §4.2's `KnockedDown` row, §4.3.5's `Snapshot` row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the
-  snapshot's 15 avatars take 680 bytes"), §9.4's `TargetDowned` and §7.1.17. Depends on: 728a, #641,
-  #642; KE1, KE5, KD1, KD2, KD4, KD8 (it opens only after his answers on KE1 and KE5). Files: `core/life/`, `core/combat/strike.gd`, `core/match/player_state.gd`,
-  `core/match/snapshots.gd`, `core/match/reset_match.gd`, `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`),
-  `net/messages/wire_schema.gd` (`MAX_AVATARS`), `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725),
-  `client/world/avatar_views.gd`, `tests/harness/scenario_bot.gd`, `tests/unit/life/`, `tests/unit/combat/`,
+  and `ScenarioInvariants`, seen failing on both plants, and the protocol number, and the client's `AvatarViews` and
+  the bots' fold skipping it until 728d draws it, so no client draws itself as a stranger in between; `ChaosOracle`'s
+  reason table gains `moving`; a knockdown with no launch is today's, step for step (§4, step 2). 728b ships with
+  every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a launched player's camera and
+  ears would stay where the knockdown started while every other screen showed the body fly, and its client's voice
+  cutoff (E41) would measure from the wrong place. ARCHITECTURE: §5; §4.1's `Raise` row and §9.5.13's rejection list
+  (`moving`); §4.2's `KnockedDown` row and its `Swapped` row ("its avatar is never sent to it"); §4.3.5's `Snapshot`
+  row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the snapshot's 15 avatars take 680 bytes"); §4.6.1.1
+  and §4.6.1.2 ("the own player's never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and
+  their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §7.1.17.
+  Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (it opens only after his answers on KE1 and KE5).
+  Files: `core/life/`, `core/combat/strike.gd`, `core/match/player_state.gd`, `core/match/snapshots.gd`,
+  `core/match/reset_match.gd`, `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd`
+  (`MAX_AVATARS`), `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
+  `tests/harness/scenario_bot.gd`, `tests/harness/chaos/chaos_oracle.gd`, `tests/unit/life/`, `tests/unit/combat/`,
   `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_invariants.gd`, `docs/ARCHITECTURE.md`.
 - **728c core: a body slides down a steep floor and off its edge** (size S). Goal: a body on a sloped roof rolls
   off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port, `FlatWorldQuery`, `RecordingWorldQuery`,
-  the replay and `HostWorldQuery`; the slide angle and speed in `PlayerRules` with bounds, a slide speed of 0 sliding nothing, and the base mode at 0
-  until 728e (for the reason 728b gives); §4's step 4; a fixture
-  level with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test of the answer;
+  the replay, `HostWorldQuery`, and the two test worlds that override `floor_below`
+  (`tests/fixtures/world/fixture_level_world.gd`, `tests/fixtures/match/fixture_terrain_world.gd`: the port's
+  default answers like an empty world, so without their own answer a body would never slide there, which is why the
+  throwing ADR's 37a lists them for `sweep`); the slide angle and speed in `PlayerRules` with bounds, a slide speed
+  of 0 sliding nothing, and the base mode at 0 until 728e (for the reason 728b gives); §4's step 4; a fixture level
+  with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test of the answer;
   ARCHITECTURE §4.5.9 and §7.1.17. Depends on: 728b; KD3, KD9. Files: `core/world/`, `server/host_world_query.gd`,
-  `core/life/`, `core/content/player_rules.gd`, `tests/fixtures/levels/`, `tests/unit/life/`,
+  `core/life/`, `core/content/player_rules.gd`, `tests/fixtures/world/fixture_level_world.gd`,
+  `tests/fixtures/match/fixture_terrain_world.gd`, `tests/fixtures/levels/`, `tests/unit/life/`,
   `tests/integration/server/`, `docs/ARCHITECTURE.md`.
 - **728d client: a knocked-down body drawn as a ragdoll** (size M). Goal: a knocked-down body falls and flies as a
   ragdoll held to where the host has it. Acceptance: the ragdoll view (KE7) for remote knocked-down avatars and the
   own one; on the greybox avatar one `RigidBody3D` capsule on the `downed` layer with the world mask only, started
   from the standing pose with the snapshot's velocity, held by a spring to the interpolated point and snapped when
-  far; the own camera and ears from the own avatar; the pivot's two clamps (KE8: the eye height above the floor below,
-  and the ceiling) for the own camera and for a spectator watching a knocked-down target, with a loopback test of each
-  in mid-flight; dead bodies keep the pose,
-  greyed, with the cross (KD7); the revive returns the standing avatar; `RemotePlayerBody`'s lying pose and
-  `LifeLooks`' lying capsule go; the render checklist's items 1, 3 and 5 hold; the tests and the `shot` of §9;
-  ARCHITECTURE §4.7.9. Depends on: 728b; KD6, KD7. Files: `client/player/remote_player_body.gd`,
-  `client/player/life_looks.gd`, a new `client/player/ragdoll_view.gd`, `client/world/avatar_views.gd`,
-  `client/world/body_views.gd`, `client/life/life_view.gd`, `client/life/downed_camera.gd`, `client/life/ears.gd`,
-  `client/dev/life_preview.tscn`, `tests/integration/client/`, `docs/ARCHITECTURE.md`.
+  far; the own camera and ears from the own avatar; the pivot's two clamps (KE8: the eye height above the floor
+  below, and the ceiling) for the own camera and for a spectator watching a knocked-down target, with a loopback test
+  of each in mid-flight; dead bodies keep the pose, greyed, with the cross (KD7); the revive returns the standing
+  avatar; `RemotePlayerBody`'s lying pose and `LifeLooks`' lying capsule go; the render checklist's items 1, 3 and 5
+  hold; the tests and the `shot` of §9; ARCHITECTURE §4.7.9. Depends on: 728b; KD6, KD7. Files:
+  `client/player/remote_player_body.gd`, `client/player/life_looks.gd`, a new `client/player/ragdoll_view.gd`,
+  `client/world/avatar_views.gd`, `client/world/body_views.gd`, `client/life/life_view.gd`,
+  `client/life/downed_camera.gd`, `client/life/ears.gd`, `client/dev/life_preview.tscn`, `tests/integration/client/`,
+  `docs/ARCHITECTURE.md`.
 - **728e content: the launch and the slide in the base mode, a bot scenario and the playtest** (size S). Goal: the
   base mode launches bodies. Acceptance, on the engineer's word: the knife's launch numbers and `PlayerRules`'
   motion numbers (KD9); a bot scenario on a greybox map (bots do not play House, ARCHITECTURE §9.7) in which a
   dissident's knockdown launches a crew bot and a teammate raises it where it lands; beside #646's roof check, a
-  test that no knife launch from where players stand on House rests a body on the locked roof; the playtest's list
+  test that no knife launch from where players stand on House, and no slide off a roof players can reach, rests a
+  body on the locked roof (items do not slide, so #646's throw check does not cover a slide); the playtest's list
   (KD2, KD3, KD6). Depends on: 728b, 728c, 728d (the first non-zero launch or slide in the base mode needs the own
-  avatar's camera and ears to follow the body), #646; KD9. Files: `content/modes/base_mode.tres`, `content/scenarios/`,
-  `tests/integration/`.
+  avatar's camera and ears to follow the body), #646; KD9. Files: `content/modes/base_mode.tres`,
+  `content/scenarios/`, `tests/integration/`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
   revived" follows KD7; the manager adds this to #522.
