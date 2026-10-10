@@ -17,9 +17,9 @@ extends RefCounted
 ##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
 ## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, SetProfile
-## with a new name and colour only while its client is in loading, pregame or the round (the host
-## cannot be back in the lobby then) and else with its own (unchanged in the lobby, #551), nothing
-## a race could turn into an action.
+## with a new name and colour only while its client is in loading or pregame (the host cannot be
+## back in the lobby then; the round ends in End and then the lobby) and else with its own
+## (unchanged in the lobby, #551), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -41,8 +41,9 @@ const NEAR_CLAIM_CHANCE := 0.5
 const VOICE_COUNTER := 500_000
 ## The name of its SetProfiles outside the lobby (#551); ChaosRun fails a player who has it.
 const HACKED_NAME := "Hacked"
-## The client phases in which the host is surely not in the lobby: a changed profile is refused.
-const NO_LOBBY_PHASES: Array[StringName] = [&"loading", &"pregame", &"round"]
+## The client phases in which the host is surely not in the lobby: a changed profile is refused. Not
+## the round: a frame sent in its last moments could meet the host back in the lobby after End.
+const NO_LOBBY_PHASES: Array[StringName] = [&"loading", &"pregame"]
 
 var rng := RandomNumberGenerator.new()
 ## Intent name -> how many it sent; the malformed shapes and claim shapes sent; for the report.
