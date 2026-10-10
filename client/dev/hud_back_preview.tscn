@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://banro0cjr7jo7"]
+[gd_scene format=3]
 
 [ext_resource type="Script" uid="uid://c3i1sn4qpt8he" path="res://client/dev/hud_preview.gd" id="1_preview"]
 
