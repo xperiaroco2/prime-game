@@ -131,7 +131,7 @@ func _start_lessons(game: Game) -> void:
 ## the card count from now.
 func begin(game: Game) -> void:
 	var current := runner
-	if current == null or current.is_running() or current.is_finished():
+	if current == null or current.is_started():
 		return
 	_voice_sent = game.sender().sent
 	_howto_shown = game.ui.map.howto_open()

@@ -8,6 +8,8 @@ const MODE := "res://content/modes/tutorial_mode.tres"
 const OWN := 1
 const TWO := 2
 const THREE := 3
+## In no roster.
+const STRANGER := 4
 const PACKAGE := 10
 const KNIFE := 11
 ## The tutorial mode's voice radius in the lesson phases (RoundVoice living_m).
@@ -41,6 +43,8 @@ func test_event_seen_matches_name_fields_and_the_own_and_other_markers() -> void
 	# OTHER: any peer but the own; a plain value matches equal, a name as text.
 	_play([_lesson([_step([_event(&"Revived", {"peer": EventSeen.OTHER})])]), _lesson([_any()])])
 	_event_in(&"Revived", {"peer": OWN})
+	assert_int(_runner.lesson()).is_equal(1)
+	_event_in(&"Revived", {"peer": 0})
 	assert_int(_runner.lesson()).is_equal(1)
 	_event_in(&"Revived", {"peer": THREE})
 	assert_int(_runner.lesson()).is_equal(2)
@@ -137,6 +141,10 @@ func test_a_voice_frame_counts_only_with_another_living_player_within_the_radius
 	_play([_lesson([_step([_seen(&"voice_sent")], [OtherWithin.new()])]), _lesson([_any()])])
 	_snapshot({TWO: Vector3(RADIUS + 0.5, 0, 0)})
 	_runner.advance(0.1, Vector3.ZERO, true)
+	_runner.see(&"voice_sent")
+	assert_int(_runner.lesson()).is_equal(1)
+	# An avatar of nobody in the roster (it reads as alive) is no one to talk to either.
+	_snapshot({TWO: Vector3(RADIUS + 0.5, 0, 0), STRANGER: Vector3(1, 0, 0)})
 	_runner.see(&"voice_sent")
 	assert_int(_runner.lesson()).is_equal(1)
 	# The own peer in a snapshot, or a downed player within it, is nobody to talk to.
@@ -268,6 +276,13 @@ func test_after_the_last_lesson_the_esc_menu_closing_finishes() -> void:
 	assert_bool(_runner.is_done(2)).is_true()
 	assert_int(_runner.lesson()).is_equal(0)
 	assert_int(_emitted[&"finished"]).is_equal(0)
+	# Waiting for the close, the runner is not running, yet a second start() does nothing: it
+	# would play lesson 1 again over every lesson done.
+	assert_bool(_runner.is_running()).is_false()
+	assert_bool(_runner.is_started()).is_true()
+	_runner.start()
+	assert_int(_runner.lesson()).is_equal(0)
+	assert_bool(_runner.is_running()).is_false()
 	_runner.esc_closed()
 	assert_int(_emitted[&"finished"]).is_equal(1)
 	assert_bool(_runner.is_finished()).is_true()
@@ -290,6 +305,27 @@ func test_a_menu_open_from_before_the_last_lesson_does_not_finish_it() -> void:
 	_runner.see(&"esc_opened")
 	_runner.esc_closed()
 	assert_int(_emitted[&"finished"]).is_equal(1)
+
+
+func test_the_menu_opening_in_a_last_lesson_it_does_not_complete_finishes_nothing() -> void:
+	# Step 1 of the last lesson completes on the menu opening, step 2 is still to do.
+	_play([_lesson([_step([_seen(&"esc_opened")]), _step([_seen(&"map_opened")])])])
+	_runner.see(&"esc_opened")
+	assert_int(_runner.step()).is_equal(2)
+	_runner.esc_closed()
+	assert_int(_emitted[&"finished"]).is_equal(0)
+	assert_int(_runner.lesson()).is_equal(1)
+	# Done by something else later, it finishes at once, not on another menu closing.
+	_runner.see(&"map_opened")
+	assert_int(_emitted[&"finished"]).is_equal(1)
+	# The same with a condition that fails: the opening is ignored and the menu closing is too.
+	var dead := OwnLife.new()
+	dead.life = &"dead"
+	_play([_lesson([_step([_seen(&"esc_opened")], [dead])])])
+	_runner.see(&"esc_opened")
+	_runner.esc_closed()
+	assert_int(_emitted[&"finished"]).is_equal(0)
+	assert_int(_runner.lesson()).is_equal(1)
 
 
 func test_a_last_lesson_done_by_anything_else_finishes_at_once() -> void:

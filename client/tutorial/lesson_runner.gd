@@ -30,6 +30,8 @@ var _pending := false
 var _done: Array[bool] = []
 var _running := false
 var _finished := false
+## start() ran; a second one does nothing.
+var _started := false
 ## The last lesson was completed by the Esc menu opening: its close finishes.
 var _awaiting_close := false
 ## As the step started: the item in the own hand, or -1.
@@ -50,16 +52,23 @@ func setup(lessons: TutorialLessons, model: ClientModel) -> void:
 	_done.clear()
 	_done.resize(lessons.lessons.size())
 	_done.fill(false)
+	_started = false
 
 
 ## Begins lesson 1; once only.
 func start() -> void:
-	if _running or _finished or _lessons == null:
+	if _started or _lessons == null:
 		return
+	_started = true
 	_running = true
 	var before := _state()
 	_enter(0, 0)
 	_changed_since(before)
+
+
+## start() ran: lesson 1 began (the tutorial may still wait for the Esc menu to close).
+func is_started() -> bool:
+	return _started
 
 
 func is_running() -> bool:
@@ -169,7 +178,7 @@ func esc_closed() -> void:
 		_finish()
 
 
-## [lesson, step, pending, done count]: what `changed` reports a change of.
+## [lesson, step, pending, done count, running]: what `changed` reports a change of.
 func _state() -> Array:
 	return [_lesson, _step, _pending, _done.count(true), _running]
 
