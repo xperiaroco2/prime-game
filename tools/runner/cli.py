@@ -663,11 +663,20 @@ def build_parser() -> argparse.ArgumentParser:
         description="A manager's finished and running runs and handover args, from its transcript and the journals: "
         "--since T writes the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; "
         "--base B: whose merges, open PRs and merge-check; it posts nothing; its last line is the handover verdict, "
-        "'handover due: <why>' or 'handover not due'); --args N prints issue N's latest launch args as JSON.",
+        "'handover due: <why>' or 'handover not due'); --args N prints issue N's latest launch args as JSON; "
+        "--stalled flags the other sessions on this machine with a run finished or a notification queued over "
+        "--minutes ago and no turn after it (#731; exit 3 when one is flagged).",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
     what.add_argument("--args", type=int, metavar="N", help="print the args of issue N's latest launch as JSON")
+    what.add_argument(
+        "--stalled",
+        action="store_true",
+        help="flag the other sessions that took no turn since a run of theirs finished or a notification queued "
+        "(a pending permission card holds every notification, #731); read-only, exit 3 when one is flagged",
+    )
+    p.add_argument("--minutes", type=float, metavar="M", help="--stalled: how old, in minutes (default 30)")
     p.add_argument("--session", help="the manager session's id or its prefix (default: this Claude Code session)")
     p.add_argument("--workflow", metavar="NAME", help="--args: only launches of this workflow (issue-task, pr-rebase)")
     p.add_argument(
@@ -948,6 +957,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "wave":
             from . import wave
 
+            if args.stalled:
+                from . import wave_stall
+
+                given = [flag for flag, value in (("--session", args.session), ("--workflow", args.workflow),
+                         ("--out", args.out), ("--base", args.base), ("--plan", args.plan), ("--title", args.title),
+                         ("--notes", args.notes), ("--stage-since", args.stage_since)) if value is not None]  # fmt: skip
+                if given or not args.merge_check:
+                    raise Failure(f"wave: {', '.join(given) or '--no-merge-check'} does not go with --stalled")
+                return wave_stall.main(minutes=wave_stall.STALL_MINUTES if args.minutes is None else args.minutes)
+            if args.minutes is not None:
+                raise Failure("wave: --minutes goes with --stalled")
             return wave.main(
                 session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow,
                 base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
