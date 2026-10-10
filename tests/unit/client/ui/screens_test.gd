@@ -160,13 +160,25 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_str(menu.title_label.text).is_equal("esc.tab.lobby")
 	assert_bool(menu.host_note.visible).is_true()
 	assert_bool(menu.host_only.visible).is_false()
-	# The round starts under the open menu: no Lobby tab, the Game page.
+	var marks := menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
+	assert_bool((marks[0] as Control).visible).is_true()
+	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_true()
+	# The round starts under the open menu: the Lobby tab stays, read-only for everyone (#491:
+	# "Lobby, a player (and everyone in a round)"): no host note, no Ready, no ready marks.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
+	assert_object(menu.page()).is_same(menu.lobby)
+	assert_bool(menu.lobby.settings_editable()).is_false()
+	assert_bool(menu.host_note.visible or menu.host_only.visible).is_false()
+	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_false()
+	marks = menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
+	for mark: Node in marks:
+		assert_bool((mark as Control).visible).is_false()
+	# The end screen has no Lobby tab: the Game page.
+	menu.refresh(GameFlow.Screen.END, model, -1, true)
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
 	assert_object(menu.page()).is_same(menu.actions)
 	assert_bool(menu.lobby.visible).is_false()
-	assert_bool(menu.host_note.visible).is_false()
 	assert_str(menu.title_label.text).is_equal("esc.tab.game")
 
 

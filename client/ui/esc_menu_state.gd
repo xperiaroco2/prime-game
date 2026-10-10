@@ -6,10 +6,10 @@ extends RefCounted
 ## unit test read the same rules; EscMenu draws it.
 ##
 ## The tabs, top to bottom: Game (Resume, Leave, Quit), Role (in the round only), Guide (#254),
-## Lobby (on the lobby screen only: the lobby and the countdown), Settings. The tutorial shows only
-## Game, Guide and Settings. The Character tab waits for #73. Opening selects the tab chosen last
-## on this kind of screen (the lobby screen or any other), else the default: Lobby in the lobby,
-## Game everywhere else.
+## Lobby (on the lobby screen, the lobby and the countdown, and read-only in the round: the
+## handoff's "everyone's in a round"), Settings. The tutorial shows only Game, Guide and Settings.
+## The Character tab waits for #73. Opening selects the tab chosen last on this kind of screen (the
+## lobby screen or any other), else the default: Lobby in the lobby, Game everywhere else.
 ## A player's Leave and Quit act at once, and so do the tutorial's; the host's ask first, since
 ## they end the session for every player: confirm() answers the question, cancel() drops it.
 
@@ -22,9 +22,9 @@ var is_open := false
 var selected := Tab.GAME
 ## The own player hosts: Leave and Quit end the session for everyone and ask first.
 var hosting := false
-## The Lobby tab exists: the lobby screen (the lobby and the countdown phases).
+## The lobby screen (the lobby and the countdown phases): the Lobby tab is the default.
 var in_lobby := false
-## The Role tab exists: the round.
+## The round: the Role tab exists, and the Lobby tab reads the settings.
 var in_round := false
 ## The tutorial's menu (#601 sets it): Game, Guide and Settings; Leave goes back to the main menu.
 var tutorial := false
@@ -79,7 +79,7 @@ func tabs() -> Array[Tab]:
 	if in_round:
 		shown.append(Tab.ROLE)
 	shown.append(Tab.GUIDE)
-	if in_lobby:
+	if in_lobby or in_round:
 		shown.append(Tab.LOBBY)
 	shown.append(Tab.SETTINGS)
 	return shown

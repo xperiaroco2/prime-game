@@ -129,7 +129,7 @@ func refresh(
 	var before := state.selected
 	state.follow(screen, model, hosting)
 	if state.selected == EscMenuState.Tab.LOBBY and model != null:
-		lobby.refresh(model, host_tick, state.may_change_settings)
+		lobby.refresh(model, host_tick, state.may_change_settings, state.in_round)
 	if state.selected == EscMenuState.Tab.ROLE:
 		role.show_facts(RoleFacts.of(model, mode))
 	_sync()

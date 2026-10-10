@@ -28,10 +28,15 @@ func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
 	assert_bool(menu.is_open).is_false()
 
 
-func test_the_round_has_the_role_tab_and_opens_on_game() -> void:
+func test_the_round_has_the_role_tab_and_the_read_only_lobby_and_opens_on_game() -> void:
+	# #491 (the issue's "Lobby, a player (and everyone in a round)"; s05 game-host keeps the Lobby
+	# tab): the round reads the settings in Lobby, nobody changes them.
 	var menu := EscMenuState.new()
-	menu.open(S.ROUND, null, false)
-	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.ROLE, TAB.GUIDE, TAB.SETTINGS])
+	var host := Preview.fake_model(_mode, true)
+	Preview.fold_round(host, false)
+	menu.open(S.ROUND, host, true)
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.ROLE, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
+	assert_bool(menu.may_change_settings).is_false()
 	assert_int(menu.selected).is_equal(TAB.GAME)
 	# Loading, the pregame and the end: no Role, no Lobby.
 	for screen: S in [S.LOADING, S.PREGAME, S.END, S.CONNECTING]:
@@ -56,10 +61,11 @@ func test_the_tutorial_shows_game_guide_and_settings_and_leaves_at_once() -> voi
 func test_a_tab_that_goes_away_gives_way_to_the_default() -> void:
 	var menu := EscMenuState.new()
 	var model := Preview.fake_model(_mode, true)
-	menu.open(S.LOBBY, model, true)
-	menu.press(TAB.LOBBY)
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
-	menu.follow(S.ROUND, model, true)
+	menu.open(S.ROUND, model, true)
+	menu.press(TAB.ROLE)
+	assert_int(menu.selected).is_equal(TAB.ROLE)
+	menu.follow(S.END, model, true)
+	assert_bool(menu.has_tab(TAB.ROLE)).is_false()
 	assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
 	assert_int(menu.selected).is_equal(TAB.GAME)
 	# A tab the screen lacks cannot be pressed.

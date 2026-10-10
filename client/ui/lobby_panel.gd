@@ -71,6 +71,8 @@ var cards: Dictionary[StringName, Button] = {}
 
 ## Whether the settings take a change now: a read-only control that still changes sends nothing.
 var _may_change := false
+## Everyone's read-only view in a round: the ready marks hide.
+var _in_round := false
 var _mode: GameMode
 var _model: ClientModel
 ## The own preset's values (Save your own); empty hides its card.
@@ -186,10 +188,13 @@ func set_own_preset(values: Dictionary) -> void:
 
 
 ## Shows what `model` knows now; `host_tick` is the newest host tick it knows (-1: none yet);
-## `may_change` makes the settings editable (the host in the lobby).
-func refresh(model: ClientModel, _host_tick: int, may_change: bool) -> void:
+## `may_change` makes the settings editable (the host in the lobby); `in_round` is everyone's
+## read-only view in a round (#491): no Ready, no ready marks, no shortfalls.
+func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := false) -> void:
 	_model = model
 	_may_change = may_change
+	_in_round = in_round
+	(ready_button.get_parent() as Control).visible = not in_round
 	_refresh_players(model)
 	var own: ClientModel.Member = model.roster.get(model.own_peer)
 	var is_ready := own != null and own.ready
@@ -206,7 +211,7 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool) -> void:
 	var typing := may_change and (name_edit.has_focus() or name_edit.is_editing())
 	if not typing and name_edit.text != shown:
 		name_edit.text = shown
-	shortfalls_label.visible = not model.shortfalls.is_empty()
+	shortfalls_label.visible = not in_round and not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
 	map_picker.disabled = not may_change or _maps.size() < 2
 	# A map not in the own mode's list (none yet, before the Welcome) shows no map, never a wrong one.
@@ -404,7 +409,7 @@ func _refresh_players(model: ClientModel) -> void:
 	peers.erase(model.own_peer)
 	if model.roster.has(model.own_peer):
 		peers.push_front(model.own_peer)
-	var key := ""
+	var key := "round;" if _in_round else ""
 	for peer: int in peers:
 		var member: ClientModel.Member = model.roster[peer]
 		key += "%d:%s:%s;" % [peer, member.name, member.ready]
@@ -431,7 +436,7 @@ func _refresh_players(model: ClientModel) -> void:
 		mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		mark.custom_minimum_size = CHECK_SIZE
 		mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		mark.visible = (model.roster[peer] as ClientModel.Member).ready
+		mark.visible = not _in_round and (model.roster[peer] as ClientModel.Member).ready
 		line.add_child(mark)
 		player_rows.add_child(row)
 		mark.self_modulate = mark.get_theme_color(&"font_color", &"ToySettingRowText")
