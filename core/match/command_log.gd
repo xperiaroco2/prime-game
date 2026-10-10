@@ -63,6 +63,9 @@ static func from_dict(data: Dictionary) -> CommandLog:
 		for tag: String in markers:
 			for position: Vector3 in markers[tag] as PackedVector3Array:
 				layout.add_marker(StringName(tag), position)
+		var volumes: Array = entry.get("no_rest", [])
+		for volume: AABB in volumes:
+			layout.add_no_rest(volume)
 		loaded.layouts[path] = layout
 	var command_data: Array = data.get("commands", [])
 	for command: Dictionary in command_data:
