@@ -163,8 +163,11 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Burgers | Herb board (icon -> herb, new each round) | 0 | 62, 15.5 | Greenhouse |
 | Burgers | Herb beds | 0 | 67, 11 | Greenhouse |
 | Photo | Photo spot | 0 | 9, 11 | Photo zone |
+| Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
+| Photo | A film at the round's start, beside the camera (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
 | Photo | Computer and printer | 1 | 40, 29 | Study |
 | Photo | Board for the printed photos | -1 | 22, 40 | Darkroom |
+| Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
 | Car repair | Lift control (proposal: no view of who is under the car) | 0 | 57, 46 | Garage |
