@@ -82,4 +82,5 @@ cheap miss: a fix round costs a Sonnet publisher well under a dollar and the sav
 The engineer decided **keep**, with a revert rule (https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6100590082,
 item 1): Sonnet stays the implementer of Size XS and S tooling and docs tasks, and is dropped if blockers and majors
 pass 0.3 a task over the next 10 Sonnet-implemented tasks. The standing habit is the model-guard ADR's amendment of
-2026-10-10; `metrics` reads the revert rule over the tasks since that date (the trial table's advice after it).
+2026-10-10; `metrics` reads the revert rule over the tasks started after the keep (18:06Z that day, so none of the six
+counts; the trial table's advice after it).

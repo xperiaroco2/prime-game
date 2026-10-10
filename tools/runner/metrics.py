@@ -183,10 +183,11 @@ it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its 
 Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
 verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
 tasks, the totals and the advice.
-Since the engineer kept the Sonnet implementer (2026-10-10, the model-guard ADR's amendment) the table's advice line is
-the revert rule (revert_advice): over the first REVERT_TASKS trial tasks whose first run started on or after KEEP_FROM,
-revert when their blockers and majors per task pass REVERT_OVER, else keep; fewer tasks: continue. The JSON record's
-"revert" holds those tasks' count, mean and advice; "advice" stays the trial's own verdict.
+Since the engineer kept the Sonnet implementer (2026-10-10 18:06Z, the model-guard ADR's amendment) the table's advice
+line is the revert rule (revert_advice): over the first REVERT_TASKS trial tasks whose first run started on or after
+KEEP_FROM (the keep's own time, so the trial's tasks of that day never count), revert when their blockers and majors
+per task pass REVERT_OVER, else keep; fewer tasks: continue. The JSON record's "revert" holds those tasks' count, mean
+and advice; "advice" stays the trial's own verdict.
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -420,8 +421,10 @@ TRIAL_EARLY_TASKS = 4
 TRIAL_RED_TWICE = 2
 TRIAL_SERIOUS_OVER = 1.0
 # The revert rule of the keep (the model-guard ADR, amendment of 2026-10-10): drop Sonnet when the blockers and majors
-# per task pass REVERT_OVER over the first REVERT_TASKS trial tasks started on or after KEEP_FROM.
-KEEP_FROM = "2026-10-10T00:00:00Z"
+# per task pass REVERT_OVER over the first REVERT_TASKS trial tasks started on or after KEEP_FROM, the keep's own time
+# (trial tasks that ran earlier that day were judged by the trial and never count).
+KEEP_FROM = "2026-10-10T18:06:44Z"  # the engineer's keep: #302 comment 6100590082, created_at
+KEEP_SINCE = f"{KEEP_FROM[:10]} {KEEP_FROM[11:16]}Z"
 REVERT_TASKS = 10
 REVERT_OVER = 0.3
 # The per-task means the table compares, and those the keep rule needs no worse than the baseline's.
@@ -2571,7 +2574,7 @@ def revert_advice(rows: list[dict]) -> tuple[dict, str]:
     judged = since[:REVERT_TASKS]
     known = [x["serious"] for x in judged if x["serious"] is not None]
     mean = sum(known) / len(known) if known else None
-    where = f"{len(judged)} of {REVERT_TASKS} Sonnet-implemented tasks since {KEEP_FROM[:10]}"
+    where = f"{len(judged)} of {REVERT_TASKS} Sonnet-implemented tasks since {KEEP_SINCE}"
     if mean is None:
         advice = f"continue: {where}; no review counted yet"
     elif len(judged) < REVERT_TASKS:
@@ -2647,7 +2650,7 @@ def trial_section(record: dict) -> list[str]:
         "",
         table(total_head, totals),
         "",
-        f"Revert rule since {KEEP_FROM[:10]} (the engineer kept Sonnet; the model-guard ADR): drop it when blockers and "
+        f"Revert rule since {KEEP_SINCE} (the engineer kept Sonnet; the model-guard ADR): drop it when blockers and "
         f"majors pass {REVERT_OVER:g} a task over the next {REVERT_TASKS} Sonnet-implemented tasks. The trial's own "
         f"verdict: {record['advice']}.",
         "",

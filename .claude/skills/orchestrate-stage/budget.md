@@ -115,7 +115,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
   more without `models.implement` (Opus). Revert rule: read `tools\run.cmd metrics --since 2026-09-30T00:00:00Z`'s
   "Sonnet implementer trial" table before each wave; once its advice says revert (blockers and majors over 0.3 a task
-  across the 10 Sonnet tasks since 2026-10-10), post it on #302 with the table and stop passing `implement`.
+  across the 10 Sonnet tasks since the keep, 2026-10-10 18:06Z), post it on #302 with the table and stop passing
+  `implement`.
 - **`checkpoint: true`** on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it (#759),
   then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
   implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's

@@ -111,7 +111,7 @@ class TrialRecordTest(unittest.TestCase):
         self.assertIn("| Sonnet trial | 2 | 1 | 1.50 | 3.50 | 1.50 | 0.50 | 0.50 | 1.50 | 235 | $8.50 | $8.50 |", md)
         self.assertIn("| Opus, Size S | 1 | 0 | 0.00 | 1.00 | 0.00 | 2.00 | 0.00 | 0.00 | 100 | $8.00 | $8.00 |", md)
         self.assertIn("The trial's own verdict: continue: 2 of 6 trial tasks.", md)
-        self.assertIn("Advice: continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet.", md)
+        self.assertIn("Advice: continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10 18:06Z; no review counted yet.", md)
         only_opus = [m for m in self.MEMBERS if m[0]["issue"] not in (70, 71)]
         self.assertEqual(metrics.trial_section(record(only_opus, self.ISSUES)), [], "no trial task, no table")
 
@@ -177,10 +177,10 @@ class RevertRuleTest(unittest.TestCase):
         return metrics.revert_advice(self.rows(serious, **kw))[1]
 
     def test_before_ten_tasks_it_continues(self) -> None:
-        self.assertEqual(self.advice([]), "continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet")
-        self.assertEqual(self.advice([None, None]), "continue: 2 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet")
+        self.assertEqual(self.advice([]), "continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10 18:06Z; no review counted yet")
+        self.assertEqual(self.advice([None, None]), "continue: 2 of 10 Sonnet-implemented tasks since 2026-10-10 18:06Z; no review counted yet")
         self.assertEqual(self.advice([1, 0, 0], before=6),
-                         "continue: 3 of 10 Sonnet-implemented tasks since 2026-10-10; 0.33 blockers and majors a task (revert above 0.3)")  # fmt: skip
+                         "continue: 3 of 10 Sonnet-implemented tasks since 2026-10-10 18:06Z; 0.33 blockers and majors a task (revert above 0.3)")  # fmt: skip
 
     def test_ten_tasks_decide_by_the_mean(self) -> None:
         keep = self.advice([1, 1, 1] + [0] * 7)  # 0.30 exactly: within the rule, "pass 0.3" is a strict excess
@@ -188,6 +188,14 @@ class RevertRuleTest(unittest.TestCase):
         self.assertTrue(self.advice([1, 1, 1, 1] + [0] * 6, before=6).startswith("revert: drop Sonnet for the implementer (10 of 10"))
         # Only the first ten count: a bad eleventh task changes nothing; tasks before the keep date never count.
         self.assertTrue(self.advice([0] * 10 + [9], before=6).startswith("keep Sonnet"))
+
+    def test_the_trials_tasks_of_the_keep_day_never_count(self) -> None:
+        # #750 and #760 ran on 2026-10-10 hours before the keep (18:06:44Z): the trial judged them, the rule does not.
+        self.assertEqual(metrics.KEEP_FROM, "2026-10-10T18:06:44Z")
+        same_day = [{"start": self.KEEP - 3600 * h, "serious": 5} for h in (1, 6)]
+        got = metrics.revert_advice(same_day + self.rows([0, 0]))[0]
+        self.assertEqual((got["tasks"], got["serious"]), (2, 0.0))
+        self.assertIn("since 2026-10-10 18:06Z", got["advice"])
 
     def test_the_record_carries_it(self) -> None:
         got = record([member(70, "wf1", SONNET, serious=2, start=RevertRuleTest.KEEP + 5)], [issue(70, "S")])

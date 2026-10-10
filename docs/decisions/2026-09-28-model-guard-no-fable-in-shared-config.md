@@ -82,8 +82,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     Sonnet implementer is now a standing manager habit: `models: {implement: "sonnet"}` beside `publish_clean` on
     every qualifying `issue-task` launch, same rule as the trial (Size XS or S, `area:tooling` or docs-only, nothing
     under `core/ server/ net/ client/ voice/`, not a design task, no `.claude/workflows/` edit). **Revert rule:** drop
-    it if blockers and majors pass 0.3 a task over the next 10 Sonnet-implemented tasks (counted from 2026-10-10;
-    `metrics` reads it). Reverting ends the `models.implement` launches and changes nothing else. Sonnet is in the
+    it if blockers and majors pass 0.3 a task over the next 10 Sonnet-implemented tasks (counted from the keep,
+    2026-10-10 18:06Z; `metrics` reads it). Reverting ends the `models.implement` launches and changes nothing else. Sonnet is in the
     shared list, so it needs no allowance under amendment A; no script, default or agent file names the model, and the
     workflow tests still assert it.
 
