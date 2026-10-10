@@ -164,12 +164,14 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool((marks[0] as Control).visible).is_true()
 	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_true()
 	# The round starts under the open menu: the Lobby tab stays, read-only for everyone (#491:
-	# "Lobby, a player (and everyone in a round)"): no host note, no Ready, no ready marks.
+	# "Lobby, a player (and everyone in a round)"): the host-only line, no host note, no Ready,
+	# no ready marks.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
 	assert_object(menu.page()).is_same(menu.lobby)
 	assert_bool(menu.lobby.settings_editable()).is_false()
-	assert_bool(menu.host_note.visible or menu.host_only.visible).is_false()
+	assert_bool(menu.host_note.visible).is_false()
+	assert_bool(menu.host_only.visible).is_true()
 	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_false()
 	marks = menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
 	for mark: Node in marks:
@@ -358,3 +360,18 @@ func test_the_lobby_tab_shows_the_code_to_whoever_knows_it_and_the_service_gone_
 	assert_bool(panel.code_gone.visible).is_true()
 	panel.show_code("", "")
 	assert_bool(panel.code_row.visible or panel.code_gone.visible).is_false()
+
+
+func test_a_later_copy_press_keeps_copied_showing_for_its_own_full_time() -> void:
+	# The first press's timer firing must not end the second press's "Copied" early.
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.show_code(JoinProgress.code_text("K7M2QX", false), "K7M2QX")
+	panel.copy_button.pressed.emit()
+	var first := panel._copied_timer
+	panel.copy_button.pressed.emit()
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copied")
+	panel._end_copied(first)
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copied")
+	panel._end_copied(panel._copied_timer)
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copy")

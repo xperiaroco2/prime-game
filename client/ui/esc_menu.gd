@@ -226,9 +226,10 @@ func _sync() -> void:
 	for tab: EscMenuState.Tab in pages:
 		pages[tab].visible = pages[tab] == shown
 	title_label.text = str(TABS[state.selected][1])
-	var lobby_tab := state.selected == EscMenuState.Tab.LOBBY and state.in_lobby
-	host_note.visible = lobby_tab and state.may_change_settings
-	host_only.visible = lobby_tab and not state.hosting
+	var lobby_tab := state.selected == EscMenuState.Tab.LOBBY
+	host_note.visible = lobby_tab and state.in_lobby and state.may_change_settings
+	# A guest in the lobby and everyone in a round: only the host changes the settings.
+	host_only.visible = lobby_tab and (state.in_round or (state.in_lobby and not state.hosting))
 	_retext()
 	var host_leave := state.hosting and not state.tutorial
 	leave_button.theme_type_variation = &"ToyButtonDanger" if host_leave else &"ToyButtonSecondary"
