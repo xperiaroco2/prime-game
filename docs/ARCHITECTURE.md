@@ -2693,7 +2693,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   living or downed player's avatar (position, velocity, facing, the flag `downed`, hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
-  fields; they travel in `SelfStatus`.
+  fields; they travel in `SelfStatus`. #728's design (§7.1.17, not built) adds one exception: the own avatar while
+  knocked down, whose body the host moves.
 - **`core/` says who is entitled; `server/` delivers.** The rule is game logic, like voice routing (§6). `server/`
   asks `core/` for each event's recipients and builds one message per recipient, *everyone* events included: it sends
   them to each player in turn, never to the transport's broadcast target, which would also reach a peer that is not
@@ -2793,7 +2794,8 @@ Nobody hears a downed or dead player, under
 any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
 and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
 replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
-`FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5).
+`FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5). The knockdown reworked
+(#728, §7.1.17) needs nothing here: "cannot talk" is this invariant.
 
 ### 6.4 Built in 2i (#65, `core/voice/`)
 `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
@@ -3346,7 +3348,8 @@ its last accepted position, with a new epoch and a `Correction` (`LifeRules.knoc
 movement rule treats that like a placement: walking claims in flight are dropped as stale instead of failing the
 crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
 the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
-`tests/unit/life/life_rules_test.gd`.
+`tests/unit/life/life_rules_test.gd`. #728's design (§7.1.17, not built) removes the crawl: a knocked-down player
+will not move.
 
 #### 7.1.8 The raise (vision revision 1, Revive; M4-4, #140)
 The host checks the raise's conditions when `Raise` arrives
@@ -3493,6 +3496,47 @@ there would not follow from the commands.
   (TD5), a cost (TD6), the key (TD7), catching (TD8), stop and drop or bounces (TD9), whether a running throw goes
   farther (TD10, recommended: no), where an item with no floor below rests (TD11) and whether the downed stop an item
   (TD12). The proposed issues 37a to 37f are in the ADR.
+
+#### 7.1.17 The knockdown reworked (designed in #728, answered by the engineer; not built)
+The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
+knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
+and its body falls as a ragdoll that a hit can send flying and a sloped roof can roll off. He answered every question
+of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) on 2026-10-10 (PR #754, comment 6097876326): each
+recommendation (KD1 to KD8 (a), KD9 (b), KE1 (a), KE5 (a)), and the launch and the slide on the House only. Its issues
+728a to 728e (the ADR's §10) are proposals for the M7 backlog; nothing is built until he says so.
+- **Still.** A knocked-down player's `MoveClaim` moves nothing: the host takes its facing only (a spectator watching
+  a knocked-down target looks through it) and ignores the rest, with no movement check and no `Correction` (KE4).
+  §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's hold go; `revive` sends a `Correction`
+  (KE6). Prevents: an old or hostile client crawling, and a correction storm while the host moves the body.
+- **Mute.** Nothing changes: §6.3 already routes no voice from a speaker who is not living, its client sends none,
+  and the HUD's mic (#489, open) is to show off while knocked down (KE10).
+- **The body's motion** (KE1 (a)). The body stays a point, the knocked-down player's last accepted position, and
+  `core/` moves it. Only the strike that knocks down launches it (KD1; the strike's `launch_mps` away from the
+  attacker and `launch_up_mps` upwards, the knife's included; KD2, KE9). Each tick `LifeTicks` flies it along the
+  throw's arc (§7.1.16) through `WorldQuery.sweep`, stops it at the first contact and drops it to the floor below; a
+  floor steeper than the slide angle makes it slide downhill and off an edge, stairs excluded (KD3; a new answer,
+  `floor_normal_below`; no floor of the House slopes yet, so where the slide is built is open, KD10); over no floor
+  it rests where it was knocked down. The state is `PlayerState.motion` (KE3). A body still moving cannot be raised
+  (`TargetDowned` rejects `moving`, KD4), and a death ends the motion where it is (KD8). Prevents: a body rolling
+  off a roof on one screen and staying on it for the host, where a teammate standing over it could not raise it.
+- **The House only** (the engineer's answer; KE12). Bodies move only on the maps `PlayerRules.motion_maps` lists, the
+  shape of `TaskType.maps` (the Generator ADR's GE15): the base mode lists the House alone. On the flat greybox a
+  knockdown takes no launch and starts no slide, whatever the knife's numbers, so it is today's knockdown, still,
+  mute and drawn as a ragdoll; the scenarios, the chaos run and the perf run, which play the greybox, see no motion,
+  and the House's motion is checked by integration tests (bots do not play the House, §9.7). Prevents: the knife's
+  launch, which travels with the knife to every map, bringing a new mechanic to the greybox.
+- **Who gets what.** The knocked-down avatar reaches everyone as today, its position moving with the body; its own
+  player gets it too while knocked down (KE5: the one exception to §5's "nobody gets their own avatar", with a
+  protocol bump and the wire's `MAX_AVATARS` raised from 15 to 16, so a full match's snapshot still decodes), so its
+  camera and ears follow the body.
+- **The ragdoll** is the client's looks only (KE7): held by a spring to the interpolated point, colliding with the
+  world layer only, and never read by the raise hint's reach, the camera, the ears or `SightHider`. `DownedCamera`'s
+  pivot, for the own player and for a spectator of a knocked-down target, stays above the body as today and follows
+  it (KD6), rises no higher than the standing eye height above the floor below the body and stops below a ceiling
+  right above it (KE8). A dead body keeps the ragdoll's pose, greyed, with the cross, and a raised player stands up at
+  once (KD7).
+- **Numbers.** The launch speeds, the body's gravity, the slide's angle and speed and the longest motion are
+  placeholders the agents set, marked "not a decision" (KD9 (b)), each with bounds in its data.
 
 ## 8. Debug tooling
 
@@ -4449,6 +4493,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
+| The knockdown reworked (§7.1.17): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers, where the body's motion runs, the own avatar in a knocked-down player's snapshot, the slide while no House floor slopes (KD1 to KD10, KE1 and KE5 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md)) | Settled by the engineer on 2026-10-10 (PR #754, comment 6097876326): every recommendation, KD9's numbers placeholders marked "not a decision", and the launch and the slide on the House only (KE12). Then the issues 728a to 728e (M7 backlog), none built until he says so. Open: KD10, no floor of the House slopes; recommended (a), 728c waits for a level with a sloped floor |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Designed in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), proposed): a return key per settings file, the old number back in the lobby only, nothing else restored; P1, P3, P4, P9, P11, P12, P13 and the split wait for the engineer. Proposed: 73-A and 73-B in M7 after #550 and #551; a return into a running round only as its own design (73-D) |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
