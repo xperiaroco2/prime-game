@@ -2,7 +2,8 @@ class_name UserSettings
 extends RefCounted
 ## The player's own settings on this machine (the M5 ADR §1.7, E43 (a), E47 as amended): the
 ## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
-## §1.1's "opening" mark, the interface language (#208) and the player's own name (#550), in a
+## §1.1's "opening" mark, the interface language (#208), the player's own name (#550), large text,
+## reduced motion and the window mode (Settings, #491), in a
 ## ConfigFile under user://, read at the start and written on each change. Only the name is ever
 ## sent (in Hello). Key bindings get their own file.
 ##
@@ -17,6 +18,9 @@ extends RefCounted
 enum Mode { VOICE_ACTIVITY, PUSH_TO_TALK, OFF }
 
 const INSTANCE_ENV := "PRIME_INSTANCE"
+## window_mode's values.
+const WINDOW_FULLSCREEN := "fullscreen"
+const WINDOW_WINDOWED := "windowed"
 const FOLDER := "user://"
 ## How each mode is written, so a reordered enum reads an old file right.
 const MODE_NAMES: Dictionary[Mode, String] = {
@@ -64,6 +68,18 @@ var player_name := "":
 		var cleaned := PlayerNames.clean(value)
 		if not cleaned.is_empty():
 			player_name = cleaned
+## Settings > Accessibility (#491): the large-text theme, off by default.
+var large_text := false
+## Reduced motion as DisplayServer answers it: 1 on, 0 off, -1 before the player chose (UiPrefs
+## follows the system's setting then).
+var reduced_motion := -1:
+	set(value):
+		reduced_motion = value if value in [-1, 0, 1] else -1
+## Settings > Display (#491): WINDOW_FULLSCREEN or WINDOW_WINDOWED, or "" before the player chose
+## (the window keeps the mode it starts in); any other value reads as "".
+var window_mode := "":
+	set(value):
+		window_mode = value if value in [WINDOW_FULLSCREEN, WINDOW_WINDOWED] else ""
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -125,6 +141,10 @@ func read() -> Error:
 	opening = str(file.get_value("voice", "opening", ""))
 	language = str(file.get_value("interface", "language", ""))
 	player_name = str(file.get_value("player", "name", ""))
+	large_text = file.get_value("interface", "large_text", false) == true
+	var motion: Variant = file.get_value("interface", "reduced_motion", -1)
+	reduced_motion = motion as int if motion is int else -1
+	window_mode = str(file.get_value("display", "window_mode", ""))
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -142,6 +162,9 @@ func write() -> Error:
 	file.set_value("voice", "opening", opening)
 	file.set_value("interface", "language", language)
 	file.set_value("player", "name", player_name)
+	file.set_value("interface", "large_text", large_text)
+	file.set_value("interface", "reduced_motion", reduced_motion)
+	file.set_value("display", "window_mode", window_mode)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)
