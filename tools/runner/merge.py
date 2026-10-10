@@ -359,7 +359,17 @@ def _sha(ref: str) -> str:
 
 
 def _is_ancestor(commit: str, of: str) -> bool:
-    return bool(_fact("ancestor", (commit, of), lambda: _git("merge-base", "--is-ancestor", commit, of).rc == 0))
+    """Whether commit is in of's history. Only git's answers yes (0) and no (1) are kept for the run; a hang or an
+    error (128: a commit not here yet) is a no for this call and is asked again."""
+    key = ("ancestor", commit, of)
+    kept = CACHE.depth and SHA_RE.match(commit) and SHA_RE.match(of)
+    if kept and key in CACHE.facts:
+        return bool(CACHE.facts[key])
+    res = _git("merge-base", "--is-ancestor", commit, of)
+    answer = res.rc == 0 and not res.timed_out
+    if kept and not res.timed_out and res.rc in (0, 1):
+        CACHE.facts[key] = answer
+    return answer
 
 
 def _merge_base(a: str, b: str) -> str:

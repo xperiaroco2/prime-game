@@ -1665,6 +1665,19 @@ class RunCacheTest(MergeCase):
             merge.fetch()
             self.assertEqual(merge._sha(new), new)
 
+    def test_an_ancestry_git_could_not_answer_is_asked_again(self) -> None:
+        old = self.repo.remote("main")
+        new = self.main_moves_unseen()
+        with merge.one_run():
+            self.assertFalse(merge._is_ancestor(old, new))  # git exits 128: the commit is not here yet
+            merge.fetch()
+            self.assertTrue(merge._is_ancestor(old, new))  # the no was not kept
+        hang = Result(-1, "", True, 1.0)
+        with merge.one_run():
+            with mock.patch.object(merge, "_git", return_value=hang):
+                self.assertFalse(merge._is_ancestor(old, old))
+            self.assertTrue(merge._is_ancestor(old, old))  # a hang was not kept either
+
     def test_a_push_inside_a_run_forgets_the_refs(self) -> None:
         ref = f"refs/remotes/{merge.REMOTE}/release/m1"
         old = self.repo.remote("release/m1")
