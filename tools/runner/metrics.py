@@ -886,9 +886,21 @@ def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
         return []
     cmd = str(inp.get("command", ""))
     if SECTION_CMD.search(cmd):
-        return [(rel, "section command", "section") for rel in shell_docs(cmd) if doc_what(rel)]
+        # Step by step: a `cat` of another doc beside the runner's `section` is a read of that doc in full.
+        found: list[tuple[str, str, str]] = []
+        for step, _ in shell_steps(cmd):
+            if SECTION_CMD.search(step):
+                found += [(rel, "section command", "section") for rel in shell_docs(step) if doc_what(rel)]
+            elif not NOT_A_READ.search(step):
+                found += shell_targets(step)
+        return list(dict.fromkeys(found))
     if NOT_A_READ.search(cmd):
         return []
+    return shell_targets(cmd)
+
+
+def shell_targets(cmd: str) -> list[tuple[str, str, str]]:
+    """The docs a shell command (or one step of it) reads by a plain read or a search."""
     words = CD_PREFIX.sub("", cmd).split()
     search = bool(SHELL_SEARCH.search(cmd)) and (words[0].lower() if words else "") not in ("sed", "cat")
     how, mode = ("shell search", "grep") if search else ("shell read", "plain")

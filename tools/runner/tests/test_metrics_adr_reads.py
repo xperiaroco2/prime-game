@@ -132,6 +132,10 @@ class ReadScopeTest(unittest.TestCase):
         self.assertEqual(metrics.doc_targets("Bash", {"command": f"cd /d/x && tools/run.sh section {REL_A} 4"}),
                          [(REL_A, "section command", "section")])
         self.assertEqual(metrics.doc_targets("Bash", {"command": "tools/run.sh section tools/runner/cli.py"}), [])
+        # A `cat` beside the `section` step is a plain read of its doc, a `git diff` beside it none (#793 review).
+        both = f"cd /d/x && tools/run.sh section {REL_A} 2; cat {REL_B}; git diff {REL_C}"
+        self.assertEqual(metrics.doc_targets("Bash", {"command": both}),
+                         [(REL_A, "section command", "section"), (REL_B, "shell read", "plain")])  # fmt: skip
         item = metrics.read_items([(REL_A, "section command", "section")], "x\ny")[0]
         self.assertEqual((item["limited"], item["lines"]), (True, 2))
         self.assertNotIn("text", metrics.read_items([("docs/ARCHITECTURE.md", "section command", "section")], "x")[0])
