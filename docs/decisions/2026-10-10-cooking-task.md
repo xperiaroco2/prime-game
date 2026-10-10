@@ -113,8 +113,9 @@ the reliable-intent bucket bounds each peer at 100, refilled at 20 a second (§4
 1. **The deal** (when `DealTasks` draws Cooking). Stations on their kinds' spawn tags (exact counts, as the
    Generator's GE10, so nothing is drawn): the order board, the herb board and the grill on their one marker each, then
    a bed on each `herb_bed` marker in level order (exactly as many as `herbs`); then N places on the first N `place`
-   markers in level order, N the subtasks setting. With N = 0 no place and no order is dealt: the task has no subtasks
-   and is done (#79), as the Generator's N = 0. Then one box per box kind on a random marker of its tag
+   markers in level order, N the subtasks setting. With N = 0 nothing at all is dealt (no station, no box, no order, no
+   `HerbsDealt`), as Delivery's `deal` returns at once: the task has no subtasks and is done (#79), and a done task
+   would only scatter boxes nobody needs. Then one box per box kind on a random marker of its tag
    (`cooking_boxes`), each with `ItemSpawned` and `item_rested` (spawn), as Delivery's packages. Then per place, in
    station order, its order: a bun, a raw patty kind and a herb, each drawn independently (`cooking_orders`, CD11).
    Then the code, a random permutation of the herbs over the icons 0 to 4 (`herb_code`), and the beds, a random
@@ -295,7 +296,7 @@ does. Nothing is named after an animal.
   place vanishing exactly 1200 ticks after it was laid and not in the next tick, a patty taken off the grill and put
   down counting from 0, a locked item and a kind without `vanish_seconds` never, only in
   a phase listing `VanishTicks`); the ids (below the limit always new, past it the lowest freed one, never one still
-  in use); the deal (markers, ids, the four purposes, orders, code and beds from a seed, N = 0, a short map logging a
+  in use); the deal (markers, ids, the four purposes, orders, code and beds from a seed, N = 0 dealing nothing, a short map logging a
   match error); every row of §4; the grill's ticks (fried at 200, burnt at 300, taken off at 199 still raw); the
   plate (right, wrong, a raw or burnt patty refused, a third right one completing the subtask once, a done place);
   the demands and the fit check; CE14's checks; the order of events (CE13); `ResetMatch` clearing it all; the wire
