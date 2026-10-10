@@ -349,7 +349,9 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and their bounds), its `TargetDowned` row
   and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §9.5.1's `PlayerRules` (the gravity, the longest
   motion, `motion_maps`: the House); §7.1.17. Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all
-  answered). Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
+  answered). The throwing design is still proposed, its TE1 the engineer's: if he defers throwing or takes TE1 (b),
+  so that #641 and #642 never land, 728b builds `WorldQuery.sweep` and the arc function itself, in the shapes those
+  issues set (KE1 (a) needs both either way), and a later throw reuses them. Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
   `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
   `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd` (`MAX_AVATARS`),
   `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
@@ -456,6 +458,7 @@ with fixture tests only; (c) a sloped roof or ramp is laid on the House. Recomme
   rule gets one exception, with a protocol bump and `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS`.
 - `motion_maps` is the second per-map list in the mode's data, beside `TaskType.maps` (the Generator ADR's GE15, if
   merged as proposed): a later House-only mechanic follows the same shape.
-- The throwing issues #641 and #642 become prerequisites of 728b.
+- The throwing issues #641 and #642 become prerequisites of 728b; if they never land, 728b builds the sweep and the
+  arc itself.
 - The playtest on the House tunes the launch, and the slide once a level has a floor that slides a body (KD10); the
   bounds keep a forgotten number out.
