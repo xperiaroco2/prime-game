@@ -281,6 +281,7 @@ func _apply_rules() -> void:
 	_contacts.exclude = [get_rid()]
 	_lying.mesh = LifeLooks.capsule(rules, LifeLooks.PLAYER_COLOUR)
 	_lying.transform = LifeLooks.lying(rules)
+	_paint_lying()
 
 
 ## Paints the lying capsule the own body colour (#551), the one the others see it in; offline (no
