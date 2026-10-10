@@ -121,6 +121,23 @@ func test_only_the_players_own_switch_is_announced() -> void:
 	assert_array(switched).is_equal([next])
 
 
+func test_the_first_target_after_none_is_no_switch() -> void:
+	# Nobody to watch at the death; someone is back, and cycling picks it: a first target, not a
+	# switch (lesson 7 would complete without one).
+	var switched: Array[int] = []
+	_life.target_switched.connect(func(peer: int) -> void: switched.append(peer))
+	_others_at({FIRST: Vector3(4, 0, 0), SECOND: Vector3(-4, 0, 0)})
+	_model.lives[FIRST] = ClientModel.Life.DEAD
+	_model.lives[SECOND] = ClientModel.Life.DEAD
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	await _drawn()
+	assert_int(_life.target()).is_equal(0)
+	_model.lives[FIRST] = ClientModel.Life.ALIVE
+	_life.cycle_target(1)
+	assert_int(_life.target()).is_equal(FIRST)
+	assert_array(switched).is_empty()
+
+
 ## `peer` is watched from its eyes as it sees itself, and the other target is drawn as any other
 ## player: its body by the spectate camera, its items at its body.
 func _assert_watched(peer: int) -> void:
