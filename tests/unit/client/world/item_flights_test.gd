@@ -61,6 +61,22 @@ func test_no_answer_gives_the_item_back() -> void:
 	assert_bool(_flights.has(1)).is_false()
 
 
+func test_the_own_throw_answered_after_the_timeout_is_not_heard_twice() -> void:
+	_flights.predict(_model, _mode, 7, EYE, LOOK)
+	assert_int(_flights.take_due().size()).is_equal(1)
+	_advance(ItemFlights.PREDICTION_TIMEOUT_S + 0.1)
+	assert_bool(_flights.has(1)).is_false()
+	# The late ItemThrown draws on the avatars' timeline; the launch already sounded at the press.
+	_throw(_launch(1, OWN, 10))
+	_advance(FRAME_S, 12.0)
+	assert_bool(_flights.has(1)).is_true()
+	assert_array(_flights.take_due()).is_empty()
+	# Another player's launch is heard when it is drawn.
+	_throw(_launch(2, OTHER, 10))
+	_advance(FRAME_S, 12.0)
+	assert_int(_flights.take_due().size()).is_equal(1)
+
+
 func test_nothing_is_predicted_without_a_rule_or_a_hand_item() -> void:
 	var plain_mode := FixtureItemModes.basic()
 	var plain := ClientModel.new(plain_mode)

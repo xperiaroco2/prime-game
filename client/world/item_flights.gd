@@ -35,6 +35,9 @@ var arcs: Dictionary[int, ItemArc] = {}
 var _pending_seq := -1
 var _pending_item := -1
 var _pending_left_s := 0.0
+## The item whose launch sounded at a press the prediction then gave up on: its late ItemThrown
+## does not sound again.
+var _heard_item := -1
 var _due: Array[Array] = []
 
 
@@ -74,7 +77,9 @@ func has(item_id: int) -> bool:
 ## Where item `item_id` is drawn: Vector3.INF before its launch is drawn; null with no arc.
 func position_of(item_id: int) -> Variant:
 	var arc: ItemArc = arcs.get(item_id)
-	return arc.position() if arc != null else null
+	if arc == null:
+		return null
+	return arc.position()
 
 
 ## A decoded event, already folded into `model`. `host_tick` is the estimated host tick at its
@@ -91,7 +96,11 @@ func on_event(
 				arc.adopt(fields)
 				_forget_prediction()
 			else:
-				arcs[item_id] = ItemArc.thrown(fields)
+				var thrown := ItemArc.thrown(fields)
+				thrown.launch_heard = item_id == _heard_item and thrower == model.own_peer
+				arcs[item_id] = thrown
+			if item_id == _heard_item:
+				_heard_item = -1
 		&"ItemPlaced":
 			if fields.get("cause", &"") != Items.THROWN:
 				return
@@ -125,6 +134,7 @@ func advance(delta: float, drawn_tick: float, model: ClientModel, sweep: Callabl
 			or arc == null
 			or model.hand_item(model.own_peer) != _pending_item
 		):
+			_heard_item = _pending_item
 			_drop_prediction()
 	for item_id: int in arcs.keys():
 		var arc: ItemArc = arcs[item_id]
@@ -162,6 +172,7 @@ func take_due() -> Array[Array]:
 ## Forgets every arc and the prediction (a phase change, a new match, the session ended).
 func clear() -> void:
 	arcs.clear()
+	_heard_item = -1
 	_forget_prediction()
 
 
