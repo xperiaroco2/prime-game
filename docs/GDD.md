@@ -347,9 +347,9 @@ in the playtest.
 
 ### Generator (#679)
 The House map's generator chain ([House map](design/house-map.md) §2, decision 8; its stations in §6). The rules below
-are the engineer's (#679, chat of 2026-10-09, and his answers of 2026-10-10 to the design's questions,
-[PR #695, comment 6095326452](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6095326452)); the engine
-parts and the questions still open are in [the Generator ADR](decisions/2026-10-10-generator-task.md).
+are the engineer's (#679, chat of 2026-10-09, and his answers of 2026-10-10 to the design's questions, in PR #695's
+comments, from [6095326452](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6095326452) on, each
+linked from the ADR's §5); the engine parts are in [the Generator ADR](decisions/2026-10-10-generator-task.md).
 
 **Intent.** A team-coordination task. Up to four switches stand in four basement rooms out of each other's earshot, and
 the generator charges only while all of them are on and someone has pressed its button. The players split up and
@@ -360,10 +360,11 @@ back, switch it on, and return to press the button again.
 **Rules.**
 - The Generator is a task type, like Delivery. Its subtasks are its switches: the subtask count is how many switches
   are active, 2 to 4, the task's difficulty, set by the host in the lobby settings. Every task type will have such a
-  setting (Delivery: its packages; #256). How it counts in the shared task count (the HUD's "Tasks x / y") waits for
-  the engineer's read-back (below); the recommendation: its subtasks are all done together, at full charge.
+  setting (Delivery: its packages; #256). Its subtasks are all done together, at full charge: the task is done then,
+  and the win condition "every task done" waits for it as for any task.
 - The generator and its button stand in the generator hall; switches A to D in storage, the boiler room, the pump room
-  and the switch room. Every pair of switches is more than 8 m apart (20 to 39 m).
+  and the switch room. Every pair of switches is more than 12 m apart, beyond the range of the sounds and so of voice
+  (20 to 39 m on the House).
 - The active switches can be switched on and off; the others are on and cannot be switched off. At the round's start
   every active switch is off. Which switches are active is drawn at random each round.
 - An always-on switch is not interactive at all: there is nothing to aim at and nothing to press. It looks different
@@ -385,21 +386,26 @@ back, switch it on, and return to press the button again.
   differs. Either side may switch any active switch on or off and press the button, and play the other's
   part.
 
-**Where it plays.** On the House, the map being built for the chains, in the base mode, in every match. The flat
-greybox stays the bots' test map, with the generator and its switches placed on it too.
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match. The flat
+greybox, the bots' test map, gets no generator: it keeps only the basic Delivery. All the new mechanics come with M7 on
+the House, and bots playing them comes later, with the map.
 
-**Hidden information.** Everyone sees the charge percentage: the Tab task screen shows the Generator as a progress bar
-of its charge, not as a count of subtasks like the other tasks. The battery is seen only at the generator's panel, not
-on any screen. Nobody is told who switched a switch: players learn it only by seeing it or guessing (hearing a click
-nearby follows from "every action has a sound"). The switches are hidden by sight: a player's game shows a switch
-only where that player can see or hear it.
+**Hidden information.** Everyone sees the charge percentage. On the Tab task screen the Generator's row is a bar of its
+charge, a percentage that grows while someone charges it, where every other task's row shows its own count of done
+subtasks ("2 / 5"); a task whose subtasks are all done is struck through. So a player sees the Generator at 20 % and
+growing (someone is on it), at 0 (nobody is), or stuck at 30 % (something happened there). There is no shared total of
+every task's subtasks, in the HUD or on the task screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)).
+The battery is seen only at the generator's panel, not on any screen. Nobody is told who switched a switch: players
+learn it only by seeing it or guessing (hearing a click nearby follows from "every action has a sound"). The switches
+are hidden by sight: a player's game shows a switch only where that player can see or hear it.
 
 **Edge cases.** A knocked-out player and a dead player can do nothing. The host's own player follows the same rules as
 everyone.
 
 **Numbers** (the engineer's starting values, to tune): 3 active switches by default (2 to 4, a host setting); the charge
-takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m. Placeholders until he sets them:
-a player uses a switch or the button from within 2 m of it, and the lobby label of the switch count.
+takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m; every two switches more than 12 m
+apart. Placeholders until he sets them: a player uses a switch or the button from within 2 m of it, and the lobby label
+of the switch count.
 
 **Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the task screen,
 "Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in
@@ -408,16 +414,12 @@ the content PR).
 **Engine parts** ([the Generator ADR](decisions/2026-10-10-generator-task.md) §1, §8): a Generator task type with two
 station kinds (a switch, the generator's button) and its charge on the host's clock; `Interact(station)`, the first
 use of a fixed station, with busy hands, reach and sight as each station kind's rule; an always-on switch is no
-station at all; two public events (a switch, the button) and the zone task's progress event for the charge; station
-scenes in `levels/stations/` in place of the House's markers; the client's panel, sounds, the always-on switches'
-look and the charge's bar on the task screen. The issues follow from the ADR's split.
+station at all; two public events (a switch, the button) and the zone task's progress event for the charge; a task
+type that plays only on the maps its data lists (the Generator: the House); station scenes in `levels/stations/` in
+place of the House's markers; the client's panel, sounds, the always-on switches' look and the charge's bar on the task
+screen. The issues follow from the ADR's split, for the M7 backlog: for now the track only designs.
 
-Open questions (the engineer's; the ADR's §9, with options and a recommendation):
-- The shared task count (the ADR's GD3, a read-back of his answer): the task screen's Generator row is a progress bar.
-  Does the shared count (the HUD's "Tasks x / y", the task screen's last line) still count the Generator's switches,
-  all done at full charge (recommended), or leave the Generator out while the round still waits for its charge?
-- How far apart must every two switches stand: more than 12 m, the range of the sounds, or more than 8 m, as the rules
-  say (the range of voice)? House passes both; it decides the greybox's placeholder points and later maps.
+Open questions: none. The engineer answered every question of the ADR on 2026-10-10.
 
 ## 9. Meetings and voting
 
