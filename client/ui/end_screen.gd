@@ -8,7 +8,7 @@ extends Control
 ## button, no input, no word about voice (#213).
 
 ## Emitted each time End starts, for the one sound of both outcomes (the handoff: one sound for a
-## win and a loss). No sound asset exists yet: nothing is connected, so the outro is silent.
+## win and a loss): the screen plays it on the UI bus (UiSounds.outro, #657).
 signal outro_began
 
 ## The fade of Night when End starts (the handoff's 0.4 s); a cut under UiPrefs.reduced_motion.
@@ -103,6 +103,7 @@ func _init() -> void:
 		control.focus_mode = Control.FOCUS_NONE
 	_show_winner(&"", false)
 	_retext()
+	outro_began.connect(_play_outro)
 
 
 ## `host_tick`: the newest host tick known (-1: none yet).
@@ -189,6 +190,10 @@ func _begin() -> void:
 		fade = create_tween()
 		fade.tween_property(night, ^"modulate:a", 1.0, FADE_SECONDS)
 	outro_began.emit()
+
+
+func _play_outro() -> void:
+	UiSounds.outro(self)
 
 
 func _show_winner(side: StringName, won: bool) -> void:

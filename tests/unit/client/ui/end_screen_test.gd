@@ -27,6 +27,7 @@ func before_test() -> void:
 func after_test() -> void:
 	TranslationServer.set_locale(_locale)
 	UiPrefs.reduced_motion = _reduced
+	_free_outro_player()
 
 
 func test_the_tree_matches_the_handoff_node_for_node() -> void:
@@ -292,6 +293,42 @@ func test_a_parent_hidden_and_shown_again_is_not_a_new_end() -> void:
 	assert_float(screen.night.modulate.a).is_equal(1.0)
 	assert_object(screen.fade).is_null()
 	assert_int(began[0]).is_equal(1)
+
+
+func test_the_outro_sound_starts_once_per_end_on_the_ui_bus() -> void:
+	# #657: the one sound of both outcomes, on the UI bus, once each time End starts.
+	AudioBuses.ensure()
+	_free_outro_player()
+	var screen := _screen(false)
+	var outros_before := UiSounds.outros
+	assert_object(UiSounds.outro_player_in(get_tree())).is_null()
+	screen.visible = true
+	assert_int(UiSounds.outros).is_equal(outros_before + 1)
+	var player := UiSounds.outro_player_in(get_tree())
+	assert_object(player).is_not_null()
+	assert_str(String(player.bus)).is_equal(String(AudioBuses.UI))
+	var stream := player.stream as AudioStreamRandomizer
+	assert_int(stream.streams_count).is_equal(SfxSet.paths_for(SfxSet.UI_OUTRO).size())
+	assert_bool(player.playing).is_true()
+	# A parent hidden and shown again is not a new End: no second outro.
+	_stage.visible = false
+	_stage.visible = true
+	assert_int(UiSounds.outros).is_equal(outros_before + 1)
+	# Back in the lobby, then the next End: one more, from the same player.
+	screen.visible = false
+	assert_int(UiSounds.outros).is_equal(outros_before + 1)
+	screen.visible = true
+	assert_int(UiSounds.outros).is_equal(outros_before + 2)
+	assert_object(UiSounds.outro_player_in(get_tree())).is_same(player)
+	_free_outro_player()
+
+
+## The outro's player under the root (an End shown plays it): each test ends without one.
+func _free_outro_player() -> void:
+	var player := UiSounds.outro_player_in(get_tree())
+	if player != null:
+		player.get_parent().remove_child(player)
+		player.free()
 
 
 ## An EndScreen on the stage, with the shared theme; `shown` false: hidden, as GameUi starts it.
