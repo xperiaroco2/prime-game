@@ -3756,19 +3756,21 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   calls `Game.leave()`. Without the invite, lesson 1 begins as `PhaseChanged` brings the `lessons` phase; with it,
   `GameTutorial.begin(game)` is #492's Start.
 - **The nine lessons** follow the design's §1 table on the deck keys of `client/i18n/strings.csv` (ui-0.4.0): lesson
-  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150), lesson 4 title only (`how_key` empty: D30 (b) is the UI track's Delivery v1 how text, #150, and the deck's
-  `tutorial.step.deliver.how` holds the v2 sentence, which misleads over v1's coloured circle, D30 (c)); lesson 7 completes on the switch or the
-  own `Respawned` (D36 (a)); lesson 8 waits for the own life living. The numbers (1 s, 3 s) are D33's placeholders.
+  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150); lesson 4 title only (`how_key` empty):
+  D30 (b) is the UI track's Delivery v1 how text (#150), and the deck's `tutorial.step.deliver.how` holds the v2
+  sentence, which misleads over v1's coloured circle (D30 (c)); lesson 7 completes on the switch or the own
+  `Respawned` (D36 (a)); lesson 8 waits for the own life living. The numbers (1 s, 3 s) are D33's placeholders.
   If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
 - Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
   against `ClientModel.Life`), `tutorial_content_test.gd` (the nine lessons as §1's rows, deck keys and actions,
   `RequestStage` only in 6 and 7, a card for `howto_opened`), `tests/unit/client/tutorial/lesson_runner_test.gd`
   (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
   the end after the menu closes), `lesson_runner_source_test.gd`, the switch in
-  `tests/integration/client/life/spectate_cycle_test.gd`, and `tests/integration/client/app/game_tutorial_lessons_test.gd`
-  (the nine lessons on the real session, the stages from the runner's own `NextStage`, lesson 8's quiet time paused
-  under the Esc menu, the end at the main menu;
-  the invite's `begin()`, a second tutorial's fresh runner).
+  `tests/integration/client/life/spectate_cycle_test.gd`, and
+  `tests/integration/client/app/game_tutorial_lessons_test.gd` (the nine lessons on the real session, the stages from
+  the runner's own `NextStage`, a card already showing as lesson 5's second step starts being no opening, lesson 8's
+  quiet time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
+  runner).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
