@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## Esc's menu, the Ready key and the Controls tab (#211) through Input events (#169): a host's Game
 ## alone over a LoopbackHub on a simulated clock, in the lobby; and on the main menu, with no
 ## session, Esc leaves the Voice page (#301) and opens no Esc menu. One Esc closes one overlay
-## (#488): the host's question before the menu, a key capture before the menu. Keys go in through
+## (#488): the host's question before the menu, a key capture before the menu. A new screen closes
+## the menu (#726): a guest's, its host apart in a SubViewport no key reaches. Keys go in through
 ## Input.parse_input_event, which reaches the nodes' _input and _unhandled_input and the action
 ## states headless too (probed on 4.7.2).
 ## Headless Godot keeps no mouse mode, so the game's pointer is a FakePointer.
@@ -319,6 +320,117 @@ func test_esc_cancels_a_join_and_leaves_a_failure_for_the_menu() -> void:
 	assert_str(game.ui.menu.address_edit.text).is_equal("127.0.0.1:%d" % (PORT + 9))
 
 
+## #726: a guest readies with F, opens the Esc menu with Esc and waits; the match started and the
+## menu went along over Loading into the round. The countdown still runs in the lobby's scene, so
+## the menu stays open there (its Ready can take the ready back); every screen the match swaps in
+## closes it, and the mouse follows that screen. The host plays apart, where no key reaches it.
+func test_a_ready_guests_esc_menu_closes_as_the_match_leaves_the_lobby() -> void:
+	var port := PORT + 7
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % port], true)
+	var guest := _game(["--join=127.0.0.1", "--port=%d" % port])
+	assert_bool(await _until(_both_on.bind(host, guest, S.LOBBY))).is_true()
+	await _frames(2)
+	_press(KEY_F)
+	assert_bool(await _until(_ready_flag_is.bind(guest, true))).is_true()
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(guest.ui.esc_open()).is_true()
+	assert_bool(guest.pointer.captured()).is_false()
+	host.set_ready(true)
+	assert_bool(await _until(func() -> bool: return _phase(guest) == &"countdown")).is_true()
+	await _frames(2)
+	assert_bool(guest.ui.esc_open()).is_true()
+	# Loading: no menu over it, the mouse captured again as the lobby had it.
+	assert_bool(await _until(func() -> bool: return guest.ui.screen == S.LOADING, 400)).is_true()
+	_assert_menu_gone(guest)
+	assert_bool(guest.pointer.captured()).is_true()
+	# The round: no menu, the mouse captured, the keys read.
+	assert_bool(await _until(func() -> bool: return guest.ui.screen == S.ROUND, 400)).is_true()
+	_assert_menu_gone(guest)
+	assert_bool(guest.pointer.captured()).is_true()
+	assert_bool(guest.player().reads_device_input).is_true()
+	# One Esc opens it again, on Game.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(guest.ui.esc_open()).is_true()
+	assert_object(guest.ui.esc.page()).is_same(guest.ui.esc.actions)
+	guest.leave()
+	host.leave()
+	await get_tree().process_frame
+
+
+## #726: the round's end and the lobby's return close the menu too, with what is open on it: the
+## guest's dropdown list (Settings) and the host's Leave question; the end screen frees the mouse
+## and the lobby captures it again.
+func test_the_end_screen_and_the_lobby_close_the_menu_its_dropdown_and_the_question() -> void:
+	var port := PORT + 8
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % port], true)
+	var guest := _game(["--join=127.0.0.1", "--port=%d" % port])
+	assert_bool(await _until(_both_on.bind(host, guest, S.LOBBY))).is_true()
+	host.change_setting(&"match_duration", 1)
+	assert_bool(await _until(func() -> bool: return _duration(guest) == 1)).is_true()
+	host.set_ready(true)
+	guest.set_ready(true)
+	assert_bool(await _until(_both_on.bind(host, guest, S.ROUND), 400)).is_true()
+	# The guest: Esc, the Settings tab, its talk mode's list open.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	guest.ui.esc.press(EscMenuState.Tab.SETTINGS)
+	await _frames(2)
+	var mode_list := guest.ui.esc.voice.mode_button.get_popup()
+	guest.ui.esc.voice.mode_button.show_popup()
+	await _frames(2)
+	assert_bool(mode_list.visible).is_true()
+	# The host: Leave asks first.
+	host.open_esc()
+	host.ui.esc.press_leave()
+	assert_bool(host.ui.esc.state.asking()).is_true()
+	# Time up: the end screen, nothing of either menu left, the mouse free for it.
+	assert_bool(await _until(_both_on.bind(host, guest, S.END), 400)).is_true()
+	_assert_menu_gone(guest)
+	assert_bool(mode_list.visible).is_false()
+	assert_bool(guest.pointer.captured()).is_false()
+	_assert_menu_gone(host)
+	assert_bool(host.ui.esc.confirm_box.visible).is_false()
+	assert_int(host.ui.esc.menu.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_INHERITED)
+	# Esc on the end screen opens the menu; the lobby's return closes it and captures the mouse.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(guest.ui.esc_open()).is_true()
+	host.return_to_lobby()
+	assert_bool(await _until(_both_on.bind(host, guest, S.LOBBY), 400)).is_true()
+	_assert_menu_gone(guest)
+	assert_bool(guest.pointer.captured()).is_true()
+	guest.leave()
+	host.leave()
+	await get_tree().process_frame
+
+
+## Both games show `screen` with both players in their rosters.
+func _both_on(host: Game, guest: Game, screen: S) -> bool:
+	for game: Game in [host, guest]:
+		if game.client() == null or game.ui.screen != screen:
+			return false
+		if game.client().model.roster.size() != 2:
+			return false
+	return true
+
+
+func _phase(game: Game) -> StringName:
+	return game.client().model.phase if game.client() != null else &""
+
+
+func _duration(game: Game) -> int:
+	return game.client().model.settings.get(&"match_duration", -1) if game.client() != null else -1
+
+
+## The Esc menu is shut and drawn shut: its state, its node and its dialog.
+func _assert_menu_gone(game: Game) -> void:
+	assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(game.ui.esc.visible).is_false()
+	assert_bool(game.ui.esc.state.asking()).is_false()
+
+
 ## A host's Game alone in the lobby, its pointer a FakePointer, its screens shown.
 func _lobby_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
@@ -391,13 +503,24 @@ func _visible_buttons(ui: GameUi) -> Array[String]:
 	return texts
 
 
-func _game(args: Array[String]) -> Game:
+## A Game at the root, where the keys reach it; `apart`: in a SubViewport of its own instead, with
+## its own World3D (as game_loop_test.gd), which no key reaches.
+func _game(args: Array[String], apart := false) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = func() -> int: return _now
 	game.make_transport = _transport
-	add_child(game)
+	game.pointer = FakePointer.new()
+	if apart:
+		var machine := SubViewport.new()
+		machine.own_world_3d = true
+		machine.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		machine.add_child(game)
+		add_child(machine)
+		auto_free(machine)
+	else:
+		add_child(game)
 	auto_free(game)
 	return game
 

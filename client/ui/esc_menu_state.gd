@@ -20,6 +20,8 @@ enum Action { NONE, RESUME, LEAVE, QUIT }
 
 var is_open := false
 var selected := Tab.GAME
+## The screen the menu opened over and has followed since; another screen closes it (#726).
+var over_screen := GameFlow.Screen.MENU
 ## The own player hosts: Leave and Quit end the session for everyone and ask first.
 var hosting := false
 ## The lobby screen (the lobby and the countdown phases): the Lobby tab is the default.
@@ -68,6 +70,7 @@ func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> Action:
 ## Follows the game while open: a tab that went away (the round started) gives way to the default.
 func follow(screen: GameFlow.Screen, model: ClientModel, hosting_now: bool) -> void:
 	hosting = hosting_now
+	over_screen = screen
 	in_lobby = screen == GameFlow.Screen.LOBBY
 	in_round = screen == GameFlow.Screen.ROUND
 	may_change_settings = in_lobby and hosting and settings_by_host(model)
