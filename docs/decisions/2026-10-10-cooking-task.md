@@ -413,10 +413,10 @@ four those left, each decided by him (chat with the game-design manager session,
    belt's item drops at the taker's feet; the two-handed item stays in the hands (§2's table, CE19 to CE21). His
    reason: "so as not to wear the player out with needless steps": the rule does for the player the routine of
    putting the box down, swapping and picking it up again. What is not a take (putting onto a plate or the grill,
-   using a station, a hit) keeps the busy-hands refusal (`two_handed`). This replaces the derived points of the
-   first draft: (i) a take from another box onto the belt stands, now his; (ii) the box put down at the feet for a
-   take with a full belt is gone; (iii) the plates and a put on the grill still refuse a box carrier, while a take
-   off the grill no longer does.
+   using a station that gives no item, a hit; a box's, a bed's and the grill's take-off are takes) keeps the
+   busy-hands refusal (`two_handed`). This replaces the derived points of the first draft: (i) a take from another
+   box onto the belt stands, now his; (ii) the box put down at the feet for a take with a full belt is gone; (iii)
+   the plates and a put on the grill still refuse a box carrier, while a take off the grill no longer does.
 4. **Where a displaced hand item lands** (CD5 (b)): **at the taker's feet** (the same comment 6096108400, item 4,
    the question's (a)), CE19's spot, no wire change.
 

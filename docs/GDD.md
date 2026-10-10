@@ -251,9 +251,9 @@ greenhouse, where a board decodes the order's herb icon.
   package) can take: an ingredient from a box, a herb from a bed, the patty off the grill, an item from the floor. The
   new item goes onto the belt; if the belt is full, its item drops at the player's feet; the two-handed item stays in
   the hands. What is not a take is refused while the hands are busy: putting something onto a plate or the grill,
-  using a station, a hit. (The engineer's reason: the rule does for the player the routine of putting the box down,
-  swapping and picking it up again.) Picking up a second two-handed item still swaps it with the one in the hands,
-  since the belt holds only a one-handed item.
+  using a station that gives no item, a hit. (The engineer's reason: the rule does for the player the routine of
+  putting the box down, swapping and picking it up again.) Picking up a second two-handed item still swaps it with
+  the one in the hands, since the belt holds only a one-handed item.
 - Taking with full hands (an item in the hand and one on the belt) puts the hand item down at the player's feet, and
   the new one goes into the hand. This holds at the boxes, the beds and the grill.
 - An ingredient left lying vanishes after a while. Spamming takes is fine: nothing in the rules stops players covering
