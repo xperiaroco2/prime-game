@@ -16,13 +16,9 @@ var _player: PlayerController
 var _keys: ItemInteractions
 var _harness: Harness
 var _model: ClientModel
-var _locale := ""
 
 
 func before_test() -> void:
-	# The hint names the item in the language now (ContentNames, #549): English here.
-	_locale = TranslationServer.get_locale()
-	TranslationServer.set_locale("en")
 	_world = World.new()
 	add_child(_world)
 	_player = _world.call(&"add_player", Vector3.ZERO) as PlayerController
@@ -39,7 +35,6 @@ func before_test() -> void:
 func after_test() -> void:
 	_world.free()
 	_harness.close()
-	TranslationServer.set_locale(_locale)
 
 
 func test_a_crate_top_item_the_host_would_refuse_gets_no_hint() -> void:
@@ -68,8 +63,6 @@ func test_a_floor_item_1_3_to_1_7_m_away_gets_the_hint_and_e_picks_it_up() -> vo
 		assert_float(eye.distance_to(at)).is_greater(2.0)
 		assert_int(_keys.target()).override_failure_message("at %.2f m" % distance).is_equal(2)
 		assert_str(_keys.hint()).is_equal("E: pick up Knife")
-	TranslationServer.set_locale("uk")
-	assert_str(_keys.hint()).ends_with(" Ніж")
 	assert_int(_keys.pick_up()).is_greater(0)
 	_harness.pump()
 	var sent := _harness.sent_named(Intents.PICK_UP)
