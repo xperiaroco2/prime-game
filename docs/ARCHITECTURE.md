@@ -2972,14 +2972,14 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
   Godot translates.
 - **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
   its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
-  outcomes, which has no asset yet, so nothing plays. Every Control ignores the mouse and takes no focus. Voice is
+  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.40). Every Control ignores the mouse and takes no focus. Voice is
   silent in End by #213's rule, not by the screen.
 - **Not built here.** The handoff's black-screen CanvasLayer 6: the screen stays a child of `GameUi`'s one layer,
   under the Esc menu, until the black screens share a layer (#494's connecting and loading screens use it too).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
 without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
-client; a language switch; no focus or input; the fade, its cut and the outro hook once per End),
+client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
 `--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
 `end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
@@ -3564,7 +3564,7 @@ No new event, row or rule: a client plays a sound only for the events and the sn
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
-  (`click_1..3`), Ogg Vorbis through LFS, one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  (`click_1..3`; `ui_outro`, #657), Ogg Vorbis through LFS, one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -3594,7 +3594,9 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   press or `ui_accept`, never hover, release or a toggle's change alone; a disabled button sends no
   `button_down`. One `AudioStreamPlayer` (polyphony 4) under the window's root on the UI bus, made at the first
   click and kept, so a press that frees its screen does not cut its click; a button outside the tree clicks
-  nothing.
+  nothing. `UiSounds.outro` (#657), from `EndScreen.outro_began` (once each time End starts): `ui_outro`, the one
+  sound of both outcomes, from its own player (`UiOutro`, polyphony 1) under the root on the UI bus, made at the
+  first End and kept; no voice is routed through it (#213).
 - Tests: `tests/unit/client/world/footstep_cadence_test.gd` (the interval at walk and sprint speed, between and
   below; one step per interval; none standing; a still frame; a placement; only horizontal movement),
   `footstep_surface_test.gd` (the tag, the nearest ancestor's, the default), `sound_chooser_test.gd` (the step's

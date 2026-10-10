@@ -23,7 +23,13 @@ func test_each_id_is_one_randomizer_of_its_files() -> void:
 		assert_int(stream.streams_count).is_equal(SfxSet.paths_for(id).size())
 		assert_float(stream.random_pitch).is_greater(1.0)
 		assert_float(stream.random_volume_offset_db).is_greater(0.0)
-		assert_int(stream.playback_mode).is_equal(AudioStreamRandomizer.PLAYBACK_RANDOM_NO_REPEATS)
+		# No repeats needs two files to choose between: a one-file id (the outro, #657) is random.
+		var mode := (
+			AudioStreamRandomizer.PLAYBACK_RANDOM_NO_REPEATS
+			if SfxSet.paths_for(id).size() > 1
+			else AudioStreamRandomizer.PLAYBACK_RANDOM
+		)
+		assert_int(stream.playback_mode).override_failure_message(String(id)).is_equal(mode)
 
 
 func test_every_surface_has_its_five_footsteps() -> void:
