@@ -387,9 +387,13 @@ back, switch it on, and return to press the button again.
   part.
 
 **Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match. The flat
-greybox, the bots' test map, gets no generator and none of the House's chains: it keeps what it deals today (whether
-"only the basic Delivery" also takes the zone task off it is open, below). All the new mechanics come with M7 on
-the House, and bots playing them comes later, with the map.
+greybox is a test bench only, for the bot scenarios and the information-leak test, and players always play the House
+([#767](https://github.com/xperiaroco2/prime-game/issues/767)), so no new mechanic goes on the greybox: it gets no
+generator and none of the House's chains, and the zone task leaves it too, its zones and their three bot scenarios
+gone (the engineer, 2026-10-10, the ADR's GD13 (b):
+[PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117) and
+[6100663476](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100663476)). All the new mechanics
+come with M7 on the House, and bots playing them comes later, with the map.
 
 **Hidden information.** Everyone sees the charge percentage. On the Tab task screen the Generator's row is a bar of its
 charge, a percentage that grows while someone charges it, where every other task's row shows its own count of done
@@ -421,11 +425,8 @@ type that plays only on the maps its data lists (the Generator: the House); stat
 place of the House's markers; the client's panel, sounds, the always-on switches' look and the charge's bar on the task
 screen. The issues follow from the ADR's split, for the M7 backlog: for now the track only designs.
 
-Open questions (the engineer's): the engineer answered the ADR's GD1 to GD12 on 2026-10-10. One is left, from his
-words "the greybox keeps only the basic Delivery and nothing else" (ADR §9, GD13):
-- The greybox already deals the zone task (four zones there, by the zone ADR's ZD10). Does it keep it (recommended:
-  the words were about the House's new chains), or does the zone task move to the House only, with its greybox zones
-  and its bot scenarios gone?
+Open questions: none; the engineer answered the ADR's GD1 to GD13 on 2026-10-10 and approved this design with the
+last two (ADR §9). The numbers above are tuned in the playtest.
 
 ## 9. Meetings and voting
 
