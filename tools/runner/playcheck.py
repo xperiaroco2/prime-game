@@ -26,6 +26,10 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
                             every other window the first wait after its first `press ready`, waits
                             BOTS_START_SECONDS longer, for their process to start
+    tutorial                window 1 starts the solo tutorial (--tutorial, #601) instead of hosting: one window
+                            and one player (`players 1`, `windows 1`, both implied), its host on a private
+                            in-process hub with the game's two stand-ins in its roster; no bots, role, setting
+                            or clock
 Then a section per window, `window <n>`, and its steps, run in order:
     wait phase <id>                      its model's phase (lobby, countdown, loading, pregame, round, end)
     wait screen <screen>                 the screen it shows (SCREENS)
@@ -185,6 +189,8 @@ class Scenario:
     settings: dict[str, int] = field(default_factory=dict)
     clock: int = 0
     timeout: float = DEFAULT_TIMEOUT
+    # Window 1 runs the solo tutorial (--tutorial) instead of hosting.
+    tutorial: bool = False
     steps: dict[int, list[Step]] = field(default_factory=dict)
 
     def shots(self) -> list[str]:
@@ -215,6 +221,8 @@ class _Parser:
         # The line of `bots <file.tres>`, and that BotScenario's `bots`.
         self.bots_line = 0
         self.bots_count = 0
+        # The first line of each header key.
+        self.header_lines: dict[str, int] = {}
 
     def fail(self, why: str, line: int | None = None) -> Failure:
         return Failure(f"{self.scenario.name}{SUFFIX}:{line or self.line}: {why}")
@@ -254,7 +262,10 @@ class _Parser:
     def header(self, words: list[str]) -> None:
         key, args = words[0], words[1:]
         s = self.scenario
-        if key == "players" and len(args) == 1:
+        self.header_lines.setdefault(key, self.line)
+        if key == "tutorial" and not args:
+            s.tutorial = True
+        elif key == "players" and len(args) == 1:
             s.players = self.number(args[0], "players", 1, MAX_PLAYERS)
         elif key == "windows" and len(args) == 1:
             s.windows = self.number(args[0], "windows", 1, MAX_WINDOWS)
@@ -276,7 +287,7 @@ class _Parser:
             s.clock = self.number(args[0], "clock", 1, MAX_CLOCK)
         elif key == "timeout" and len(args) == 1:
             s.timeout = self.seconds(args[0], "timeout")
-        elif key in ("players", "windows", "bots", "role", "setting", "clock", "timeout"):
+        elif key in ("players", "windows", "bots", "role", "setting", "clock", "timeout", "tutorial"):
             raise self.fail(f"wrong number of words for `{key}`")
         else:
             raise self.fail(f"unknown header line `{key}` (steps go under a `window <n>` line)")
@@ -399,6 +410,8 @@ class _Parser:
 
     def finish(self) -> Scenario:
         s = self.scenario
+        if s.tutorial:
+            self.tutorial_header()
         if s.players == 0 or s.windows == 0:
             raise self.fail("the header needs `players <n>` and `windows <n>`", 1)
         if s.windows > s.players:
@@ -469,6 +482,20 @@ class _Parser:
             s.steps.setdefault(1, []).insert(0, Step(0, text, "setup", setup))
         return s
 
+    def tutorial_header(self) -> None:
+        """A tutorial scenario: one window and one player; the stand-ins are the game's, and the setup has no host
+        command to go through."""
+        s = self.scenario
+        for key in ("bots", "role", "setting", "clock"):
+            if key in self.header_lines:
+                why = f"`{key}` has no place in a tutorial scenario (no bots, no host setup)"
+                raise self.fail(why, self.header_lines[key])
+        for key in ("players", "windows"):
+            if getattr(s, key) not in (0, 1):
+                why = "a tutorial scenario has one window and one player (the stand-ins are the game's)"
+                raise self.fail(f"{why}, not {key} {getattr(s, key)}", self.header_lines[key])
+        s.players = s.windows = 1
+
 
 def bots_res(text: str, fail: Callable[[str], Failure]) -> str:
     """A BotScenario's file (repo-relative or res://) -> its checked res:// path."""
@@ -531,13 +558,17 @@ def plan(scenario: Scenario, out: Path) -> dict[str, object]:
 
 
 def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> list[hostjoin.Part]:
-    """The windows (window 1 hosts on 127.0.0.1, the others join it), then the bots, with their arguments."""
-    parts = hostjoin.host_parts(port, scenario.windows - 1, local=True, stop=stop)
+    """The windows (window 1 hosts on 127.0.0.1, the others join it), then the bots, with their arguments; a
+    tutorial's one window starts the tutorial, which opens no port and writes no replay."""
+    if scenario.tutorial:
+        parts = hostjoin.tutorial_parts(stop=stop)
+    else:
+        parts = hostjoin.host_parts(port, scenario.windows - 1, local=True, stop=stop)
     for number, part in enumerate(parts, start=1):
         part.label = window_label(number)
         part.user_args = [f"--plan={plan_path}", f"--window={number}", *part.user_args]
         part.grace = WINDOW_GRACE_SECONDS
-        if number == 1:
+        if number == 1 and not scenario.tutorial:
             part.user_args.append(hostjoin.NO_REPLAY)
     if scenario.bots:
         tail = [f"--port={port}", f"--stop-file={stop}", f"--alive-file={hostjoin.alive_file(stop)}"]
@@ -645,7 +676,9 @@ def clear(folder: Path) -> None:
 
 
 def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
-    say(f"playcheck {scenario.name}: {scenario.windows} window(s) and {scenario.players - scenario.windows} bot(s)")
+    bots = scenario.players - scenario.windows
+    kind = " (the solo tutorial)" if scenario.tutorial else ""
+    say(f"playcheck {scenario.name}: {scenario.windows} window(s) and {bots} bot(s){kind}")
     out = OUT_DIR / scenario.name
     clear(out)
     # hostjoin.write_logs clears old logs only for a first part labelled host: a log of an earlier run with more

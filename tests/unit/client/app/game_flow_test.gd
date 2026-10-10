@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## state of the session and each phase of the base mode, read from the client's own mode.
 
 const MODE := "res://content/modes/base_mode.tres"
+const TUTORIAL := "res://content/modes/tutorial_mode.tres"
 
 const S := GameFlow.Screen
 const L := PhaseSpec.Level
@@ -44,6 +45,35 @@ func test_each_phase_of_the_base_mode_has_its_screen_and_level() -> void:
 		assert_int(GameFlow.level(welcomed, model)).override_failure_message(label).is_equal(
 			step[2] as int
 		)
+
+
+func test_the_tutorial_waits_on_the_loading_screen_until_its_lessons() -> void:
+	# #601: gather has no level (E72), so it shows Loading, frozen, the mouse kept, never the round.
+	var model := ClientModel.new(load(TUTORIAL) as GameMode)
+	var welcome := WelcomeEvent.new(1, Vector3.ZERO, 1)
+	welcome.phase = &"gather"
+	model.fold(&"Welcome", welcome.to_dict())
+	var welcomed := GameFlow.Session.WELCOMED
+	# [phase, screen, level]
+	var flow: Array[Array] = [
+		[&"gather", S.LOADING, L.NONE],
+		[&"loading", S.LOADING, L.MAP],
+		[&"lessons", S.ROUND, L.MAP],
+		[&"raise_stage", S.ROUND, L.MAP],
+		[&"death_stage", S.ROUND, L.MAP],
+	]
+	for step: Array in flow:
+		if step[0] != &"gather":
+			model.fold(&"PhaseChanged", {"phase": step[0], "end_tick": -1})
+		var label := str(step[0])
+		assert_int(GameFlow.screen(welcomed, model)).override_failure_message(label).is_equal(
+			step[1] as int
+		)
+		assert_int(GameFlow.level(welcomed, model)).override_failure_message(label).is_equal(
+			step[2] as int
+		)
+	assert_bool(GameFlow.frozen(S.LOADING)).is_true()
+	assert_int(GameFlow.pointer_on(S.LOADING)).is_equal(GameFlow.Pointer.KEEP)
 
 
 func test_a_match_that_ended_shows_the_end_screen() -> void:

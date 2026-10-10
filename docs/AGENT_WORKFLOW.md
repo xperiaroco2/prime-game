@@ -1751,7 +1751,8 @@ with no folder here: not on this machine, #586); next to an ID that does, it get
 The real game in off-screen
 windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
 (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
-players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
+players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port; with the `tutorial` header it
+is the only window and starts the solo tutorial, `--tutorial`, #601), up to two more windows join it,
 and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
 scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
 host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait

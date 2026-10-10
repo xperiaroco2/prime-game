@@ -1,0 +1,17 @@
+# The solo tutorial session (#601) in the game's real window: --tutorial starts it without the
+# invite, its host on a private in-process hub (no port), with the game's two stand-ins. gather
+# has no level, so the loading screen shows until the room is in; then the lessons phase shows
+# the round in the tutorial room with three players in the roster. The lessons and the invite
+# come later (T4 #602, #492): this shows the room and the session as T3 leaves them.
+tutorial
+timeout 60
+
+window 1
+wait phase lessons
+wait screen round
+wait players 3
+frames 30
+shot tutorial_room
+press ui_cancel
+wait esc open
+shot tutorial_esc

@@ -305,12 +305,41 @@ class ParserTest(unittest.TestCase):
         self.assertIn("spectate", names)
         self.assertIn("items", names)
         self.assertIn("end", names)
+        self.assertIn("tutorial", names)
         for name in names:
             with self.subTest(name=name):
                 s = playcheck.load(name)
                 self.assertTrue(s.shots())
                 if s.bots:
                     self.assertTrue((ROOT / s.bots.removeprefix("res://")).is_file())
+
+    def test_a_tutorial_scenario_is_one_window_and_one_player(self) -> None:
+        s = scenario("tutorial\ntimeout 60\n\nwindow 1\nwait phase lessons\nwait players 3\nshot room")
+        self.assertTrue(s.tutorial)
+        self.assertEqual((s.players, s.windows, s.bots), (1, 1, ""))
+        self.assertEqual(playcheck.plan(s, Path("/out"))["windows"], 1)
+        given = scenario("tutorial\nplayers 1\nwindows 1\nwindow 1\nshot room")
+        self.assertEqual((given.players, given.windows), (1, 1))
+        self.assertFalse(scenario().tutorial)
+        self.assertTrue(playcheck.load("tutorial").tutorial)
+
+    def test_a_tutorial_scenario_refuses_bots_setup_and_more_windows_naming_the_line(self) -> None:
+        cases = {
+            f"bots {BOTS}": "`bots` has no place",
+            "role 1 dissident": "`role` has no place",
+            "setting match_duration 5": "`setting` has no place",
+            "clock 20": "`clock` has no place",
+            "players 3": "not players 3",
+            "windows 2": "not windows 2",
+        }
+        for line, why in cases.items():
+            with self.subTest(line=line), self.assertRaises(Failure) as caught:
+                scenario(f"tutorial\ntimeout 20\n{line}\nwindow 1\nshot a")
+            self.assertIn("probe.txt:3: ", str(caught.exception))
+            self.assertIn(why, str(caught.exception))
+        with self.assertRaises(Failure) as caught:
+            scenario("tutorial now\nwindow 1\nshot a")
+        self.assertIn("probe.txt:1: wrong number of words for `tutorial`", str(caught.exception))
 
     def test_a_botscenarios_bots_is_read_from_its_resource_section_default_1(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -368,6 +397,22 @@ class CommandTest(unittest.TestCase):
     def test_a_scenario_of_windows_only_starts_no_bots(self) -> None:
         parts = playcheck.make_parts(scenario(with_header("window 1\nshot a")), Path("/p.json"), 1, Path("/s"))
         self.assertEqual([p.label for p in parts], ["window 1", "window 2"])
+
+    def test_a_tutorial_starts_one_window_with_tutorial_and_no_host_port_or_replay_flag(self) -> None:
+        s = scenario("tutorial\nwindow 1\nwait phase lessons\nshot room")
+        stop = Path("/logs/stop-1")
+        parts = playcheck.make_parts(s, Path("/out/tutorial/plan.json"), 24999, stop)
+        playcheck.set_commands(parts, "godot.exe")
+        self.assertEqual([p.label for p in parts], ["window 1"])
+        cmd = parts[0].cmd
+        own = cmd[cmd.index("--") + 1 :]
+        self.assertEqual(own[:3], [f"--plan={Path('/out/tutorial/plan.json')}", "--window=1", "--tutorial"])
+        self.assertIn(f"--stop-file={stop}", own)
+        self.assertIn(f"--alive-file={hostjoin.alive_file(stop)}", own)
+        for absent in ("--host", "--local", hostjoin.NO_REPLAY, "--port=24999"):
+            self.assertNotIn(absent, own)
+        self.assertNotIn("--headless", cmd)
+        self.assertEqual(cmd[cmd.index("-s") + 1], playcheck.WINDOW_SCRIPT)
 
     def test_the_cli_takes_scenarios_and_seconds(self) -> None:
         args = cli.build_parser().parse_args(["playcheck"])
