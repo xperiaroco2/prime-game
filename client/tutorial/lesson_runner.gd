@@ -1,6 +1,6 @@
 class_name LessonRunner
 extends RefCounted
-## Plays the tutorial's lessons (docs/design/tutorial.md §1, §3: E63, E64; ARCHITECTURE §4.7): a
+## Plays the tutorial's lessons (docs/design/tutorial.md §1, §3: E63, E64; ARCHITECTURE §4.7.45): a
 ## pure RefCounted fed what the own client already knows, the own session's events (on_event),
 ## the own claims (on_claim), the client's own signals (see, esc_closed) and, every frame, the
 ## local player's position and whether a microphone is open (advance). It reads the own
