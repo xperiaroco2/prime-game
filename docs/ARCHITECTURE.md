@@ -1809,9 +1809,9 @@ Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
 `ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`, but in the solo tutorial,
-which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.43). `client/app/` is the only part
-of `client/` that names `server/`, and only through `HostNode` as a narrow façade: `HostNode.host(transport, mode,
-port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
+which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.43). `client/app/` is the
+only part of `client/` that names `server/`, and only through `HostNode` as a narrow façade:
+`HostNode.host(transport, mode, port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
 `end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
 `app/` included, strips comments and strings and fails on the identifiers `HostSession`, `Match`, `MatchState`,
 `PeerView` and `Snapshots` (case-sensitive, word-bounded: `SnapshotBuffer` passes) and on any `.game` access, like
@@ -3553,8 +3553,8 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   unchanged, the own `ClientSession` on `HostNode.own_client`. No socket opens and nobody else can join; the port
   (`GameTutorial.PORT`, `LaunchOptions.DEFAULT_PORT`) only keys the hub, and `Game.make_transport` is never called.
   The host writes no replay (`HostNode.skip_replay`: each would push a match's out of `ReplayFiles.KEEP`). The game
-  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed (the invite never counts
-  as seen then), and Try again starts the tutorial again, without the invite.
+  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed
+  (the invite never counts as seen then), and Try again starts the tutorial again, without the invite.
 - **The stand-ins** (`client/tutorial/stand_ins.gd`, `StandIns`, a child of `Game` named `StandIns`): two
   `ClientSession`s, each on its own `LoopbackTransport` that joins the hub (peers 2 and 3) once the own player is
   welcomed (`StandIns.join_host`), each stepped by a `SessionNode` of its own at physics priority -95 (after the
@@ -3563,8 +3563,8 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   own session, they would otherwise say Hello first and take `Player1` and `Player2`). Then `SetReady(true)` once
   welcomed, `LoadAck` at once (`load_levels` off, as the bots), and `ClientSession`'s own claims from its last
   `Welcome` or `Correction` (at rest, on the floor), so it stands where the host placed it; nothing else, no intent,
-  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()` (a test hook): no session, model or
-  transport leaves the class.
+  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()` (a test hook): no
+  session, model or transport leaves the class.
 - **The mode per session:** `GameTutorial.end` (called by `Game._end_session` before `_show_end`) frees the
   stand-ins and gives `Game.mode` back the mode it had (the base mode, or a test's), so a networked session after a
   tutorial uses the base mode again. `GameFlow` shows the loading screen for a phase with no level (`gather`, §4.7.4's
@@ -3581,10 +3581,11 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   settings)` holds only with no launch option at all (`LaunchOptions.given`, a wrong one too), the settings read from
   a file (`UserSettings.path` set) and `UserSettings.tutorial_seen` (`[player] tutorial_seen`) false. A Game with no
   command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
-  windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in
-  the headless session, is a problem. `invite_open` says the invite is due (#492 draws it); until #492's Start and
-  Skip set the flag, the end of a tutorial that started with the invite sets it (`GameTutorial.mark_seen`, written),
-  so a plain launch does not start it every time (a choice under "Needs the engineer" in the PR).
+  windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as
+  `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in the headless session,
+  is a problem. `invite_open` says the invite is due (#492 draws it); until #492's Start and Skip set the flag, the
+  end of a tutorial that started with the invite sets it (`GameTutorial.mark_seen`, written), so a plain launch does
+  not start it every time (a choice under "Needs the engineer" in the PR).
 - **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
   --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`
   and `clock` are refused naming their line. The window still prints the `session: hosting` line, which nothing
@@ -3592,7 +3593,8 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
 - Tests: `tests/unit/client/app/game_flow_test.gd` (the tutorial mode's flow), `launch_options_test.gd` (`--tutorial`,
   `given` and the problems), `user_settings_test.gd` (the flag), `game_tutorial_test.gd` (the first-launch rule's
   table), `tests/unit/client/tutorial/stand_ins_source_test.gd` (only `stand_ins.gd` and `game_tutorial.gd` name
-  `StandIns` or its node path, nothing else reads its private lists or builds a `ClientSession` but `game.gd`, the wiring makes no node lookups, no public member hands out a session; planted failures rejected),
+  `StandIns` or its node path, nothing else reads its private lists or builds a `ClientSession` but `game.gd`, the
+  wiring makes no node lookups, no public member hands out a session; planted failures rejected),
   `tests/integration/client/tutorial/stand_ins_test.gd` (on a `HostNode` of the tutorial mode, what the host receives
   from each stand-in: one `Hello` with no name, one `SetReady`, one `LoadAck`, claims at one spot at rest, nothing
   else, seen failing with a planted voice frame; leaving the tree leaves), and
@@ -5401,7 +5403,8 @@ Settings:
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
-provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3 (#601, §4.7.43).
+provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
+(#601, §4.7.43).
 Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
 `docs/design/tutorial.md` §2.3 and a match from `gather` to the respawn in `death_stage`
 (`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
