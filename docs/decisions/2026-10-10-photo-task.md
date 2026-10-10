@@ -11,7 +11,10 @@
   **film** loaded into it, not a memory card carried by the shooter), and PD2 and PD8, which he answered in his own
   words (§6); and his answers of the same day to PD16 to PD18, which those raised, and to §6.1's drafts
   ([comment 6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994)): each
-  recommendation, and the drafts as drafted. The PD items are game rules and taste (the
+  recommendation, and the drafts as drafted. His answers on the Generator's design
+  ([PR #695, comments 6096176652](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096176652) and
+  [6096191814](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096191814)) remove the shared task
+  total everywhere (#738), which §1.2 and §4 follow. The PD items are game rules and taste (the
   [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (c)), all answered. The PE items are
   technical, the game-design manager session's to decide and report (tier (a)): decided here, each revertible in its
   issue.
@@ -70,7 +73,9 @@ render of that moment, for looks only.
 What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds (proposed, #679, PR #695):
 - **Tasks are shared** (#79): nobody owns one, any living player does any subtask, each type has its own subtasks
   setting. **"Living" means ALIVE** (V4): the knocked-down (`DOWNED`; #728 reworks the knockdown) are not living, and
-  the dead have no avatar.
+  the dead have no avatar. **No shared total** (the engineer, on the Generator's design; #738, M7): the HUD's
+  "Tasks x / y" and the task screen's "Shared progress" go everywhere; each task's row keeps its own count of done
+  subtasks, and a task whose subtasks are all done is struck through.
 - **Hidden by sight is a client rule.** Every living or knocked-down avatar and every item reaches every player; an
   honest client shows an item only where it lies, depth-tested, and plays a world sound only within 12 m (the M4
   render checklist, items 5 and 10); no marker shows through a wall (DD4). §5's invariant: every player receives the
@@ -152,6 +157,7 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 | Host-side geometry | its own cylinder test (`core/tasks/delivery.gd`, `rests_in`) | the cylinder (`StationState.contains`, arriving with M7-Z on `release/m7`), the sight line | the cylinder, the sight line, and the frame: a frustum and a sight line from the lens to each candidate | invariant 1: the host decides who is in the shot |
 | Events | `PackageDelivered` | `SwitchChanged`, `ButtonPressed`, `ZoneProgress` | `FilmLoaded`, `ShotTaken`, `PhotoPrinted`, `PhotoHung`, and the item events | each shows something new on the clients |
 | Tick | none | the charge | none (PD7 (b) would add one) | nothing in the photo runs on time |
+| Task screen | its row's own count, packages delivered of N | a progress bar of the charge (GD3) | its row's own count, photos counted of N, struck through once every photo is counted | no shared total: the HUD's "Tasks x / y" and the task screen's "Shared progress" go everywhere, each row keeps its own count and a done task is struck through (#738, the engineer's) |
 | Maps | every map (`maps` empty) | House alone (GD7, `TaskType.maps`, G8) | House alone (PD14, the same part) | the House's chains come with M7 on the House; the greybox keeps what it deals today |
 
 ### 2. The rules as the engine runs them (with the engineer's answers)
@@ -295,7 +301,7 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 | Whether a shot has a person | nobody, through an event, before its photo is hung; whoever sees the photo sees its picture | the picture; at the hang `PhotoHung`'s `counted`, `TaskState` and `TaskProgress` |
 | A film taken from the box or out of the camera, a photo printed, picked up, put down, hung, taken down | everyone | `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`, `ItemVanished`, `PhotoPrinted`, `PhotoHung`; sounds within 12 m |
 | Who took a film, printed or hung | no photo task event names a player (they name stations and items), but `ItemPickedUp` names the taker, as for any item, so every client knows who holds which film and photo; the snapshots show who stood there | as for a delivery |
-| How many photos are needed and counted | everyone, on the task screen too | `TaskState`, `TaskProgress` |
+| How many photos are needed and counted | everyone, on the task screen: the photo task's row shows the photos counted of N, struck through once every photo is counted; no shared total in the HUD or on the task screen (#738) | `TaskState`, `TaskProgress` |
 | A photo's picture | whoever sees the photo: in a hand, on the tray, on the board, or held up by its holder | drawn on the photo in the world, depth-tested; the holder may look at its own up close (P8) |
 
 ### 5. Edge cases
@@ -560,6 +566,8 @@ none blocks an issue.
 - When P2 and P3 land, ARCHITECTURE gains the photo task's entry in §9.5 and its four events in §4.2, §4.3.4 and §5,
   with their `Built in` lines; `GiveItem`, the caps, `Items.give`, the moves at a station, the vanish and
   `use_reasons()` arrive with cooking's C1, C2, C10 and C11.
+- The task screen's rows change for every task in #738 (the shared total gone, a done task struck through); the photo
+  task's row is an ordinary count of done subtasks, so it needs nothing of its own there.
 - The protocol version goes up in P2 and in P3; kind numbers and versions are taken when each lands, in step with
   `release/m7`, never from here.
 - The box reuses cooking's source as its herb beds do, and the camera and the board its moves at a station, by their
