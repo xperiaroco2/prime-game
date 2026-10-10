@@ -423,7 +423,9 @@ each revertible (none holds up R1 or R2):
   host does not check movement through walls (§7.1.9), so a mover there never blocks the host's sight. A later moving
   door or gate may use the same layer; one that must block the host's sight (a pick-up through a closed door) needs
   its own design.
-- Merge order: this PR after the Generator's (#695), whose parts it names; the cooking (#682) and photo (#687)
-  designs touch the same lines of GDD §8, ARCHITECTURE §9.8 and §10 and house-map §10: whichever merges second
-  resolves them on purpose. Implementation: R1 after G1; R4 after C1 (and C2, or it builds the move); R6 after G5 and R7;
+- Merge order: this PR after the Generator's (#695), the cooking design's (#682, PR #701) and the photo design's
+  (#687, PR #704): its "Builds on" links their ADRs and its §2.5 and RD17 rest on cooking's answered parts, so on main
+  before them it would carry broken links. They touch the same lines of GDD §8, ARCHITECTURE §9.8 and §10 and
+  house-map §6 and §10: whichever merges later resolves them on purpose. Implementation: R1 after G1; R2 after G1; R4
+  after C1 (and C2, or it builds the move); R6 after G5 and R7;
   the engine issues on `release/m7`, the level and content issues into `main` (§8's base).
