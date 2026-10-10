@@ -3519,7 +3519,11 @@ do not move.
   bodies take the pose from the snapshot, their capsule, head, mouth, sight point and name plate lowered with it (KE7).
   The input is a held, rebindable `crouch` action on Ctrl (KE8).
 - **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
-  height alone asks for the crouch (KD3, the car repair ADR's RD1 read-back).
+  height alone asks for the crouch (KD3, the car repair ADR's RD1 read-back). A crouched player may hold the lift
+  (KD8), so the car repair ADR's "no view of who is under the car" test (its RE15, in R8) runs from the panel's use
+  spot at every eye height from `crouch_eye_height_m` to `eye_height_m` (every 0.1 m, both ends), and the level's
+  walls block that whole band; whichever of R8 and 727a lands second widens it. Prevents: a dissident crouching at
+  the panel and seeing the fitter's legs under the car.
 - **Proposed issues** (in the ADR): 727a (`core/`, `net/`: the flag, the eye, the capsule, the numbers), 727b (the
   local crouch), 727c (others' crouch: pose, plates, voice, steps).
 
