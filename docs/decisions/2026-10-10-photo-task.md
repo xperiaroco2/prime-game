@@ -134,7 +134,7 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 | Stations | one circle per package, on random markers, coloured | one per marker, exact counts | one per marker of five kinds, exact counts (one each on House), no colours | the stations are the level's devices (the Generator's GE10, GE11) |
 | Items | packages, dealt | none | films (one dealt at the photo zone, PD4 (i); the rest from the box) and photos (printed) | the chain carries things between stations |
 | Uses | none (`PickUp`, `PutDown`) | `Interact` on a switch and the button | `Interact` on the camera (a load or a shot), the box, the printer and the board; `PickUp` takes a film out of the camera and an uncounted photo off the board | one intent for every station (the Generator's GE1) |
-| Host-side geometry | the cylinder (`StationState.contains`) | the cylinder, the sight line | the cylinder, the sight line, and the frame: a frustum and a sight line from the lens to each candidate | invariant 1: the host decides who is in the shot |
+| Host-side geometry | its own cylinder test (`core/tasks/delivery.gd`, `rests_in`) | the cylinder (`StationState.contains`, arriving with M7-Z on `release/m7`), the sight line | the cylinder, the sight line, and the frame: a frustum and a sight line from the lens to each candidate | invariant 1: the host decides who is in the shot |
 | Events | `PackageDelivered` | `SwitchChanged`, `ButtonPressed`, `ZoneProgress` | `FilmLoaded`, `ShotTaken`, `PhotoPrinted`, `PhotoHung`, and the item events | each shows something new on the clients |
 | Tick | none | the charge | none (PD7 (b) would add one) | nothing in the photo runs on time |
 
@@ -377,8 +377,8 @@ in this PR; P5 uses what he approves, or these drafts marked "not a decision" un
   next `Interact(camera)` with a fresh film a load, not a shot); the shot: a subject counted, one outside the frame,
   one behind a `FlatWorldQuery` wall, one knocked down, the shooter and another player in front of the lens within the
   camera's cylinder (neither counted nor in the record), one beyond the range, a head cut off by the frame's edge;
-  each refusal in its order (§2); `no_frames_left` after `frames_per_film` shots; the record's contents (the radius, the cylinder, the knocked-down
-  flag); the box's take (a film into the hand, the hand's knife to the belt, a package carrier's belt, `too_soon`: one
+  each refusal in its order (§2); `no_frames_left` after `frames_per_film` shots; the record's contents (the radius,
+  the cylinder, the knocked-down flag); the box's take (a film into the hand, the hand's knife to the belt, a package carrier's belt, `too_soon`: one
   player's takes on 100 ticks in a row give at most 100 / 5 + 1 films at 0.25 s; `GiveItem` and `Items.give`
   themselves are C1's and C2's to test); the print (every shot of the film once, in shot order, the tray's position,
   the film vanishing last, `nothing_to_print` for a fresh film); the caps (the film kind's at a take, the photo kind's
@@ -418,9 +418,10 @@ in this PR; P5 uses what he approves, or these drafts marked "not a decision" un
   `ScenarioInvariants`); reverted, recorded in the PR.
 - **The client** (P7, P8): the viewfinder's camera equals `PhotoFrame` (the frame's corner points project onto the
   mask's corners); each camera's film and frames left following `FilmLoaded`, `ShotTaken` and the film's pick-up or
-  vanish (P7); the fold of `ShotTaken`'s record, `PhotoPrinted` and `PhotoHung` (P8); a headless client renders nothing; a rendered picture from a fixture
-  record (`shot` previews); the hint over the camera, the box, the printer and the board only when usable, none over
-  the photo spot; the M4 render checklist, no marker through a wall (DD4), the PRs routed to
+  vanish (P7); the fold of `ShotTaken`'s record, `PhotoPrinted` and `PhotoHung` (P8); a headless client renders
+  nothing; a rendered picture from a fixture record (`shot` previews); the hint over the camera, the box, the printer
+  and the board only when usable, none over the photo spot; the M4 render checklist, no marker through a wall (DD4),
+  the PRs routed to
   `netcode-security-reviewer` too.
 - **Green** (#605): `verify` (lint and check) locally, then CI's full suite on the PR, for each issue of §9.
 
@@ -447,7 +448,7 @@ engineer's answers there; if the photo task is scheduled first, those four go fi
 
 ### 10. Needs the engineer
 His answers of 2026-10-10 settle PD1 to PD15 (§6). Left, one batched question for his approval in this PR; each is
-revertible, and P2, P3, P5 and P7 proceed with the recommendation until he answers:
+revertible, and P2, P3 and P7 proceed with the recommendations until he answers (P5 waits only on §6.1's drafts):
 1. **PD16, a film after it is taken out**: (a) one way: a shot film never goes back in, and the printer uses it up;
    (b) reusable, each shot printing once; (c) as (a), the printer handing the empty film back. Recommended: (a).
 2. **PD17, taking the film out**: (a) hold E over the camera; (b) a key in the viewfinder; (c) aim at the film's slot.
