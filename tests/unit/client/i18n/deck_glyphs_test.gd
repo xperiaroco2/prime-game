@@ -19,6 +19,14 @@ const COLUMNS: Array[String] = ["en", "uk"]
 
 
 func test_the_font_has_every_character_of_both_columns() -> void:
+	# A renamed column would otherwise go unchecked, the other column alone meeting the floor below.
+	var header := deck_rows(DECK)[0]
+	for column: String in COLUMNS:
+		(
+			assert_bool(header.has(column))
+			. override_failure_message("no deck column " + column)
+			. is_true()
+		)
 	if Check.is_lfs_pointer(FONT):
 		print(
 			"skip: %s is a Git LFS pointer (no LFS content here): its glyphs are unchecked" % FONT
