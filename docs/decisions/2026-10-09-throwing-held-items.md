@@ -24,7 +24,7 @@
   ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6096074314): the roof is walkable but may
   be locked), so the volume task (#733) is closed. PR #744 (37f, #646) derived the provisional speed 5.0 m/s by a
   sweep: the limit, 5.5 m/s, is set by the balcony railing tops, a 1 m jump. House's roof test guards the speed, and
-  the lower roofs get a test per map in #746.
+  the lower roofs get a test per map in #746. With 37e (#645, PR #748) every part of the split, 37a to 37f, is built.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
