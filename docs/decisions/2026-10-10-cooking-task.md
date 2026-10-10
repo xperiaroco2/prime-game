@@ -349,9 +349,10 @@ C6 and C7 use them as they stand. Nothing is named after an animal.
   `IngredientPlaced` (the item leaves `held`), `ItemVanished`; one case each in the existing
   `tests/scenarios/scenario_runner_test.gd`, which already feeds the bot events through its `_receive` helper (and
   on `release/m7` checks `bot.held` and `bot.belted`), so the bot's fold tests stay in one file.
-- **The chaos bots** (C1, rows that need no deal): the allowlist row, the malformed frames (an item id 0xFFFF,
-  truncated, trailing bytes), `Interact` with both fields or with neither (`bad_args`), and with an unknown item
-  (`nothing_to_do`, CE1); the hostile peer gets only its `Rejected`s.
+- **The chaos bots** (C1, rows that need no deal): the allowlist row, the malformed frames (truncated, trailing
+  bytes; counted, no reply), `Interact` with both fields or with neither (both 0xFFFF, the wire's none for an
+  optional field, §4.3.1: the codec decodes it, and the host answers `bad_args`, a `Rejected` the oracle expects),
+  and with an unknown item (`nothing_to_do`, CE1); the hostile peer gets only its `Rejected`s.
 - **Scenarios that play Cooking** (C9, after C6; content, provisional, the engineer approves the scripts; the
   Generator's G8 does the same): the scenario target gains an item by kind and index (`ScenarioTarget`, in both
   runners), and greybox scenarios play a take from a box, a frying, a right and a wrong ingredient on a plate, a
