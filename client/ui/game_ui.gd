@@ -51,6 +51,8 @@ var end := EndScreen.new()
 var esc := EscMenu.new()
 ## The downed, dead and respawn plates over the HUD in the round (M4-9; the Toy s09, #497).
 var life := LifeScreen.new()
+## The tutorial's invite and lesson plates over the HUD while it runs (#492, set_tutorial).
+var tutorial := TutorialScreen.new()
 var screen := GameFlow.Screen.MENU
 ## What Esc closes, the topmost first (#488): Game._input asks it before it opens the Esc menu.
 var overlays := UiOverlays.new()
@@ -71,7 +73,9 @@ var _local := HudText.Local.new()
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [plates, menu, connecting, lobby_hud, hud, life, map, pregame, end, esc]:
+	var screens: Array[Control] = [plates, menu, connecting, lobby_hud, hud, life, tutorial, map]
+	screens.append_array([pregame, end, esc])
+	for each: Control in screens:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
@@ -84,6 +88,8 @@ func _init() -> void:
 	overlays.add(&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.resume)
 	# The host's question over the menu (#491's confirm dialog): Esc is its Cancel, the menu stays.
 	overlays.add(&"esc_dialog", UiOverlays.ESC_DIALOG, esc.state.asking, esc.cancel)
+	# The tutorial's invite (#492): Esc is its Skip.
+	overlays.add(&"tutorial_invite", UiOverlays.INVITE, tutorial.invite_shown, tutorial.skip)
 
 
 ## The screen of `which`; the round shows the HUD. Loading's start draws its tip (once per
@@ -98,9 +104,11 @@ func show_screen(which: GameFlow.Screen) -> void:
 	menu.visible = which == GameFlow.Screen.MENU
 	connecting.visible = which in BLACK_SCREENS
 	lobby_hud.visible = which == GameFlow.Screen.LOBBY
-	hud.visible = which == GameFlow.Screen.ROUND
+	# The tutorial's invite hides the HUD under its dim (s1's `invite` state).
+	hud.visible = which == GameFlow.Screen.ROUND and not tutorial.invite_shown()
 	end.visible = which == GameFlow.Screen.END
-	life.visible = which == GameFlow.Screen.ROUND
+	life.visible = hud.visible
+	tutorial.visible = which == GameFlow.Screen.ROUND and esc.state.tutorial
 	if which != GameFlow.Screen.ROUND:
 		close_map()
 	_show_map()
@@ -131,7 +139,7 @@ func show_loading_card(type: StringName) -> bool:
 
 ## Opens the map and tasks screen, in the round with no Esc menu only.
 func open_map() -> void:
-	if _map_open or screen != GameFlow.Screen.ROUND or esc_open():
+	if _map_open or screen != GameFlow.Screen.ROUND or esc_open() or tutorial.invite_shown():
 		return
 	_map_open = true
 	_show_map()
@@ -161,7 +169,7 @@ func map_is_open() -> bool:
 ## The map key (#488 rule 3): closes a card over the map (an overlay the key closes), else opens
 ## or closes the map; ignored under the Esc menu. Returns whether the key was used.
 func press_map_key() -> bool:
-	if esc_open():
+	if blocks_keys():
 		return false
 	if not overlays.close_top_for_map_key():
 		toggle_map()
@@ -202,6 +210,8 @@ func refresh_round(
 	_alive = model.is_alive(model.own_peer)
 	hud.aiming = not map.visible and _alive
 	hud.show_hud(HudText.of(model, mode, host_tick, local))
+	# Lesson 7: the dead player's Spectate plate holds the top centre; the step goes under it.
+	tutorial.set_step_under(life.spectate if life.spectate.visible else null)
 	if map.visible:
 		map.refresh(model, mode, host_tick, local)
 
@@ -237,8 +247,22 @@ func close_esc_left(now: GameFlow.Screen) -> bool:
 
 ## The tutorial runs (GameTutorial.start and end call it, #601): the Esc menu shows only Game,
 ## Guide and Settings, and its Leave, its Quit and the window's close button act at once.
+## Off, the tutorial's screen clears for the next one (#492).
 func set_tutorial(on: bool) -> void:
 	esc.state.tutorial = on
+	if not on:
+		tutorial.clear()
+	tutorial.visible = on and screen == GameFlow.Screen.ROUND
+
+
+## No gameplay key counts: under the Esc menu, and under the tutorial's invite (#492).
+func blocks_keys() -> bool:
+	return esc_open() or tutorial.invite_shown()
+
+
+## The mouse stays free while the round shows the map (its «?») or the tutorial's invite (#492).
+func frees_mouse() -> bool:
+	return _map_open or tutorial.invite_shown()
 
 
 ## The main menu's open panel (code, Direct or Settings, #493), only while the main menu shows (its

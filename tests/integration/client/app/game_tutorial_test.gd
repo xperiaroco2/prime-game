@@ -152,12 +152,13 @@ func test_a_launch_starts_it_by_itself_only_on_a_first_launch() -> void:
 	var first := _game([], _file_settings(false))
 	assert_bool(first.tutorial.running).is_true()
 	assert_bool(first.tutorial.invite_open).is_true()
-	# Its end counts as seen until #492's Start and Skip set the flag: written to the file.
+	# Only the invite's Start or Skip sets the flag (#492): a session ended under it (the window
+	# closed) offers it again on the next launch.
 	first.leave()
 	assert_bool(first.tutorial.running).is_false()
 	var back := UserSettings.new(SETTINGS_PATH)
-	assert_int(back.read()).is_equal(OK)
-	assert_bool(back.tutorial_seen).is_true()
+	back.read()
+	assert_bool(back.tutorial_seen).is_false()
 	# The flag set, any option, or settings in memory (every test and runner window): the menu.
 	assert_int(_game([], _file_settings(true)).screen()).is_equal(S.MENU)
 	assert_int(_game(["--port=24999"], _file_settings(false)).screen()).is_equal(S.MENU)
@@ -173,9 +174,9 @@ func test_a_launch_starts_it_by_itself_only_on_a_first_launch() -> void:
 	assert_bool(wrong.tutorial.running).is_false()
 	assert_object(wrong.client()).is_null()
 	assert_str(wrong.options.problem).contains("--tutorial")
-	# The main menu's Tutorial starts it without the invite (the item stays off until #492).
-	assert_bool(in_memory.ui.menu.tutorial_item.disabled).is_true()
-	in_memory.ui.menu.tutorial_requested.emit()
+	# The main menu's Tutorial starts it without the invite (plugged since #492).
+	assert_bool(in_memory.ui.menu.tutorial_item.disabled).is_false()
+	in_memory.ui.menu.tutorial_item.pressed.emit()
 	assert_bool(in_memory.tutorial.running).is_true()
 	assert_bool(in_memory.tutorial.invite_open).is_false()
 	for game: Game in [first, tooling, in_memory]:
