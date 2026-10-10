@@ -177,7 +177,10 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Other | Loot | 2 | 41.5, 25 | Roof |
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
-A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m.
+A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the
+switches' spacing test is 12 m (the engineer, 2026-10-10, the
+[Generator ADR](../decisions/2026-10-10-generator-task.md)'s GD12), stricter than decision 8's 8 m, so a switch's click
+is out of earshot too.
 
 ## 7. Routes and travel times
 
