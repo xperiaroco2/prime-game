@@ -311,6 +311,18 @@ func test_the_base_mode_accepts_next_stage_in_no_phase() -> void:
 		)
 
 
+func test_the_base_mode_accepts_set_profile_in_the_lobby_from_a_player_only() -> void:
+	# #551: a profile changes in the lobby only, never under a countdown, in a round or at the end.
+	# The chaos oracle (ChaosOracle.ACCEPTS) relies on this.
+	for spec: PhaseSpec in _base_mode().phases:
+		var expected: int = AcceptSpec.From.PLAYER if spec.id == &"lobby" else 0
+		(
+			assert_int(spec.senders_of(Intents.SET_PROFILE))
+			. override_failure_message(str(spec.id))
+			. is_equal(expected)
+		)
+
+
 func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
 	# M4-4, E27: the raise rule's numbers (3 s, the pick-up's 2 m, 50 health), Round's accepts
 	# (Raise and StopRaise from the living, GiveUp from the downed) and ChannelTicks after LifeTicks.

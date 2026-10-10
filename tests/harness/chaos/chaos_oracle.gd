@@ -35,6 +35,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"MoveClaim": From.LIVING,
 		&"SetReady": From.PLAYER,
 		&"ChangeSettings": From.HOST,
+		&"SetProfile": From.PLAYER,
 	},
 	&"countdown": {&"Hello": From.NEWCOMER, &"MoveClaim": From.LIVING, &"SetReady": From.PLAYER},
 	&"loading": {&"LoadAck": From.PLAYER},
@@ -113,6 +114,11 @@ static func _rule(
 	match intent:
 		Intents.SET_READY:
 			answer_now = RejectReasons.UNCHANGED if args.get("ready") == player.ready else &"?"
+		Intents.SET_PROFILE:
+			# The chaos peers send SetProfile the lobby takes only with the sender's own name and
+			# colour (#551): never a change, so its answer does not depend on the others'.
+			var same: bool = args.get("name") == player.name and args.get("colour") == player.colour
+			answer_now = RejectReasons.UNCHANGED if same else &"?"
 		Intents.LOAD_ACK:
 			answer_now = SILENT if args.get("match_id") != match_id else RejectReasons.UNCHANGED
 		Intents.PICK_UP:

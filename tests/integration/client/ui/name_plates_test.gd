@@ -197,12 +197,14 @@ func test_a_hidden_layer_or_a_player_who_left_shows_no_plate() -> void:
 func _lobby_model() -> ClientModel:
 	var model := ClientModel.new(FixtureBaseMode.mode())
 	var welcome := WelcomeEvent.new(OWN, Vector3.ZERO, 1)
-	welcome.roster.assign([{"peer": OWN, "name": NAMES[OWN], "ready": false}])
+	welcome.roster.assign([{"peer": OWN, "name": NAMES[OWN], "ready": false, "colour": 0}])
 	welcome.settings = FixtureBaseMode.mode().default_settings()
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
 	for peer: int in SPOTS:
-		model.fold(&"PlayerJoined", {"peer": peer, "name": NAMES[peer], "spot": SPOTS[peer]})
+		model.fold(
+			&"PlayerJoined", {"peer": peer, "name": NAMES[peer], "spot": SPOTS[peer], "colour": 0}
+		)
 	return model
 
 

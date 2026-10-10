@@ -46,8 +46,14 @@ func test_welcome_holds_the_joiner_spot_epoch_and_the_public_lobby() -> void:
 	assert_vector(welcome.spot).is_equal(bob.position)
 	assert_int(welcome.epoch).is_equal(1)
 	assert_int(bob.epoch).is_equal(1)
-	assert_array(welcome.roster).is_equal(
-		[{"peer": P1, "name": "Ann", "ready": true}, {"peer": P2, "name": "Bob", "ready": false}]
+	(
+		assert_array(welcome.roster)
+		. is_equal(
+			[
+				{"peer": P1, "name": "Ann", "ready": true, "colour": 0},
+				{"peer": P2, "name": "Bob", "ready": false, "colour": 1},
+			]
+		)
 	)
 	assert_dict(welcome.settings).is_equal({&"knives": 2, &"circles": 1})
 	assert_str(welcome.map).is_equal(FixtureBaseMode.MAP)

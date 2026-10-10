@@ -10,11 +10,12 @@ extends RefCounted
 ##
 ## A joiner is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or Player<n> when
 ## nothing usable is left (n counting the session's joins, MatchState.joins); a name a present
-## player has gets a suffix (PlayerNames.unique). The joiner's spot is a placeholder, "not a
-## decision".
+## player has gets a suffix (PlayerNames.unique). A joiner takes the first body colour no present
+## player has (PlayerColours, #551); SetProfile changes name and colour in the lobby (set_profile).
+## The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 13
+const PROTOCOL_VERSION := 14
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -39,7 +40,8 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
 ## this build can read (§4.3). Accepted: the join is counted, the joiner named (joiner_name),
-## placed at a lobby marker (_free_spot) with a new epoch; Welcome (the joiner), PlayerJoined and
+## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
+## with a new epoch; Welcome (the joiner), PlayerJoined and
 ## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back. `spec`
 ## is the phase's own (its id goes into Welcome, its level decides the spot).
 static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
@@ -64,12 +66,14 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	ctx.state.newcomers.erase(peer)
 	var spot := _free_spot(ctx, spec)
 	var player_name := joiner_name(ctx, command.field("name"))
+	var colour := PlayerColours.first_free(_colours_of_others(ctx, peer))
 	var joined := ctx.state.add_player(peer, player_name)
+	joined.colour = colour
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
 	joined.epoch += 1
 	ctx.emit(_welcome(ctx, joined, spec.id))
-	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
+	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
 
@@ -138,6 +142,51 @@ static func set_ready(ctx: MatchContext, command: MatchCommand, ready: bool) -> 
 	return true
 
 
+## SetProfile(name, colour) from a player (§3.5, §4.1, #551): true when the profile changed. In
+## order: a `name` that is not text or a `colour` that is not an int is Rejected (`bad_args`); a
+## colour outside PlayerColours is `out_of_bounds`. The name as PlayerNames cleans it, made unique
+## against the other present players (so re-sending one's own "Dima 2" keeps it); a name with
+## nothing usable left keeps the current one, and never counts a join (MatchState.joins numbers
+## joins only). The colour as asked when no other present player has it, else the first free one
+## (the engineer's answer on #73). Both as they are: Rejected (`unchanged`). Otherwise both are set
+## and ProfileChanged goes to everyone. The ready flag is untouched.
+static func set_profile(ctx: MatchContext, command: MatchCommand) -> bool:
+	var wanted_name: Variant = command.field("name")
+	var wanted_colour: Variant = command.field("colour")
+	if not (wanted_name is String or wanted_name is StringName) or not wanted_colour is int:
+		ctx.reject(command, RejectReasons.BAD_ARGS)
+		return false
+	if not PlayerColours.is_valid(wanted_colour):
+		ctx.reject(command, RejectReasons.OUT_OF_BOUNDS)
+		return false
+	var player := ctx.state.player(command.peer)
+	var player_name := player.name
+	var cleaned := PlayerNames.clean(wanted_name)
+	if not cleaned.is_empty():
+		var taken := PackedStringArray()
+		for peer: int in ctx.state.present_peers():
+			if peer != command.peer:
+				taken.append(ctx.state.players[peer].name)
+		player_name = PlayerNames.unique(cleaned, taken)
+	var colour := PlayerColours.resolve(wanted_colour as int, _colours_of_others(ctx, command.peer))
+	if player_name == player.name and colour == player.colour:
+		ctx.reject(command, RejectReasons.UNCHANGED)
+		return false
+	player.name = player_name
+	player.colour = colour
+	ctx.emit(ProfileChangedEvent.new(command.peer, player_name, colour))
+	return true
+
+
+## The colours of the present players other than `peer`.
+static func _colours_of_others(ctx: MatchContext, peer: int) -> Array[int]:
+	var taken: Array[int] = []
+	for other: int in ctx.state.present_peers():
+		if other != peer:
+			taken.append(ctx.state.players[other].colour)
+	return taken
+
+
 static func _drop(ctx: MatchContext, peer: int) -> void:
 	ctx.state.newcomers.erase(peer)
 	ctx.emit(DisconnectPeerEvent.new(peer))
@@ -174,7 +223,9 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 	var welcome := WelcomeEvent.new(joined.peer, joined.position, joined.epoch)
 	for peer: int in ctx.state.present_peers():
 		var player := ctx.state.players[peer]
-		welcome.roster.append({"peer": peer, "name": player.name, "ready": player.ready})
+		welcome.roster.append(
+			{"peer": peer, "name": player.name, "ready": player.ready, "colour": player.colour}
+		)
 		if peer != joined.peer:
 			welcome.positions[peer] = player.position
 	welcome.settings = ctx.state.settings.duplicate()

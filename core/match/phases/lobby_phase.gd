@@ -2,16 +2,17 @@ class_name LobbyPhase
 extends Phase
 ## The base mode's Lobby (ARCHITECTURE §3.2, §3.5, §9.4). On entry AllowJoins (server). Joins
 ## (Hello: Welcome, PlayerJoined, SettingsChanged), leaves (PlayerLeft, SettingsChanged),
-## SetReady (true or false, only a change: ReadyChanged) and the host's ChangeSettings
-## (SettingsChanged; a change un-readies nobody). Reports `all_ready` when every player is ready
-## and the settings fit the map (FitCheck): after a SetReady, a settings change, a leave, and on
-## entry, so a lobby re-entered with everyone still ready moves on at once.
+## SetReady (true or false, only a change: ReadyChanged), a player's SetProfile (its name and body
+## colour, only a change: ProfileChanged, #551; it leaves the ready flags as they are) and the
+## host's ChangeSettings (SettingsChanged; a change un-readies nobody). Reports `all_ready` when
+## every player is ready and the settings fit the map (FitCheck): after a SetReady, a settings
+## change, a leave, and on entry, so a lobby re-entered with everyone still ready moves on at once.
 
 const ALL_READY := &"all_ready"
 
 
 func handled_intents() -> Array[StringName]:
-	return [Intents.HELLO, Intents.SET_READY, Intents.CHANGE_SETTINGS]
+	return [Intents.HELLO, Intents.SET_READY, Intents.CHANGE_SETTINGS, Intents.SET_PROFILE]
 
 
 func outcomes() -> Array[StringName]:
@@ -36,6 +37,9 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 		Intents.CHANGE_SETTINGS:
 			if _change_settings(ctx, command):
 				_check_all_ready(ctx)
+		Intents.SET_PROFILE:
+			# A profile changes no ready flag and no setting, so it never completes all_ready.
+			JoinRules.set_profile(ctx, command)
 		_:
 			ctx.reject(command, RejectReasons.NOTHING_TO_DO)
 

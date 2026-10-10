@@ -89,6 +89,12 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 		[&"NextStage", {}, &"round", living, &"not_accepted"],
 		[&"NextStage", {}, &"round", downed, &"not_accepted"],
 		[&"NextStage", {}, &"end", dead, &"not_accepted"],
+		[&"SetProfile", {"name": "Player4", "colour": 0}, &"lobby", living, &"unchanged"],
+		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"countdown", living, &"not_accepted"],
+		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"loading", living, &"not_accepted"],
+		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"round", living, &"not_accepted"],
+		[&"SetProfile", {"name": "Hacked", "colour": 3}, &"end", dead, &"not_accepted"],
+		[&"SetProfile", {"name": "Player4", "colour": 0}, &"lobby", null, &"not_accepted"],
 	]
 	for case: Array in cases:
 		var player: PlayerState = case[3]

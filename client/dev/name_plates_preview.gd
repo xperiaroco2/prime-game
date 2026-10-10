@@ -38,8 +38,10 @@ func _ready() -> void:
 	_model = Preview.fake_model(mode, true)
 	Preview.fold_round(_model)
 	_model.roster[MATE].name = "Євген"
-	_model.fold(&"PlayerJoined", {"peer": WALLED, "name": "Olena", "spot": SPOTS[WALLED]})
-	_model.fold(&"PlayerJoined", {"peer": FAR, "name": "Far", "spot": SPOTS[FAR]})
+	_model.fold(
+		&"PlayerJoined", {"peer": WALLED, "name": "Olena", "spot": SPOTS[WALLED], "colour": 1}
+	)
+	_model.fold(&"PlayerJoined", {"peer": FAR, "name": "Far", "spot": SPOTS[FAR], "colour": 2})
 	_avatars = AvatarViews.new()
 	_avatars.model = _model
 	_avatars.buffer = SnapshotBuffer.new()

@@ -17,8 +17,10 @@ extends RefCounted
 ## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes;
 ## 12 since #599 added NextStage (kind 15);
 ## 13 since #548 turned SettingsChanged's shortfalls into host text (ids plus arguments) and gave
-## MatchEnded its reason.
-const VERSION := 13
+## MatchEnded its reason;
+## 14 since #551 added SetProfile (kind 16), ProfileChanged (kind 66) and the body colour of
+## PlayerJoined and the Welcome roster.
+const VERSION := 14
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -231,6 +233,8 @@ static func _intents() -> Array[WireRow]:
 		_up(13, &"Swap", 4, [_seq()]),
 		twin,
 		_up(15, &"NextStage", 4, [_seq()]),
+		# seq 4, name 81 (its length byte and 80 bytes), colour 1.
+		_up(16, &"SetProfile", 86, [_seq(), _name("name"), _of("colour", WireField.Type.U8)]),
 	]
 
 
@@ -262,7 +266,9 @@ static func _debug_commands() -> Array[WireRow]:
 
 
 static func _events() -> Array[WireRow]:
-	var roster_entry := WireField.record("", [_peer("peer"), _name("name"), _bool("ready")])
+	var roster_entry := WireField.record(
+		"", [_peer("peer"), _name("name"), _bool("ready"), _of("colour", WireField.Type.U8)]
+	)
 	var numbers := _numbers("settings")
 	var welcome := _down(
 		33,
@@ -333,7 +339,12 @@ static func _events() -> Array[WireRow]:
 	return [
 		_down(REJECTED, &"Rejected", 37, [_u32("seq"), _id("reason")]),
 		welcome,
-		_down(34, &"PlayerJoined", 97, [_peer("peer"), _name("name"), _vec3("spot")]),
+		_down(
+			34,
+			&"PlayerJoined",
+			98,
+			[_peer("peer"), _name("name"), _vec3("spot"), _of("colour", WireField.Type.U8)]
+		),
 		_down(35, &"PlayerLeft", 4, [_peer("peer")]),
 		_down(36, &"ReadyChanged", 5, [_peer("peer"), _bool("ready")]),
 		settings_changed,
@@ -392,6 +403,12 @@ static func _events() -> Array[WireRow]:
 			&"TaskState",
 			38,
 			[_of("task", WireField.Type.U8), _id("type"), _u16("done"), _u16("total")]
+		),
+		_down(
+			66,
+			&"ProfileChanged",
+			86,
+			[_peer("peer"), _name("name"), _of("colour", WireField.Type.U8)]
 		),
 	]
 

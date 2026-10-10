@@ -77,7 +77,7 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	for index in count:
 		var peer := index + 1
 		var is_ready := peer != own or lobby_state == "count"
-		roster.append({"peer": peer, "name": names[index], "ready": is_ready})
+		roster.append({"peer": peer, "name": names[index], "ready": is_ready, "colour": index})
 	var model := ClientModel.new(mode)
 	var welcome := WelcomeEvent.new(own, Vector3.ZERO, 1)
 	welcome.roster.assign(roster)
