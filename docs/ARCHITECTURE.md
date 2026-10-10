@@ -850,7 +850,7 @@ directive has no row, because it reaches no peer.
 | Kind | Event | Fields | Bytes; cap |
 |---|---|---|---|
 | 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
-| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool, colour: u8>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 411; 2048 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool, colour: u8>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 171; 2048 |
 | 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3`, `colour: u8` (#551) | 26; 98 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
@@ -1727,8 +1727,8 @@ in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with i
 name it, and the host's bot never does), a backstop not yet seen failing.
 Kind 16, `SetProfile` (#551): the oracle's lobby row (`From.PLAYER`); the hostile sends its own name and colour in any
 phase (`unchanged` in the lobby, `not_accepted` elsewhere: no race can make it a change, since nobody else renames
-it), and "Hacked" with the next colour only while its client is in loading, pregame or the round, where the host
-cannot be in the lobby; its malformed shapes `SET_PROFILE_NO_COLOUR`, `SET_PROFILE_TRAILING` and
+it), and "Hacked" with the next colour only while its client is in loading or pregame, where the host cannot be
+in the lobby (not in the round: its last frames could meet the lobby after End); its malformed shapes `SET_PROFILE_NO_COLOUR`, `SET_PROFILE_TRAILING` and
 `SET_PROFILE_BAD_NAME` (not UTF-8) are each under the cap, so the codec refuses them (`BAD_PAYLOAD`). `ChaosRun`
 fails a run that ends with a player named "Hacked" or two players sharing a colour. Seen failing: with
 `Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
