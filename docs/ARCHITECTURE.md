@@ -6098,7 +6098,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Question | When |
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
-| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), proposed: GE1 to GE4, its issues G0 to G8 for the M7 backlog, none built until the engineer says so); the engineer answered GD1 to GD12 on 2026-10-10, GD13 (the zone task on the greybox) is open; bodies with their own mechanic |
+| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), proposed: GE1 to GE4, its issues G0 to G9 for the M7 backlog, none built until the engineer says so); the engineer answered GD1 to GD13 on 2026-10-10 (GD13: the zone task leaves the greybox, a test bench only, #767); bodies with their own mechanic |
 | The zone task's game rules, numbers, names, maps and look (ZD1 to ZD11 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8): how its time is earned, pause or reset on leaving, who counts, shared zones, live progress | #36, the engineer; M7-Z1 needs ZD1 to ZD6, ZD9 and ZD7's "data or lobby setting" for the time |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
