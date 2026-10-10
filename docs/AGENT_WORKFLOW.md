@@ -626,6 +626,8 @@ Rules for every workflow run:
     merged and skipped PRs (exit 0 only when all merged); a git call that hangs skips its PR, and the summary is printed
     even when the train stops on an unexpected error. `--dry-run` prints each PR's worktree and way, or why it would be
     skipped, and each gate's verdict now, and changes nothing. It never pushes `main` and never merges a gate exception.
+    One run asks git each question once (#724): merge-base, ancestry, diffs and textual merges by commit hash, a ref
+    until the run itself fetches, pushes or publishes; a 2-PR dry run went from 72 git processes to 32.
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
   its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
