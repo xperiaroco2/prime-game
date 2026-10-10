@@ -1,13 +1,13 @@
 class_name SettingsChangedEvent
 extends MatchEvent
 ## The settings and what they demand of the map (ARCHITECTURE §3.2, §4.2, §9.4): an accepted
-## ChangeSettings, and a join or a leave in Lobby or Countdown (the player count changes the
-## demands). It carries the whole-number settings, the set settings (the task types the host
-## banned, #79), the demands per spawn tag against the map's markers (the package count
-## among them), the colours per station kind against its palette, every reason the settings do
-## not fit (HostTexts, #548), so the lobby can show why `all_ready` cannot fire in its own
-## language, and the lobby's name (#214), which a ChangeSettings may change too. Audience:
-## everyone.
+## ChangeSettings, a join or a leave in Lobby or Countdown (the player count changes the
+## demands), and End -> Lobby (ResetMatch drops the players who left mid-match, #737). It
+## carries the whole-number settings, the set settings (the task types the host banned, #79),
+## the demands per spawn tag against the map's markers (the package count among them), the
+## colours per station kind against its palette, every reason the settings do not fit
+## (HostTexts, #548), so the lobby can show why `all_ready` cannot fire in its own language, and
+## the lobby's name (#214), which a ChangeSettings may change too. Audience: everyone.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE
