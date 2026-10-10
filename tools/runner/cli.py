@@ -664,6 +664,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="--compact: print each summary line whole (default: cut at 400 characters; metrics.md has them whole)",
     )
     p.add_argument(
+        "--adr-reads",
+        action="store_true",
+        help="also a table of the ADR reads by file: whole-file, section and small reads, tokens, list $, the top 10 "
+        "by $ and the agent types that read each (#793)",
+    )
+    p.add_argument(
         "--track",
         nargs="+",
         action="extend",
@@ -1013,6 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
                 no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run, verbose=args.verbose,
+                adr_reads=args.adr_reads,
             )
         if args.command == "wave":
             from . import wave
