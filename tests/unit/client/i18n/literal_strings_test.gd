@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## No player-facing text outside the copy deck (#549, #208 part c; ARCHITECTURE §4.7.26): a source
+## No player-facing text outside the copy deck (#549, #208 part c; ARCHITECTURE §4.7.48): a source
 ## test over client/'s scripts and scenes (client/dev/'s previews left out) lists every string
 ## literal that reads as words and fails on one that is neither a deck key nor in the allow-list
 ## `literals_allowed.txt` beside this test. Words: any Cyrillic, Latin words with a space between
@@ -11,7 +11,9 @@ extends GdUnitTestSuite
 ## a string inside a log or assert call (push_error, print, assert...), one inside a call
 ## that names an engine thing (a node, a signal, a setting, a file...) and a node's name
 ## (`.name = "Row"`). What the scan cannot see: words built at run time (a content name, the
-## host text's ids, #548) and text a variable not named for text carries; review catches those.
+## host text's ids, #548), an all-caps word ("OK"), text a variable not named for text carries, and
+## player-facing literals outside client/ that reach a screen (voice/voice_capture.gd's notices on
+## the voice panel); review catches those.
 ##
 ## The allow-list holds the rest, one line each: `<path under client/> | <literal as written> |
 ## <why>`; the why names the issue or comment tracking a missing deck key, or says why the text is
@@ -184,6 +186,18 @@ func test_it_finds_the_planted_literals() -> void:
 	assert_array(_texts(words_in(one_word, keys))).contains_exactly(["Lobby", "Ready"])
 
 
+## A conditional expression and a parenthesised value are text where the
+## statement's target is named for text (the review of #549). An all-caps word ("OK") is not seen.
+func test_it_finds_one_word_text_after_an_if_or_a_parenthesis() -> void:
+	var keys: Array[String] = []
+	var planted := (
+		'label.text = "Ready" if ok else "Waiting"\n'
+		+ 'label.text = (\n\t"Closed"\n)\n'
+		+ 'var node := Row.new("Waiting" if ok else "Idle")\n'
+	)
+	assert_array(_texts(words_in(planted, keys))).contains_exactly(["Ready", "Waiting", "Closed"])
+
+
 func test_it_passes_keys_ids_logs_and_names() -> void:
 	var keys: Array[String] = ["menu.host", "Join game"]
 	var allowed := (
@@ -272,15 +286,26 @@ static func words_in(source: String, keys: Array[String]) -> Array[Literal]:
 		var innermost: String = literal.calls.back() if not literal.calls.is_empty() else ""
 		if (
 			reads == ONE_WORD
-			and not (TEXT_CALLS.has(innermost) or text_named.search(literal.before))
+			and not (TEXT_CALLS.has(innermost) or text_named.search(_assigned_to(literal.before)))
 		):
 			continue
-		var in_log := literal.calls.any(func(call: String) -> bool: return DEV_CALLS.has(call))
+		var in_log := literal.calls.any(func(called: String) -> bool: return DEV_CALLS.has(called))
 		var plumbing := not literal.calls.is_empty() and PLUMBING_CALLS.has(literal.calls.back())
 		if in_log or plumbing or node_name.search(literal.before) != null:
 			continue
 		found.append(literal)
 	return found
+
+
+## What a literal is assigned to: its statement's code before it, less the opening parentheses
+## and the `"" if ... else ` of a conditional expression in between.
+static func _assigned_to(before: String) -> String:
+	var between := RegEx.create_from_string('(\\s*\\(+\\s*|""\\s+if\\s.*\\selse\\s*)$')
+	var found := between.search(before)
+	while found != null and found.get_start() > 0:
+		before = before.left(found.get_start())
+		found = between.search(before)
+	return before
 
 
 ## Every string literal of a GDScript source (Literal), comments left out.

@@ -1,5 +1,5 @@
 # Player-facing literals in client/ the copy deck has no key for yet, and word-like literals never
-# shown (literal_strings_test.gd, #549, ARCHITECTURE §4.7.26). One line each:
+# shown (literal_strings_test.gd, #549, ARCHITECTURE §4.7.48). One line each:
 #   <path under client/> | <literal as written in the source> | <why: the issue or comment tracking its key>
 # `*` as the literal allows a whole file. A line that matches nothing fails the test.
 
