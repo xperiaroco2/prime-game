@@ -11,46 +11,42 @@ extends RefCounted
 ## name) or the House's rooms (their ids show): no key is invented here, the gaps go to the UI
 ## track (#549's PR lists them).
 
-## The copy deck's key of each role, by role id (the base mode's crew are the deck's Engineers).
-const ROLES: Dictionary[StringName, String] = {
+## A role id whose deck key is not `role.<id>`: the base mode's crew are the deck's Engineers.
+## Every other role, item kind and task type is found by the convention (`role.<id>`, `item.<id>`,
+## `task.<id>`) where the deck has the key, so content that adds a type the deck already names
+## needs no edit here (mechanics are data).
+const ROLE_EXCEPTIONS: Dictionary[StringName, String] = {
 	&"crew": "role.engineer",
-	&"dissident": "role.dissident",
 }
-## The copy deck's key of each item kind, by kind id.
-const ITEMS: Dictionary[StringName, String] = {
-	&"package": "item.package",
-	&"knife": "item.knife",
-	&"switch": "item.switch",
-}
-## The copy deck's key of each task type, by type id.
-const TASKS: Dictionary[StringName, String] = {
-	&"delivery": "task.delivery",
-	&"switches": "task.switches",
-}
+const ROLE_PREFIX := "role."
+const ITEM_PREFIX := "item."
+const TASK_PREFIX := "task."
 ## A room's key is this and its id, where the deck has one.
 const ROOM_PREFIX := "room."
 
 
 ## A role's deck key, else the mode's display name for it, else its id.
 static func role(id: StringName, mode: GameMode) -> String:
-	if ROLES.has(id):
-		return ROLES[id]
+	if ROLE_EXCEPTIONS.has(id):
+		return ROLE_EXCEPTIONS[id]
+	if has_key(ROLE_PREFIX + String(id)):
+		return ROLE_PREFIX + String(id)
 	var found := mode.find_role(id) if mode != null else null
 	return _named(found.display_name if found != null else "", id)
 
 
 ## An item kind's deck key, else the mode's display name for it, else its id.
 static func item(id: StringName, mode: GameMode) -> String:
-	if ITEMS.has(id):
-		return ITEMS[id]
+	if has_key(ITEM_PREFIX + String(id)):
+		return ITEM_PREFIX + String(id)
 	var found := mode.find_item_kind(id) if mode != null else null
 	return _named(found.display_name if found != null else "", id)
 
 
 ## A task type's deck key, else the mode's display name for it, else its id.
 static func task(id: StringName, mode: GameMode) -> String:
-	if TASKS.has(id):
-		return TASKS[id]
+	if has_key(TASK_PREFIX + String(id)):
+		return TASK_PREFIX + String(id)
 	var found := mode.find_task_type(id) if mode != null else null
 	return _named(found.display_name if found != null else "", id)
 

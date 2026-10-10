@@ -34,12 +34,20 @@ func test_every_shipped_role_item_and_task_has_a_deck_key() -> void:
 	assert_int(modes).is_greater_equal(2)
 
 
-func test_every_key_in_the_tables_is_in_the_deck() -> void:
-	for table: Dictionary[StringName, String] in [
-		ContentNames.ROLES, ContentNames.ITEMS, ContentNames.TASKS
-	]:
-		for id: StringName in table:
-			_assert_keyed(table[id], String(id))
+func test_every_exception_is_in_the_deck() -> void:
+	for id: StringName in ContentNames.ROLE_EXCEPTIONS:
+		_assert_keyed(ContentNames.ROLE_EXCEPTIONS[id], String(id))
+
+
+## Content that adds a type the deck already names needs no edit in ContentNames: the key is found
+## by the convention, with no mode needed.
+func test_a_type_the_deck_names_resolves_by_its_convention() -> void:
+	var mode := GameMode.new()
+	assert_str(ContentNames.role(&"engineer", mode)).is_equal("role.engineer")
+	assert_str(ContentNames.item(&"knife", mode)).is_equal("item.knife")
+	assert_str(ContentNames.task(&"switches", mode)).is_equal("task.switches")
+	assert_str(ContentNames.item(&"switch", null)).is_equal("item.switch")
+	assert_str(ContentNames.task(&"delivery", null)).is_equal("task.delivery")
 
 
 func test_both_languages_and_a_switch() -> void:
