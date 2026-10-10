@@ -179,10 +179,13 @@ engineer answered ("the rework itself (still, mute, ragdoll) applies wherever to
 The snapshot's velocity is the motion's (the arc's, or the slide's), so each client starts its ragdoll moving. The
 voice distance, the raise's reach and sight, a respawn marker's free radius and the car's footprint read the point
 as it moves. A death ends the motion where it is (KD8 (a): `die` takes the floor below, as today); a leave ends it,
-leaving no body; End, which lists no `LifeTicks`, pauses it; `ResetMatch` clears it. With no launch, step 2 is today's
-knockdown (the same event, the same `Correction`, no motion, so a `Raise` on the knockdown's tick is not rejected as
-`moving`), and every life test of today holds with the knife's launch and the slide speed at 0, and on any map
-`motion_maps` leaves out whatever the numbers: the greybox's scenarios, chaos run and perf run see no motion.
+leaving no body; End, which lists no `LifeTicks`, pauses it; `ResetMatch` clears it. With no launch, on a floor that
+starts no slide (no steeper than the slide angle, a slide speed of 0, or a map `motion_maps` leaves out), step 2 is
+today's knockdown (the same event, the same `Correction`, no motion, so a `Raise` on the knockdown's tick is not
+rejected as `moving`), and every life test of today holds with the knife's launch and the slide speed at 0, and on
+any map `motion_maps` leaves out whatever the numbers: the greybox's scenarios, chaos run and perf run see no motion.
+With no launch on a steeper floor of a listed map (728c), the slide starts on the knockdown's tick, and a `Raise` on
+that tick is rejected as `moving`.
 
 Where a body may come to rest follows the throwing design's TD5 for items: a body that rests where no player can
 stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a launched
@@ -240,7 +243,7 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 
 | Case | What happens | What it prevents |
 |---|---|---|
-| Knocked down in a jump, feet in the air | with no launch, as today: the point drops to the floor below at once, and the ragdoll falls to it, held by its spring (KE7); with a launch the motion starts in the air and falls | a knockdown with no launch that changes what today's tests assert |
+| Knocked down in a jump, feet in the air | with no launch, on a floor that starts no slide, as today: the point drops to the floor below at once, and the ragdoll falls to it, held by its spring (KE7); with a launch the motion starts in the air and falls | a knockdown with no launch that changes what today's tests assert |
 | Knocked down against a wall, launched into it | the sweep stops at once; the body drops where it stood | a body pushed through the wall |
 | Launched off the balcony or a ledge | it lands below and can be raised there | a body resting in the air over the yard |
 | Launched over no floor | it rests at the fallback; the match logs an error | a body nobody can reach, and its items with it |
@@ -258,9 +261,11 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 
 ### 9. Testing
 
-- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a knockdown with no launch is today's (its event, its
-  `Correction`, no motion) (every existing life test passes at 0); a launch into a wall, off a ledge, over no floor
-  (the fallback and its error); the longest motion; a pause in a phase without `LifeTicks`; a death, a give-up and a
+- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a knockdown with no launch on a floor that starts no slide is
+  today's (its event, its `Correction`, no motion) (every existing life test passes at 0); with no launch on a
+  steeper floor of a listed map (728c) the slide starts on its tick and a `Raise` then is rejected as `moving`; a
+  launch into a wall, off a ledge, over no floor (the fallback and its error); the longest motion; a pause in a phase
+  without `LifeTicks`; a death, a give-up and a
   leave during a motion; `Raise` rejected with `moving`; a slope slides, stairs do not, a wall stops a slide, an edge
   throws it off; the command log replays the same rest.
 - Where bodies move (KE12; `tests/unit/life/`, `tests/unit/content/`): on a fixture mode with two maps whose
