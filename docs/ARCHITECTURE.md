@@ -3513,8 +3513,10 @@ do not move.
   sight line, a thrown item's contact: `crouch_height_m`, KD7). Prevents: an honest crouched player under a ceiling
   lower than the standing eye refused a pick-up as `blocked`. No new speed or height check (KE3, KE4): an honest crouch
   is slower than the walk, whose bound holds it, and the host's world has no car to check headroom against (the car
-  repair ADR's RE8). Accepted, as for walls (§7.1.9): a modified client can crouch-walk at walk speed, or stand where
-  an honest one crouches.
+  repair ADR's RE8). Accepted, as for walls (§7.1.9): a modified client can claim a crouch at any speed, sprint
+  included, and be hit as a crouched player; or claim standing where an honest one crouches, so its eye and sight lines
+  start above a low ceiling (a pick-up or a stab through a thin floor over a crawlspace). No level has such a place;
+  one that adds it brings back the ADR's KE3 (b) and KE4 (b).
 - **The client** switches its own `CapsuleShape3D` between `capsule_height_m` and `crouch_height_m`, the feet staying,
   and stands up only when `PhysicsBody3D.test_move` straight up by the difference finds room (KD4, KE5, KE6); remote
   bodies take the pose from the snapshot, their capsule, head, mouth, sight point and name plate lowered with it (KE7).
