@@ -1758,7 +1758,9 @@ single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE 
 read, the reads split whole (a `Read` with no offset or limit, or a `cat`, that returned over 150 lines), section
 (the runner's `section`, a `Read` with an offset or limit, `sed -n`, `head`, `tail`, a Grep or a search) and small (a
 file of 150 lines or fewer read in full), the tokens, the list $, the top 10 by $ and the agent types that read it by
-their share of its $. `section <doc>` now counts as a (section) read of the doc in the by-file table too. Tests:
+their share of its $. A `section <doc>` call is a (section) read of the doc in the by-file table too, but it carries
+no text to the by-§ tables of ARCHITECTURE and AGENT_WORKFLOW, so a doc's by-file $ can exceed its by-§ total; in a
+command with more steps, each other step's docs keep their own kind (a `cat` beside it is a plain read). Tests:
 `tools/runner/tests/test_metrics_adr_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
 session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
