@@ -3451,11 +3451,13 @@ at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`)
 `LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
 The living rescuer's greybox "Hold <interact> to raise" went with it; the engineer's answer 6B on PR #721 brought
 it back in §4.7.37's `Aim`: the deck (`ui-0.4.0`, nor `ui-0.5.0`) has no raise sentence, so it is the nearest key
-with `{key}`, `tutorial.step.downed.how` ("Hold {key} next to them", "Утримуй {key} поруч"), with the bound
+with `{key}`, `tutorial.step.downed.how` ("Hold {key} next to them", "Утримуй {key} поруч"; a stopgap the engineer
+confirms or swaps for a deck key), with the bound
 `interact` key's label (`KeyLabel`), set in code and written again on a language switch (`Hud._show_aim_text`).
 `LifeView.raise_cue()` gives the key while the living own player's crosshair is on a downed player E would raise
-(`raise_target()`, within `raise_hint_reach_of()`), so it offers exactly what E does: the base mode's raise has no
-team condition, so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
+(`raise_target()`, within `raise_hint_reach_of()`) and nobody raises them yet (`raiser_of()`: the host lets one raiser
+at a time, so a second Raise would be `busy`), so it offers what E does: the base mode's raise has no team condition,
+so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
 (both are on E); the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
 - **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`

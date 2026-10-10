@@ -33,9 +33,9 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 	&"package": &"item",
 	&"knife": &"knife",
 }
-## The rescuer's cue: the deck has no raise sentence (ui-0.4.0, ui-0.5.0), so it is the nearest key
-## with `{key}`, the tutorial's raise step ("Hold {key} next to them"), as the engineer chose on
-## PR #721.
+## The rescuer's cue: the deck has no raise sentence (ui-0.4.0, ui-0.5.0), so this is a stopgap,
+## the nearest key with `{key}`, the tutorial's raise step ("Hold {key} next to them"). 6B on
+## PR #721 asked for a deck key; the engineer to confirm this one.
 const RAISE_CUE := "tutorial.step.downed.how"
 
 
