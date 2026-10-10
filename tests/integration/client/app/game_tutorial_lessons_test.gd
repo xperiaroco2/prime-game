@@ -56,7 +56,8 @@ func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() ->
 	assert_bool(await _walk(game, model.items[package].position, NEAR_M)).is_true()
 	assert_bool(runner.is_done(1)).is_true()
 	assert_int(runner.lesson()).is_equal(2)
-	# 2 (a): the knife is no package; (b): the package put down, here in its circle.
+	# 2 (a): the package picked up (the knife is refused by the runner unit test, ItemKindIs);
+	# (b): the package put down, here in its circle.
 	game.client().send_intent(Intents.PICK_UP, {"item": package})
 	assert_bool(await _until(func() -> bool: return runner.step() == 2)).is_true()
 	var circle: ClientModel.Station = model.stations[model.items[package].station]
