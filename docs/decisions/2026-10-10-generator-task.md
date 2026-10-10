@@ -376,6 +376,10 @@ Later, not open now:
 - **A station on every switch, the fixed ones refused** (GD5 (a), GE14 (b)): the engineer ruled out any press of an
   always-on switch; a station nobody may use needs a flag the client must not miss.
 - **A flat-world floor below y = 0** (GE12 (b)): a lie in the fake that would hide a real mistake on a scenario level.
+- **The switches 8 m apart, or 12 m between the markers** (GD12 (b), and (a) read marker to marker): at 8 m a player
+  at one switch hears the other's click, and with markers 12 m apart two players inside their use cylinders can stand
+  8 m apart and hear it too; either way a click tells who switched. The engineer chose 12 m between the use cylinders
+  (16 m between the markers at the 2 m reach).
 - **The Generator on the greybox too, with scenarios that play it** (GD7 (a) as first read): the engineer keeps the
   greybox free of the chains; they come with M7 on the House, and bots play them later, with the map.
 - **The zone task kept on the greybox** (GD13 (a), the design's recommendation, for its bot coverage): the engineer
