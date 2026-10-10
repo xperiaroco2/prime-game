@@ -502,7 +502,8 @@ func _process(_delta: float) -> void:
 	var now := screen()
 	if now != _screen:
 		_screen = now
-		_point_for(now)
+		# A new screen closes the Esc menu opened over another, its question too (#726).
+		_point_for(now, ui.close_esc_left(now))
 	ui.show_screen(now)
 	if _client != null:
 		_refresh_join()
@@ -609,16 +610,17 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 
 
 ## The mouse for the screen just shown (GameFlow.pointer_on): a mouse captured in the round would
-## stay captured on the end screen's button; the lobby and the round capture it (#517), but never
-## from under the Esc menu, and only while the window has the focus (MousePointer.focused): a
-## window in the background a click captures later.
-func _point_for(now: GameFlow.Screen) -> void:
-	match GameFlow.pointer_on(now):
-		GameFlow.Pointer.FREE:
-			pointer.capture(false)
-		GameFlow.Pointer.CAPTURE:
-			if not ui.esc_open() and pointer.focused():
-				pointer.capture(true)
+## stay captured on the end screen's button; the lobby and the round capture it (#517), and so do
+## Loading and Pregame when the change closed the Esc menu that freed it (`menu_closed`, #726);
+## never from under the Esc menu, and only while the window has the focus (MousePointer.focused):
+## a window in the background a click captures later.
+func _point_for(now: GameFlow.Screen, menu_closed: bool) -> void:
+	var wanted := GameFlow.pointer_on(now)
+	if wanted == GameFlow.Pointer.FREE:
+		pointer.capture(false)
+	elif (wanted == GameFlow.Pointer.CAPTURE or menu_closed) and not ui.esc_open():
+		if pointer.focused():
+			pointer.capture(true)
 
 
 func _player_dead() -> bool:

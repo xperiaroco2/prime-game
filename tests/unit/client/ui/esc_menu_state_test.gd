@@ -28,6 +28,18 @@ func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
 	assert_bool(menu.is_open).is_false()
 
 
+## #726: the screen it opened over and follows, which Game compares with a new screen to close it.
+func test_it_keeps_the_screen_it_opened_over_and_follows() -> void:
+	var menu := EscMenuState.new()
+	var model := Preview.fake_model(_mode, false)
+	menu.open(S.LOBBY, model, false)
+	assert_int(menu.over_screen).is_equal(S.LOBBY)
+	menu.follow(S.LOADING, model, false)
+	assert_int(menu.over_screen).is_equal(S.LOADING)
+	menu.open(S.ROUND, model, false)
+	assert_int(menu.over_screen).is_equal(S.ROUND)
+
+
 func test_the_round_has_the_role_tab_and_the_read_only_lobby_and_opens_on_game() -> void:
 	# #491 (the issue's "Lobby, a player (and everyone in a round)"; s05 game-host keeps the Lobby
 	# tab): the round reads the settings in Lobby, nobody changes them.

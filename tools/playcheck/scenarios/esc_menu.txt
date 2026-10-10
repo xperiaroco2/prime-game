@@ -4,7 +4,10 @@
 # freed. Esc again closes it and captures the pointer again (as the game asks; playcheck never
 # captures the real mouse). F under the menu readies nobody; F in the lobby readies its player.
 # The guest presses Esc as soon as it is welcomed (#204: the menu still opens on its Lobby tab)
-# and readies with that tab's Ready toggle, a button only the Lobby tab shows.
+# and readies with that tab's Ready toggle, a button only the Lobby tab shows. It leaves the menu
+# open: the countdown keeps it (still the lobby's screen), and the match's first screen closes it,
+# so the pregame and the round show no menu (#726). Its off-screen window lacks the focus, so the
+# pointer stays free there (#517: a screen change captures only a focused window).
 # In the round the menu opens on Game (Resume, Leave, Quit), with the Role tab and the read-only
 # Lobby tab (#491); the host's Leave asks first in the confirm dialog, and one Esc takes back only
 # the dialog, the menu staying open (#488: one press, one overlay); its Resume button closes it.
@@ -72,8 +75,14 @@ wait ready off
 wait text lobby.roster has (you) not ready
 button esc.lobby.ready
 wait ready on
-press ui_cancel
+wait text lobby.countdown has Starting in
+frames 10
+wait esc open
+shot esc_countdown_guest
+wait screen pregame timeout=60
 wait esc closed
+shot pregame_guest_no_menu
 wait screen round timeout=60
+wait esc closed
 frames 30
 shot round_guest

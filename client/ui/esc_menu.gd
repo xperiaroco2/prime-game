@@ -100,6 +100,14 @@ func open(screen: GameFlow.Screen, model: ClientModel, hosting: bool) -> void:
 func close() -> void:
 	state.close()
 	_sync()
+	_hide_lists()
+
+
+## An open dropdown list is a window of its own, not part of the menu's drawing: closing the menu
+## closes it too, whatever closes the menu (a new screen, #726, or Resume).
+func _hide_lists() -> void:
+	for node: Node in find_children("*", "OptionButton", true, false):
+		(node as OptionButton).get_popup().hide()
 
 
 ## Opens the menu on Game at the host's question to quit (the window's close button); the

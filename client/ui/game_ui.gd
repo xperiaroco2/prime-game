@@ -226,6 +226,15 @@ func esc_open() -> bool:
 	return esc.is_open()
 
 
+## A new screen: closes the Esc menu (its question too) if it was opened over another screen;
+## true when it did (#726).
+func close_esc_left(now: GameFlow.Screen) -> bool:
+	if not esc.is_open() or esc.state.over_screen == now:
+		return false
+	esc.close()
+	return true
+
+
 ## The tutorial runs (GameTutorial.start and end call it, #601): the Esc menu shows only Game,
 ## Guide and Settings, and its Leave, its Quit and the window's close button act at once.
 func set_tutorial(on: bool) -> void:

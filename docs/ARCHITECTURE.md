@@ -1900,14 +1900,18 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   Voice, in every screen, M5-6; Controls, in every screen, §4.7.28; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
+  A new screen closes it, its question too, when it opened over another (`EscMenuState.over_screen`, #726): the
+  match leaving the lobby, the end screen, the lobby again (the countdown is still the lobby's screen and keeps it;
+  the menu opened over the live screen in #204's frame stays). `EscMenu.close` hides a dropdown's open list, a window of its own, too.
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
   when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
   Connecting and the end screen free it (the first three for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there (never while the map is open: the map frees the mouse in the round, and closing it captures it again, §4.7.33). Closing the Esc
-  menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
-  runs on the lobby's screen, every round started with the cursor showing until a click.
+  menu in Loading captures it too, and so does a screen change that closes the menu in Loading or Pregame (#726).
+  Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown runs on the lobby's screen, every
+  round started with the cursor showing until a click.
 - **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
   `project.godot`. Only an export template has the `template` feature, so everything the editor's binary runs (the
   runner's `shot`, `playcheck`, `host` and `join` windows, the tests, the editor's runs) starts in a window: in
@@ -1921,8 +1925,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   with an export's features and without, the toggle), `input_actions_test.gd`,
   `tests/integration/client/app/game_window_input_test.gd` (Alt+Enter through `Input` events) and
   `pointer_flow_test.gd` (a host and a joined client through Ready, the countdown, Loading, the round, the end and
-  back, the mouse captured all the way to the end screen; an open Esc menu and an unfocused window stay free). Not
-  headless: the real mouse and window; the manual check is in the PR of #517.
+  back, the mouse captured all the way to the end screen; the match closes an open Esc menu, #726, and an unfocused
+  window stays free). Not headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
@@ -3179,10 +3183,13 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   rebind), `tests/unit/client/app/controls_test.gd` (the 16 actions with the issue's deck keys and defaults),
   `tests/integration/client/app/esc_menu_input_test.gd` (the host's question closes first, a capture before the
   menu, no look, jump or sprint under the menu and the look back after it; seen failing on the old `Game._input`
-  and without the controller's guard), `map_input_test.gd` (a stub card closes first on Esc and on M, M under the
+  and without the controller's guard; #726: a ready guest's menu, the host apart, closed by Loading and the round,
+  a dropdown and the host's question by the end screen, the menu by the lobby; seen failing on the old `Game`),
+  `map_input_test.gd` (a stub card closes first on Esc and on M, M under the
   menu does nothing, the keys work and the look stops with the map open), `game_voice_test.gd` (Talk sends under
   the menu, a focused text field or a capture stops it; seen failing without `_typing`). The playcheck scenarios
-  `esc_menu` (the host's Leave question, one Esc back) and `map`.
+  `esc_menu` (the host's Leave question, one Esc back; the guest's menu left open closed by the pregame, #726) and
+  `map`.
 
 #### 4.7.36 Built in #254 (M6.2), how-to cards per task type
 Every task type has a **how-to card**: 3 to 4 wordless frames, one action each, like an airline safety card (the
