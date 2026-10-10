@@ -363,8 +363,8 @@ back, switch it on, and return to press the button again.
   setting (Delivery: its packages; #256). Its subtasks are all done together, at full charge: the task is done then,
   and the win condition "every task done" waits for it as for any task.
 - The generator and its button stand in the generator hall; switches A to D in storage, the boiler room, the pump room
-  and the switch room. Every pair of switches is more than 12 m apart, beyond the range of the sounds and so of voice
-  (20 to 39 m on the House).
+  and the switch room. Where players stand to use any two switches is at least 12 m apart, the range of the sounds,
+  and so beyond voice: the switches stand at least 16 m apart with the 2 m reach (20 to 39 m on the House).
 - The active switches can be switched on and off; the others are on and cannot be switched off. At the round's start
   every active switch is off. Which switches are active is drawn at random each round.
 - An always-on switch is not interactive at all: there is nothing to aim at and nothing to press. It looks different
@@ -404,9 +404,10 @@ are hidden by sight: a player's game shows a switch only where that player can s
 everyone.
 
 **Numbers** (the engineer's starting values, to tune): 3 active switches by default (2 to 4, a host setting); the charge
-takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m; every two switches more than 12 m
-apart, measured between where players stand to use them. Placeholders until he sets them: a player uses a switch or
-the button from within 2 m of it, and the lobby label of the switch count.
+takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m; every two switches at least 12 m
+apart, measured between where players stand to use them (at least 16 m between the switches with the 2 m reach).
+Placeholders until he sets them: a player uses a switch or the button from within 2 m of it, and the lobby label of the
+switch count.
 
 **Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the task screen,
 "Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in

@@ -180,8 +180,11 @@ The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 2
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the
 switches' spacing test is 12 m (the engineer, 2026-10-10, the
 [Generator ADR](../decisions/2026-10-10-generator-task.md)'s GD12), stricter than decision 8's 8 m, so a switch's click
-is out of earshot too. The test measures between the use cylinders (the markers more than 12 m plus both radii apart:
-16 m at the 2 m placeholder), since a player uses a switch from anywhere in its cylinder; the nearest pair here is 20 m.
+is out of earshot too. The test measures between the use cylinders, since a player uses a switch from anywhere in its
+cylinder: at least 12 m between the cylinders, so the switch markers stand at least 16 m apart at the 2 m placeholder
+(the engineer,
+[PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117)); the
+nearest pair here is 20 m.
 
 ## 7. Routes and travel times
 
