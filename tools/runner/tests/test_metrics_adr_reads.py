@@ -116,6 +116,13 @@ class ReadScopeTest(unittest.TestCase):
             ("Bash", {"command": "sed -n '1,9p' x.md"}, True), ("Bash", {"command": "head -n 5 x.md"}, True),
             ("Bash", {"command": "tail -20 x.md"}, True), ("PowerShell", {"command": "Get-Content x.md -TotalCount 9"}, True),
             ("PowerShell", {"command": "Get-Content x.md"}, False), ("Grep", {"path": "x.md"}, False),
+            ("Bash", {"command": "cat x.md | head -n 5"}, True), ("Bash", {"command": "cat x.md|tail"}, True),
+            ("PowerShell", {"command": "Get-Content x.md | Select-Object -First 9"}, True),
+            # A path that holds a parameter's or a command's name is still a whole read (#793 review).
+            ("Bash", {"command": "cat docs/decisions/2026-10-01-m4-first-person-client.md"}, False),
+            ("PowerShell", {"command": "Get-Content docs\\decisions\\2026-10-01-m4-first-person-client.md"}, False),
+            ("Bash", {"command": "cat docs/decisions/2026-09-28-godot-editor-save-first-convention.md"}, False),
+            ("Bash", {"command": "cat docs/decisions/2026-10-11-head-tail-sed-n.md"}, False),
         ]  # fmt: skip
         for name, inp, expected in cases:
             with self.subTest(name=name, inp=inp):

@@ -535,9 +535,12 @@ MERGE_HEADER = re.compile(r"^merge-check(?: --trial)?\s*$", re.MULTILINE)
 ARCHITECTURE = "docs/ARCHITECTURE.md"
 # #793: the runner's `section <doc> [§]` prints a part of a doc, so it is a (section) read of it, not runner noise.
 SECTION_CMD = re.compile(r"\brun\.(?:sh|cmd)\s+section\s")
-# #793: a shell read that returns a part of a file: a `sed -n` range, `head`, `tail`, `Get-Content -TotalCount`.
-LIMITED_SHELL = re.compile(r"\bsed\s+-n\b|\b(?:head|tail)\b|-(?:TotalCount|First|Last|Tail)\b|\bSelect-Object\b",
-                           re.IGNORECASE)  # fmt: skip
+# #793: a shell read that returns a part of a file: a `sed -n` range, `head`, `tail`, `Get-Content -TotalCount`. Each
+# alternative is a command word or a parameter, never a part of a path (`2026-10-01-m4-first-person-client.md`).
+LIMITED_SHELL = re.compile(
+    r"(?:^|[\s|;&(])(?:sed\s+-n|head|tail|Select-Object)(?=$|[\s|;&)])|\s-(?:TotalCount|First|Last|Tail)\b",
+    re.IGNORECASE,
+)
 # #793: a read that returns more lines than this, with no offset, limit or range, is a whole-file read.
 WHOLE_LINES = 150
 ADR_TOP = 10
