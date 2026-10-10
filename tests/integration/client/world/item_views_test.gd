@@ -64,8 +64,9 @@ func test_an_item_on_the_ground_lies_where_the_events_put_it() -> void:
 
 
 func test_an_item_in_flight_is_drawn_neither_in_a_hand_nor_where_it_lay() -> void:
-	# §7.1.16: from ItemThrown until its rest the item is in no hand and lies nowhere; 37e draws
-	# its arc, until then it is not drawn at all.
+	# §7.1.16: from ItemThrown until its rest the item is in no hand and lies nowhere. With no
+	# arc to draw (ItemViews heard no ItemThrown here; at a phase change it drops its arcs) it is
+	# not drawn at all; the arcs: item_views_flight_test.gd.
 	_other_at(Vector3(4, 0, 0))
 	_spawn(1, &"knife", Vector3(2, 0, -1))
 	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
