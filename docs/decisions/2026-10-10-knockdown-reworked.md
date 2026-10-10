@@ -209,7 +209,8 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 ### 7. The client, and the other designs
 
 - **The own player, knocked down:** its controller moves nothing (today's `held` path, for the whole knockdown; no
-  crawl) and its claims carry its look (KE4); its camera above the body follows its own avatar (KE5, KE8); it may give up (G today; F once #211 lands), open
+  crawl) and its claims carry its look (KE4); its camera above the body follows its own avatar (KE5, KE8); it may
+  give up (G today; F once #211 lands), open
   the task screen and the Esc menu; it sees its own ragdoll from the arm.
 - **Others:** a ragdoll held to the interpolated point (KE7). The raise hint casts as today; its ray may meet a limb,
   and the reach is measured to the point.
@@ -307,7 +308,8 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   line that names the crawl or the raise's hold (`grep -n -i crawl` and `held in place` find them): §3.2, §4.1's
   `MoveClaim` row, §4.2's `RaiseStarted`, `Revived` and `Correction` rows ("none at a revive"), §4.6.1, §4.6.2,
   §4.6.5, §4.7.6 to §4.7.9, §7's opening, §7.1.3 to §7.1.5, §7.1.7, §7.1.8, §9.4.2's `RaiseDowned` row, §9.5.1's
-  `PlayerRules`, §9.5.6, §9.5.15, §9.5.16 and §9.7. Depends on: nothing (decided). Files: `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
+  `PlayerRules`, §9.5.6, §9.5.15, §9.5.16 and §9.7. Depends on: nothing (decided). Files:
+  `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
   `core/life/life_rules.gd`, `core/life/raise_downed.gd`, `core/channel/` (`channel.gd`, `channel_effect.gd`,
   `channels.gd`), `client/player/player_controller.gd`, `client/app/game.gd`, `client/dev/test_room.gd`,
   `tests/harness/scenario_bot.gd`, `tests/harness/scenario_play.gd`, `tests/harness/chaos/` (`chaos_oracle.gd`,
@@ -364,7 +366,8 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   ragdoll held to where the host has it. Acceptance: the ragdoll view (KE7) for remote knocked-down avatars and the
   own one, on every map; on today's placeholder capsule avatar one `RigidBody3D` capsule on the `downed` layer with
   the world mask only, started from the standing pose with the snapshot's velocity, held by a spring to the
-  interpolated point and snapped when far; the own camera and ears from the own avatar; the pivot's two clamps (KE8: the eye height above the floor
+  interpolated point and snapped when far; the own camera and ears from the own avatar; the pivot's two clamps
+  (KE8: the eye height above the floor
   below, and the ceiling) for the own camera and for a spectator watching a knocked-down target, with a loopback test
   of each in mid-flight; dead bodies keep the pose, greyed, with the cross (KD7); the revive returns the standing
   avatar; `RemotePlayerBody`'s lying pose and `LifeLooks`' lying capsule go; the render checklist's items 1, 3 and 5
