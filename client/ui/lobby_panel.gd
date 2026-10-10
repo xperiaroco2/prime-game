@@ -175,7 +175,7 @@ func set_mode(mode: GameMode) -> void:
 			made.visible = spec.min_value < spec.max_value
 			settings_box.add_child(made)
 		else:
-			settings_box.add_child(SettingRows.row(str(row[0]), key, _task_chips(spec.id, mode)))
+			settings_box.add_child(_task_row(str(row[0]), key, spec.id, mode))
 	_build_cards()
 
 
@@ -584,19 +584,18 @@ func _note(preset: StringName) -> void:
 	note.text = tr("unit.minutes").format({"count": minutes}) if minutes >= 0 else ""
 
 
-## The host's toggle chips (selected = allowed) and a player's plates for the task types.
-func _task_chips(id: StringName, mode: GameMode) -> HBoxContainer:
-	var holder := HBoxContainer.new()
-	holder.name = "Chips"
-	holder.theme_type_variation = &"ToyRowEight"
+## The task types' row: the host's toggle chips (Allowed; selected = allowed) and a player's plates
+## (Shown), both straight in the row's H, as the handoff has them.
+func _task_row(row_name: String, label: String, id: StringName, mode: GameMode) -> PanelContainer:
 	var allowed := HBoxContainer.new()
 	allowed.name = "Allowed"
 	allowed.theme_type_variation = &"ToyRowEight"
-	holder.add_child(allowed)
+	var made := SettingRows.row(row_name, label, allowed)
 	var shown := HBoxContainer.new()
 	shown.name = "Shown"
 	shown.theme_type_variation = &"ToyRowEight"
-	holder.add_child(shown)
+	shown.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	made.get_node(^"H").add_child(shown)
 	var chips := {}
 	var plates := {}
 	for task: TaskType in mode.task_types:
@@ -618,4 +617,4 @@ func _task_chips(id: StringName, mode: GameMode) -> HBoxContainer:
 	_bans[id] = chips
 	_plates[id] = plates
 	_ban_boxes[id] = [allowed, shown]
-	return holder
+	return made
