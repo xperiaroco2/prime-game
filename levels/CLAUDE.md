@@ -63,8 +63,9 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   item rests wherever its flight ends, so the levels keep every surface a throw can reach within reach of a spot
   where a player can stand (the pick-up's 2 m from the feet, with line of sight): no shelf, ledge, canopy or roof
   that a throw lands on and no player reaches. The throw speed is kept below what reaches a lockable roof;
-  `tests/integration/levels/house_roof_throw_test.gd` guards House's (a change of the level near it, such as a higher
-  floor or perch beside it, can turn that test red).
+  `tests/integration/levels/house_roof_throw_test.gd` guards House's. It throws from every floor of sampled columns
+  near the roof (every metre on the balcony and its railings, every 2 m elsewhere; `house_throws.gd`), so a higher
+  floor or a perch placed there turns it red; a new standable area near the roof gets its columns there too.
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
