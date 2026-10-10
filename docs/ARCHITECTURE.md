@@ -1862,7 +1862,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 |---|---|---|---|
 | no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
-| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, players missing, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
+| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
@@ -3811,6 +3811,10 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
   (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
+- **A known gap** (#737, core): back in the lobby after a match the host does not send its shortfalls again yet, so
+  after a player left mid-round in a mode with `min_players` above 1 the status reads the ready count, not
+  `players_few`, until the next join, leave or settings change. The Esc Lobby page has the same gap; the fix is
+  the host's, not a count of the client's own.
 - Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
   English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
   key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
@@ -3819,12 +3823,13 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
   language change, seen failing without the notification; large text's keycap), `esc_menu_input_test.gd` (no
   prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
-  the service is gone), `game_voice_test.gd` (the voice hint). The `shot`s, at `--size 1920x1080`:
-  `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`, `lobby_hud_count_preview`,
-  `lobby_hud_count_host_preview`, `lobby_hud_short_preview`, `lobby_hud_code_waiting_preview` and
-  `lobby_hud_direct_preview`, each with a `_uk` twin, and `lobby_hud_large_uk_preview` (`short` and `code-waiting`
-  fold the host's `players_few` against four players, the handoff's sample). The playcheck fields `lobby.status`,
-  `lobby.roster` and `lobby.ready` read the new nodes (`esc_menu`, `end`).
+  the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at
+  `--size 1920x1080`: `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`,
+  `lobby_hud_count_preview`, `lobby_hud_count_host_preview`, `lobby_hud_short_preview`,
+  `lobby_hud_code_waiting_preview` and `lobby_hud_direct_preview`, each with a `_uk` twin, and
+  `lobby_hud_large_uk_preview` (`short` and `code-waiting` fold the host's `players_few` against four players, the
+  handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
+  (`esc_menu`, `end`).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
