@@ -6,7 +6,8 @@ extends RefCounted
 ## own PlayerController, RemotePlayerBody and the body views (client/world/body_views.gd), sized
 ## from the client's own copy of the mode's PlayerRules.
 
-## A player's colour until players have colours of their own.
+## A player's colour where no roster gives one (offline: the dev room, the controller's tests);
+## on a session a body wears its player's colour (BodyColours, #551).
 const PLAYER_COLOUR := Color(0.25, 0.45, 0.85)
 const BODY_COLOUR := Color(0.55, 0.55, 0.55)
 const CROSS_COLOUR := Color(0.08, 0.08, 0.1)
