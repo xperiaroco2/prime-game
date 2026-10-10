@@ -106,6 +106,12 @@ and the leak test still checks it. The pillar is about game design, not about wh
 ### Life: knockdown, death, respawn
 Replaces "Death and ghosts". There are no ghosts.
 
+**Amended on 2026-10-10** by the engineer (#728, his answer A; designed in the proposed
+[knockdown ADR](2026-10-10-knockdown-reworked.md), not built): a knocked-down player no longer crawls. It cannot
+move, and, as before, cannot talk; its body falls as a ragdoll, which a hit can send flying and a sloped roof can
+roll off. The rest of this section stands; where it says the downed crawl, they will lie still once #728's issues
+are built.
+
 | State | Moves | May do | Struck | Heard by | Hears | Sees |
 |---|---|---|---|---|---|---|
 | Living | walks, sprints, jumps | everything Round accepts | yes, unless invulnerable | the living and the downed, by proximity | the living, by proximity | first person |

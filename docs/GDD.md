@@ -75,6 +75,22 @@ Lobby → Countdown → Loading → Round → End → Lobby. Adopted by the desi
 
 The base mode has no meetings and no votes.
 
+### The knockdown (#728)
+Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
+[vision revision 1](decisions/2026-10-01-vision-revision-1.md) stays (0 health knocks a player down; another player
+raises it by holding E; otherwise it dies when its time runs out or when it gives up, then spectates and respawns),
+with three changes:
+- **Still:** a knocked-down player cannot move; there is no crawl and no separate "wounded" state.
+- **Mute:** it hears, but cannot speak: nobody hears it, under any rule (as before).
+- **A ragdoll:** the body falls as a rigid body, with no animation. A hit can send it flying, and a body knocked down
+  on a sloped roof can roll off. Everyone sees it in the same place: the host moves the body, and each screen draws
+  its own ragdoll there.
+
+Open for the engineer, with options and recommendations in the
+[knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (KD1 to KD9): which hits launch a body and how hard,
+which floors make it roll, whether a body still moving can be raised, whom a knocked-down player hears, its camera,
+how a dead body and a revive look, a death during the motion, and the numbers.
+
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
   is not central.
