@@ -387,7 +387,8 @@ func test_the_end_screen_and_the_lobby_close_the_menu_its_dropdown_and_the_quest
 	# Time up: the end screen, nothing of either menu left, the mouse free for it.
 	assert_bool(await _until(_both_on.bind(host, guest, S.END), 400)).is_true()
 	_assert_menu_gone(guest)
-	assert_bool(mode_list.visible).is_false()
+	# The list is a window of its own; under load (CI's shard) it was seen still open here.
+	assert_bool(await _until(func() -> bool: return not mode_list.visible, 30)).is_true()
 	assert_bool(guest.pointer.captured()).is_false()
 	_assert_menu_gone(host)
 	assert_bool(host.ui.esc.confirm_box.visible).is_false()
