@@ -3727,7 +3727,8 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   `esc_opened`; `amount` in seconds), the conditions `OwnLife` (`life` by name: `alive`, `downed`, `dead`, `left`, so
   `core/` data names no state class), `OtherWithin` (`metres`, 0: the phase's `VoiceRule.radius_of`), `ItemKindIs`
   (only in `conditions`: it reads the fired event's `item`) and `TasksDone` (at least one task, all done), the action
-  `RequestStage`. Each has `problems()`. The lessons are `content/tutorial/tutorial.tres` (provisional, §9.6).
+  `RequestStage`. Each has `problems()`. The lessons are `content/tutorial/tutorial.tres` (provisional, approved on
+  PR #722, §9.6).
 - **`LessonRunner`** (`client/tutorial/lesson_runner.gd`, a pure `RefCounted`; a source test keeps nodes, input,
   sessions and sends out of it): `setup(lessons, model)`, `start()` (once), then `on_event(name, fields)` (after the
   model folded it), `on_claim(covered, moved_itself)`, `see(signal_name)`, `advance(delta_s, own_position,
@@ -3746,7 +3747,9 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   runner (a handler of an older session's runner does nothing); `setup()` connects, once, `GameUi.map_opened` and
   `LifeView.target_switched` (fired by `cycle_target` only, when the dead player picks another target: never the
   first target drawn at the death or a lost one replaced). `GameTutorial.process(game, delta)` (the last line of
-  `Game._process`) feeds `advance` with the local player's position and `VoiceSender.live()`, `howto_opened` on a
+  `Game._process`) feeds `advance` with the local player's position and `VoiceSender.live()`, and a `delta` of 0
+  while the Esc menu is open (`GameUi.esc_open()`): D31 (a)'s quiet time stands still there, an open microphone
+  still resets it (the engineer's answer on PR #722); `howto_opened` on a
   rise of `MapScreen.howto_open()` (polled, so it holds whichever order the «?» emits `howto_requested` and opens the
   card in), and `voice_sent` when `VoiceSender.sent` rose; `Game.open_esc` and `close_esc` (its last line) call
   `esc_opened()` and `esc_closed()`. `next_stage_requested` sends `NextStage` through the own session; `finished`
@@ -3763,7 +3766,8 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
   the end after the menu closes), `lesson_runner_source_test.gd`, the switch in
   `tests/integration/client/life/spectate_cycle_test.gd`, and `tests/integration/client/app/game_tutorial_lessons_test.gd`
-  (the nine lessons on the real session, the stages from the runner's own `NextStage`, the end at the main menu;
+  (the nine lessons on the real session, the stages from the runner's own `NextStage`, lesson 8's quiet time paused
+  under the Esc menu, the end at the main menu;
   the invite's `begin()`, a second tutorial's fresh runner).
 
 ### 4.8 Signalling (M6-5a, #366)
