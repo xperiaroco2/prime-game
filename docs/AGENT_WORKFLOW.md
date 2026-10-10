@@ -1679,7 +1679,8 @@ the end of the compact "task medians" line: run it for a wave before a change an
 prompt size per agent role (#470: the prompt the script gave each agent, in characters and estimated tokens, median and
 max; `prompt_sizes` in `metrics.json`, not in `--compact`), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
-and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
+and CI fix rounds, tool calls and $, and, since the keep of 2026-10-10, the revert rule's advice (blockers and majors over
+0.3 a task across 10 tasks); `sonnet_trial` in `metrics.json`;
 [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
 agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
