@@ -2983,8 +2983,8 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
   its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
   outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.40). Every Control ignores the mouse and takes no focus. Voice is
   silent in End by #213's rule, not by the screen.
-- **Not built here.** The handoff's black-screen CanvasLayer 6: the screen stays a child of `GameUi`'s one layer,
-  under the Esc menu, until the black screens share a layer (#494's connecting and loading screens use it too).
+- **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
+  loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
 without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
@@ -2999,9 +2999,13 @@ prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; 
 where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
 - **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
   `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
-  `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It stays in the `Ui` layer under the Esc
-  menu, not on the handoff's black-screen CanvasLayer 6: the Esc menu (layer 4 in that table) opens in Loading, and a
-  layer 6 would hide it (the engineer chose this in PR #637 until the black screens share a layer, as §4.7.31's post game screen does).
+  `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It is on the handoff's black-screen
+  CanvasLayer 6, `GameUi.black` (`BLACK_LAYER`), with the pregame and the post game (#656). The Esc menu, layer 4 in
+  that table, is on `GameUi.above` (`ABOVE_LAYER` 7) with the debug overlay: Esc in Loading, the pregame or the post
+  game opens it over the black, a way out of a hung loading (the engineer's answer (b) on #656). Esc on Connecting
+  and Failure stays their Cancel and Back (no Esc menu); #726's rule stands (a new screen closes a menu opened over
+  another). Test: `tests/unit/client/ui/game_ui_layers_test.gd`; shots `client/dev/loading_esc_preview.tscn`,
+  `pregame_esc_preview.tscn`, `end_esc_preview.tscn` (`ScreenPreview.esc_over`).
 - **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until the host's `Welcome` brings
   the lobby's name (#214, §3.5: Game's `_refresh_join` then calls `set_lobby(model.lobby_name, model.host_name())`,
   `connect.connecting` with the typed name, or `lobby.default_name` with the host's name). That title is wired but
@@ -3297,8 +3301,8 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   with no imported copy (one a newer pin lists before `ui-sync` imports it) falls back to the pinned, `.gdignore`d
   copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
   scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
-- **Not built here:** separate CanvasLayers per the handoff's layer table (the screens stay children of one `Ui`
-  layer, in the same order); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
+- **Not built here:** separate CanvasLayers per the handoff's layer table for these (the screens stay children of
+  one `Ui` layer, in the same order; only the black screens and the Esc menu have their own, §4.7.32); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
   nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.44's.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
   and the raise in its place, a dissident's and an engineer's HUD equal but the role; since #497 the downed see the
@@ -3393,8 +3397,9 @@ wide, wrapped. Pack variations only, no override.
   `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
   the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
   match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
-  it at once. To draw over the HUD it is now `GameUi`'s child after the HUD, the life screen (§4.7.44) and the map (under the
-  post game screen and the Esc menu). Every Control ignores the mouse and takes no focus; the pregame is frozen
+  it at once. It draws over the HUD, the life screen (§4.7.44), the tutorial's plates and the map from the black layer
+  `GameUi.black` (§4.7.32), under the post game screen; the Esc menu opens over it from `GameUi.above` (#656).
+  Every Control ignores the mouse and takes no focus; the pregame is frozen
   and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
 - **Role sounds** (#716, #213 criterion 3, #175). `role_revealed(role, side)` is emitted once per pregame when the
   own role shows, with that role's side in the client's own mode (empty for a role it does not know), and never
@@ -3402,7 +3407,7 @@ wide, wrapped. Pack variations only, no override.
   `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.40): `crew` the engineers' sound, `dissidents` the
   dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
   hears another's role sound (the bots test checks the wire).
-- **Not built here.** The handoff's black-screen CanvasLayer 6 (as §4.7.31); the Esc menu's Role tab (#491).
+- **Not built here.** The Esc menu's Role tab (#491).
 Tests: `tests/unit/client/ui/pregame_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; engineer, dissident with teammates, dissident alone, before the role, a
 role with no key; it reads only the own role and Teammates (the source's model fields; another role's Teammates
@@ -3889,7 +3894,9 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
 The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
 notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
 - **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
-  and before the map: the HUD layer, under the map and the Esc menu), node for node: the invite (`Dim` ToyBackdrop
+  and before the map: the `Ui` layer, the handoff's HUD layer 2 (its table names the lesson plates there and not
+  the invite, which shows with them only in the round, where no black screen is up; #656), under the map and under
+  the Esc menu on `GameUi.above`, §4.7.32), node for node: the invite (`Dim` ToyBackdrop
   taking the mouse; `Lang`, the chips `Uk` and `En` of `ToyChipToggleOnDark` in one ButtonGroup, each `lang.*` key
   naming its language in itself, the one spoken pressed; `Box`, a raised ToyPanelDialog 688 px wide with the title,
   the body, Start (`UiParts.button`, ToyButtonPrimary) and Skip (ToyButtonGhostOnLight)), `Step` (912 px, 40 px

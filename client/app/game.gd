@@ -171,7 +171,7 @@ func _ready() -> void:
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
-		ui.add_child(_overlay)
+		ui.above.add_child(_overlay)
 	var args := OS.get_cmdline_user_args() if read_command_line else launch_args
 	options = LaunchOptions.parse(args, true)
 	ui.menu.set_default_port(options.port)

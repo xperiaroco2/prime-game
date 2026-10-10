@@ -15,6 +15,13 @@ extends CanvasLayer
 ## text swaps it for THEME_LARGE, the same theme with larger text (#289; Settings > Accessibility,
 ## #491, calls set_large_text).
 ##
+## The black screens (connecting, failure and loading, the pregame, the post game) share one
+## CanvasLayer, `black`, at BLACK_LAYER as the handoff's layer table says (#656); the Esc menu is on
+## its own layer above it, `above` (the engineer's answer on #656: Esc over a hung loading opens
+## the menu, a way out), and the debug overlay with it. The rest stay on this layer, in order,
+## the tutorial's invite and lesson plates too (the table's HUD layer, s1): they show only in the
+## round, where no black screen is up, and the Esc menu stays above them.
+##
 ## Esc closes the open overlay on top, one per press (#488, `overlays`, §4.7.35): the main
 ## menu's open panel, the map, a card over the map, the Esc menu and its question to the host
 ## register here; the how-to card over the map (#254, `howto_card`: UiOverlays.CARD, the map key
@@ -34,6 +41,10 @@ const THEME_LARGE := preload("res://client/ui/theme/game_theme_large.tres")
 const BLACK_SCREENS: Array[GameFlow.Screen] = [
 	GameFlow.Screen.CONNECTING, GameFlow.Screen.FAILURE, GameFlow.Screen.LOADING
 ]
+## The black screens' shared layer (prime-game-ui `ui-0.4.0`'s layer table, #656).
+const BLACK_LAYER := 6
+## The Esc menu's layer: above the black screens, not the table's 4 (#656, answer (b)).
+const ABOVE_LAYER := 7
 
 ## The name plates over the others' heads (#257), under every screen: the lobby and the round.
 var plates := NamePlates.new()
@@ -57,6 +68,10 @@ var tutorial := TutorialScreen.new()
 var screen := GameFlow.Screen.MENU
 ## What Esc closes, the topmost first (#488): Game._input asks it before it opens the Esc menu.
 var overlays := UiOverlays.new()
+## The black screens' layer (BLACK_LAYER): connecting, pregame and end, in that order.
+var black := CanvasLayer.new()
+## The layer above them (ABOVE_LAYER): the Esc menu; the game adds its debug overlay here.
+var above := CanvasLayer.new()
 ## Whether the screens have the large-text theme (set_large_text).
 var large_text := false
 
@@ -73,12 +88,23 @@ var _local := HudText.Local.new()
 
 func _init() -> void:
 	name = "Ui"
-	child_entered_tree.connect(_style)
-	var screens: Array[Control] = [plates, menu, connecting, lobby_hud, hud, life, tutorial, map]
-	screens.append_array([pregame, end, esc])
-	for each: Control in screens:
+	black.name = "Black"
+	black.layer = BLACK_LAYER
+	above.name = "Above"
+	above.layer = ABOVE_LAYER
+	for on: CanvasLayer in [self, black, above]:
+		on.child_entered_tree.connect(_style)
+	# The tutorial (its invite and lesson plates) stays on this layer, the table's HUD layer (s1).
+	for each: Control in [plates, menu, lobby_hud, hud, life, tutorial, map]:
 		_style(each)
 		add_child(each)
+	for each: Control in [connecting, pregame, end]:
+		_style(each)
+		black.add_child(each)
+	_style(esc)
+	above.add_child(esc)
+	add_child(black)
+	add_child(above)
 	show_screen(GameFlow.Screen.MENU)
 	close_esc()
 	overlays.add(&"menu_panel", UiOverlays.MENU_PANEL, _menu_panel_open, menu.close_panel)
@@ -288,10 +314,19 @@ func _show_map() -> void:
 ## brought its own theme keeps it, and a screen added later gets the theme of the moment.
 func set_large_text(on: bool) -> void:
 	large_text = on
-	for child: Node in get_children():
-		var control := child as Control
-		if control != null and (control.theme == THEME or control.theme == THEME_LARGE):
+	for control: Control in screens():
+		if control.theme == THEME or control.theme == THEME_LARGE:
 			control.theme = shared_theme()
+
+
+## Every Control on the three layers (this one, `black`, `above`), each layer's in its order.
+func screens() -> Array[Control]:
+	var all: Array[Control] = []
+	for on: CanvasLayer in [self, black, above]:
+		for child: Node in on.get_children():
+			if child is Control:
+				all.append(child as Control)
+	return all
 
 
 ## The shared theme the screens have now: THEME, or THEME_LARGE under large text.

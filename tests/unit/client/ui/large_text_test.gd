@@ -18,9 +18,8 @@ func test_large_text_swaps_the_shared_theme_live() -> void:
 	assert_bool(ui.large_text).is_true()
 	assert_object(ui.shared_theme()).is_same(GameUi.THEME_LARGE)
 	var screens := 0
-	for child: Node in ui.get_children():
-		var control := child as Control
-		if control != null and control != themed:
+	for control: Control in ui.screens():
+		if control != themed:
 			screens += 1
 			assert_object(control.theme).is_same(GameUi.THEME_LARGE)
 	assert_int(screens).is_greater(8)
