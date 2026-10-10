@@ -2692,8 +2692,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
   living or downed player's avatar (position, velocity, facing, the flag `downed`, hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
-  snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement (#728's design, §7.1.17, not built, adds one exception: the own avatar while knocked down, whose body the host moves). Private numbers are never avatar
-  fields; they travel in `SelfStatus`.
+  snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
+  fields; they travel in `SelfStatus`. #728's design (§7.1.17, not built) adds one exception: the own avatar while
+  knocked down, whose body the host moves.
 - **`core/` says who is entitled; `server/` delivers.** The rule is game logic, like voice routing (§6). `server/`
   asks `core/` for each event's recipients and builds one message per recipient, *everyone* events included: it sends
   them to each player in turn, never to the transport's broadcast target, which would also reach a peer that is not
