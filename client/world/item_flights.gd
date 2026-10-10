@@ -82,6 +82,17 @@ func position_of(item_id: int) -> Variant:
 	return arc.position()
 
 
+## The items `peer` threw whose launch is not drawn yet: until then they hang at its body's hand
+## (ItemViews), which a spectator watching `peer` from its eyes must not see (#168).
+func awaiting_launch_of(peer: int) -> Array[int]:
+	var ids: Array[int] = []
+	for item_id: int in arcs:
+		var arc: ItemArc = arcs[item_id]
+		if arc.thrower == peer and not arc.position().is_finite():
+			ids.append(item_id)
+	return ids
+
+
 ## A decoded event, already folded into `model`. `host_tick` is the estimated host tick at its
 ## arrival (AvatarViews.host_tick()): no flight can have stopped later.
 func on_event(

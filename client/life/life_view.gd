@@ -443,7 +443,10 @@ func _hold_as_seen(peer: int) -> void:
 		_spectate_hand.show_item(hand.kind, hand.colour, kind != null and kind.is_two_handed())
 	if items == null:
 		return
-	for item_id: int in [model.hand_item(peer), model.belt_item(peer)]:
+	# A throw is hung at the body's hand until its launch is drawn: the hand is empty already.
+	var hidden: Array[int] = [model.hand_item(peer), model.belt_item(peer)]
+	hidden.append_array(items.flights.awaiting_launch_of(peer))
+	for item_id: int in hidden:
 		var view := items.view_of(item_id)
 		if view != null:
 			view.show_look(false)

@@ -2177,10 +2177,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
-  drawn and when the own living player holds it; in flight, on its arc (§4.7.25). Each view joins `SightHider.GROUP` and gives `sight_point()`; the
-  root's `visible` is left to the sight hiding, `ItemViews` toggles the look under it. `ItemViews` places in the
-  physics step at priority 1, after the avatars and the player moved and before `SightHider` (10) casts, so a view
-  out of the body's eye's sight is never drawn for a frame. `CircleViews` finds a station kind's size in the task types'
+  drawn and when the own living player holds it; in flight, on its arc (§4.7.25). Each view joins
+  `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
+  toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
+  player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
+  frame. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
   over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's). It leaves out a
   zone, which `ZoneViews` (§4.7.24) draws.
@@ -2629,7 +2630,9 @@ TE5 (a)). The wire is unchanged.
   item is on the straight segment from point(k) to point(k + 1), the segment `FlightTicks` sweeps; at a whole tick it
   is `ItemFlight.point()` exactly, no second copy of the formula. Before the drawn tick reaches the launch the item
   stays at the thrower body's hand point (`carry_point()` for a two-handed kind), so it leaves the hand as the body
-  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed.
+  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed. A spectator
+  watching the thrower from its eyes sees no such item there: `LifeView` hides the views that
+  `ItemFlights.awaiting_launch_of(peer)` names, with the watched peer's hand and belt items (#168).
 - **The stop and the fall.** `ItemPlaced` with the cause `thrown` ends an arc: the host drops a stopped item straight
   down, so the stop is the arc's point whose x and z are the rest's (`ItemArc.stop_of`; within
   `REST_TOLERANCE_M`, 5 cm, not a decision), and a throw with no horizontal speed falls back to the rest's height;
@@ -2637,7 +2640,10 @@ TE5 (a)). The wire is unchanged.
   thrower's own clock for its own arc) plus `STOP_SLACK_TICKS` (3, not a decision). The drawn item flies on to the
   stop, then falls straight down with the arc's gravity (sqrt(2h/g)); the own arc held at a wall falls from there.
   A rest not below the arc (off its line, behind the launch, the no-floor fallback at the thrower's feet, TD11 (a)),
-  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest.
+  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest. The exception
+  is the own arc past a stop: its clock runs ahead of the host's flight by the round trip, and its sweep sees the
+  level only, not a living player the host stopped the item on, so it glides back to the rest over
+  `ItemArc.GLIDE_S` (0.15 s, not a decision) instead of jumping.
 - **A phase change.** `PhaseChanged` and `LoadMatch` drop every arc and the prediction; the model keeps `flying`, so
   `ItemViews` hides the item until its `ItemPlaced`, if one comes, and no later phase draws it again (after a phase
   without `FlightTicks` the host's flown ticks are no longer the host tick less the launch tick). An item picked up,
