@@ -390,8 +390,9 @@ greybox stays the bots' test map, with the generator and its switches placed on 
 
 **Hidden information.** Everyone sees the charge percentage: the Tab task screen shows the Generator as a progress bar
 of its charge, not as a count of subtasks like the other tasks. The battery is seen only at the generator's panel, not
-on any screen. Nobody is told who switched a switch: players learn it only by seeing or hearing it, or guessing. The
-switches are hidden by sight: a player's game shows a switch only where that player can see or hear it.
+on any screen. Nobody is told who switched a switch: players learn it only by seeing it or guessing (hearing a click
+nearby follows from "every action has a sound"). The switches are hidden by sight: a player's game shows a switch
+only where that player can see or hear it.
 
 **Edge cases.** A knocked-out player and a dead player can do nothing. The host's own player follows the same rules as
 everyone.
