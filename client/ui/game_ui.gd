@@ -272,13 +272,14 @@ func _menu_panel_open() -> bool:
 	return screen == GameFlow.Screen.MENU and menu.panel_open()
 
 
-## The map shows while open in the round; it hides the crosshair. The first frame it shows has
-## its rows.
+## The map shows while open in the round; it hides the crosshair and the role. The first frame
+## it shows has its rows.
 func _show_map() -> void:
 	var was_shown := map.visible
 	map.visible = _map_open and screen == GameFlow.Screen.ROUND
 	hud.aiming = not map.visible and _alive
-	hud.role_hidden = map.visible
+	# The tutorial's round HUD has no role chip (s1's Hud, #492; design §5).
+	hud.role_hidden = map.visible or esc.state.tutorial
 	if map.visible and not was_shown and _model != null:
 		map.refresh(_model, _mode, _host_tick, _local)
 

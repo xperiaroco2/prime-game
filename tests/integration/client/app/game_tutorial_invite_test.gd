@@ -71,6 +71,9 @@ func test_the_invite_waits_over_the_room_and_start_begins_lesson_1() -> void:
 	assert_bool(pointer.captured()).is_true()
 	await _frames(2)
 	assert_bool(game.ui.hud.visible).is_true()
+	# s1's Hud: the round HUD without its role chip (the tutorial runs no clock: no timer).
+	assert_bool(game.ui.hud.role.visible).is_false()
+	assert_bool(game.ui.hud.timer.visible).is_false()
 	assert_bool(screen.step.visible).is_true()
 	assert_bool(screen.list.visible).is_true()
 	assert_str(screen.progress_label.text).is_equal("Step 1 of 9")
