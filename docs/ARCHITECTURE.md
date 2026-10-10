@@ -15,7 +15,7 @@
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
 | `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7) and how-to cards (§4.7.36), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.45; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
 | `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -3647,7 +3647,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
   Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
   Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
-  lesson 9 is T4's call of `Game.leave()`.
+  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
   `tutorial_requested` to `start_tutorial(false)` (the item stays disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
@@ -3714,6 +3714,57 @@ Protocol 13 (§4.3.4).
   `tests/unit/client/net/host_text_locale_test.gd` (one payload over the loopback in English, then Ukrainian, with
   the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
   decodes the same shortfall, and the same reason at the end, equal to `view_of`).
+
+#### 4.7.45 Built in #602 (M6.2), the lesson runner and the nine lessons
+T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engineer's D29 to D33, D36 answers on PR
+#596). The plates, the lesson list and the invite (#492) read it.
+- **Data** (`core/content/tutorial/`, data only, §9.3): `TutorialLessons` (the root, `lessons`), `TutorialLesson`
+  (`list_key`, `list_action` filling the row's `{key}`, one or two `steps`), `TutorialStep` (`title_key`, `how_key`,
+  `keys`: InputMap actions or `TutorialStep.HOWTO_GLYPH` for the map's «?»; `starts_when`, `on_start`, `done_when`,
+  `triggers`, `conditions`) and the closed list of parts of the design's §3: the triggers `EventSeen` (`event`,
+  `fields` matched as `WaitFor`; the markers `own`, `other` on a peer field, `held` on an item field) and
+  `ClientSeen` (`signal_name`, one of `moved`, `map_opened`, `howto_opened`, `spectate_switched`, `voice_sent`,
+  `esc_opened`; `amount` in seconds), the conditions `OwnLife` (`life` by name: `alive`, `downed`, `dead`, `left`, so
+  `core/` data names no state class), `OtherWithin` (`metres`, 0: the phase's `VoiceRule.radius_of`), `ItemKindIs`
+  (only in `conditions`: it reads the fired event's `item`) and `TasksDone` (at least one task, all done), the action
+  `RequestStage`. Each has `problems()`. The lessons are `content/tutorial/tutorial.tres` (provisional, §9.6).
+- **`LessonRunner`** (`client/tutorial/lesson_runner.gd`, a pure `RefCounted`; a source test keeps nodes, input,
+  sessions and sends out of it): `setup(lessons, model)`, `start()` (once), then `on_event(name, fields)` (after the
+  model folded it), `on_claim(covered, moved_itself)`, `see(signal_name)`, `advance(delta_s, own_position,
+  mic_live)` every frame and `esc_closed()`. A step starts once its `starts_when` holds (until then the previous
+  lesson stays done and `lesson()` is 0), records the own hand item (`held`) and zeroes its counters, emits
+  `next_stage_requested` for each `RequestStage`, and completes at once when its `done_when` holds; else the first
+  trigger firing from its start with its `conditions` holding completes it. `moved` adds the `covered` ticks of the
+  claims that moved the player itself (`Ticks.RATE`) until `amount`. `voice_sent` fires on a frame sent and, with an
+  `amount`, after that many seconds in a row in which the step's conditions hold and no microphone is open (D31 (a):
+  a voice frame within the radius, or 3 s within it with none open). After the last lesson, a completion by
+  `esc_opened` makes the next `esc_closed()` emit `finished` (D32 (b)); a menu opened before lesson 9 started does
+  not count. Signals `changed`, `next_stage_requested`, `finished`; queries for #492: `lesson()` (1-based, 0 for
+  none), `step()`, `current_step()`, `keys()`, `is_done(n)`, `lesson_count()`, `is_running()`, `is_finished()`.
+- **The wiring** (`GameTutorial`, so no screen knows the tutorial exists): `start()` builds `Game.tutorial.runner`
+  over the own session's model (`end()` drops it) and binds the session's `event_received` and `claim_sent` to that
+  runner (a handler of an older session's runner does nothing); `setup()` connects, once, `GameUi.map_opened` and
+  `LifeView.target_switched` (fired by `cycle_target` only, when the dead player picks another target: never the
+  first target drawn at the death or a lost one replaced). `GameTutorial.process(game, delta)` (the last line of
+  `Game._process`) feeds `advance` with the local player's position and `VoiceSender.live()`, `howto_opened` on a
+  rise of `MapScreen.howto_open()` (polled, so it holds whichever order the «?» emits `howto_requested` and opens the
+  card in), and `voice_sent` when `VoiceSender.sent` rose; `Game.open_esc` and `close_esc` (its last line) call
+  `esc_opened()` and `esc_closed()`. `next_stage_requested` sends `NextStage` through the own session; `finished`
+  calls `Game.leave()`. Without the invite, lesson 1 begins as `PhaseChanged` brings the `lessons` phase; with it,
+  `GameTutorial.begin(game)` is #492's Start.
+- **The nine lessons** follow the design's §1 table on the deck keys of `client/i18n/strings.csv` (ui-0.4.0): lesson
+  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150), lesson 4 on `tutorial.step.deliver.how`,
+  whose text the UI track replaces with D30 (b)'s Delivery v1 words (#150); lesson 7 completes on the switch or the
+  own `Respawned` (D36 (a)); lesson 8 waits for the own life living. The numbers (1 s, 3 s) are D33's placeholders.
+  If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
+- Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
+  against `ClientModel.Life`), `tutorial_content_test.gd` (the nine lessons as §1's rows, deck keys and actions,
+  `RequestStage` only in 6 and 7, a card for `howto_opened`), `tests/unit/client/tutorial/lesson_runner_test.gd`
+  (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
+  the end after the menu closes), `lesson_runner_source_test.gd`, the switch in
+  `tests/integration/client/life/spectate_cycle_test.gd`, and `tests/integration/client/app/game_tutorial_lessons_test.gd`
+  (the nine lessons on the real session, the stages from the runner's own `NextStage`, the end at the main menu;
+  the invite's `begin()`, a second tutorial's fresh runner).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -4922,7 +4973,8 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   randomness names its RNG purpose in its data (§3.3), so a new part never shifts the draws of the others.
 
 ### 9.3 Kinds and where they live
-The base classes and the kinds are in `core/content/` (the bot-scenario data classes in `core/content/scenario/`);
+The base classes and the kinds are in `core/content/` (the bot-scenario data classes in `core/content/scenario/`,
+the tutorial's in `core/content/tutorial/`);
 `Match`, `MatchState` and `Phase` in `core/match/`; each part beside the rules it implements (`core/items/`,
 `core/combat/`, `core/tasks/`, … as split in stage 2; the deal's actions in `core/deal/`, 2c). 2a creates the base class of every kind in this table but the
 bot scenario's (2j), so stage-2 tasks that run in parallel share them instead of each inventing one; the parts and
@@ -5037,6 +5089,7 @@ phase classes come in the task each row names.
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 | How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
+| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -5501,6 +5554,7 @@ content/
   scenarios/                       bot scenarios (§9.7), one per file
   howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
   howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
+  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers
@@ -5783,7 +5837,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
-| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 and #492, which then write their sections here |
+| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here |
 
 ## 11. Art assets: the handoff from the art repo (#519)
 
