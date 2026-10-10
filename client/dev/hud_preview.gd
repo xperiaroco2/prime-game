@@ -7,7 +7,7 @@ extends Node3D
 ## - `tired`: stamina at 0.18; `hurt`: health at 0.22;
 ## - `mate`: a dissident with a knife on the belt looking at a teammate (the name plate's mark);
 ## - `raising`: holding Interact on a downed teammate (the raise bar in place of Aim);
-## - `cue`: the crosshair on a downed player (the raise cue in Aim, #497, the engineer on PR #721);
+## - `cue`: the crosshair on a downed teammate lying ahead (the raise cue in Aim, #497, PR #721);
 ## and the handoff s09's (`docs/handoff/s09-downed.md`, #497), drawn by the game's LifeScreen from
 ## LifeHud over the same HUD:
 ## - `downed`: 3 s into the mode's 10 s knockdown (the bleed-out bar at 0.7, "0:07"), the mic off;
@@ -65,13 +65,16 @@ func _ready() -> void:
 	_avatars.rules = rules
 	_avatars.clock = func() -> int: return _now
 	add_child(_avatars)
-	if state == "mate":
+	if state in ["mate", "cue"]:
 		for tick: int in 6:
 			_snapshot(tick + 1)
 	var camera := Camera3D.new()
 	add_child(camera)
 	camera.position = Vector3(0.0, rules.eye_height_m, 0.0)
 	camera.rotation = Vector3(deg_to_rad(-4.0), 0.0, 0.0)
+	if state == "cue":
+		# Turned to the teammate lying ahead, the crosshair on the body.
+		camera.look_at_from_position(camera.position, MATE_AT + Vector3(0.0, 0.2, 0.0))
 	camera.make_current()
 	var ui := GameUi.new()
 	add_child(ui)
@@ -139,6 +142,8 @@ func _life_events(mode: GameMode) -> Array[Array]:
 			return [[3.0, &"KnockedDown", knocked]]
 		"raised":
 			return [[3.0, &"KnockedDown", knocked], [0.6 * raise_s, &"RaiseStarted", raise]]
+		"cue":
+			return [[3.0, &"KnockedDown", {"peer": MATE, "position": MATE_AT}]]
 		"dead":
 			return [[6.0, &"Died", knocked]]
 		"back":
