@@ -126,8 +126,8 @@ What already holds (ARCHITECTURE §9, §5):
 1. **The deal** (when `DealTasks` draws the Generator, on a map its data lists: House, GE15): the generator's station
    on the map's one `generator` marker, and a switch station on N of its `switches` (4) `switch` markers, N the
    subtasks setting, the N markers drawn from the RNG purpose `switches_rng` (GD2). Every placed switch is active and
-   starts off. The other `switches` - N markers get no station: their devices are the fixed switches, on for good, which nobody can aim at or use (GD5,
-   GE14). Each marker is a device scene (GE11), so the type's demands are exact, not minimums: the fit check refuses a
+   starts off. The other `switches` - N markers get no station: their devices are the fixed switches, on for good,
+   which nobody can aim at or use (GD5, GE14). Each marker is a device scene (GE11), so the type's demands are exact, not minimums: the fit check refuses a
    map with any other count (GE10), and every switch device is either an active switch's station or a fixed switch,
    never a dead device. Station ids: the generator first, then the active switches in level order. With N = 0 no
    switch is placed: the task has no subtasks and is done at the deal (#79). The generator's station is still placed,
