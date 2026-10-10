@@ -170,7 +170,7 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
-| Car repair | Lift control (its point a proposal; no view of who is under the car, decided in #688) | 0 | 57, 46 | Garage |
+| Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
 | Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
@@ -247,9 +247,10 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
   - the generator charges only while all active switches are on at the same time;
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
-  - how dissidents interfere with each chain (a wrong herb or part, a wrong pose or a spoiled
-    shot, switching the generator's switches off; for the burgers he decided it in #682: a dissident may hide a box,
-    and the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
+  - how dissidents interfere with each chain (a wrong herb, a wrong pose or a spoiled shot, switching the generator's
+    switches off; a wrong part is no longer one: the car refuses it, decided in #688; for the burgers he decided it in
+    #682: a dissident may hide a box, and the rules let anyone burn a patty or put a wrong ingredient on a plate,
+    [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
   - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
     [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).
