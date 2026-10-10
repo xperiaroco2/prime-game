@@ -87,6 +87,7 @@ var threshold_slider := SettingRows.slider(
 var meter := ProgressBar.new()
 ## Noise suppression: the Off and On chips (one ButtonGroup).
 var denoise_chips: HBoxContainer
+var noise_row: Control
 var volume_sliders: Dictionary[StringName, HSlider] = {}
 var mic_row: PanelContainer
 var mode_row: PanelContainer
@@ -136,7 +137,8 @@ func _init() -> void:
 	add_child(headset_label)
 	var noise_keys: Dictionary[String, String] = {"Off": "common.off", "On": "common.on"}
 	denoise_chips = SettingRows.chips("Toggle", noise_keys, _on_denoise)
-	add_child(SettingRows.row("Noise", "settings.noise_suppression", denoise_chips))
+	noise_row = SettingRows.row("Noise", "settings.noise_suppression", denoise_chips)
+	add_child(noise_row)
 	for bus: StringName in UserSettings.VOLUMES:
 		var slider := SettingRows.slider(UserSettings.MIN_DB, UserSettings.MAX_DB, VOLUME_STEP)
 		slider.value_changed.connect(func(db: float) -> void: volume_changed.emit(bus, db))
@@ -158,7 +160,7 @@ func _init() -> void:
 ## Shows `facts`; a control the player is not moving takes its value without a signal.
 func show_facts(facts: Shown) -> void:
 	unavailable_label.visible = not facts.available
-	for each: Control in [mic_row, mode_row, test_row, echo_label, headset_label]:
+	for each: Control in [mic_row, mode_row, test_row, noise_row, echo_label, headset_label]:
 		each.visible = facts.available
 	threshold_row.visible = facts.available and facts.mode == UserSettings.Mode.VOICE_ACTIVITY
 	notice_label.text = facts.notice

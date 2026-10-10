@@ -84,12 +84,14 @@ func test_it_says_voice_is_unavailable_without_the_addon() -> void:
 	shown.debug = true
 	panel.show_facts(shown)
 	assert_bool(panel.unavailable_label.visible).is_true()
-	assert_str(panel.unavailable_label.text).contains("unavailable")
+	assert_str(panel.unavailable_label.text).is_equal(VoicePanel.UNAVAILABLE_KEY)
 	assert_bool(panel.mic_row.visible).is_false()
+	assert_bool(panel.noise_row.visible).is_false()
 	assert_bool(panel.debug_box.visible).is_false()
 	# The volumes still apply.
 	assert_bool(panel.volume_sliders[AudioBuses.MASTER].is_visible_in_tree()).is_false()
-	assert_bool((panel.volume_sliders[AudioBuses.MASTER].get_parent() as Control).visible).is_true()
+	var volume_row := panel.volume_sliders[AudioBuses.MASTER].get_parent().get_parent() as Control
+	assert_bool(volume_row.visible).is_true()
 
 
 func test_it_says_loudspeakers_echo_and_gives_the_headset_advice() -> void:
