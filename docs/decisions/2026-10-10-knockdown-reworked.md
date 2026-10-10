@@ -14,7 +14,8 @@
   KE5 (a), each in its row's "Decided" column (§2, §3), and the launch and the slide play on **the House only**: the
   flat greybox keeps the reworked knockdown (still, mute, a ragdoll) with no launch and no slide (KE12). The other KE
   items are technical, and each recommendation stands until he says otherwise. No number here is his: each is a
-  placeholder marked "not a decision" (KD9 (b)).
+  placeholder marked "not a decision" (KD9 (b)). **One question is open, KD10:** the House has no floor steep enough
+  to slide a body (found in the review after his answers), so where the slide is built and checked is his to say.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the decided rules; his answers to KD1 to KD9, KE1 and KE5, and the House only, in PR
   #754's comment 6097876326); designed by the agent of #728 in the game-design manager session's workflow (#676)
@@ -28,7 +29,7 @@
   speed, and its "Needs the engineer" 8, the hold while raised), and ARCHITECTURE §7.1.7 and §7.1.8. A dated note in
   vision revision 1 points here.
 - **Words:** "knocked down" is the players' word and this ADR's; `DOWNED` stays the code's name for it (KE11).
-- **Numbering:** KD1 to KD9 (the engineer's), KE1 to KE12 (technical, KE1 and KE5 the engineer's), and the proposed
+- **Numbering:** KD1 to KD10 (the engineer's), KE1 to KE12 (technical, KE1 and KE5 the engineer's), and the proposed
   issues 728a to 728e.
 
 ## Context
@@ -66,6 +67,12 @@ recommendation below, and add where it plays: "the launch and the slide play on 
 keeps the knockdown without launch or slide (the standing rule: no new mechanic on the greybox) ... The rework itself
 (still, mute, ragdoll) applies wherever today's knockdown does."
 
+**The House has no sloped roof.** Every collider under `levels/house/` is an untilted box (263 `BoxShape3D`s, every
+transform's basis the identity, checked on 2026-10-10): the roof (`levels/house/rooms/roof.tscn`) is four flat 0.2 m
+floors inside a 0.8 m parapet, behind a door locked in the MVP ([the House's](../design/house-map.md) decision 11),
+and no other floor tilts. So on the House a launch plays, but no floor slides a body: KD10 asks where the slide is
+built and checked.
+
 **What that asks of the engine.** Mute is built. Still is a removal: the crawl. The ragdoll is new looks. The motion
 is the hard part: a body that flies or rolls moves the point that the raise, the voice and the car read. A ragdoll
 left to each client's physics would roll off the roof on one screen and stay on it on another, and the host, which
@@ -86,26 +93,28 @@ ragdoll is only how each client draws a body at that place.
 | 5 | It cannot talk, and it hears | `VoiceRule.speakers_of`; `VoiceSender.may_speak_of`; the HUD's mic (#489, #497) | built, but the HUD (#489, #497) is open and has no mic yet | nothing (KE10); KD5 reads "hears" |
 | 6 | Its body falls as a ragdoll, with no animation | the client's views of knocked-down avatars and bodies | a lying capsule | a ragdoll held to the host's point (KE7) |
 | 7 | A hit can send the body flying, on the House only | `Strike`, then `damage`, then `knock_down(launch)`; the motion; `PlayerRules.motion_maps` | none | §4; the greybox launches nothing (KE12) |
-| 8 | A body on a sloped roof can roll off it, on the House only | the motion's slide, in `LifeTicks`; `PlayerRules.motion_maps` | none | §4 (KD3); the greybox slides nothing (KE12) |
+| 8 | A body on a sloped roof can roll off it, on the House only | the motion's slide, in `LifeTicks`; `PlayerRules.motion_maps` | none | §4 (KD3); the greybox slides nothing (KE12); no floor of the House slopes yet (KD10, open) |
 | 9 | The lift's drop kills the living and the knocked-down under the car (RD7) | #688's drop, `LifeRules.kill` (PR #709, its RE6) | designed in #688 | it reads the body's point at the drop's tick, moving or not (§7) |
 
 ### 2. The engineer's questions (KD), answered
 
 Every "Decided" is the engineer's answer of 2026-10-10
 ([PR #754, comment 6097876326](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6097876326)): each
-recommendation. By the same answer the launch (KD1, KD2) and the slide (KD3) play on the House only (KE12).
+recommendation. By the same answer the launch (KD1, KD2) and the slide (KD3) play on the House only (KE12). KD10
+came up after his answers, in the review of this update, and is open.
 
 | Item | Question | Options | Recommendation, and the failure it prevents | Decided |
 |---|---|---|---|---|
 | **KD1** | Which hits send a body flying (two readings of "a hit can send the body flying, for example a punch") | (a) only the blow that knocks the player down launches its body; strikes skip a knocked-down body afterwards, as today; (b) as (a), and a later hit on a knocked-down body launches it again, with no damage | **(a)**. (b) lets a dissident keep a body away from its raisers, one swing per cooldown (a raise stops when its body moves, KD4), or knock a package carrier's body off a ledge at will, and it brings back hits on a lying body, which vision revision 1 ruled out ("cannot be hit"). (b) can come later as a flag on a weapon's strike | **(a), the engineer**: only the blow that knocks a player down launches its body |
 | **KD2** | The launch: which weapon launches a body, which way, how hard | (a) every strike has a launch in its data, a speed away from the attacker and one upwards, 0 launching nothing; the knife's numbers come with KD9; (b) the knife launches nothing (the body drops where it stands, as today) until a weapon made for it exists: the game has no punch; (c) as (a), in a random direction | **(a)**: the knife is the only weapon, so (b) shows the launch to nobody until a new item. A body flying away from the blow shows which side the blow came from to every present peer, the victim, the dead and players across the map, whatever their sight: the moving position and the launch velocity are in every snapshot, as every position is public; no event names anyone, and most victims saw the swing. It is an accepted hint, as the knockdown itself confirms the hit (vision revision 1). (c) hides it, but a body flying towards its attacker reads as a bug | **(a), the engineer**: every strike has a launch, the knife's too; on the House only (KE12) |
-| **KD3** | Which floors make a body roll | (a) a floor steeper than an angle (data) makes a resting body slide downhill at a speed (data) until a gentler floor, a wall, or an edge, off which it falls and lands again; stairs do not (their treads are flat); (b) only surfaces a level marks (a group on the collider) make a body slide; (c) no slide: a body rests where it lands | **(a)**: one rule for every map, read from the floor's own slope; the roof of the example needs no marking. (b) is the fallback if (a) catches a slope the levels did not mean (a steep driveway); (c) drops half of the example. House's roof door is locked in the MVP (its decision 11), so on House (a) shows once a key or a lockpick exists | **(a), the engineer**: floors steeper than the angle slide a body, stairs excluded; on the House only (KE12) |
+| **KD3** | Which floors make a body roll | (a) a floor steeper than an angle (data) makes a resting body slide downhill at a speed (data) until a gentler floor, a wall, or an edge, off which it falls and lands again; stairs do not (their treads are flat); (b) only surfaces a level marks (a group on the collider) make a body slide; (c) no slide: a body rests where it lands | **(a)**: one rule for every map, read from the floor's own slope, with no marking. (b) is the fallback if (a) catches a slope the levels did not mean (a steep driveway); (c) drops half of the example. No floor of the House slopes today, and its roof is flat and locked in the MVP (its decision 11): KD10 | **(a), the engineer**: floors steeper than the angle slide a body, stairs excluded; on the House only (KE12); where it is built while no House floor slopes: KD10 |
 | **KD4** | Raising a body that still moves (flying or sliding) | (a) refused until it rests: `TargetDowned` rejects `moving`, and a raise stops if its body starts to move (that happens only under KD1 (b)); (b) a raise catches a sliding body and stops it | **(a)**: a flight lasts about a second and a slide as long as the roof, and a raise needs a body that stays within reach. (b) adds a rule for what a caught body does on a slope or in the air | **(a), the engineer**: a moving body cannot be raised (`moving`) |
 | **KD5** | "Hears, but cannot speak": whom a knocked-down player hears | (a) as today: the living within the voice radius, from where its body is (which now moves with it); (b) every living player, at any distance | **(a)**: nothing changes in `core/` or in the client's cutoff (E41). (b) makes a knockdown a way to overhear the whole map: an information gain from being hit | **(a), the engineer**: the living within the radius, as today |
 | **KD6** | What a knocked-down player sees and does | (a) today's camera above the body (the arm and its mouse look, the render checklist's item 3), following the body through its motion; it may give up and open the task screen and the Esc menu, nothing else; (b) first person from the ragdoll's head; (c) a fixed camera with no look | **(a)**: built and tested, and the player watches its own ragdoll. (b) tumbles with physics that differ on each screen, and its eye can pass through a wall the host knows nothing of. (c) leaves ten seconds with nothing to do | **(a), the engineer**: the camera as today, above the body, following it |
 | **KD7** | How a dead body and a revive look | (a) at the death the ragdoll keeps its pose, greyed and with today's dark cross, until the respawn removes it; a revived player stands up at once, with no clip; (b) the dead switch to today's body capsule; (c) as (a), plus a get-up clip from #522's set, blended from the ragdoll's pose | **(a)**: no pop at the death, and a dead body still reads as dead at a glance (GDD §14). (c) needs a clip and a blend that #522 does not plan; it can replace the pop-up later | **(a), the engineer**: a grey ragdoll with the cross; a raised player stands up |
 | **KD8** | A death during the motion (the time running out, a give-up, the car's drop) | (a) the motion ends: the body lies on the floor below its point at that tick, and both slots drop there, as a death does today; (b) the body moves on to where its motion ends, and its items drop below where it died | **(a)**: a body and its items stay together, and the dead body never becomes a second moving thing. Such a death is rare (a flight lasts about a second; a give-up takes a 1 s hold). Its cost: a body that stops short on a roof | **(a), the engineer**: the motion ends; the body and its items rest where it stopped |
 | **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing, and a slide speed of 0 is valid and slides nothing | **(b), the engineer**: the agents set placeholders marked "not a decision" |
+| **KD10** | The slide on the House, which has no floor to slide on (Context: every collider under `levels/house/` is an untilted box, and the roof is flat, behind a locked door). His "a body knocked down on the sloped roof can roll off the roof" and "the House only" assume a slope the House does not have | (a) 728c waits until a level has a floor steeper than the slide angle, laid by hand by the engineer or the designer (a scene change, theirs), and is built then with an integration test on that level; 728e launches only; (b) 728c is built now, checked on a fixture level only: on the House it slides nothing until a slope exists; 728e launches only; (c) the engineer or the designer lays a sloped roof or ramp on the House (the content area), and 728c and 728e slide there as first planned | **(a)**: (b) ships code and a `WorldQuery` answer that no map exercises, so a break in it stays unseen until the first slope arrives, and its only tests run against a fixture nobody plays. (c) changes the House's layout for a body that would slide on a roof locked in the MVP, his call on his map. Under (a), KD3 (a) stays the rule, built with the first slope | **Open: the engineer's** |
 
 ### 3. The technical choices (KE)
 
@@ -122,7 +131,7 @@ recommendation. By the same answer the launch (KD1, KD2) and the slide (KD3) pla
 | **KE9** | The launch's direction | Horizontal, from the attacker's feet towards the victim's (both last accepted positions); when they coincide, the horizontal part of the attacker's facing; when that has none, straight up only | Prevents: the direction resting on a claimed facing (harmless, but a glancing swing would launch a body sideways) |
 | **KE10** | Voice and the mic | No change: `VoiceRule.speakers_of` drops every speaker who is not living, `VoiceSender.may_speak_of` sends nothing unless the own life is living, and #489's mic, once built, shows off while downed. The tests that pin the first two stay (ARCHITECTURE §6.3) | Prevents: a second mute path (a knocked-down check inside a voice rule) that a mode's data could route around |
 | **KE11** | The code's name | `PlayerState.Life.DOWNED`, the wire's `downed` and the tests keep their names; players read "knocked down" ("You're down", #497's planned `downed.title`) | The engineer's "no downed state" is about the game (no wounded state that crawls), not an identifier. A rename touches about 160 files and the wire's flag for no change in behaviour |
-| **KE12** | How the launch and the slide play on the House alone (the engineer's answer: not on the flat greybox), while the base mode keeps both maps and the knife is one item on both | (a) one list in the mode's data: `PlayerRules.motion_maps`, the paths of the mode's maps on which a knockdown launches a body and a body slides, empty (the class default) for every map, the shape of `TaskType.maps` (the Generator ADR's GE15 (a), its issue G8 on PR #695, proposed). `knock_down` compares the match's map (`MatchState.map`) with it: on a map it does not list a knockdown takes no launch, whatever the strike's numbers, and starts no slide, so it is today's knockdown (§4, step 2). The mode check refuses a listed path that is not one of the mode's maps, as G8's does. The base mode lists the House alone from 728b on, where the field arrives, before any launch or slide has a number (728e); (b) a mode of its own for the House; (c) the numbers in the House's scene (a node or metadata the host reads with the markers); (d) a list on each `Strike` and another for the slide; (e) as (a), with an empty list meaning no map | **(a)**: the data says where bodies move, read the same way as where a task type plays, so the next House-only mechanic follows one pattern. It prevents the knife's launch numbers, which live in `content/items/knife.tres` and travel with the knife to every map, moving bodies on the greybox: the base mode's first map, where every scenario, the chaos run and the perf run play. (b) fails as GE15 (d) does: the client loads one mode (`Game.MODE_PATH`), so a second needs a mode choice in the lobby and splits the settings a host knows. (c) puts a game rule in a level scene, which the humans lay out by hand, outside the content API and the mode check's bounds. (d) gives two lists that can disagree, where the answer moves the launch and the slide together. (e) keeps a forgotten list from reaching the greybox, but unlike `TaskType.maps`, and every fixture mode would have to list its map; 728e's test that the base mode on the greybox moves no body catches a forgotten list instead. Not dependent on G8: G8 changes the deal and the demands, this changes the life rules |
+| **KE12** | How the launch and the slide play on the House alone (the engineer's answer: not on the flat greybox), while the base mode keeps both maps and the knife is one item on both | (a) one list in the mode's data: `PlayerRules.motion_maps`, the paths of the mode's maps on which a knockdown launches a body and a body slides, empty (the class default) for every map, the shape of `TaskType.maps` (the Generator ADR's GE15 (a), its issue G8 on PR #695, proposed). `knock_down` compares the match's map (`MatchState.map`) with it: on a map it does not list a knockdown takes no launch, whatever the strike's numbers, and starts no slide, so it is today's knockdown (§4, step 2). The mode check refuses a listed path that is not one of the mode's maps, as G8's does. The base mode lists the House alone from 728b on, where the field arrives, before any launch or slide has a number (728e, 728c; no floor of the House slopes yet, KD10); (b) a mode of its own for the House; (c) the numbers in the House's scene (a node or metadata the host reads with the markers); (d) a list on each `Strike` and another for the slide; (e) as (a), with an empty list meaning no map | **(a)**: the data says where bodies move, read the same way as where a task type plays, so the next House-only mechanic follows one pattern. It prevents the knife's launch numbers, which live in `content/items/knife.tres` and travel with the knife to every map, moving bodies on the greybox: the base mode's first map, where every scenario, the chaos run and the perf run play. (b) fails as GE15 (d) does: the client loads one mode (`Game.MODE_PATH`), so a second needs a mode choice in the lobby and splits the settings a host knows. (c) puts a game rule in a level scene, which the humans lay out by hand, outside the content API and the mode check's bounds. (d) gives two lists that can disagree, where the answer moves the launch and the slide together. (e) keeps a forgotten list from reaching the greybox, but unlike `TaskType.maps`, and every fixture mode would have to list its map; 728e's test that the base mode on the greybox moves no body catches a forgotten list instead. Not dependent on G8: G8 changes the deal and the demands, this changes the life rules |
 
 ### 4. The body's motion (KE1 (a); KD1 to KD4 and KD8 (a), the engineer's)
 
@@ -179,7 +188,7 @@ Where a body may come to rest follows the throwing design's TD5 for items: a bod
 stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a launched
 body reaches nothing a throw does not; a slide is new, since items do not slide, so a body sliding off a roof players
 can reach may land where no throw does. House's check that no throw reaches the locked roof (#646) gets a launched
-and a sliding body beside it (728e).
+body beside it (728e), and a sliding one with the first floor that slides (KD10).
 
 ### 5. Voice and the mic
 
@@ -272,15 +281,16 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   No scenario, chaos run or perf run plays the launch or the slide: they play the greybox, where no body moves
   (KE12), and bots do not play the House (ARCHITECTURE §9.7).
 - The House, by integration tests in the host's world of the map (`LevelWorld` and `HostWorldQuery`, as
-  `tests/integration/levels/house_stairs_test.gd` reads it; 728e): the base mode's knife launches and slides there,
-  each body coming to rest on a floor within the longest motion, and none on the locked roof (beside #646's throw
-  check); and the base mode on the greybox moves no body, whatever the knife's numbers.
+  `tests/integration/levels/house_markers_test.gd` builds them; 728e): the base mode's knife launches there, each
+  body coming to rest on a floor within the longest motion, and none on the locked roof (beside #646's throw check);
+  and the base mode on the greybox moves no body, whatever the knife's numbers. No floor of the House slides a body
+  (Context), so the slide's integration test comes with the first level that has one (KD10 (a), recommended).
 - The client, over the loopback: a knocked-down joiner holding the move keys stays where the host has it with 0
   `Correction`s; launched, its camera follows its own avatar and stops under a low ceiling; the ragdoll's root stays
   within the snap distance of the point every frame; a revived joiner stands at the host's point.
 - `shot`: `life_preview` shows a ragdoll at rest and a dead body in place of the lying capsule.
-- The human playtest, on the House: the launch's feel (KD2, KD9), a slide off a steep floor (KD3), the camera (KD6);
-  on the greybox, that a knocked-down body lies still where it fell.
+- The human playtest, on the House: the launch's feel (KD2, KD9) and the camera (KD6); on the greybox, that a
+  knocked-down body lies still where it fell. A slide off a steep floor (KD3) is played once a level has one (KD10).
 
 ### 10. The split
 
@@ -289,7 +299,7 @@ Proposals for the M7 backlog, each `base: release/m7`; the manager opens them no
 [MVP content ADR](2026-09-29-mvp-content-built-by-the-engineer.md), for his approval in its PR, and every number in
 one is a placeholder marked "not a decision" (KD9 (b)). 728a and 728d apply on every map, the greybox included (the
 rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 728e moves bodies on the House only
-(KE12).
+(KE12). 728c waits for KD10, the one open question; the others do not.
 
 - **728a core and client: a knocked-down player holds still and looks** (size M). Goal: a knocked-down player cannot
   move; its claims carry its look only. Acceptance: `MovementRule` takes a knocked-down claim's facing only (KE4),
@@ -347,17 +357,21 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   `tests/unit/content/player_rules_test.gd`, `tests/fixtures/match/fixture_modes.gd`,
   `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_invariants.gd`, `content/modes/base_mode.tres`,
   `docs/ARCHITECTURE.md`.
-- **728c core: a body slides down a steep floor and off its edge** (size S). Goal: a body on a sloped roof rolls
-  off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port, `FlatWorldQuery`, `RecordingWorldQuery`,
-  the replay, `HostWorldQuery`, and the two test worlds that override `floor_below`
-  (`tests/fixtures/world/fixture_level_world.gd`, `tests/fixtures/match/fixture_terrain_world.gd`: the port's
-  default answers like an empty world, so without their own answer a body would never slide there, which is why the
-  throwing ADR's 37a lists them for `sweep`); the slide angle and speed in `PlayerRules` with bounds, a slide speed
-  of 0 sliding nothing; in the base mode the angle a placeholder marked "not a decision" (KD9 (b)) and the speed at
-  0 until 728e (for the reason 728b gives); §4's step 4, on a map `motion_maps` lists only (KE12), with a unit test
-  that a steep floor on another map slides nothing; a fixture level with a roof, its edge, a chimney on it and
-  stairs; unit tests (§9) and an integration test of the answer; ARCHITECTURE §4.5.9, §9.5.1's `PlayerRules` and
-  §7.1.17. Depends on: 728b; KD3, KD9 (answered). Files: `core/world/`, `server/host_world_query.gd`, `core/life/`,
+- **728c core: a body slides down a steep floor and off its edge** (size S). When (KD10, open): under (a),
+  recommended, the manager opens it only once a level has a floor steeper than the slide angle, laid by a human, and
+  its acceptance gains an integration test on that level (bodies slide to rest on a floor, none onto a locked place);
+  under (b) now, with the fixture tests below only; under (c) once the House's slope is laid, with that test on the
+  House. Goal: a body on a sloped roof rolls off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port,
+  `FlatWorldQuery`, `RecordingWorldQuery`, the replay, `HostWorldQuery`, and the two test worlds that override
+  `floor_below` (`tests/fixtures/world/fixture_level_world.gd`, `tests/fixtures/match/fixture_terrain_world.gd`: the
+  port's default answers like an empty world, so without their own answer a body would never slide there, which is
+  why the throwing ADR's 37a lists them for `sweep`); the slide angle and speed in `PlayerRules` with bounds, a slide
+  speed of 0 sliding nothing; in the base mode both placeholders marked "not a decision" (KD9 (b)), provisional
+  under the MVP content ADR (728d is merged by then, so the reason 728b gives for a launch of 0 does not hold here);
+  §4's step 4, on a map `motion_maps` lists only (KE12), with a unit test that a steep floor on another map slides
+  nothing; a fixture level with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test
+  of the answer; ARCHITECTURE §4.5.9, §9.5.1's `PlayerRules` and §7.1.17. Depends on: 728b, 728d; KD3, KD9
+  (answered), KD10 (open). Files: `core/world/`, `server/host_world_query.gd`, `core/life/`,
   `core/content/player_rules.gd`, `tests/fixtures/world/fixture_level_world.gd`,
   `tests/fixtures/match/fixture_terrain_world.gd`, `tests/fixtures/match/fixture_modes.gd`, `tests/fixtures/levels/`,
   `tests/unit/life/`, `tests/unit/content/player_rules_test.gd`, `tests/integration/server/`,
@@ -376,21 +390,19 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   `client/world/avatar_views.gd`, `client/world/body_views.gd`, `client/life/life_view.gd`,
   `client/life/downed_camera.gd`, `client/life/ears.gd`, `client/dev/life_preview.tscn`, `tests/integration/client/`,
   `docs/ARCHITECTURE.md`.
-- **728e content: the launch and the slide on the House, its integration tests and the playtest** (size S). Goal: on
-  the House a knife knockdown launches the body and a steep floor slides it; the greybox moves no body. Acceptance:
-  the knife's `launch_mps` and `launch_up_mps` (`content/items/knife.tres`) and the base mode's slide speed,
-  placeholders the agents pick, marked "not a decision" (KD9 (b)), provisional under the MVP content ADR for the
-  engineer's approval in its PR; `motion_maps` still the House alone (KE12, from 728b). Integration tests on the House
-  in the host's world (`LevelWorld` and `HostWorldQuery`, as `house_stairs_test.gd` reads the map), since bots do
-  not play the House (ARCHITECTURE §9.7): a knife launch in each direction from a sample of places players stand
-  (the yard, the terrace, the balcony) rests the body on a floor within the longest motion; beside #646's roof
-  check, no knife launch from where players stand and no slide off a roof players can reach rests a body on the
-  locked roof (items do not slide, so #646's throw check does not cover a slide); and the base mode on the greybox
-  moves no body with these numbers (a knife knockdown there is today's, step for step). No bot scenario: the
-  scenarios, the chaos run and the perf run play the greybox, where nothing moves, and stay as they are. The
-  playtest's list, on the House (KD2, KD3, KD6). ARCHITECTURE §9.5.1 (the slide speed) and §9.5.6 (the knife's
-  launch). Depends on: 728b, 728c, 728d (the first non-zero launch or slide in the base mode needs the own avatar's
-  camera and ears to follow the body), #646. Files: `content/items/knife.tres`, `content/modes/base_mode.tres`,
+- **728e content: the launch on the House, its integration tests and the playtest** (size S). Goal: on the House a
+  knife knockdown launches the body; the greybox moves no body. Acceptance: the knife's `launch_mps` and
+  `launch_up_mps` (`content/items/knife.tres`), placeholders the agents pick, marked "not a decision" (KD9 (b)),
+  provisional under the MVP content ADR for the engineer's approval in its PR; `motion_maps` still the House alone
+  (KE12, from 728b). Integration tests on the House in the host's world (`LevelWorld` and `HostWorldQuery`, as
+  `house_markers_test.gd` builds them), since bots do not play the House (ARCHITECTURE §9.7): a knife launch in each
+  direction from a sample of places players stand (the yard, the terrace, the balcony) rests the body on a floor
+  within the longest motion; beside #646's roof check, no knife launch from where players stand rests a body on the
+  locked roof; and the base mode on the greybox moves no body with these numbers (a knife knockdown there is today's,
+  step for step). No slide: no floor of the House slopes (KD10). No bot scenario: the scenarios, the chaos run and the
+  perf run play the greybox, where nothing moves, and stay as they are. The playtest's list, on the House (KD2, KD6).
+  ARCHITECTURE §9.5.6 (the knife's launch). Depends on: 728b, 728d (the first non-zero launch in the base mode needs
+  the own avatar's camera and ears to follow the body), #646. Files: `content/items/knife.tres`,
   `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
@@ -409,8 +421,11 @@ ends the motion, and the body and its items rest where it stopped; **KD9** (b) t
 deterministic; **KE5** (a) the host sends a knocked-down player its own avatar, the one exception to §5's "nobody
 gets their own avatar" (`MAX_AVATARS` 16, a protocol bump). And **the House only**: the launch and the slide play on
 the House; the flat greybox keeps the reworked knockdown (still, mute, a ragdoll) with no launch and no slide (KE12),
-and no bot scenario plays them (728e). Nothing is left open for him in this design; its issues open as proposals for
-the M7 backlog, none built until he says so.
+and no bot scenario plays them (728e). Its issues open as proposals for the M7 backlog, none built until he says so.
+
+**Open: KD10** (§2), found in the review after these answers: no floor of the House slopes, so the slide he placed on
+the House has nowhere to play. (a) 728c waits for a level with a sloped floor, laid by hand; (b) 728c is built now
+with fixture tests only; (c) a sloped roof or ramp is laid on the House. Recommended: (a). Only 728c waits for it.
 
 ## Alternatives
 
@@ -442,4 +457,5 @@ the M7 backlog, none built until he says so.
 - `motion_maps` is the second per-map list in the mode's data, beside `TaskType.maps` (the Generator ADR's GE15, if
   merged as proposed): a later House-only mechanic follows the same shape.
 - The throwing issues #641 and #642 become prerequisites of 728b.
-- The playtest on the House tunes the launch and the slide; the bounds keep a forgotten number out.
+- The playtest on the House tunes the launch, and the slide once a level has a floor that slides a body (KD10); the
+  bounds keep a forgotten number out.

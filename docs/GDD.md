@@ -82,15 +82,16 @@ raises it by holding E; otherwise it dies when its time runs out or when it give
 with three changes:
 - **Still:** a knocked-down player cannot move; there is no crawl and no separate "wounded" state.
 - **Mute:** it hears, but cannot speak: nobody hears it, under any rule (as before).
-- **A ragdoll:** the body falls as a rigid body, with no animation. A hit can send it flying, and a body knocked down
-  on a sloped roof can roll off. Everyone sees it in the same place: the host moves the body, and each screen draws
-  its own ragdoll there.
+- **A ragdoll:** the body falls as a rigid body, with no animation. On the House only (below), a hit can send it
+  flying, and a body knocked down on a sloped roof can roll off. Everyone sees it in the same place: the host moves
+  the body, and each screen draws its own ragdoll there.
 
 His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comment 6097876326, the
 same day):
 - Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
   launch, the knife's too.
-- A floor steeper than an angle makes a body slide downhill and off its edge; stairs do not.
+- A floor steeper than an angle makes a body slide downhill and off its edge; stairs do not. No floor of the House
+  slopes yet (its roof is flat), so where the slide is built is an open question for the engineer (the ADR's KD10).
 - A body still flying or sliding cannot be raised.
 - A knocked-down player hears the living near its body, as before, and its camera stays above its body, following it.
 - A dead body stays a ragdoll, greyed, with the cross; a raised player stands up at once.
