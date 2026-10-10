@@ -3498,6 +3498,31 @@ there would not follow from the commands.
   farther (TD10, recommended: no), where an item with no floor below rests (TD11) and whether the downed stop an item
   (TD12). The proposed issues 37a to 37f are in the ADR.
 
+#### 7.1.17 The crouch (designed in #727; proposed, not built)
+The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
+[crouch ADR](decisions/2026-10-10-crouch.md) designs it, his answers to its KD1 to KD8 are pending, and this section
+follows each recommendation. A crouch shrinks the capsule from the top: the feet, which every movement check reads,
+do not move.
+- **The claim.** `MoveClaim`'s and `MoveClaimReliable`'s flags gain `crouched` (8), the pose at the claim's last
+  physics step, and the avatar's flags gain `crouched` (4), relayed in the snapshot: one protocol bump, no byte more
+  (KE1). Prevents: a separate crouch intent on another lane, whose pose disagrees with the position for a round trip.
+- **The host** keeps `PlayerState.crouched` from the last accepted claim, false at every placement and knockdown, and
+  ignores a downed claim's bit (KE2). It reads it for the eye (`Items.eye_of` takes `crouch_eye_height_m`, so every
+  sight line of a crouched player starts there) and for the capsule (`Strike`'s vertical overlap and the end of its
+  sight line, a thrown item's contact: `crouch_height_m`, KD7). Prevents: an honest crouched player under a ceiling
+  lower than the standing eye refused a pick-up as `blocked`. No new speed or height check (KE3, KE4): an honest crouch
+  is slower than the walk, whose bound holds it, and the host's world has no car to check headroom against (the car
+  repair ADR's RE8). Accepted, as for walls (§7.1.9): a modified client can crouch-walk at walk speed, or stand where
+  an honest one crouches.
+- **The client** switches its own `CapsuleShape3D` between `capsule_height_m` and `crouch_height_m`, the feet staying,
+  and stands up only when `PhysicsBody3D.test_move` straight up by the difference finds room (KD4, KE5, KE6); remote
+  bodies take the pose from the snapshot, their capsule, head, mouth, sight point and name plate lowered with it (KE7).
+  The input is a held, rebindable `crouch` action on Ctrl (KE8).
+- **Under the car** (#688): the raised car's underside lies between the crouched and the standing heights, so its
+  height alone asks for the crouch (KD3, the car repair ADR's RD1 read-back).
+- **Proposed issues** (in the ADR): 727a (`core/`, `net/`: the flag, the eye, the capsule, the numbers), 727b (the
+  local crouch), 727c (others' crouch: pose, plates, voice, steps).
+
 ## 8. Debug tooling
 
 A dev console and debug commands (spawn bots, force role, skip phase, show hidden info locally) in debug builds
@@ -4453,6 +4478,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
+| The crouch (#727, §7.1.17): footsteps, the name plate, things only a crouch passes (the raised car), standing up under a low ceiling, what Shift costs, a jump while crouched, a smaller target, what a crouched player may do (KD1 to KD8 of the [crouch ADR](decisions/2026-10-10-crouch.md), each with options and a recommendation; the numbers are placeholders) | the engineer, on #727's design PR; then the issues 727a to 727c |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
 | The photo task's game rules, numbers, names and look (the [photo task ADR](decisions/2026-10-10-photo-task.md), §9.8) | Settled by the engineer on 2026-10-10: PD1 to PD15 ([PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907): a film loaded into the camera; any living player counts, whatever the role; a photo with a person fixed on the board), then PD16 to PD18 and the drafted words ([comment 6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994): a one-way film used up at the printer; a hold of E over the camera takes it out; nobody within the camera's 2 m reach is in the photo, so another player is always needed; the words as drafted). It plays on House alone (PD14, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no photo scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
