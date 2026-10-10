@@ -5254,10 +5254,46 @@ Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
 
+#### 9.5.17 Tutorial mode (game mode)
+What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68): `gather` → `loading` →
+`lessons` → `raise_stage` → `death_stage`, the last two staged by the host's player with `NextStage` (§2.4, E65).
+Settings:
+- Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
+  (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 7 is a short wait). No `lobby_level` (E72), no
+  win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
+  bound equal to its value): `tasks` 1, `banned_task_types` (empty), `packages` 1, `knives` 1.
+- Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. Task types: Delivery. Actions: PickUp,
+  PutDown, Raise, StopRaise and Swap as in the base mode, and `NextStage` with one effect, `ReportOutcome(next)`. No
+  `Use` and no `GiveUp` is accepted in any phase (the knife swings at nobody; D28 (a) kills the own player at once).
+- Phases (accepts; tick systems; voice; level; snapshots), none checking wins or running a clock: `gather` (Lobby;
+  `Hello` from newcomers, `SetReady` from players; none; Silent; none; no), `loading` (Loading 60 s; `LoadAck`;
+  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap` from the living,
+  `NextStage` from the host; TaskTicks; RoundVoice 8 m; the map; yes), `raise_stage` (as `lessons`, plus `Raise` and
+  `StopRaise` from the living and `MoveClaim` from the downed; ChannelTicks, TaskTicks, no LifeTicks), `death_stage`
+  (as `raise_stage` but no `NextStage`; LifeTicks with a Respawn (`respawn`), ChannelTicks, TaskTicks).
+- Transitions: `gather, all_ready → loading`; `loading, all_loaded → lessons`: `DealRoles` (no quota, default Crew),
+  `DealTasks` (Delivery), `SpawnItems` (Knife by `knives`), `PlacePlayers` (`round_player`, `ordered`), no
+  `StartClock`; `lessons, next → raise_stage`: `KnockDown` (`pick` 1, stand-in 1; the mode check's warning about a
+  downed player with no LifeTicks is the intended case); `raise_stage, next → death_stage`: `KnockDown` (`pick` 0,
+  the host's player, `then_die`).
+- Map: `levels/tutorial/tutorial.tscn`, the room of §9.6.
+
+Produces: the events of its phases and parts. Visible to: as each of them says.
+Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
+provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3 (#601).
+Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
+`docs/design/tutorial.md` §2.3 and a match from `gather` to the respawn in `death_stage`
+(`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
+(`tests/integration/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
+`NextStage`, waits past the 10 s knockdown while bot 2 stays down, raises it, sends `NextStage` again, dies at once
+and respawns; nobody else dies; expects `none`) in the core runner and in `tools\run.cmd bots`.
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
   modes/base_mode.tres             the base mode: phases, rows, PickUp, PutDown and voice rules inside it
+  modes/tutorial_mode.tres         the tutorial's solo session (§9.5.17, #600), on levels/tutorial/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   tasks/delivery.tres              with its circle station inside it
@@ -5268,10 +5304,28 @@ content/
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers
+  tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
+  tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with the stations' markers
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the
   scenes.
+- **The tutorial room** (T2, #600; `docs/design/tutorial.md` §4, D33, D34 (a): one room, named "Tutorial" /
+  "Навчання"). Built by the level piece conventions (#607): the map places the room at the origin with no rotation;
+  the room's origin is its north-west floor corner and it declares `metadata/size_m = Vector2i(12, 10)` (about 12 ×
+  10 m, a placeholder, D33), an empty `Doors` (no opening) and `Stations` (the drop-off is Delivery's circle, a
+  marker), a `Name` label "Tutorial", and box-mesh looks over one layer-1 `StaticBody3D`: the floor (top at y = 0),
+  four 3 m walls and the two props, a shelf (2 × 1.8 × 0.5 m) and a table (1.6 × 0.8 × 0.8 m) against the north
+  wall. Its looks use `levels/kit/`'s role materials (#658): `greybox_floor_house` on the floor, `greybox_material`
+  on the walls and props. The markers, all on the floor in scene-tree (level) order, positions (x, z) in metres
+  (placeholders, "not a decision"): `round_player` Start (2, 5) by the west wall, `package` ShelfPackage (4, 1.3)
+  in front of the shelf, `knife` TableKnife (8.5, 1.6) in front of the table, `circle` DropOff (4, 8.5) by the
+  south wall, across the room from the shelf, `round_player` RaiseSpot (10.5, 3) by the east wall, `round_player`
+  Corner (10.5, 8.5) and `respawn` Respawn (8.5, 8.5), 2 m from the corner (more than `respawn_free_m`, within
+  RoundVoice's 8 m). The ordered `PlacePlayers` puts the own player on Start, stand-in 1 on RaiseSpot and
+  stand-in 2 in the Corner. No `lobby_player` marker and no lobby scene (`gather` plays at no level, E72). The
+  environment track dresses it and keeps every marker where it is. The room's map record (#306) waits for #306
+  (the follow-up named in #600's PR).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
@@ -5302,8 +5356,10 @@ levels/
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
   This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
-  `content/` or `levels/`. Only the mode check (§9.1) and the scenarios load them, so a change to `content/` can
-  break a scenario, which is what scenarios are for, and never a part's unit test.
+  `content/` or `levels/`. Only the mode check (§9.1) with the content tests beside it (`tests/unit/content/`, and
+  `tests/unit/levels/` or `tests/integration/levels/` for a map against its design) and the scenarios load them,
+  so a change to `content/` can break a scenario or a content test, which is what they are for, and never a
+  part's unit test.
 
 ### 9.7 Bot scenarios
 A bot scenario is a scripted match that shows a mechanic working end to end, played only with what each player is
