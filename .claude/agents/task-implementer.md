@@ -21,7 +21,7 @@ budget; root `CLAUDE.md` applies in full.
   or `grep -n` first, then only the range you need. Read again only after an edit, a rebase, a checkout, a failed
   Edit or a compaction. Independent reads go in one message, as parallel calls.
 - What a command prints stays in your context to the end: before a read over ~150 lines or ~6k characters ask for less
-  (`grep -n`, a narrower range, `--json ... --jq`, `| head -c 6000` on `gh issue view --comments`, `gh pr diff`, `git
-  diff`; `--stat` first). Chained `sed -n` ranges are one read. `section <doc>` outline first; a whole ARCHITECTURE
-  parent (`9`, `4.7`) only if the task is about it.
+  (`grep -n`, a narrower range, `--json ... --jq`, `| head -c 6000` on `gh issue view --comments`, `gh pr diff`,
+  `git diff`; `--stat` first). Chained `sed -n` ranges are one read: add their lines up toward the ~150. `section <doc>`
+  outline first; a whole ARCHITECTURE parent (`9`, `4.7`) only if the task is about it.
 - End by returning the structured result once.
