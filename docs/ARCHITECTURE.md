@@ -3982,7 +3982,8 @@ colour set before the body is ready waits for its rules); the lying pose is the 
 colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
 when the life changes, `LifeLooks.PLAYER_COLOUR` offline. A dead body stays `LifeLooks.BODY_COLOUR`, grey. No picker
 yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
-(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. Dev preview:
+(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
+colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
 `tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
 material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
