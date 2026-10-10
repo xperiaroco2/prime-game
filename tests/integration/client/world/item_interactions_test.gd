@@ -5,7 +5,9 @@ extends GdUnitTestSuite
 ## InReach of PickUp (2 m) holds from the feet, as the host measures it, less the hint's margin
 ## (1.7 m, #319): a crate-top item the host would refuse gets no hint, a floor item 1.3 to 1.7 m
 ## away gets one, one 1.85 m away none, and a wall hides an item behind it.
-## The keys send their intents through the ClientSession; the host decides everything.
+## The keys send their intents through the ClientSession; the host decides everything. G throws
+## (#645) only with a Throw rule in the own mode copy, in a phase that takes it, one at a time,
+## right after the last claim's reliable twin.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
@@ -150,6 +152,68 @@ func test_the_hand_keys_send_their_intents_with_the_cameras_facing() -> void:
 	assert_int(_model.hand_item(_model.own_peer)).is_equal(5)
 
 
+func test_the_throw_key_sends_throw_right_after_the_claims_twin() -> void:
+	# A mode copy with a Throw rule (the throw fixture mode; the base mode gets its rule in 37f).
+	_keys.setup(_harness.session, FixtureThrowModes.basic())
+	var sent_throws: Array[Array] = []
+	_keys.throw_sent.connect(
+		func(seq: int, eye: Vector3, look: Vector3) -> void: sent_throws.append([seq, eye, look])
+	)
+	assert_int(_keys.throw()).is_equal(-1)
+	_hold(5)
+	_harness.session.set_motion(Vector3(0, 0, 0), Vector3.ZERO, Vector3.FORWARD, true, true, true)
+	_harness.pump(50000)
+	await _look_at(Vector3(0, 1.0, -3))
+	var facing := _player.look_vector()
+	var seq := _keys.throw()
+	assert_int(seq).is_greater(0)
+	_harness.deliver()
+	var last := _harness.sent.slice(-3)
+	var names: Array[StringName] = []
+	for message: WireMessage in last:
+		names.append(message.name)
+	assert_array(names).contains_exactly(
+		[Intents.MOVE_CLAIM, WireSchema.RELIABLE_CLAIM, Intents.THROW]
+	)
+	assert_int(last[2].seq).is_equal(seq)
+	assert_bool((last[2].fields["facing"] as Vector3).is_equal_approx(facing)).is_true()
+	assert_int(sent_throws.size()).is_equal(1)
+	assert_int(sent_throws[0][0] as int).is_equal(seq)
+	assert_vector(sent_throws[0][1] as Vector3).is_equal(_eye())
+	# One at a time: while the arc waits for the host's answer, G sends nothing.
+	_keys.predicting = func() -> bool: return true
+	assert_int(_keys.throw()).is_equal(-1)
+	_keys.predicting = func() -> bool: return false
+	assert_int(_keys.throw()).is_greater(seq)
+	# Q is still an exact put-down.
+	assert_int(_keys.put_down()).is_greater(0)
+	_harness.pump()
+	assert_int(_harness.sent_named(Intents.PUT_DOWN).size()).is_equal(1)
+	assert_int(_harness.sent_named(Intents.THROW).size()).is_equal(2)
+
+
+func test_the_throw_key_sends_nothing_without_a_rule_a_phase_or_a_hand_item() -> void:
+	_keys.setup(_harness.session, FixtureThrowModes.basic())
+	_hold(5)
+	# A mode copy with no Throw rule: nothing is sent, nothing is predicted.
+	_keys.setup(_harness.session, FixtureItemModes.basic())
+	assert_int(_keys.throw()).is_equal(-1)
+	_keys.setup(_harness.session, FixtureThrowModes.basic())
+	# A phase that takes no Throw from the living.
+	_model.phase = &"lobby"
+	assert_int(_keys.throw()).is_equal(-1)
+	_model.phase = &"round"
+	# A belt item is never thrown.
+	_model.fold(&"Swapped", {"peer": _model.own_peer})
+	assert_int(_keys.throw()).is_equal(-1)
+	_model.fold(&"Swapped", {"peer": _model.own_peer})
+	# The downed throw nothing.
+	_model.fold(&"KnockedDown", {"peer": _model.own_peer, "position": Vector3.ZERO})
+	assert_int(_keys.throw()).is_equal(-1)
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.THROW)).is_empty()
+
+
 func test_the_downed_get_no_target_and_send_no_item_key() -> void:
 	var at := Vector3(0, 0, -1.5)
 	_spawn(6, at)
@@ -169,6 +233,12 @@ func _eye() -> Vector3:
 
 func _spawn(id: int, at: Vector3) -> void:
 	_model.fold(&"ItemSpawned", {"item": id, "kind": &"knife", "position": at})
+
+
+## The own hand holds item `id`, of the throw fixture mode's kind `tool`.
+func _hold(id: int) -> void:
+	_model.fold(&"ItemSpawned", {"item": id, "kind": &"tool", "position": Vector3(0, 0, -1)})
+	_model.fold(&"ItemPickedUp", {"peer": _model.own_peer, "item": id})
 
 
 ## Turns the player's camera at the middle of an item lying at `at`, then lets two physics frames
