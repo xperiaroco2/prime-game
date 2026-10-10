@@ -183,7 +183,9 @@ Open questions (the engineer's; the ADR's §10, each with options and a recommen
   Recommended: it never goes back in once shot, and the printer uses it up.
 - How a film is taken out of the camera: recommended, hold E over the camera, as over the burger chain's boxes.
 - "It takes two" now that the shooter counts: a shooter who steps in front of the lens, still within the camera's
-  reach, could photograph itself alone. Recommended: nobody standing within the camera's reach is in the photo.
+  reach, could photograph itself alone. Recommended: nobody standing within the camera's reach is in the photo,
+  neither counted nor drawn, so someone right in front of the lens is missing from the picture (the photo spot lies
+  beyond that reach).
 - The drafts above: the name, the setting's label, the description and the item names.
 
 ### Zone task (#36)

@@ -449,8 +449,11 @@ revertible, and P2, P3, P5 and P7 proceed with the recommendation until he answe
    (b) reusable, each shot printing once; (c) as (a), the printer handing the empty film back. Recommended: (a).
 2. **PD17, taking the film out**: (a) hold E over the camera; (b) a key in the viewfinder; (c) aim at the film's slot.
    Recommended: (a).
-3. **PD18, "it takes two" now that the shooter counts**: (a) nobody within the camera's reach is in the photo; (b)
-   anyone in the frame, so one player alone can photograph itself from the camera's reach. Recommended: (a).
+3. **PD18, "it takes two" now that the shooter counts**: (a) nobody within the camera's reach (2 m) is in the photo:
+   neither counted nor drawn, so a player clearly in the frame 0.3 to 2 m in front of the lens is missing from the
+   picture, a small exception to "the photo shows exactly what the camera saw"; (b) anyone in the frame, so one player
+   alone can photograph itself from the camera's reach. Recommended: (a); P4 places the spot beyond that reach, so
+   only someone crowding the lens is left out.
 4. **The drafts of §6.1** (PD8): the name "Photography", the label "Photos (Photography)", the description and the
    item names. (a) as drafted; (b) his changes. Recommended: (a).
 
