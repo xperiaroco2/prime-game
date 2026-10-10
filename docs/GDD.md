@@ -88,21 +88,26 @@ Decided by the engineer (#727, 2026-10-10): every player can crouch by holding C
 a bit faster. A crouched player is lower, so it passes under things a standing one does not: the raised car in the
 garage, under which the fitter works crouched (car repair, #688). The art has or will have a crouch animation. A
 knocked-down player cannot crouch (today it crawls lying down; once #728's rework is built it cannot move at all).
-The numbers are placeholders, "not a decision": crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and
-1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk: 4.5 m/s).
 
-Open questions (the engineer's; the options and a recommendation for each are in the
-[crouch ADR](decisions/2026-10-10-crouch.md), KD1 to KD8):
-- Are a crouched player's footsteps quieter than a walk's?
-- Does a crouched player's name plate follow its head (and hide behind a low wall), disappear, or stay at the
-  standing height?
-- Is the car's height alone what asks for the crouch, with no rule checking it? (The car repair design asks the same.)
-- Can a player stand up under a low ceiling, or does it stay crouched until there is room?
-- Does Shift while crouched cost stamina?
-- What does Space do while crouched?
-- Is a crouched player a smaller target for the knife and for a thrown item?
-- Can a crouched player do everything a standing one can: pick up, put down, the knife, the raise, a throw, a task
-  station?
+His answers to the crouch design (PR #752, comments 6097878317 and 6098097098; the options and the reasons are in the
+[crouch ADR](decisions/2026-10-10-crouch.md)):
+- The crouch plays on the House only. The flat greybox has no crouch, and the lobby has none either.
+- A crouching player's steps are quieter and slower (KD1).
+- No name plates over any player, standing or crouching (KD2); their removal is #756.
+- The raised car's height alone asks for the crouch, and no rule checks it (KD3; car repair's RD1 too).
+- Letting go of Ctrl under a low ceiling keeps the player crouched; it stands by itself once there is room (KD4).
+- Shift while crouched spends stamina as the sprint does (KD5).
+- A jump while crouched stands the player up, then jumps (KD6).
+- A crouched player is a smaller target for the knife and for a thrown item (KD7).
+- A crouched player can do everything a standing one can (KD8).
+
+The numbers are placeholders, "not a decision": crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and
+1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk: 4.5 m/s); a crouch walk's step 6 dB quieter and heard within 6 m
+(a walk's: 12 m).
+
+Open question:
+- After a jump from the crouch with Ctrl still held, does the player crouch again on landing (recommended), or only
+  at a fresh press of Ctrl?
 
 ## 4. Roles
 
