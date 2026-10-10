@@ -226,8 +226,9 @@ func esc_open() -> bool:
 	return esc.is_open()
 
 
-## The tutorial runs (#601 calls it as the tutorial starts and ends): the Esc menu shows only Game,
-## Guide and Settings, and its Leave goes back to the main menu at once.
+## The tutorial runs (the hook the tutorial, #601 and #602, calls at its start and end; not wired
+## yet): the Esc menu shows only Game, Guide and Settings, and its Leave, its Quit and the window's
+## close button act at once.
 func set_tutorial(on: bool) -> void:
 	esc.state.tutorial = on
 

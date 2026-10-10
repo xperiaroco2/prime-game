@@ -110,7 +110,7 @@ func test_no_mode_lists_the_basics_only() -> void:
 
 
 func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
-	# The greybox Esc menu is dark until #491 restyles it light (the handoff's).
+	# The dark look stays an option (the greybox Esc menu used it before #491 made it light).
 	var guide: GuidePanel = auto_free(GuidePanel.new(ToyHints.DARK))
 	assert_str(String((guide.column.get_node(^"Basics") as Label).theme_type_variation)).is_equal(
 		"ToyTextMutedOnDark"
