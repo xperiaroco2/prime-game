@@ -120,8 +120,9 @@ Open questions:
 ### Photo (#687)
 The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
 are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
-[PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907)); the engine
-parts and the questions still open are in [the photo task ADR](decisions/2026-10-10-photo-task.md).
+[PR #704, comments 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907) and
+[6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994)); the engine parts are in
+[the photo task ADR](decisions/2026-10-10-photo-task.md).
 
 **Intent.** "For now the simplest possible thing": one player stands at the photo spot, another takes the shot with a
 flash; the photo travels to be printed and is hung in the darkroom, and it counts only if a person is really in it.
@@ -134,59 +135,64 @@ Closer to a real photography process where it helps. Later, not now: special pos
   takes two: one player stands on the spot, another uses the camera. Using the camera enters a viewfinder view: the
   player looks through it and sees the frame; a press takes the shot, with a flash.
 - The camera takes a film loaded into it; the film is not carried by the shooter while shooting. A film has 5 frames,
-  and the frames left are shown on the camera. The players shoot the frames, then take the film out; it may be taken
-  out before every frame is used, and then only the frames shot are printed.
+  and the frames left are shown on the camera. The players shoot the frames, then take the film out by holding E over
+  the camera (for now); it may be taken out before every frame is used, and then only the frames shot are printed. A
+  film is one-way: once a frame on it is shot, it never goes back into the camera, and the printer uses it up.
 - New films come from a box in storage, without limit. At the round's start one film lies at the photo zone.
 - The path: the film is carried to the computer and printer in the study (the second floor), where one use prints
   every frame shot on it, at once; a printed photo is carried to the darkroom (the basement) and hung on its board.
 - A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot. A
   film and a photo each take one hand: a player can hold one in the hand and one on the belt.
 - Who counts as a person in the photo: any living player whose head is in the frame and in the camera's sight,
-  anywhere in the frame, whatever the role, the shooter included. A knocked-down player does not count. One player
-  may be in several photos, and several players in one.
+  anywhere in the frame, whatever the role. Nobody standing within the camera's reach (where it can be used) is in
+  the photo, neither counted nor drawn, so another player is always needed (the engineer: "you cannot photograph
+  yourself: you look through the frame, and the frame must hold a player"). A knocked-down player does not count. One
+  player may be in several photos, and several players in one.
 - A hung photo counts only if a person is really in it, and then it stays on the board for good. One without a person
   counts nothing and can be taken down and carried away.
 - Once the task is done, the camera, the printer and the board no longer work; the box still gives films.
 - Tasks are shared, and only living players do subtasks (#79); a dissident plays the same character under the same
-  rules, and a two-handed item stops a use of the camera, the printer or the board (busy hands), as for the
-  Generator (#679). Taking a film from the box works as the burger chain's sources do (#682): a full hand puts its item
-  on the belt or down at the feet, and a package carrier gets the film on the belt.
+  rules (#679).
+- Busy hands, as for the Generator, but every take still works, as in the burger chain (#682). A player holding a
+  two-handed item (a package) can take a film from the box, the film out of the camera, a photo off the printer's tray
+  or the board, or a film or a photo from the floor: the new item goes onto the belt; if the belt is full, its item
+  drops at the player's feet; the two-handed item stays in the hands. What is not a take is refused while the hands
+  are busy: loading the camera, a shot, a print, a hang. Taking a film from the box with full hands (an item in the
+  hand and one on the belt) puts the hand item down at the player's feet, and the film goes into the hand.
 
-**Where it plays.** On the House, in the base mode, in every match, as the Generator (#679). The flat greybox stays
-the bots' test map, with the photo stations placed on it too.
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
+Generator. The flat greybox, the bots' test map, gets no photo task and none of the House's chains: it keeps what it
+deals today (the engineer's read-back answer on the Generator,
+[PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). All the
+new mechanics come with M7 on the House, and bots playing them comes later, with the map.
 
 **Hidden information.** Whether a person is in a photo is decided by the host from where everyone stood at the moment
 of the shot, never from a player's picture. A photo shows its picture to whoever sees it; whether it counted
-everyone learns from the task's progress once it is hung. Nobody is told who took a shot: players see it only by
-looking at the gazebo. Nothing shows through a wall.
+everyone learns once it is hung, from the photo task's row on the Tab task screen: the photos counted of N, struck
+through once every photo is counted. There is no shared total of every task's subtasks, in the HUD or on the task
+screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)). Nobody is told who took a shot: players see it
+only by looking at the gazebo. Nothing shows through a wall.
 
 **Numbers** (the engineer's starting values, to tune): 5 frames a film. Placeholders until he sets them: 1 to 5 photos,
 3 by default; the camera's view 50° high, 4:3, counting people up to 10 m; a player uses a station from within 2 m;
 one take from the box per player every 0.25 s, as the burger chain's sources.
 
-**Name and description** (drafts for the engineer's approval in PR #704; the ADR's §6.1): the task "Photography"; the
-lobby setting "Photos (Photography)"; on the task screen, "Load a film into the camera, photograph a player on the
-spot, print the film, and hang the photos on the board: each one with a person in it counts."; the items "Film" and
-"Photo".
+**Name and description** (drafts the engineer took as written, PR #704's comment 6096344994; the ADR's §6.1; the
+content files stay provisional until he approves their PR): the task "Photography"; the lobby setting "Photos
+(Photography)"; on the task screen, "Load a film into the camera, photograph a player on the spot, print the film,
+and hang the photos on the board: each one with a person in it counts."; the items "Film" and "Photo".
 
 **Engine parts** ([the photo task ADR](decisions/2026-10-10-photo-task.md) §1, §9): a photo task type with five
 station kinds (the camera, the photo spot, the box of films, the printer, the board), all but the photo spot used
-through the Generator's `Interact(station)` (the spot is only where the subject stands); the film taken out of the
-camera by an ordinary pick-up; the host's check of who is in the frame (the camera's view and a sight line from its
-lens); each client draws a shot's picture from where the host says everyone stood; film and photo items, the box
-giving films as the burger chain's sources give their items; station scenes in `levels/stations/` in place of the
-House's markers; the client's viewfinder, the frames counter on the camera, the flash and the photos. The issues
-follow from the ADR's split.
+through the Generator's `Interact(station)` (the spot is only where the subject stands), listing House as the one map
+it plays on; the film taken out of the camera by an ordinary pick-up; the host's check of who is in the frame (the
+camera's view and a sight line from its lens); each client draws a shot's picture from where the host says everyone
+stood; film and photo items, the box giving films as the burger chain's sources give their items; station scenes in
+`levels/stations/` in place of the House's markers; the client's viewfinder, the frames counter on the camera, the
+flash and the photos. Tested without bots: unit tests, integration tests on the House and a test over the real wire.
+The issues follow from the ADR's split.
 
-Open questions (the engineer's; the ADR's §10, each with options and a recommendation):
-- A film once taken out: can it go back into the camera with its frames left, and is it used up at the printer?
-  Recommended: it never goes back in once shot, and the printer uses it up.
-- How a film is taken out of the camera: recommended, hold E over the camera, as over the burger chain's boxes.
-- "It takes two" now that the shooter counts: a shooter who steps in front of the lens, still within the camera's
-  reach, could photograph itself alone. Recommended: nobody standing within the camera's reach is in the photo,
-  neither counted nor drawn, so someone right in front of the lens is missing from the picture (the photo spot lies
-  beyond that reach).
-- The drafts above: the name, the setting's label, the description and the item names.
+Open questions: none. The engineer answered every one on 2026-10-10 (the ADR's §6).
 
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
