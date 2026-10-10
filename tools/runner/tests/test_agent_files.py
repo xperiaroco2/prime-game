@@ -184,7 +184,7 @@ class PrintCapTest(unittest.TestCase):
     def test_the_publisher_reads_a_log_by_search(self) -> None:
         body = " ".join(" ".join(instructions.parse(text("task-publisher")).body).split())
         item = next(part for part in body.split(" - ") if self.PHRASE in part)
-        for phrase in ("a log by search", "never whole", "| head -c 6000"):
+        for phrase in ("a log by search", "never whole", "| head -c 6000", "grep -n -i -E", "exit="):
             self.assertIn(phrase, item)
 
 
