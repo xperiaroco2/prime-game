@@ -41,7 +41,7 @@ decisions: `docs/decisions/`; "KICKOFF §n": `docs/history/KICKOFF.md`.
 ## Commands
 `tools\run.cmd <command>` (Git Bash, CI: `tools/run.sh`); `--help` says the rest. Docs by section, never whole:
 `section <doc>`, then the § you need. Godot, Python, gdtoolkit only through the runner.
-Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `ctx` `doctor` (first in every session) `export` `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `sfx-check` `shot` `signal` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
+Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `ctx` `doctor` (first in every session) `export` `host` `inbox` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `sfx-check` `shot` `signal` `slots` `start` `test` `unattended` `verify` `wait` `wave` `worktree-done`
 
 ## Shell
 PowerShell 5.1 is primary (no `&&`/`||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
