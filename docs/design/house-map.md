@@ -178,7 +178,14 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Other | Loot | 2 | 41.5, 25 | Roof |
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
-A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m.
+A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the
+switches' spacing test is 12 m (the engineer, 2026-10-10, the
+[Generator ADR](../decisions/2026-10-10-generator-task.md)'s GD12), stricter than decision 8's 8 m, so a switch's click
+is out of earshot too. The test measures between the use cylinders, since a player uses a switch from anywhere in its
+cylinder: at least 12 m between the cylinders, so the switch markers stand at least 16 m apart at the 2 m placeholder
+(the engineer,
+[PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117)); the
+nearest pair here is 20 m.
 
 The car repair (the engineer, 2026-10-10, #688; the rules in [GDD](../GDD.md) §8): the lift panel has no view of who
 is under the car; a dissident plays by the same rules (#679's shared rule), so anyone holding the lift may let it go.
@@ -244,14 +251,13 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
 - **Rooms in the level data.** The room record (#306) gives each room its id, names and sign; this file's names are
   working names until then.
 - **Ideas from the sketch, not decided.** The sketch described these, but the engineer has not decided them; they stay
-  out of the rules until he does:
-  - the generator charges only while all active switches are on at the same time;
+  out of the rules until he does (the generator's two he decided on 2026-10-09, in #679 and [GDD](../GDD.md) §8: it
+  charges only while every switch is on, and anyone may switch any active switch on or off):
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
-  - how dissidents interfere with each chain (a wrong herb, a wrong pose or a spoiled shot, switching the generator's
-    switches off; a wrong part is no longer one: the car refuses it, decided in #688; for the burgers he decided it in
-    #682: a dissident may hide a box, and the rules let anyone burn a patty or put a wrong ingredient on a plate,
-    [GDD](../GDD.md) §8);
+  - how dissidents interfere with each chain (a wrong herb, a wrong pose or a spoiled shot; a wrong part is no longer
+    one: the car refuses it, decided in #688; for the burgers he decided it in #682: a dissident may hide a box, and
+    the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
   - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
     [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).

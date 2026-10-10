@@ -1645,7 +1645,7 @@ the guard's reason; the line ends with what the engineer does. The command is re
 session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
 refused.
 
-### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
+### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--adr-reads] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
 baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
 reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -1753,7 +1753,15 @@ $15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the wi
 one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
 AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
 single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
-`instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
+`instructions` in `metrics.json`, and one compact line. **`--adr-reads`** (#793) adds the table of ADR reads by file
+(`instructions.adr_reads` in `metrics.json` has it without the flag): per file under `docs/decisions/` that a tool
+read, the reads split whole (a `Read` with no offset or limit, or a `cat`, that returned over 150 lines), section
+(the runner's `section`, a `Read` with an offset or limit, `sed -n`, `head`, `tail`, a Grep or a search) and small (a
+file of 150 lines or fewer read in full), the tokens, the list $, the top 10 by $ and the agent types that read it by
+their share of its $. A `section <doc>` call is a (section) read of the doc in the by-file table too, but it carries
+no text to the by-§ tables of ARCHITECTURE and AGENT_WORKFLOW, so a doc's by-file $ can exceed its by-§ total; in a
+command with more steps, each other step's docs keep their own kind (a `cat` beside it is a plain read). Tests:
+`tools/runner/tests/test_metrics_adr_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
 session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
 name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's
