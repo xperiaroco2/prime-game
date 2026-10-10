@@ -87,9 +87,9 @@ Open questions:
 Decided by the engineer (#727, 2026-10-10): every player can crouch by holding Ctrl, and Shift while crouched moves
 a bit faster. A crouched player is lower, so it passes under things a standing one does not: the raised car in the
 garage, under which the fitter works crouched (car repair, #688). The art has or will have a crouch animation. A
-knocked-down player cannot crouch, since it cannot move (#728). The numbers are placeholders, "not a decision":
-crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and 1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk:
-4.5 m/s).
+knocked-down player cannot crouch (today it crawls lying down; once #728's rework is built it cannot move at all).
+The numbers are placeholders, "not a decision": crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and
+1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk: 4.5 m/s).
 
 Open questions (the engineer's; the options and a recommendation for each are in the
 [crouch ADR](decisions/2026-10-10-crouch.md), KD1 to KD8):
