@@ -26,14 +26,14 @@ MAX_HOURS = hooks.MAX_UNATTENDED_HOURS
 def parse_until(text: str, now: datetime) -> datetime:
     """`HH:MM` (the next such local time), or an ISO 8601 time (without a zone: local)."""
     text = text.strip()
-    local = now.astimezone()
+    local = now.astimezone().replace(tzinfo=None)  # wall clock: the +1 day step stays right across a DST change
     if len(text) <= 5 and ":" in text:
         try:
             hour, minute = (int(part) for part in text.split(":"))
             moment = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
         except ValueError:
             raise Failure(f"--until {text!r}: give HH:MM (local time) or an ISO time such as 2026-10-11T05:30Z") from None
-        return moment if moment > local else moment + timedelta(days=1)
+        return (moment if moment > local else moment + timedelta(days=1)).astimezone()
     try:
         moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
