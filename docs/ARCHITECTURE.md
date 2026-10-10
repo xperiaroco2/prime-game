@@ -3518,7 +3518,8 @@ section follows each recommendation.
   one screen and staying on it for the host, where a teammate standing over it could not raise it.
 - **Who gets what.** The knocked-down avatar reaches everyone as today, its position moving with the body; its own
   player gets it too while knocked down (KE5: the one exception to §5's "nobody gets their own avatar", with a
-  protocol bump), so its camera and ears follow the body.
+  protocol bump and the wire's `MAX_AVATARS` raised from 15 to 16, so a full match's snapshot still decodes), so its
+  camera and ears follow the body.
 - **The ragdoll** is the client's looks only (KE7): held by a spring to the interpolated point, colliding with the
   world layer only, and never read by the raise hint's reach, the camera, the ears or `SightHider`. The camera's
   pivot stops below a ceiling right above the body (KE8).
