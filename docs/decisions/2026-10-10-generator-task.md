@@ -181,7 +181,7 @@ filter them, and GD11 puts the choice to the engineer.
 | A downed player crawls to a switch | `not_accepted` | the allowlist (V4) |
 | A raiser presses a switch | the press applies and the raise stops (`RaiseStopped`) | §9.2: an applied action stops its actor's channel |
 | A knife holder presses E at a switch | the switch toggles; the knife's `Use` never runs | GE1 |
-| A package carrier | `two_handed`: put it down, use, pick it up again | #679: busy hands |
+| A package carrier | `two_handed`: put it down, use, pick it up again | #679: busy hands. A switch and the button are no takes, so the cooking design's belt rule (a take while holding a two-handed item goes onto the belt; PR #701's comments 6096140448 and 6096157421, where every non-take keeps the busy-hands refusal) leaves `HandNotTwoHanded` in both rules |
 | A player behind a wall within the radius | `blocked` | GE4 |
 | A player aims at a fixed switch | no hint and no target: it is no station (GD5, GE14). A modified client cannot name it either: an id that is no station gets `nothing_to_do`, with no event | the engineer: an always-on switch is not interactive at all |
 | Any use after the charge is done | `unavailable` | #679: "can no longer be used" |
