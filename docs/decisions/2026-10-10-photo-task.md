@@ -405,8 +405,11 @@ in this PR; P5 uses what he approves, or these drafts marked "not a decision" un
   until now only §5's snapshot rules guarded, and the leak test compares events against `view_of`, which reads the
   same record, so a record-building bug would pass it. P2 adds an invariant to `ScenarioInvariants` and `LeakCheck`
   written independently of the record builder: every row of a decoded `ShotTaken` names a peer that is ALIVE or
-  knocked down at that tick (never dead, left or not a player), at the host's accepted position, within `range_m` +
-  2 m of the lens and outside the camera's cylinder. Planted once (a dead player's row), it fails; reverted.
+  knocked down at that tick (never dead, left or not a player), within one movement claim's longest step of its
+  accepted position at the end of the tick before or of the shot's tick (the record is taken in the shot's command,
+  and a claim later in the same tick moves the position `LeakCheck` records), and within `range_m` + 2 m of the lens
+  plus that step. The cylinder is not checked: its edge flips with the same step, and the unit tests cover it. Planted
+  once (a dead player's row), it fails; reverted.
 - **The chaos bots** (P2, P3; P10 against dealt stations): the four new H→C kinds in the wrong-direction list; a
   hostile `Interact` at the camera, the box, the printer and the board from out of reach, without a film, and in a
   burst, getting only its `Rejected`s (`out_of_reach`, `no_film`, `no_frames_left`, `film_exposed`,
