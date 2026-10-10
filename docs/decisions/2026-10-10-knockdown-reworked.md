@@ -227,8 +227,12 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   command log replays the same rest.
 - Movement (`tests/unit/movement/`): a knocked-down claim of a far place moves nothing and sends no `Correction`; its
   facing is taken; stale claims are dropped as before.
-- Entitlement: the own avatar reaches a knocked-down player only; the leak test's rule changes with it and is seen
-  failing on a planted own avatar of a living player (the leak test is proven so, ARCHITECTURE §5).
+- Entitlement: the own avatar reaches a knocked-down player only. No check guards that today: `LeakCheck` compares
+  the decoded avatars with `view_of`, which reads `Snapshots.for_peer` itself, so a wrong exception (inverted, or
+  `life != DEAD`) would pass it. 728b adds a check that does not trust the declaration, in `LeakCheck` and in the core
+  runner's `ScenarioInvariants`: a decoded snapshot holds the viewer's own avatar exactly when the host's state has
+  that viewer `DOWNED`, read from the life state, never from `for_peer`. It is seen failing on a planted own avatar of
+  a living player and on a missing own avatar of a knocked-down one (the leak test is proven so, ARCHITECTURE §5).
 - Chaos and bots: a knocked-down hostile peer's walking claims (its rows, ARCHITECTURE §4.6.5.3);
   `dissident_kills_the_crew` loses "and it crawls": a knocked-down bot's `WalkTo` fails the step, as a dead bot's does.
 - The client, over the loopback: a knocked-down joiner holding the move keys stays where the host has it with 0
@@ -261,7 +265,8 @@ content file named is provisional under the
   `knock_down` take the launch (KE9); `LifeTicks` flies it (§4, steps 1 to 3 and 5 to 7); `TargetDowned` rejects
   `moving`; KD8 in `die`; `leave` and `ResetMatch` clear it; the own avatar in a knocked-down viewer's snapshot
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
-  gets its 16-avatar snapshot, the leak test's rule and the protocol number, and the client's `AvatarViews` and the bots' fold
+  gets its 16-avatar snapshot, the own-avatar check of §9 (from the life state, not from `for_peer`) in `LeakCheck`
+  and `ScenarioInvariants`, seen failing on both plants, and the protocol number, and the client's `AvatarViews` and the bots' fold
   skipping it until 728d draws it, so no client draws itself as a stranger in between; a knockdown with no launch is
   today's, step for step (§4, step 2); 728b ships with every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a
   launched player's camera and ears would stay where the knockdown started while every other screen showed the body
@@ -272,7 +277,7 @@ content file named is provisional under the
   `core/match/snapshots.gd`, `core/match/reset_match.gd`, `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`),
   `net/messages/wire_schema.gd` (`MAX_AVATARS`), `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725),
   `client/world/avatar_views.gd`, `tests/harness/scenario_bot.gd`, `tests/unit/life/`, `tests/unit/combat/`,
-  `tests/harness/bots/leak_check.gd`, `docs/ARCHITECTURE.md`.
+  `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_invariants.gd`, `docs/ARCHITECTURE.md`.
 - **728c core: a body slides down a steep floor and off its edge** (size S). Goal: a body on a sloped roof rolls
   off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port, `FlatWorldQuery`, `RecordingWorldQuery`,
   the replay and `HostWorldQuery`; the slide angle and speed in `PlayerRules` with bounds, a slide speed of 0 sliding nothing, and the base mode at 0
