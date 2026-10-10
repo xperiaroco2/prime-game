@@ -155,8 +155,10 @@ def held(wt: Path, pr: merge.PullRequest, recent_minutes: int) -> str:
         if (session.status == "busy" or recent) and session.session_id != me:
             return f"the Claude Code session {session.describe(now)} works there"
     asked = _wt(wt, "rev-parse", *[arg for name in GIT_STATES for arg in ("--git-path", name)])  # one call for all
-    answers = asked.out.splitlines() if asked.rc == 0 and not asked.timed_out else []
-    for (name, what), where in zip(GIT_STATES.items(), (a.strip() for a in answers), strict=False):
+    answers = [a.strip() for a in asked.out.splitlines()] if asked.rc == 0 and not asked.timed_out else []
+    if len(answers) != len(GIT_STATES):  # a warning line among them would shift the answers: ask one by one
+        answers = [_wt(wt, "rev-parse", "--git-path", name).out.strip() for name in GIT_STATES]
+    for (name, what), where in zip(GIT_STATES.items(), answers, strict=True):
         if where and (wt / where).exists():
             return f"a {what} is in progress there"
     dirty = _wt(wt, "status", "--porcelain", "--untracked-files=no").out.strip()

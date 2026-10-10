@@ -453,6 +453,21 @@ class TrainTest(TrainCase):
         self.assertEqual(rc, 0, text)
         self.assertEqual(self.published, [30])
 
+    def test_a_warning_among_the_git_state_answers_does_not_shift_them(self) -> None:
+        wt = self.pr(30, {"core/a.gd": "extends Node\n"})
+        (Path(_git(wt, "rev-parse", "--absolute-git-dir")) / "BISECT_LOG").write_text("# bad\n", encoding="utf-8")
+        real = train._wt
+
+        def noisy(where: Path, *args: str, **named: object) -> Result:
+            res = real(where, *args, **named)  # type: ignore[arg-type]
+            if args[:1] == ("rev-parse",) and args.count("--git-path") > 1:
+                return Result(res.rc, "warning: something\n" + res.out, res.timed_out, res.seconds)
+            return res
+
+        pr = mock.Mock(oid=_git(wt, "rev-parse", "HEAD"))
+        with mock.patch.object(train, "_wt", noisy):
+            self.assertEqual(train.held(wt, pr, 0), "a bisect is in progress there")
+
     def test_a_branch_with_merges_of_main_takes_main_in_by_a_merge(self) -> None:
         wt = self.pr(30, {"core/a.gd": "extends Node\n"})
         self.main_moves({"core/y.gd": "extends Node\n"})
