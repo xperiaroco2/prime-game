@@ -1565,7 +1565,12 @@ sections named:
    two client ticks and the claims a network lost before it. At 200 it covered 201 over WebRTC (#674, seed 7, 4 of
    6 runs), was corrected, and bot 4 stood in the zone on the host all round while its script, which adopts no
    `Correction` outside a placement (each is taken for a chaos claim's), claimed from 39 m off and was corrected
-   every tick; `chaos_test.gd` pins the margin. `ChaosRun` checks on the host's state that the
+   every tick; `chaos_test.gd` pins the margin. Since #693 the host's answer to each of bot 4's own claims (no
+   chaos tag: `ChaosFrames.claim_shape` is -1) is checked on the host over every transport
+   (`ChaosHonestClaims`): a `Correction` of one fails the run, naming the seed (`chaos seed 7: the host corrected
+   an honest claim of bot 4 ... (and N more)`: one line, the first correction and the count of the rest), and so
+   does a run in which the movement rule accepted none (the summary line counts those); a placement's `Correction`
+   comes with another call. `ChaosRun` checks on the host's state that the
    zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
    player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
    The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
@@ -1630,7 +1635,11 @@ about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On prot
 freeze and the claim coverage check over every transport (#674, 2026-10-10) a seed's runs are 1800 frames (30.0 s
 simulated); `--seed 188001 --runs 10`, `--seed 1 --runs 10` and `--long --seed 5 --runs 2` passed (12 to 24 hostile
 claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--transport webrtc` seed 7 three times
-(18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). The
+(18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). With
+the honest-claim check (#693, 2026-10-10) `--seed 188001 --runs 10`, `--seed 1 --runs 10`, `--long --seed 5 --runs
+2`, `--enet --seed 7` and `--transport webrtc` seeds 188001, 7, 1, 2 and 3 passed (222 to 478 honest claims of bot 4
+each accepted without a `Correction`); a plant holding bot 4's claims 2 s past its freeze (its walk away past the
+credit) failed on that check alone (`chaos seed 188001: the host corrected an honest claim of bot 4`; reverted). The
 night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
@@ -1642,7 +1651,8 @@ forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always 
 class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
 chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
 `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, no
+claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, a
+corrected honest claim of bot 4 (#693), no
 `ForceRole` for a bot 2 without a peer id), `tests/scenarios/chaos_enet_start_test.gd` (the start over the network:
 a join lost for good fails at once naming its reason, a join that found no room joins again without starting play,
 `MAX_JOINS`).
