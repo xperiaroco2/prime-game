@@ -139,15 +139,20 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool(menu.visible).is_true()
 	assert_object(menu.page()).is_same(menu.lobby)
 	assert_bool(menu.lobby.is_visible_in_tree()).is_true()
-	assert_bool(menu.confirm_box.visible or menu.resume_page.visible).is_false()
+	assert_bool(menu.confirm_box.visible or menu.actions.visible).is_false()
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].button_pressed).is_true()
 	assert_bool(menu.lobby.settings_editable()).is_true()
-	# The round starts under the open menu: no Lobby tab, the Resume page.
+	assert_str(menu.title_label.text).is_equal("esc.tab.lobby")
+	assert_bool(menu.host_note.visible).is_true()
+	assert_bool(menu.host_only.visible).is_false()
+	# The round starts under the open menu: no Lobby tab, the Game page.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
-	assert_object(menu.page()).is_same(menu.resume_page)
+	assert_object(menu.page()).is_same(menu.actions)
 	assert_bool(menu.lobby.visible).is_false()
+	assert_bool(menu.host_note.visible).is_false()
+	assert_str(menu.title_label.text).is_equal("esc.tab.game")
 
 
 func test_the_pregame_screen_shows_the_own_role_and_no_word_on_the_microphone() -> void:
@@ -199,7 +204,7 @@ func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn
 	ui.close_esc()
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.open_esc(false)
-	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.RESUME)
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.GAME)
 
 
 func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
@@ -210,16 +215,21 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	menu.leave_requested.connect(func() -> void: said.append("leave"))
 	menu.quit_requested.connect(func() -> void: said.append("quit"))
 	menu.open(GameFlow.Screen.ROUND, null, false)
-	menu.tab_buttons[EscMenuState.Tab.LEAVE].pressed.emit()
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
+	menu.leave_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
+	assert_bool(menu.confirm_box.visible).is_false()
 	menu.open(GameFlow.Screen.ROUND, null, true)
-	menu.tab_buttons[EscMenuState.Tab.QUIT].pressed.emit()
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonDanger")
+	menu.quit_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
-	assert_object(menu.page()).is_same(menu.confirm_box)
-	assert_str(menu.confirm_label.text).is_equal("Quit, and end the session for every player?")
+	assert_bool(menu.confirm_box.visible and menu.confirm_dim.visible).is_true()
+	assert_str(menu.confirm_title.text).is_equal("esc.game.quit_confirm")
+	assert_str(menu.confirm_button.text).is_equal("esc.game.quit")
 	menu.confirm()
 	assert_array(said).is_equal(["leave", "quit"])
-	menu.tab_buttons[EscMenuState.Tab.RESUME].pressed.emit()
+	assert_bool(menu.confirm_box.visible).is_false()
+	menu.resume_button.pressed.emit()
 	assert_array(said).is_equal(["leave", "quit", "resume"])
 	assert_bool(menu.visible).is_false()
 
@@ -231,3 +241,77 @@ func _assert_pregame_names(screen: PregameScreen, words: Array) -> void:
 		var shown := (label.text + " " + tr(label.text)).to_lower()
 		for word: String in words:
 			assert_str(shown).override_failure_message("%s: %s" % [word, shown]).not_contains(word)
+
+
+func test_the_confirm_dialog_takes_the_focus_and_shuts_the_menu_behind_it() -> void:
+	# #491: while the host's question is open, focus cannot reach the menu behind (Menu's
+	# focus_behavior_recursive), Cancel has it; closing restores both.
+	var menu: EscMenu = auto_free(EscMenu.new())
+	add_child(menu)
+	menu.open(GameFlow.Screen.ROUND, null, true)
+	await get_tree().process_frame
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.resume_button)
+	menu.leave_button.pressed.emit()
+	await get_tree().process_frame
+	assert_str(menu.confirm_title.text).is_equal("esc.game.leave_confirm")
+	assert_int(menu.menu.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_DISABLED)
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.cancel_button)
+	menu.cancel_button.pressed.emit()
+	assert_bool(menu.confirm_box.visible).is_false()
+	assert_bool(menu.is_open()).is_true()
+	assert_int(menu.menu.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_INHERITED)
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.leave_button)
+
+
+func test_the_tutorials_menu_leaves_the_tutorial_at_once() -> void:
+	var menu: EscMenu = auto_free(EscMenu.new())
+	add_child(menu)
+	menu.state.tutorial = true
+	var said: Array[String] = []
+	menu.leave_requested.connect(func() -> void: said.append("leave"))
+	menu.open(GameFlow.Screen.ROUND, null, true)
+	assert_bool(menu.tab_buttons[EscMenuState.Tab.ROLE].visible).is_false()
+	assert_str(menu.leave_button.text).is_equal("esc.game.leave_tutorial")
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
+	menu.leave_button.pressed.emit()
+	assert_array(said).is_equal(["leave"])
+	assert_bool(menu.confirm_box.visible).is_false()
+
+
+func test_the_esc_menu_is_built_as_the_handoff_names_it() -> void:
+	# #491: prime-game-ui's s05 at ui-0.4.0, node for node (the differences are in the PR).
+	var menu: EscMenu = auto_free(EscMenu.new())
+	var paths: Dictionary[String, String] = {
+		"Dim": "ToyBackdropDeep",
+		"MenuRaised/Menu": "ToyPanelMenu",
+		"MenuRaised/Menu/H": "ToyRowTwentyFour",
+		"MenuRaised/Menu/H/Tabs": "ToyColumnEight",
+		"MenuRaised/Menu/H/Tabs/Game": "ToyTab",
+		"MenuRaised/Menu/H/Page": "ToyColumnSixteen",
+		"MenuRaised/Menu/H/Page/TitleRow/Title": "ToyTitleOnLight",
+		"MenuRaised/Menu/H/Page/TitleRow/HostNote": "ToyTextMutedOnLight",
+		"MenuRaised/Menu/H/Page/TitleRow/HostOnly": "ToyRowEight",
+		"MenuRaised/Menu/H/Page/Actions": "ToyColumnSixteen",
+		"MenuRaised/Menu/H/Page/Actions/ResumeRaised/Resume": "ToyButtonPrimary",
+		"MenuRaised/Menu/H/Page/Actions/Quit": "ToyButtonGhostOnLight",
+		"MenuRaised/Menu/H/Page/Role/Team/Scroll/Grid": "ToyGridList",
+		"MenuRaised/Menu/H/Page/Settings/Sub/Sound": "ToyChipToggleOnLight",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Sound/Mic": "ToySettingRow",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Bind": "ToyKeyButton",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Same": "ToyChipAlert",
+		"ConfirmDim": "ToyBackdrop",
+		"ConfirmRaised/Confirm": "ToyPanelDialog",
+		"ConfirmRaised/Confirm/V/Buttons/ConfirmButtonRaised/ConfirmButton": "ToyButtonDanger",
+		"ConfirmRaised/Confirm/V/Buttons/Cancel": "ToyButtonGhostOnLight",
+	}
+	for path: String in paths:
+		var node := menu.get_node_or_null(NodePath(path)) as Control
+		assert_object(node).override_failure_message(path).is_not_null()
+		var variation := String(node.theme_type_variation)
+		assert_str(variation).override_failure_message(path).starts_with(paths[path])
+	assert_vector(menu.menu.custom_minimum_size).is_equal(EscMenu.MENU_SIZE)
+	(
+		assert_vector((menu.get_node(^"MenuRaised/Menu/H/Tabs") as Control).custom_minimum_size)
+		. is_equal(Vector2(288, 0))
+	)
+	assert_vector(menu.role.scroll.custom_minimum_size).is_equal(Vector2(0, 250))

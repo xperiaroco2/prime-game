@@ -5,6 +5,4 @@
 [node name="ScreenPreview" type="Node"]
 script = ExtResource("1_preview")
 preview = 5
-esc_tab = 2
-esc_in_round = true
-language = "uk"
+large_text = true

@@ -5,10 +5,10 @@
 # captures the real mouse). F under the menu readies nobody; F in the lobby readies its player.
 # The guest presses Esc as soon as it is welcomed (#204: the menu still opens on its Lobby tab)
 # and readies with that tab's Ready toggle, a button only the Lobby tab shows.
-# In the round the menu has Resume, Leave and Quit and no Lobby tab; the host's Leave asks first,
-# and one Esc takes back only the question, the menu staying open (#488: one press, one overlay);
-# its Resume button closes it.
-# The text waits read short parts of the greybox wording (#150), never whole sentences.
+# In the round the menu opens on Game (Resume, Leave, Quit) with no Lobby tab; the host's Leave asks
+# first in the confirm dialog, and one Esc takes back only the dialog, the menu staying open (#488:
+# one press, one overlay); its Resume button closes it. The tabs and buttons read deck keys (#491).
+# The text waits read the deck keys or short parts of the greybox wording (#150).
 players 2
 windows 2
 
@@ -20,8 +20,8 @@ shot lobby_host
 press ui_cancel
 wait esc open
 wait pointer free
-wait text esc.tabs has Lobby
-wait text esc.tabs has Resume
+wait text esc.tabs has esc.tab.lobby
+wait text esc.tabs has esc.tab.game
 frames 5
 shot esc_lobby_tab_host
 press ui_cancel
@@ -39,19 +39,19 @@ wait screen round timeout=60
 frames 30
 press ui_cancel
 wait esc open
-wait text esc.tabs lacks Lobby
-wait text esc.tabs has Resume
+wait text esc.tabs lacks esc.tab.lobby
+wait text esc.tabs has esc.tab.game
 frames 5
 shot esc_round_host
-button Leave
+button esc.game.leave
 frames 5
 shot esc_round_host_leave_question
 press ui_cancel
 frames 5
 wait esc open
-wait text esc.tabs has Resume
+wait text esc.tabs has esc.tab.game
 shot esc_round_host_question_closed
-button Resume
+button esc.game.resume
 wait esc closed
 wait pointer captured
 

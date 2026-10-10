@@ -45,7 +45,7 @@ func test_the_hosts_question_closes_before_the_menu_and_the_menu_closes_as_resum
 	var resumed: Array[int] = [0]
 	ui.esc.resume_requested.connect(func() -> void: resumed[0] += 1)
 	ui.open_esc(true)
-	ui.esc.press(EscMenuState.Tab.QUIT)
+	ui.esc.press_quit()
 	assert_str(String(ui.overlays.top())).is_equal("esc_dialog")
 	assert_str(String(ui.overlays.close_top())).is_equal("esc_dialog")
 	assert_bool(ui.esc_open()).is_true()

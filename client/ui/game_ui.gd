@@ -81,9 +81,8 @@ func _init() -> void:
 	# The how-to card over the map (#254): Esc and the map key close it before the map.
 	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
 	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
-	overlays.add(
-		&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.press.bind(EscMenuState.Tab.RESUME)
-	)
+	overlays.add(&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.resume)
+	# The host's question over the menu (#491's confirm dialog): Esc is its Cancel, the menu stays.
 	overlays.add(&"esc_dialog", UiOverlays.ESC_DIALOG, esc.state.asking, esc.cancel)
 
 
@@ -177,7 +176,7 @@ func set_map_data(data: MapData) -> void:
 ## Refreshes the visible screen and an open Esc menu from `model`; `host_tick` is the newest host
 ## tick known.
 func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) -> void:
-	esc.refresh(screen, model, host_tick, hosting)
+	esc.refresh(screen, model, host_tick, hosting, mode)
 	match screen:
 		GameFlow.Screen.LOBBY:
 			lobby_hud.refresh(model, host_tick)
@@ -225,6 +224,12 @@ func close_esc() -> void:
 
 func esc_open() -> bool:
 	return esc.is_open()
+
+
+## The tutorial runs (#601 calls it as the tutorial starts and ends): the Esc menu shows only Game,
+## Guide and Settings, and its Leave goes back to the main menu at once.
+func set_tutorial(on: bool) -> void:
+	esc.state.tutorial = on
 
 
 ## The main menu's open panel (code, Direct or Settings, #493), only while the main menu shows (its
