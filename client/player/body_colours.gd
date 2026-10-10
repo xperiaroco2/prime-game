@@ -33,8 +33,14 @@ const HEXES: PackedStringArray = [
 	"#fff4e2",
 ]
 
+## HEXES parsed once: AvatarViews asks for every remote body's colour on every physics frame.
+static var _colours: Array[Color] = []
+
 
 ## The colour of index `colour`; index 0's for one outside the palette (the host never sends one).
 static func of(colour: int) -> Color:
-	var index := colour if colour >= 0 and colour < HEXES.size() else 0
-	return Color(HEXES[index])
+	if _colours.is_empty():
+		for hex: String in HEXES:
+			_colours.append(Color(hex))
+	var index := colour if colour >= 0 and colour < _colours.size() else 0
+	return _colours[index]
