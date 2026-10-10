@@ -98,6 +98,8 @@ var _lobby_name := ""
 var _pending := ""
 var _awaiting := false
 var _name_at_send := ""
+## The timer of the latest Copy press.
+var _copied_timer: SceneTreeTimer
 
 
 func _init() -> void:
@@ -311,6 +313,8 @@ func applied_preset() -> StringName:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED and player_rows != null:
+		_tint_marks()
 	if what == NOTIFICATION_TRANSLATION_CHANGED and count_label != null:
 		_roster_key = ""
 		if _model != null:
@@ -384,9 +388,15 @@ func _copy() -> void:
 	DisplayServer.clipboard_set(_code)
 	copy_button.text = "esc.lobby.copied"
 	if is_inside_tree():
-		get_tree().create_timer(COPIED_SECONDS).timeout.connect(
-			func() -> void: copy_button.text = "esc.lobby.copy"
-		)
+		var timer := get_tree().create_timer(COPIED_SECONDS)
+		_copied_timer = timer
+		timer.timeout.connect(_end_copied.bind(timer))
+
+
+## Takes the "Copied" text back, unless a later press started a timer of its own.
+func _end_copied(timer: SceneTreeTimer) -> void:
+	if timer == _copied_timer:
+		copy_button.text = "esc.lobby.copy"
 
 
 ## The pressed card follows the model; the host sees the cards, a player the applied preset's name.
@@ -618,3 +628,10 @@ func _task_row(row_name: String, label: String, id: StringName, mode: GameMode) 
 	_plates[id] = plates
 	_ban_boxes[id] = [allowed, shown]
 	return made
+
+
+## The ready marks take the row text's colour (again after a theme swap such as large text).
+func _tint_marks() -> void:
+	for mark: Node in player_rows.find_children("Ready", "TextureRect", true, false):
+		var texture := mark as TextureRect
+		texture.self_modulate = texture.get_theme_color(&"font_color", &"ToySettingRowText")
