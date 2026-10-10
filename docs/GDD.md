@@ -349,7 +349,7 @@ in the playtest.
 The House map's generator chain ([House map](design/house-map.md) §2, decision 8; its stations in §6). The rules below
 are the engineer's (#679, chat of 2026-10-09, and his answers of 2026-10-10 to the design's questions,
 [PR #695, comment 6095326452](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6095326452)); the engine
-parts and the one question still open are in [the Generator ADR](decisions/2026-10-10-generator-task.md).
+parts and the questions still open are in [the Generator ADR](decisions/2026-10-10-generator-task.md).
 
 **Intent.** A team-coordination task. Up to four switches stand in four basement rooms out of each other's earshot, and
 the generator charges only while all of them are on and someone has pressed its button. The players split up and
@@ -360,8 +360,8 @@ back, switch it on, and return to press the button again.
 **Rules.**
 - The Generator is a task type, like Delivery. Its subtasks are its switches: the subtask count is how many switches
   are active, 2 to 4, the task's difficulty, set by the host in the lobby settings. Every task type will have such a
-  setting (Delivery: its packages; #256). In the shared task count (the HUD's), its subtasks are all done together,
-  at full charge (a technical choice, the ADR's GE13).
+  setting (Delivery: its packages; #256). How it counts in the shared task count (the HUD's "Tasks x / y") waits for
+  the engineer's read-back (below); the recommendation: its subtasks are all done together, at full charge.
 - The generator and its button stand in the generator hall; switches A to D in storage, the boiler room, the pump room
   and the switch room. Every pair of switches is more than 8 m apart (20 to 39 m).
 - The active switches can be switched on and off; the others are on and cannot be switched off. At the round's start
@@ -411,7 +411,10 @@ station at all; two public events (a switch, the button) and the zone task's pro
 scenes in `levels/stations/` in place of the House's markers; the client's panel, sounds, the always-on switches'
 look and the charge's bar on the task screen. The issues follow from the ADR's split.
 
-Open question (the engineer's; the ADR's GD12, with options and a recommendation):
+Open questions (the engineer's; the ADR's §9, with options and a recommendation):
+- The shared task count (the ADR's GD3, a read-back of his answer): the task screen's Generator row is a progress bar.
+  Does the shared count (the HUD's "Tasks x / y", the task screen's last line) still count the Generator's switches,
+  all done at full charge (recommended), or leave the Generator out while the round still waits for its charge?
 - How far apart must every two switches stand: more than 12 m, the range of the sounds, or more than 8 m, as the rules
   say (the range of voice)? House passes both; it decides the greybox's placeholder points and later maps.
 
