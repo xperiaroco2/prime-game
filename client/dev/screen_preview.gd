@@ -70,6 +70,9 @@ const FAKE_OWN_HEADING := 0.6
 @export var code_gone := false
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
+## The Esc menu open over the preview's screen, as Esc opens it there (#656: over a black screen,
+## loading, the pregame or the post game, it is on the layer above theirs).
+@export var esc_over := false
 ## The Voice tab (M5-6), or the main menu's Voice page (#301), as without the voice addon.
 @export var voice_unavailable := false
 ## The Controls tab (#211) with Map and tasks on V, Talk's key: both rows marked "Same key". The
@@ -211,6 +214,8 @@ func _ready() -> void:
 					ui.map.focus_help(map_lit)
 				if not howto_card.is_empty():
 					ui.map.open_howto(howto_card)
+	if esc_over and preview != Preview.ESC:
+		ui.open_esc(hosting, model)
 	ui.refresh(model, mode, 100, hosting)
 
 

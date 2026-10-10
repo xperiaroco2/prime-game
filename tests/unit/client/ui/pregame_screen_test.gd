@@ -369,13 +369,17 @@ func test_the_ui_lifts_it_into_the_round_and_hides_it_on_any_other_screen() -> v
 	UiPrefs.reduced_motion = false
 	var ui: GameUi = auto_free(GameUi.new())
 	add_child(ui)
-	# Over the round's HUD, the life screen and the map, so its black uncovers them; under the
-	# post game screen and the Esc menu.
-	var order := ui.get_children()
+	# Over the round's HUD, the life screen and the map, so its black uncovers them (they are on
+	# the Ui layer, it on the black screens' layer above, #656); under the post game screen (later
+	# on its layer) and the Esc menu (on the layer above it).
 	for under: Control in [ui.hud, ui.life, ui.map]:
-		assert_int(order.find(ui.pregame)).is_greater(order.find(under))
-	for over: Control in [ui.end, ui.esc]:
-		assert_int(order.find(ui.pregame)).is_less(order.find(over))
+		assert_object(under.get_parent()).is_same(ui)
+	assert_object(ui.pregame.get_parent()).is_same(ui.black)
+	assert_int(ui.black.layer).is_greater(ui.layer)
+	var order := ui.black.get_children()
+	assert_int(order.find(ui.pregame)).is_less(order.find(ui.end))
+	assert_int(ui.above.layer).is_greater(ui.black.layer)
+	assert_object(ui.esc.get_parent()).is_same(ui.above)
 	ui.show_screen(GameFlow.Screen.PREGAME)
 	ui.refresh(_pregame(&"crew"), _mode, 100, true)
 	assert_bool(ui.pregame.visible).is_true()

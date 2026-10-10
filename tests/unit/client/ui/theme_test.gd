@@ -52,10 +52,7 @@ func test_every_screen_has_the_theme_also_one_added_later() -> void:
 	var later := Label.new()
 	ui.add_child(later)
 	var screens := 0
-	for child: Node in ui.get_children():
-		var control := child as Control
-		if control == null:
-			continue
+	for control: Control in ui.screens():
 		screens += 1
 		assert_object(control.theme).is_same(GameUi.THEME)
 	assert_int(screens).is_greater(8)
