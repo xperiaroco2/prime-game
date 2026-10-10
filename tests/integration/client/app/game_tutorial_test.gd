@@ -156,9 +156,7 @@ func test_a_launch_starts_it_by_itself_only_on_a_first_launch() -> void:
 	# closed) offers it again on the next launch.
 	first.leave()
 	assert_bool(first.tutorial.running).is_false()
-	var back := UserSettings.new(SETTINGS_PATH)
-	back.read()
-	assert_bool(back.tutorial_seen).is_false()
+	assert_bool(FileAccess.file_exists(SETTINGS_PATH)).is_false()
 	# The flag set, any option, or settings in memory (every test and runner window): the menu.
 	assert_int(_game([], _file_settings(true)).screen()).is_equal(S.MENU)
 	assert_int(_game(["--port=24999"], _file_settings(false)).screen()).is_equal(S.MENU)
