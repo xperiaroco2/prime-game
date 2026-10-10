@@ -324,7 +324,9 @@ for the record, lettered on through a row's sub-questions; the last column is wh
   inside the box gives no `Damaged` after the swinger's `Died`; the holder's own `PickUp` in the box leaves the item
   at its body, never in a dead player's slot), the role-swap check (two players'
   forced roles swapped: identical `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`, `TaskState`,
-  `TaskProgress` and `Died` streams; planted once, the panel refusing dissidents, it fails; reverted). R4: the fit's
+  `TaskProgress` and `Died` streams, and identical `Rejected` streams for the two swapped players, reasons
+  included, from the same refused intents at the panel, the car and a bin (the chaos run's swapped check, §4.6.5
+  item 8, never deals car repair, RD13); planted once, the panel refusing dissidents, it fails; reverted). R4: the fit's
   refusals in order, a stop losing progress, a fitter who stops claiming (its fit stops 10 ticks after its last
   accepted claim with `FitChanged(car, 0, tick)`, its progress lost, RE2), a holder who stops claiming (the car stays
   up), completion locking the part, the next `PartNeeded`, the last part
