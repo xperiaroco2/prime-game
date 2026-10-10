@@ -1,6 +1,6 @@
 class_name FootstepCadence
 extends RefCounted
-## When a walking player's next footstep falls (#525; ARCHITECTURE §4.7.38), pure: one per player
+## When a walking player's next footstep falls (#525; ARCHITECTURE §4.7.40), pure: one per player
 ## WorldSounds hears. It is fed how far the player's drawn feet moved in one physics frame: the
 ## local player's own movement, or a remote player's interpolated pose (SnapshotBuffer), never a
 ## claimed velocity (client/CLAUDE.md), so a peer that claims to stand while it runs still steps,

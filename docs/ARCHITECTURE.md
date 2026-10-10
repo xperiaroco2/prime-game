@@ -2217,7 +2217,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
   sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
-  code until #525 (§4.7.38) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
+  code until #525 (§4.7.40) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
   and added footsteps.
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
@@ -2390,7 +2390,7 @@ follows the M5 ADR's checklist (its §3; §6 below).
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
 #### 4.7.16 Built in M5-7 (#221), occlusion's muffle
-(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.38;
+(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.40;
 CI's LFS step with #515):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
@@ -4003,7 +4003,7 @@ concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests:
 
 #### 6.5.5 Buses and the mix (E43, D15)
 `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
-buttons' click at −6 dB with no slider of its own, §4.7.38),
+buttons' click at −6 dB with no slider of its own, §4.7.40),
 in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
 Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
@@ -5552,7 +5552,7 @@ assets/
 - The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
   `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
   to `ui/comfortaa/comfortaa.ttf` (#520).
-- The sounds are three sets, one per Kenney pack (#525, §4.7.38): `audio/kenney_impact_sounds/` (the footsteps),
+- The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
   `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
   file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
   listening page, in `audio/sfx-verdicts.json`.

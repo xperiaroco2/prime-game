@@ -1,6 +1,6 @@
 class_name FootstepSurface
 extends RefCounted
-## Which floor a footstep is on (#525; ARCHITECTURE §4.7.38): the tag `surface` (metadata) of the
+## Which floor a footstep is on (#525; ARCHITECTURE §4.7.40): the tag `surface` (metadata) of the
 ## floor's collider or its nearest ancestor that has one, one of SURFACES; an untagged floor or an
 ## unknown tag is DEFAULT. The greybox tags nothing, so every step there is DEFAULT; the house's
 ## floors (#523, the content area) tag theirs. One ray down from above the feet against the world

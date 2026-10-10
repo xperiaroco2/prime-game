@@ -1,6 +1,6 @@
 class_name UiSounds
 extends RefCounted
-## The UI's click (#525; ARCHITECTURE §4.7.38): ToyPress plays it as a Toy button goes down
+## The UI's click (#525; ARCHITECTURE §4.7.40): ToyPress plays it as a Toy button goes down
 ## (`button_down`: a mouse or touch press, or `ui_accept` on the focused button), never on hover,
 ## release or a toggle's change alone; a disabled button sends no `button_down`. SfxSet's
 ## UI_CLICK on the UI bus (AudioBuses.UI), from one AudioStreamPlayer under the window's root that

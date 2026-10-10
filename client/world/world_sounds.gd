@@ -1,6 +1,6 @@
 class_name WorldSounds
 extends Node3D
-## Plays the world sounds (ARCHITECTURE §4.7, §4.7.38; the M4 ADR's D9, E33 (a); M4-8; #525): for
+## Plays the world sounds (ARCHITECTURE §4.7, §4.7.40; the M4 ADR's D9, E33 (a); M4-8; #525): for
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
 ## the Effects bus (D15), with `max_distance` the same range, freed when it ends.

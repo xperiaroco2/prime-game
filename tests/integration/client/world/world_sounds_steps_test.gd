@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## WorldSounds' footsteps (#525; ARCHITECTURE §4.7.38) in a small physics world: another player
+## WorldSounds' footsteps (#525; ARCHITECTURE §4.7.40) in a small physics world: another player
 ## steps from how its interpolated pose moves, whatever velocity its snapshots claim; within the
 ## hearing range only, casting no ray beyond it; muffled behind a wall, clear in the open; not
 ## while downed or dead, nor off the floor; the floor's tag picks the surface. The local player

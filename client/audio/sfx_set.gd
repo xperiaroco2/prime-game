@@ -1,6 +1,6 @@
 class_name SfxSet
 extends RefCounted
-## The game's sound effects (#525; ARCHITECTURE §4.7.38): Kenney's CC0 packs under
+## The game's sound effects (#525; ARCHITECTURE §4.7.40): Kenney's CC0 packs under
 ## `res://assets/audio/` (§11.1; docs/credits/), each sound id its own files, played as one
 ## AudioStreamRandomizer: a file at random, never the same twice in a row, with a small random
 ## pitch (PITCH) and volume (VOLUME_OFFSET_DB). The world's sounds (WorldSounds) and the UI's click
