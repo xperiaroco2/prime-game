@@ -307,9 +307,10 @@ silent; a test keeps it so.
   role", the own role on the title plate, its generic goal and, for a dissident, its teammates' names (the engineer
   on #175); nothing of any other player's role. At the round's start Night fades out over the HUD. Frozen as Loading
   and End, and the mouse kept as in Loading (#517).
-- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175). None exists yet, so
-  none plays; whoever adds them plays them on the pregame screen only (its `role_revealed` hook), where nobody hears
-  anybody.
+- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175): the pregame screen,
+  where nobody hears anybody, plays the own side's once as it reveals the own role (its `role_revealed` hook,
+  #716, §4.7.39), and stops it when the pregame ends, so none plays in the round; local to the own client, so no peer
+  hears another's.
 Tests: `tests/unit/match/phases/pregame_phase_test.gd` (the last `LoadAck` enters it with roles dealt and no clock;
 the round, `RoundStarted` and the clock on its end tick; each peer's own `RoleAssigned` only; a dropped `MoveClaim`
 and `not_accepted` for the rest; no win check before the round's entry; a leave as Round's; a connection refused;
@@ -3394,15 +3395,20 @@ wide, wrapped. Pack variations only, no override.
   it at once. To draw over the HUD it is now `GameUi`'s child after the HUD, the life screen (§4.7.44) and the map (under the
   post game screen and the Esc menu). Every Control ignores the mouse and takes no focus; the pregame is frozen
   and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
-- **Role sounds.** `role_revealed(role)` is emitted once per pregame when the own role shows: the hook for #213's
-  one sound per role. No sound asset exists and its source is not chosen, so nothing is connected (a follow-up).
-- **Not built here.** The handoff's black-screen CanvasLayer 6 (as §4.7.31); the role sounds; the Esc menu's Role
-  tab (#491).
+- **Role sounds** (#716, #213 criterion 3, #175). `role_revealed(role, side)` is emitted once per pregame when the
+  own role shows, with that role's side in the client's own mode (empty for a role it does not know), and never
+  while Night fades out over the round (a role that arrives that late plays nothing in the round). The screen plays
+  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.40): `crew` the engineers' sound, `dissidents` the
+  dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
+  hears another's role sound (the bots test checks the wire).
+- **Not built here.** The handoff's black-screen CanvasLayer 6 (as §4.7.31); the Esc menu's Role tab (#491).
 Tests: `tests/unit/client/ui/pregame_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; engineer, dissident with teammates, dissident alone, before the role, a
 role with no key; it reads only the own role and Teammates (the source's model fields; another role's Teammates
 name nobody); the language switch; no focus or input; the fade, its cut under reduced motion; the hook once per
-pregame; `GameUi`'s lift into the round, its layer order and the cut on another screen), `screens_test.gd` and
+pregame with the side; the own side's sound once per reveal on the UI bus, none before the role, hidden, during the
+lift or for an unknown side (seen failing without the lift guard), its sources name no session, send or voice;
+`GameUi`'s lift into the round, its layer order and the cut on another screen), `screens_test.gd` and
 `input_rules_test.gd`. The `shot`s, at `--size 1920x1080 --frames 60`: `client/dev/pregame_preview.tscn` (engineer),
 `pregame_dissident_preview.tscn` (with a teammate), `pregame_alone_preview.tscn`, `pregame_after_preview.tscn` (Night
 frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
@@ -3574,7 +3580,8 @@ No new event, row or rule: a client plays a sound only for the events and the sn
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
-  (`click_1..3`; `ui_outro`, #657), Ogg Vorbis through LFS, one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
+  one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -3606,7 +3613,11 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   click and kept, so a press that frees its screen does not cut its click; a button outside the tree clicks
   nothing. `UiSounds.outro` (#657), from `EndScreen.outro_began` (once each time End starts): `ui_outro`, the one
   sound of both outcomes, from its own player (`UiOutro`, polyphony 1) under the root on the UI bus, made at the
-  first End and kept; no voice is routed through it (#213).
+  first End and kept; no voice is routed through it (#213). `UiSounds.role` (#716), from
+  `PregameScreen.role_revealed` (once per pregame, the own side's, §4.7.39): `ui_role_engineers` or
+  `ui_role_dissidents`, each from its own player (`UiRoleEngineers`, `UiRoleDissidents`, polyphony 1) under the
+  root on the UI bus, made at its first reveal and kept, and stopped (`UiSounds.stop_roles`) when the pregame
+  ends (`lift`, `stop`), so none reaches the round; local to the own client, no voice routed through it.
 - Tests: `tests/unit/client/world/footstep_cadence_test.gd` (the interval at walk and sprint speed, between and
   below; one step per interval; none standing; a still frame; a placement; only horizontal movement),
   `footstep_surface_test.gd` (the tag, the nearest ancestor's, the default), `sound_chooser_test.gd` (the step's
@@ -3614,7 +3625,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   `tests/unit/client/audio/sfx_set_test.gd` (every file exists and loads, one randomizer per id, five footsteps a
   surface, none for an id with no file), `audio_buses_test.gd` (the UI bus), `tests/unit/client/ui/toy_press_test.gd`
   (a press clicks on the UI bus, hover, release and toggle do not, the click outlives its button, none outside the
-  tree), `tests/integration/client/world/world_sounds_steps_test.gd` (a walker steps from its poses with a zero
+  tree), `pregame_screen_test.gd` (the role sounds, §4.7.39),
+  `tests/integration/client/world/world_sounds_steps_test.gd` (a walker steps from its poses with a zero
   claimed velocity, a claimed run standing still is silent, none and no ray beyond 12 m, muffled behind a wall,
   none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
   downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the

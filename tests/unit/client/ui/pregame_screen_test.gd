@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## The pregame role reveal (#496; prime-game-ui docs/handoff/s06-pre-game.md at ui-0.4.0): the tree
 ## node for node, the pack's variations only, `engineer`, `dissident` with and without teammates,
 ## `after` (Night's fade over the round's HUD and its cut under reduced motion), the language
-## switch, no focus or input, and that it reads only the own role and Teammates. How it looks: the
+## switch, no focus or input, that it reads only the own role and Teammates, and the own side's
+## sound once per reveal on the UI bus, only in the pregame (#716). How it looks: the
 ## `shot`s of client/dev/pregame_*preview.tscn.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
@@ -29,6 +30,7 @@ func before_test() -> void:
 func after_test() -> void:
 	TranslationServer.set_locale(_locale)
 	UiPrefs.reduced_motion = _reduced
+	_free_role_players()
 
 
 func test_the_tree_matches_the_handoff_node_for_node() -> void:
@@ -239,20 +241,128 @@ func test_the_fade_is_a_cut_under_reduced_motion() -> void:
 
 
 func test_the_role_is_revealed_once_per_pregame() -> void:
-	# The hook for the one sound per role (#213): no sound is connected yet.
+	# The hook for the one sound per side (#213, #716), with the own role's side in the own mode.
 	UiPrefs.reduced_motion = true
 	var screen := _screen()
-	var revealed: Array[StringName] = []
-	screen.role_revealed.connect(func(role: StringName) -> void: revealed.append(role))
+	var revealed: Array[Array] = []
+	screen.role_revealed.connect(
+		func(role: StringName, side: StringName) -> void: revealed.append([role, side])
+	)
 	var model := _pregame(&"dissident")
 	screen.reveal()
 	screen.refresh(model, _mode)
 	screen.refresh(model, _mode)
-	assert_array(revealed).is_equal([&"dissident"])
+	assert_array(revealed).is_equal([[&"dissident", &"dissidents"]])
 	screen.lift()
 	screen.reveal()
 	screen.refresh(_pregame(&"crew"), _mode)
-	assert_array(revealed).is_equal([&"dissident", &"crew"])
+	assert_array(revealed).is_equal([[&"dissident", &"dissidents"], [&"crew", &"crew"]])
+
+
+func test_the_own_sides_sound_plays_once_per_reveal_on_the_ui_bus() -> void:
+	# #716 (#213 criterion 3, #175): one sound per side, the own side's only, once per pregame.
+	AudioBuses.ensure()
+	UiPrefs.reduced_motion = true
+	var screen := _screen()
+	var played_before := UiSounds.roles.size()
+	var model := _pregame(&"dissident")
+	screen.reveal()
+	screen.refresh(model, _mode)
+	screen.refresh(model, _mode)
+	assert_array(_played_since(played_before)).is_equal([SfxSet.UI_ROLE_DISSIDENTS])
+	var player := UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)
+	assert_object(player).is_not_null()
+	assert_str(String(player.bus)).is_equal(String(AudioBuses.UI))
+	assert_bool(player.playing).is_true()
+	var stream := player.stream as AudioStreamRandomizer
+	assert_int(stream.streams_count).is_equal(1)
+	assert_object(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_ENGINEERS)).is_null()
+	# The next pregame, as an engineer: the engineers' sound, once.
+	screen.lift()
+	screen.reveal()
+	var crew := _pregame(&"crew")
+	screen.refresh(crew, _mode)
+	screen.refresh(crew, _mode)
+	assert_array(_played_since(played_before)).is_equal(
+		[SfxSet.UI_ROLE_DISSIDENTS, SfxSet.UI_ROLE_ENGINEERS]
+	)
+	assert_bool(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_ENGINEERS).playing).is_true()
+	# A third pregame as a dissident again: its player is the one made the first time.
+	screen.lift()
+	screen.reveal()
+	screen.refresh(model, _mode)
+	assert_array(_played_since(played_before)).is_equal(
+		[SfxSet.UI_ROLE_DISSIDENTS, SfxSet.UI_ROLE_ENGINEERS, SfxSet.UI_ROLE_DISSIDENTS]
+	)
+	assert_object(UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)).is_same(player)
+
+
+func test_no_role_sound_before_the_role_outside_the_pregame_or_for_an_unknown_side() -> void:
+	UiPrefs.reduced_motion = false
+	var played_before := UiSounds.roles.size()
+	# Before RoleAssigned: Night alone, silent.
+	var screen := _screen()
+	screen.reveal()
+	screen.refresh(Preview.fake_model(_mode, true), _mode)
+	# A screen not shown (any screen but the pregame) plays nothing.
+	var hidden := _screen()
+	hidden.visible = false
+	hidden.refresh(_pregame(&"crew"), _mode)
+	# A role that arrives only as Night fades out over the round plays nothing in the round.
+	screen.lift()
+	assert_bool(screen.lifting()).is_true()
+	screen.refresh(_pregame(&"crew"), _mode)
+	# A role of a side SIDE_SOUNDS does not name (a later mode's) plays nothing.
+	var other := _screen()
+	other.reveal()
+	var medic := Preview.fake_model(_mode, true)
+	medic.fold(&"RoleAssigned", {"role": &"medic"})
+	other.refresh(medic, _mode)
+	assert_array(_played_since(played_before)).is_empty()
+
+
+func test_a_known_role_of_a_side_the_table_lacks_plays_nothing() -> void:
+	# A later mode's side (say pirates) has no sound: the table's guard, not a missing key.
+	var screen := _screen()
+	var played_before := UiSounds.roles.size()
+	screen._play_role_sound(&"x", &"pirates")
+	assert_array(_played_since(played_before)).is_empty()
+
+
+func test_the_role_sound_stops_when_the_pregame_ends() -> void:
+	# A reveal near the pregame's end must not play into the round, where the microphone is open.
+	AudioBuses.ensure()
+	UiPrefs.reduced_motion = true
+	var screen := _screen()
+	screen.reveal()
+	screen.refresh(_pregame(&"dissident"), _mode)
+	var player := UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)
+	assert_bool(player.playing).is_true()
+	screen.lift()
+	assert_bool(player.playing).is_false()
+	# Any other screen (stop) ends it too.
+	var other := _screen()
+	other.reveal()
+	other.refresh(_pregame(&"dissident"), _mode)
+	assert_bool(player.playing).is_true()
+	other.stop()
+	assert_bool(player.playing).is_false()
+
+
+func test_the_role_sound_stays_on_the_own_client() -> void:
+	# #716: no peer hears another's role sound. It is a UI-bus player of the own client, chosen
+	# from the own role only (the model test above); neither file sends anything or names a
+	# session or the voice in its code, so nothing about it leaves the client (the bots test
+	# checks the wire).
+	for path: String in [SOURCE, "res://client/ui/ui_sounds.gd"]:
+		var code := PackedStringArray()
+		for line: String in FileAccess.get_file_as_string(path).split("\n"):
+			code.append(line.get_slice("#", 0))
+		var source := "\n".join(code)
+		for word: String in ["Session", "send", "rpc", "Voice", "AudioStreamPlayer3D"]:
+			assert_str(source).override_failure_message("%s names %s" % [path, word]).not_contains(
+				word
+			)
 
 
 func test_the_ui_lifts_it_into_the_round_and_hides_it_on_any_other_screen() -> void:
@@ -286,6 +396,20 @@ func test_the_ui_lifts_it_into_the_round_and_hides_it_on_any_other_screen() -> v
 	# A round not entered from the pregame (a later round's frame) never shows it.
 	ui.show_screen(GameFlow.Screen.ROUND)
 	assert_bool(ui.pregame.visible).is_false()
+
+
+## The role sounds played since UiSounds.roles held `before` of them.
+func _played_since(before: int) -> Array[StringName]:
+	return UiSounds.roles.slice(before)
+
+
+## The role sounds' players under the root (a reveal plays one): each test ends without them.
+func _free_role_players() -> void:
+	for id: StringName in UiSounds.ROLE_PLAYERS:
+		var player := UiSounds.role_player_in(get_tree(), id)
+		if player != null:
+			player.get_parent().remove_child(player)
+			player.free()
 
 
 func _screen() -> PregameScreen:

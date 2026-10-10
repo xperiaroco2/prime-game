@@ -62,7 +62,7 @@ The footsteps of #525: `Audio/footstep_<surface>_000.ogg` to `_004.ogg` for the 
 grass (20 files, Ogg Vorbis, stereo 44.1 kHz), under their own names. Played by `SfxSet` (`client/audio/`), five
 variants a surface; the engineer's verdicts from sfx-check's listening page go to `assets/audio/sfx-verdicts.json`.
 
-## Kenney Interface Sounds: the UI click and the end outro
+## Kenney Interface Sounds: the UI click, the end outro and the role sounds
 
 - **Files:** `assets/audio/kenney_interface_sounds/**`
 - **Author:** Kenney (www.kenney.nl)
@@ -74,10 +74,12 @@ variants a surface; the engineer's verdicts from sfx-check's listening page go t
 
 The click of a Toy button press (#525; Ogg Vorbis, mono 44.1 kHz), renamed (the pack's name, then ours):
 `click_001.ogg` `click_1.ogg`, `tick_001.ogg` `click_2.ogg`, `tick_002.ogg` `click_3.ogg`. The one sound of both
-outcomes when End starts (#657; Ogg Vorbis, mono 44.1 kHz), renamed: `bong_001.ogg` `ui_outro.ogg`. Played by
-`UiSounds` (`client/ui/`) through `SfxSet`; the engineer's verdicts go to `assets/audio/sfx-verdicts.json`. The pack's
-`click_002.ogg` is also the Ogg stand-in for LFS pointer files in CI (`tools/runner/lfs.py`, the LFS ADR's
-amendment of 2026-10-10); it is not a game asset.
+outcomes when End starts (#657; Ogg Vorbis, mono 44.1 kHz), renamed: `bong_001.ogg` `ui_outro.ogg`. The own side's
+sound when the pregame reveals the own role (#716; Ogg Vorbis, mono 44.1 kHz), renamed: `confirmation_002.ogg`
+`ui_role_engineers.ogg`, `error_006.ogg` `ui_role_dissidents.ogg`. Played by `UiSounds` (`client/ui/`) through
+`SfxSet`; the engineer's verdicts go to `assets/audio/sfx-verdicts.json`. The pack's `click_002.ogg` is also the Ogg
+stand-in for LFS pointer files in CI (`tools/runner/lfs.py`, the LFS ADR's amendment of 2026-10-10); it is not a game
+asset.
 
 ## Kenney RPG Audio: the item sounds
 

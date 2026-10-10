@@ -3,10 +3,10 @@ extends RefCounted
 ## The game's sound effects (#525; ARCHITECTURE §4.7.40): Kenney's CC0 packs under
 ## `res://assets/audio/` (§11.1; docs/credits/), each sound id its own files, played as one
 ## AudioStreamRandomizer: a file at random, never the same twice in a row, with a small random
-## pitch (PITCH) and volume (VOLUME_OFFSET_DB). The world's sounds (WorldSounds) and the UI's click
-## and End's outro (UiSounds) take their streams here. Each file is loaded the first time its id
-## plays; one that does not load is left out, and an id with no file that loads has no stream
-## (null): nothing plays.
+## pitch (PITCH) and volume (VOLUME_OFFSET_DB). The world's sounds (WorldSounds) and the UI's click,
+## End's outro and the pregame's role sounds (UiSounds) take their streams here. Each file is
+## loaded the first time its id plays; one that does not load is left out, and an id with no file
+## that loads has no stream (null): nothing plays.
 ## Which files: placeholders the engineer picks by ear (sfx-check's listening page, its
 ## `sfx-verdicts.json` beside each set), "not a decision".
 
@@ -17,6 +17,10 @@ const INTERFACE := "res://assets/audio/kenney_interface_sounds/"
 const UI_CLICK := &"ui_click"
 ## The one sound of both outcomes when End starts (EndScreen.outro_began, #657).
 const UI_OUTRO := &"ui_outro"
+## The own side's sound when the pregame reveals the own role (PregameScreen.role_revealed, #716):
+## one per side of the base mode, the engineers' (`crew`) and the dissidents'.
+const UI_ROLE_ENGINEERS := &"ui_role_engineers"
+const UI_ROLE_DISSIDENTS := &"ui_role_dissidents"
 ## Each id's files, but the footsteps' (footstep()). Arrays: a PackedStringArray value in a typed
 ## const Dictionary reported a wrong size() (24 for 3 paths, observed on 4.7.2).
 const FILES: Dictionary[StringName, Array] = {
@@ -25,6 +29,8 @@ const FILES: Dictionary[StringName, Array] = {
 	SoundChooser.PUT_DOWN: [RPG + "put_down_1.ogg", RPG + "put_down_2.ogg", RPG + "put_down_3.ogg"],
 	UI_CLICK: [INTERFACE + "click_1.ogg", INTERFACE + "click_2.ogg", INTERFACE + "click_3.ogg"],
 	UI_OUTRO: [INTERFACE + "ui_outro.ogg"],
+	UI_ROLE_ENGINEERS: [INTERFACE + "ui_role_engineers.ogg"],
+	UI_ROLE_DISSIDENTS: [INTERFACE + "ui_role_dissidents.ogg"],
 }
 ## The variants of a footstep on each surface: footstep_<surface>_000 to _004 (Impact Sounds).
 const FOOTSTEP_VARIANTS := 5
