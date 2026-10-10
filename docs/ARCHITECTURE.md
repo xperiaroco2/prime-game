@@ -3553,8 +3553,8 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   unchanged, the own `ClientSession` on `HostNode.own_client`. No socket opens and nobody else can join; the port
   (`GameTutorial.PORT`, `LaunchOptions.DEFAULT_PORT`) only keys the hub, and `Game.make_transport` is never called.
   The host writes no replay (`HostNode.skip_replay`: each would push a match's out of `ReplayFiles.KEEP`). The game
-  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed, and
-  Try again starts the tutorial again.
+  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed (the invite never counts
+  as seen then), and Try again starts the tutorial again, without the invite.
 - **The stand-ins** (`client/tutorial/stand_ins.gd`, `StandIns`, a child of `Game` named `StandIns`): two
   `ClientSession`s, each on its own `LoopbackTransport` that joins the hub (peers 2 and 3) once the own player is
   welcomed (`StandIns.join_host`), each stepped by a `SessionNode` of its own at physics priority -95 (after the
@@ -3563,7 +3563,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   own session, they would otherwise say Hello first and take `Player1` and `Player2`). Then `SetReady(true)` once
   welcomed, `LoadAck` at once (`load_levels` off, as the bots), and `ClientSession`'s own claims from its last
   `Welcome` or `Correction` (at rest, on the floor), so it stands where the host placed it; nothing else, no intent,
-  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()`: no session, model or
+  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()` (a test hook): no session, model or
   transport leaves the class.
 - **The mode per session:** `GameTutorial.end` (called by `Game._end_session` before `_show_end`) frees the
   stand-ins and gives `Game.mode` back the mode it had (the base mode, or a test's), so a networked session after a
@@ -3591,7 +3591,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
 - Tests: `tests/unit/client/app/game_flow_test.gd` (the tutorial mode's flow), `launch_options_test.gd` (`--tutorial`,
   `given` and the problems), `user_settings_test.gd` (the flag), `game_tutorial_test.gd` (the first-launch rule's
   table), `tests/unit/client/tutorial/stand_ins_source_test.gd` (only `stand_ins.gd` and `game_tutorial.gd` name
-  `StandIns`, the wiring makes no node lookups, no public member hands out a session; planted failures rejected),
+  `StandIns` or its node path, nothing else reads its private lists or builds a `ClientSession` but `game.gd`, the wiring makes no node lookups, no public member hands out a session; planted failures rejected),
   `tests/integration/client/tutorial/stand_ins_test.gd` (on a `HostNode` of the tutorial mode, what the host receives
   from each stand-in: one `Hello` with no name, one `SetReady`, one `LoadAck`, claims at one spot at rest, nothing
   else, seen failing with a planted voice frame; leaving the tree leaves), and
