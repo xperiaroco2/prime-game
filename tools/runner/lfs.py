@@ -5,10 +5,10 @@ pointer file there: a few lines of text that start with the spec's version line.
 fails (`Not a PNG file`, `Not a WAV file`, a glTF parse error), and rewrites its `.import` file as it does; every
 resource that uses it then fails to load. The LFS ADR's amendment of 2026-10-07 (option 2) settles it: in CI (and a
 Claude Code cloud session, also a checkout that may lack LFS content), the import never sees a pointer file. aside()
-puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, an empty glTF scene: STAND_INS) under its
-committed `.import` file, so Godot writes the imported file every resource that uses it loads, with its uid; a type
-without a stand-in (a font, Ogg or MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with its `.import`
-file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).
+puts a stand-in of its type in its place (a 4x4 grey image, a silent WAV, a 10 ms Ogg, an empty glTF scene:
+STAND_INS) under its committed `.import` file, so Godot writes the imported file every resource that uses it loads,
+with its uid; a type without a stand-in (WOFF, MP3 audio, a video, an FBX) goes behind tools/out's `.gdignore` with
+its `.import` file. Both are put back after the import, and the project check drops the lines a hidden one causes (drop_lines()).
 Locally, with LFS content, ci_pointers() is empty and nothing changes. The credits check needs only the paths, so it
 still covers pointer files. A build (release.yml, with LFS content) runs `check --lfs-content`, which fails on any
 pointer file.
@@ -66,6 +66,53 @@ def _wav() -> bytes:
     return b"RIFF" + struct.pack("<I", len(body)) + body
 
 
+def _sfnt(tables: dict[bytes, bytes]) -> bytes:
+    """An sfnt (TrueType) file of these tables: the directory sorted by tag, each table padded to 4 bytes."""
+    count = len(tables)
+    power = 1 << (count.bit_length() - 1)
+    header = struct.pack(">IHHHH", 0x00010000, count, power * 16, power.bit_length() - 1, count * 16 - power * 16)
+    offset = len(header) + 16 * count
+    directory, body = b"", b""
+    for tag in sorted(tables):
+        data = tables[tag]
+        padded = data + b"\x00" * (-len(data) % 4)
+        checksum = sum(struct.unpack(f">{len(padded) // 4}I", padded)) & 0xFFFFFFFF
+        directory += struct.pack(">4sIII", tag, checksum, offset + len(body), len(data))
+        body += padded
+    return header + directory + body
+
+
+def _ttf() -> bytes:
+    """A minimal TrueType font (#520): one empty glyph (.notdef), 1000 units per em, mapped from no character, named
+    "StandIn". FreeType opens it, so Godot imports it as a FontFile; a font from the pointer file's place draws
+    nothing (headless runs draw nothing anyway)."""
+    name = "StandIn".encode("utf-16-be")
+    return _sfnt(
+        {
+            # version, revision, checkSumAdjustment, magic, flags, unitsPerEm, created, modified, bbox, macStyle,
+            # lowestRecPPEM, fontDirectionHint, indexToLocFormat (short), glyphDataFormat
+            b"head": struct.pack(
+                ">iiIIHHqqhhhhHHhhh", 0x00010000, 0x00010000, 0, 0x5F0F3CF5, 0x000B, 1000, 0, 0, 0, 0, 0, 0, 0, 8, 2,
+                0, 0,
+            ),  # fmt: skip
+            # version, ascender, descender, lineGap, advanceWidthMax, three bearings and extents, caret slope and
+            # offset, four reserved, metricDataFormat, numberOfHMetrics
+            b"hhea": struct.pack(">ihhhHhhhhhhhhhhhH", 0x00010000, 800, -200, 0, 500, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1),
+            # version 1.0, numGlyphs 1, then the maxima (maxZones 2)
+            b"maxp": struct.pack(">i14H", 0x00010000, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0),
+            b"hmtx": struct.pack(">Hh", 500, 0),
+            b"loca": struct.pack(">HH", 0, 0),
+            b"glyf": b"\x00" * 4,
+            # one Windows Unicode BMP subtable, format 4 with only the closing 0xFFFF segment
+            b"cmap": struct.pack(">HHHHI", 0, 1, 3, 1, 12) + struct.pack(">7H5H", 4, 24, 0, 2, 2, 0, 0, 0xFFFF, 0, 0xFFFF, 1, 0),
+            # format 0, one record: Windows, Unicode BMP, en-US, the family name
+            b"name": struct.pack(">HHH", 0, 1, 18) + struct.pack(">6H", 3, 1, 0x409, 1, len(name), 0) + name,
+            # version 3.0 (no glyph names), italic angle, underline position and thickness, not fixed pitch, memory
+            b"post": struct.pack(">iihhIIIII", 0x00030000, 0, -100, 50, 0, 0, 0, 0, 0),
+        }
+    )
+
+
 GLTF = b'{"asset":{"version":"2.0"},"scene":0,"scenes":[{"nodes":[0]}],"nodes":[{"name":"StandIn"}]}'
 
 
@@ -77,9 +124,15 @@ def _glb() -> bytes:
 
 # A stand-in of each type Godot imports from a few bytes, by extension (aside()). The JPEG and the WebP are a 4x4 grey
 # image that Godot 4.7.2 wrote (Image.save_jpg_to_buffer, save_webp_to_buffer, probed for #515): Python has no
-# encoder for them. The other LFS types keep no stand-in (a font, Ogg or MP3 audio, a video, an FBX that needs the
-# FBX2glTF importer, a .blend that needs Blender, files Godot does not import).
+# encoder for them. A font (TTF or OTF, #520: the theme refers to Comfortaa's) is a minimal TrueType file, which
+# FreeType opens whatever the extension. The Ogg is a real Vorbis file (below). The other LFS types keep no stand-in
+# (WOFF, MP3 audio, a video, an FBX that needs the FBX2glTF importer, a .blend that needs Blender, files Godot does
+# not import).
 JPEG = base64.b64decode("/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAEAAQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwBKKKKAP//Z")
+# The Ogg (#525): Kenney Interface Sounds' click_002.ogg (CC0, kenney.nl/assets/interface-sounds; SHA-256
+# adcd1f4adc35f1b41bc1b5bbefeff7aa44f2f3f0d96d3199b544140c7c1e761c), 4275 bytes of mono 44.1 kHz Vorbis, 10 ms: Python has no
+# Vorbis encoder, and Godot's importer reads all three Vorbis headers, so a hand-made page would not import.
+OGG = base64.b64decode("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")
 STAND_INS = {
     ".png": _png(),
     ".jpg": JPEG,
@@ -91,6 +144,9 @@ STAND_INS = {
     ".gltf": GLTF,
     ".glb": _glb(),
     ".obj": b"v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n",
+    ".ttf": _ttf(),
+    ".otf": _ttf(),
+    ".ogg": OGG,
 }
 # Where aside() keeps the pointer files during an import: a .gdignore in it makes Godot's scan skip it (as tools/out's
 # own does, common.ensure_out), and tools/out is gitignored, so `git status` sees nothing once the files are back.

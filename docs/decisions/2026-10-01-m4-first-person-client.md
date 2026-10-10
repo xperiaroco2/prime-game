@@ -5,6 +5,11 @@
 - **Amended 2026-10-02 (issue #155):** E24's "set to each `SelfStatus` as it arrives" holds off the network only. On
   the network the client predicts stamina claim by claim and follows each `SelfStatus` from the claim it names
   (`ARCHITECTURE.md` §4.7 and §7.1 Speed); the E24 row below keeps the original decision
+- **Amended 2026-10-09 (issue #253):** the "Task screen | hold Tab" row and §3 item 4 are revised: the map and tasks
+  screen opens and closes on M (the action `map`; Tab has no action), shows each task's name and counter with no
+  description, and a map of the level's rooms with the own place only and the rooms where a task type's items may
+  lie (zones, from level data); never a player's, an item's, a circle's or a spawn point's position
+  (`ARCHITECTURE.md` §4.7.33). The row and item 4 below keep their text, with a note
 - **Amended by** [the M5 voice design](2026-10-02-m5-voice-integrated-with-the-rules.md)'s E40 (2026-10-02, confirmed
   by the engineer): E33's hearing range is measured from the ears, not the listener's camera; built in M5-5 (#219)
 - **Date:** 2026-10-01
@@ -87,7 +92,7 @@ The input actions (D6 (a); every existing action keeps its key in `project.godot
 | Use the hand item | left mouse button (`use`); the click that captures the mouse is not a use | `Use(facing)` |
 | Swap hand and belt | X (`swap`) | `Swap()` |
 | Give up, while downed | hold G for 1 s (`give_up`, a placeholder) | `GiveUp()` |
-| Task screen | hold Tab (`task_screen`) | nothing |
+| Task screen (revised by #253: the map and tasks screen, M toggles it, the action `map`) | hold Tab (`task_screen`) | nothing |
 | Next and previous spectate target, while dead | left and right mouse buttons | nothing: the target never leaves the client |
 | Menu (tabs: Resume, Lobby, Leave, Quit); frees the mouse, Esc again captures it (#169) | Esc | `ClientSession.leave()` on Leave |
 | Ready, in the lobby with no menu (#169) | F (`ready`, a placeholder) | `SetReady(not ready)`, as the Lobby tab's toggle |
@@ -112,12 +117,17 @@ design routes it for M4's client PRs, and since #158 the root routing and the sa
    body's eye): one ray per object per physics frame against the world layer. The level itself is public and stays
    drawn.
 4. The task screen shows each task's type, description and shared progress: no position of an item, a player or a
-   spawn point, and no map (answer 2).
+   spawn point, and no map (answer 2). Revised by #253 (the header's amendment): a map of rooms, the zones lit per
+   room from level data, never a marker or a point, and the own place only; still no position of an item, another
+   player or a spawn point.
 5. No screen lists items or players with a position or a distance: an item is seen only where it lies in the 3D
    world, so a hidden package is hidden by sight (vision revision 1, Hidden information). A name or a marker over a
    player or an item is drawn in the world and hidden by the level like what it marks (no `no_depth_test`
    overlays), or it would show through walls what the eye could not; only the fixed, public circles may be marked
    through walls (D10).
+   *Amended 2026-10-09 (#257, the engineer's "line of sight within about 10 m" on 2026-10-03):* a name plate may
+   be a screen-space overlay, if it shows only for a player in range and a world-layer ray from the camera to the
+   player's eye meets no level geometry (ARCHITECTURE §4.7.29); it then meets this item like a depth-tested one.
 6. A dissident's own HUD may name its teammates (`Teammates`, its own knowledge); no other screen names a role.
 7. The attacker gets no hit confirmation beyond the accepted exceptions (a knockdown; a raise stopping in the tick of
    a swing): the client has no `Damaged` of another player and plays no hit sound or effect on the attacker's side.

@@ -21,7 +21,8 @@ Everyone in a game must use the **same release**. When a new one comes out, all 
 ## 2. Host a game with a code
 
 1. In the main menu, click **Host**.
-2. You are now in the lobby. The code shows in the top-left corner as "Code: ABCDEF" (your own 6 characters).
+2. You are now in the lobby. The code shows in the top-right corner, next to "Code" (your own 6 characters; "…" while
+   the code service makes your room).
 3. To copy it: press **Esc**, open the **Lobby** tab and click **Copy**.
 4. Paste the code to your friends in any chat app.
 

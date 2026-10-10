@@ -1,0 +1,19 @@
+{
+  "check.svg": { "licence": "own work", "author": "prime-game-ui", "what": "placeholder tick for a done how-to frame, drawn for the components showcase" },
+  "chevron-down.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the dropdown arrow (ToyDropdown, OptionButton arrow; a white texture tinted by the label colour in Godot)" },
+  "chevron-left.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the stepper's decrease icon in setting rows (tinted by ToyStepper's icon colours)" },
+  "chevron-right.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the stepper's increase icon in setting rows (tinted by ToyStepper's icon colours)" },
+  "item.svg": { "licence": "own work", "author": "prime-game-ui", "what": "placeholder package pictogram for slots, how-to frames and map rooms" },
+  "knife.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the knife in a hand or belt slot (48 px)" },
+  "lock.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the \"only the host changes these\" note and the character-locked chip" },
+  "mic-off.svg": { "licence": "own work", "author": "prime-game-ui", "what": "placeholder crossed microphone (tinted by ToyMic icon-off)" },
+  "mic.svg": { "licence": "own work", "author": "prime-game-ui", "what": "placeholder microphone (tinted by ToyMic icon-on)" },
+  "pointer.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the marker of the hovered, focused or open main-menu entry (ToyMenuItem's icon, tinted by its icon colours)" },
+  "radio-checked-disabled.svg": { "licence": "own work", "author": "prime-game-ui", "what": "ToyDropdownList's radio_checked_disabled: the check of a selected row that is disabled, in the muted ink (#64566f, color.state.disabled-ink), not tinted" },
+  "radio-checked.svg": { "licence": "own work", "author": "prime-game-ui", "what": "ToyDropdownList's radio_checked: the check before the selected row of a dropdown's open list, in ink (#2a1f33), not tinted (PopupMenu has no colour for its check icons)" },
+  "radio-unchecked.svg": { "licence": "own work", "author": "prime-game-ui", "what": "ToyDropdownList's radio_unchecked and radio_unchecked_disabled: an empty 24 px icon, so the other rows keep the check's gutter and draw no mark" },
+  "slider-knob-disabled.svg": { "licence": "own work", "author": "prime-game-ui", "what": "ToySlider's disabled grabber (28 px) in the unplugged colours (#f3edf6, #64566f), not tinted" },
+  "slider-knob.svg": { "licence": "own work", "author": "prime-game-ui", "what": "ToySlider's grabber (28 px): yellow face, ink outline, drawn in the palette's hex (#ffc23a, #2a1f33), not tinted" },
+  "swatch-disc.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the disc of a character colour swatch (26 px, under ToySwatchRing), tinted by the body colour" },
+  "teammate-mark.svg": { "licence": "own work", "author": "prime-game-ui", "what": "the mark next to a teammate's name on name plates and in the Role tab (dissidents' clients only, prime-game#257)" }
+}

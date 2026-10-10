@@ -5,12 +5,12 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-person-client.md` and of the M5 ADR.
 
 ## Job
-- The windowed game: the main menu, hosting and joining, the lobby, loading, the round and the end screen, in one
-  persistent main scene that swaps levels under itself (§4.7).
+- The windowed game: the main menu, hosting and joining, the lobby, loading, the pregame, the round and the end
+  screen, in one persistent main scene that swaps levels under itself (§4.7).
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
   and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
-- UI: lobby, HUD, the Tab task screen (no map for now), end screen, the Esc menu with tabs (#169).
-- Audio: each remote speaker's voice on its avatar (M5), M4's placeholder world sounds, the dead's lift music.
+- UI: lobby, HUD, the map and tasks screen on M (#253), end screen, the Esc menu with tabs (#169).
+- Audio: each remote speaker's voice on its avatar (M5), world sounds, footsteps and UI clicks (#525), the lift music.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 
 ## Map
@@ -19,18 +19,17 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
-  and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
-- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure),
-  `EscMenu`, its tabs `LobbyPanel` and `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
+  and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks), `BodyColours` (body colour index to Color, #551).
+- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `UiOverlays` (pure: what Esc closes, one per press, #488,
+  §4.7.35), `EscMenuState` (pure), `EscMenu` (the Toy menu, #491, §4.7.46), its pages `LobbyPanel` (`LobbyPresets`, `SettingStepper`), `RolePage` (the pure `RoleFacts`), `GuidePanel` and `SettingsPage` (also the main menu's: `SettingRows`, `VoicePanel` M5-6, `ControlsPanel` #211, §4.7.28: `app/Controls`, `ui/KeyLabel`; wired by `app/GameSettings`), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
-  level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
-  in code, the HUD and the task screen (M4-8), and the shared theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
-  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
-  `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
-  `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
+  level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `OverlayFeed` (the debug overlay's numbers, #254), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words and its failure state on the connecting screen, #494; add a new one
+  there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room), `GameTutorial` (the solo tutorial's session with `tutorial/StandIns`, its two stand-in clients; only `stand_ins.gd` names their sessions, a source test holds it; #601, §4.7.43; and the pure `tutorial/LessonRunner`, which plays `content/tutorial/`'s lessons, fed only by that wiring; #602, §4.7.45). `ui/`: the screens under `GameUi`, built
+  in code (`MainMenu`: the items, the code, Direct and Settings panels and the name row, #493, §4.7.38; `ConnectingScreen`: the join, its failures and the loading, #494, §4.7.32), the HUD (M4-8), the map and tasks screen `MapScreen` with its pure `MapData` (#253, §4.7.33; its Toy look and focus #490, §4.7.41), the how-to cards (their data `content/howto/` of the content API's `HowtoCard` and `HowtoFrame` in `core/content/howto/`, `HowtoCardView`, `HowtoCards`, the Esc menu's `GuidePanel`, `app/HowtoProgress`, `app/GameHowto` (Game's wiring of them); #254, §4.7.36), the shared theme `ui/theme/game_theme.tres` and the Toy components (`ToyRaised`, `ToyPress`, `ToyToggle`, `ToyBar`, `ToySlider`, `ToyHints`, `UiPrefs`; #289), the name plates (`NamePlates`, `NamePlate`, `TeammateMark`; #257, §4.7.29), the Toy round HUD (`Hud`, `HudSlot`, the pure `HudText`, the pack's icons `ToyIcons`; #489, §4.7.37), the Toy pregame role reveal (`PregameScreen`; #496, §4.7.39), `HostTextView` (host text, an id plus arguments, in the client's language: the lobby's shortfalls; #548, §4.7.47), the downed, dead and respawn plates `LifeScreen` (#497, §4.7.44), `ContentNames` (a role's, item's, task type's, room's or map's name as its deck key, else its display name; #549, §4.7.48), the tutorial's invite and lesson plates `TutorialScreen` (#492, §4.7.49). `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds: `WorldSounds`, `FootstepCadence`, `FootstepSurface`, #525). `life/` (M4-9): `LifeView` (the cameras,
+  inputs and music by life), `DownedCamera`, `SightHider`, and the pure `SpectateTargets`, `LifeCountdowns`, `LifeHud` (what `LifeScreen` shows).
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
-  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `dev/`: dev rooms, previews.
+  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `audio/SfxSet`, `ui/UiSounds` (#525). `dev/`: dev rooms, previews.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -46,24 +45,25 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; nothing private of the target is shown (no health, stamina, role,
   teammates or private event).
-  Of the target, the spectator's HUD shows only "Spectating <name>" and its (public) hand and belt items, and of the
-  spectator none of its own slots or numbers; from a living target's eyes its body and the item views at it are
+  Of the target, the spectator sees only its name ("Watching: <name>", `LifeScreen`'s Spectate plate), and of
+  itself the time to respawn; the HUD shows nothing while dead (#497, §4.7.44); from a living target's eyes its body and the item views at it are
   hidden, and its hand item shows in the spectate camera's first-person hand, as on its own screen (#168).
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera);
-  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls.
+  uncut, all would hear through walls where a package went down. The muffle (one ray, world layer) lowers and dulls. Footsteps follow the drawn poses only (none while downed, dead or off the floor; #525).
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
   `max_distance`, and the sender's `may_speak` (the own life living, radius > 0; every chunk fed each frame, also
   while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
-- Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
-  variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
-  Wording and looks stay greybox placeholders until the UI milestone (#150).
-- Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
-  closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
+- Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`, generated from the UI pack,
+  never edited by hand; UI px on the 1920x1080 base, ARCHITECTURE §4.7.24-25): a type variation per look, no `add_theme_*_override`,
+  `Color(...)` or font size in a screen's code; a source test holds it. A bare base control takes its class's row (mapping `base_types`, §4.7.30); a new bare control class needs a row or a named gap in `base_controls_test.gd`. Text: `i18n/strings.csv` keys (§4.7.26), as a Control's text or `tr()`/`tr_n()`; a content name through `ContentNames`. A source test fails on a literal that reads as words and is no key (#549, §4.7.48): one the deck lacks yet, or one never shown, gets a line with its why (the issue tracking its key) in `tests/unit/client/i18n/literals_allowed.txt`; delete the line when the key lands. Toy buttons, panels and toggles: `UiParts` (§4.7.27).
+- A key on screen is `KeyLabel`'s (the binding now, on the player's layout), never a letter in a string (#211).
+- Under the Esc menu or the tutorial's invite (`GameUi.blocks_keys()`, #492) no gameplay key is read and the keys held when it opened are released (`Game._process`); the voice keeps working, the Talk key too, but not while a text field or a key capture has the keys (#488);
+  closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse"); a new screen closes a menu opened over another (#726). The map (#253, §4.7.33) frees the mouse but pauses no key (`PlayerController.mouse_free`; `GameUi.frees_mouse()` covers the map and the invite); `GameUi` alone holds it open; it draws rooms and zones from level data and no place but the own body's.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,

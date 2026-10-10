@@ -1,0 +1,6 @@
+{
+  "delivery-1.png": {"licence": "own work", "author": "prime-game-ui", "what": "how-to card art, Delivery step 1 (take a package from the storage room), clean sketch (the chosen style); shipped as dist/pack/cards/delivery-1.png", "source": "pages/card-art/round-2/clean-sketch/delivery-1.svg"},
+  "delivery-2.png": {"licence": "own work", "author": "prime-game-ui", "what": "how-to card art, Delivery step 2 (check the sign on the package), clean sketch; shipped as dist/pack/cards/delivery-2.png", "source": "pages/card-art/round-2/clean-sketch/delivery-2.svg"},
+  "delivery-3.png": {"licence": "own work", "author": "prime-game-ui", "what": "how-to card art, Delivery step 3 (find the room with that sign), clean sketch; shipped as dist/pack/cards/delivery-3.png", "source": "pages/card-art/round-2/clean-sketch/delivery-3.svg"},
+  "delivery-4.png": {"licence": "own work", "author": "prime-game-ui", "what": "how-to card art, Delivery step 4 (put it in the delivery zone, the done frame), clean sketch; shipped as dist/pack/cards/delivery-4.png", "source": "pages/card-art/round-2/clean-sketch/delivery-4.svg"}
+}

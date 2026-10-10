@@ -57,14 +57,16 @@ them ([ADR](decisions/2026-09-29-game-modes-define-the-phases.md), `docs/ARCHITE
 phases without engine changes to the loop.
 
 ### Base mode (the MVP)
-Lobby → Countdown → Loading → Round → End → Lobby. Adopted by the designer in #38 from the provisional
+Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted by the designer in #38 from the provisional
 [MVP rules](decisions/2026-09-29-mvp-rules.md), with their numbers as starting values to tune after the first playtest.
 - **Lobby:** players join, walk and talk by proximity; the host changes the match settings; each player presses
   Ready.
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
-  are scattered, players are placed and the match clock starts.
+  are scattered and players are placed.
+- **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
+  match clock starts (the engineer, #213).
 - **Round:** everyone works on the shared tasks (Delivery); the dissidents sabotage by hiding packages and run out
   the clock. A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
   ([vision revision 1](decisions/2026-10-01-vision-revision-1.md)). The first win condition met ends it: every task
@@ -393,3 +395,8 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
   [vision revision 1](decisions/2026-10-01-vision-revision-1.md) everyone sees a downed player, a body (it stays until
   its player respawns), the item in a player's hand and the one on their belt, and a player's few seconds of
   invulnerability, so each must read at a glance; how they look is open.
+
+## 15. Tutorial
+
+[`docs/design/tutorial.md`](design/tutorial.md) (#552, proposed): an offline solo session in a room of its own,
+the UI track's nine lessons, and its open points (D25 to D36) for the engineer.

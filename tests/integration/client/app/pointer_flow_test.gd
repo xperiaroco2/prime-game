@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The mouse from the lobby into the round (#517): a host and a joined client, two Game roots each
 ## in a SubViewport over a LoopbackHub on a simulated clock (as game_loop_test.gd), each with a
 ## pointer that remembers what the game asked of it (headless Godot keeps no mouse mode). The lobby
-## and the round capture the mouse, Loading keeps it, the end screen and the menu free it; an open
-## Esc menu or a window without the focus is never captured by a screen change.
+## and the round capture the mouse, Loading keeps it, the end screen and the menu free it; a screen
+## change closes an open Esc menu (#726), and a window without the focus is never captured by one.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7380
@@ -69,7 +69,7 @@ func test_the_mouse_stays_captured_from_the_lobby_through_loading_into_the_round
 		assert_array(_pointer(game).asked).not_contains([false])
 		assert_bool(_pointer(game).captured()).is_true()
 		assert_bool(game.player().reads_device_input).is_true()
-	# The end screen frees it for its button; Back to lobby captures it again.
+	# The end screen frees it; the host's ReturnToLobby (before End's own return) captures it again.
 	assert_bool(await _until(_all_on.bind(games, S.END, 2))).is_true()
 	for game: Game in games:
 		assert_bool(_pointer(game).captured()).is_false()
@@ -83,7 +83,7 @@ func test_the_mouse_stays_captured_from_the_lobby_through_loading_into_the_round
 	await get_tree().process_frame
 
 
-func test_an_open_esc_menu_or_a_window_without_the_focus_stays_free_into_the_round() -> void:
+func test_the_match_closes_an_open_esc_menu_and_a_window_without_the_focus_stays_free() -> void:
 	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 1)])
 	var guest := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 1)])
 	var games: Array[Game] = [host, guest]
@@ -92,18 +92,23 @@ func test_an_open_esc_menu_or_a_window_without_the_focus_stays_free_into_the_rou
 	assert_bool(await _until(_all_on.bind(games, S.LOBBY, 2))).is_true()
 	assert_bool(_pointer(guest).captured()).is_false()
 	assert_array(_pointer(guest).asked).not_contains([true])
-	# The host readies from its Esc menu and leaves it open: the round does not close it, nor take
-	# the mouse from under it.
-	host.open_esc()
+	# Both ready from their Esc menus and leave them open: the match's first screen closes both
+	# (#726, before it the menu went along into the round); the host's mouse is captured again,
+	# the guest's window, still without the focus, keeps it free.
+	for game: Game in games:
+		game.open_esc()
 	assert_bool(_pointer(host).captured()).is_false()
 	for game: Game in games:
 		game.set_ready(true)
 	assert_bool(await _until(_all_on.bind(games, S.ROUND, 2))).is_true()
-	assert_bool(host.ui.esc_open()).is_true()
-	assert_bool(_pointer(host).captured()).is_false()
+	for game: Game in games:
+		assert_bool(game.ui.esc_open()).is_false()
+	assert_bool(_pointer(host).captured()).is_true()
 	assert_bool(_pointer(guest).captured()).is_false()
 	assert_array(_pointer(guest).asked).not_contains([true])
-	# Closing the menu in the round captures it, as in the lobby (#169).
+	# The menu opened in the round frees the mouse; closing it captures it, as in the lobby (#169).
+	host.open_esc()
+	assert_bool(_pointer(host).captured()).is_false()
 	host.close_esc()
 	assert_bool(_pointer(host).captured()).is_true()
 	guest.leave()

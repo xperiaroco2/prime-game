@@ -3,9 +3,13 @@ extends GdUnitTestSuite
 ## LoopbackHub (NetPair, with the base mode's life rules: the raise, the give-up and a 2 s respawn
 ## on the fixture's markers). The real controllers, cameras and life views, driven through their
 ## wish fields and the life view's actions (headless runs have no input):
+## - the host's player aiming at a downed joiner sees the raise cue in its Aim, as a dissident too
+##   (#497);
 ## - a downed joiner raised by the host's player holds still while it tries to crawl and is never
 ##   corrected; it stands up living, in first person, invulnerable for the mode's time, with the
 ##   look it had (the knockdown's Correction and the revive keep it, #191);
+## - a downed joiner gives up on F held (G no longer), through real key events, and F in the round
+##   readies nobody (#211);
 ## - a joiner who gives up dies: its controller stays off the living (no layer, no step) however
 ##   it is driven, it spectates the host's player from its eyes with the lift music, switches to
 ##   the camera above the host's body when the host goes down, and respawns at a marker in first
@@ -33,6 +37,9 @@ func before_test() -> void:
 
 func after_test() -> void:
 	_pair.free()
+	# Input's action states are global: nothing stays held for the next suite.
+	for action: StringName in [&"give_up", &"ready"]:
+		Input.action_release(action)
 
 
 func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
@@ -65,10 +72,44 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	var raiser := _pair.host.player()
 	assert_bool(await _face_from(raiser, downed.global_position, 1.3)).is_true()
 	assert_int(_pair.host.life().raise_target()).is_equal(joiner)
+	# The rescuer's cue in the host's Aim (#497, the engineer on PR #721), whatever the host's
+	# role: the base mode's raise has no team condition, so a dissident is offered it over a downed
+	# player as an engineer is. The downed joiner is offered none.
+	_pair.host.client().model.fold(&"RoleAssigned", {"role": &"dissident"})
+	var key := KeyLabel.of_action(&"interact")
+	assert_str(_pair.host.life().raise_cue()).is_equal(key)
+	assert_str(life.raise_cue()).is_empty()
+	# Another player already raising them: the host would answer a second Raise with `busy`, so the cue
+	# is gone until that raise stops.
+	_pair.host.client().model.fold(&"RaiseStarted", {"raiser": joiner + 1000, "target": joiner})
+	assert_str(_pair.host.life().raise_cue()).is_empty()
+	_pair.host.client().model.fold(&"RaiseStopped", {"target": joiner})
+	assert_str(_pair.host.life().raise_cue()).is_equal(key)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(_pair.host.ui.hud.aim.visible).is_true()
+	assert_str(_pair.host.ui.hud.aim_label.text).is_equal(HudText.raise_cue(key))
 	var lay := downed.global_position
 	_pair.host.life().press_raise()
 	assert_bool(await _until(func() -> bool: return downed.held)).is_true()
 	assert_int(_pair.host.life().countdowns.raising()).is_equal(joiner)
+	# The raiser's HUD bar (#489): the downed player's own raise bar's value, at any one tick; the
+	# raised player's HUD shows none. Game._process writes the HUD (#222).
+	var at := float(_pair.host.avatars().host_tick())
+	assert_float(_pair.host.life().raise_shown(at)).is_between(0.0, 1.0)
+	assert_float(_pair.host.life().raise_shown(at)).is_equal(life.countdowns.raise_progress(at))
+	assert_float(life.raise_shown(at)).is_negative()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(_pair.host.ui.hud.raising.visible).is_true()
+	assert_bool(_pair.host.ui.hud.aim.visible).is_false()
+	# The raised joiner's screen (#497): the raiser's name and the raise's bar, no giving up.
+	var raised_screen := _pair.client.ui.life
+	var raised_by := tr("downed.raised_by").format({"name": "Player1"})
+	assert_str(raised_screen.title_label.text).is_equal(raised_by)
+	assert_bool(raised_screen.raise_bar.is_visible_in_tree()).is_true()
+	assert_bool(raised_screen.give_up.visible).is_false()
+	assert_bool(raised_screen.bleed.visible).is_false()
 	# Raised, the joiner tries to crawl away with sprint and jumps: it stays where it lay.
 	downed.move_input = Vector2(0.0, 1.0)
 	downed.sprint_held = true
@@ -94,8 +135,12 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(life.hider().is_active()).is_false()
 	var tick := float(_pair.client.avatars().host_tick())
 	assert_float(life.countdowns.invulnerable_left_s(tick)).is_between(2.0, 3.0)
-	# No own invulnerability read-out (the engineer's answer 2 on PR #167).
-	assert_str(life.hud(tick).title).is_empty()
+	# No protection chip after a raise (the downed screen's `back` is the respawn's, #497), and no
+	# downed plate any more.
+	var back := life.hud(tick)
+	assert_int(back.state).is_equal(LifeHud.State.NONE)
+	assert_int(back.protected).is_equal(0)
+	assert_float(_pair.host.life().raise_shown(tick)).is_negative()
 	_pair.host.life().release_raise()
 	await _pair.stop()
 
@@ -136,15 +181,22 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	var camera_at := life.spectate_camera().global_position
 	assert_vector(camera_at).is_equal_approx(eye, Vector3.ONE * 0.01)
 	var shown := life.hud(float(_pair.client.avatars().host_tick()))
-	assert_str(shown.title).is_equal("Dead")
-	# The HUD names the target, and shows none of the spectator's own numbers (#168). Game._process
-	# writes the HUD: the second process_frame comes after a _process that saw the death (#222).
+	assert_int(shown.state).is_equal(LifeHud.State.DEAD)
+	assert_str(shown.watching).is_equal("Player1")
+	# The Spectate plate names the target with the respawn's time, and the HUD shows nothing: none
+	# of the spectator's own numbers, none of the target's slots (#168, #497). Game._process writes
+	# the screens: the second process_frame comes after a _process that saw the death (#222).
 	await get_tree().process_frame
 	await get_tree().process_frame
+	var screen := _pair.client.ui.life
+	var watching := tr("dead.watching").format({"name": "Player1"})
+	assert_str(screen.watching_label.text).is_equal(watching)
+	assert_bool(screen.spectate.is_visible_in_tree()).is_true()
+	assert_bool(screen.respawn_label.visible).is_true()
+	assert_bool(screen.downed.visible).is_false()
 	var hud := _pair.client.ui.hud
-	assert_str(hud.spectating_label.text).is_equal("Spectating Player1")
-	assert_bool(hud.spectating_label.visible).is_true()
-	assert_bool(hud.health_label.visible or hud.stamina_label.visible).is_false()
+	assert_bool(hud.vitals.visible).is_false()
+	assert_bool(hud.slots.visible).is_false()
 	# The target goes down: a new first target, the downed host, watched from above its body.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE
@@ -168,6 +220,13 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	assert_bool(seen.is_invulnerable()).is_true()
 	assert_int(session.corrections).is_equal(0)
 	assert_int(session.placements).is_equal(3)
+	# Back (#497): the HUD returns and the protection chip counts the mode's 3 s.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(screen.protect.visible).is_true()
+	assert_bool(screen.spectate.visible).is_false()
+	assert_bool(hud.health_box.is_visible_in_tree()).is_true()
+	assert_bool(hud.slots.visible).is_true()
 	await _pair.stop()
 
 
@@ -280,7 +339,7 @@ func test_a_player_who_died_looking_up_is_placed_level_by_a_new_match() -> void:
 			if placed[0] and at_placement.is_empty():
 				at_placement.append(_pair.client.client().get("_facing") as Vector3)
 	)
-	# The round ends while the joiner is dead; the host's Back to lobby places everyone.
+	# The round ends while the joiner is dead; the host's ReturnToLobby places everyone.
 	_pair.win()
 	var ended := func() -> bool: return session.model.phase == &"end"
 	assert_bool(await _until(ended)).is_true()
@@ -329,6 +388,50 @@ func test_a_dead_player_who_leaves_hears_no_lift_music_in_the_menu() -> void:
 	assert_bool(life.music().playing).is_false()
 	assert_int(life.view()).is_equal(LifeView.View.FIRST_PERSON)
 	await _pair.stop()
+
+
+func test_the_downed_give_up_on_f_held_and_f_readies_nobody_in_the_round() -> void:
+	# #211: give-up moved from G to F, Ready's key in the lobby. Through real key events on the
+	# joiner's Game (the host's reads no device): F held while living does nothing; G held while
+	# downed no longer gives up; F held while downed gives up; no F ever toggles the ready flag.
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var session := _pair.client.client()
+	var ready_before := _ready_of(session.model, joiner)
+	_pair.client.device_input = true
+	_hold(KEY_F, true)
+	await _pair.frames(90)
+	_hold(KEY_F, false)
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.ALIVE)
+	_pair.knock_down(_pair.client)
+	assert_bool(await _until(func() -> bool: return _pair.client.player().is_downed())).is_true()
+	_hold(KEY_G, true)
+	await _pair.frames(90)
+	_hold(KEY_G, false)
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DOWNED)
+	_hold(KEY_F, true)
+	var dead := func() -> bool: return session.model.life_of(joiner) == ClientModel.Life.DEAD
+	assert_bool(await _until(dead, 180)).is_true()
+	_hold(KEY_F, false)
+	await _pair.frames(10)
+	assert_bool(_ready_of(session.model, joiner)).is_equal(ready_before)
+	await _pair.stop()
+
+
+## `peer`'s ready flag in `model`'s roster.
+func _ready_of(model: ClientModel, peer: int) -> bool:
+	var member: ClientModel.Member = model.roster.get(peer)
+	return member != null and member.ready
+
+
+func _hold(key: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = key
+	event.physical_keycode = key
+	event.pressed = pressed
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
 
 
 ## The head's pitch of `player`'s first-person view, in radians (up is positive).

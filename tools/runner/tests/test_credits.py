@@ -15,6 +15,8 @@ ENTRY = """# Crate Pack
 - **Author:** Someone
 - **Source:** https://example.com/crates
 - **License:** CC0 1.0
+- **AI generated:** false
+- **Public repo OK:** true
 
 ## Notes
 Recolored.
@@ -149,6 +151,27 @@ class RepoTest(unittest.TestCase):
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("`levels/crate.glb` matches no file", errors[0])
 
+    def test_a_pending_entry_may_match_no_file_yet(self) -> None:
+        # A third-party file the engineer adds by hand later (#520, the font): its entry is written first.
+        pending = ENTRY.replace("- **Author:**", "- **Pending:** the file lands by hand (#520)\n- **Author:**")
+        self.entry(pending)
+        self.main()
+        report = credits.check(self.root)
+        self.assertEqual(report.errors, [])
+        # It is named as still waiting, so `check` can print it (a note, not a failure).
+        self.assertEqual(report.pending, ["docs/credits/crates.md"])
+        # Once its files are there the Pending line must go (#520 review): it would keep a stale "still to be added"
+        # in CREDITS.md and silence the stale-glob check for good.
+        write(self.root, "levels/crate.glb", "x")
+        report = credits.check(self.root)
+        self.assertEqual(len(report.errors), 1, report.errors)
+        self.assertIn("docs/credits/crates.md: its files are here: drop the Pending line", report.errors[0])
+        self.assertEqual(report.pending, [])
+        # Without it, it is an ordinary entry: green, and it covers the file.
+        self.entry(ENTRY)
+        self.main()
+        self.assertEqual(credits.check(self.root).errors, [])
+
     def test_a_folder_without_double_star_gets_a_hint(self) -> None:
         self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/props/crate/`"))
         errors = credits.check(self.root).errors
@@ -175,6 +198,41 @@ class RepoTest(unittest.TestCase):
             self.assertEqual(credits.main(self.root), 0)
         self.assertIn("CREDITS.md is up to date (1 entry)", out.getvalue())
         self.assertEqual((self.root / "CREDITS.md").stat().st_mtime_ns, before)
+
+    def test_an_lfs_asset_entry_states_its_provenance(self) -> None:
+        # #519: the art manifest's ai_generated and public_repo_ok travel with the asset.
+        self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/room.tscn`").replace("- **AI generated:** false\n", ""))
+        self.main()
+        self.assertEqual(
+            credits.check(self.root).errors,
+            [
+                "docs/credits/crates.md: covers the LFS asset levels/props/crate/wood.png but has no"
+                " '- **AI generated:** true' or 'false' (the art manifest's ai_generated and public_repo_ok)"
+            ],
+        )
+
+    def test_a_note_may_follow_the_flag_but_a_word_is_not_one(self) -> None:
+        self.assertIs(credits.flag("true (Meshy Pro output)"), True)
+        self.assertIs(credits.flag("False."), False)
+        self.assertIsNone(credits.flag("yes"))
+        self.assertIsNone(credits.flag(""))
+
+    def test_a_private_only_asset_is_refused(self) -> None:
+        text = ENTRY.replace("`levels/crate.glb`", "`levels/room.tscn`")
+        self.entry(text.replace("- **Public repo OK:** true", "- **Public repo OK:** false"))
+        self.main()
+        errors = credits.check(self.root).errors
+        self.assertEqual(len(errors), 1, errors)
+        self.assertIn("Public repo OK is false: this public repo takes only", errors[0])
+
+    def test_an_entry_without_lfs_assets_needs_no_provenance(self) -> None:
+        # The addons' entries: their files stay out of LFS.
+        self.entry(ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`", "`addons/tool/**`").replace(
+            "- **Public repo OK:** true\n", "").replace("- **AI generated:** false\n", ""))
+        write(self.root, "docs/credits/wood.md", ENTRY.replace("`levels/props/crate/**`, `levels/crate.glb`",
+                                                               "`levels/props/**`").replace("# Crate", "# Wood"))
+        self.main()
+        self.assertEqual(credits.check(self.root).errors, [])
 
     def test_broken_entry_is_reported_and_not_rendered(self) -> None:
         self.entry("no title\n")

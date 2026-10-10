@@ -17,17 +17,27 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 	var service := "ws://127.0.0.1:%d" % host.room().lan.port()
 	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
 	var joiner := _game(["--signal=%s" % service])
-	joiner.ui.menu.code_edit.text = "k7m-2qx"
-	joiner.ui.menu.code_join_requested.emit(joiner.ui.menu.code_edit.text)
+	# Pasted as the host may have said it (#493's field: upper case, the dash dropped), then Join.
+	joiner.ui.menu.open_panel(MainMenu.Open.CODE)
+	joiner.ui.menu.code_edit.insert_text_at_caret("k7m-2qx")
+	await get_tree().process_frame
+	assert_str(joiner.ui.menu.code_edit.text).is_equal(CODE)
+	(joiner.ui.menu.code_join.face as Button).pressed.emit()
 	assert_object(joiner.client()).is_not_null()
-	assert_str(joiner.ui.connecting.label.text).is_equal("Joining the game with code K7M2QX")
+	# The connecting screen shows the code as the service knows it, no address (#494).
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.CONNECTING)
+	assert_str(joiner.ui.connecting.code_label.text).is_equal(CODE)
+	assert_bool(joiner.ui.connecting.code_row.visible).is_true()
+	assert_str(String(joiner.ui.connecting.state())).is_equal("finding")
 	var in_lobby := func() -> bool: return joiner.screen() == GameFlow.Screen.LOBBY
 	assert_bool(await _until(in_lobby)).is_true()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	for game: Game in [host, joiner]:
-		assert_str(game.ui.lobby_hud.code_label.text).is_equal("Code: K7M2QX")
-		assert_bool(game.ui.lobby_hud.code_label.visible).is_true()
+		assert_str(game.ui.lobby_hud.code_label.text).is_equal(CODE)
+		assert_bool(game.ui.lobby_hud.code_row.visible).is_true()
+		assert_str(game.ui.esc.lobby.code_label.text).is_equal(CODE)
+		assert_bool(game.ui.esc.lobby.code_row.visible).is_true()
 		assert_bool(game.ui.esc.lobby.copy_button.visible).is_true()
 		for text: String in _texts(game.ui):
 			assert_str(text).override_failure_message(text).not_contains("127.0.0.1")
@@ -96,8 +106,19 @@ func test_a_found_of_another_version_ends_the_join_before_any_offer() -> void:
 		return joiner.client() == null
 	assert_bool(await _until(ended)).is_true()
 	assert_str(String(joiner.last_reason)).is_equal("wrong_version")
-	assert_str(joiner.ui.menu.reason_label.text).contains(
+	assert_str(joiner.last_words).contains(
 		"the host runs protocol %d, this game %d" % [WireSchema.VERSION + 1, WireSchema.VERSION]
+	)
+	# fail-version (#494): both versions, the host's from the service's `found`, and the own one.
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.FAILURE)
+	var failure := joiner.ui.connecting
+	assert_str(String(failure.state())).is_equal("fail-version")
+	assert_bool(failure.versions.visible).is_true()
+	assert_str(failure.version_host.text).contains(
+		JoinProgress.version_text(WireSchema.VERSION + 1, other.room_content)
+	)
+	assert_str(failure.version_own.text).contains(
+		JoinProgress.version_text(WireSchema.VERSION, ClientSession.content_of(joiner.mode))
 	)
 	other.close()
 	service.stop()
@@ -106,7 +127,8 @@ func test_a_found_of_another_version_ends_the_join_before_any_offer() -> void:
 func test_a_host_without_a_code_service_says_to_host_direct() -> void:
 	var host := _game(["--signal="])
 	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_false()
-	assert_str(host.ui.menu.reason_label.text).contains("use Host Direct")
+	assert_str(host.last_words).contains("use Host Direct")
+	assert_str(String(host.ui.connecting.state())).is_equal("host-failed")
 
 
 func test_the_host_lobby_says_when_its_code_service_is_gone() -> void:
@@ -114,8 +136,11 @@ func test_the_host_lobby_says_when_its_code_service_is_gone() -> void:
 	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_true()
 	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
 	host.room().lan.stop()
-	var gone := func() -> bool: return host.ui.lobby_hud.code_label.text == JoinProgress.CODE_GONE
+	var gone := func() -> bool: return host.ui.lobby_hud.code_label.text == LobbyHud.CODE_GONE
 	assert_bool(await _until(gone)).is_true()
+	# The Esc Lobby page explains it (#491's `esc.lobby.code_gone`; the handoff: the HUD reads "—").
+	assert_bool(host.ui.esc.lobby.code_gone.visible).is_true()
+	assert_bool(host.ui.esc.lobby.code_row.visible).is_false()
 	host.leave()
 	await get_tree().process_frame
 
@@ -131,7 +156,14 @@ func test_a_code_no_room_holds_returns_to_the_menu_and_keeps_the_code() -> void:
 		return joiner.client() == null
 	assert_bool(await _until(back)).is_true()
 	assert_str(String(joiner.last_reason)).is_equal(String(NetTransport.JOIN_NO_ROOM))
-	assert_str(joiner.ui.menu.reason_label.text).contains("no game has that code")
+	assert_str(joiner.last_words).contains("no game has that code")
+	# fail-no-room first (#494): Back alone; Back (or Esc) returns to the menu, the code kept.
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.FAILURE)
+	assert_str(String(joiner.ui.connecting.state())).is_equal("fail-no-room")
+	assert_bool(joiner.ui.connecting.back_solo.visible).is_true()
+	assert_bool(joiner.ui.connecting.primary.visible).is_false()
+	joiner.ui.connecting.back_requested.emit()
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
 	assert_str(joiner.ui.menu.code_edit.text).is_equal("ABCDEF")
 	service.stop()
 
@@ -140,15 +172,46 @@ func test_a_mistyped_code_stays_on_the_menu_and_says_why() -> void:
 	var joiner := _game([])
 	joiner.join_code("K7M2Q0")
 	assert_object(joiner.client()).is_null()
-	assert_str(joiner.ui.menu.reason_label.text).contains("without 0, O, 1, I or L")
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
+	assert_str(joiner.last_words).contains("without 0, O, 1, I or L")
+	# The menu's field never holds such a code (#493): its Join stays unplugged.
+	joiner.ui.menu.open_panel(MainMenu.Open.CODE)
+	joiner.ui.menu.code_edit.insert_text_at_caret("K7M2Q0")
+	joiner.ui.menu.code_edit.text_changed.emit(joiner.ui.menu.code_edit.text)
+	assert_str(joiner.ui.menu.code_edit.text).is_equal("K7M2Q")
+	assert_bool((joiner.ui.menu.code_join.face as Button).disabled).is_true()
+
+
+## A --join= that does not parse: its words in last_words, and the text in the Direct field with
+## Join off, so the menu shows what the command line named (#493 review).
+func test_a_join_on_the_command_line_that_does_not_parse_waits_in_the_direct_field() -> void:
+	var joiner := _game(["--join=bad name!:99999"])
+	assert_object(joiner.client()).is_null()
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
+	assert_str(joiner.last_words).contains("1 to 65535")
+	assert_int(joiner.ui.menu.open).is_equal(MainMenu.Open.DIRECT)
+	assert_str(joiner.ui.menu.address_edit.text).is_equal("bad name!:99999")
+	assert_bool((joiner.ui.menu.direct_join.face as Button).disabled).is_true()
+	assert_bool((joiner.ui.menu.direct_host.face as Button).disabled).is_true()
 
 
 func test_a_code_join_without_a_service_says_to_use_direct() -> void:
 	var joiner := _game(["--signal="])
-	joiner.join_code("K7M2QX")
+	joiner.ui.menu.code_edit.text = "K7M2QX"
+	joiner.ui.menu.code_join_requested.emit(joiner.ui.menu.code_edit.text)
 	assert_object(joiner.client()).is_null()
 	assert_str(String(joiner.last_reason)).is_equal(String(NetTransport.JOIN_SERVICE_UNREACHABLE))
-	assert_str(joiner.ui.menu.reason_label.text).contains("Direct (LAN or VPN)")
+	assert_str(joiner.last_words).contains("Direct (LAN or VPN)")
+	# fail-service (#494): Join directly opens the menu's Direct fields, the code kept.
+	assert_str(String(joiner.ui.connecting.state())).is_equal("fail-service")
+	assert_int(joiner.ui.connecting.action()).is_equal(ConnectingScreen.Action.DIRECT)
+	joiner.ui.connecting.direct_requested.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
+	assert_str(joiner.ui.menu.code_edit.text).is_equal("K7M2QX")
+	assert_object(joiner.get_viewport().gui_get_focus_owner()).is_same(joiner.ui.menu.address_edit)
+	assert_str(String(joiner.ui.menu.state())).is_equal("direct")
 
 
 ## A Game set to host a room with CODE whose signalling it serves (as --code --signal=lan

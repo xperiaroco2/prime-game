@@ -1,11 +1,14 @@
 # The end of a match and the next one (#276) in the game's real windows. Window 1 hosts and is
 # forced to be the dissident; the match clock is forced to 20 s, and the time_up rule gives the
-# dissidents the win when it ends with a task left. Both windows see the end screen; only the host
-# has Back to lobby (its button, pressed with keys). In the lobby again nobody is ready
-# (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced clock
-# is session state, so the second round ends after 20 s too: its shots come well before that.
+# dissidents the win when it ends with a task left. Both windows see the end screen count down,
+# with no button, and End's own seconds later everyone is back in the lobby by itself (#212): the
+# shots of the end screen come right after its texts, before that. In the lobby again nobody is
+# ready (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced
+# clock is session state, so the second round ends after 20 s too: its shots come well before that.
 # lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show.
-# The text waits read short parts of the greybox wording (#150), never whole sentences.
+# The text waits read short parts of the greybox wording (#150), never whole sentences; the end
+# screen's are the copy deck's English (#498): the dissident sees its side's win on the title plate,
+# the guest the same line as plain text (end.winner reads the one shown).
 players 2
 windows 2
 role 1 dissident
@@ -21,19 +24,21 @@ shot round_clock
 wait screen end timeout=60
 wait phase end
 wait text end.winner is The Dissidents won
-wait shown end.back on
-wait pointer free
+wait text end.countdown has lobby in
+# A second into End: past Night's 0.4 s fade in (#498), two before the lobby. Frames are no
+# clock here (an off-screen window may draw hundreds a second).
+wait text end.countdown has in 2
 shot end_host
-button Back to lobby
+wait pointer free
 wait screen lobby timeout=30
 wait ready off
 wait ready 2 off
-wait text lobby.countdown is Waiting for everyone
+wait text lobby.status is 0 of 2 ready
 frames 60
 shot lobby_after_end
 press ready
 wait screen round timeout=60
-wait text hud.role has Role
+wait shown hud.role on
 shot second_round_host
 
 window 2
@@ -42,7 +47,8 @@ press ready
 wait screen round timeout=60
 wait screen end timeout=60
 wait text end.winner is The Dissidents won
-wait shown end.back off
+wait text end.countdown has lobby in
+wait text end.countdown has in 2
 shot end_guest
 wait screen lobby timeout=60
 wait ready off
@@ -54,6 +60,6 @@ shot lobby_after_end_guest
 frames 240
 press ready
 wait screen round timeout=60
-wait text hud.role has Role
+wait shown hud.role on
 frames 30
 shot second_round_guest

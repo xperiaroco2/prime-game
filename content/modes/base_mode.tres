@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://bkscucyrcyy0n" path="res://core/match/phases/lobby_phase.gd" id="9_lobby"]
 [ext_resource type="Script" uid="uid://cuxn2ib3gkpd7" path="res://core/match/phases/countdown_phase.gd" id="10_countdown"]
 [ext_resource type="Script" uid="uid://dwlt1b308yr55" path="res://core/match/phases/loading_phase.gd" id="11_loading"]
+[ext_resource type="Script" uid="uid://dwfri34gpqt0a" path="res://core/match/phases/pregame_phase.gd" id="12_pregame"]
 [ext_resource type="Script" uid="uid://bwquhbiy31ncw" path="res://core/match/phases/round_phase.gd" id="12_round"]
 [ext_resource type="Script" uid="uid://bii2odc87uvkr" path="res://core/content/game_role.gd" id="12_smei4"]
 [ext_resource type="Script" uid="uid://dpfbf0s4de6ss" path="res://core/match/phases/end_phase.gd" id="13_end"]
@@ -167,6 +168,11 @@ script = ExtResource("6_accept")
 intent = &"ChangeSettings"
 from = 16
 
+[sub_resource type="Resource" id="Accept_lobby_profile"]
+script = ExtResource("6_accept")
+intent = &"SetProfile"
+from = 2
+
 [sub_resource type="Resource" id="Voice_lobby"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -175,7 +181,7 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -228,6 +234,19 @@ settings = Dictionary[StringName, float]({
 })
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_loading_ack")])
 voice_rule = SubResource("Voice_loading")
+level = 2
+
+[sub_resource type="Resource" id="Voice_pregame"]
+script = ExtResource("32_silent")
+
+[sub_resource type="Resource" id="Phase_pregame"]
+script = ExtResource("5_phase")
+id = &"pregame"
+phase_class = ExtResource("12_pregame")
+settings = Dictionary[StringName, float]({
+&"seconds": 3.0
+})
+voice_rule = SubResource("Voice_pregame")
 level = 2
 
 [sub_resource type="Resource" id="Accept_round_move"]
@@ -313,6 +332,9 @@ script = ExtResource("32_silent")
 script = ExtResource("5_phase")
 id = &"end"
 phase_class = ExtResource("13_end")
+settings = Dictionary[StringName, float]({
+&"seconds": 3.0
+})
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_end_return")])
 voice_rule = SubResource("Voice_end")
 level = 2
@@ -438,16 +460,23 @@ rng_purpose = &"knives"
 script = ExtResource("8_place")
 tag = &"round_player"
 
-[sub_resource type="Resource" id="Start_clock"]
-script = ExtResource("64_start_clock")
-minutes_setting = &"match_duration"
-
 [sub_resource type="Resource" id="Row_loading_all_loaded"]
 script = ExtResource("7_row")
 from = &"loading"
 outcome = &"all_loaded"
+to = &"pregame"
+actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
+
+[sub_resource type="Resource" id="Start_clock"]
+script = ExtResource("64_start_clock")
+minutes_setting = &"match_duration"
+
+[sub_resource type="Resource" id="Row_pregame_done"]
+script = ExtResource("7_row")
+from = &"pregame"
+outcome = &"pregame_done"
 to = &"round"
-actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player"), SubResource("Start_clock")])
+actions = Array[ExtResource("14_effect")]([SubResource("Start_clock")])
 
 [sub_resource type="Resource" id="End_match"]
 script = ExtResource("64_end_match")
@@ -487,6 +516,6 @@ maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/hous
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
-phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
+phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_pregame"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"
-transitions = Array[ExtResource("7_row")]([SubResource("Row_lobby_all_ready"), SubResource("Row_countdown_cancelled"), SubResource("Row_countdown_done"), SubResource("Row_loading_all_loaded"), SubResource("Row_round_won"), SubResource("Row_end_back")])
+transitions = Array[ExtResource("7_row")]([SubResource("Row_lobby_all_ready"), SubResource("Row_countdown_cancelled"), SubResource("Row_countdown_done"), SubResource("Row_loading_all_loaded"), SubResource("Row_pregame_done"), SubResource("Row_round_won"), SubResource("Row_end_back")])

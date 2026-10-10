@@ -35,9 +35,12 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"MoveClaim": From.LIVING,
 		&"SetReady": From.PLAYER,
 		&"ChangeSettings": From.HOST,
+		&"SetProfile": From.PLAYER,
 	},
 	&"countdown": {&"Hello": From.NEWCOMER, &"MoveClaim": From.LIVING, &"SetReady": From.PLAYER},
 	&"loading": {&"LoadAck": From.PLAYER},
+	# The silent pregame (#213) takes nothing: a MoveClaim is dropped, the rest not_accepted.
+	&"pregame": {},
 	&"round":
 	{
 		&"MoveClaim": From.LIVING | From.DOWNED,
@@ -51,6 +54,11 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
 }
+## The intents the base mode accepts in no phase, from no sender, the host included: the part of
+## ACCEPTS that has no row above (accepts() reads an absent intent as refused). NextStage (#599,
+## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
+## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
@@ -106,6 +114,11 @@ static func _rule(
 	match intent:
 		Intents.SET_READY:
 			answer_now = RejectReasons.UNCHANGED if args.get("ready") == player.ready else &"?"
+		Intents.SET_PROFILE:
+			# The chaos peers send SetProfile the lobby takes only with the sender's own name and
+			# colour (#551): never a change, so its answer does not depend on the others'.
+			var same: bool = args.get("name") == player.name and args.get("colour") == player.colour
+			answer_now = RejectReasons.UNCHANGED if same else &"?"
 		Intents.LOAD_ACK:
 			answer_now = SILENT if args.get("match_id") != match_id else RejectReasons.UNCHANGED
 		Intents.PICK_UP:

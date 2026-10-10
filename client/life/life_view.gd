@@ -8,7 +8,8 @@ extends Node3D
 ##   margin short of the host's, raise_hint_reach_of()) sends Raise(target), its release
 ##   StopRaise() (D6); the host checks everything again.
 ## - Downed: the DownedCamera over the own body with the own look, and SightHider hiding what the
-##   body's eye could not see. G held for GIVE_UP_HOLD_S sends GiveUp() once (D6).
+##   body's eye could not see. The give_up key (F, #211) held for GIVE_UP_HOLD_S sends GiveUp()
+##   once (D6).
 ## - Dead: spectating. The first target is drawn by SpectateTargets with the client's own
 ##   generator; the left and right mouse buttons cycle; a target that goes down, dies or leaves is
 ##   replaced by a new first target. A living target is watched from its eyes (its interpolated
@@ -25,10 +26,14 @@ extends Node3D
 ## Cameras are placed in the physics step at PHYSICS_PRIORITY: after the avatars (-80) and the
 ## local player (0) moved, before SightHider (10) casts from the pivot.
 
+## The dead player switched the spectate target to another one (cycle_target), never the first
+## target drawn at the death or one replacing a lost target (the tutorial's lesson 7, #602).
+signal target_switched(peer: int)
+
 enum View { FIRST_PERSON, DOWNED, SPECTATE_EYES, SPECTATE_ABOVE }
 
 const PHYSICS_PRIORITY := 5
-## Seconds G must be held to give up (D6: a placeholder, "not a decision").
+## Seconds the give_up key must be held to give up (D6: a placeholder, "not a decision").
 const GIVE_UP_HOLD_S := 1.0
 ## How far the crosshair's ray looks for a downed player, in metres: past any reach the host
 ## grants, since the reach is checked from the feet afterwards (raise_target()).
@@ -180,7 +185,35 @@ func ears() -> Ears:
 	return _ears
 
 
-## What the life panel shows now, at the estimated host tick `tick`.
+## The own raise's progress for the HUD's raise bar (#489) at the estimated host tick `tick`:
+## 0 to 1 while the living own player raises someone, the downed player's raise bar's value;
+## negative otherwise.
+func raise_shown(tick: float) -> float:
+	if model == null or countdowns == null or _own_life() != ClientModel.Life.ALIVE:
+		return LifeCountdowns.NONE
+	if countdowns.raising() == 0:
+		return LifeCountdowns.NONE
+	return countdowns.raise_progress(tick)
+
+
+## The rescuer's cue in the HUD's Aim (#497, the engineer on PR #721): the label of the raise key
+## bound now (KeyLabel's `interact`) while the living own player's crosshair is on a downed player E
+## would raise (raise_target()) and nobody raises yet (raiser_of(); the host lets one raiser at a
+## time, ChannelFree); "" otherwise. It offers what E does, so it follows the mode's raise: the
+## base mode's raise has no team condition (anyone raises any downed player), so a dissident sees
+## it over a downed engineer too. Whether a player is downed and who raises them are public
+## (RaiseStarted); nothing else of the downed player is in it.
+func raise_cue() -> String:
+	if model == null or _own_life() != ClientModel.Life.ALIVE:
+		return ""
+	var downed := raise_target()
+	if downed == 0 or model.raiser_of(downed) != 0:
+		return ""
+	return KeyLabel.of_action(&"interact")
+
+
+## What the downed, dead and respawn screen shows now (LifeScreen, #497), at the estimated host
+## tick `tick`.
 func hud(tick: float) -> LifeHud.Shown:
 	if model == null or countdowns == null:
 		return LifeHud.Shown.new()
@@ -188,7 +221,7 @@ func hud(tick: float) -> LifeHud.Shown:
 	local.watching = _target if _is_dead() else 0
 	local.give_up_held_s = _give_up_held_s
 	local.give_up_hold_s = GIVE_UP_HOLD_S
-	local.can_raise = _own_life() == ClientModel.Life.ALIVE and _raise_peer != 0
+	local.read_keys()
 	return LifeHud.of(model, countdowns, tick, local)
 
 
@@ -209,7 +242,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 				session.send_intent(Intents.STOP_RAISE)
 
 
-## Sends GiveUp() while downed (G held long enough); once per knockdown.
+## Sends GiveUp() while downed (the give_up key, F, held long enough); once per knockdown.
 func give_up() -> void:
 	if _own_life() != ClientModel.Life.DOWNED or _gave_up:
 		return
@@ -265,8 +298,11 @@ func _cast_raise_target() -> int:
 func cycle_target(step: int) -> void:
 	if not _is_dead():
 		return
+	var before := _target
 	_target = SpectateTargets.cycle(model, model.own_peer, _target, step)
 	_target_life = model.life_of(_target)
+	if before != 0 and _target != 0 and _target != before:
+		target_switched.emit(_target)
 
 
 func _process(delta: float) -> void:
@@ -278,7 +314,7 @@ func _process(delta: float) -> void:
 	var was_captured := _was_captured
 	_was_captured = captured
 	if not listening:
-		# Nothing reads the keys now (the Esc menu): a held E or G must not keep acting.
+		# Nothing reads the keys now (the Esc menu): a held raise or give-up key must not keep acting.
 		_give_up_held_s = 0.0
 		if _raise_wanted:
 			release_raise()

@@ -79,6 +79,13 @@ const MASK_TICKS := 32
 var keep_history := false
 ## False for a bot: it acknowledges LoadMatch without loading the scene (§4.6).
 var load_levels := true
+## The name Hello asks for (#550), always as PlayerNames.clean leaves it (an assignment is cleaned,
+## so Hello always encodes): "" asks for none, and the host names the player Player<n>. The host
+## decides the final name (a duplicate gets a suffix); the model's roster holds it once Welcome
+## arrives.
+var player_name := "":
+	set(value):
+		player_name = PlayerNames.clean(value)
 var view := DecodedView.new()
 var model: ClientModel
 ## Why the session ended; empty while it runs.
@@ -128,6 +135,8 @@ var _on_floor := true
 ## The map being loaded and the match it is for; empty when nothing loads.
 var _loading := ""
 var _loading_match := -1
+## The match whose LoadAck this session sent (load_progress); -1 before any.
+var _acked_match := -1
 ## Threaded loads nobody waits for any more (the session ended, or a newer LoadMatch replaced
 ## them): each is collected once it is done, or ResourceLoader would keep its scene for good.
 var _abandoned := PackedStringArray()
@@ -138,8 +147,12 @@ var _placement_due := false
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
-## the client's own copy of the game mode, whose ContentFingerprint Hello carries.
-func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -> void:
+## the client's own copy of the game mode, whose ContentFingerprint Hello carries; `own_name` is
+## the name Hello asks for (UserSettings.player_name).
+func _init(
+	transport: NetTransport, mode: GameMode, schema: WireSchema = null, own_name := ""
+) -> void:
+	player_name = own_name
 	_transport = transport
 	_mode = mode
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
@@ -179,6 +192,17 @@ func is_welcomed() -> bool:
 
 func is_ended() -> bool:
 	return not end_reason.is_empty()
+
+
+## This machine's map load for the last LoadMatch, 0 to 1, for the loading screen's bar (#494): the
+## threaded load's own progress while it runs, 1 once its LoadAck went out, 0 before any LoadMatch.
+func load_progress() -> float:
+	if _loading.is_empty():
+		return 1.0 if _loading_match >= 0 and _acked_match == _loading_match else 0.0
+	var progress: Array = []
+	ResourceLoader.load_threaded_get_status(_loading, progress)
+	var done: float = progress[0] if not progress.is_empty() else 0.0
+	return clampf(done, 0.0, 1.0)
 
 
 ## The own connection's kind (the M6 design §3 item 4, #431): its own transport's, never another
@@ -316,7 +340,7 @@ func _on_host_lost() -> void:
 
 
 func _on_connected(_own_id: int) -> void:
-	var hello := {"version": WireSchema.VERSION, "content": _content}
+	var hello := {"version": WireSchema.VERSION, "content": _content, "name": player_name}
 	_send(WireMessage.new(&"Hello", hello))
 
 
@@ -505,6 +529,7 @@ func _start_load(match_id: int, map: String) -> void:
 	_loading_match = match_id
 	if not load_levels:
 		send_intent(Intents.LOAD_ACK, {"match_id": match_id})
+		_acked_match = match_id
 		return
 	_abandon_load()
 	var abandoned := _abandoned.find(map)
@@ -535,6 +560,7 @@ func _advance_load() -> void:
 	map_loaded.emit(path, scene)
 	if not is_ended():
 		send_intent(Intents.LOAD_ACK, {"match_id": _loading_match})
+		_acked_match = _loading_match
 
 
 ## The load in flight, if any, is no longer waited for.

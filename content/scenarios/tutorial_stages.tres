@@ -1,0 +1,132 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://dvjsqwy2am28a"]
+
+[ext_resource type="Resource" uid="uid://dq7du0mlbubnk" path="res://content/modes/tutorial_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_never"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_step"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="6_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="7_wait_for"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="8_walk_to"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="9_target"]
+[ext_resource type="Script" uid="uid://ptio2h3ytwk5" path="res://core/content/scenario/step_next_stage.gd" id="10_next_stage"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="11_wait"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="12_expect"]
+[ext_resource type="Script" uid="uid://blv7jx8tyu0gn" path="res://core/content/scenario/step_raise.gd" id="13_raise"]
+
+[sub_resource type="Resource" id="Never_died_2"]
+script = ExtResource("2_never")
+event = &"Died"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Never_died_3"]
+script = ExtResource("2_never")
+event = &"Died"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("6_ready")
+
+[sub_resource type="Resource" id="Wait_lessons"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "lessons"
+}
+
+[sub_resource type="Resource" id="Next_stage"]
+script = ExtResource("10_next_stage")
+
+[sub_resource type="Resource" id="In_raise_stage"]
+script = ExtResource("12_expect")
+event = &"PhaseChanged"
+fields = {
+"phase": "raise_stage"
+}
+
+[sub_resource type="Resource" id="Wait_past_knockdown"]
+script = ExtResource("11_wait")
+seconds = 11.0
+
+[sub_resource type="Resource" id="Target_bot2"]
+script = ExtResource("9_target")
+kind = 3
+bot = 2
+
+[sub_resource type="Resource" id="Walk_to_bot2"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_bot2")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Raise_bot2"]
+script = ExtResource("13_raise")
+target = SubResource("Target_bot2")
+hold_s = 4.0
+
+[sub_resource type="Resource" id="Revived_2"]
+script = ExtResource("12_expect")
+event = &"Revived"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Died_1"]
+script = ExtResource("12_expect")
+event = &"Died"
+fields = {
+"peer": 1
+}
+
+[sub_resource type="Resource" id="Wait_respawned_1"]
+script = ExtResource("7_wait_for")
+event = &"Respawned"
+fields = {
+"peer": 1
+}
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_lessons"), SubResource("Next_stage"), SubResource("In_raise_stage"), SubResource("Wait_past_knockdown"), SubResource("Walk_to_bot2"), SubResource("Raise_bot2"), SubResource("Revived_2"), SubResource("Next_stage"), SubResource("Died_1"), SubResource("Wait_respawned_1")])
+
+[sub_resource type="Resource" id="Wait_knocked_down_2"]
+script = ExtResource("7_wait_for")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Wait_revived_2"]
+script = ExtResource("7_wait_for")
+event = &"Revived"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="B2_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_lessons"), SubResource("Wait_knocked_down_2"), SubResource("Wait_revived_2"), SubResource("Wait_respawned_1")])
+
+[sub_resource type="Resource" id="Wait_death_stage"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "death_stage"
+}
+
+[sub_resource type="Resource" id="B3_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_lessons"), SubResource("Wait_knocked_down_2"), SubResource("Wait_death_stage"), SubResource("Wait_respawned_1")])
+
+[resource]
+script = ExtResource("3_scenario")
+mode = ExtResource("1_mode")
+session_seed = 600000000001
+bots = 3
+scripts = Array[ExtResource("4_script")]([SubResource("B1_script"), SubResource("B2_script"), SubResource("B3_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 90.0
+never = Array[ExtResource("2_never")]([SubResource("Never_died_2"), SubResource("Never_died_3")])

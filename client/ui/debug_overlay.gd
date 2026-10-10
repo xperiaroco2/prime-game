@@ -36,7 +36,7 @@ func _init() -> void:
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
-	position = Vector2(8, 8)
+	position = Vector2(13, 13)
 	label.theme_type_variation = &"DebugText"
 	relay_label.theme_type_variation = &"DebugText"
 	relay_label.visible = false

@@ -8,12 +8,14 @@ extends RefCounted
 ## refuses joins gets `joins_closed` (Match._refuse, E14), and drop_newcomers disconnects the
 ## waiting newcomers when a phase freezes the roster (Loading's entry).
 ##
-## The host names every joiner Player<n>, n counting the session's joins (MatchState.joins); the
-## name a Hello carries is ignored in the MVP (#73). The joiner's spot is a placeholder, "not a
-## decision".
+## A joiner is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or Player<n> when
+## nothing usable is left (n counting the session's joins, MatchState.joins); a name a present
+## player has gets a suffix (PlayerNames.unique). A joiner takes the first body colour no present
+## player has (PlayerColours, #551); SetProfile changes name and colour in the lobby (set_profile).
+## The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 9
+const PROTOCOL_VERSION := 14
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -37,10 +39,12 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## hash must be the host's (Match.content_hash), else Rejected (`wrong_content`) and
 ## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
-## this build can read (§4.3). Accepted: the joiner is named Player<n> by the session's join
-## count, placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
-## SettingsChanged (everyone).
-static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
+## this build can read (§4.3). Accepted: the join is counted, the joiner named (joiner_name),
+## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
+## with a new epoch; Welcome (the joiner), PlayerJoined and
+## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back. `spec`
+## is the phase's own (its id goes into Welcome, its level decides the spot).
+static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
 		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
@@ -60,16 +64,31 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 		_drop(ctx, peer)
 		return false
 	ctx.state.newcomers.erase(peer)
-	var spot := _free_spot(ctx)
-	var player_name := ctx.state.name_next_joiner()
+	var spot := _free_spot(ctx, spec)
+	var player_name := joiner_name(ctx, command.field("name"))
+	var colour := PlayerColours.first_free(_colours_of_others(ctx, peer))
 	var joined := ctx.state.add_player(peer, player_name)
+	joined.colour = colour
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
 	joined.epoch += 1
-	ctx.emit(_welcome(ctx, joined, phase_id))
-	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
+	ctx.emit(_welcome(ctx, joined, spec.id))
+	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot, colour))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
+
+
+## Counts an accepted join and names the joiner (§3.5, #550): `wanted` as PlayerNames.clean leaves
+## it, or the session's Player<n> (MatchState.name_next_joiner) when that is empty (no name, the
+## wrong type, blanks or controls only); then PlayerNames.unique against the present players, so
+## neither a chosen name nor the fallback repeats one ("Dima", then "Dima 2").
+static func joiner_name(ctx: MatchContext, wanted: Variant) -> String:
+	var fallback := ctx.state.name_next_joiner()
+	var cleaned := PlayerNames.clean(wanted)
+	var taken := PackedStringArray()
+	for peer: int in ctx.state.present_peers():
+		taken.append(ctx.state.players[peer].name)
+	return PlayerNames.unique(fallback if cleaned.is_empty() else cleaned, taken)
 
 
 ## Disconnects every newcomer still waiting (DisconnectPeer each, in peer-id order, no Rejected:
@@ -123,12 +142,65 @@ static func set_ready(ctx: MatchContext, command: MatchCommand, ready: bool) -> 
 	return true
 
 
+## SetProfile(name, colour) from a player (§3.5, §4.1, #551): true when the profile changed. In
+## order: a `name` that is not text or a `colour` that is not an int is Rejected (`bad_args`); a
+## colour outside PlayerColours is `out_of_bounds`. The name as PlayerNames cleans it, made unique
+## against the other present players (so re-sending one's own "Dima 2" keeps it); a name with
+## nothing usable left keeps the current one, and never counts a join (MatchState.joins numbers
+## joins only). The colour as asked when no other present player has it, else the first free one
+## (the engineer's answer on #73). Both as they are: Rejected (`unchanged`). Otherwise both are set
+## and ProfileChanged goes to everyone. The ready flag is untouched.
+static func set_profile(ctx: MatchContext, command: MatchCommand) -> bool:
+	var wanted_name: Variant = command.field("name")
+	var wanted_colour: Variant = command.field("colour")
+	if not (wanted_name is String or wanted_name is StringName) or not wanted_colour is int:
+		ctx.reject(command, RejectReasons.BAD_ARGS)
+		return false
+	if not PlayerColours.is_valid(wanted_colour):
+		ctx.reject(command, RejectReasons.OUT_OF_BOUNDS)
+		return false
+	var player := ctx.state.player(command.peer)
+	var player_name := player.name
+	var cleaned := PlayerNames.clean(wanted_name)
+	if not cleaned.is_empty():
+		var taken := PackedStringArray()
+		for peer: int in ctx.state.present_peers():
+			if peer != command.peer:
+				taken.append(ctx.state.players[peer].name)
+		player_name = PlayerNames.unique(cleaned, taken)
+	var colour := PlayerColours.resolve(wanted_colour as int, _colours_of_others(ctx, command.peer))
+	if player_name == player.name and colour == player.colour:
+		ctx.reject(command, RejectReasons.UNCHANGED)
+		return false
+	player.name = player_name
+	player.colour = colour
+	ctx.emit(ProfileChangedEvent.new(command.peer, player_name, colour))
+	return true
+
+
+## The colours of the present players other than `peer`.
+static func _colours_of_others(ctx: MatchContext, peer: int) -> Array[int]:
+	var taken: Array[int] = []
+	for other: int in ctx.state.present_peers():
+		if other != peer:
+			taken.append(ctx.state.players[other].colour)
+	return taken
+
+
 static func _drop(ctx: MatchContext, peer: int) -> void:
 	ctx.state.newcomers.erase(peer)
 	ctx.emit(DisconnectPeerEvent.new(peer))
 
 
-static func _free_spot(ctx: MatchContext) -> Vector3:
+## Where a joiner stands (§3.5). In a phase at no level (PhaseSpec.Level.NONE: the tutorial's
+## `gather`, E72) the origin, with no error: nobody sees it and the deal places everyone. Otherwise
+## the first lobby_player marker of the phase's level with no player within SPOT_CLEARANCE_M, or
+## the first marker when all are taken; none (no marker, or the layout failed to load: null) is a
+## match error and the origin. Keyed on the spec's level, never on ctx.layout being null, which
+## both cases have.
+static func _free_spot(ctx: MatchContext, spec: PhaseSpec) -> Vector3:
+	if spec.level == PhaseSpec.Level.NONE:
+		return Vector3.ZERO
 	var spots := PackedVector3Array()
 	if ctx.layout != null:
 		spots = ctx.layout.positions(LayoutCheck.LOBBY_PLAYER)
@@ -151,10 +223,13 @@ static func _welcome(ctx: MatchContext, joined: PlayerState, phase_id: StringNam
 	var welcome := WelcomeEvent.new(joined.peer, joined.position, joined.epoch)
 	for peer: int in ctx.state.present_peers():
 		var player := ctx.state.players[peer]
-		welcome.roster.append({"peer": peer, "name": player.name, "ready": player.ready})
+		welcome.roster.append(
+			{"peer": peer, "name": player.name, "ready": player.ready, "colour": player.colour}
+		)
 		if peer != joined.peer:
 			welcome.positions[peer] = player.position
 	welcome.settings = ctx.state.settings.duplicate()
 	welcome.map = ctx.state.map
 	welcome.phase = phase_id
+	welcome.lobby_name = ctx.state.lobby_name
 	return welcome

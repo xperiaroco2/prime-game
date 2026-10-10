@@ -7,7 +7,9 @@ extends RefCounted
 ##   trailing bytes) and the codec's (a bool that is not 0 or 1, an item 0xFFFF, a peer 0, a NaN or
 ##   infinite float, unknown flag bits, an id with a capital letter, bytes after the last field, an
 ##   empty Opus frame), and the debug kinds (ForceRole, kind 24; ForceClock, kind 25, one second)
-##   from a peer other than 1, which the host counts as bad payloads (E17). Each Packet names the
+##   from a peer other than 1, which the host counts as bad payloads (E17); and NextStage's (kind
+##   15, #599): 0 to 3 bytes where its seq goes (the codec's bad payload), and its seq with 1 to 4
+##   bytes after it (over the row's cap of 4, NetFrame's payload too large). Each Packet names the
 ##   NetRejects reason it must be counted under (`expect`);
 ## - well-formed intents (message()), whose answer the rules give (ChaosOracle);
 ## - hostile MoveClaims (Claim), tagged in their velocity so the host's observer can tell them from
@@ -37,6 +39,11 @@ enum Shape {
 	EMPTY_OPUS,
 	DEBUG_KIND,
 	DEBUG_CLOCK,
+	NEXT_STAGE_NO_SEQ,
+	NEXT_STAGE_TRAILING,
+	SET_PROFILE_NO_COLOUR,
+	SET_PROFILE_TRAILING,
+	SET_PROFILE_BAD_NAME,
 }
 
 ## The hostile MoveClaims. STALE_TICK repeats a client tick the host already has: dropped, or, as
@@ -57,10 +64,12 @@ const TELEPORT_M := 80.0
 const SPEED_M := 6.0
 ## How far past its last claim a "future" client tick goes: past MAX_TICK_CREDIT (200 ticks).
 const FUTURE_TICKS := 5000
-## Kinds no row of the table has (0 is the transport's ADMIT, never a client's).
 ## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
 const RANDOM_CLAIMS := Claim.NEAR_ITEM
-const UNASSIGNED: Array[int] = [0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## Kinds no row of the table has (0 is the transport's ADMIT, never a client's). 15 left it when
+## NextStage took it (#599), 16 took its place; 16 and 66 left it when SetProfile and
+## ProfileChanged took them (#551), 17 and 67 took theirs.
+const UNASSIGNED: Array[int] = [0, 17, 19, 23, 26, 31, 67, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## MoveClaim's layout (§4.3), its RELIABLE twin's too: the first float of position, velocity and
 ## facing, and the flags (jumps, sprint_ticks and moved_ticks follow them).
 const CLAIM_FLOATS_AT := 8
@@ -126,7 +135,7 @@ static func malformed(
 	shape: Shape, rng: RandomNumberGenerator, schema: WireSchema, own: int
 ) -> Packet:
 	var packet: Packet
-	if shape <= Shape.TRAILING:
+	if shape <= Shape.TRAILING or shape == Shape.NEXT_STAGE_TRAILING:
 		packet = _bad_frame(shape, rng, schema)
 	else:
 		packet = _bad_payload(shape, rng, schema, own)
@@ -232,6 +241,13 @@ static func _bad_frame(shape: Shape, rng: RandomNumberGenerator, schema: WireSch
 			longer.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
 			packet.bytes = longer
 			packet.expect = NetRejects.Reason.TRAILING_BYTES
+		Shape.NEXT_STAGE_TRAILING:
+			# NextStage's seq with bytes after it, declared in full: a valid payload is exactly
+			# the row's cap, so NetFrame refuses it before the codec could see the extra bytes.
+			var next_stage := schema.encode(WireMessage.new(&"NextStage", {}, CHAOS_SEQ))
+			next_stage.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
+			packet.bytes = NetFrame.encode(schema.kind_of(&"NextStage"), next_stage)
+			packet.expect = NetRejects.Reason.PAYLOAD_TOO_LARGE
 	return packet
 
 
@@ -284,6 +300,12 @@ static func _bad_payload(
 			# would end the round in a second, and the ends would differ from the baseline's.
 			var clock := {"seconds": 1}
 			packet = message(schema, &"ForceClock", clock, CHAOS_SEQ, maxi(own, 2))
+		Shape.NEXT_STAGE_NO_SEQ:
+			# NextStage without its whole seq: NetFrame takes the frame, the codec cannot read it.
+			var short := _random_bytes(rng, rng.randi_range(0, 3))
+			packet = framed(schema.kind_of(&"NextStage"), short, NetKindTable.Lane.RELIABLE)
+		Shape.SET_PROFILE_NO_COLOUR, Shape.SET_PROFILE_TRAILING, Shape.SET_PROFILE_BAD_NAME:
+			packet = _bad_profile(shape, rng, schema)
 		_:
 			# DEBUG_KIND: a well-formed ForceRole from a peer other than 1 (E17).
 			var role := {"role": "dissident"}
@@ -306,3 +328,19 @@ static func _random_bytes(rng: RandomNumberGenerator, count: int) -> PackedByteA
 	for i in count:
 		bytes[i] = rng.randi_range(0, 255)
 	return bytes
+
+
+## A SetProfile the codec refuses (#551), under its cap so NetFrame takes it: without its colour
+## byte, with bytes after it, or with a name that is not UTF-8 (a lone continuation byte).
+static func _bad_profile(shape: Shape, rng: RandomNumberGenerator, schema: WireSchema) -> Packet:
+	var fields := {"name": "Hostile", "colour": rng.randi_range(0, 9)}
+	var payload := schema.encode(WireMessage.new(&"SetProfile", fields, CHAOS_SEQ))
+	match shape:
+		Shape.SET_PROFILE_NO_COLOUR:
+			payload = payload.slice(0, payload.size() - 1)
+		Shape.SET_PROFILE_TRAILING:
+			payload.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
+		_:
+			# seq 4 bytes, the name's length byte, then its first byte.
+			payload[5] = 0x80 + rng.randi_range(0, 0x3F)
+	return framed(schema.kind_of(&"SetProfile"), payload, NetKindTable.Lane.RELIABLE)

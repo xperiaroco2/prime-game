@@ -2,9 +2,9 @@ class_name ItemWorld
 extends Node3D
 ## M4-8's part of the round under World (ARCHITECTURE §4.7): the items (ItemViews), the circles
 ## and the destination marker (CircleViews), the item keys and the crosshair's target
-## (ItemInteractions) and the placeholder world sounds (WorldSounds), all from the own ClientModel,
+## (ItemInteractions) and the world sounds (WorldSounds), all from the own ClientModel,
 ## the interpolated poses and the client's own copy of the mode. It also gives the HUD what the
-## model does not hold (`hud_local`): the predicted stamina and the crosshair's hint.
+## model does not hold (`hud_local`): the predicted stamina and the item under the crosshair.
 
 var items := ItemViews.new()
 var circles := CircleViews.new()
@@ -69,7 +69,7 @@ func hud_local() -> HudText.Local:
 	var local := HudText.Local.new()
 	if _player != null and _player.stamina != null:
 		local.stamina = _player.stamina.get_stamina()
-	local.hint = interactions.hint()
+	local.aim = interactions.target()
 	return local
 
 

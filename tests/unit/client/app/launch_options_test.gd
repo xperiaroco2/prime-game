@@ -56,6 +56,31 @@ func test_the_game_may_start_with_neither_but_the_headless_session_may_not() -> 
 	assert_str(both.problem).contains("not both")
 
 
+func test_tutorial_arguments_and_whether_any_was_given() -> void:
+	# #601: --tutorial is the game window's alone, and any argument keeps the first launch's
+	# tutorial off (E70), a wrong one too.
+	var tutorial := LaunchOptions.parse(PackedStringArray(["--tutorial", "--stop-file=x"]), true)
+	assert_str(tutorial.problem).is_empty()
+	assert_bool(tutorial.tutorial).is_true()
+	assert_bool(tutorial.given).is_true()
+	assert_bool(tutorial.hosting or tutorial.joining).is_false()
+	var none := LaunchOptions.parse(PackedStringArray([]), true)
+	assert_bool(none.given or none.tutorial).is_false()
+	assert_bool(LaunchOptions.parse(PackedStringArray(["--port=24999"]), true).given).is_true()
+	assert_bool(LaunchOptions.parse(PackedStringArray(["--nonsense"]), true).given).is_true()
+	var cases: Dictionary[String, PackedStringArray] = {
+		"give either --tutorial": PackedStringArray(["--tutorial", "--host"]),
+		"not both": PackedStringArray(["--tutorial", "--join=1.2.3.4"]),
+		"for the host only": PackedStringArray(["--tutorial", "--local"]),
+		"--code and --room= are for the host only": PackedStringArray(["--tutorial", "--code"]),
+	}
+	for expected: String in cases:
+		var options := LaunchOptions.parse(cases[expected], true)
+		assert_str(options.problem).override_failure_message(expected).contains(expected)
+	var headless := LaunchOptions.parse(PackedStringArray(["--tutorial"]))
+	assert_str(headless.problem).contains("not the headless session")
+
+
 func test_the_runners_files() -> void:
 	var options := LaunchOptions.parse(PackedStringArray(["--host"]))
 	assert_bool(options.stop_requested()).is_false()

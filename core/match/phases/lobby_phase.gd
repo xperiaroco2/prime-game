@@ -2,16 +2,17 @@ class_name LobbyPhase
 extends Phase
 ## The base mode's Lobby (ARCHITECTURE §3.2, §3.5, §9.4). On entry AllowJoins (server). Joins
 ## (Hello: Welcome, PlayerJoined, SettingsChanged), leaves (PlayerLeft, SettingsChanged),
-## SetReady (true or false, only a change: ReadyChanged) and the host's ChangeSettings
-## (SettingsChanged; a change un-readies nobody). Reports `all_ready` when every player is ready
-## and the settings fit the map (FitCheck): after a SetReady, a settings change, a leave, and on
-## entry, so a lobby re-entered with everyone still ready moves on at once.
+## SetReady (true or false, only a change: ReadyChanged), a player's SetProfile (its name and body
+## colour, only a change: ProfileChanged, #551; it leaves the ready flags as they are) and the
+## host's ChangeSettings (SettingsChanged; a change un-readies nobody). Reports `all_ready` when
+## every player is ready and the settings fit the map (FitCheck): after a SetReady, a settings
+## change, a leave, and on entry, so a lobby re-entered with everyone still ready moves on at once.
 
 const ALL_READY := &"all_ready"
 
 
 func handled_intents() -> Array[StringName]:
-	return [Intents.HELLO, Intents.SET_READY, Intents.CHANGE_SETTINGS]
+	return [Intents.HELLO, Intents.SET_READY, Intents.CHANGE_SETTINGS, Intents.SET_PROFILE]
 
 
 func outcomes() -> Array[StringName]:
@@ -27,7 +28,7 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	match command.kind:
 		Intents.HELLO:
 			# A joiner is not ready, so a join never completes all_ready.
-			JoinRules.hello(ctx, command, spec.id)
+			JoinRules.hello(ctx, command, spec)
 		Intents.SET_READY:
 			if not JoinRules.has_ready_flag(ctx, command):
 				return
@@ -36,6 +37,9 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 		Intents.CHANGE_SETTINGS:
 			if _change_settings(ctx, command):
 				_check_all_ready(ctx)
+		Intents.SET_PROFILE:
+			# A profile changes no ready flag and no setting, so it never completes all_ready.
+			JoinRules.set_profile(ctx, command)
 		_:
 			ctx.reject(command, RejectReasons.NOTHING_TO_DO)
 
@@ -50,8 +54,10 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 		_check_all_ready(ctx)
 
 
-## ChangeSettings(settings, map) from the host (§4.1): `settings` maps setting ids to values and
-## names only the settings that change; `map` is optional. A whole-number setting takes an int; a
+## ChangeSettings(settings, map, lobby_name) from the host (§4.1): `settings` maps setting ids to
+## values and names only the settings that change; `map` is optional, and so is `lobby_name`
+## (#214), which LobbyName cleans and never refuses for its content ("" is the default again); only
+## a value that is not text is refused (`bad_args`). A whole-number setting takes an int; a
 ## set of task types (the bans, #79) takes an Array of task type ids, which replaces the set.
 ## Every value is checked before any is applied: a key the mode does not declare, or a value of
 ## the wrong type (`unknown_setting`); a number outside its bounds, or an id that is not one of
@@ -89,6 +95,13 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 			ctx.reject(command, RejectReasons.UNKNOWN_MAP)
 			return false
 		map = asked as String
+	var lobby := ctx.state.lobby_name
+	if command.has_field("lobby_name"):
+		var named: Variant = command.field("lobby_name")
+		if not (named is String or named is StringName):
+			ctx.reject(command, RejectReasons.BAD_ARGS)
+			return false
+		lobby = LobbyName.clean(named)
 	for row: Transition in ctx.mode.transitions:
 		if row == null:
 			continue
@@ -102,6 +115,7 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 	ctx.state.settings = numbers
 	ctx.state.id_sets = sets
 	ctx.state.map = map
+	ctx.state.lobby_name = lobby
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
 

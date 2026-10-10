@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The voice rules through the base mode's phases (ARCHITECTURE §6, §9.5), with the base mode's
 ## phase classes and rows built in code (FixtureBaseMode) and its voice rules: Lobby and
-## Countdown ProximityVoice 8 m, Loading and End SilentVoice, Round RoundVoice 8 m. A match is
-## driven through Lobby -> Countdown -> Loading -> Round -> End -> Lobby, and on every tick
+## Countdown ProximityVoice 8 m, Loading, Pregame and End SilentVoice, Round RoundVoice 8 m. A
+## match is driven through Lobby -> Countdown -> Loading -> Pregame -> Round -> End -> Lobby, and
+## on every tick
 ## view_of(peer).speakers is compared with the pairs the phase's rule allows, and with the voice
 ## invariant (§6) written independently of the rules: every speaker is living.
 
@@ -29,6 +30,12 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	_check_ticks(game, 3, seen)
 	for peer: int in PEERS:
 		FixtureBaseMode.load_ack(game, peer)
+	# Pregame routes nobody on every tick of its 3 s (#213), with everyone placed within 2 m of each
+	# other, then the round begins by itself.
+	assert_str(game.phase_id()).is_equal("pregame")
+	_check_ticks(game, FixtureBaseMode.PREGAME_TICKS, seen)
+	assert_str(game.phase_id()).is_equal("pregame")
+	_check_ticks(game, 1, seen)
 	assert_str(game.phase_id()).is_equal("round")
 	_check_ticks(game, 2, seen)
 	# P2 is downed beside P1; P3 walks off, out of every radius.
@@ -41,25 +48,29 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	_check_ticks(game, 1, seen)
 	game.state.set_counter(0, &"crew_win", 0)
 	assert_str(game.phase_id()).is_equal("end")
-	_check_ticks(game, 3, seen)
-	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	# End routes nobody on every tick of its 3 s, until it returns everyone by itself (#212; the
+	# silent post game of #213 relies on it).
+	_check_ticks(game, 3 * Ticks.RATE - 1, seen)
+	assert_str(game.phase_id()).is_equal("end")
+	_check_ticks(game, 1, seen)
 	assert_str(game.phase_id()).is_equal("lobby")
 	_check_ticks(game, 3, seen)
 	# Every phase was checked, and the phases with voice routed some pair.
 	assert_array(seen.keys()).contains_exactly_in_any_order(
-		[&"lobby", &"countdown", &"loading", &"round", &"end"]
+		[&"lobby", &"countdown", &"loading", &"pregame", &"round", &"end"]
 	)
 	assert_int(seen[&"lobby"]).is_greater(0)
 	assert_int(seen[&"countdown"]).is_greater(0)
 	assert_int(seen[&"round"]).is_greater(0)
 	assert_int(seen[&"loading"]).is_equal(0)
+	assert_int(seen[&"pregame"]).is_equal(0)
 	assert_int(seen[&"end"]).is_equal(0)
 
 
 func test_each_phase_s_hearing_radius_is_where_its_routing_stops() -> void:
 	# E41: VoiceRule.radius_of the phase's rule, what the client's cutoff and the leak test read:
-	# 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. In each phase P2 stands
-	# at that radius from P1 and P3 just past it: P2 is heard where the radius is not 0.
+	# 8 m in the Lobby, the Countdown and the Round, 0 in Loading, Pregame and End. In each phase P2
+	# stands at that radius from P1 and P3 just past it: P2 is heard where the radius is not 0.
 	var game := _started()
 	var radius_in: Dictionary[StringName, float] = {}
 	for peer: int in PEERS:
@@ -75,6 +86,10 @@ func test_each_phase_s_hearing_radius_is_where_its_routing_stops() -> void:
 	_check_radius(game, radius_in)
 	for peer: int in PEERS:
 		FixtureBaseMode.load_ack(game, peer)
+	assert_str(game.phase_id()).is_equal("pregame")
+	_check_radius(game, radius_in)
+	while game.phase_id() == &"pregame":
+		FixtureModes.run_ticks(game, 1)
 	assert_str(game.phase_id()).is_equal("round")
 	_check_radius(game, radius_in)
 	game.state.add_to_counter(0, &"crew_win", 1)
@@ -83,7 +98,12 @@ func test_each_phase_s_hearing_radius_is_where_its_routing_stops() -> void:
 	assert_str(game.phase_id()).is_equal("end")
 	_check_radius(game, radius_in)
 	var want: Dictionary[StringName, float] = {
-		&"lobby": RADIUS_M, &"countdown": RADIUS_M, &"loading": 0.0, &"round": RADIUS_M, &"end": 0.0
+		&"lobby": RADIUS_M,
+		&"countdown": RADIUS_M,
+		&"loading": 0.0,
+		&"pregame": 0.0,
+		&"round": RADIUS_M,
+		&"end": 0.0,
 	}
 	assert_dict(radius_in).is_equal(want)
 
@@ -143,6 +163,7 @@ func _in_round() -> Match:
 	FixtureModes.run_ticks(game, 101)
 	for peer: int in PEERS:
 		FixtureBaseMode.load_ack(game, peer)
+	FixtureBaseMode.through_pregame(game)
 	assert_str(game.phase_id()).is_equal("round")
 	return game
 
@@ -157,6 +178,7 @@ func _mode() -> GameMode:
 	mode.find_phase(&"lobby").voice_rule = near
 	mode.find_phase(&"countdown").voice_rule = near
 	mode.find_phase(&"loading").voice_rule = SilentVoice.new()
+	mode.find_phase(&"pregame").voice_rule = SilentVoice.new()
 	mode.find_phase(&"round").voice_rule = round_voice
 	mode.find_phase(&"end").voice_rule = SilentVoice.new()
 	return mode
@@ -210,7 +232,7 @@ func _check_ticks(game: Match, count: int, seen: Dictionary[StringName, int]) ->
 ## The speakers the base mode's §6 table allows `listener` in `phase`, from the state alone.
 func _expected(game: Match, phase: StringName, listener: int) -> Array:
 	var want := []
-	if phase == &"loading" or phase == &"end":
+	if phase in [&"loading", &"pregame", &"end"]:
 		return want
 	var ear := game.state.player(listener)
 	for speaker: int in game.state.present_peers():

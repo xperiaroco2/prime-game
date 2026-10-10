@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The game (client/app/game.tscn, ARCHITECTURE §4.7) headless through a whole loop: a host and
 ## two clients, three Game roots in one tree over a LoopbackHub on a simulated clock, go through
-## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
-## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
-## screens call (headless runs have no input); the screens themselves are `shot`.
+## the lobby, Ready, the countdown, loading, the round, time up, the end screen and, 3 s later with
+## no intent, back to the lobby, then a client leaves and the host closes. Each Game is driven
+## through the methods its screens call (headless runs have no input); the screens themselves are
+## `shot`.
 ##
 ## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
 ## one shared physics space each player stood inside the body another game drew of it and was
@@ -94,17 +95,22 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	assert_bool(_all_on(games, S.END, 3)).is_false()
 	for game: Game in games:
 		game.set_process(true)
-	# The end screen names the winning side by its display name.
+	# The end screen names the winning side (#498): on the title plate for its players, as plain
+	# text for the others.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
 	for game: Game in games:
-		var winner := game.mode.find_side(game.client().model.winner)
-		assert_object(winner).is_not_null()
-		assert_str(game.ui.end.winner_label.text).is_equal("The %s won" % winner.display_name)
-		assert_bool(game.ui.end.back_button.visible).is_equal(game.hosting())
-		# No click outside the end screen's button captures the mouse again.
+		var model := game.client().model
+		assert_object(game.mode.find_side(model.winner)).is_not_null()
+		var won := game.mode.find_role(model.role).side == model.winner
+		var shown := game.ui.end.winner_shown()
+		assert_object(shown).is_same(game.ui.end.winner_label if won else game.ui.end.loser_label)
+		assert_bool(shown.is_visible_in_tree()).is_true()
+		assert_str(shown.text).is_equal(EndScreen.SIDE_KEYS[model.winner])
+		# Everyone, the host too, sees the countdown to the lobby and no button (#212).
+		assert_str(game.ui.end.countdown_label.text).starts_with("Back to the lobby in ")
+		assert_array(game.ui.end.find_children("*", "BaseButton", true, false)).is_empty()
 		assert_bool(game.player().reads_device_input).is_false()
-	# The host's Back to lobby: the lobby level again, the match's facts gone.
-	host.return_to_lobby()
+	# With no intent, End's 3 s pass: the lobby level again, the match's facts gone.
 	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.LOBBY)
@@ -117,10 +123,15 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	var stayed: Array[Game] = [host, one]
 	assert_bool(await _until(games, _all_on.bind(stayed, S.LOBBY, 2))).is_true()
 	host.leave()
-	assert_bool(await _until(games, func() -> bool: return one.screen() == S.MENU)).is_true()
+	# The host's own leaving goes straight to the menu; the client sees `lost` first (#494).
+	assert_int(host.screen()).is_equal(S.MENU)
+	assert_bool(await _until(games, func() -> bool: return one.screen() == S.FAILURE)).is_true()
+	assert_str(String(one.ui.connecting.state())).is_equal("lost")
 	assert_str(String(host.last_reason)).is_equal(String(EndReasons.CLOSED))
 	assert_str(String(one.last_reason)).is_equal(String(ClientSession.HOST_LOST))
-	assert_str(one.ui.menu.reason_label.text).contains(EndReasons.words(ClientSession.HOST_LOST))
+	assert_str(one.last_words).contains(EndReasons.words(ClientSession.HOST_LOST))
+	one.back_to_menu()
+	assert_int(one.screen()).is_equal(S.MENU)
 	for game: Game in games:
 		assert_object(game.level()).is_null()
 		assert_object(game.player()).is_null()
@@ -156,7 +167,7 @@ func test_physics_steps_alone_stop_the_player_at_each_frozen_phase() -> void:
 	assert_int(stepped.size()).is_equal(0)
 	# The round's placement: everyone stands where it said.
 	_assert_at_the_last_correction(games)
-	# Time up; then the host's Back to lobby, still with no Game._process. End -> Lobby drops the
+	# Time up; then the host's ReturnToLobby, still with no Game._process. End -> Lobby drops the
 	# others' bodies and places everyone in one host step, and the greybox lobby's markers share
 	# the round's coordinates: the player, stepping again from the next physics step, is pushed off
 	# its lobby Correction neither by a dropped body still in the space (#242) nor by another
@@ -182,33 +193,53 @@ func test_physics_steps_alone_stop_the_player_at_each_frozen_phase() -> void:
 	await get_tree().process_frame
 
 
-func test_a_join_nobody_answers_returns_to_the_menu_with_the_reason() -> void:
+func test_a_join_nobody_answers_shows_why_then_back_keeps_the_address() -> void:
 	var lonely := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 1)])
 	assert_bool(await _until([lonely], func() -> bool: return lonely.client() == null)).is_true()
-	assert_int(lonely.screen()).is_equal(S.MENU)
+	assert_int(lonely.screen()).is_equal(S.FAILURE)
+	assert_str(String(lonely.ui.connecting.state())).is_equal("fail-no-answer")
 	assert_str(String(lonely.last_reason)).is_equal(String(ClientSession.CONNECT_FAILED))
-	assert_str(lonely.ui.menu.reason_label.text).contains("no answer from the host")
+	assert_str(lonely.last_words).contains("no answer from the host")
+	# Try again joins the same address; it fails alike.
+	lonely.ui.connecting.retry_requested.emit()
+	assert_object(lonely.client()).is_not_null()
+	assert_int(lonely.screen()).is_equal(S.CONNECTING)
+	assert_bool(await _until([lonely], func() -> bool: return lonely.client() == null)).is_true()
+	assert_int(lonely.screen()).is_equal(S.FAILURE)
+	# Back: the menu's Direct panel, the address and port as the command line gave them (the
+	# port, the command line's, is the default the panel names).
+	lonely.ui.connecting.back_requested.emit()
+	assert_int(lonely.screen()).is_equal(S.MENU)
+	assert_str(String(lonely.ui.menu.state())).is_equal("direct")
+	assert_str(lonely.ui.menu.address_edit.text).is_equal("127.0.0.1")
+	assert_int(lonely.ui.menu.default_port).is_equal(PORT + 1)
 	await get_tree().process_frame
 
 
-func test_a_host_that_cannot_start_stays_on_the_menu_and_says_why() -> void:
+func test_a_host_that_cannot_start_says_why_and_tries_again_the_same_way() -> void:
 	var first := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)])
 	assert_bool(first.hosting()).is_true()
 	var second := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)])
 	assert_bool(second.hosting()).is_false()
 	assert_object(second.client()).is_null()
-	assert_int(second.screen()).is_equal(S.MENU)
+	assert_int(second.screen()).is_equal(S.FAILURE)
+	assert_str(String(second.ui.connecting.state())).is_equal("host-failed")
 	assert_str(String(second.last_reason)).is_equal(String(EndReasons.CANNOT_HOST))
-	assert_str(second.ui.menu.reason_label.text).contains(EndReasons.words(EndReasons.CANNOT_HOST))
+	assert_str(second.last_words).contains(EndReasons.words(EndReasons.CANNOT_HOST))
 	assert_bool(second.host(PORT + 2)).is_false()
+	# Try again hosts on the same port: it starts once the port is free.
 	first.leave()
+	second.ui.connecting.retry_requested.emit()
+	assert_bool(second.hosting()).is_true()
+	second.leave()
+	assert_int(second.screen()).is_equal(S.MENU)
 	await get_tree().process_frame
 
 
 func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	var game := _game(["--port=%d" % (PORT + 3)])
 	assert_int(game.screen()).is_equal(S.MENU)
-	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
+	assert_int(game.ui.menu.default_port).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
 	game.get_parent().remove_child(game)
 	assert_bool(get_tree().auto_accept_quit).is_true()
@@ -222,6 +253,42 @@ func test_the_game_makes_the_buses_and_its_voices_under_the_world() -> void:
 	# The addon's codec by default: unavailable where the addon is absent, and then nothing plays.
 	assert_object(game.voice_codec).is_instanceof(TwoVoipCodec)
 	assert_object(game.life().ears()).is_not_null()
+
+
+func test_the_name_in_the_settings_is_the_name_the_game_asks_for() -> void:
+	# Game hands UserSettings.player_name to its session (#550): the host names the joiner by it,
+	# and a second player asking for the same name gets the suffix.
+	var saved := UserSettings.new()
+	saved.player_name = "Діма"
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 6)])
+	var one := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 6)], saved)
+	var two := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 6)], saved)
+	var games: Array[Game] = [host, one, two]
+	assert_str(one.client().player_name).is_equal("Діма")
+	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()
+	var names: Array[String] = []
+	for member: ClientModel.Member in host.client().model.roster.values():
+		names.append(member.name)
+	names.sort()
+	assert_array(names).contains_exactly(["Player1", "Діма", "Діма 2"])
+	# The host's Lobby tab names the lobby (#214): Game sends it cleaned (a pasted zero-width
+	# character would make the wire refuse it), and every model has it.
+	# A wiring check, not a visibility one: once welcomed, Game hands the connecting screen's (by
+	# then hidden) title the lobby's name, the default and then the host's (ARCHITECTURE §4.7.32).
+	for game: Game in games:
+		assert_str(game.client().model.lobby_name).is_empty()
+		assert_str(game.client().model.host_name()).is_equal("Player1")
+		assert_str(game.ui.connecting.title_label.text).contains("Player1")
+	host.ui.esc.lobby.lobby_name_changed.emit("Dima's" + String.chr(0x200B) + " den")
+	assert_bool(await _until(games, _lobby_name_is.bind(games, "Dima's den"))).is_true()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for game: Game in games:
+		assert_str(game.ui.connecting.title_label.text).contains("Dima's den")
+	two.leave()
+	one.leave()
+	host.leave()
+	await get_tree().process_frame
 
 
 func test_a_session_end_forgets_the_voices_flushes() -> void:
@@ -241,8 +308,9 @@ func test_a_session_end_forgets_the_voices_flushes() -> void:
 	await get_tree().process_frame
 
 
-func _game(args: Array[String]) -> Game:
+func _game(args: Array[String], settings: UserSettings = null) -> Game:
 	var game := GAME.instantiate() as Game
+	game.settings = settings
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
@@ -325,6 +393,13 @@ func _round_watching_loading(
 func _setting_is(games: Array[Game], id: StringName, value: int) -> bool:
 	for game: Game in games:
 		if game.client() == null or game.client().model.settings.get(id, -1) != value:
+			return false
+	return true
+
+
+func _lobby_name_is(games: Array[Game], lobby: String) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.client().model.lobby_name != lobby:
 			return false
 	return true
 

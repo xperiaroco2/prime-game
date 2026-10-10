@@ -66,6 +66,13 @@ func new_state() -> TaskState:
 	return State.new()
 
 
+## The packages lie at the markers of their kind's spawn tag before anyone moves them.
+func item_spawn_tags() -> Array[StringName]:
+	if package == null:
+		return []
+	return [package.spawn_tag]
+
+
 func deal(ctx: MatchContext) -> void:
 	var count := ctx.setting(subtasks_setting)
 	if count <= 0:

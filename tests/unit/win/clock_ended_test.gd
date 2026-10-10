@@ -25,7 +25,13 @@ func test_the_clock_ending_with_a_subtask_not_done_is_a_dissident_win() -> void:
 	for peer: int in [P1, P2, P3]:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
+		assert_dict(ended[0].to_dict()).is_equal(
+			{
+				"side": &"dissidents",
+				"reason": &"time_up",
+				"numbers": {&"time": FixtureWinModes.MINUTES * 60}
+			}
+		)
 	var at := game.emitted().filter(
 		func(e: EmittedEvent) -> bool: return e.event is MatchEndedEvent
 	)

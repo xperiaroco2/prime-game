@@ -25,6 +25,8 @@ class Member:
 	extends RefCounted
 	var name := ""
 	var ready := false
+	## The body colour, an index into PlayerColours (#551): public, every player sees it.
+	var colour := 0
 
 
 ## One item as the events describe it.
@@ -74,8 +76,12 @@ var spots: Dictionary[int, Vector3] = {}
 var settings: Dictionary[StringName, int] = {}
 var id_sets: Dictionary[StringName, PackedStringArray] = {}
 var map := ""
-## What holds all_ready back, as the last SettingsChanged listed it.
-var shortfalls := PackedStringArray()
+## The lobby's name the host set (#214), from Welcome and each SettingsChanged; "" until the host
+## names it: the default, which the UI shows as `lobby.default_name` with host_name().
+var lobby_name := ""
+## What holds all_ready back, as the last SettingsChanged listed it: host texts (#548), each
+## {id, ids, numbers}, which HostTextView words in this client's language.
+var shortfalls: Array[Dictionary] = []
 ## The last LoadMatch's id; -1 before the first.
 var match_id := -1
 ## Peers whose load the host confirmed for this match.
@@ -103,6 +109,10 @@ var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
 var winner: StringName = &""
+## Why the match ended (MatchEnded, #548): the id of the win condition that ended it, empty when
+## none did or before the end; and the round's play time in whole seconds, -1 when it gave none.
+var ended_by: StringName = &""
+var round_seconds := -1
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed,
 ## invulnerable, held_item, belt_item}).
 var snapshot_tick := -1
@@ -180,6 +190,19 @@ func phase_spec() -> PhaseSpec:
 	return _mode.find_phase(phase)
 
 
+## The body colour of `peer` (an index into PlayerColours), 0 for a peer not on the roster.
+func colour_of(peer: int) -> int:
+	var member: Member = roster.get(peer)
+	return member.colour if member != null else 0
+
+
+## The host's name as the roster has it (its own player is peer 1), or "" when it is not there:
+## the default lobby name `lobby.default_name` is built from it (#214).
+func host_name() -> String:
+	var host: Member = roster.get(NetTransport.HOST_ID)
+	return host.name if host != null else ""
+
+
 ## Folds one decoded event into the model.
 func fold(event_name: StringName, fields: Dictionary) -> void:
 	var phase_before := phase
@@ -196,6 +219,7 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 		&"PlayerJoined":
 			var member := Member.new()
 			member.name = fields["name"]
+			member.colour = fields["colour"]
 			roster[fields["peer"] as int] = member
 			spots[fields["peer"] as int] = fields["spot"]
 		&"PlayerLeft":
@@ -208,11 +232,19 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 			var member: Member = roster.get(fields["peer"] as int)
 			if member != null:
 				member.ready = fields["ready"]
+		&"ProfileChanged":
+			var changed: Member = roster.get(fields["peer"] as int)
+			if changed != null:
+				changed.name = fields["name"]
+				changed.colour = fields["colour"]
 		&"SettingsChanged":
 			settings = fields["settings"]
 			id_sets = fields["id_sets"]
 			map = fields["map"]
-			shortfalls = fields["shortfalls"]
+			var listed: Array[Dictionary] = []
+			listed.assign(fields["shortfalls"] as Array)
+			shortfalls = listed
+			lobby_name = fields["lobby_name"]
 		&"PhaseChanged":
 			_enter(fields["phase"] as StringName)
 			end_tick = fields["end_tick"]
@@ -264,6 +296,8 @@ func clear_match() -> void:
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
+	ended_by = &""
+	round_seconds = -1
 	snapshot_tick = -1
 	avatars = {}
 
@@ -276,10 +310,12 @@ func _welcome(fields: Dictionary) -> void:
 		var member := Member.new()
 		member.name = entry["name"]
 		member.ready = entry["ready"]
+		member.colour = entry["colour"]
 		roster[entry["peer"] as int] = member
 	settings = fields["settings"]
 	map = fields["map"]
 	phase = fields["phase"]
+	lobby_name = fields["lobby_name"]
 	var positions: Dictionary[int, Vector3] = fields["positions"]
 	spots = positions.duplicate()
 	spots[own_peer] = fields["spot"]
@@ -340,6 +376,9 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			epoch = fields["epoch"]
 		&"MatchEnded":
 			winner = fields["side"]
+			ended_by = fields.get("reason", &"")
+			var numbers: Dictionary = fields.get("numbers", {})
+			round_seconds = numbers.get(&"time", -1)
 
 
 ## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt

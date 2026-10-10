@@ -21,7 +21,8 @@ extends Node
 ##
 ## Nothing opens without the codec (the addon absent: voice unavailable). Off (D11) is a closed
 ## capture; VoiceControl decides what opens. Push-to-talk reads `voice_talk` (V) only while
-## `listening` (no Esc menu: the menu releases the keys held when it opened, #169).
+## `listening`: the keys are not typing (#488: the Esc menu keeps the voice, a text field or a key
+## capture does not).
 
 const TALK_ACTION := &"voice_talk"
 ## The words for a machine without the voice codec (greybox, #150).
@@ -39,7 +40,7 @@ var gate := VoiceGate.new()
 var send := Callable()
 ## Read the talk key from the keyboard; tests turn it off and set `talk_held`.
 var reads_device_input := true
-## No Esc menu is open: the talk key counts (Game sets it).
+## The keys are not typing into a text field or a key capture: the talk key counts (Game sets it).
 var listening := true
 ## The talk key, while reads_device_input is off.
 var talk_held := false
@@ -129,6 +130,15 @@ func encoder() -> VoiceEncoder:
 ## Whether the own player may be heard now: may_speak_of() for the own model and mode.
 func may_speak() -> bool:
 	return may_speak_of(model, mode)
+
+
+## Whether anyone may hear the own player now, the HUD's microphone (#489): a microphone open, the
+## player may be heard (may_speak), and in push-to-talk the talk key held. Not whether it is
+## talking: voice activity counts as on while the microphone is open (no talking indicator, D14).
+func live() -> bool:
+	if not is_open() or not may_speak():
+		return false
+	return gate.mode != VoiceGate.Mode.PUSH_TO_TALK or _talk_held()
 
 
 ## Whether a player whose own client holds `own_model` and `own_mode` may be heard now: welcomed,

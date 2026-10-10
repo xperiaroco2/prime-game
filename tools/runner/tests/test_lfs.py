@@ -15,7 +15,7 @@ import zlib
 from pathlib import Path
 from unittest import mock
 
-from runner import check, cli, common, credits, lfs
+from runner import check, cli, common, credits, lfs, sfx
 from runner.common import Failure, Result, godot_bin
 from runner.verify import starts_godot
 
@@ -141,17 +141,17 @@ class AsideTest(unittest.TestCase):
     def test_a_type_without_a_stand_in_is_out_of_sight_inside_and_back_after(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            write(root, "art/a.ogg", POINTER)
-            write(root, "art/a.ogg.import", "[remap]\n")
-            write(root, "art/b.ttf", POINTER)  # no .import yet: a new asset
-            with lfs.aside(["art/a.ogg", "art/b.ttf"], root):
-                for name in ("art/a.ogg", "art/a.ogg.import", "art/b.ttf"):
+            write(root, "art/a.mp3", POINTER)
+            write(root, "art/a.mp3.import", "[remap]\n")
+            write(root, "art/b.woff2", POINTER)  # no .import yet: a new asset
+            with lfs.aside(["art/a.mp3", "art/b.woff2"], root):
+                for name in ("art/a.mp3", "art/a.mp3.import", "art/b.woff2"):
                     self.assertFalse((root / name).exists(), name)
                     self.assertTrue((root / lfs.ASIDE / name).is_file(), name)
                 self.assertTrue((root / lfs.ASIDE / ".gdignore").is_file())
-            self.assertEqual((root / "art/a.ogg").read_bytes(), POINTER)
-            self.assertEqual((root / "art/a.ogg.import").read_text(encoding="utf-8"), "[remap]\n")
-            self.assertEqual((root / "art/b.ttf").read_bytes(), POINTER)
+            self.assertEqual((root / "art/a.mp3").read_bytes(), POINTER)
+            self.assertEqual((root / "art/a.mp3.import").read_text(encoding="utf-8"), "[remap]\n")
+            self.assertEqual((root / "art/b.woff2").read_bytes(), POINTER)
 
     def test_a_stand_in_is_imported_under_the_committed_import_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -187,12 +187,20 @@ class AsideTest(unittest.TestCase):
             ".glb": b"glTF",
             ".obj": b"v ",
             ".tga": b"\x00\x00\x02",
+            ".ttf": b"\x00\x01\x00\x00",
+            ".otf": b"\x00\x01\x00\x00",
+            ".ogg": b"OggS",
         }
         self.assertEqual(set(lfs.STAND_INS), set(signatures))
         for suffix, data in lfs.STAND_INS.items():
             self.assertTrue(data.startswith(signatures[suffix]), suffix)
             self.assertEqual(lfs.stand_in("art/x" + suffix.upper()), data)
-        self.assertIsNone(lfs.stand_in("art/x.ogg"))
+        self.assertIsNone(lfs.stand_in("art/x.mp3"))
+        # The Ogg is Vorbis (what Godot's AudioStreamOggVorbis imports, #525) at a rate sfx-check allows.
+        ogg = sfx.read_ogg(lfs.STAND_INS[".ogg"])
+        self.assertEqual((ogg.codec, ogg.channels), ("Vorbis", 1))
+        self.assertIn(ogg.rate, sfx.load_table().sample_rates)
+        self.assertEqual(len(lfs.STAND_INS[".ttf"]) % 4, 0)
         self.assertEqual(len(lfs.STAND_INS[".glb"]) % 4, 0)
 
     def test_the_files_come_back_when_the_import_fails(self) -> None:
@@ -532,6 +540,20 @@ class RealPointerTest(unittest.TestCase):
             for name in names:
                 self.assertEqual((root / name).read_bytes(), POINTER, name)
                 self.assertEqual((root / (name + ".import")).read_bytes(), committed[name], name)
+
+
+class HandoffFormatsTest(unittest.TestCase):
+    """The art handoff (#519): the project's .gitattributes routes every format an art PR brings through LFS, in each
+    landing folder, and keeps addons out of it."""
+
+    FORMATS = ("glb", "png", "jpg", "wav", "ogg", "ttf", "otf")
+    FOLDERS = ("assets/characters/x", "assets/environment/x", "assets/audio/x", "assets/ui/x")
+
+    def test_the_handoff_formats_go_through_lfs(self) -> None:
+        paths = [f"{folder}/a.{suffix}" for folder in self.FOLDERS for suffix in self.FORMATS]
+        self.assertEqual(credits.lfs_assets(common.ROOT, paths), sorted(paths))
+        self.assertEqual(credits.lfs_assets(common.ROOT, ["addons/x/a.png", "assets/x/a.json"]), [])
+
 
 if __name__ == "__main__":
     unittest.main()

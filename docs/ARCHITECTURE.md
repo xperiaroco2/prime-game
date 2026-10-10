@@ -13,10 +13,11 @@
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
 | `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
-| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) | engineer |
+| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)); `assets/`'s scenes, textures and sounds by path (§11) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
-| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | engineer (#518) |
-| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | engineer (#518) |
+| `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), how-to cards (§4.7.36) and the tutorial's lessons (`content/tutorial/`, §4.7.45; E64), whose data classes are part of the content API | the content API only | engineer (#518) |
+| `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API; `assets/`'s scenes, textures and sounds by path (§11) | engineer (#518) |
+| `assets/` | Art from the art repo or a third-party pack: GLBs, images, sounds and fonts through Git LFS, with their `.import` files; no scripts (§11) | nothing: scenes in `client/` and `levels/` instance them | engineer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
 
 Changing a boundary is a stop-and-ask item and gets an ADR.
@@ -45,8 +46,9 @@ The game mode defines its phases, as an explicit state machine
 ([ADR](decisions/2026-09-29-game-modes-define-the-phases.md)). Designed in #32
 ([ADR](decisions/2026-09-29-match-loop-intents-events-and-entitlement.md)); the rules and every number named here are
 in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are placeholders, "not a decision".
-- **Base mode:** Lobby → Countdown → Loading → Round → End → Lobby. Roles are dealt and packages scattered on the
-  way into Round.
+- **Base mode:** Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Roles are dealt and packages
+  scattered on the way into Pregame, the silent seconds that show each player its role (§3.6); the clock starts on
+  the way into Round.
 - **More phases** (later): a mode may add its own, such as the deathmatch mode that vision revision 1 parks; the
   meetings mode (#35) is closed by that revision.
 
@@ -87,7 +89,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   `outcome_dropped`, so the loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal
   (§9.2), the rule's costs were paid and its effects ran.
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
-  and back. The deal runs only on `Loading, all_loaded → Round`, so returning to Round deals nothing, and a phase
+  and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
   whose clock does not run pauses the match clock by its phase flag. `Match` does not change.
 - **Life states** (vision revision 1; built in M4-1, #137, and M4-2, #138): `PlayerState.Life` is ALIVE, DOWNED,
   DEAD and LEFT, and `is_alive()` means ALIVE only. 0 health knocks a living player down for the knockdown time
@@ -98,7 +100,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   downed (32). Bit 8 was the ghosts' and is never reused; a mode still written for ghosts would silently refuse the
   downed's claims, so the mode check refuses a sender bit that names nobody. The dead send no intents as players:
   `Match` accepts none from them under PLAYER, LIVING or DOWNED (M4-2), so an intent in flight at a death reaches no
-  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby` on the end screen,
+  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby`, the shortcut out of End,
   where whoever died in the round is dead until `ResetMatch`), never for a player's action (`MoveClaim`, `PickUp`,
   `PutDown`, `Use`: `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
 
@@ -109,11 +111,12 @@ hello deadline.
 
 | Phase | On enter | Accepts (§4.1) | Voice (§6) | Clock |
 |---|---|---|---|---|
-| Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
+| Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host), `SetProfile` (#551); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
+| Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
 | Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
-| End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
+| End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
 |---|---|---|---|
@@ -121,9 +124,10 @@ hello deadline.
 | Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, circles, knives and players within the map's spawn points, the demands per spawn tag of §9.4, for any draw of the task types; circles within the palette's colours; 1 to 10 players) | Countdown | |
 | Countdown | `cancelled`: a `SetReady(false)`, a join or a leave | Lobby | none: ready flags and positions stay, so after a leave `all_ready` fires on entry and restarts the 5 s |
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
-| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
+| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Pregame | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers` |
+| Pregame | `pregame_done`: the end tick is reached (#213) | Round | `StartClock`: the clock and `RoundStarted` begin with the round |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
-| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
+| End | `back`: the end tick is reached, with no intent (#212: everyone returns after 3 s; no button), or the host's `ReturnToLobby` before it | Lobby | `ResetMatch`: the match state reset from the roster (the players who left dropped), everyone un-ready, and `SettingsChanged` to everyone (#737: with fewer players the lobby may be short again); then `PlacePlayers` in the lobby. In this order: placed first, a downed or dead player would be placed in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot |
 
 The lobby shows why `all_ready` cannot fire (for example more packages than spawn points): every `SettingsChanged`
 carries the demands against the map's markers and each shortfall (`FitCheck`, 2b). The host leaving ends the
@@ -206,7 +210,7 @@ fixture win conditions in the base mode's order (`tests/unit/life/life_rules_tes
 (`tests/unit/win/none_alive_test.gd`), with the control that the same package put down wins for the crew.
 
 Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
-everyone the side, and nothing else (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
+everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
 `tests/unit/win/` (the crew wins on the last delivery only, a delivery on the end tick counts, time up with 0
 dissidents, no crew present only once every crew member left, End widens nothing; M4-2).
 
@@ -217,7 +221,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer`. Entering Loading also disconnects every newcomer still waiting (`DisconnectPeer`, no `Rejected`), and a `Hello` that arrives now gets `Rejected` (`joins_closed`) (E14, 3e) | dropped from the roster; `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which "no crew present" counts (§3.4); the avatar is removed and no body stays: a downed player who leaves leaves none, and a dead player's body is removed (the engineer's answer 1 on PR #133); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the hand item and then the belt item come to rest on the floor below where the player stood (§7.1, M4-5). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
-| End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
+| Pregame | refused, as in Loading | as in Round (`PregamePhase` hands it to `LifeRules.leave`): the players were dealt, so the round's win checks count the one who left on its entry (#213) |
+| End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster, as it drops one who left in Pregame or Round, and sends `SettingsChanged` (#737) |
 
 - **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
   `Hello` is taken, once. Checked in order: the version equals the host's (`JoinRules.PROTOCOL_VERSION`), else
@@ -225,13 +230,68 @@ dissidents, no crew present only once every crew member left, End widens nothing
   `server/` passes to `Match.new` with the seed; §4.3, E1, 3e), else `Rejected` (`wrong_content`) and
   `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
   `Rejected` (`full`) and `DisconnectPeer`. A newcomer's leave is forgotten silently, and so is the late `PeerLeft`
-  of a peer that a directive disconnected.
-- **Names** (the engineer's decision of 2026-09-30, #58): the host names every joiner `Player<n>`, with n counted
-  by accepted joins over the whole session (`MatchState.joins`): Player1, Player2, and so on. The host's own
-  client normally joins first and so is Player1, but the rule is only the join order. A number is never
-  reused: Player1 to Player3 join, Player2 leaves, and the next joiner becomes Player4. `ResetMatch` keeps the
-  count, so it runs on through End → Lobby. The name in `Hello` is ignored in the MVP. After the MVP a player sets
-  their own name and body colour, and a reconnecting player gets their old number back (#73).
+  of a peer that a directive disconnected. The joiner stands on the first `lobby_player` marker of the phase's level
+  with no player within 1 m, or on the first marker when all are taken (placeholders); no marker, or a lobby layout
+  that failed to load, is a match error and the origin. In a phase whose spec's level is `PhaseSpec.Level.NONE` (the
+  tutorial's `gather`, E72) the joiner stands at the origin with no error (#599): the rule keys on the spec's
+  level, never on the layout being null, which the failed load has too (`join_rules_spot_test`).
+- **Names** (#550, the engineer's answers on #73; built on #58's `Player<n>`): a player sets their own name
+  (`UserSettings.player_name` in `user://`, "" until chosen, never empty once chosen) and `Hello` asks for it.
+  The host decides (`JoinRules.joiner_name`, the rules in `core/match/player_names.gd`): `PlayerNames.clean`
+  drops the C0 and C1 controls, DEL, U+FEFF, surrogates and the invisible format characters (zero-width
+  marks, line separators, bidi controls: a name that looks like another), trims blank edges (the space and the Unicode spaces
+  that show nothing) and keeps the first 16 characters (code points); when nothing is left (no name, the wrong
+  type, blanks or controls only) the joiner gets the fallback `Player<n>`, with n counted by accepted joins over
+  the whole session (`MatchState.joins`, which steps on every join, a named one too): Player1, Player2, and so on.
+  A number is never reused: Player1 to Player3 join, Player2 leaves, and the next nameless joiner becomes
+  Player4. `ResetMatch` keeps the count, so it runs on through End → Lobby. Then `PlayerNames.unique`: a name
+  that a present player has, ignoring case, gets the first free suffix " 2", " 3" and so on ("Dima", then
+  "Dima 2"; the fallback too, so a player who chose "Player2" never meets a second one), its base cut so the
+  whole stays within 16 characters; a leaver's name is free again. A name is never a reason to refuse a
+  `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). In the lobby a
+  player changes its name with `SetProfile` (#551, the next item); a reconnecting player's old number is still
+  to come (#73, M7).
+  Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
+  `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
+- **Body colours and `SetProfile`** (#551, the engineer's answers on #73 of 2026-10-08): a player's body is one of
+  10 preset colours (no picker), held in `core/` as an index 0..9 (`PlayerColours`, `PlayerState.colour`;
+  `core/` never holds a `Color`, the client draws the index, §4.7.50). The colour is **public**: `PlayerJoined`,
+  `Welcome`'s roster and `ProfileChanged` carry it to everyone. A joiner takes the first colour no present
+  player has (`PlayerColours.first_free`; `Hello` asks for none). `SetProfile(name, colour)` (§4.1) changes both,
+  in the Lobby only, from a player (the base mode's accept row; Countdown, Loading, Pregame, Round and End answer
+  `not_accepted`, so a profile never changes under a countdown or in a match; the tutorial accepts it nowhere).
+  The host's rule (`JoinRules.set_profile`): a `name` that is not text or a `colour` that is not an int is
+  `bad_args`; a colour outside 0..9 `out_of_bounds`; the name goes through `PlayerNames.clean` and
+  `PlayerNames.unique` against the **other** present players (re-sending one's own "Dima 2" keeps it), and a name
+  with nothing usable left keeps the current one (it never counts a join: `MatchState.joins` numbers joins
+  only); the colour is the one asked when no other present player has it, else the **first free** one (the
+  engineer's answer, literally: its own colour counts as free, so a clash can leave the sender where it was);
+  both as they are: `unchanged`. Else both change and `ProfileChanged` goes to everyone; the ready flag stays.
+  `ResetMatch` keeps colours and names. `GameMode.check` refuses a mode whose `max_players` exceeds the 10
+  colours, so a free colour always exists (`first_free` of ten taken would give 0, unreachable). A returning
+  player (M7) gets name and colour by these rules as any joiner. Tests: `player_colours_test.gd`,
+  `join_rules_profile_test.gd`, `mode_check_test.gd`, `content_modes_test.gd` (the accept row),
+  `host_session_profile_test.gd` (every client's roster over loopback) and the chaos run (§4.6.5).
+- **The lobby's name** (#214, the engineer's answers on #214 of 2026-10-08): the host names the lobby, at most
+  20 characters, with the same cleaning as a player's name (`LobbyName.clean`, `core/match/lobby_name.gd`, which
+  is `PlayerNames.clean_to` with `LobbyName.MAX_CHARS`): controls and invisible characters dropped, blank edges
+  trimmed, cut at 20 code points; never refused for its content. "" is the default, which is not a stored string:
+  each client shows the deck key `lobby.default_name` with the host's name (`ClientModel.host_name()`, peer 1's
+  roster name), so it follows the host's name and the client's language. Decisions (the implementer's, #214):
+  (1) a **session property**, `MatchState.lobby_name`, next to `joins`, not a `SettingSpec` of the mode: it is
+  text, not a number or an id set, and no mode (content) should own it; `ResetMatch` keeps it, so End → Lobby
+  keeps the name. (2) It rides **ChangeSettings** as an optional `lobby_name` (§4.1), not a new intent: the
+  mode's existing ChangeSettings row already makes it host-only and Lobby-only (`Accept_lobby_settings`, from =
+  HOST; the Countdown has none), so no file under `content/` changes, and `LobbyPhase._change_settings`
+  applies it all or nothing with the rest of the change. (3) It reaches clients in **`Welcome`** (the host's
+  answer, so a client knows it the moment it is welcomed, before the `SettingsChanged` that follows) and in
+  every **`SettingsChanged`** (a change reaches everyone; a join, a leave and the return to the lobby repeat
+  it). Public: no filtering (§5). (4) The wire's `name` type carries it (§4.3.1), widened to 80 bytes for 20
+  four-byte characters.
+  Before `Welcome` a joiner knows no name: the connecting screen shows `connect.connecting_unnamed` (#494).
+  Tests: `lobby_name_test.gd`, `lobby_phase_lobby_name_test.gd`, `host_session_lobby_name_test.gd` (over
+  loopback: every client, a joiner's `Welcome`, a non-host refused, the limits), `client_model_test.gd`,
+  `lobby_panel_name_test.gd` and `game_loop_test.gd`.
 - A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **A return** (M7, designed in #73, [ADR](decisions/2026-10-09-returning-players-keep-their-number.md); proposed, not
@@ -243,6 +303,41 @@ dissidents, no crew present only once every crew member left, End widens nothing
   colour follow #550's and #551's rules as for any joiner.
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
+
+### 3.6 Pregame, the silent intro (#213, M6.2)
+The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
+Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight like the end screen's `Night`, not pure black) shows each player its own role for
+about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
+screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
+silent; a test keeps it so.
+- **The data** (`content/modes/base_mode.tres`): `Phase_pregame`, class `PregamePhase`, `seconds` 3.0 (the
+  engineer's "about 3 s"), no accepts (a `MoveClaim` in flight is dropped as in any phase that refuses it, E15;
+  every other intent gets `not_accepted`), no tick systems, no win check, the clock stopped, `SilentVoice`, the map
+  level, no snapshots (nothing moves). `PregamePhase` itself only reports `pregame_done` on its end tick, refuses
+  joins, and hands a leave to the life rule as Round does (§3.5).
+- **The rows.** The deal stays on `Loading, all_loaded → Pregame`: `RoleAssigned` and `Teammates` reach each client
+  before the pregame's `PhaseChanged`, so its screen has the role at once, and everyone is placed on the map. Only
+  `StartClock` waits, alone on `Pregame, pregame_done → Round`, so `RoundStarted` names the round's first tick and
+  the round's `PhaseChanged` its clock end. No win condition is checked in the pregame: a leave that empties the
+  crew there is seen by the round's entry, in the same step (`Match._finish_step`), before any of its ticks.
+- **The client** (`GameFlow.Screen.PREGAME`, `client/ui/pregame_screen.gd`): chosen by the own copy's `PhaseSpec`,
+  its class `PregamePhase`, never by the phase's name. The Toy role reveal (#496, §4.7.39): on the opaque Night, "Your
+  role", the own role on the title plate, its generic goal and, for a dissident, its teammates' names (the engineer
+  on #175); nothing of any other player's role. At the round's start Night fades out over the HUD. Frozen as Loading
+  and End, and the mouse kept as in Loading (#517).
+- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175): the pregame screen,
+  where nobody hears anybody, plays the own side's once as it reveals the own role (its `role_revealed` hook,
+  #716, §4.7.39), and stops it when the pregame ends, so none plays in the round; local to the own client, so no peer
+  hears another's.
+Tests: `tests/unit/match/phases/pregame_phase_test.gd` (the last `LoadAck` enters it with roles dealt and no clock;
+the round, `RoundStarted` and the clock on its end tick; each peer's own `RoleAssigned` only; a dropped `MoveClaim`
+and `not_accepted` for the rest; no win check before the round's entry; a leave as Round's; a connection refused;
+its `seconds` bounds; a mode with no `pregame_done` row refused), `tests/unit/voice/voice_by_phase_test.gd` (nobody
+heard on any pregame tick with everyone within 2 m; its radius 0), `tests/unit/content/content_modes_test.gd` (the
+data, the rows, and the real mode's pregame ticks silent with the clock still), `game_flow_test.gd` and
+`screens_test.gd` (the screen, frozen, the mouse kept, no word on the microphone), `pregame_screen_test.gd`
+(§4.7.39), the chaos bots (the oracle's `pregame` row; quiet phases from the mode's voice rules; the hostile speaks
+in the pregame, and no honest bot may decode it). How it looks: the `shot`s of §4.7.39.
 
 ## 4. Protocol
 
@@ -573,17 +668,19 @@ which read a field the intent does not declare as absent; `Match` records each s
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(version, content)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. No name: the host names the joiner `Player<n>` (§3.5; own names: #73), and a `name` a client sends is ignored. Accepted, it is the join (§3.5) |
+| `Hello(version, content, name)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. `name` (a String, the player's own, #550) is never refused: the host cleans it, falls back to `Player<n>` and suffixes a duplicate (§3.5). Accepted, it is the join (§3.5) |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
-| `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
+| `ChangeSettings(settings, map, lobby_name)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). The optional `lobby_name` (#214, §3.5) is text (else `bad_args`, which only a `core/` caller can reach: the wire's type is `name`), never refused for its content: `LobbyName.clean` keeps 20 characters, "" is the default again. All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
-| `ReturnToLobby()` | the host only; End | |
+| `ReturnToLobby()` | the host only; End | none: End reports `back` at once, before its end tick; since #212 no screen sends it (the tests and the bots' `ReturnToLobby` step do) |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
+| `NextStage()` | the host (peer 1) only, `AcceptSpec` HOST; only a scripted mode's phase that lists it (the tutorial's `lessons` and `raise_stage`, `docs/design/tutorial.md` §2.4, E65). The base mode lists it in no phase: `not_accepted` (#599) | nothing more: the phase's rule reports `next` (§9.4 `ReportOutcome`) and its one `next` row runs. A session control like `ReturnToLobby` (not in `Intents.PLAYER_ACTIONS`), so the client does not resend it; as every applied intent it stops the sender's own channel first |
+| `SetProfile(name, colour)` | a player; Lobby only (#551; the base mode's accept row, the tutorial lists it nowhere): elsewhere `not_accepted` | `name` text and `colour` an int (`bad_args`); `colour` one of the 10 (`out_of_bounds`); the name cleaned and made unique against the other players (§3.5; nothing usable left keeps the current name), a colour another player has replaced by the first free one; both as they are: `unchanged`. Applied: `ProfileChanged` to everyone; the ready flag stays. A session control, not in `Intents.PLAYER_ACTIONS` |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 
@@ -599,17 +696,18 @@ wire schemas of the events and the snapshot are §4.3.
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's `Player<n>`, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
-| `PlayerJoined` | peer, name (the host's `Player<n>`, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5), ready flags and body colours (#551); the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions; the lobby's name ("" while it is the default, #214) | the joiner | its `Hello` is accepted |
+| `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point, body colour (an index 0..9, #551) | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
-| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
+| `ProfileChanged` | peer, name and body colour as the host settled them (§3.5) | everyone | an accepted `SetProfile` in the lobby (#551) |
+| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back, as host text (an id, its subject ids and whole-number arguments, which each client words in its own language, #548); the lobby's name ("" while it is the default, #214) | everyone | `ChangeSettings`, a join or leave in Lobby or Countdown (the demands change), and `End → Lobby` (`ResetMatch`, #737: the players who left mid-match are dropped, so the shortfalls of before the countdown are stale) |
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
 | `LoadMatch` | match id, map, the whole-number settings | everyone | entering Loading |
 | `PlayerLoaded` | peer | everyone | a valid `LoadAck` |
-| `RoundStarted` | start tick | everyone | the deal |
+| `RoundStarted` | start tick | everyone | entering Round (`StartClock` on `Pregame, pregame_done → Round`, #213) |
 | `RoleAssigned` | your role | that player | the deal |
 | `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
@@ -631,7 +729,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
 | `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
-| `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
+| `MatchEnded` | the winning side (crew or dissidents) and, when a win condition reported the `won`, its id as the reason with `numbers` {`time`: the round's play time in whole seconds, when the clock ran} (#548); no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
@@ -640,9 +738,10 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
 `KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
-(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
+(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
-(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
+(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
+in `PlayerJoined` and the `Welcome` roster.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -668,8 +767,9 @@ Little-endian; sizes in bytes.
 | `tick` | 4 | `u32`; where optional, 0xFFFFFFFF is none (-1) | 0xFFFFFFFF where not optional |
 | `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
-| `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 | another byte (UTF-8 names come with #73) |
-| `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
+| `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 (no row uses it since #550) | another byte |
+| `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 80 (`WireField.NAME_MAX_BYTES`: the lobby's 20 characters of at most 4 bytes, #214; a player's name keeps 16, #550); empty allowed (the host's fallback, the lobby's default) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 80 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two, and `lobby_name_test.gd` pins both limits at 4 bytes a character within the bound. Since 80 bytes, a `Hello` name of 17 to 20 characters decodes and the host cuts it to 16 |
+| `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (no row uses it since #548: the shortfalls became host text) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
 | `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
@@ -677,15 +777,24 @@ Little-endian; sizes in bytes.
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
 snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
-set of task types at most 16 ids; shortfalls at most 32. The sizes below are the MVP's with 10 players, then the cap.
+set of task types at most 16 ids; shortfalls at most 32, and a host text's subject ids at most 2 and its arguments at
+most 4 (#548). The sizes below are the MVP's with 10 players, then the cap.
 These maxima bound the decoder, not the payload: at the maxima some kinds exceed their caps (`SettingsChanged`'s
 `id_sets` alone could reach about 18 KB). How big they get depends on the content, so the content is checked
 (E16): `WireBudget` (`server/`, 3d) computes, from a game mode, the worst case of every kind whose size its content
 sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
 `PlayersPlaced`), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
-spawn tag and station kind, plus the player count and the layout, each a full `note`). A mode over a cap is refused
+spawn tag and station kind, plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
+
+**Host text** (#548). No row carries a sentence: what the host words for players travels as host text, `record{id:
+id, ids: list<id>, numbers: map<id, s32>}` (`core/`'s `HostText`: an id, its subjects such as a spawn tag or a station
+kind, and its whole-number arguments by name), and each client words it in its own language through the copy deck
+(§4.7.47), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
+`MatchEnded`'s reason is the winning `WinCondition`'s id with its `numbers`. The other ids a client shows (`Rejected`'s,
+`CountdownCancelled`'s and `Disconnecting`'s `reason`) were ids already. A test (`wire_schema_test.gd`,
+`test_no_row_carries_free_text`) fails on any row with a `text` or `note` field.
 
 #### 4.3.2 Intents (C→H)
 Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
@@ -705,9 +814,9 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
-| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1) | 10; 8192 |
+| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1), `name: name` (the player's own, "" for none; #550) | 11 + n; 8192 |
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
-| 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
+| 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
 | 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
@@ -719,6 +828,8 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
 | 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
+| 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
+| 16 | `SetProfile` | RELIABLE | `seq: u32`, `name: name`, `colour: u8` (#551; core refuses a colour past 9, `out_of_bounds`) | 6 to 86; 86 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -739,11 +850,11 @@ directive has no row, because it reaches no peer.
 | Kind | Event | Fields | Bytes; cap |
 |---|---|---|---|
 | 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
-| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: text, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>` | 410; 2048 |
-| 34 | `PlayerJoined` | `peer: peer`, `name: text`, `spot: vec3` | 25; 81 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool, colour: u8>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 171; 2048 |
+| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3`, `colour: u8` (#551) | 26; 98 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
-| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>` | 250 with no shortfall; 8192 |
+| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<record{id: id, ids: list<id>, numbers: map<id, s32>}>` (host text, #548), `lobby_name: name` | 251 with no shortfall and the default name; 8192 |
 | 38 | `PhaseChanged` | `phase: id`, `end_tick: tick` (optional) | 10; 37 |
 | 39 | `CountdownCancelled` | `reason: id` | 9; 33 |
 | 40 | `PlayersPlaced` | `spots: map<peer, vec3>` | 161; 257 |
@@ -763,7 +874,7 @@ directive has no row, because it reaches no peer.
 | 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool`, `claim_tick: s64` (a client tick, a u32, or -1 for none; #155) | 17; 17 |
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
-| 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h) | 11; 33 |
+| 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h), `has_reason: bool`, then `reason: id` (the winning `WinCondition`'s id) and `numbers: map<id, s32>` (at most 4; `time`, the round's play time in seconds, when the clock ran), #548 | 12 without a reason, 30 with `time_up` and its time; 216 |
 | 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 | 59 | `KnockedDown` | `peer: peer`, `position: vec3` (audience *everyone*, M4-2, #138) | 16; 16 |
 | 60 | `Respawned` | `peer: peer`, `position: vec3` (audience *everyone*, M4-3, #139) | 16; 16 |
@@ -772,6 +883,7 @@ directive has no row, because it reaches no peer.
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
 | 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
+| 66 | `ProfileChanged` | `peer: peer`, `name: name`, `colour: u8` (audience *everyone*, #551) | 6 to 86; 86 |
 
 #### 4.3.5 State and voice
 
@@ -790,8 +902,8 @@ The rules of the table:
   `Rejected(wrong_version)` (§3.5), instead of timing out at the hello deadline on a host that drops its packets as
   malformed or over the cap. The host decodes `Hello` in two steps: the version, and the rest only when the version is
   its own; another version reaches `core/` as `{version}` alone and the rest of its payload is ignored, whatever its
-  length (#73's name makes a later `Hello` longer than this one). 3d's version test pins both rows byte for byte and
-  decodes a synthetic longer `Hello` of another version to `{version}`.
+  length (since protocol 10 `Hello` ends with the player's name, #550). 3d's version test pins both rows byte for
+  byte and decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
@@ -800,9 +912,14 @@ The rules of the table:
   `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
   `belt_item`, 7 when #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
-  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), and is 9 since #429 added `MoveClaimReliable` (14);
-  M4's protocol PRs each set
-  it to their base's plus one at the rebase before the merge (the M4 ADR §4).
+  `claim_tick`, 8 when M6-8 (#374) added `VoiceBatch` (114), 9 when #429 added `MoveClaimReliable` (14), 10
+  when #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster,
+  11 when #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
+  and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
+  97, 12 since T1 (#599, E65) added the tutorial's `NextStage` (15), 13 since #548 turned
+  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason, and is 14 since #551 added
+  `SetProfile` (16), `ProfileChanged` (66) and the body colour of `PlayerJoined` (cap 98) and the `Welcome`
+  roster. M4's protocol PRs each set it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -811,8 +928,8 @@ The rules of the table:
   playtest. An exported build, which may convert scenes, is M6's to check. The host's `server/` and each client compute
   it when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
-  predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
-  the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
+  predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s `name` (#550)
+  is not part of the check: the host cleans it (§3.5).
   The level files are walked (#118): every scene and resource a level reaches through
   `ResourceLoader.get_dependencies`, recursively and each once (a cycle, a piece two levels share), is hashed too,
   sorted by `res://` path, so a wall moved inside a room the map instances counts. A dependency with a known uid is
@@ -851,7 +968,7 @@ The rules of the table:
   9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 2 KB/s with headers. A payload over its cap is never
   truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
-  longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
+  longest shortfall of each kind, as host text, encodes within its cap or is refused by `WireBudget` first (#548); and a synthetic mode at
   the declared maxima is refused with the kind named.
 - **Voice batching** (M5-4b, built in M6-8, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
   frame it hears in that poll, in the relay's order (per speaker in peer-id order, each speaker's in its seq order);
@@ -1268,7 +1385,8 @@ and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a de
 A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
-the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
+the wire tells bot 1 which peer is bot i: a name is no id (a wire bot's `Hello` asks for none, so the host names it
+`Player<n>`, §3.5; the core runner's bots ask for `bot<i>`, which the host keeps), and over ENet the clients choose
 their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
 `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
 runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
@@ -1506,7 +1624,8 @@ sections named:
    a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
    item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
    field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
-   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+   `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold, read after the last call in the round or End: End's
+   return to the lobby 3 s later, which a slow network run outlasts, resets every role, #212);
 2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
    (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
 3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
@@ -1529,8 +1648,9 @@ sections named:
    a new baseline, checked as one tick and corrected: either answer passes;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
-7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
-   or End (§6; the leak test's voice checks run too);
+7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading,
+   Pregame or End (the mode's phases that hear within 0 m, checked against a hand-written list; §6; the leak
+   test's voice checks run too);
 8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
    the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
    player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
@@ -1569,7 +1689,7 @@ the encoder refuses with an error line).
 ##### 4.6.5.1 Runs
 `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
-step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 900 frames (the 3 s pregame, #213) in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
 `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
 `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
@@ -1589,12 +1709,29 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
-covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
-`ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111,
-113, 127, 128, 200, 255). A new intent gets its refusals in
+The C→H kinds 1 to 13, 15, 16 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
+`host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
+and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 17, 19, 23, 26, 31,
+67, 80, 95, 97, 111,
+113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
+sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
+lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
+that every intent is in a phase of `ACCEPTS` or in that list;
+its malformed shapes are `NEXT_STAGE_NO_SEQ` (0 to 3 bytes: NetFrame takes it, the codec does not, `BAD_PAYLOAD`)
+and `NEXT_STAGE_TRAILING` (its seq and 1 to 4 bytes more: over the cap of 4, so NetFrame's `PAYLOAD_TOO_LARGE`
+before the codec could see a trailing byte). A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
-in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
+in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it. Since #214 the hostile's
+`ChangeSettings` also carries a `lobby_name`: a non-host rename is caught by the oracle's `not_accepted` check of
+`ChangeSettings` (`From.HOST`), and `ChaosRun` also fails a run that ends with the lobby named (only the host may
+name it, and the host's bot never does), a backstop not yet seen failing.
+Kind 16, `SetProfile` (#551): the oracle's lobby row (`From.PLAYER`); the hostile sends its own name and colour in any
+phase (`unchanged` in the lobby, `not_accepted` elsewhere: no race can make it a change, since nobody else renames
+it), and "Hacked" with the next colour only while its client is in loading or pregame, where the host cannot be
+in the lobby (not in the round: its last frames could meet the lobby after End); its malformed shapes `SET_PROFILE_NO_COLOUR`, `SET_PROFILE_TRAILING` and
+`SET_PROFILE_BAD_NAME` (not UTF-8) are each under the cap, so the codec refuses them (`BAD_PAYLOAD`). `ChaosRun`
+fails a run that ends with a player named "Hacked" or two players sharing a colour. Seen failing: with
+`Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
@@ -1705,9 +1842,10 @@ would load.
 Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_session.gd`
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
-`ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`. `client/app/` is the only part
-of `client/` that names `server/`, and only through `HostNode` as a narrow façade: `HostNode.host(transport, mode,
-port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
+`ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`, but in the solo tutorial,
+which hosts `tutorial_mode.tres` through the same façade on a private `LoopbackHub` (§4.7.43). `client/app/` is the
+only part of `client/` that names `server/`, and only through `HostNode` as a narrow façade:
+`HostNode.host(transport, mode, port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
 `end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
 `app/` included, strips comments and strings and fails on the identifiers `HostSession`, `Match`, `MatchState`,
 `PeerView` and `Snapshots` (case-sensitive, word-bounded: `SnapshotBuffer` passes) and on any `.game` access, like
@@ -1730,7 +1868,7 @@ follow the previous one; nothing is drawn in between. A test that reads those wa
 screen it waited for; game_loop_test checks that wait with `Game._process` off (#225). The local player's physics step
 and input flags (`Game._apply_player_flags`) follow the model at once: `Game._on_event` applies them at every event the
 session folds, in its physics step, and `_process` again every frame (the Esc menu), so after a hitch the player
-neither steps nor claims into Loading or End, nor waits for `_process` to walk again (#241). A step turned off there
+neither steps nor claims into Loading, Pregame or End, nor waits for `_process` to walk again (#241). A step turned off there
 stops the player in that physics frame; one turned on steps it from the next (observed on 4.7.2, not in the docs).
 game_loop_test plays a loop with no `Game._process` from the lobby on and sees no step in Loading, everyone at the
 round's and the lobby's `Correction`s and no `Correction` of a refused claim.
@@ -1755,13 +1893,15 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
-| no session | main menu: address, port, Host, Join, Quit, and why the last session ended | none | none |
-| connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
-| Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
-| Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
-| Round | HUD; the task screen while Tab is held | the map | by its life (below) |
-| End | end screen: black, "The <side's display name> won"; the host's Back to lobby | the map, not drawn | frozen |
-| ended | main menu with the reason in words | none | none |
+| no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
+| connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
+| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
+| Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
+| a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
+| Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
+| Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
+| End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
+| ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
 - **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
   mode's `lobby_level`, loaded synchronously at `Welcome` and when a lobby phase follows a map phase (End → Lobby,
@@ -1773,31 +1913,39 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
   only the own `Respawned` (#191) and a `PlayersPlaced` naming the own player (`End -> Lobby` and the deal, #240)
   level the look (§4.7.13).
-- **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
-  · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
-  roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
+- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.42: the
+  status, the players with ready checks, the own ready chip; no key prompt) and nothing to click. The Esc menu's Lobby tab has the
+  lobby's name (the host's to edit, #214, §4.7.11) with the map's picker right under it (#694), the roster, the
+  Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
   sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and the mode has
-  two or more maps); the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
+  two or more maps); the demands and shortfalls come from `SettingsChanged` (the
+  shortfalls worded by `HostTextView`, §4.7.47). Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
-- **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
-  (§3.2: no names, no roles).
-- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and where
-  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, the round) captures it again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
-  Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
+- **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
+  own role's side won and as plain text otherwise, why the round ended, and the seconds left until End's `end_tick`
+  (`EndScreen.count_shown`, hidden when End has none), and nothing else (§3.2: no names, no roles, no button since
+  #212: End returns everyone by itself).
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it (one Esc closes one overlay, the topmost first: a card (a how-to card, §4.7.36), the map, the host's Leave or Quit question before the menu, §4.7.35), and where
+  `GameFlow.pointer_on` does not free the mouse (the lobby, Loading, Pregame, the round) captures it again. Its tabs are on the left (Resume; Guide, in every screen, #254, §4.7.36; Lobby, in the lobby and the countdown;
+  Voice, in every screen, M5-6; Controls, in every screen, §4.7.28; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
   there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
+  A new screen closes it, its question too, when it opened over another (`EscMenuState.over_screen`, #726): the
+  match leaving the lobby, the end screen, the lobby again (the countdown is still the lobby's screen and keeps it;
+  the menu opened over the live screen in #204's frame stays). `EscMenu.close` hides a dropdown's open list, a window of its own, too.
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
-  when they show (no click first; also after Back to lobby), Loading keeps it as it was, and the menu, Connecting
-  and the end screen free it for their buttons. A screen never captures it from under the Esc menu, nor while the
+  when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
+  Connecting and the end screen free it (the first three for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
-  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there. Closing the Esc
-  menu in Loading captures it too. Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
-  runs on the lobby's screen, every round started with the cursor showing until a click.
+  app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there (never while the map is open: the map frees the mouse in the round, and closing it captures it again, §4.7.33). Closing the Esc
+  menu in Loading captures it too, and so does a screen change that closes the menu in Loading or Pregame (#726).
+  Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown runs on the lobby's screen, every
+  round started with the cursor showing until a click.
 - **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
   `project.godot`. Only an export template has the `template` feature, so everything the editor's binary runs (the
   runner's `shot`, `playcheck`, `host` and `join` windows, the tests, the editor's runs) starts in a window: in
@@ -1811,13 +1959,15 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   with an export's features and without, the toggle), `input_actions_test.gd`,
   `tests/integration/client/app/game_window_input_test.gd` (Alt+Enter through `Input` events) and
   `pointer_flow_test.gd` (a host and a joined client through Ready, the countdown, Loading, the round, the end and
-  back, the mouse captured all the way to the end screen; an open Esc menu and an unfocused window stay free). Not
-  headless: the real mouse and window; the manual check is in the PR of #517.
+  back, the mouse captured all the way to the end screen; the match closes an open Esc menu, #726, and an unfocused
+  window stays free). Not headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
-  window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
+  window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
+  tutorial (§4.7.43) `Game.hosting()` is false: Leave, Quit and closing the window end it at once, as a host's own
+  leaving (`closed`, no failure shown), and its stand-ins go with the `HostNode`.
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
-  the views and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  the views, shows the end's failure (`EndReasons.failure_state`, #494, §4.7.32) and returns to the main menu; the reason in words (printed, and kept in `Game.last_words` since #493) comes from one table, `client/app/end_reasons.gd`, which
   `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
   `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
   (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
@@ -1826,6 +1976,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+  `--tutorial` (#601, §4.7.43) starts the solo tutorial without its invite, for `playcheck`; any option at all keeps
+  the first launch from starting it.
 
 #### 4.7.5 Built in M4-6 (#142), the shell
 `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
@@ -1835,7 +1987,7 @@ one that accepts `ReturnToLobby` or a match with a winner the end screen, any ot
 `SessionNode` (-90), `LaunchOptions` (the command line, which `headless_session.gd` also reads) and `EndReasons`
 (the reasons in words; it writes the host's own reasons as ids, since `client/` may not name `HostSession`, and a
 test pins them to `server/`'s). `client/ui/` holds the screens, built in code under `GameUi` (the `Ui` layer):
-`MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen`, `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
+`MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen` (folded into `ConnectingScreen` by #494), `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
 (`Avatars`, -80) showed a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaced
 with `SnapshotBuffer`'s poses. What the build pinned:
 - `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
@@ -1859,7 +2011,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   each in a `SubViewport` with its own `World3D` as `net_pair.gd`'s are (in one physics space each player stood
   inside the body another game drew of it and was pushed off its spot, #225 and #238), over a `LoopbackHub` on a
   simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the round (which holds the
-  players still for half a second), time up, the end screen and back, a client's Leave and the host's close (about
+  players still for half a second), time up, the end screen and back with no intent after 3 s (#212), a client's Leave and the host's close (about
   5 s), and the same loop with no `Game._process` from the lobby on (#241, above).
   The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
@@ -1925,7 +2077,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
-  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8).
+  for `shot`), which since #431 also shows the own connection's kind and round trip (§4.8); `client/app/OverlayFeed`
+  feeds it each frame (out of `game.gd` since #254).
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
@@ -1954,9 +2107,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
   | Life | Controller | Camera | Inputs | HUD |
   |---|---|---|---|---|
-  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role |
+  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | clock, own role, health, stamina, mic, hand and belt (#489, §4.7.37; the destination and task progress moved to the world marker and the map) |
   | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
-  | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Spectating <name>" and the target's hand and belt items (#168); nothing else of the target's |
+  | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Watching: <name>" (§4.7.37) and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
   (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
@@ -1984,7 +2137,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   event of it.
   From a living target's eyes the spectator sees what the target's own screen shows (#168): its body and head
   hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
-  body hidden; the HUD says "Spectating <name>" over those public slots (§4.7, The HUD).
+  body hidden; the HUD says "Watching: <name>" over those public slots (§4.7.37).
   The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
 - **What the dead hear** (V11): no voice (the host routes none, and the client plays none while dead); the world's
   sounds around the target (from M5-5 the listener is `Ears`, at the target's eye or its body's head, §6); lift music
@@ -2028,6 +2181,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
   and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
   destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
+  **Superseded by #489** (§4.7.37): the Toy HUD shows no teammates, task progress, destination swatch or hint, and
+  while dead only "Watching: <name>" over the watched player's slots (no clock or own role).
   **The task screen** (Tab), for the living, the downed and the dead: each task of the
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
@@ -2050,7 +2205,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
   player within the mode's `TargetInReach` from the feet, less the walking margin of #352, sends `Raise`, its
   release `StopRaise`, and a raise that
-  starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
+  starts after E was let go is stopped at once; the `give_up` key (G until #211, F since) held for 1 s sends
+  `GiveUp` once; the left and right mouse
   buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
   is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
   camera alone); the arm casts at priority 7, after `LifeView` placed it in the same step. The raise target is
@@ -2061,11 +2217,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
   camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel. (#168 adds the spectator's first-person
   hand and removes the panel's own invulnerability line and its "Watching" line: below.)
-- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
+- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD; #497 replaced it with the Toy
+  `LifeScreen`, §4.7.44) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
-- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
+- `project.godot`: `give_up` (G; F since #211, §4.7.28), `spectate_next` and `spectate_previous` (the left and right
+  mouse buttons).
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
   human picks a CC0 track with its `docs/credits/` entry.
 - Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
@@ -2114,18 +2272,22 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
   where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
   the ears (from M5-5; until then the viewport's current camera), and nothing beyond; every `AudioStreamPlayer3D`
-  sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds are 0.15 s blips generated in
-  code (no asset), until the engineer's CC0 files arrive with their `docs/credits/` entries (#144; M6.2's #525,
-  each file passing `sfx-check` first, AGENT_WORKFLOW §11.25).
+  sets `max_distance` to it, and from M5-7 plays muffled behind the level. The sounds were 0.15 s blips generated in
+  code until #525 (§4.7.40) gave them Kenney's CC0 files, each passing `sfx-check` first (AGENT_WORKFLOW §11.25),
+  and added footsteps.
 - `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
   `RemotePlayerBody` has the three attach points.
-- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
+- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud` (since #489 the Toy HUD, §4.7.37); `TaskScreen` (its rows pure: each `TaskState` by task
   id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
   `task_screen` (Tab) is held in the round with no Esc menu, which hides the crosshair (only the living have one)
-  and hint under it. **The shared theme:**
+  and hint under it. **Superseded by #253** (§4.7.33): the map and tasks screen `MapScreen`, opened and closed on M
+  (the action `map`); Tab has no action. **The shared theme:**
   `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
-  variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
-  screens name variations only. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+  variation (since #576 also the base controls a screen builds bare, under their class's name, §4.7.30); `GameUi`
+  gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the screens name
+  variations only. Since #288 the file is generated from the UI pack (§4.7.25); the Toy components and
+  the large-text swap are §4.7.27. The input actions `swap` (X) and `task_screen` (Tab; since #253 `map`, on M) are in
+  `project.godot`.
 - Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
   `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
@@ -2135,7 +2297,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
   first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
   margin) and `item_views_test.gd`. The `shot`s:
-  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
+  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn` (since #253 `map_preview.tscn`), `items_preview.tscn`
+  and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds (by ear on `sfx-check --page`'s listening page, AGENT_WORKFLOW
   §11.25).
@@ -2145,7 +2308,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
   `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
   Lobby tab's page; read-only settings for everyone but the host) and `LobbyHud` (the lobby's corner: the hint, the
-  roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
+  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.42). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
   longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
@@ -2159,13 +2322,34 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
-  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
+  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.46).
   #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
   failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
+- #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
+  `LobbyName.MAX_CHARS` characters) that the host edits and everyone else reads (not editable), its placeholder
+  the default (`LobbyPanel.default_name`: `lobby.default_name` with `ClientModel.host_name()`). The page is
+  refreshed every frame, so the host's field takes the model's name only while it has no focus (the host's typing
+  stays; a player's read-only field follows every rename, focused or not), and it sends only on submit or when it
+  loses focus, cleaned (`LobbyName.clean`: a pasted invisible character would make the wire refuse the whole
+  intent) and only when it differs from the model's or from a name already sent: no `ChangeSettings` per
+  keystroke, each of which the host would answer with a `SettingsChanged` to everyone. A sent name stays in the
+  field until the model's name moves (its echo is a round trip away), so it never flicks back to the old one; with
+  no host in the roster the default is "" (never "'s lobby"). `Game.change_lobby_name`
+  sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default); the
+  lobby HUD (#495) builds the same from `LobbyText.title_text`, in the language of the moment. Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
+  `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
+- #694 (main's #627 taken into the slice) puts the map's picker (`LobbyPanel.map_picker`, built once, its items
+  rebuilt by `set_mode`) in the row right under the name, out of the settings box: the two things that name the
+  match side by side. Its label is plain "Map" until the UI deck has a key for it. `Game.change_map` sends it.
+  Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
+  `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s: `esc_lobby_preview.tscn` and
+  `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
+- Since #491 the menu is the Toy one of §4.7.46: the tabs Game, Role, Guide, Lobby and Settings; the host's
+  question is a dialog.
 
 #### 4.7.12 Built in #168, the follow-up of the one-PC playtest on `release/m4` (PR #167)
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
@@ -2229,8 +2413,9 @@ M4 client PR: only the own model, the interpolated poses and the own mode; spect
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
-public circles only, the destination marker of D10 (b) included); a role named only on its own player's screen
-(a dissident's teammates on theirs); no hit confirmation for
+public circles only, the destination marker of D10 (b) included; the name plates of #257 show only past no level
+geometry, within 10 m, §4.7.29); a role named only on its own player's screen
+(a dissident's teammates on theirs, the plates' teammate mark too); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
 follows the M5 ADR's checklist (its §3; §6 below).
@@ -2261,8 +2446,8 @@ follows the M5 ADR's checklist (its §3; §6 below).
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
 #### 4.7.16 Built in M5-7 (#221), occlusion's muffle
-(the CC0 files had not arrived: they, their credits and CI's LFS step are
-a follow-up on #144 and #145):
+(the CC0 files had not arrived then: they, their credits and CI's Ogg stand-in came with #525, §4.7.40;
+CI's LFS step with #515):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
   out, so a ray flickering at an edge does not flip it), and jumps to the ray's answer at a speaker's first audible
@@ -2310,14 +2495,27 @@ a follow-up on #144 and #145):
   applies `UserSettings` to the sender and the buses and takes the Voice tab's changes; which microphone opens, the
   mark and the modes are §6's.
 - `client/app/`: `UserSettings` (`user://settings.cfg`, or `settings_<n>.cfg` for `PRIME_INSTANCE` n > 1: the
-  microphone, the mode, the threshold, RNNoise, the four volumes, the mark; written on each change). `Game` reads this
+  microphone, the mode, the threshold, RNNoise, the four volumes, the mark, and since #208 the interface language,
+  §4.7.26; written on each change). `Game` reads this
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
   stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
-  (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
+  (`voice_talk`, V), under the Esc menu too since #488 but never while a text field has the focus or a key capture
+  runs (`Game._typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
-  the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
+  the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked (a chip over
+  the ready chip since #495); the debug overlay's own voice
   line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
+- **The main menu's Voice page** (#301, the follow-up of #220's Esc-only tab; since #493 the Settings panel, §4.7.38):
+  `MainMenu`'s Settings item opens a second `VoicePanel` (the same class, in its light look); Esc closes it and
+  opens no Esc menu. `Game` wires both panels to its one `VoiceControl` and feeds the one on screen
+  (`Game.shown_voice_panel`), so a pick there is saved in this window's `UserSettings` and opens under the mark as in
+  the tab. With no `ClientSession` the sender still captures and gates for the meter (its `may_speak` is false
+  without a model, and it has no `send`), so nothing leaves; the Settings panel closes when a session ends.
+  Tests: `tests/unit/client/ui/main_menu_test.gd`, `game_voice_test.gd` (a pick on the page saved and opened under
+  the mark; the meter with no session, nothing sent even to a send of the test's own; both seen failing with the
+  page unwired or `may_speak` true without a model), `esc_menu_input_test.gd` (Esc leaves the page, seen failing
+  without it). `shot`: `client/dev/menu_voice_preview.tscn`.
 - Tests: `tests/unit/voice/voice_capture_test.gd`, `voice_gate_test.gd` (an empty frame while closed empties the
   pre-roll; the threshold clamped above 0; each seen failing first), `tests/unit/client/voice/voice_sender_test.gd`
   (seen failing on a planted widening: no life check, no drain while unspeakable; and, #241, a knockdown and its
@@ -2328,7 +2526,7 @@ a follow-up on #144 and #145):
   `esc_menu_state_test.gd`, the own voice line in `debug_overlay_test.gd`,
   `tests/integration/client/app/game_voice_test.gd` (the saved settings applied, the tab's changes saved, a word into
   a client's fake microphone delivered at the host), `input_actions_test.gd`, and the runner's `PRIME_INSTANCE` per
-  window in `tools/runner/tests/test_hostjoin.py`. `shot`: `client/dev/esc_voice_preview.tscn`,
+  window in `tools/runner/tests/test_hostjoin.py`. `shot`: `client/dev/esc_settings_sound_preview.tscn`,
   `debug_overlay_voice_preview.tscn`.
 - Not headless: a real microphone (headless runs open none: the Dummy driver captures nothing), the #22 laptop's
   windowed start with input enabled (the M5 ADR §6), and the one-PC and two-machine listening tests.
@@ -2379,8 +2577,8 @@ Built in #515 ([LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md), ame
 (`common.IS_CI`, and a Claude Code cloud session, `common.IS_CLOUD`: checkouts that may have no LFS content) every
 `check.run_import` keeps the LFS pointer files from Godot's import (`lfs.aside`), whose import of one fails and
 rewrites its `.import` file. Each pointer file goes into `tools/out/lfs-aside/` (behind a `.gdignore`); a type with a
-stand-in (`lfs.STAND_INS`: PNG, JPEG, WebP, BMP, TGA, WAV, glTF, GLB, OBJ) gets a minimal valid file of its type in
-its place under its committed `.import` file, so Godot writes the imported file every use of the asset loads (later
+stand-in (`lfs.STAND_INS`: PNG, JPEG, WebP, BMP, TGA, WAV, glTF, GLB, OBJ, and since #520 TTF and OTF) gets a
+minimal valid file of its type in its place under its committed `.import` file, so Godot writes the imported file every use of the asset loads (later
 steps too); a type without one has its `.import` moved too. All of it goes back afterwards as it was, even when the
 import fails. `check`'s project check then drops the lines that name a hidden pointer file, its imported file or a
 script that failed to load because of one (`lfs.drop_lines`), in one `skip` line with the counts; the credits check
@@ -2399,7 +2597,8 @@ mode both fail as before; and every stand-in imported under the `.import` file a
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
 `tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
---local --no-replay` on a free port), up to two more windows join it, and the players after them are bots in one
+--local --no-replay` on a free port; a scenario with the `tutorial` header has that one window only, started with
+`--tutorial`, #601, §4.7.43), up to two more windows join it, and the players after them are bots in one
 headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
 window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
 with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
@@ -2407,7 +2606,9 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 `HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
-`LifePanel`, the `LobbyHud`, the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
+`LifeScreen` (#497), the `LobbyHud` (#495: `lobby.status`, `lobby.ready`, and `lobby.roster`, a line per row "<name
+as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of 9", and
+`tutorial.how`, its how line as drawn), the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
@@ -2456,9 +2657,11 @@ the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", 
 one visible, enabled button or its failure; `aim` as an action step, the nearest resting item it picks and the
 turn that makes a real `PlayerController` face a target). The scenarios `esc_menu` (#169), `spectate` (#168),
 `items` and `end` (#276) are its own checks, run on a desktop; since #275 they assert the Esc tabs, the lobby
-roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
-and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner and its
-host-only Back to lobby, the lobby's cleared ready flags after End and a second round.
+roster and countdown, the downed and spectating plates (#497) and the knife in the first-person hand besides their PNGs,
+and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner, its
+countdown (`end.countdown`) and the return with no button press, the lobby's
+cleared ready flags after End and a second round. A text wait reads a Label as drawn, `atr(text)` (a deck key's
+translation; #498), and `end.winner` the winner line shown (`EndScreen.winner_shown()`).
 
 #### 4.7.23 Tests
 The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
@@ -2472,6 +2675,1318 @@ the two-client push runs over the loopback with the interpolation delay. Key eve
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest.
+
+#### 4.7.24 Built in #287 (M6.2), the UI's base resolution
+- `project.godot`: the UI is laid out on a 1920x1080 canvas (`display/window/size/viewport_width` and `_height`),
+  the size the UI pack's mock-ups and Toy tokens are drawn at, so one mock-up px is one Godot px and no int token
+  (border, radius, shadow, font size) is scaled and rounded. It still stretches to the window (`canvas_items`,
+  `expand`; the 3D view renders at the window's size), and `window_width_override` and `_height_override` keep the
+  start window at 1152x648 (`shot`, `playcheck`, `host` and `join` size theirs with `--resolution`). Mouse look reads
+  `screen_relative`, which the stretch does not scale.
+- Until the screen issues (#489-#498) move each screen to Toy variations, its sizes are those of the old 1152x648
+  base times 5/3, rounded (the generated theme, §4.7.25, keeps them for the names it does not map to a Toy look), so
+  the screens keep their apparent size: the theme's font sizes, container margins and separations and its style
+  boxes' content margins (not the corner radii); the layout widths in `client/ui/` code (the menu's fields,
+  `UiParts.BUTTON_SIZE` and its labels, `EscMenu.PAGE_SIZE`, `Hud.SWATCH_SIZE`, the debug
+  overlay's inset, the dev test room's overlay box). Godot's default theme, which drew the controls no variation
+  styled (fields, spin boxes, sliders, scroll bars, bare labels and buttons), is scaled by
+  `gui/theme/default_theme_scale` = 1.6667. Since #576 the generated theme covers the fields, dropdowns, sliders and
+  scroll bars, but the scale stays 1.6667 until the rest (CheckBox's box, SpinBox's arrows, the bare Buttons'
+  padding) has a look or the engineer accepts the gaps (§4.7.30).
+- Tests: `tests/unit/client/ui/base_resolution_test.gd` (the base, read back from the running root; the stretch; the
+  start window; the default theme's scale, read back from `ThemeDB`), seen failing on the old `project.godot`. The
+  `shot`s of every preview in `client/dev/` at 1152x648 before and after match in apparent size (PR of #287).
+
+#### 4.7.25 Built in #288 (M6.2), the generated theme
+- The flow: a tag `ui-<semver>` of xperiaroco2/prime-game-ui → `tools\run.cmd ui-sync <tag>` (AGENT_WORKFLOW
+  §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
+  → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
+  `uid://c8behqt7jtcn8` kept with `ResourceSaver.set_uid`, a headless save writes none) and `game_theme_large.tres`.
+  Both are generated, never edited by hand. Pinned at `ui-0.4.0`.
+- `tools/theme/mapping.json` is the engine knowledge, data: pack states to Godot StyleBox names
+  (`hover-pressed` → `hover_pressed`), the 19 fields to `StyleBoxFlat` properties, per-state `font-color` to the
+  `font_*_color` items, `items` (kebab-case to the Godot item), `label` to `font_size`, `press.*`, `size.*` and
+  ToyButton's `motion` to custom constants (`press_depth`, `press_hover`, `press_held`, `press_disabled`, `width`,
+  `height`, `min_width`, `wide_min_width`, `wide_width`, `press_duration_ms`, `press_duration_reduced_ms` from the
+  reduced-motion mode, `press_trans`, `press_ease`), the health ramp to the colours `ramp_stop_00` … `ramp_stop_20`
+  (ToyBarHealth), ToyMic's `icon_on` and `icon_off`, and the `empty` list to one `StyleBoxEmpty`. ToySlider's
+  `focus` StyleBox is written though Slider draws none: `ToySlider` draws that ring (§4.7.27). Custom items are what
+  the Toy components' code reads; the mapping names which items are custom and which bound items Godot's default
+  theme leaves out (Button's `hover_pressed`, ScrollContainer's `scrollbar_h_separation`).
+- `tools/theme/theme_builder.gd` (preloaded, no `class_name`) checks a pack against the mapping (an unmapped class,
+  state, token or texture, a name that is not letters only or is an engine class, a broken ramp or motion, a bad
+  base type, §4.7.30, stop the build) and builds the `Theme` in memory; each StyleBox has the sub-resource id
+  `<Variation>_<item>`, so a regenerated file differs only where a value did. `build_theme.gd` also stops when the
+  pack differs from its lock or the project's UI base is not the pack's `reference` (1920x1080, #287), which the
+  tests also hold.
+- What it writes: the pack's live type variations (118 at `ui-0.4.0`; ToyChipNew, ToyChipNewText and
+  ToyHowtoCaption are deprecated and skipped); since #576 also the base types under their engine class's name, the
+  engine's SpinBoxInnerLineEdit and a default font size (§4.7.30); the pack's textures as icons and, once its file is
+  in the project (since #684), the font (§4.7.34). Each theme also carries
+  the pack's `base` and `toggle` hints as its metadata `toy_hints` (mapping `hints`; §4.7.27). The large-text theme
+  is a whole theme that differs only in font sizes and the keycaps' `min_width` (42, from `modes.textSize.large`):
+  `GameUi.set_large_text` swaps to it.
+- Today's names are thin variations of Toy ones, so the screens restyle with no code change (the issue's list):
+  HudPanel, LifePanel, TaskPanel → ToyPlate; HudText, TaskRow, LifeText → ToyTextOnDark; HudHint → ToyHudCaption (not
+  in the issue's list: a hint reads below HudText); HudTitle, Title, EndTitle, LifeTitle → ToyTitleOnDark;
+  TaskDescription → ToyTextMutedOnDark; EscShade → ToyBackdrop; EndBackdrop, LoadingBackdrop → ToyBackdropNight;
+  LifeBar → ToyBarProgress with its own `background` (left and right content margins 267, the bar's width;
+  `Theme.get_stylebox` does not follow variations); EscTab → ToyMenuItem, not the issue's ToyTab, whose ink text is
+  unreadable on the Esc menu's dark panel. The names the issue does not map (the containers' margins and separations,
+  DebugText, HudCrosshair, Shortfalls) keep their greybox values at #287's sizes in the mapping's `keep`.
+- Built in #520 (§4.7.34): the theme icons from the pack's `textures` (an imported copy of the pack's assets under
+  the same lock), the Delivery card art, and the font hook (`font.file`: a FontVariation per label weight); the file
+  landed in #684.
+- Tests: `tools/runner/tests/test_ui_sync.py` (the sync from a fixture repository, byte for byte with a CRLF blob, a
+  binary outside the assets list deferred, stale files removed, a bad pack leaving the pinned copy untouched, the tag already pinned not
+  fetched, each problem the offline verify names on a mutated copy, a pack SVG missing from the lock, and the
+  committed copy against its lock); `tests/unit/tools/theme_builder_test.gd` (every variation mapped and each planted
+  gap named, a StyleBox state missing a field too; every mapped engine item and icon name in the class reference, with
+  a planted typo and a custom item that shadows an engine one; names letters only and no engine class but the base
+  types (#576); the committed themes equal a fresh
+  build, which is deterministic, seen failing on a planted stale value; the uids; spot values, the press motion and
+  the ramp; the large-text theme; the legacy and kept names; the project's base against the pack's `reference`, seen
+  failing on a probe at 1152). `life_panel_test.gd` and `theme_test.gd` run unchanged on the generated theme.
+
+#### 4.7.26 Built in #208 (a), English and Ukrainian
+The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
+host-made text as ids with arguments on the wire is #548 (§4.7.47), and the source test against literal strings, the content
+names and the font's glyphs are #549 (§4.7.48).
+- **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
+  Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
+  ui-copy <tag>` (AGENT_WORKFLOW §11.27) copies it at a release tag into `client/i18n/strings.csv`, byte for byte,
+  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-0.4.0`, 221 keys in 225 rows. Never edit
+  the deck here: a change goes to the UI repo, a new tag, then `ui-copy`.
+- **The translations.** Godot's import writes `strings.en.translation` and `strings.uk.translation` beside the deck
+  (gitignored: every import rebuilds them); `project.godot`'s `[internationalization]` lists both, so every run loads
+  them. A screen sets a Control's text to a key (Godot translates it and retranslates it on a switch) or calls
+  `tr(key)` and fills the placeholders with `String.format({...})` after it, rebuilding on
+  `NOTIFICATION_TRANSLATION_CHANGED`. A number before a word that changes takes `tr_n(key, key, n)`: Ukrainian has
+  three forms (one when the number ends in 1 except 11: 1, 21, 31; few when it ends in 2 to 4 except 12 to 14: 2, 22; many otherwise: 0, 5 to 20, 25), which the deck writes as the
+  key's row and two rows without a key.
+- **The language.** `UserSettings.language` (`[interface] language`, "" before any choice, an unknown one reads as
+  "") holds the player's choice; key bindings get their own file (#211). `Languages` (`client/app/`) names the two
+  (`lang.en`, `lang.uk`, each in its own language in both columns), picks the first launch's language (Ukrainian
+  when `OS.get_locale_language()` is `uk`, English otherwise; not written to the file, so until a choice the game
+  follows the system), applies it with `TranslationServer.set_locale`, and `choose()` applies and saves a pick at
+  once, for the settings screen. `Game._ready_settings` applies it before the voice settings and the first screen. A Game with no command line (a test, a playcheck window) ignores the machine's language and speaks English unless its settings say otherwise.
+Tests: `tests/unit/client/i18n/translations_test.gd` (both translations listed and loaded, every key in both
+languages, Ukrainian plurals for 1, 2, 5, 11 and 21 directly and through `tr_n`, the deck against its lock),
+`tests/unit/client/app/languages_test.gd` (the first launch, the choice over the system, a switch at once that
+outlives a restart, an unknown language), `user_settings_test.gd` (the language's round trip and fallback),
+`tests/integration/client/app/game_language_test.gd` (a saved choice is the locale at the start; seen failing
+without `Languages.apply`), and `tools/runner/tests/test_ui_copy.py`.
+
+#### 4.7.27 Built in #289 (M6.2), the Toy components
+The Toy look's behaviour that a theme cannot hold (prime-game-ui `ui-0.4.0`: its spec's sections 5, 6 and 19 and
+the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated theme only (no override, no
+`Color(...)`, no font size: `theme_test.gd`).
+- **Hints.** The pack's `base` (the toy base under a raised face, per screen context `dark`, `light` or `any`) and
+  `toggle` (the selected partner) are not theme items: the generator writes them into each theme's metadata
+  `toy_hints`, which `ToyHints.base_for(variation, context)` and `selected_for(variation)` read. `check_pack` stops
+  on a base that is not a live Panel variation, a context outside the three, or a partner that is not a live
+  variation of the same class. A legacy name (EscTab) has no hints, as its ToyMenuItem has none.
+- **`ToyRaised`** (a `MarginContainer`): the base `Panel` first (its variation from the hints, `mouse_filter`
+  IGNORE, hidden while there is none or while a button face is disabled), then the face. The base StyleBox draws
+  the face's shape moved down by its depth through expand margins, so layout and the hit area are the face's. The
+  wrapper takes placement, size flags, minimum size and visibility; the face keeps its variation, text and signals;
+  the base follows the face's variation on its theme change. The wrapper reserves no room for what the base's and
+  the face's StyleBoxes draw outside its rect (expand margins: ToyTitlePlate's base reaches 36 px out): the caller
+  leaves that gap, read from the theme (the showcase's `_room_for_base`).
+- **`ToyPress`** (an internal child of every Toy button): `offset_transform_enabled`, and the face's visual-only
+  `offset_transform_position:y` moves to `press_disabled` if disabled, else `press_held` while held (`button_down`
+  to `button_up`: mouse, touch and `ui_accept`) or while a toggle is on, else `press_hover` while the pointer is
+  over it, else 0. It re-evaluates on `draw`, `button_down`, `button_up`, `mouse_entered`, `mouse_exited` and
+  `toggled`, and tweens only when the target changes (`TRANS_SINE`, `EASE_OUT`, `press_duration_ms` 70, or
+  `press_duration_reduced_ms` 0 under `UiPrefs.reduced_motion`). A container's sort sets position and size, never
+  the offset transform, so a press survives a re-layout or a theme swap. A face disabled while held drops the hold
+  (Godot sends no `button_up` then and drops the release on a disabled button), so it is not sunk once enabled. A
+  raised toggle that stays on (the Esc
+  menu's Ready, a selected preset card) rests at `press_held`: #289's choice, to judge in the interactive showcase.
+- **`ToyToggle`** (an internal child): on `toggled(true)` the variation becomes the partner (ToyTab, both
+  ToyChipToggle, ToyRadio, ToyPresetCard), and back on `toggled(false)`; companions (a card's note) swap with it;
+  `sync()` after `set_pressed_no_signal`. ToyMenuItem and ToyKeyButton have no partner and draw their own pressed
+  look.
+- **`ToyBar`**: a ToyBarTrack holding a fill-only `ProgressBar` (ToyBarHealth or ToyBarStamina, no percentage). The
+  health fill's `self_modulate` is `ramp_stop_NN` of `step = clampi(floori(hp * 20 + 0.5), 0, 20)` (the downed
+  bleed-out bar too); the stamina fill keeps its colour. **`ToySlider`** draws the theme's ToySlider `focus` box over
+  itself while it has visible (keyboard or gamepad) focus, `has_focus(true)`.
+- **`UiParts`**, the one way to build them: `button()` returns the `ToyRaised` (its `face` is the Button; by default
+  ToyButtonSecondary on a dark screen; `BUTTON_SIZE`, the M4 width, on the wrapper), `raised()` (ToyPanelMenu,
+  ToyPanelDialog, ToyPanelHowto, ToyMapBoard, the ToyTitlePlate Label), `toggle()` (a flat toggle with ToyPress and
+  ToyToggle: tabs, chips, radios, menu items, keycaps), `sized()` (`width`, `height`, `min_width`, `wide_width`,
+  `wide_min_width` into `custom_minimum_size`, keeping a dimension the variation lacks, again after each theme
+  change; deferred, as during `theme_changed` `get_theme_constant` still answers from the old theme's cache,
+  observed on 4.7.2) and `scroll()` (a ToyScroll with the ToyScrollBar). Today's screens changed only where
+  `button()` now wraps: the menu, connecting and Esc buttons are Toy buttons, and the Esc menu's tabs are `toggle()`s
+  of EscTab (`tab_buttons` still maps the Buttons). The screens' own Toy layouts are #489-#498.
+- **Large text and reduced motion.** `GameUi.set_large_text(on)` gives every screen that holds the shared theme
+  `THEME_LARGE` (or back) live; a screen with its own theme keeps it, a later one gets `shared_theme()`.
+  `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
+  it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
+  read it for the connecting spinner and the fades. Settings > Accessibility sets both and `UserSettings` saves
+  them (`large_text`, `reduced_motion`; #491, §4.7.46).
+- **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
+  1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
+  `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
+  that draws the hover StyleBox (Godot cannot force a hover) plus the hover offset, held, disabled, focus drawn over
+  the face, selected and selected + hover; then a live cell. `showcase_interactive.tscn` (page chips, large text,
+  reduced motion, a live health slider) is for a human, in a window:
+  `tools\run.cmd run tools/theme/showcase_interactive.tscn --seconds 3600`. Feedback goes to the UI track as token
+  changes, never as edits in the game.
+- Tests: `tests/unit/client/ui/toy_press_test.gd` (the targets per variation from the theme; the base unplugged,
+  seen failing without its line; one tween per changed target; reduced motion; the raised toggle on; the offset
+  after a sort and a theme swap; a face disabled while held, seen failing), `ui_prefs_test.gd` (only 1 is on; a
+  bool after `reset()`), `toy_raised_test.gd`, `toy_toggle_test.gd` (every pair, a ButtonGroup, no
+  partner, a companion, `sync()`), `toy_bar_test.gd` (step(0.22) = 4, (0.8) = 16, (1.0) = 20, (0.23) = 5 against a
+  floor, the clamps; all 21 stops in both themes; the fill's colour), `toy_slider_test.gd`, `ui_parts_test.gd`
+  (the large keycap's 42 after a theme swap), `large_text_test.gd`; `theme_test.gd` also reads the builders'
+  variation names (seen failing on a planted `EscTabb`); `tests/unit/tools/theme_builder_test.gd` (the hints, three
+  planted hint problems, a changed hint seen by the stale test); `theme_showcase_test.gd` (the pages show every live
+  variation, seen failing with ToyMic left out; the interactive switches: the health slider, reduced motion,
+  large text, the page). The look: the four shots in the PR.
+
+#### 4.7.28 Built in #211 (M6.2), give-up on F and the controls the player rebinds
+- `project.godot`: `give_up` moves from G to F, Ready's key in the lobby. The two never act in one phase: `Game`
+  reads `ready` on the lobby screen only, `LifeView` reads `give_up` only in the round while downed.
+- `client/app/Controls`: the 16 rebindable actions of Settings › Controls in #488's order with their `control.*` deck
+  keys; their defaults from `project.godot` (ProjectSettings `input/<action>`, never the InputMap, which `apply()`
+  rewrites); each action's phases (`Controls.PHASES`: the lobby, living, downed or dead, from what reads it today:
+  movement in the lobby, living and downed, sprint and jump in the lobby and living, the item keys and `interact`
+  living, the map on any life, talk in the lobby and living, `give_up` downed, `ready` the lobby, the spectate
+  buttons dead; no action acts in the pregame, which is frozen and silent, #213); `clashes_of()`, the "same key"
+  check per phase (#488's rule 6), under which `give_up` and `ready`
+  share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
+  for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
+  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
+  The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
+  actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
+  reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. Each window keeps
+  its copy in memory, so with two windows open the last to save wins. `Game` reads and
+  applies it at the start; a `Game` without a command line (tests, playcheck windows) keeps the defaults and never
+  touches the InputMap.
+- `client/ui/KeyLabel`: the label of an action's binding now (`of_action`, `of_event`), for every key prompt and the
+  Toy screens' keycaps (#488's rule 7, #491, #495, #497): the physical key's label on the current layout
+  (`DisplayServer.keyboard_get_label_from_physical`: AZERTY's physical Q reads A) when it is Latin, else its US name
+  (`KeyLabel.shown()`: a Ukrainian layout labels the physical F "А", probed in a window on 4.7.2, and the prompt
+  reads F; headless Godot has no layout and prints an error, so it reads the physical key's name there), the deck's
+  `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
+  no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
+  through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
+  `downed.give_up_hold`, §4.7.44, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
+  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
+  use it, so each follows a rebind (`LobbyHud`'s hint did until the Toy lobby HUD dropped it, #495). Known gap
+  until the Toy screens (#491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
+  they are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside
+  one (the pick-up hint's "ЛКМ: pick up <item>" after a rebind).
+- `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
+  Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
+  or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
+  event but the wheel (it scrolls the page): the next key or mouse button press binds (applied and saved at once), a
+  release or an echo does nothing, a click on another key or on Reset cancels and reaches that button, Esc cancels
+  with the menu left open, and hiding the panel cancels it. Reset to defaults empties the file; it is a Toy button
+  (`UiParts.button()`, §4.7.27), the key buttons plain ones. `GameUi` builds the panel before `Game` applies the
+  player's language, so it writes its words again on `NOTIFICATION_TRANSLATION_CHANGED` (`retext()`, §4.7.26), and
+  `screen_preview` sets English first, so its shots read the same on every machine. The Toy Esc menu (#491) hosts
+  the panel in its Settings page and restyles it.
+- Tests: `tests/unit/client/app/controls_test.gd` (the defaults, the phases, the clash per phase, saving only the
+  rebound actions, loading, reset, the fallback for a missing, damaged or foreign file, `apply()` matching real
+  keyboard and mouse device ids, F3, Enter and the wheel refused),
+  `tests/unit/client/ui/key_label_test.gd` (the deck's words in English and Ukrainian; these suites set the locale,
+  as the machine's language is the test run's), `controls_panel_test.gd` (the capture binds, ignores releases and
+  echoes, cancels on Esc and on a click on another button, lets the wheel through, marks a clash, resets, follows a
+  language switch after it was built), `life_hud_test.gd` (the give-up key is the one bound now; since #497 the
+  screen's keycap follows a rebind through the life view, `life_screen_test.gd`),
+  `input_actions_test.gd` (`give_up` is F); `tests/integration/client/app/esc_menu_input_test.gd` (through real key
+  events in the Controls tab: Esc cancels a capture and leaves the menu open, K rebinds Ready, a click on another
+  row's key cancels the capture and starts that row's, K then toggles Ready
+  and F no longer does; seen failing with the capture not consuming its events) and
+  `tests/integration/client/life/life_network_test.gd` (a downed joiner gives up on F held, not on G, and no F in the
+  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page
+  with a same-key clash) and `life_give_up_preview.tscn` (the downed screen's "Hold F to give up", from a real
+  window's layout; the Toy plates since #497).
+- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
+
+#### 4.7.29 Built in #257 (M6.2), name plates
+Name plates over the other players' heads, in line of sight within about 10 m for now, with a teammate mark on a
+dissident's own client (the engineer as the designer, 2026-10-03, on #257: to revisit after the playtests). The
+tree and the numbers are the UI handoff's (prime-game-ui `docs/handoff/s07-hud.md` `Plates`, `s04-lobby.md` the
+same without the mark); the look is provisional: the Toy round HUD (#489) restyles it.
+- `client/ui/NamePlates` (`Plates`, the first child of `GameUi`, so under every screen, with the shared theme and
+  the large-text swap; shown on the lobby and round screens only) keeps one `NamePlate` per other player whose
+  body `AvatarViews` draws. A plate shows only while the body is drawn (`SightHider` hid none of it) and not watched
+  from its eyes (`RemotePlayerBody.is_watched()`), its eye (the head standing, the lying capsule's middle downed) is
+  within `NamePlates.RANGE_M` (10 m, the engineer's value, the one place to change it) of the viewport's camera, the
+  plate's point is in front of the camera, and one ray from the camera to the eye meets no level geometry
+  (`SightHider.sees`, the world layer only, so no name is ever drawn through a wall: §4.7.14). While the downed
+  camera's `SightHider` is active (`NamePlates.hider`, `LifeView.hider()`), the body's eye must see the player's eye
+  too, so the arm's camera shows no more than standing at the body would (the M4 ADR's §3 item 3). The rays run in the
+  physics frame at priority 11, after the bodies moved (-80) and `SightHider` hid (10); each drawn frame centres the
+  shown plates on `Camera3D.unproject_position` of the point `ABOVE_HEAD_M` (0.35 m) over the head (over the lying
+  capsule downed). A plate of a player who has no body any more is freed.
+- `NamePlate` is `Plate` ToyNamePlate > `Row` ToyRowEight > `Name` ToyNamePlateText (the roster name, data:
+  `auto_translate_mode` DISABLED, so no #208 key is needed) and `Mark`, a `TeammateMark`. Nothing else is on a plate:
+  no role, no health, no life state. The mark shows only when `NamePlates.marked(model, peer)`: the peer is in the
+  own model's `teammates[role]` (its own Teammates, which the host sends only to a role whose players know each other,
+  so only to dissidents) and is not the own player; an engineer's client has no list for its role and never marks
+  anyone. `TeammateMark` is the handoff's 20 px `TextureRect` of the pack's `teammate-mark.svg` (imported by #520,
+  §4.7.34), tinted with ToyNamePlateText's `font_color` through `self_modulate`.
+- The ray meets only the world layer (1), while a body is hidden by what the level draws: a look a player can hide
+  behind (a partition, a tarp, a shelf) needs a layer-1 collider that covers it, or the plate shows through it
+  (`levels/CLAUDE.md` keeps looks and colliders apart on purpose). Today's levels have only floors.
+Tests: `tests/integration/client/ui/name_plates_test.gd` (a real `AvatarViews` drawing five players from snapshots in
+a `SubViewport` world: plates in sight within 10 m centred over the head; none behind a wall, beyond 10 m, behind the
+camera, for a body hidden or watched, on a hidden layer or for a player who left; the mark for a dissident's teammate
+only and never on an engineer's client; a plate holding the name and nothing else; a downed player's plate over the
+lying body; a downed camera's plate needing the body's eye to see the player; seen failing without the ray, without
+the hider's ray and with a mark for everyone), `tests/unit/client/ui/name_plate_test.gd` (the
+handoff's tree, the name never translated, the plate shrinking when the theme swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby, the
+layer under every screen on the lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a
+plain plate, a teammate's with the mark, a head over a wall and a player beyond 10 m without one).
+
+#### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls
+- The screens build bare `LineEdit` (the menu's code and address), `SpinBox` (the port, the lobby's numbers),
+  `OptionButton` (the Voice tab's microphone and mode), `HSlider` (its threshold and volumes) and `ScrollContainer`
+  (the Esc menu's pages), with no type variation, so Godot's default theme drew them. `tools/theme/mapping.json`
+  `base_types` now styles those classes under their own name: `from` copies every item of a live, parentless pack
+  variation of that very class, the same objects (a StyleBox stays one sub-resource `<Variation>_<item>`): LineEdit
+  ← ToyField, OptionButton ← ToyDropdown, PopupMenu (its list) ← ToyDropdownList, HSlider ← ToySlider, VScrollBar
+  ← ToyScrollBar, ScrollContainer ← ToyScroll. A row's literal items, and the theme's `default_font_size` (27, which
+  a control takes when no type of its chain has a `font_size`: bare Label, Button, CheckBox, ProgressBar), are
+  #287's greybox values for what the pack has no look for (Godot's default × 5/3; not a design decision): Label
+  `line_spacing` 5, CheckBox `h_separation` 7, VBoxContainer, HBoxContainer and VSeparator `separation` 7. The dev
+  test room's overlay, the one Control outside `GameUi`, takes `GameUi.THEME`.
+- How Godot 4.7.2 looks a theme item up (seen in probes, the plan review of #576): for each theme owner up the tree,
+  every type of the control's chain (its variation's chain, then its class and parents), and only then Godot's
+  default theme; so a row on a class also restyles its subclasses (a Button row would beat Godot's own CheckBox
+  look). `check_pack` refuses a row on no engine Control or Window class, an unknown member, a `from` that is not a
+  live parentless variation of that class, and any item that would replace one the default theme sets on an
+  engine subclass (read from its item lists: `Theme.has_font_size` is true for every type of a theme with a default
+  font size) unless a row of that subclass gives it too. The chain comes from the theme that names the control's
+  variation: SpinBox's field is a SpinBoxLineEdit with the engine's variation SpinBoxInnerLineEdit, which the default
+  theme does not name, so it found the theme's default font size before the LineEdit row; the mapping's
+  `engine_variations` names it a thin variation of LineEdit.
+- Left on Godot's default theme (listed in `base_controls_test.gd`; the screen issues #489-#498 and the UI track
+  decide): the bare Buttons' StyleBoxes (the lobby's Copy and Ready, the Controls tab's keys), CheckBox's icons and
+  StyleBoxes, SpinBox's arrows, the voice meter's ProgressBar boxes, the bare PanelContainers' panel (no margins),
+  the Esc menu's VSeparator line, the hidden HScrollBar. ToySlider and ToyScrollBar are light-context looks
+  (ink fill on a lavender track): on the Esc menu's dark panel their filled part and grabber barely show until the
+  screen moves to a light panel. Large text grows the bare fields and dropdowns (their Toy sizes) but not the
+  default size, which the pack has no large value for.
+- So `gui/theme/default_theme_scale` stays 1.6667 (§4.7.24). At 1 (the first build of #576, shots in its PR) those
+  gaps shrank to about 60% in a 1152x648 window: the host's unchecked "Delivery" ban box on the dark Esc Lobby tab
+  could no longer be seen, SpinBox's arrows became 6 px chevrons, the check icons 8 px, the key buttons' padding
+  7 → 4, the VSeparator fainter, and the HUD's hint sat about 6 px lower (`Hud` centres it before it is in the tree,
+  so its first height is the default theme's line). The base types are searched before the default theme, so they
+  hold under either scale; setting it to 1 waits for looks for those gaps or the engineer's word.
+- Tests: `tests/unit/client/ui/base_controls_test.gd` (live controls under both themes: a bare LineEdit and a
+  SpinBox's field take ToyField's StyleBoxes, size and colour, an OptionButton and its list ToyDropdown's and
+  ToyDropdownList's, an HSlider and a ScrollContainer's bar ToySlider's and ToyScrollBar's; bare text and spacing keep
+  the greybox sizes and a variation still wins; a CheckBox and a Button keep Godot's own boxes; large text, pinned;
+  every engine control class `client/ui/` builds is a base type or named with its gap, a planted TextEdit named;
+  seen failing on the old theme and, for the field's size, without `engine_variations`);
+  `tests/unit/tools/theme_builder_test.gd` (each planted bad row named, a Button row shadowing CheckBox too, and a
+  subclass row covering it; the base types share the variations' objects in both themes; a base type's literal item
+  in the class reference, a planted typo named); `base_resolution_test.gd` (the scale, 1.6667). The `shot`s of every
+  preview in `client/dev/` before and after: only the Esc menu's tabs and the main menu's fields change (PR of
+  #576).
+
+#### 4.7.31 Built in #498 (M6.2), the post game screen
+`EndScreen` (`client/ui/end_screen.gd`) is the UI track's post game screen, node for node as prime-game-ui
+`docs/handoff/s10-post-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins): `Night`
+(ToyBackdropNight) under `V`, a centred 1440 px ToyColumnThirtyTwo of `Title` (`end.title`), the winner line,
+`Result` (ToyColumnEight) holding `Reason`, the 8 px `Gap` and `Back`. Pack variations only, no override.
+- **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
+  mode's `crew` and `dissidents`; a side not there, or no winner, hides both lines). When the own role's side won
+  (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
+  (`WinnerRaised`, a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
+  other line says who won, and no role is shown.
+- **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
+  reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
+  other id, `no_crew_present` too (the deck at ui-0.4.0 has no key for it), and a `MatchEnded` without one hide the
+  line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
+  model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
+  countdown, so the next End starts without the last round's.
+- **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
+  over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
+  (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
+  Godot translates.
+- **Behaviour.** Each time the screen shows (End starts; a parent hidden and shown again is not a new End), Night fades in over 0.4 s (`FADE_SECONDS`, a `Tween` on
+  its alpha), a cut under `UiPrefs.reduced_motion`, and `outro_began` is emitted: the hook for the one sound of both
+  outcomes: the screen plays `UiSounds.outro` on it (#657, §4.7.40). Every Control ignores the mouse and takes no focus. Voice is
+  silent in End by #213's rule, not by the screen.
+- **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
+  loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
+Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
+minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
+without a role; a side with no key; each reason, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
+client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657),
+`tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
+`--size 1920x1080 --frames 60`: `client/dev/end_preview.tscn` (win, en), `end_lose_preview.tscn`,
+`end_uk_preview.tscn`, `end_lose_uk_preview.tscn` and `end_large_preview.tscn` (win, uk, large text); the game's
+own: `tools\run.cmd playcheck end`.
+
+#### 4.7.32 Built in #494 (M6.2), the connecting, failure and loading screen
+prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; the issue linked `ui-0.2.0`, and
+where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
+- **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
+  `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
+  `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It is on the handoff's black-screen
+  CanvasLayer 6, `GameUi.black` (`BLACK_LAYER`), with the pregame and the post game (#656). The Esc menu, layer 4 in
+  that table, is on `GameUi.above` (`ABOVE_LAYER` 7) with the debug overlay: Esc in Loading, the pregame or the post
+  game opens it over the black, a way out of a hung loading (the engineer's answer (b) on #656). Esc on Connecting
+  and Failure stays their Cancel and Back (no Esc menu); #726's rule stands (a new screen closes a menu opened over
+  another). Test: `tests/unit/client/ui/game_ui_layers_test.gd`; shots `client/dev/loading_esc_preview.tscn`,
+  `pregame_esc_preview.tscn`, `end_esc_preview.tscn` (`ScreenPreview.esc_over`).
+- **Connecting.** `show_join(code, step)`: the title `connect.connecting_unnamed` until the host's `Welcome` brings
+  the lobby's name (#214, §3.5: Game's `_refresh_join` then calls `set_lobby(model.lobby_name, model.host_name())`,
+  `connect.connecting` with the typed name, or `lobby.default_name` with the host's name). That title is wired but
+  not drawn today: the frame that folds a Welcome in the Lobby already picks the lobby screen (`GameFlow.screen`),
+  so the name shows in the Esc menu's Lobby tab and (#495) the lobby HUD instead; showing it on this screen (a
+  short beat after Welcome, or the name in the signalling `found`) is the engineer's call on #214. Then the step
+  from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
+  `UiParts.sized`, 42 under large text) and the time since Join (m:ss, Game's `_refresh_join`); a Direct join and a
+  host show no code row and no address. The spinner turns once a second about its centre, half as fast under
+  `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the
+  handoff's tree), because a container resets a child's rotation at every sort. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
+  fields keep what was typed (a command-line join fills them first, `Game._fill_menu`).
+- **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
+  (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
+  end as `Game.failure` (GameFlow's `FAILED` session, `FAILURE` screen, the pointer free) until Back
+  (`back_to_menu`, also Esc), Try again (`retry`: `Game._retry`, the last `join_target`, `host` or `host_with_code`
+  with the same arguments) or Join directly (`open_direct`: the menu's Direct panel open, its address focused, the
+  code kept, #493). Primary is focused with a flat BackGhost beside it, or the raised BackSolo stands alone and
+  focused. A code join that the service's `found` ended on another version shows both versions
+  (`JoinProgress.found_versions`: "<protocol> (<first six hex digits of the content hash>)"); a Rejected Hello names
+  none. The menu draws no reason line since #493 (§4.7.38): the failure says why.
+- **Loading.** `GameUi.show_screen` starts it on entering `LOADING` (`show_loading`: one random `TIPS` key, a test
+  holds the list to the deck's `tip.*`); `refresh_loading(model)` lists the host (`NetTransport.HOST_ID`) first, then
+  the roster's order, the own row `player.you`, each `loading.player_loading` muted until its `PlayerLoaded`; the bar
+  is `ClientSession.load_progress()` (the threaded load's progress, 1 once its `LoadAck` went out). `load-card` is a
+  hook: `show_card(card)` places #490's card (a `ToyRaised` of ToyPanelHowto) as drawn with `Head`; #254 picks it (§4.7.36).
+- Every text is a deck key; the title, the version lines, the code, the names and the time are set from code with
+  `auto_translate_mode` DISABLED and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`.
+- Tests: `tests/unit/client/ui/connecting_screen_test.gd` (the tree node for node: names, classes, variations,
+  anchors, offsets, grow, size flags and minimum sizes; every end reason's state, texts and buttons; the join states;
+  the title's lobby name in both languages; the version lines; the focus as drawn; the loading rows; the tips against
+  the deck; the card hook; the spinner's speed; the keycap under large text; every key in the deck),
+  `end_reasons_test.gd` (every end but leaving has a state the screen draws), `game_flow_test.gd`,
+  `join_progress_test.gd` (the version lines), `client_session_load_test.gd` (the progress),
+  `tests/integration/client/app/esc_menu_input_test.gd` (Esc cancels a join and leaves a failure, the address kept,
+  Try again focused), `game_loop_test.gd` (`lost` after the host left, `fail-no-answer` then Try again then Back with
+  the address kept, `host-failed` then Try again hosting the same way) and `game_code_join_test.gd` (the code on the
+  connecting screen, `fail-no-room` and Back with the code kept, `fail-service` and Join directly). The look: a `shot`
+  of each state in en and uk, default and large text, from `client/dev/screen_preview.gd` (`s3_state`, `language`,
+  `large_text`) in the PR.
+
+#### 4.7.33 Built in #253 (M6.2), the map and tasks screen on M
+The hold-Tab task screen of M4-8 (§4.7.10) became a map and tasks screen that M opens and M closes (the engineer as
+the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490's (§4.7.41), the how-to card
+#254's (§4.7.36).
+- **The key.** The action `task_screen` is renamed `map` and bound to M (physical); Tab is bound to no action (kept
+  for an inventory later). Settings › Controls' row "Map and tasks" (`control.map`, #211) rebinds it; its phases stay
+  any life. A saved binding under the old name reads as an unknown action and keeps the default. `Game` reads it in
+  `_unhandled_input` on the round's screen only, never under the Esc menu (whose Controls tab captures keys);
+  `GameUi.press_map_key` closes a how-to card over the map first (§4.7.35).
+- **One open state.** `GameUi` holds whether the map is open (`open_map`, `close_map`, `toggle_map`, `map_is_open`;
+  the signals `map_opened`, the tutorial's hook, and `map_closed`). It opens only in the round with no Esc menu;
+  any other screen closes it, so a new round starts with it closed; `open_esc` closes it after the menu opened, so
+  the two never show together (a close request while hosting too). Esc with the map open closes only the map
+  (#488's rule 2, `GameUi.overlays`, §4.7.35). While it shows the crosshair hides.
+- **The mouse.** Opening frees the mouse (`Game._on_map_opened`); closing captures it again only in the round, with
+  no Esc menu and the window focused, as closing the Esc menu does. `PlayerController.mouse_free` (set every frame
+  from `map_is_open()`) stops look and the click that would capture the mouse again; move, sprint, jump, interact,
+  put down, swap and talk keep working (the designer's answer on #253: the game does not pause; #488's rule 4).
+  `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take the focus of
+  the arrows and the d-pad since #490 (§4.7.41); Space, which jumps, is out of `ui_accept` since #488, so a focused
+  one never presses with a jump.
+- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`ContentNames.task`, §4.7.48: `task.<id>`, else the
+  mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
+  screen opens that type's how-to card (§4.7.36); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
+  progress line (nor has the HUD since #489, §4.7.37); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
+  the id), the own pin at the own body's place, turned to its heading, with `map.you_are_here`; no pin for the dead
+  (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
+  lights that type's zones, drawn under the room's pictogram and name, and their tag (`map.zone_hint.<type>`, else
+  `map.zone_hint`; under the first lit room since #490, §4.7.41). Words built in code are
+  set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
+- **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
+  of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner, unrotated, plan x = X
+  and plan y = Z: the level piece conventions proposed in PR #611; its id is `metadata/room_id`, else its node name
+  in snake_case; a room repeating an id is left out. Only `MapData.rooms_of()` reads that shape, so #306's room
+  record changes one function. A marker is placed as the host's `MarkerReader` places it (`LevelWorld.transform_in_scene`:
+  the level root counts, a `top_level` node ends the walk) and one in two spawn groups lights nothing (the reader
+  refuses it); `MapData.SPAWN_GROUP_PREFIX` copies the reader's prefix and a test ties the two. A task
+  type's zones are the rooms holding a level marker (`spawn_<tag>`) of one of its `TaskType.item_spawn_tags()`
+  (Delivery: its package kind's): every such marker, never the ones a deal chose. The greybox declares no rooms yet
+  (#306), so on it the map shows the tasks only; the previews use a fake house in `client/dev/screen_preview.gd`.
+- **Privacy** (the M4 ADR's §3 item 4 as amended): the screen reads the model's tasks and clock and the own place
+  only; never another player's place, an item's or a circle's.
+- Tests: `tests/unit/client/ui/map_screen_test.gd` (rows, counters and names in English and Ukrainian and a switch,
+  no description or NEW, the «?» signal and no focus, the lit zones and chip, the rooms and the pin's place and
+  turn; the privacy test: models that differ in other players, items and circles draw the same screen, node by
+  node, seen failing with a planted item pin; it replaces `hud_test`'s "the task screen names no place"),
+  `map_data_test.gd` (rooms by the metadata through parents, zones from markers only, placement as the reader's, no
+  rooms, the greybox's rooms have an area,
+  the board's fit), `hud_test.gd` (open only in the round, the signals, the downed crosshair, the Esc menu closes
+  it), `tests/unit/tasks/item_spawn_tags_test.gd`, `tests/unit/client/input_actions_test.gd` (`map` is M, no action
+  on Tab; seen failing on the old input map), `controls_test.gd`, `key_label_test.gd`, `controls_panel_test.gd`,
+  and `tests/integration/client/app/map_input_test.gd` (real key events in a host's round: M toggles and frees and
+  captures the mouse, Tab does nothing, W still walks, the pin's place and heading, a click stays unhandled, Esc closes only the map, M under the
+  Esc menu does nothing, a close request, the end of the round; seen failing without `mouse_free` and without the
+  Esc rule). The `shot`s and the playcheck scenario `map`: §4.7.41.
+
+#### 4.7.34 Built in #520 (M6.2), the pack's icons, the Delivery cards and the font hook
+- **The imported copy.** `ui-sync` (AGENT_WORKFLOW §11.26) also lands every asset of the pack's `assets` list (17
+  icons, 8 room pictograms, `cards/delivery-1..4.png` at `ui-0.4.0`) in `assets/ui/toy_pack/`, a folder Godot
+  imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
+  LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
+  handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1);
+  `ui-sync` writes it into Godot's own file, so a re-sync keeps the uid. Credits: `docs/credits/prime_game_ui_pack.md`
+  from the pack's `LICENCES.json` (own work).
+- **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
+  `grabber_highlight`) loaded from `mapping.textures.folder`, and refuses a texture that is not imported: ToySlider's
+  grabbers, ToyDropdown's arrow, ToyDropdownList's radio icons, and through the base types (§4.7.30) the bare HSlider,
+  OptionButton and PopupMenu. `name_external` gives each external file the id of its name in the saved file, since
+  Godot would make it from the path saved to and the stale test saves elsewhere.
+- **The teammate mark** (§4.7.29) is the pack's SVG in a TextureRect. The room pictograms draw on the map (#490,
+  §4.7.41); the Delivery cards for the how-to card (#254, the s08 handoff's wordless `Art` frames); the hand
+  slot, mic and lock icons for the Toy screens (#489 and on).
+- **The font hook.** `mapping.font.file` is `res://assets/ui/comfortaa/comfortaa.ttf`, added in #684 (google/fonts'
+  variable `Comfortaa[wght].ttf`, `wght` 300 to 700, with Cyrillic; a Git LFS file; proposed on prime-game-ui#44).
+  `build_theme.gd` makes one `FontVariation` of it per weight the pack's labels use (each label token's `fontWeight`
+  on the `wght` axis: 600 and 700 at `ui-0.4.0`, the sub-resources `Comfortaa_wght_600` and `_700`), sets it as the
+  `font` of each variation with a label, and type.body's weight (`Comfortaa_wght_600`) as the theme's default font;
+  the base types copy it. The committed themes carry both. A checkout without the file builds themes with no font, so
+  Godot's default draws. With the font, each Label variation also gets the `line_spacing` that makes its line its
+  label token's `lineHeight` tall (#685): `fontSizePx` × `lineHeight`, half rounded up, less Godot's line height
+  of the font at that size (its ascent plus descent, each rounded up to a pixel; 22 px: a 28 px line over 26, so
+  2). The ascent and descent are `mapping.font.metrics` (881 and 234 at size 1000), measured once from the real
+  TTF and committed, never read from the loaded file: CI imports a stand-in font (§4.7.21, `lfs`'s TTF and OTF
+  stand-in) whose metrics differ, so a build there writes the same theme. The test checks the metrics and every
+  Label variation's line against the real font only where it is present (its `font_name` is Comfortaa). The bare
+  Label keeps #287's greybox 5. The credits entry `docs/credits/comfortaa.md` is complete; the OFL text ships as
+  `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`).
+- Tests: `tools/runner/tests/test_ui_sync.py` (the imported copy, its scales and a re-sync that keeps Godot's
+  `.import`, an asset the pack lists but does not ship, each problem verify names: a missing, changed or extra file,
+  an LFS pointer by its oid, a wrong or missing scale, an asset not imported; the committed copy);
+  `tests/unit/tools/theme_builder_test.gd` (the icons and their size, exactly the six types with icons, a texture
+  that is not imported named; no font in a checkout without the file, and with Godot's fallback font as a stand-in a
+  FontVariation per label weight shared by every label and base type; each Label variation's line spacing, #685);
+  `base_controls_test.gd` (a bare slider,
+  dropdown and list draw the pack's icons); `name_plate_test.gd` (the mark's texture and tint);
+  `test_credits.py` (a Pending entry, seen failing without the change); `test_lfs.py` (the TTF and OTF stand-ins
+  import with the pinned Godot, seen failing on a broken one). `client/dev/pack_preview.tscn`: a `shot` of the
+  assets in English and Ukrainian.
+
+#### 4.7.35 Built in #488 (M6.2), the UI's input rules across the game
+The «Layers and input (every screen)» section of the UI handoffs at `ui-0.4.0` (the engineer's standing decision for
+the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built the 16 actions, their phases and
+`KeyLabel`; #253 (§4.7.33) the map key and its mouse.
+- **Space leaves `ui_accept`** (rule 1). `project.godot` overrides `ui_accept` with Godot 4.7.2's own list (probed:
+  Enter, keypad Enter, Space; deadzone 0.5) without Space, plus the gamepad's A (button 0), which the builtin lacks
+  and the rule names; Enter stays first (playcheck's `button` step presses the first key). `ui_select` keeps Space:
+  no Button reads it. `ui_up/down/left/right` are the arrows and the d-pad only, never WASD.
+- **Esc closes the topmost overlay, one per press** (rule 2). `client/ui/UiOverlays` (pure) holds the overlays by
+  layer, each registered with what tells whether it is open and what closes it, asked on every press (a freed one
+  counts as closed): `MENU_PANEL` (the main menu's open panel, code, Direct or Settings since #493, §4.7.38, only
+  while the main menu shows), `INVITE` (the tutorial's invite, its Skip; #492, §4.7.49), `MAP`, `CARD`,
+  `ESC_MENU` (closed as its Resume, so `Game.close_esc` captures the mouse again), `ESC_DIALOG` (the host's Leave or
+  Quit question, `EscMenuState.asking()`: back to the default tab). `GameUi` registers all but the card. `Game._input`
+  asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
+  `ui.overlays.close_top()`, then, with a session only, opens the Esc menu. A key capture in Settings › Controls
+  takes its Esc in its own `_input`, which runs before the game's, so it is no overlay here.
+- **The how-to card's seam** (#254, built there, §4.7.36): `GameUi` registers the map's card,
+  `overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)`; the last argument makes the
+  map key close it too. It closes with the map (`map_closed`), which `open_esc` closes. #488's tests use a stub card.
+- **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
+  the map key closes), else toggles the map; under the Esc menu or the tutorial's invite (`GameUi.blocks_keys`, #492) it does nothing and returns false.
+- **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
+  the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `Game._typing()`
+  alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
+  runs, since a handled key still reads as pressed in `Input`; and `Game._talk_blocked` keeps it shut after the
+  typing stops until the talk key has been let go once (a V that ended the capture is still held). With the map open the keys work and the look stops
+  (`mouse_free`). The lobby HUD, the round HUD and the life screen (#497) take no mouse (the destination row, the life
+  panel's column and bar were PASS or STOP); the pregame takes no input, as the post game screen (its backdrop,
+  centre and column were STOP or PASS); the connecting screen's backdrop stops the mouse (§4.7.32).
+- **Keys on screen** (rule 7): `KeyLabel.is_wide(physical)` and `is_wide_action(action)`: a keycap is wide for
+  exactly the physical keys Space, Shift, Tab and Esc, wherever a rebind puts them; Ctrl, Enter, F5 and the mouse
+  words stay normal until a screen shows one (a placeholder, not a decision).
+  The keycap builders (#492, #497) take the theme's wide size from it. Esc has no deck key (`key.esc`): it shows as
+  the literal "Esc" where it is fixed.
+- **Look in tests.** Headless Godot keeps no mouse mode (CAPTURED reads back VISIBLE, probed on 4.7.2), so
+  `PlayerController.mouse_captured` (a Callable, Input's mouse mode by default) is the seam the tests replace.
+- Tests: `tests/unit/client/input_actions_test.gd` (the `ui_accept` list, Space jumps, a focused Button pressed by
+  Enter, keypad Enter and the gamepad's A and not by Space through `Input.parse_input_event`, no WASD in the focus
+  actions; seen failing on the builtin list), `tests/unit/client/ui/ui_overlays_test.gd` (the order, one per press,
+  a closed or freed overlay skipped, the map key closes only a card), `game_ui_overlays_test.gd` (the main menu's
+  page only on the main menu, the question before the menu, the map key), `input_rules_test.gd` (the HUDs and the
+  pregame take no mouse and no focus; seen failing on four parts), `key_label_test.gd` (the four wide keycaps follow a
+  rebind), `tests/unit/client/app/controls_test.gd` (the 16 actions with the issue's deck keys and defaults),
+  `tests/integration/client/app/esc_menu_input_test.gd` (the host's question closes first, a capture before the
+  menu, no look, jump or sprint under the menu and the look back after it; seen failing on the old `Game._input`
+  and without the controller's guard; #726: a ready guest's menu, the host apart, closed by Loading and the round,
+  a dropdown and the host's question by the end screen, the menu by the lobby; seen failing on the old `Game`),
+  `map_input_test.gd` (a stub card closes first on Esc and on M, M under the
+  menu does nothing, the keys work and the look stops with the map open), `game_voice_test.gd` (Talk sends under
+  the menu, a focused text field or a capture stops it; seen failing without `_typing`). The playcheck scenarios
+  `esc_menu` (the host's Leave question, one Esc back; the guest's menu left open closed by the pregame, #726) and
+  `map`.
+
+#### 4.7.36 Built in #254 (M6.2), how-to cards per task type
+Every task type has a **how-to card**: 3 to 4 wordless frames, one action each, like an airline safety card (the
+designer's answers on #254: cards for task types first, a calm tone; the engineer's ui-0.4.0 note: no captions, only
+the title and `howto.label`; the 2026-10-05 text decision: no NEW mark, no "new task" line). It shows in three places:
+the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HUD.
+- **Content data** (`HowtoCard`, `HowtoFrame`: content-API data classes in `core/content/howto/`, §9.3, as the bot scenarios', so `content/` names only the content API, §1): an id, a title deck key and its frames; a frame is a
+  picture (a `res://` PNG path of the UI pack) or, until its art is drawn, the words of a deck key (`{key}` filled
+  with an action's bound key through `KeyLabel`), and the finish frame is the last (`done`, ToyHowtoFrameDone). A
+  task type's card is `content/howto/tasks/<id>.tres`, the Guide's basics `content/howto/basics/<id>.tres` (the
+  spec's: moving and hands, voice, downed and back, from the tutorial's keys). The cards are not rules: the host never
+  reads them, and they are not part of the mode or its content hash. A path, not a Texture2D, so a card loads while
+  its PNG is missing: Delivery's pictures are #520's (`assets/ui/toy_pack/cards/delivery-1.png` to `-4.png`); until
+  they are in the game each frame shows a placeholder naming the file. `HowtoCards` finds a card and checks every
+  task type of a mode has a valid one (`problems_of`).
+- **The card** (`client/ui/HowtoCardView`, a ToyRaised of ToyPanelHowto through `raised()`): prime-game-ui's P8 tree
+  at ui-0.4.0, `V` with `Head` (`Title`, `Note`) and `Frames` (`Frame1`..`Frame4`, each a ToyHowtoFrame holding its
+  `Art`, a TextureRect that keeps its aspect); the art is 320x240 on the map, 352x264 on the loading screen and
+  160x120 in the Guide; the map's card adds `Bar` with Close. Words set in code follow the language live.
+- **On the map** (`MapScreen.open_howto`, s8's `guide`): a «?» opens its type's card centred over the map on `Dim2`
+  (ToyBackdrop, it stops the mouse), 1536 px wide. Close, Esc or the map key closes only the card: `GameUi`
+  registers it in its `overlays` as `howto_card` on `UiOverlays.CARD`, above the map, closed by the map key too
+  (#488's rules 2 and 3, §4.7.35; until the rebase on #488 the map screen read both keys in its own `_input`). While it is open the task list and the board take no focus
+  (`focus_behavior_recursive`); the map closing (its key, the Esc menu, the end of the round) closes the card.
+- **On the loading screen** (s3's `load-card`): entering Loading, `GameUi` emits `loading_started` and `Game` (`client/app/GameHowto`) shows
+  the card of the first task type the round may deal (`HowtoCards.dealable`: the pool of the mode's DealTasks, its task types minus the host's
+  bans in the set its `banned_setting` names; DealTasks draws them at the end of Loading, so no more is known) that
+  has a card (`HowtoCards.with_card`), the player has not completed and has seen there fewer than twice (`HowtoProgress.LOADING_SHOWS`, the issue's "at most twice"); else the tip.
+- **Seen and completed** (`client/app/HowtoProgress`, `user://howto.cfg`, one file per player as the controls): the
+  loading screen's shows per task type, and whether the player completed the type: a task of it reached its total
+  (its `TaskState`, done = total > 0) while the player was in the round or at its end (`Game._process`, `GameHowto.follow`). Tasks are
+  shared (#79) and no event names who did a subtask, so this is what the client can see. A `Game` with no command
+  line keeps it in memory. Each write merges the file as it is (another window of the PC, `host` and `join`, may have
+  written): a showing counts on top of the file's count, a completion stays.
+- **The Guide** (`client/ui/GuidePanel`, s5's `guide`): a Guide tab after Resume in every screen, the lobby
+  included (`EscMenuState.Tab.GUIDE`, its label the deck's `esc.tab.guide`); the basics' chips and one chip per task
+  type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
+  control, so #491's restyle hosts it; it draws for a light page (the handoff's, the Toy Esc menu's since #491) or a
+  dark one (`...OnDark` captions and chips, an option no menu uses now).
+- **In `Game`** (`client/app/GameHowto`): its `howto` progress, the Guide tab's mode, the loading card and the follow, as
+  static calls on the `Game`, read at each call (a test's `howto` set after `_ready` is the one used). They left
+  `game.gd` when #488's lines and these took it past lint's 1000 (with the debug overlay's feed, `client/app/OverlayFeed`,
+  §4.7.7), so #493's and #489's lines fit.
+- Tests: `tests/unit/content/howto_content_test.gd` (every task type of every mode has a valid card, a task type
+  without one fails the check; Delivery's four pictures with the finish last; the basics' words; every key in the
+  deck, and every picture in the game once the pack's folder is), `tests/unit/client/ui/howto_card_test.gd` (a card's
+  checks, the dealable types, the tree node for node, the placeholder, the words with the bound key in both
+  languages), `guide_panel_test.gd` (the list, the selection, both languages, the dark page, the Esc menu's tab),
+  `map_screen_test.gd` (the card over the map, Dim2, focus, Close, the map hiding closes it),
+  `game_ui_overlays_test.gd` (Esc and the map key close only the card, then Esc closes the map),
+  `esc_menu_state_test.gd` (the Guide tab in every screen), `tests/unit/client/app/howto_progress_test.gd` (twice
+  then never, a completion, the file), `tests/integration/client/app/howto_loading_test.gd` (a host's first loading
+  shows the card and counts it, seen failing without the wiring; twice seen or completed shows the tip; a task
+  finished in the round completes its type for the next loading, seen failing without `GameHowto.follow`; a banned
+  type no card) and `map_input_test.gd` (real Esc and M close the card before the map, seen failing without the
+  card's `howto_card` overlay). The `shot`s: `client/dev/map_card_preview.tscn`, `loading_card_preview.tscn`,
+  `esc_guide_preview.tscn`, each with a `_uk` twin, and `esc_guide_basics_uk_preview.tscn`.
+
+#### 4.7.37 Built in #489 (M6.2), the round HUD in the Toy style
+The round's HUD (§4.7.10's M4-8 HUD) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
+`docs/handoff/s07-hud.md` (not `ui-0.2.0`; since then the hand-slot icon is tinted by ToySlotText and the teammate mark
+by ToyNamePlateText, and the SVG scales come from the pack's `assets` list, prime-game-ui#44), node for node, px at
+the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`). The slice's cut is
+#521: Delivery v2 (#255) is out, so the hand slot shows today's Delivery package.
+- **The tree** (`client/ui/Hud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of `Ui`,
+  under it): `Timer` ToyPlate (top centre, 40 px down) > `Time` ToyTimer, 140 px wide; `Role` ToyChipPlate (top left)
+  > `Text`; `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate (38 px under the centre) > `Text`; `Vitals`
+  ToyColumnTwelve (bottom left) > `Health` and `Stamina` (ToyColumnFour, 320 px: `Cap` ToyBarLabel > `Text`
+  ToyHudCaption, `Track` a `ToyBar` with its `Fill`) and `Mic` ToyMic > `Icon`; `Slots` ToyRowTwelve (bottom right)
+  > `Hand` ToySlotActive and `Belt` ToySlot (`HudSlot`: `Center` > `Row` ToyRowEight > `Icon`, `Name`
+  ToySlotTextEmpty, `ItemName` ToySlotText); `Raising` ToyPlate > `Bar` ToyBarProgress (240 x 10). Every root sits at
+  a point (the four offsets equal) and takes its minimum size along its grow directions, so a slot that narrows
+  pulls the row back into its corner. The size constants (`width`, `height`, `wide_width`) are read into
+  `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
+  Control ignores the mouse and takes no focus.
+- **What it shows** (`HudText`, pure, from the own `ClientModel`, the own mode and `HudText.Local`): the time left
+  as mm:ss (data); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
+  fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
+  first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
+  push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the hand and belt (a kind's
+  deck key, `ContentNames.ITEMS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
+  name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
+  and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
+  `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10), or the rescuer's raise cue over a downed
+  player E would raise (#497, §4.7.44); `Raising`, the own raise's progress
+  (`LifeView.raise_shown()`: the countdowns' `raise_progress`, the same value as the downed player's bar), in
+  place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
+  hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
+  knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
+  swatch and the crosshair's "E: pick up" hint are gone (the world's marker still shows the destination, §4.7.10;
+  the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
+- **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
+  (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own
+  nor, since #497, the watched player's hand and belt (#168 showed them until s9 was settled: the engineer's
+  answer 3 on PR #675). The `Spectate` plate moved to `LifeScreen`; the raiser sees the `Raising` bar alone, as
+  drawn (the greybox "Raising <name>" is gone).
+- **Icons** (`client/ui/ToyIcons`): the pack's white SVGs, tinted through `self_modulate` as each node line says.
+  An icon is #520's imported copy (`res://assets/ui/toy_pack/icons/<name>.svg`, imported at the `svg_scale` the
+  pack's `assets` list gives: `item` 2, `knife` 1, `mic` and `mic-off` 1.17), which an export packs. Only an icon
+  with no imported copy (one a newer pin lists before `ui-sync` imports it) falls back to the pinned, `.gdignore`d
+  copy under `client/ui/theme/pack/icons/`, rasterised at run time (`Image.load_svg_from_string`) at the same
+  scale; that copy is not exported. `TeammateMark` (§4.7.29) is #520's: the pack's SVG in a TextureRect.
+- **Not built here:** separate CanvasLayers per the handoff's layer table for these (the screens stay children of
+  one `Ui` layer, in the same order; only the black screens and the Esc menu have their own, §4.7.32); the font (#520: Godot's default until the TTF lands); the tutorial, which reuses these
+  nodes. The role reveal (§4.7.39) fades out over them; the downed, dead and respawn plates are §4.7.44's.
+- Tests: `tests/unit/client/ui/hud_test.gd` (the time, the role keys, the fractions, the slots' keys and icons, Aim
+  and the raise in its place, a dissident's and an engineer's HUD equal but the role; since #497 the downed see the
+  mic alone and the dead nothing, none of the target's; the map's tests of §4.7.33), `hud_layout_test.gd` (the
+  handoff's tree, anchors, offsets, grow directions and minimum sizes; no mouse or focus; the health stop for 0.22,
+  0.8 and 1.0; the states empty, pack, tired, hurt, mate, raising; the mic off; the downed and the dead; large text
+  and the row shrinking back into its corner), `tests/unit/client/voice/voice_sender_test.gd` (`live()`),
+  `tests/integration/client/life/life_network_test.gd` (the raiser's bar is the raised player's value and shows on
+  the raiser's HUD), `base_controls_test.gd` (TextureRect named). The teammate mark never on an engineer's client:
+  §4.7.29's tests. The `shot`s: `client/dev/hud_preview.tscn` (empty) and `hud_<state>_preview.tscn` for pack,
+  tired, hurt, mate and raising, each with a `_uk` twin, and `hud_large_uk_preview.tscn`, at `--size 1920x1080`
+  (s09's states: §4.7.44); the playcheck fields `hud.*` (`tools/runner/playcheck.py`) read the new nodes.
+
+#### 4.7.38 Built in #493 (M6.2), the main menu
+prime-game-ui's s2 at `ui-0.4.0` (its handoff `docs/handoff/s02-main-menu.md`; the issue linked `ui-0.2.0`, and
+where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.gd`.
+- **The tree.** `MainMenu` (GameUi's `menu`) holds `Backdrop` (ToyBackdrop, full rect, the mouse ignored), `Column`
+  (the logo `prime-game`, a data text; `NameRow`; `Body`: the 592 px `Items`, then `Gap` and the raised 784 px
+  `CodePanel` and `DirectPanel`), the raised 960x888 `SettingsPanel` at (856, 96), a root of its own, and `Version`
+  bottom right. A raised panel or button is its `ToyRaised` wrapper `<name>Raised` (placement, size, visibility) with
+  the face inside. It stays a `Control` of the `Ui` layer, built in code like the other screens (the handoff's "its
+  own scene, under none of the in-game CanvasLayers" holds: the `Ui` layer is none of the handoff's layers 1 to 6).
+  The live lobby behind it with an idle camera is not built: no level loads before a session (`GameFlow`), so the
+  backdrop dims the empty viewport.
+- **Items.** ToyMenuItem Buttons, left-aligned, each with the pointer icon at 24 px that ToyMenuItem's
+  `icon_*_color` shows only focused, hovered or pressed: the pack's `pointer.svg` as #520 imported it
+  (`ToyIcons.texture(&"pointer")`, §4.7.34, its `svg_scale` 1). Join, Join by address and Settings are `UiParts.toggle`s in one ButtonGroup with
+  `allow_unpress`: pressing one opens its panel (`open_panel`), pressing it again, Back or Esc closes it
+  (`close_panel`) and focuses its item. Esc reaches the open panel as #488's overlay `menu_panel` (§4.7.35:
+  `GameUi` registers `panel_open()` and `close_panel`, only while the menu shows), so `Game._input` closes it like
+  any other overlay; with no panel open and no session it does nothing.
+  Focus starts on Host whenever the menu shows with no panel; up and down follow the items. Host emits
+  `code_host_requested` (`Game.host_with_code` on the launch options' port); Quit quits; Tutorial is drawn and
+  unplugged until the tutorial exists (#492).
+- **The code panel.** `code_text()` keeps the field upper case, only `SignalCodec.CODE_ALPHABET` (no spaces, dashes,
+  0, O, 1, I or L), at most 6 (`max_length` 6); a paste longer than the room left comes back through
+  `text_change_rejected` and is filtered whole, so "k7m-2qx" pasted reads K7M2QX. Join (ToyButtonPrimary, unplugged
+  until `SignalCodec.is_code`) and Enter join by the code. Opening it from its item empties the field; a failure's
+  Back shows the menu as it was, the code kept.
+- **The Direct panel.** Address takes host or host:port (`JoinTarget.of_direct`); Join and Enter are unplugged while
+  it does not parse (an empty field included), so no typed problem reaches `Game`; the port line names the default
+  (`join.port`, the launch options' `--port`). Host hosts over ENet on the port typed after the address, else the
+  default (`typed_port`); Host is off while the typed port is not one (`JoinTarget.port_problem`), never quietly on
+  the default. A command-line join fills its panel (`Game._fill_menu`) so Back finds it there; a `--join=` that does
+  not parse waits in the Direct field with Join off, the menu's only sign of it.
+- **The name row** binds to `UserSettings.player_name` (`bind_name`, #550): each change is cleaned by `PlayerNames`
+  and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
+  player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
+  "never empty, else the system user name" predates.
+- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.46), the same scene as the Esc menu's
+  Settings tab, opened on Sound and voice; its `VoicePanel` keeps #301's logic. `Game` feeds it as before
+  (`shown_voice_panel`, `settings_open()`). It opens at its top: `follow_focus` scrolls to the focused first row
+  before the panel's first sort, with the old sizes (290 px down under large text), so the menu scrolls it back once
+  the focus has landed.
+- **No reason line.** The handoff draws none: a failure shows on the connecting screen (§4.7.32); the words of the
+  last end, or of a problem with a command-line target, are printed and kept in `Game.last_words`.
+- **Version.** `menu.version` with `application/config/version`; hidden while `project.godot` names no version.
+- Every text is a deck key; the version and port lines are set from code with `auto_translate_mode` DISABLED and
+  rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the logo, the name, the code and the address are data texts. Every
+  LineEdit has `context_menu_enabled` false (Godot's menu words are English).
+- Tests: `tests/unit/client/ui/main_menu_test.gd` (the tree node for node: names, classes, variations, anchors,
+  offsets, grow, size flags and minimum sizes; the items, the group, the pointer (the imported file) and its colours; every state by its
+  item, Back and another item, seen failing on the group's release order; the focus as drawn; the alphabet, the case, six at most and a long paste, seen
+  failing without the filter; Join and Enter only with a whole code; the code kept on a return; Direct's Join and
+  Host's port; the Settings panel at its top under large text, seen failing without the scroll back; the name row and its file; the port and version lines in uk; every key in the deck),
+  `tests/unit/client/ui/game_ui_overlays_test.gd` (the `menu_panel` overlay closes each panel and returns the focus to
+  its item; none open, no overlay), `tests/integration/client/app/esc_menu_input_test.gd` (Esc on the real game's
+  menu closes Settings, the code and the Direct panel, no Esc menu), `game_voice_test.gd` (the Settings panel's pick and meter), `game_code_join_test.gd` (Join
+  directly opens the Direct panel; a mistyped code never leaves the field) and `game_loop_test.gd` (Back to the
+  Direct panel with the command line's address). The look: a `shot` of each state in en and uk, default and large
+  text, from `client/dev/screen_preview.gd` (`menu_state`, `language`, `large_text`) in the PR; the playcheck
+  scenario `main_menu` (a guest leaves to the real menu, then its Direct, Settings and code panels by keys).
+
+#### 4.7.39 Built in #496 (M6.2), the pregame role reveal in the Toy style
+`PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
+prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
+for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
+(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER) > `Role`
+ToyTitlePlate, and `Text` (ToyColumnSixteen) > `Goal` (ToyTextOnDark) and `Team` (ToyTextMutedOnDark), both 1152 px
+wide, wrapped. Pack variations only, no override.
+- **What it shows** (from the own `ClientModel` and the own mode only): the own role as its deck key
+  (`HudText.role_key`: `crew` is `role.engineer`, `dissident` `role.dissident`; a role the deck lacks, its display
+  name); its goal, `role.goal.engineer` or `role.goal.dissident` by `GOAL_KEYS` (the engineer's provisional generic
+  lines on #175; a role not there shows no goal, no text is invented); and `pregame.teammate` with `{names}`, the
+  roster names of the own role's `Teammates` but the own player, in the host's order, joined with ", "
+  (`team_of`), set with `tr()` and `format()` (`auto_translate_mode` DISABLED, rebuilt on
+  `NOTIFICATION_TRANSLATION_CHANGED`). The host sends `Teammates` only to a role that knows them (§5), so an
+  Engineer, and a dissident with no teammates, get no team line. It reads `model.role`, `model.teammates[model.role]`,
+  `model.own_peer` and `model.roster` only (a source test holds it): never another role's entry. Before
+  `RoleAssigned` only Night shows. No word about the microphone or hearing.
+- **Behaviour.** `GameUi` calls `reveal()` on every Pregame frame. When the screen turns from Pregame to Round,
+  `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
+  the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
+  match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
+  it at once. It draws over the HUD, the life screen (§4.7.44), the tutorial's plates and the map from the black layer
+  `GameUi.black` (§4.7.32), under the post game screen; the Esc menu opens over it from `GameUi.above` (#656).
+  Every Control ignores the mouse and takes no focus; the pregame is frozen
+  and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
+- **Role sounds** (#716, #213 criterion 3, #175). `role_revealed(role, side)` is emitted once per pregame when the
+  own role shows, with that role's side in the client's own mode (empty for a role it does not know), and never
+  while Night fades out over the round (a role that arrives that late plays nothing in the round). The screen plays
+  `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.40): `crew` the engineers' sound, `dissidents` the
+  dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
+  hears another's role sound (the bots test checks the wire).
+- **Not built here.** The Esc menu's Role tab (#491).
+Tests: `tests/unit/client/ui/pregame_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
+minimum sizes; the pack's variations only; engineer, dissident with teammates, dissident alone, before the role, a
+role with no key; it reads only the own role and Teammates (the source's model fields; another role's Teammates
+name nobody); the language switch; no focus or input; the fade, its cut under reduced motion; the hook once per
+pregame with the side; the own side's sound once per reveal on the UI bus, none before the role, hidden, during the
+lift or for an unknown side (seen failing without the lift guard), its sources name no session, send or voice;
+`GameUi`'s lift into the round, its layer order and the cut on another screen), `screens_test.gd` and
+`input_rules_test.gd`. The `shot`s, at `--size 1920x1080 --frames 60`: `client/dev/pregame_preview.tscn` (engineer),
+`pregame_dissident_preview.tscn` (with a teammate), `pregame_alone_preview.tscn`, `pregame_after_preview.tscn` (Night
+frozen halfway through its fade over the round's HUD), their `_uk` twins (`pregame_uk`, `pregame_dissident_uk`, `pregame_after_uk`) and
+`pregame_large_uk_preview.tscn` (dissident, large text); the game's own: `tools\run.cmd playcheck pregame`.
+
+#### 4.7.41 Built in #490 (M6.2), the map and tasks screen in the Toy style
+The look and the focus of §4.7.33's screen, node for node from prime-game-ui's s08 handoff at `ui-0.4.0` (the
+engineer's standing decision for the UI work, prime-game-ui#44), and its how-to card (§4.7.36).
+- **The tree** (`client/ui/MapScreen`): `Dim` (ToyBackdropDeep, no mouse); `Tasks` (ToyPanelMenu raised on
+  ToyBasePanel; its wrapper `TasksRaised` at 80, 88, 608 wide, growing down to its content): `V` (ToyColumnTwentyFour)
+  with `Title`, `Rows` (ToyColumnEight) and `Time`; a row `<Type>` (ToySettingRow, 64 tall) holds `H` (ToyRowTwelve):
+  `Name` (ToySettingRowValue), `Count` (ToySettingRowText) and `Help` (ToyKeyRoundButton, the handoff's fixed 42x42,
+  not the variation's `min_width`, so it needs no theme-change hook). `Board` (ToyMapBoard raised, its wrapper at
+  744, 88, 1096x904) holds `Rooms`, 1088x896 inside the 4 px border (`MapScreen.ROOMS_SIZE`, the size MapData fits
+  the rooms to): a room `<Room>` (ToyMapRoom) holds `V` (ToyColumnFour, centred) with `Icon` (the pack's
+  `room/<id>` pictogram through `ToyIcons`, 48x48, its `self_modulate` the ink of ToyMapRoomText's `font_color`,
+  #2a1f33, set again on a theme change; hidden for a room id the pack draws none for) and `Name` (ToyMapRoomText, 120
+  wide at least, wrapped); then `Zone<Type>Tag` (ToyChipLight, `Text` ToyChipLightText), `Pin` (ToyMapPin) and
+  `Here` (ToyChipPlate, `Text` ToyHudCaption). `Dim2`, `Guide` and the card are §4.7.36's.
+- **Rows** are one per task type, in the order of its first task's id, the counters of its tasks summed (DealTasks
+  deals each drawn type once, so a round has one task per type). A refresh with the same types sets the words in
+  place, so a live counter never takes a «?»'s focus.
+- **Zones.** Lighting a type adds `Zone<Type>` (ToyMapZone, no mouse) as the first child of each lit room, so it
+  fills the room under its pictogram and name; the tag sits 12 px under the first lit room, its left edge on the
+  room's, on one line, wrapped only where it would pass the board's right edge, and above the room where it would pass
+  the rooms' bottom (a lit room in the lowest row, large text). The hovered row lights its type, else
+  the «?» with the keyboard's focus (`has_focus(true)`: a focus a mouse press gave is hidden and lights nothing).
+- **Focus.** `Help` is `FOCUS_ALL`. Nothing has the focus on open; with none, the first `ui_down` or `ui_up` (the
+  arrows and the d-pad only, §4.7.35) focuses the first «?» in `MapScreen._unhandled_input`, and Godot moves it from
+  there. A «?» pressed while it shows its focus (keyboard or gamepad) opens its card with Close focused
+  (`open_howto(type, true)`), and closing it (Close, Esc or M, the overlays of §4.7.35) gives that «?» the focus
+  back; pressed with the mouse, closing drops a focus on the map. `focus_help(type)` focuses a «?» (the previews).
+- **Not as drawn** (each in the PR): the screens are children of `GameUi`, not CanvasLayers; the hover is read with
+  `gui_get_hovered_control` each frame, not `mouse_entered`/`mouse_exited` (a child takes the parent's hover,
+  §4.7.33); the Delivery PNGs keep #520's import without mipmaps (the canvas's default filter samples none); the
+  rooms are what MapData reads today, and the greybox has none until #306 (the engineer chose to wait for its
+  room records, PR #652), so in the game the board hides; the base mode has no Switches task type, so neither its
+  row nor `map.zone_hint.switches` shows; Delivery lights every room with a package marker (the storage-only zone
+  is Delivery v2, #255, out of the slice, #521).
+- Tests: `tests/unit/client/ui/map_screen_test.gd` (the tree node for node with its sizes, the ink, one row per type,
+  a counter set in place keeping the focus, the first arrow and the keyboard's lit zones, Close focused and the focus
+  back, each seen failing without its code, the mouse's card dropping the focus, the zone first in its room and its
+  tag under it, the tag's wrap at the board's edge, the privacy signature), `hud_test.gd` (one row),
+  `tests/integration/client/app/map_input_test.gd` (real Down, W, Enter, Esc and M in a host's round; the open
+  map's click moved to the corner, which the task list does not cover). The `shot`s, at `--size 1920x1080`:
+  `client/dev/map_list_preview.tscn` (`list`), `map_preview.tscn` (`zone`, the «?» focused),
+  `map_card_preview.tscn` (`guide`), each with a Ukrainian twin (`map_list_uk_preview`, `map_preview_uk`,
+  `map_card_uk_preview`), and `map_large_uk_preview.tscn` (`zone` at large text); `screen_preview.gd`'s fake house
+  follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
+  Enter and closes only the card with Esc.
+
+#### 4.7.44 Built in #497 (M6.2), the downed, dead and respawn screen in the Toy style
+The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
+stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
+at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
+`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
+The living rescuer's greybox "Hold <interact> to raise" went with it; the engineer's answer 6B on PR #721 brought
+it back in §4.7.37's `Aim`: the deck (`ui-0.4.0`, nor `ui-0.5.0`) has no raise sentence, so it is the nearest key
+with `{key}`, `tutorial.step.downed.how` ("Hold {key} next to them", "Утримуй {key} поруч"; a stopgap the engineer
+confirms or swaps for a deck key), with the bound
+`interact` key's label (`KeyLabel`), set in code and written again on a language switch (`Hud._show_aim_text`).
+`LifeView.raise_cue()` gives the key while the living own player's crosshair is on a downed player E would raise
+(`raise_target()`, within `raise_hint_reach_of()`) and nobody raises them yet (`raiser_of()`: the host lets one raiser
+at a time, so a second Raise would be `busy`), so it offers what E does: the base mode's raise has no team condition,
+so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
+(both are on E); the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
+- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
+  (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
+  a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
+  ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
+  up) > `V` ToyColumnEight > `Line` ToyRowFour (centred) > `Before`, `Key` ToyKeyOnDark > `Text` ToyKeyText,
+  `After`, then `Hold` ToyBarProgress (360 x 10) and `Pad`; `Spectate` ToyPlate (top centre, 40 px down) > `V`
+  ToyColumnFour > `Respawn` ToyTextMutedOnDark and `Watching` ToyTitleOnDark; `Protect` ToyChipLight (top centre,
+  144 px down: 24 px under the timer plate) > `Text` ToyChipLightText. Every root sits at a point and takes its
+  minimum size; the keycap's `min_width` (36, 42 at large text) is read by `UiParts.sized` again after the
+  large-text swap. Every Control ignores the mouse and takes no focus. The four roots sit under one full-rect
+  `LifeScreen` Control beside `Hud`, not beside its nodes (one class owns s09; the places are the handoff's).
+- **What it shows** (`client/life/LifeHud`, pure, from the own `ClientModel`, the own `LifeCountdowns` at the
+  estimated host tick and `LifeView`'s own state; `LifeView.hud()` reads the give-up binding each frame):
+  `down`: `downed.title`, the bleed-out bar (`LifeCountdowns.knockdown_fraction()`: the time left over the mode's
+  knockdown) and `downed.time_left` (m:ss, rounded up), and the give-up line: `tr("downed.give_up_hold")` split at
+  `{key}`, each piece through `strip_edges()`, an empty piece hidden (uk: "Щоб здатися, утримуй" [F]), around the
+  keycap of `KeyLabel.of_action(&"give_up")` (§4.7.28), so it follows a rebind, wide (`wide_min_width`) when
+  `KeyLabel.is_wide_action(&"give_up")` says so (§4.7.30 rule 7, carried as `LifeHud.Shown.give_up_wide`, read
+  again on every theme change); the hold bar fills over
+  `LifeView.GIVE_UP_HOLD_S` and stays shown, empty, at rest (`down-holding`). `raise` (a raiser in the model):
+  `downed.raised_by` with the raiser's name, the raise's progress (the raiser's HUD bar's value, §4.7.37) in place
+  of the bar and the time, no GiveUp; when the raise stops the bleed-out returns. `dead` (or gone): `dead.respawn_in`
+  (m:ss) and `dead.watching` with `LifeView.target()`'s roster name (hidden with no target); the HUD shows nothing
+  (§4.7.37), no key (the tutorial teaches the spectate keys) and nothing of the target's. `back`: the HUD returns;
+  `respawn.protected` counts the respawn's invulnerability (`LifeCountdowns.protection_left_s()`, the mode's 3 s:
+  3, 2, 1 rounded up), and only a respawn's: a raise's invulnerability shows no chip. Never who knocked the player
+  down: nothing here reads it. Texts with data are set in code (`auto_translate_mode` DISABLED) and written again on
+  `NOTIFICATION_TRANSLATION_CHANGED`; `downed.title` too, which the handoff sets as a plain key.
+- **Playcheck:** the fields `life.title`, `life.left`, `life.bleed`, `life.raise`, `life.give_up` (the line as
+  drawn), `life.hold`, `life.respawn`, `life.watching` and `life.protected` replace `life.lines`, `life.bar` and
+  `hud.spectating`; the `spectate` scenario waits on them.
+- Tests: `tests/unit/client/ui/life_screen_test.gd` (the tree, anchors, offsets, grow directions and minimum sizes;
+  no mouse or focus; every state in English and Ukrainian and a language switch; the bleed fill's ramp stop; the
+  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; Space's 96 px wide keycap on both themes and K's
+  36 and 42 px after it; 36 and 42 px at large
+  text with every plate on the screen; the `Ui` shows it in the round only), `tests/unit/client/life/life_hud_test.gd`
+  (each state's data, the m:ss rounding, the raise stopping, the protection after a respawn and not a raise, the
+  sentence's pieces), `life_countdowns_test.gd` (`knockdown_fraction`, `protection_left_s`), `hud_test.gd` and
+  `hud_layout_test.gd` (the HUD's part; the raise cue in place of the item's name for the living only, the same for
+  a dissident and an engineer, naming nobody, in en and uk and after a switch),
+  `tests/integration/client/life/life_network_test.gd` (the host's player, as a dissident, aiming at the downed
+  joiner sees the cue in its Aim, seen failing with `Game` not passing it on; the raised joiner's title and bar, the
+  spectator's plate with the HUD empty, the chip after the respawn). The `shot`s:
+  `client/dev/hud_<state>_preview.tscn` for cue, downed, holding, raised, dead and back, each with a `_uk` twin, and
+  `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
+  too.
+
+#### 4.7.46 Built in #491 (M6.2), the Esc menu in the Toy style
+- Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
+  `Dim`, the raised 1600x880 `Menu` with the `Tabs` column (ToyTab toggles in one ButtonGroup) and the `Page`, whose
+  title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
+  `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
+  round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
+  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.43); the default tab Lobby in the lobby
+  and Game elsewhere; the last tab pressed is kept for the next opening on the same kind of screen (lobby or other).
+  Character waits for #73 (M7): no tab, no placeholder.
+- Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
+  ToyButtonSecondary, "Leave the tutorial" there) and Quit. The host's Leave and Quit open `ConfirmDim` and `Confirm`
+  (P1): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
+  close), Cancel has the focus, and Esc closes only the dialog through `GameUi`'s `esc_dialog` overlay (§4.7.35), not
+  an `_input` of its own; Cancel gives the focus back to the button that asked. Closing the window asks the same, but
+  in the tutorial (a solo session its player hosts), which quits at once.
+- Role (`RolePage`, the pure `RoleFacts`): the own role (HudText's key), its goal (`role.goal.*`) and, for a role
+  whose `Teammates` the own client holds, the team in join order without the own player or a player who left, in a
+  two-column ToyGridList scrolling in a 250 px view. It reads only `model.role`, `model.teammates[model.role]`,
+  `own_peer` and the roster's names (per-peer filtering decides what the model holds). The HUD's role chip hides
+  while the map is open (`Hud.role_hidden`, the engineer on #652).
+- Lobby (`LobbyPanel`, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
+  No knives, the own preset and Save your own; the values are placeholders, "not a decision"), a 784 px
+  `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
+  arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
+  allowed; a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
+  the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
+  change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
+  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
+  `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
+  name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
+- Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
+  chips (Sound and voice, Controls, Display, Accessibility, Language) over a `follow_focus` scroll of 64 px
+  ToySettingRows (`SettingRows`: the row, the ToyDropdown with its ToyDropdownList, the ToySlider, the chip groups).
+  `VoicePanel` and `ControlsPanel` keep their logic and signals in the new rows (the sliders keep the engine's units,
+  no number is drawn; the echo, headset and notice lines and the debug rows stay, in greybox English).
+  `client/app/GameSettings` (out of `game.gd`) binds both pages to the player's `UserSettings` (new: `large_text`,
+  `reduced_motion` -1/0/1, `window_mode`), `Controls` and `GameWindow`, applies and saves each pick (large text
+  through `GameUi.set_large_text`, reduced motion through `UiPrefs`, the language through `Languages.choose`), keeps
+  Alt+Enter and the window chips in step, and keeps the talk key shut while either page captures a key. A page reads
+  its values again whenever it shows; the saved window mode applies only with the command line read.
+- Tests: `esc_menu_states_test.gd` (the 15 states the menu builds against the handoff's own lists: the lobby-host
+  tree, each state's Hidden list, Shown roots, pressed tab, title and Settings chip, its paths mapped onto the
+  built tree; no deck key shown as itself in en or uk; seen failing with a planted fault in each), `esc_menu_state_test.gd`,
+  `screens_test.gd` (the tree by name and variation, the host's question, its focus and the menu shut behind it,
+  the tutorial, the Lobby tab in the round), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
+  closes only the dialog), `role_page_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
+  with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
+  `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` for every
+  state of the handoff but Character (`lobby`, `lobby_guest`, `lobby_no_code`, `game_host`, `game_guest`,
+  `game_confirm`, `role_engineer`, `role_dissident`, `guide`, `guide_basics`, `settings_sound`, `settings_controls`,
+  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
+  the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
+  The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
+#### 4.7.40 Built in #525 (M6.2), basic sound from Kenney's CC0 packs
+No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
+nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
+- **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
+  each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
+  (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
+  one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
+  the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
+  file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
+- `client/audio/`: `SfxSet` gives each sound id one `AudioStreamRandomizer` of its files (no repeats, pitch ×1/1.06
+  to ×1.06, ±1.5 dB: placeholders), loaded at its first play; a file that does not load is left out and an id with
+  none plays nothing. `AudioBuses.UI` sends to Master at −6 dB (no slider of its own, Master's applies; §6.5.5).
+- `client/world/`: `WorldSounds` plays `Swung`, `ItemPickedUp` and `ItemPlaced` with their `SfxSet` streams, as
+  before (the 12 m range, the one muffle ray), and footsteps each physics frame:
+  - **Who:** the local player while living and on the floor, from its own movement; every other player the client
+    draws while the model knows it living (not downed, dead or gone) and its snapshot not downed, from how far its
+    interpolated pose (`AvatarViews`' body) moved. Never a claimed velocity (client/CLAUDE.md): a peer that claims
+    to stand while it runs still steps, one that claims to run while it stands is silent.
+  - **When:** `FootstepCadence` (pure): the step interval from the horizontal speed, 0.45 s at the mode's walk
+    speed and 0.32 s at its sprint speed, the stride interpolated between them and held outside (placeholders);
+    none below 0.5 m/s, and a still frame keeps the place in the step; a move faster than
+    `SnapshotBuffer.SNAP_SPEED_MPS` in a frame (a respawn, a round start, a correction) plays none and starts the
+    cadence again.
+  - **Heard:** `SoundChooser.step` cuts a step beyond `HEARING_RANGE_M` of the ears before any ray. Another
+    player's step casts the one muffle ray to `STEP_AIM_M` (= `ITEM_AIM_M`) above its feet; the own steps cast
+    none (never muffled).
+  - **Surface:** `FootstepSurface`: one ray down from 0.3 m above to 0.5 m below the feet on the world layer; the
+    hit collider's or its nearest ancestor's metadata `surface` (concrete, wood, carpet, grass) picks the set,
+    untagged or unknown is concrete (the greybox tags nothing). No floor under the feet (a jump) plays no step.
+    Tagging the house's floors is #523's (the content area).
+- `client/ui/`: `UiSounds.click`, from `ToyPress.on_button_down` (every Toy button and toggle: `UiParts.button`,
+  `UiParts.toggle`, the connecting screen's back ghost, the map's help, the theme showcase): a mouse or touch
+  press or `ui_accept`, never hover, release or a toggle's change alone; a disabled button sends no
+  `button_down`. One `AudioStreamPlayer` (polyphony 4) under the window's root on the UI bus, made at the first
+  click and kept, so a press that frees its screen does not cut its click; a button outside the tree clicks
+  nothing. `UiSounds.outro` (#657), from `EndScreen.outro_began` (once each time End starts): `ui_outro`, the one
+  sound of both outcomes, from its own player (`UiOutro`, polyphony 1) under the root on the UI bus, made at the
+  first End and kept; no voice is routed through it (#213). `UiSounds.role` (#716), from
+  `PregameScreen.role_revealed` (once per pregame, the own side's, §4.7.39): `ui_role_engineers` or
+  `ui_role_dissidents`, each from its own player (`UiRoleEngineers`, `UiRoleDissidents`, polyphony 1) under the
+  root on the UI bus, made at its first reveal and kept, and stopped (`UiSounds.stop_roles`) when the pregame
+  ends (`lift`, `stop`), so none reaches the round; local to the own client, no voice routed through it.
+- Tests: `tests/unit/client/world/footstep_cadence_test.gd` (the interval at walk and sprint speed, between and
+  below; one step per interval; none standing; a still frame; a placement; only horizontal movement),
+  `footstep_surface_test.gd` (the tag, the nearest ancestor's, the default), `sound_chooser_test.gd` (the step's
+  12 m cut-off and aim; each former stub event plays its own files, replacing the blips' length test),
+  `tests/unit/client/audio/sfx_set_test.gd` (every file exists and loads, one randomizer per id, five footsteps a
+  surface, none for an id with no file), `audio_buses_test.gd` (the UI bus), `tests/unit/client/ui/toy_press_test.gd`
+  (a press clicks on the UI bus, hover, release and toggle do not, the click outlives its button, none outside the
+  tree), `pregame_screen_test.gd` (the role sounds, §4.7.39),
+  `tests/integration/client/world/world_sounds_steps_test.gd` (a walker steps from its poses with a zero
+  claimed velocity, a claimed run standing still is silent, none and no ray beyond 12 m, muffled behind a wall,
+  none downed, dead or off the floor, the floor's tag picks the set; the own steps cast no ray and stop while
+  downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
+  engineer's, in a two-client `host`/`join` session (the PR).
+#### 4.7.43 Built in #601 (M6.2), the solo tutorial session in the game
+T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
+(T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
+- **`Game.start_tutorial(invite := false)`** (`client/app/game_tutorial.gd`, `GameTutorial`, held in `Game.tutorial`
+  to keep `game.gd` under lint's 1000 lines): false while a session runs. It sets `Game.mode` to
+  `content/modes/tutorial_mode.tres` (§9.5.17) and hosts it through `Game.host_on` (the path `host()` and
+  `host_with_code()` take) on a `LoopbackTransport` of a private `LoopbackHub`: `HostNode.host(transport, mode, port)`
+  unchanged, the own `ClientSession` on `HostNode.own_client`. No socket opens and nobody else can join; the port
+  (`GameTutorial.PORT`, `LaunchOptions.DEFAULT_PORT`) only keys the hub, and `Game.make_transport` is never called.
+  The host writes no replay (`HostNode.skip_replay`: each would push a match's out of `ReplayFiles.KEEP`). The game
+  sends the own `SetReady(true)` once welcomed (the tutorial has no Ready key). A failed start shows host-failed
+  (the invite never counts as seen then), and Try again starts the tutorial again, without the invite.
+- **The stand-ins** (`client/tutorial/stand_ins.gd`, `StandIns`, a child of `Game` named `StandIns`): two
+  `ClientSession`s, each on its own `LoopbackTransport` that joins the hub (peers 2 and 3) once the own player is
+  welcomed (`StandIns.join_host`), each stepped by a `SessionNode` of its own at physics priority -95 (after the
+  `HostNode`'s -100, before the own session's -90; it runs while the tree is paused). Each sends `Hello` with no name
+  (#550's ""), so the host's join count names them after the own player: `Player2` and `Player3` (stepped before the
+  own session, they would otherwise say Hello first and take `Player1` and `Player2`). Then `SetReady(true)` once
+  welcomed, `LoadAck` at once (`load_levels` off, as the bots), and `ClientSession`'s own claims from its last
+  `Welcome` or `Correction` (at rest, on the floor), so it stands where the host placed it; nothing else, no intent,
+  no voice. Its public members are `join_host()`, `count()`, `welcomed()` and `corrections()` (a test hook): no
+  session, model or transport leaves the class.
+- **The mode per session:** `GameTutorial.end` (called by `Game._end_session` before `_show_end`) frees the
+  stand-ins and gives `Game.mode` back the mode it had (the base mode, or a test's), so a networked session after a
+  tutorial uses the base mode again. `GameFlow` shows the loading screen for a phase with no level (`gather`, §4.7.4's
+  table), which no base-mode phase is. The loading screen's how-to card counts this loading like any other (the
+  tutorial teaches Delivery anyway): no tutorial branch in `GameHowto`.
+- **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
+  window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
+  Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
+  Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
+  lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
+- **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
+  `tutorial_requested` to `start_tutorial(false)` (the item was disabled until #492, #672's answer 2A), starts it
+  without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
+  settings)` holds only with no launch option at all (`LaunchOptions.given`, a wrong one too), the settings read from
+  a file (`UserSettings.path` set) and `UserSettings.tutorial_seen` (`[player] tutorial_seen`) false. A Game with no
+  command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
+  windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as
+  `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in the headless session,
+  is a problem. `invite_open` says the invite is due; since #492 (§4.7.49) only its Start and Skip (or Esc) set the
+  flag (`GameTutorial.mark_seen`, written): a session ended under the invite (the window closed) offers it again on
+  the next launch. Until #492 the end of an invited tutorial set it.
+- **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
+  --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`
+  and `clock` are refused naming their line. The window still prints the `session: hosting` line, which nothing
+  waits for with one window. Scenario `tutorial`: the room in the lessons phase with three players and lesson 1's
+  plates, lesson 2's after a walk (#492), and its Esc menu.
+- Tests: `tests/unit/client/app/game_flow_test.gd` (the tutorial mode's flow), `launch_options_test.gd` (`--tutorial`,
+  `given` and the problems), `user_settings_test.gd` (the flag), `game_tutorial_test.gd` (the first-launch rule's
+  table), `tests/unit/client/tutorial/stand_ins_source_test.gd` (only `stand_ins.gd` and `game_tutorial.gd` name
+  `StandIns` or its node path, nothing else reads its private lists or builds a `ClientSession` but `game.gd`, the
+  wiring makes no node lookups, no public member hands out a session; planted failures rejected),
+  `tests/integration/client/tutorial/stand_ins_test.gd` (on a `HostNode` of the tutorial mode, what the host receives
+  from each stand-in: one `Hello` with no name, one `SetReady`, one `LoadAck`, claims at one spot at rest, nothing
+  else, seen failing with a planted voice frame; leaving the tree leaves), and
+  `tests/integration/client/app/game_tutorial_test.gd` (E71: `start_tutorial` to the lessons and through both stages,
+  the loading screen in `gather`, seen failing without `GameFlow`'s rule; the Esc menu's tutorial tabs (none after
+  it) and its Game page's Leave with no question, the base mode again and a networked host after it, seen failing
+  without the restore; no replay, seen failing without the skip; the first launch, `--tutorial`, a wrong launch and
+  the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the header, its refusals and its one window's
+  command line).
+
+#### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
+Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the
+client words it in its own language, so two players of one lobby read the same shortfall or end reason each in theirs.
+Protocol 13 (§4.3.4).
+- **On the host.** `core/`'s `HostText` (`core/events/host_text.gd`): an id, its subject ids and its whole-number
+  arguments by name, never a sentence. `FitCheck.shortfalls` makes `players_few` and `players_many` (`count`: how many
+  players short or over, `min`, `max`) and `no_layout` (no arguments: a map path is no wire id, and `SettingsChanged`
+  names the map); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`) and `colours` (the station kind;
+  `need`, `have`). `MatchEnded`'s reason is the id of the win condition that reported the `won` (`Match` keeps it with
+  the step's outcome and hands it to the row as `MatchContext.outcome_reason`), with `time`, the seconds the round's
+  clock ran (`StartClock` records `MatchState.clock_ticks_total`; no time when it never started); a `won` that no win
+  condition reported has neither. The reason ids are the content's (`WinCondition.id`), with no content change.
+- **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
+  and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
+  pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
+  its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
+- **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
+  only. `players_many`, `markers`, `colours` and `no_layout` have none, so `HostTextView.plain` shows the id, its
+  subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
+  base mode only `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
+  lacks markers, colours or a layout); `no_crew_present` hides the reason line. No key is invented: the UI track's
+  deck adds them, then one table entry each.
+- **Tests.** `tests/unit/net/messages/wire_schema_test.gd` (no row carries `text` or `note`, seen failing on row 37
+  before the change), `wire_codec_test.gd` (the longest host text round-trips; a sentence as an id, a third subject,
+  a fifth argument refused; 32 longest texts beside 32 long settings over the cap), `wire_samples.gd` (all five
+  shortfall ids, `MatchEnded` with and without a reason, round-tripped and fuzzed),
+  `tests/unit/events/host_text_test.gd` (the decoder's types), `tests/unit/match/phases/lobby_phase_test.gd` and
+  `lobby_phase_bans_test.gd` (each shortfall's id and arguments, `players_many`, `no_layout`),
+  `tests/unit/win/end_match_test.gd` (the reason and the time, a rule's `won` without them, no clock no time; seen
+  failing on the old `EndMatch`), `clock_ended_test.gd` and `content_modes_test.gd` (the base mode's reasons),
+  `tests/unit/server/wire_budget_test.gd` (FitCheck's and Demands' longest texts encode),
+  `tests/unit/client/ui/host_text_view_test.gd`, `end_screen_test.gd` (the reason from the model),
+  `tests/unit/client/net/host_text_locale_test.gd` (one payload over the loopback in English, then Ukrainian, with
+  the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
+  decodes the same shortfall, and the same reason at the end, equal to `view_of`).
+
+#### 4.7.45 Built in #602 (M6.2), the lesson runner and the nine lessons
+T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engineer's D29 to D33, D36 answers on PR
+#596). The plates, the lesson list and the invite (#492) read it.
+- **Data** (`core/content/tutorial/`, data only, §9.3): `TutorialLessons` (the root, `lessons`), `TutorialLesson`
+  (`list_key`, `list_action` filling the row's `{key}`, one or two `steps`), `TutorialStep` (`title_key`, `how_key`,
+  `keys`: InputMap actions or `TutorialStep.HOWTO_GLYPH` for the map's «?»; `starts_when`, `on_start`, `done_when`,
+  `triggers`, `conditions`) and the closed list of parts of the design's §3: the triggers `EventSeen` (`event`,
+  `fields` matched as `WaitFor`; the markers `own`, `other` on a peer field, `held` on an item field) and
+  `ClientSeen` (`signal_name`, one of `moved`, `map_opened`, `howto_opened`, `spectate_switched`, `voice_sent`,
+  `esc_opened`; `amount` in seconds), the conditions `OwnLife` (`life` by name: `alive`, `downed`, `dead`, `left`, so
+  `core/` data names no state class), `OtherWithin` (`metres`, 0: the phase's `VoiceRule.radius_of`), `ItemKindIs`
+  (only in `conditions`: it reads the fired event's `item`) and `TasksDone` (at least one task, all done), the action
+  `RequestStage`. Each has `problems()`. The lessons are `content/tutorial/tutorial.tres` (provisional, approved on
+  PR #722, §9.6).
+- **`LessonRunner`** (`client/tutorial/lesson_runner.gd`, a pure `RefCounted`; a source test keeps nodes, input,
+  sessions and sends out of it): `setup(lessons, model)`, `start()` (once), then `on_event(name, fields)` (after the
+  model folded it), `on_claim(covered, moved_itself)`, `see(signal_name)`, `advance(delta_s, own_position,
+  mic_live)` every frame and `esc_closed()`. A step starts once its `starts_when` holds (until then the previous
+  lesson stays done and `lesson()` is 0), records the own hand item (`held`) and zeroes its counters, emits
+  `next_stage_requested` for each `RequestStage`, and completes at once when its `done_when` holds; else the first
+  trigger firing from its start with its `conditions` holding completes it. `moved` adds the `covered` ticks of the
+  claims that moved the player itself (`Ticks.RATE`) until `amount`. `voice_sent` fires on a frame sent and, with an
+  `amount`, after that many seconds in a row in which the step's conditions hold and no microphone is open (D31 (a):
+  a voice frame within the radius, or 3 s within it with none open). After the last lesson, a completion by
+  `esc_opened` makes the next `esc_closed()` emit `finished` (D32 (b)); a menu opened before lesson 9 started does
+  not count. Signals `changed`, `next_stage_requested`, `finished`; queries for #492: `lesson()` (1-based, 0 for
+  none), `step()`, `current_step()`, `keys()`, `is_done(n)`, `lesson_count()`, `is_running()`, `is_finished()`.
+- **The wiring** (`GameTutorial`, so no screen knows the tutorial exists): `start()` builds `Game.tutorial.runner`
+  over the own session's model (`end()` drops it) and binds the session's `event_received` and `claim_sent` to that
+  runner (a handler of an older session's runner does nothing); `setup()` connects, once, `GameUi.map_opened` and
+  `LifeView.target_switched` (fired by `cycle_target` only, when the dead player picks another target: never the
+  first target drawn at the death or a lost one replaced). `GameTutorial.process(game, delta)` (the last line of
+  `Game._process`) feeds `advance` with the local player's position and `VoiceSender.live()`, and a `delta` of 0
+  while the Esc menu is open (`GameUi.esc_open()`): D31 (a)'s quiet time stands still there, an open microphone
+  still resets it (the engineer's answer on PR #722); `howto_opened` on a
+  rise of `MapScreen.howto_open()` (polled, so it holds whichever order the «?» emits `howto_requested` and opens the
+  card in), and `voice_sent` when `VoiceSender.sent` rose; `Game.open_esc` and `close_esc` (its last line) call
+  `esc_opened()` and `esc_closed()`. `next_stage_requested` sends `NextStage` through the own session; `finished`
+  calls `Game.leave()`. Without the invite, lesson 1 begins as `PhaseChanged` brings the `lessons` phase; with it,
+  `GameTutorial.begin(game)` is #492's Start.
+- **The nine lessons** follow the design's §1 table on the deck keys of `client/i18n/strings.csv` (ui-0.4.0): lesson
+  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150); lesson 4 title only (`how_key` empty):
+  D30 (b) is the UI track's Delivery v1 how text (#150), and the deck's `tutorial.step.deliver.how` holds the v2
+  sentence, which misleads over v1's coloured circle (D30 (c)); lesson 7 completes on the switch or the own
+  `Respawned` (D36 (a)); lesson 8 waits for the own life living. The numbers (1 s, 3 s) are D33's placeholders.
+  If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
+- Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`
+  against `ClientModel.Life`), `tutorial_content_test.gd` (the nine lessons as §1's rows, deck keys and actions,
+  `RequestStage` only in 6 and 7, a card for `howto_opened`), `tests/unit/client/tutorial/lesson_runner_test.gd`
+  (every trigger and condition, the markers, `held`, D31's timer, `starts_when`, `done_when`, `RequestStage` once,
+  the end after the menu closes), `lesson_runner_source_test.gd`, the switch in
+  `tests/integration/client/life/spectate_cycle_test.gd`, and
+  `tests/integration/client/app/game_tutorial_lessons_test.gd` (the nine lessons on the real session, the stages from
+  the runner's own `NextStage`, a card already showing as lesson 5's second step starts being no opening, lesson 8's
+  quiet time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
+  runner).
+
+#### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
+The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
+`docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
+`check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
+at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
+- **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
+  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Status` ToyPlate (top centre, 40 px
+  down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
+  ToyColumnSixteen > `Info` ToyColumnEight (`LobbyName` ToyTextMutedOnDark; `CodeRow` ToyRowEight > `Label`
+  `common.code`, `Code` ToyKeyOnDark > `Text` ToyKeyText) and `List` ToyColumnEight (`Head` ToyTextOnDark, `Rows`
+  ToyColumnEight > one ToyRowTwelve per player: `HostRow`, the own `OwnRow`, the others `Row<n>`, each `Name`
+  ToyTextOnDark expanding and `Ready`, the pack's `check` at 24 px tinted ToyTextOnDark's `font_color`, shown while
+  that player is ready); `Bottom` ToyColumnTwelve (bottom left) > `ReadyChip` (ToyChipPlate `lobby.ready_no`, or
+  ToyChipLight `lobby.ready_yes`) and `Mic` ToyMic > `Icon` (`mic` tinted `icon_on`, else `mic-off` `icon_off`, as
+  the round's). The keycap's `min_width` (36, 42 at large text) is read again after each theme change
+  (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
+  lobby's name are cut with an ellipsis inside the plate.
+- **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
+  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.47's
+  `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
+  no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
+  `lobby.player_count` against the mode's
+  `max_players`; the lobby's name (`LobbyName`'s, else `lobby.default_name` with the host's name); the rows, the host
+  first, then the order the model got them (the Welcome's roster, then each `PlayerJoined`: the order they joined),
+  reading `player.you` for the own row, `lobby.host_mark` for the host's, else the name. All of it is the whole
+  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown, the host's shortfalls, which every
+  peer gets alike): no role, team or match fact. The
+  rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
+  `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
+- **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `Game._refresh_join`): the code to the host and every
+  code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
+  explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`Game._refresh_voice`).
+- **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
+- **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
+  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
+  (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
+- **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
+  the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
+- Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
+  English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
+  key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
+  lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
+  handoff's tree, anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
+  inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
+  language change, seen failing without the notification; large text's keycap), `esc_menu_input_test.gd` (no
+  prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
+  the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at
+  `--size 1920x1080`: `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`,
+  `lobby_hud_count_preview`, `lobby_hud_count_host_preview`, `lobby_hud_short_preview`,
+  `lobby_hud_code_waiting_preview` and `lobby_hud_direct_preview`, each with a `_uk` twin, and
+  `lobby_hud_large_uk_preview` (`short` and `code-waiting` fold the host's `players_few` against four players, the
+  handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
+  (`esc_menu`, `end`).
+
+#### 4.7.48 Built in #549 (M6.2), no literal text, content names and the font's glyphs
+Part (c) of #208 (§4.7.26), after the Toy screens.
+- **No literal text.** `tests/unit/client/i18n/literal_strings_test.gd` reads every script and scene under `client/`
+  (`client/dev/`'s previews left out) and fails on a string literal that reads as words but is no deck key and not
+  in its allow-list `tests/unit/client/i18n/literals_allowed.txt`. Words: any Cyrillic, Latin words with a space
+  between (a placeholder counts as a word: "Mouse %d"), and one capitalised word only where it is text (a Control's
+  `text`, a value named for text such as `MAP_LABEL`, a `tr()` argument): elsewhere one word is a node's name, of
+  which the screens have hundreds. Not words: keys, ids, paths, formats; `&"..."` and `^"..."`; comments; strings in a
+  log or assert call (`push_error`, `print`, `assert`...) or in a call naming an engine thing (`get_node`, `connect`,
+  `load`, `set_meta`...); a node's `name`. An allow-list line is `<path> | <literal as written> | <why>`, `*` for a
+  whole file (the debug overlay, the command line's problems, the end reasons' log words); its why names the issue or
+  comment tracking the missing key (#150's requests, comment 6095875901: the lobby's "Map"; comment 6096420162: the
+  rest, items 5 to 11) or why the text is never shown (the greybox lobby texts the Toy lobby HUD #495 left unused).
+  A line that matches nothing fails, so a screen moving to keys deletes its lines (#497's downed screen did, on the
+  rebase, and #495's lobby HUD its old hint). Not seen by the
+  scan: words built at run time and text a variable not named for text carries; #548's neutral shortfall line is
+  ids and numbers, and the raise cue's stopgap a deck key (`tutorial.step.downed.how`), no literal. Nor does it
+  read outside `client/`: `voice/voice_capture.gd`'s "the microphone ... did not open" and "froze" notices reach the
+  voice panel through `VoiceControl.notice` and are English literals with no deck key yet (listed with
+  `voice_sender.gd`'s in the PR).
+- **Content names** (`client/ui/ContentNames`, pure): a role, item kind or task type shows by its deck key
+  (by the convention `role.<id>`, `item.<id>`, `task.<id>` where the deck has the key, so content adding a type the
+  deck names needs no edit; `ROLE_EXCEPTIONS` holds the one id that differs: the base mode's crew are
+  `role.engineer`), else the content's display name, else its id; a room by `room.<id>` where the deck has it, else
+  its id; a map by its scene's file name ("House"). A Control given one translates it and retranslates on a switch;
+  `text()` gives it in the language now. `HudText` (the HUD's role and slots), `RoleFacts`, `PregameScreen`,
+  `MapScreen` (task rows, rooms) and `LobbyPanel` (the task chips, the map picker) ask it (the unshown
+  `ItemInteractions.hint()` keeps the display name). The deck (`ui-0.4.0`) has no key for a map, the House's rooms or
+  the `tasks` count setting: they show as before (no key invented, the PR lists them).
+- **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
+  `assets/ui/comfortaa/comfortaa.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
+  through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
+  (placeholders and line breaks left out) it lacks. In a checkout without LFS content (CI, §4.7.21) the file is a
+  pointer and the import a stand-in font: the test prints a `skip:` line naming it and checks only that it is a
+  pointer, so the glyphs are checked on every machine with the font (the local `test` and `verify --full`).
+- Tests: the two above (each with planted cases: the literals it must find and pass, the allow-list's format, the
+  deck's characters without placeholders, a private-use character the real font lacks) and
+  `tests/unit/client/ui/content_names_test.gd` (every role, item kind and task type of every shipped mode has a deck
+  key with English and Ukrainian text; both languages and a switch; what the deck does not name);
+  `client/dev/menu_uk_preview.tscn`: a
+  `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
+
+#### 4.7.49 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
+The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
+notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
+- **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
+  and before the map: the `Ui` layer, the handoff's HUD layer 2 (its table names the lesson plates there and not
+  the invite, which shows with them only in the round, where no black screen is up; #656), under the map and under
+  the Esc menu on `GameUi.above`, §4.7.32), node for node: the invite (`Dim` ToyBackdrop
+  taking the mouse; `Lang`, the chips `Uk` and `En` of `ToyChipToggleOnDark` in one ButtonGroup, each `lang.*` key
+  naming its language in itself, the one spoken pressed; `Box`, a raised ToyPanelDialog 688 px wide with the title,
+  the body, Start (`UiParts.button`, ToyButtonPrimary) and Skip (ToyButtonGhostOnLight)), `Step` (912 px, 40 px
+  down: Progress `tutorial.step.progress`, Title, and How) and `List` (440 px, top right 256 px down: Head and the
+  nine `Rows`). Only pack variations, no override. `show_lessons(lessons, lesson, step, done)` draws the plates and
+  redraws only when its arguments or a bound key's label changed, so the game calls it every frame and a rebind in
+  Settings > Controls (or the layout, through `KeyLabel`) redraws the keycaps.
+- **How:** a step with a `how_key` is `tr()` of it split at `{key}` (`LifeHud.give_up_pieces`: `strip_edges()`, an
+  empty piece hidden), `Before`, the `Key` keycap and `After`; the keycap is a ToyKeyOnDark holding a ToyKeyText
+  label of `KeyLabel.of_action` of the step's first key (`key.space`, `key.mouse_left` from the deck), its width
+  `min_width`, or `wide_min_width` for Space, Shift, Tab and Esc (`KeyLabel.is_wide_action`), read again after each
+  theme change (the large-text 42 px); `TutorialStep.HOWTO_GLYPH` is a ToyKeyRound «?», the map's. A step with keys
+  and no `how_key` (lesson 1) is `HowKeys`: `Walk` (the four walking keys, `control.walk`), then a group per other
+  key named by its `Controls.ACTIONS` row (`Sprint`, `Jump`). A step with neither (lesson 4, title only) hides How.
+  Lesson 9's Esc keycap reads Godot's key name ("Escape"): the deck has no `key.esc`.
+- **List:** a done lesson is `<Name>Done` (its name, then the `check` icon tinted with ToyTextOnDark's
+  `font_color`), the current one `<Name>Now` (a one-line ToyChipLight; the plate grows to the left for a long one),
+  the rest the muted, wrapping names; `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
+  `PickUpNext` in one state and `HandBelt` in another: one rule here). `tutorial.list.map`'s `{key}` is the bound
+  `list_action`. Every plate node ignores the mouse and takes no focus. Texts with data or in pieces are set from
+  code (`auto_translate_mode` DISABLED) and rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
+- **Placement:** `GameUi.show_screen` shows the screen in the round while the tutorial runs (`set_tutorial`, which
+  also clears it at the end) and hides the HUD and the life plates under the invite (s1's `invite`). While the dead
+  player's Spectate plate shows (lesson 7) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
+  not a decision: s1 draws no dead player).
+- **The game** (`GameTutorial`): once the room is in with `invite_open`, `open_invite()` (Start focused) and the
+  mouse freed; `GameUi.blocks_keys()` (the Esc menu or the invite) and `frees_mouse()` (the map or the invite) feed
+  `Game._apply_player_flags`, so no key counts under the invite and a click does not recapture; the map key is
+  ignored there. Esc is the invite's Skip through a `UiOverlays` entry (`INVITE`, layer 2). Start writes
+  `tutorial_seen`, closes the invite, `begin()`s lesson 1 and captures the mouse (focused windows only); Skip writes
+  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). A chip calls `GameSettings.choose_language`
+  (applied and saved; the invite's texts follow). The main menu's Tutorial is enabled and starts it with no invite.
+- Shots: `client/dev/tutorial_preview.gd` (the tutorial room from its start spot, the HUD without timer and role):
+  `tutorial_invite_preview`, `tutorial_step_preview`, `tutorial_step_keys_preview`, `tutorial_step_howto_preview`,
+  each with a `_uk` twin, and `tutorial_invite_large_uk_preview`, `tutorial_step_large_uk_preview`; `playcheck
+  tutorial` shoots lesson 1 and lesson 2 in the game, waiting on the new fields `tutorial.step` and `tutorial.how`.
+- Tests: `tests/unit/client/ui/tutorial_screen_test.gd` (the tree of each state, lesson 4, the list, no mouse, a
+  rebind, Ukrainian, large text on screen for every step, the step under the Spectate plate),
+  `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
+  free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
+  `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
+#### 4.7.50 Built in #551 (M6.2), the bodies in their players' colours
+The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
+`ProfileChanged` (which also renames), and `ClientModel.colour_of(peer)` gives 0 for a peer not on the roster.
+`BodyColours` (`client/player/`) maps an index to what is drawn: the delivery circles' ten colours (the
+circle `StationKind`'s palette in `content/tasks/delivery.tres`, in its order, which `body_colours_test.gd` pins),
+the engineer's choice on PR #745 until the UI track's player-colour list (asked on #150) replaces them; one const
+array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics frame through
+`RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh per frame; a
+colour set before the body is ready waits for its rules); the lying pose is the same mesh, so a downed body keeps its
+colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
+when the life changes, `LifeLooks.PLAYER_COLOUR` offline. A dead body stays `LifeLooks.BODY_COLOUR`, grey. No picker
+yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
+(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
+colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
+`tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
+`body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
+material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -2639,10 +4154,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   engineer's Worker (`tools/signal/README.md`), `wss://prime-game-signal.xperiaroco-36a.workers.dev/` since 2026-10-07
   (#513). `--signal=<url>` overrides it; an empty one (`--signal=`) makes a code join end as `service_unreachable`
   (use Direct) and a code host refuse to start.
-- **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
-  `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
-  one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
-  with its reason; the fields keep what was typed.
+- **The menu** (`MainMenu`, the Toy menu of #493, §4.7.38): Host (a room with a code, `CodeRoom` over
+  `WebRtcTransport`), Join (the code panel) and Join by address (the Direct panel: the address with an optional port,
+  Join and Host, ENet as before M6). A host serves one backend, so a code host takes no Direct joiner and a Direct
+  host has no code. A failed join shows its failure (#494), then the menu with the panel and what was typed kept.
 - **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
   code, before `found`), connecting, joined (connected, before `Welcome`). **The version check** is the joiner's
   `WebRtcTransport`'s (`expect_protocol`, `expect_content`, which `JoinTarget.transport` sets): a `found` naming
@@ -2651,9 +4166,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Failures in words** (`EndReasons`): `no_room`, `joins_closed`, `wrong_version`, `wrong_content` ("another
   build"), `service_unreachable` (use Direct) and `host_unreachable`, which also covers a full host (it answers a
   joiner nothing, so the join times out after 15 s) and names the playit.gg fallback under Direct.
-- **The lobby's code** (`LobbyHud` line, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
+- **The lobby's code** (`LobbyHud`'s code row, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
-  away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
+  away, `room_code()` turns empty and the tab's line says the code is gone (no reclaim); the HUD's keycap reads "…"
+  while the host waits for its room and "—" once it is gone (#495, §4.7.42). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
   no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
   `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
@@ -2709,8 +4225,11 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   a raise and a revive are as public as the two avatars (M4-4), a dead player
   gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
   no event that a living peer present then does not get (the leak test checks it, §4.6.4; M4-2 tests the snapshots in
-  `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
-  side, and each player knows from its own role whether it won. A later mode that reveals roles would add an event with
+  `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names the winning
+  side and why (#548): the id of the win condition that ended the round and the round's play time. Both are public:
+  every player sees what ends a round (the tasks done, the clock, who is left), and the time follows from the public
+  `RoundStarted` and the end, so a condition whose holding were a secret must not be a win condition. Each player
+  knows from its own role whether it won. A later mode that reveals roles would add an event with
   its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. What a dead player saw while spectating, all of it
   public, is fair game after the respawn (vision revision 1, V1): nothing is narrowed then.
@@ -2783,6 +4302,7 @@ data names each phase's rule (§3.1), so a new mode's rule is one more rule, not
 |---|---|
 | Lobby, Countdown | every pair within the voice radius |
 | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
+| Pregame | nobody: each player is reading its own role (#213, §3.6) |
 | Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
 | End | nobody: the game is frozen |
 
@@ -2897,7 +4417,9 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
   the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
   microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
-  microphone privacy) show in the Voice tab.
+  microphone privacy) show in the Voice tab. The same panel is in the main menu's Settings panel (#301, §4.7.17, §4.7.38), so the
+  microphone is picked and the meter checked before hosting or joining; with no session the capture and the gate
+  run for the meter and nothing is sent.
 - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
   and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
   frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
@@ -2914,7 +4436,7 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   hears nobody, nothing in Off or with no device open.
 - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
   with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
-  counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+  counted under the Esc menu too since #488, never while typing in a text field or a key capture), or Off, which closes only the own microphone: the others stay audible and the
   Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
   voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
   In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
@@ -2947,14 +4469,16 @@ docs; the game always has one). `WorldSounds` measures its 12 m from the ears to
 concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7.15 Built in M5-5.
 
 #### 6.5.5 Buses and the mix (E43, D15)
-`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
-Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
+`AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to Master (and, since #525, UI for the Toy
+buttons' click at −6 dB with no slider of its own, §4.7.40),
+in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
 Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
 (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
 window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
 the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
-`VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
-(M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
+`VoiceControl`, `VoicePanel`) or, before any session, the main menu's Settings panel (#301, #493).
+`host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (M5-6), as `run --instances` and
+`bots --instances` do from `launch.launch`.
 
 #### 6.5.6 No talking indicator in M5 (D14, the engineer's answer)
 No own transmit icon on the HUD, no icon over a
@@ -3043,7 +4567,7 @@ included), 0 when it routes nobody: the base class and `SilentVoice` 0, `Proximi
 `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
 it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
 (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
-base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading, Pregame (§3.6) and End. The leak test checks the
 routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
 decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
 whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
@@ -3696,13 +5220,15 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
 - **Win conditions** (`WinCondition`: a side and its conditions) are checked in the mode's order, in phases whose
   spec says so (Round in the base mode): after every fact, and at the end of every step (a command, a tick, a phase
   entry). The first that holds reports `won(side)`, and once a step has an outcome no win condition is checked again
-  in it. The check after every fact orders the effects of one command (§3.4): the last crew member leaving raises
+  in it. Its `id` reaches every player as `MatchEnded`'s reason (#548): which condition held must be a fact every player
+  may learn. The check after every fact orders the effects of one command (§3.4): the last crew member leaving raises
   `player_left` before its package drops into its circle, so "no crew present" is reported first, while a death's
   `player_died` meets no win condition and the dropped package then delivers. The check at the step's end catches a
   change that raised no fact.
 - **Outcomes** come from phase classes, win conditions and `ReportOutcome`; the first in a step wins (§3.1). An
   outcome and its argument reach no peer: `PhaseChanged` names only the new phase, and only an event that a
-  transition action emits can carry the argument (`EndMatch`: the side of `won`), with that event's audience.
+  transition action emits can carry the argument (`EndMatch`: the side of `won`, and the id of the win condition
+  that reported it as the reason, #548), with that event's audience.
 - **Events and who sees them.** An effect emits event classes (§4.2), and each event class declares its audience,
   evaluated at emission (§5). Neither the data nor an effect chooses recipients: a mechanic that needs a new audience
   needs a new event class, which is an engine request. Each part lists every event it can emit, so reviewing a part
@@ -3722,7 +5248,8 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   randomness names its RNG purpose in its data (§3.3), so a new part never shifts the draws of the others.
 
 ### 9.3 Kinds and where they live
-The base classes and the kinds are in `core/content/` (the bot-scenario data classes in `core/content/scenario/`);
+The base classes and the kinds are in `core/content/` (the bot-scenario data classes in `core/content/scenario/`,
+the tutorial's in `core/content/tutorial/`);
 `Match`, `MatchState` and `Phase` in `core/match/`; each part beside the rules it implements (`core/items/`,
 `core/combat/`, `core/tasks/`, … as split in stage 2; the deal's actions in `core/deal/`, 2c). 2a creates the base class of every kind in this table but the
 bot scenario's (2j), so stage-2 tasks that run in parallel share them instead of each inventing one; the parts and
@@ -3741,7 +5268,8 @@ phase classes come in the task each row names.
   leaving); 2b (#58) filled the base mode's Lobby, Countdown, Loading and End classes, with `JoinRules` (joins,
   leaves, the ready flag) and `FitCheck` (the fit check) beside them in `core/match/phases/`, and
   `MatchState.newcomers` for the connected peers not yet players and `MatchState.joins` for the `Player<n>` names
-  (§3.5); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
+  (§3.5; own names since #550, `PlayerNames`); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the
+  checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT, and `life_deadline`, M4-2), settings and
   `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5), tasks (`MatchTask`: its task type and `TaskState`,
   no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and
@@ -3829,12 +5357,14 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` the task screen shows (M4-5; the mode check refuses an empty one) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
+| How-to card | a task type's (or a Guide basic's) wordless card of 3 to 4 frames, which the client draws; not a rule: the host never reads it, and it is not in the mode or its content hash | `HowtoCard`, `HowtoFrame`: data only, in `core/content/howto/`; the client's `HowtoCards` finds them, `HowtoCardView` draws them | `content/howto/tasks/`, `content/howto/basics/` | §4.7.36 |
+| Tutorial lesson | one of the tutorial's lessons: its plate's deck keys and keys, and what completes each of its one or two steps (trigger → conditions → the next step; `starts_when`, `on_start`, `done_when`); not a rule: the host never reads it, and it is not in the mode or its content hash | `TutorialLessons`, `TutorialLesson`, `TutorialStep` and the closed list of parts: the triggers `EventSeen`, `ClientSeen`, the conditions `OwnLife`, `OtherWithin`, `ItemKindIs`, `TasksDone`, the action `RequestStage` (a new one is an engine request); data only, in `core/content/tutorial/` (E64 (a)); the client's `LessonRunner` plays them | `content/tutorial/` | the nine lessons, §4.7.45 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
   any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
@@ -3842,7 +5372,7 @@ phase classes come in the task each row names.
 - **`Transition`**: from phase, outcome, to phase, and its actions (effects) in order, which see the outcome and its
   argument (`EndMatch` reads the side of `won`).
 - **`GameMode`**: players (minimum, maximum); its match settings; `PlayerRules` (health, stamina, speeds, capsule);
-  its sides (`SideSpec`: id and display name, which `MatchEnded`'s end screen shows); its roles; its item kinds; the
+  its sides (`SideSpec`: id and display name; `MatchEnded` names the winner's id, which the end screen shows as a deck line, §4.7.31); its roles; its item kinds; the
   lobby level and the maps (paths that `server/` loads); its actions and reactions; its task types and win
   conditions, in order; its phases, the first phase and the transitions. Validation (§9.1) refuses a role, side or
   item kind that a part names and these lists lack.
@@ -3896,7 +5426,7 @@ names the facts that do.
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
-| `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
+| `ReportOutcome` | reports `outcome` in the current phase with `argument` (a button in the level, say; the tutorial's `NextStage` rule reports `next`, `docs/design/tutorial.md` §2.4); the row's actions read the argument as `MatchContext.outcome_argument` (null when empty). The first outcome of a step wins (§3.1). Mode check: an outcome named (the existing check wants a row for it in every phase that accepts the rule's intent). As a row's action it is a row error (`Match.report_outcome`) | `outcome`, `argument` (an id, empty for none; unused by the tutorial) | an outcome (§3.1), which reaches no peer (§9.2); no event of its own | T1 (#599, `core/match/report_outcome.gd`, `tests/unit/match/report_outcome_test.gd`); 2a built the outcome reporting it calls |
 
 #### 9.4.3 Transition actions
 (effects that a transition row runs; the base mode's rows are in §9.5):
@@ -3906,10 +5436,11 @@ names the facts that do.
 | `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) come as data, because `core/` cannot tell a debug build: the command `ForceRole` (peer, role id; an empty id clears it), which only `server/`'s debug path (from M3 also built from peer 1's debug-kind message, §4.3 E17) or the scenario runner sends, in any phase and after the peer connected, since ENet names a peer only then; it sets `MatchState.forced_roles`, which `ResetMatch` keeps, for the deals that follow, and is in the command log like every command; a role the mode lacks is a match error and ignored. Each present peer with a forced role gets it before the draws, and a forced role counts toward its quota (the engineer's answer A on #30: `dissidents` 1 with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus the players forced to its role, never below 0; a forced role the mode lacks is a match error and ignored (2j) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role); a forced role is told like a drawn one | 2c (#59); forced roles 2j (#66, `tests/unit/deal/deal_roles_test.gd`) |
 | `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then each task's `TaskState` in id order (M4-5, E30: `Tasks.announce`) and `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskState` per task and `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
-| `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
-| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
-| `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
-| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
+| `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2); with `ordered` the players in peer-id order onto the markers in level order, with no draw (the host's player, peer 1, on the first: the tutorial's deal, `docs/design/tutorial.md` §2.5). Too few markers, or no layout, is a rule error and places nobody | `tag`, RNG purpose (`spawns`; not required when `ordered`), `ordered` (false: the draw) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49); `ordered` T1 (#599). The new setting changes `ContentHash.of` of every mode that places players, so a command log recorded before #599 refuses to replay |
+| `KnockDown` | knocks down one present living player where it stands (`LifeRules.knock_down`); with `then_die`, `LifeRules.die` at once (the body, the drop of both slots at it). `pick` 0 is the host's player (peer 1), n the n-th present player other than peer 1 in peer-id order. A pick that names nobody present, or a player who is not alive, is a rule error during the row (`Match.row_error_count`, so `HostSession` ends the session, §4.5.11), exactly one, and nothing happens: `then_die` only kills a player this action downed (so `die`'s own error cannot follow a successful knockdown). Without `then_die` only a `LifeTicks` of the phase entered runs the knockdown out; mode check: a **warning** on a row whose `KnockDown` without `then_die` enters a phase with no `LifeTicks`, where the downed stays downed for good. The tutorial's `raise_stage` is the intended case (`docs/design/tutorial.md` §2.3: lesson 6 waits however long the player takes to raise the stand-in). Mode check: `pick` 0 to the mode's maximum players minus 1; an **error** on a row whose `KnockDown` changes the level (`Match` switches the world to the entered phase's level before a row's actions run, so the floor asked would be a level the player is not in): only on a row that stays on one level | `pick` (whole, class default 0), `then_die` (class default false) | `RaiseStopped` (everyone, for a channel involving the player: none in a row, which stops every channel first), `KnockedDown` (everyone), `Correction` (the downed); with `then_die` `Died` (everyone) and per dropped item `ItemPlaced` (death, everyone); facts `player_died`, then `item_rested` per item. No new event or audience | T1 (#599, `core/life/knock_down.gd`, `tests/unit/life/knock_down_test.gd`, `tests/unit/content/mode_check_stage_test.gd`) |
+| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); alone on the row into the round (`Pregame, pregame_done → Round`, #213), so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). It records the clock's length (`MatchState.clock_ticks_total`, for `EndMatch`'s time, #548). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
+| `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side and, when a win condition reported the `won`, its id as `reason` with the round's play time (`numbers.time`, whole seconds the clock ran; none when it never started), #548 | 2h (#64, `core/win/end_match.gd`) |
+| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready; the settings and shortfalls for the players still present (`FitCheck`), as a leave in the lobby sends them (#737). Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player; then `SettingsChanged` (everyone) | 2b (#58, `core/match/reset_match.gd`); the resent shortfalls #737 (`tests/unit/match/reset_match_test.gd`) |
 
 #### 9.4.4 Demands
 Every placing action, and every task type through `DealTasks`, answers one question: given the settings
@@ -3936,11 +5467,12 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36's zone task, designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)) | none | the task types' events | 2f (#62) |
-| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
+| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`, `SetProfile` (#551: name and body colour, §3.5; `out_of_bounds` also for a colour past the ten); leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged`, `ProfileChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58); #551 (`SetProfile`) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
-| `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
+| `Pregame` | phase class | `pregame_done` on its end tick, `seconds` after entry (#213); nothing else of its own: the data makes it silent and frozen (§3.6); joins refused (a connection gets `DisconnectPeer`); a leave as Round's (`LifeRules.leave`, §3.5) | `seconds` (0 to 60; the class default 0) | `PlayerLeft` (everyone), as the life rule's leave; `DisconnectPeer` (server); its end tick goes out in `PhaseChanged` | #213 (`core/match/phases/pregame_phase.gd`) |
+| `End` | phase class | `back` on its end tick, `seconds` after entry, or earlier on `ReturnToLobby` from the host; with no `seconds` it has no end tick and waits for `ReturnToLobby`, which no screen offers (a dead end for the host: a mode sets `seconds`); a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | `seconds` (0 to 60; absent: no end tick) | `PlayerLeft` (everyone); `DisconnectPeer` (server); its end tick goes out in `PhaseChanged` | 2b (#58); the end tick #212 |
 | `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | 2i (#65, `SilentVoice`); the radius M5-1 (#215) |
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6.3, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
 | `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137); the radius M5-1 (#215) |
@@ -3970,12 +5502,14 @@ Status: designed in #33 · built in <PR>. Tests: path.
 ```
 
 #### 9.5.1 Base mode (game mode)
-What it does: the MVP match, Lobby → Countdown → Loading → Round → End → Lobby (§3.2).
+What it does: the MVP match, Lobby → Countdown → Loading → Pregame → Round → End → Lobby (§3.2).
 Settings:
 - Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
   there (the engineer's answer on #49): players, the match settings and the phase settings. The Godot saver drops
   a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
-- players 1 to 10. Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
+- players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
+  lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
+  of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
   number of the mode's task types; #79); `banned_task_types` (a set of task types, empty; with one type nothing can
   be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision"); `dissidents` 1 (0 to
   9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
@@ -3998,16 +5532,16 @@ Settings:
   present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
-  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise`,
-  `StopRaise` and `Swap` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
-  `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End
+  Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
+  and the downed, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise` and `Swap` from the living, `GiveUp` from the
+  downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), ChannelTicks, TaskTicks; yes;
+  runs; RoundVoice; map), End 3 s
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
-- Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
-  at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife by
-  `knives`), `PlacePlayers` (`round_player`),
-  `StartClock`. `Round, won → End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers`
-  (`lobby_player`).
+- Transitions: §3.2. Their actions: `Loading, all_loaded → Pregame`: `DealRoles` (Dissident by `dissidents`,
+  leaving at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife
+  by `knives`), `PlacePlayers` (`round_player`). `Pregame, pregame_done → Round`: `StartClock`. `Round, won →
+  End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers` (`lobby_player`).
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
@@ -4023,19 +5557,22 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and
-greybox of §9.6.
+greybox of §9.6. A lone player (#719): `tests/unit/content/lone_player_test.gd` (Crew for 32 seeds at 1 and 9
+`dissidents`, and a round alone in which no win condition fires in its first minute and delivering every package wins it for the
+crew, `every_task_done`).
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
-`Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
-match from this data to the end and back to the lobby, twice, and a round
-with 0 dissidents set in its lobby.
-Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
+`Loading, all_loaded → Round` row until #213 moved it to `Pregame, pregame_done → Round`) and `EndMatch`
+(`Round, won → End`); `content_modes_test.gd` plays a whole match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
+on any of its ticks, #212), and a round with 0 dissidents set in its lobby.
+Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd` (End silent on every tick until its return).
+End's end tick: `tests/unit/match/phases/end_phase_test.gd`. The pregame (#213): §3.6.
 
 #### 9.5.2 Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
 Settings: id `crew`; display name "Engineer" (its side's "Engineers"; vision revision 1, M4-1); side `crew`; knows
 its teammates: no; actions: none. The default role of `DealRoles`.
 Produces: `RoleAssigned(crew)`.
-Visible to: that player only (§5); `MatchEnded` names only the winning side, never a player's role.
+Visible to: that player only (§5); `MatchEnded` names the winning side and the win condition, never a player's role.
 Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`; named Engineer in M4-1 (#137). Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (which pins both names).
 
@@ -4058,7 +5595,8 @@ palette: 10 distinct colours, provisional, one per package at the most `packages
 `packages` (its own subtasks setting: 1 to 10, default 6, a placeholder); RNG purposes `circles_rng`,
 `packages_rng`, `tasks_rng` (`circles`, `packages`, `tasks`). One circle per package, fixed, not a setting.
 `description` (M4-5, the task screen): "Carry each package to the circle of its colour. Packages take both hands."
-(provisional wording, "not a decision").
+(provisional wording, "not a decision"). `item_spawn_tags()` (#253): its package kind's spawn tag (`package`), so the
+map screen lights the rooms that hold a `package` marker, never a circle's.
 - Deal (when `DealTasks` draws it): N packages and N circles, N the `packages` setting, whatever the player count.
   Circles on distinct random `circle` markers with distinct random palette colours (`circles`), packages on
   distinct random free `package` markers (`packages`; `Items.free_markers`), then each package, in id order,
@@ -4134,8 +5672,8 @@ flag; M4-3), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 #### 9.5.7 Every task done (win condition)
 What it does: the crew's only win.
 Settings: side `crew`; conditions: `AllSubtasksDone`.
-Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)`.
-Visible to: everyone, the side only.
+Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)` with the reason `every_task_done` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_done.tres`. Tests:
 `tests/unit/win/all_subtasks_done_test.gd`, `tests/unit/win/clock_ended_test.gd` (a delivery on the end tick),
 `tests/unit/content/content_modes_test.gd` (the base mode's data).
@@ -4144,8 +5682,8 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_d
 What it does: the dissidents win when every crew member has left (vision revision 1, V10). A downed or dead crew
 member is still present: killing takes time from the crew, it does not end the round.
 Settings: side `dissidents`; conditions: `NoneAlive` (side `crew`; the class keeps its old name).
-Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
-Visible to: everyone, the side only.
+Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `no_crew_present` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 (#138):
 `content/win_conditions/no_crew_present.tres` (provisional), in `no_crew_alive.tres`'s place in the order. Tests:
 `tests/unit/win/none_alive_test.gd` (a knockdown and a death end nothing, the leaves, the §3.4 order),
@@ -4154,8 +5692,8 @@ Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 
 #### 9.5.9 Time up (win condition)
 What it does: the dissidents win when the clock ends with a subtask not done, with 0 dissidents too.
 Settings: side `dissidents`; conditions: `ClockEnded`, `AllSubtasksDone` negated.
-Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
-Visible to: everyone, the side only.
+Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `time_up` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres`. Tests:
 `tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
 `tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).
@@ -4243,22 +5781,80 @@ Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
 
+#### 9.5.17 Tutorial mode (game mode)
+What it does: the tutorial's solo session (`docs/design/tutorial.md` §2.3, E68): `gather` → `loading` →
+`lessons` → `raise_stage` → `death_stage`, the last two staged by the host's player with `NextStage` (§2.4, E65).
+Settings:
+- Written in `content/modes/tutorial_mode.tres`, built from the base mode's parts plus T1's (#599). Players 3 to 3
+  (the own player and the two stand-ins, D26, so `all_ready` waits for everyone). `PlayerRules`: the base mode's
+  numbers, but `respawn_s` 10 (a placeholder, "not a decision": lesson 7 is a short wait). No `lobby_level` (E72), no
+  win conditions, no Pregame and no End, no `ChangeSettings` in any phase. The settings the deal reads are fixed (each
+  bound equal to its value): `tasks` 1, `banned_task_types` (empty), `packages` 1, `knives` 1.
+- Sides: `crew` ("Engineers"). Roles: `crew`. Item kinds: Package, Knife. Task types: Delivery. Actions: PickUp,
+  PutDown, Raise, StopRaise and Swap as in the base mode, and `NextStage` with one effect, `ReportOutcome(next)`. No
+  `Use` and no `GiveUp` is accepted in any phase (the knife swings at nobody; D28 (a) kills the own player at once).
+- Phases (accepts; tick systems; voice; level; snapshots), none checking wins or running a clock: `gather` (Lobby;
+  `Hello` from newcomers, `SetReady` from players; none; Silent; none; no), `loading` (Loading 60 s; `LoadAck`;
+  none; Silent; the map; no), `lessons` (Round; `MoveClaim`, `PickUp`, `PutDown`, `Swap` from the living,
+  `NextStage` from the host; TaskTicks; RoundVoice 8 m; the map; yes), `raise_stage` (as `lessons`, plus `Raise` and
+  `StopRaise` from the living and `MoveClaim` from the downed; ChannelTicks, TaskTicks, no LifeTicks), `death_stage`
+  (as `raise_stage` but no `NextStage`; LifeTicks with a Respawn (`respawn`), ChannelTicks, TaskTicks).
+- Transitions: `gather, all_ready → loading`; `loading, all_loaded → lessons`: `DealRoles` (no quota, default Crew),
+  `DealTasks` (Delivery), `SpawnItems` (Knife by `knives`), `PlacePlayers` (`round_player`, `ordered`), no
+  `StartClock`; `lessons, next → raise_stage`: `KnockDown` (`pick` 1, stand-in 1; the mode check's warning about a
+  downed player with no LifeTicks is the intended case); `raise_stage, next → death_stage`: `KnockDown` (`pick` 0,
+  the host's player, `then_die`).
+- Map: `levels/tutorial/tutorial.tscn`, the room of §9.6.
+
+Produces: the events of its phases and parts. Visible to: as each of them says.
+Status: designed in #552 (PR #596; the engineer's answers D25 to D28, D33, D34 (a)); built in T2 (#600),
+provisional under the MVP content ADR, for the engineer's approval. The solo session that hosts it is T3
+(#601, §4.7.43).
+Tests: the mode check and the layout check (`tests/unit/content/content_modes_test.gd`, every mode); the tables of
+`docs/design/tutorial.md` §2.3 and a match from `gather` to the respawn in `death_stage`
+(`tests/unit/content/tutorial_mode_test.gd`); the room against `docs/design/tutorial.md` §4
+(`tests/integration/levels/tutorial_map_test.gd`); the scenario `tutorial_stages` (E71: three bots; bot 1 sends
+`NextStage`, waits past the 10 s knockdown while bot 2 stays down, raises it, sends `NextStage` again, dies at once
+and respawns; nobody else dies; expects `none`) in the core runner and in `tools\run.cmd bots`.
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
   modes/base_mode.tres             the base mode: phases, rows, PickUp, PutDown and voice rules inside it
+  modes/tutorial_mode.tres         the tutorial's solo session (§9.5.17, #600), on levels/tutorial/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   tasks/delivery.tres              with its circle station inside it
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
+  howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
+  howto/basics/moving.tres, voice.tres, downed.tres   the Esc menu Guide's basics
+  tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
   greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers
+  tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
+  tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with the stations' markers
 ```
 - **Provisional.** The engineer's agent builds them under the MVP content ADR, each PR with the engineer's approval;
   the designer adopts or replaces them in #38, and the level conventions of M4 (`new-level-piece`) may move the
   scenes.
+- **The tutorial room** (T2, #600; `docs/design/tutorial.md` §4, D33, D34 (a): one room, named "Tutorial" /
+  "Навчання"). Built by the level piece conventions (#607): the map places the room at the origin with no rotation;
+  the room's origin is its north-west floor corner and it declares `metadata/size_m = Vector2i(12, 10)` (about 12 ×
+  10 m, a placeholder, D33), an empty `Doors` (no opening) and `Stations` (the drop-off is Delivery's circle, a
+  marker), a `Name` label "Tutorial", and box-mesh looks over one layer-1 `StaticBody3D`: the floor (top at y = 0),
+  four 3 m walls and the two props, a shelf (2 × 1.8 × 0.5 m) and a table (1.6 × 0.8 × 0.8 m) against the north
+  wall. Its looks use `levels/kit/`'s role materials (#658): `greybox_floor_house` on the floor, `greybox_material`
+  on the walls and props. The markers, all on the floor in scene-tree (level) order, positions (x, z) in metres
+  (placeholders, "not a decision"): `round_player` Start (2, 5) by the west wall, `package` ShelfPackage (4, 1.3)
+  in front of the shelf, `knife` TableKnife (8.5, 1.6) in front of the table, `circle` DropOff (4, 8.5) by the
+  south wall, across the room from the shelf, `round_player` RaiseSpot (10.5, 3) by the east wall, `round_player`
+  Corner (10.5, 8.5) and `respawn` Respawn (8.5, 8.5), 2 m from the corner (more than `respawn_free_m`, within
+  RoundVoice's 8 m). The ordered `PlacePlayers` puts the own player on Start, stand-in 1 on RaiseSpot and
+  stand-in 2 in the Corner. No `lobby_player` marker and no lobby scene (`gather` plays at no level, E72). The
+  environment track dresses it and keeps every marker where it is. The room's map record (#306) waits for #306
+  (the follow-up named in #600's PR).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
@@ -4289,8 +5885,10 @@ levels/
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
   This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
-  `content/` or `levels/`. Only the mode check (§9.1) and the scenarios load them, so a change to `content/` can
-  break a scenario, which is what scenarios are for, and never a part's unit test.
+  `content/` or `levels/`. Only the mode check (§9.1) with the content tests beside it (`tests/unit/content/`, and
+  `tests/unit/levels/` or `tests/integration/levels/` for a map against its design) and the scenarios load them,
+  so a change to `content/` can break a scenario or a content test, which is what they are for, and never a
+  part's unit test.
 
 ### 9.7 Bot scenarios
 A bot scenario is a scripted match that shows a mechanic working end to end, played only with what each player is
@@ -4326,7 +5924,7 @@ told. One format runs in two runners.
 | `LoadAck(skip)` | answers the next `LoadMatch`: with `skip`, never, so the loading deadline drops it | the ack is sent, or skipped |
 | `Ready(ready)` | sends `SetReady` | its `ReadyChanged` arrives |
 | `Setting(id, value)` | (the host's bot) sends `ChangeSettings` | `SettingsChanged` arrives |
-| `ReturnToLobby` | (the host's bot) sends `ReturnToLobby` | `PhaseChanged` to the lobby arrives |
+| `ReturnToLobby` | (the host's bot) sends `ReturnToLobby`, the shortcut: End returns everyone by itself after 3 s (#212), which `WaitFor(PhaseChanged, lobby)` waits for | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
 | `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (at the crawl speed with no sprint while downed, M4-2; a dead bot cannot walk and fails the step), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
@@ -4341,6 +5939,7 @@ told. One format runs in two runners.
 | `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
 | `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
 | `Swap` | sends `Swap`: exchanges its hand and belt items (M4-5) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
+| `NextStage` | (the host's bot) sends `NextStage`: a scripted mode (the tutorial's stages) moves on (#599) | a `PhaseChanged` arrives, whichever phase (an `Expect` after it names one); the base mode refuses it (`not_accepted`). `tests/scenarios/next_stage_step_test.gd` |
 | `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
@@ -4433,7 +6032,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `tools/run.sh bots crew_revives_the_downed --instances 3`, not a `verify` step), `raise_stopped_then_given_up`
   (M4-4: a raise let go after 1 s, a second raise, the downed bot gives up during it (`RaiseStopped`, `Died`), a late
   `StopRaise` gets `not_channeling`, and the bot respawns 30 s later; time up on a 55 s clock),
-  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
+  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina; End's
+  return to the lobby with no intent, #212),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
   `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
   picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
@@ -4516,4 +6116,84 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
+| The tutorial (#552): an offline solo session on a private `LoopbackHub` with two in-process stand-ins, lessons 6 and 7 staged by the host through a host-only `NextStage` intent, a client-side lesson runner over lessons as data, and a room of its own ([design](design/tutorial.md), [ADR](decisions/2026-10-08-tutorial-offline-solo-session.md): E62 to E72, D25 to D36) | Proposed on 2026-10-08, for the engineer; built by T1 to T4 (the session §4.7.43, the lesson runner and the lessons §4.7.45) and #492, which then writes its section here |
 | The cooking chain's game rules, numbers, names and looks (CD1 to CD17 of the [cooking ADR](decisions/2026-10-10-cooking-task.md), §9.8) | Settled by the engineer on 2026-10-10 ([PR #701, comment 6095326743](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743)): every recommendation, except CD3 (b), CD5 (b), CD6 (c), CD8 (b) and CD13 (b), with his words for the buns and the patties; CD17 is technical, a flood guard. Then the four questions left ([comment 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400), its item 3 replaced by [6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and [6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)): the drafted words and looks and the five herbs as drafted (the ADR's §5.1); CD3 (b) reaching every take, so beside a two-handed item a take from a box, a bed, the grill or the floor puts the new item onto the belt, a full belt's item at the taker's feet, while what is not a take stays refused as today (`two_handed` at a plate, the grill or a station, `nothing_to_do` for a hit; the floor's pick-up is a change to `Items.take`, §7.1.11, in its C2); a displaced hand item at the taker's feet. It plays on House alone (CD15, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no cooking scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |
+
+## 11. Art assets: the handoff from the art repo (#519)
+
+Art is made in the private art repo (`xperiaroco2/prime-game-art`: its `docs/pipeline.md`, `docs/contract.md`,
+`docs/godot.md`, `docs/manifest.md`) and enters this repo only through a game-repo PR, one asset or one set per PR.
+Built in #519 for the character (#522) and the house (#523); its dry run is a CC0 Kenney chair
+(`assets/environment/kenney_chair/`), which no scene uses.
+
+### 11.1 Where an asset lands
+```
+assets/
+  characters/<id>/<id>.glb     a character: body, rig and clips in one GLB (art `export`)
+  environment/<id>/<id>.glb    a house, a room or a prop, its textures beside it
+  audio/<id>/<id>.wav|.ogg     a sound effect or a music track
+  ui/<id>/<id>.png|.ttf|.otf   a UI image or a font
+```
+- `<id>` is the art manifest's `id` (lowercase letters, digits and underscores), or for a third-party file a slug
+  of its pack and name (`kenney_chair`). A set (several sounds, a font family) keeps its files in its one folder.
+- Data only: binaries and the `.import` files Godot writes beside them, no scripts. The engineer owns `assets/`
+  (§1). Scenes in `client/` and `levels/` instance them (the avatar a character, the level its environment); an
+  asset never refers back to them.
+- The UI pack's imported copy is here too, as `ui/toy_pack/` (its own paths, `icons/room/hall.svg`,
+  `cards/delivery-1.png`): `ui-sync` writes it under the pack's lock (§4.7.34), never by hand. The Comfortaa font goes
+  to `ui/comfortaa/comfortaa.ttf` (#520).
+- The sounds are three sets, one per Kenney pack (#525, §4.7.40): `audio/kenney_impact_sounds/` (the footsteps),
+  `audio/kenney_rpg_audio/` (swing, pick-up and put-down) and `audio/kenney_interface_sounds/` (the UI click), each
+  file named after its sound so `sfx-check` finds its category; the engineer's verdicts on the three, from one
+  listening page, in `audio/sfx-verdicts.json`.
+- Not here: the pinned UI pack (`client/ui/theme/pack/`, `ui-sync`, #288, text Godot does not import), addons with
+  their own files (`addons/`), and test fixtures (`tests/fixtures/`).
+
+### 11.2 The PR an art handoff opens
+- **The files:** the asset under §11.1's path, through Git LFS (`.gitattributes` routes glb, png, jpg, wav, ogg,
+  ttf and otf, among others, as the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md) lists them; the
+  pre-push hook uploads the objects). `git lfs ls-files` lists each.
+- **The credits:** `docs/credits/<id>.md` with `Files`, `Author`, `Source` (the art manifest's source, or the
+  download page with the file's SHA-256), `License` (with its URL), `AI generated` and `Public repo OK`, the
+  manifest's `ai_generated` and `public_repo_ok` (AGENT_WORKFLOW §10). From the art repo, only an asset whose
+  manifest has `approved_by`, `approved_at` and `approval_pr` set and `public_repo_ok = true`; `check` refuses
+  `Public repo OK: false`. Then `tools\run.cmd credits` and the regenerated `CREDITS.md` in the same commit.
+- **The import settings:** the `.import` file of every asset, committed (`check` imports first and fails on an
+  import that changes or creates one, so run `check`, review the `.import` and commit it). A GLB keeps
+  `nodes/root_type=""` (a `Node3D` root: the game's scene owns the body), `nodes/root_scale=1.0` and
+  `nodes/apply_root_scale=true` (1 unit = 1 m, the contract's axes) and `animation/import=true`. A character adds
+  the art repo's two options (its `docs/godot.md`): `animation/fps=30`, the rate an animation set (the MVP set,
+  `mvp.toml` fps = 30) is baked at, which the GLB's `.export.json` records (at another rate Godot resamples every
+  track; a GLB of the pack's own 24 fps clips would need 24, and the contract changed first) and
+  `optimizer/enabled=false` on the AnimationPlayer node (`_subresources={"nodes": {"PATH:AnimationPlayer":
+  {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
+  with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
+  (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
+- **The checks:** `tools\run.cmd check`, `credits`, and the import check (§11.3) green, the import check run
+  locally (CI has no LFS content, so only a local run loads the GLB); for a visible asset `shot` images in the PR
+  (the art pipeline's step 15).
+
+### 11.3 The import check
+`tools/assets/asset_check.gd` over `tools/assets/asset_contract.json`, run by
+`tests/unit/tools/asset_import_test.gd` (so `test`, `verify --full` and CI run it; a plain `verify` runs no tests,
+#605; alone: `tools\run.cmd test tests/unit/tools/asset_import_test.gd`):
+- every GLB under `res://` (not `addons/`, `.godot/`, `tools/out/`, `tests/scratch/`) has a committed `.import`
+  with §11.2's options and loads headless as a `PackedScene` that instantiates;
+- a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract and one
+  `AnimationPlayer` holding every clip, each looping exactly as listed;
+- every image under `assets/` (png, jpg, jpeg, webp, tga, bmp, exr, hdr: the texture formats `.gitattributes`
+  routes through LFS) keeps its folder's `compress/mode`.
+
+Each problem is one line that starts with the asset's path and names what is missing, for instance
+`res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crawl (it has: Carry_Upper, ...)`. Broken
+fixtures built in memory (a missing clip, a missing bone, a loop that plays once, wrong import options and
+compression) must each be named. Without LFS content (CI) a GLB is a pointer file: the test still checks its
+committed `.import` (text, so present), names the file and skips loading its scene and checking its skeleton and
+clips, which a local run does; `check` imports a stand-in in its place (the LFS ADR's amendment).
+
+**The contract's data, provisional.** The bones are the art export's rig as measured (art `docs/animations.md`:
+`CharacterArmature`, the 62 Ultimate Modular bones plus `Toe.L` and `Toe.R`); the art contract v2 may move them to
+Godot's `SkeletonProfileHumanoid` names, and the file changes with it. The clips are the slice's list from
+prime-game-art#42 under the art MVP set's names as Godot imports them (`Idle`, `Jog_Fwd`, `Sprint_Fwd`,
+`Carry_Upper`, `Pickup_Package`, `Putdown_Package`, `Knockdown`, `Crawl`, `Getup_Fours`): not a decision; the
+avatar (#522) settles the clips it maps and edits the list.

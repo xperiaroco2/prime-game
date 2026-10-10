@@ -7,6 +7,8 @@ extends GdUnitTestSuite
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
+## A control character a name never keeps.
+const BELL := "\u0007"
 
 var _harness: Harness
 
@@ -30,6 +32,27 @@ func test_it_sends_hello_with_the_version_and_the_content_fingerprint_on_connect
 		ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	)
 	assert_int(hellos[0].seq).is_equal(0)
+	# No name given: Hello asks for none, and the host names the player Player<n>.
+	assert_str(hellos[0].fields["name"]).is_empty()
+
+
+## Hello asks for the player's own name (#550), cleaned again by the session, so even a name too
+## long for the wire (40 Cyrillic letters are 80 bytes) or with a control leaves as a Hello.
+func test_hello_carries_the_players_name_cleaned() -> void:
+	for each: Array in [["  Діма ", "Діма"], [BELL + "Д".repeat(40), "Д".repeat(16)]]:
+		_harness.close()
+		_harness = Harness.new(true, each[0] as String)
+		assert_str(_harness.session.player_name).is_equal(each[1])
+		var hellos := _harness.sent_named(&"Hello")
+		assert_int(hellos.size()).is_equal(1)
+		if hellos.size() == 1:
+			assert_str(hellos[0].fields["name"]).is_equal(each[1])
+
+
+## A name assigned after the session exists (the Character tab, #491) is cleaned too.
+func test_a_name_assigned_later_is_cleaned() -> void:
+	_harness.session.player_name = BELL + "Д".repeat(40)
+	assert_str(_harness.session.player_name).is_equal("Д".repeat(16))
 
 
 func test_intents_go_out_with_a_rising_seq() -> void:

@@ -109,8 +109,14 @@ func test_the_fit_check_holds_for_any_draw() -> void:
 	FixtureBanModes.change(game, {"tasks": 2})
 	FixtureBaseMode.ready(game, P1)
 	assert_str(game.phase_id()).is_equal("lobby")
-	assert_array(Array(FixtureBanModes.last_change(game, P1).shortfalls)).is_equal(
-		["6 token marker(s) needed, the map has 5"]
+	assert_array(HostText.to_dicts(FixtureBanModes.last_change(game, P1).shortfalls)).is_equal(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["token"]),
+				"numbers": {&"need": 6, &"have": 5}
+			}
+		]
 	)
 	# The small map has 1 token marker: even `first` alone does not fit there.
 	FixtureModes.send(
@@ -123,8 +129,14 @@ func test_the_fit_check_holds_for_any_draw() -> void:
 		}
 	)
 	assert_str(game.phase_id()).is_equal("lobby")
-	assert_array(Array(FixtureBanModes.last_change(game, P1).shortfalls)).contains(
-		["2 token marker(s) needed, the map has 1"]
+	assert_array(HostText.to_dicts(FixtureBanModes.last_change(game, P1).shortfalls)).contains(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["token"]),
+				"numbers": {&"need": 2, &"have": 1}
+			}
+		]
 	)
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"map": FixtureBaseMode.MAP}, 3)
 	assert_str(game.phase_id()).is_equal("countdown")
@@ -138,6 +150,7 @@ func test_the_deal_never_draws_a_banned_type() -> void:
 		FixtureBaseMode.ready(game, P1)
 		FixtureModes.run_ticks(game, 101)
 		FixtureBaseMode.load_ack(game, P1)
+		FixtureBaseMode.through_pregame(game)
 		assert_str(game.phase_id()).is_equal("round")
 		assert_int(game.state.tasks.size()).is_equal(1)
 		for id: int in game.state.tasks:
@@ -166,9 +179,10 @@ func test_the_bans_outlive_the_match() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-## P1 readies, the countdown runs out and P1 loads: the round.
+## P1 readies, the countdown runs out, P1 loads and the pregame runs out: the round.
 func _play_to_the_round(game: Match) -> void:
 	FixtureBaseMode.ready(game, P1)
 	FixtureModes.run_ticks(game, 101)
 	FixtureBaseMode.load_ack(game, P1)
+	FixtureBaseMode.through_pregame(game)
 	assert_str(game.phase_id()).is_equal("round")

@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## Esc's menu as data (client/ui/esc_menu_state.gd, #169): its tabs per screen, the selected tab,
-## open or closed, the host's questions before Leave and Quit, who may change the settings, and the
-## Voice tab in every screen (M5-6).
+## Esc's menu as data (client/ui/esc_menu_state.gd, #169; the Toy menu of #491): its tabs per
+## screen (Game, Role in the round, Guide, Lobby in the lobby, Settings; the tutorial's three), the
+## selected and the remembered tab, the host's question before Leave and Quit, who may change the
+## settings.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -21,94 +22,147 @@ func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
 	assert_bool(menu.is_open).is_false()
 	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
 	assert_bool(menu.is_open).is_true()
-	assert_array(menu.tabs()).is_equal([TAB.RESUME, TAB.LOBBY, TAB.VOICE, TAB.LEAVE, TAB.QUIT])
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
 	assert_int(menu.selected).is_equal(TAB.LOBBY)
 	menu.close()
 	assert_bool(menu.is_open).is_false()
 
 
-func test_outside_the_lobby_there_is_no_lobby_tab_and_it_opens_on_resume() -> void:
-	for screen: S in [S.CONNECTING, S.LOADING, S.ROUND, S.END]:
-		var menu := EscMenuState.new()
+## #726: the screen it opened over and follows, which Game compares with a new screen to close it.
+func test_it_keeps_the_screen_it_opened_over_and_follows() -> void:
+	var menu := EscMenuState.new()
+	var model := Preview.fake_model(_mode, false)
+	menu.open(S.LOBBY, model, false)
+	assert_int(menu.over_screen).is_equal(S.LOBBY)
+	menu.follow(S.LOADING, model, false)
+	assert_int(menu.over_screen).is_equal(S.LOADING)
+	menu.open(S.ROUND, model, false)
+	assert_int(menu.over_screen).is_equal(S.ROUND)
+
+
+func test_the_round_has_the_role_tab_and_the_read_only_lobby_and_opens_on_game() -> void:
+	# #491 (the issue's "Lobby, a player (and everyone in a round)"; s05 game-host keeps the Lobby
+	# tab): the round reads the settings in Lobby, nobody changes them.
+	var menu := EscMenuState.new()
+	var host := Preview.fake_model(_mode, true)
+	Preview.fold_round(host, false)
+	menu.open(S.ROUND, host, true)
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.ROLE, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
+	assert_bool(menu.may_change_settings).is_false()
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	# Loading, the pregame and the end: no Role, no Lobby.
+	for screen: S in [S.LOADING, S.PREGAME, S.END, S.CONNECTING]:
+		menu.open(screen, null, false)
+		assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.SETTINGS])
+		assert_int(menu.selected).is_equal(TAB.GAME)
+
+
+func test_the_tutorial_shows_game_guide_and_settings_and_leaves_at_once() -> void:
+	var menu := EscMenuState.new()
+	menu.tutorial = true
+	for screen: S in [S.LOBBY, S.ROUND, S.LOADING]:
 		menu.open(screen, null, true)
-		assert_array(menu.tabs()).is_equal([TAB.RESUME, TAB.VOICE, TAB.LEAVE, TAB.QUIT])
-		assert_int(menu.selected).is_equal(TAB.RESUME)
-		assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
-		assert_int(menu.press(TAB.LOBBY)).is_equal(ACT.NONE)
-		assert_int(menu.selected).is_equal(TAB.RESUME)
+		assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.SETTINGS])
+		assert_int(menu.selected).is_equal(TAB.GAME)
+	# Even when its window hosts: no question.
+	assert_int(menu.press_leave()).is_equal(ACT.LEAVE)
+	assert_bool(menu.asking()).is_false()
+	assert_int(menu.press_quit()).is_equal(ACT.QUIT)
 
 
-func test_the_voice_tab_is_in_every_screen_and_stays_selected_across_them() -> void:
-	# The M5 ADR §1.7: the microphone, the mode and the volumes, wherever Esc opens.
-	var model := Preview.fake_model(_mode, true)
-	for screen: S in [S.CONNECTING, S.LOBBY, S.LOADING, S.ROUND, S.END]:
-		for hosting: bool in [false, true]:
-			var menu := EscMenuState.new()
-			menu.open(screen, model, hosting)
-			assert_bool(menu.has_tab(TAB.VOICE)).is_true()
-			# A press selects it and acts on nothing, also on the host.
-			assert_int(menu.press(TAB.VOICE)).is_equal(ACT.NONE)
-			assert_int(menu.selected).is_equal(TAB.VOICE)
-			assert_bool(menu.asking()).is_false()
-			assert_bool(menu.is_open).is_true()
-	var menu := EscMenuState.new()
-	menu.open(S.LOBBY, model, true)
-	menu.press(TAB.VOICE)
-	menu.follow(S.LOADING, model, true)
-	menu.follow(S.ROUND, model, true)
-	assert_int(menu.selected).is_equal(TAB.VOICE)
-
-
-func test_the_lobby_tab_gives_way_when_the_round_starts_under_the_open_menu() -> void:
+func test_a_tab_that_goes_away_gives_way_to_the_default() -> void:
 	var menu := EscMenuState.new()
 	var model := Preview.fake_model(_mode, true)
-	menu.open(S.LOBBY, model, true)
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
-	menu.follow(S.LOADING, model, true)
-	assert_bool(menu.is_open).is_true()
-	assert_int(menu.selected).is_equal(TAB.RESUME)
+	menu.open(S.ROUND, model, true)
+	menu.press(TAB.ROLE)
+	assert_int(menu.selected).is_equal(TAB.ROLE)
+	menu.follow(S.END, model, true)
+	assert_bool(menu.has_tab(TAB.ROLE)).is_false()
+	assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	# A tab the screen lacks cannot be pressed.
+	menu.press(TAB.LOBBY)
+	assert_int(menu.selected).is_equal(TAB.GAME)
 
 
-func test_resume_closes_the_menu() -> void:
+func test_the_last_tab_is_kept_on_the_same_kind_of_screen() -> void:
 	var menu := EscMenuState.new()
 	menu.open(S.ROUND, null, false)
-	assert_int(menu.press(TAB.RESUME)).is_equal(ACT.RESUME)
-	assert_bool(menu.is_open).is_false()
-	# A closed menu does nothing.
-	assert_int(menu.press(TAB.LEAVE)).is_equal(ACT.NONE)
+	menu.press(TAB.SETTINGS)
+	menu.close()
+	menu.open(S.ROUND, null, false)
+	assert_int(menu.selected).is_equal(TAB.SETTINGS)
+	menu.press(TAB.ROLE)
+	menu.close()
+	# The end screen has no Role tab: the default.
+	menu.open(S.END, null, false)
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	# Back in the lobby, a tab chosen in the round does not carry over.
+	menu.open(S.LOBBY, null, false)
+	assert_int(menu.selected).is_equal(TAB.LOBBY)
+	menu.press(TAB.GUIDE)
+	menu.open(S.LOBBY, null, false)
+	assert_int(menu.selected).is_equal(TAB.GUIDE)
 
 
-func test_a_clients_leave_and_quit_act_at_once() -> void:
+func test_a_players_leave_and_quit_act_at_once_and_resume_closes() -> void:
 	var menu := EscMenuState.new()
-	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
-	assert_int(menu.press(TAB.LEAVE)).is_equal(ACT.LEAVE)
-	assert_int(menu.press(TAB.QUIT)).is_equal(ACT.QUIT)
+	menu.open(S.ROUND, null, false)
+	assert_int(menu.press_leave()).is_equal(ACT.LEAVE)
+	assert_int(menu.press_quit()).is_equal(ACT.QUIT)
 	assert_bool(menu.asking()).is_false()
+	assert_int(menu.resume()).is_equal(ACT.RESUME)
+	assert_bool(menu.is_open).is_false()
+	# Closed, nothing acts.
+	assert_int(menu.press_leave()).is_equal(ACT.NONE)
+	assert_int(menu.resume()).is_equal(ACT.NONE)
 
 
 func test_the_hosts_leave_and_quit_ask_first() -> void:
 	var menu := EscMenuState.new()
-	menu.open(S.LOBBY, Preview.fake_model(_mode, true), true)
-	assert_int(menu.press(TAB.LEAVE)).is_equal(ACT.NONE)
-	assert_int(menu.selected).is_equal(TAB.LEAVE)
+	menu.open(S.ROUND, null, true)
+	assert_int(menu.press_leave()).is_equal(ACT.NONE)
 	assert_bool(menu.asking()).is_true()
+	assert_int(menu.question).is_equal(ACT.LEAVE)
+	# Under the question the tabs and the other buttons do nothing.
+	assert_int(menu.press_quit()).is_equal(ACT.NONE)
+	menu.press(TAB.SETTINGS)
+	assert_int(menu.selected).is_equal(TAB.GAME)
 	menu.cancel()
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
 	assert_bool(menu.asking()).is_false()
-	assert_int(menu.confirm()).is_equal(ACT.NONE)
-	assert_int(menu.press(TAB.QUIT)).is_equal(ACT.NONE)
-	assert_int(menu.confirm()).is_equal(ACT.QUIT)
-	menu.press(TAB.LEAVE)
-	assert_int(menu.confirm()).is_equal(ACT.LEAVE)
-
-
-func test_closing_the_hosts_window_opens_the_quit_question() -> void:
-	var menu := EscMenuState.new()
-	menu.ask_quit(S.ROUND, null)
 	assert_bool(menu.is_open).is_true()
-	assert_int(menu.selected).is_equal(TAB.QUIT)
-	assert_bool(menu.asking()).is_true()
+	assert_int(menu.confirm()).is_equal(ACT.NONE)
+	assert_int(menu.press_quit()).is_equal(ACT.NONE)
+	assert_int(menu.question).is_equal(ACT.QUIT)
 	assert_int(menu.confirm()).is_equal(ACT.QUIT)
+	assert_bool(menu.asking()).is_false()
+	# Closing drops an open question; opening never starts with one.
+	menu.press_leave()
+	menu.close()
+	assert_bool(menu.asking()).is_false()
+	menu.open(S.ROUND, null, true)
+	assert_bool(menu.asking()).is_false()
+
+
+func test_closing_the_window_asks_the_host_to_quit_on_the_game_tab() -> void:
+	var menu := EscMenuState.new()
+	menu.open(S.LOBBY, null, true)
+	menu.press(TAB.SETTINGS)
+	menu.ask_quit(S.LOBBY, null)
+	assert_bool(menu.is_open).is_true()
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	assert_int(menu.question).is_equal(ACT.QUIT)
+	assert_int(menu.confirm()).is_equal(ACT.QUIT)
+
+
+func test_closing_the_window_in_the_tutorial_quits_without_a_question() -> void:
+	# #491: the tutorial's Leave and Quit act at once, its window's close button too, though the
+	# solo session hosts.
+	var menu := EscMenuState.new()
+	menu.tutorial = true
+	menu.open(S.ROUND, null, true)
+	assert_int(menu.ask_quit(S.ROUND, null)).is_equal(ACT.QUIT)
+	assert_bool(menu.asking()).is_false()
 
 
 func test_only_the_host_changes_the_settings_and_only_in_the_lobby_phase() -> void:

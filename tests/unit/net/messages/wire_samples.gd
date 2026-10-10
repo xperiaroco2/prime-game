@@ -20,8 +20,8 @@ static func events() -> Dictionary[String, Array]:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": 3, "name": "Player2", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": 3, "name": "Діма 2", "ready": false, "colour": 9},
 			]
 		)
 	)
@@ -29,10 +29,19 @@ static func events() -> Dictionary[String, Array]:
 	welcome.map = "res://levels/maps/test_map.tscn"
 	welcome.phase = &"lobby"
 	welcome.positions = {1: Vector3(0.1, 0.2, 0.3)}
+	welcome.lobby_name = "Лобі Діми " + String.chr(0x1F600)
 	found["WelcomeEvent"] = [welcome]
-	found["PlayerJoinedEvent"] = [PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE)]
+	found["PlayerJoinedEvent"] = [
+		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE, 9),
+		PlayerJoinedEvent.new(4, "Ann " + String.chr(0x1F600), Vector3.ZERO, 0),
+		PlayerJoinedEvent.new(7, "Ж".repeat(40), Vector3(-1.5, 0.25, 8.0), 9),
+	]
 	found["PlayerLeftEvent"] = [PlayerLeftEvent.new(5)]
 	found["ReadyChangedEvent"] = [ReadyChangedEvent.new(5, true)]
+	found["ProfileChangedEvent"] = [
+		ProfileChangedEvent.new(0x7FFFFFFF, "Ж".repeat(40), 9),
+		ProfileChangedEvent.new(2, "Ann " + String.chr(0x1F600), 0),
+	]
 	found["SettingsChangedEvent"] = [_settings_changed()]
 	found["PhaseChangedEvent"] = [
 		PhaseChangedEvent.new(&"countdown", 4096), PhaseChangedEvent.new(&"end", -1)
@@ -76,7 +85,11 @@ static func events() -> Dictionary[String, Array]:
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
 	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
-	found["MatchEndedEvent"] = [MatchEndedEvent.new(&"crew")]
+	found["MatchEndedEvent"] = [
+		MatchEndedEvent.new(&"crew"),
+		MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}),
+		MatchEndedEvent.new(&"crew", StringName(ID_32), {}),
+	]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
 	return found
 
@@ -85,9 +98,14 @@ static func events() -> Dictionary[String, Array]:
 static func intents() -> Array[WireMessage]:
 	var settings := {&"tasks": 3, &"banned_task_types": PackedStringArray(["delivery"])}
 	return [
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH}),
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH, "name": "Діма"}
+		),
+		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": 0, "name": ""}),
 		WireMessage.new(&"SetReady", {"ready": true}, 7),
 		WireMessage.new(&"ChangeSettings", {"settings": settings}, 8),
+		WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": "Діма's den"}, 13),
+		WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": ""}, 14),
 		WireMessage.new(
 			&"ChangeSettings", {"settings": {}, "map": "res://levels/maps/test_map.tscn"}, 9
 		),
@@ -102,6 +120,11 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"StopRaise", {}, 15),
 		WireMessage.new(&"GiveUp", {}, 16),
 		WireMessage.new(&"Swap", {}, 17),
+		WireMessage.new(&"NextStage", {}, 18),
+		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
+		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
+		WireMessage.new(&"SetProfile", {"name": "P".repeat(80), "colour": 255}, 0xFFFFFFFF),
+		WireMessage.new(&"SetProfile", {"name": "", "colour": 0}, 20),
 	]
 
 
@@ -210,11 +233,26 @@ static func _settings_changed() -> SettingsChangedEvent:
 	var sets: Dictionary[StringName, PackedStringArray] = {
 		&"banned_task_types": PackedStringArray(["delivery", ID_32])
 	}
-	var problems := PackedStringArray(
-		["3 circle marker(s) needed, the map has 1", "11 player(s), the mode plays with 4 to 10"]
-	)
+	var problems: Array[HostText] = [
+		HostText.of(
+			HostText.PLAYERS_MANY, PackedStringArray(), {&"count": 1, &"min": 4, &"max": 10}
+		),
+		HostText.of(HostText.NO_LAYOUT),
+		HostText.of(HostText.MARKERS, PackedStringArray(["circle"]), {&"need": 3, &"have": 1}),
+		HostText.of(HostText.COLOURS, PackedStringArray([ID_32]), {&"need": 9, &"have": -8}),
+		HostText.of(
+			HostText.PLAYERS_FEW, PackedStringArray(), {&"count": 1, &"min": 4, &"max": 10}
+		),
+	]
 	return SettingsChangedEvent.new(
-		numbers, "res://levels/maps/test_map.tscn", 11, demands, layout, problems, sets
+		numbers,
+		"res://levels/maps/test_map.tscn",
+		11,
+		demands,
+		layout,
+		problems,
+		sets,
+		"Dima's den"
 	)
 
 

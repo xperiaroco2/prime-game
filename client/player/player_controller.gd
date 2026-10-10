@@ -61,6 +61,12 @@ var move_input: Vector2 = Vector2.ZERO
 var sprint_held: bool = false
 ## Set when jump is pressed; the next physics step consumes it, jumping or not.
 var jump_requested: bool = false
+## The mouse belongs to a screen over the game (the map, #253): no look, and a click or Esc never
+## captures or frees it; the keys still move the player. Game sets it every frame.
+var mouse_free := false
+## Whether the mouse is captured, which the look needs: Input's mouse mode. Tests replace it, as
+## headless Godot keeps no mouse mode (probed on 4.7.2: CAPTURED reads back as VISIBLE).
+var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 ## Asked before a sprint or a jump, told what each step spent. A PredictedStamina of `rules`
 ## unless set before them.
 var stamina: StaminaSource
@@ -126,9 +132,9 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not reads_device_input:
+	if not reads_device_input or mouse_free:
 		return
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured := mouse_captured.call() as bool
 	var motion := event as InputEventMouseMotion
 	if motion != null and captured:
 		look(
@@ -213,6 +219,7 @@ func set_life(value: ClientModel.Life) -> void:
 			collision_layer = 0
 	if _lying != null:
 		_lying.visible = life == ClientModel.Life.DOWNED
+		_paint_lying()
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
@@ -274,6 +281,17 @@ func _apply_rules() -> void:
 	_contacts.exclude = [get_rid()]
 	_lying.mesh = LifeLooks.capsule(rules, LifeLooks.PLAYER_COLOUR)
 	_lying.transform = LifeLooks.lying(rules)
+	_paint_lying()
+
+
+## Paints the lying capsule the own body colour (#551), the one the others see it in; offline (no
+## session) it keeps LifeLooks.PLAYER_COLOUR. Only the lobby changes a colour, where nobody lies.
+func _paint_lying() -> void:
+	var mesh := _lying.mesh as CapsuleMesh
+	if mesh == null or session == null:
+		return
+	var own := session.model.colour_of(session.model.own_peer)
+	(mesh.material as StandardMaterial3D).albedo_color = BodyColours.of(own)
 
 
 ## One step held by a raise: no movement and no gravity (it lies on the floor where the host holds

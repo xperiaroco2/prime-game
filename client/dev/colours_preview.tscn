@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://ddxvss1vo271k"]
+
+[ext_resource type="Script" uid="uid://b2qqfw2p61kos" path="res://client/dev/colours_preview.gd" id="1_preview"]
+
+[node name="ColoursPreview" type="Node3D" unique_id=1704752256]
+script = ExtResource("1_preview")

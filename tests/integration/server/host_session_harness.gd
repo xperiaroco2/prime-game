@@ -83,8 +83,9 @@ class RawClient:
 	func send_bytes(kind: int, payload: PackedByteArray) -> Error:
 		return transport.send(NetTransport.HOST_ID, kind, payload)
 
-	func hello(content: int, version: int = WireSchema.VERSION) -> Error:
-		return send(WireMessage.new(&"Hello", {"version": version, "content": content}))
+	func hello(content: int, version: int = WireSchema.VERSION, player_name := "") -> Error:
+		var fields := {"version": version, "content": content, "name": player_name}
+		return send(WireMessage.new(&"Hello", fields))
 
 	func names() -> Array[StringName]:
 		var found: Array[StringName] = []
@@ -182,11 +183,12 @@ static func layouts() -> Dictionary[String, LevelLayout]:
 	return found
 
 
-## A ClientSession joined over the hub with its own copy of `client_mode` (the host's by default).
-func join(client_mode: GameMode = null) -> ClientSession:
+## A ClientSession joined over the hub with its own copy of `client_mode` (the host's by default),
+## its Hello asking for `player_name` ("" for none: Player<n>).
+func join(client_mode: GameMode = null, player_name := "") -> ClientSession:
 	var joining := LoopbackTransport.new(schema.kind_table(), hub)
 	joining.join("loopback", PORT)
-	return _client_on(joining, client_mode if client_mode != null else mode)
+	return _client_on(joining, client_mode if client_mode != null else mode, player_name)
 
 
 ## A ClientSession joined over the hub on a LossyTransport, which `lossy` holds.
@@ -325,8 +327,8 @@ func close() -> void:
 	session.close()
 
 
-func _client_on(on: NetTransport, client_mode: GameMode) -> ClientSession:
-	var client := ClientSession.new(on, client_mode, schema)
+func _client_on(on: NetTransport, client_mode: GameMode, player_name := "") -> ClientSession:
+	var client := ClientSession.new(on, client_mode, schema, player_name)
 	client.keep_history = true
 	client.load_levels = false
 	clients.append(client)

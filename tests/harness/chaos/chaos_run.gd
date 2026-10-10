@@ -17,7 +17,7 @@ extends BotsRunner
 ## 6. repeated, replayed and out-of-order seqs: each copy answered by the rule, echoing its seq
 ##    (4 and 5 check every copy);
 ## 7. no honest bot decodes a frame of the malformed peer, nor of the hostile while it is downed or
-##    dead or in a phase where nobody hears anyone (Loading, End);
+##    dead or in a phase where nobody hears anyone (radius 0: Loading, Pregame, End);
 ## 8. (compare_rejected) the hostile's Rejected stream is the same when only hidden roles differ.
 ## In one process over the loopback the host's counts are replayed exactly (ChaosBudget) and the
 ## honest bots' decoded views equal a baseline run's with the chaos peers joined but idle
@@ -36,6 +36,8 @@ enum Mode { BASELINE, CHAOS }
 const HOSTILE := ChaosScenario.HOSTILE
 const HONEST: Array[int] = [1, 2, 3]
 const ENET_ADDRESS := "127.0.0.1"
+## The base mode's silent phases by hand from §6; class 7 checks the mode against them.
+const SILENT_PHASES: Array[StringName] = [&"loading", &"pregame", &"end"]
 ## Frames run after the match over ENet, so what is in flight arrives before the views are compared.
 const ENET_DRAIN_FRAMES := 120
 ## The fault shim's seeds over WebRTC: this plus the chaos seed times SHIM_SEED_STRIDE, plus a count
@@ -84,6 +86,9 @@ var _chaos_sent: Dictionary[int, Dictionary] = {}
 ## Host tick -> the hostile's life and the phase after that tick.
 var _life_at: Dictionary[int, int] = {}
 var _phase_at: Dictionary[int, StringName] = {}
+## Peer -> its role after the last call in the round or End: End's return to the lobby (3 s after
+## the end, #212; a slow network run outlasts it) resets every role, so the role check reads these.
+var _role_of: Dictionary[int, StringName] = {}
 ## Over WebRTC: the host's signalling service and transport, the transports made, and when the run
 ## started on the real clock (the pace).
 var _signalling: LanSignalling
@@ -464,6 +469,10 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 	if command == null and hostile_player != null:
 		_life_at[at_tick] = hostile_player.life
 		_phase_at[at_tick] = game.phase_id()
+	# The roles are dealt on the row into the pregame (#213).
+	if game.phase_id() in [&"pregame", &"round", &"end"]:
+		for peer: int in game.state.peers():
+			_role_of[peer] = game.state.player(peer).role
 
 
 ## A command one of the chaos peers sent as chaos (its bot's own commands are not).
@@ -585,8 +594,31 @@ func _check_after() -> void:
 	_check_malformed_view()
 	_check_voice_rule()
 	_check_roles()
+	# The hostile's refused ChangeSettings carry a lobby name (#214); the host's bot never sends
+	# one, so the lobby keeps its default.
+	if not game.state.lobby_name.is_empty():
+		failures.append("the lobby is named %s, which only the host may do" % game.state.lobby_name)
+	_check_profiles()
 	if chaos_mode == Mode.CHAOS:
 		_check_chaos_counts()
+
+
+## The hostile's SetProfiles (#551) carry a new name and colour only where no phase takes them, so
+## every player ends with the name and the distinct colour it joined with: none is "Hacked" and no
+## two share a colour.
+func _check_profiles() -> void:
+	var owners: Dictionary[int, int] = {}
+	for peer: int in game.state.present_peers():
+		var player := game.state.player(peer)
+		if player.name == ChaosHostile.HACKED_NAME:
+			failures.append(
+				"peer %d is named %s, a refused SetProfile's name" % [peer, player.name]
+			)
+		if owners.has(player.colour):
+			failures.append(
+				"peers %d and %d share colour %d" % [owners[player.colour], peer, player.colour]
+			)
+		owners[player.colour] = peer
 
 
 ## Over WebRTC, the order check (OrderLog): both ways for the honest remote bots and the
@@ -640,9 +672,21 @@ func _check_malformed_view() -> void:
 
 
 ## Class 7: no honest bot decoded the malformed peer's voice, nor the hostile's while it was not
-## living or in a phase where nobody hears anyone.
+## living or in a phase where nobody hears anyone: the mode's phases whose voice rule hears within
+## 0 m, so a new silent phase is checked too (#213). The base mode's silent phases are also written
+## by hand from §6's table (SILENT_PHASES): the mode's declarations must not be the only judge, so
+## a phase that loses its SilentVoice fails here whatever the routing says.
 func _check_voice_rule() -> void:
-	var quiet: Array[StringName] = [&"loading", &"end"]
+	var quiet: Array[StringName] = []
+	for spec: PhaseSpec in game.mode.phases:
+		if VoiceRule.radius_of(spec.voice_rule) == 0.0:
+			quiet.append(spec.id)
+	for spec: PhaseSpec in game.mode.phases:
+		if SILENT_PHASES.has(spec.id) and not quiet.has(spec.id):
+			failures.append(
+				"chaos: phase %s must be silent (§6) but its voice rule hears" % spec.id
+			)
+			quiet.append(spec.id)
 	for number: int in HONEST:
 		var client: BotClient = clients.get(number)
 		if client == null:
@@ -661,15 +705,19 @@ func _check_voice_rule() -> void:
 					)
 
 
-## Class 1: the debug kinds from the chaos peers changed no role: each bot has its forced one.
+## Class 1: the debug kinds from the chaos peers changed no role: each bot has its forced one, up
+## to the match's reset (`_role_of`).
 func _check_roles() -> void:
 	for number: int in scenario.forced_roles:
 		if not peers.has_bot(number):
 			continue
-		var player := game.state.player(peers.peer_of(number))
+		var peer := peers.peer_of(number)
+		if game.state.player(peer) == null and not _role_of.has(peer):
+			continue
+		var role: StringName = _role_of.get(peer, &"")
 		var want: StringName = scenario.forced_roles[number]
-		if player != null and player.role != want:
-			failures.append("bot %d has role %s, forced %s" % [number, player.role, want])
+		if role != want:
+			failures.append("bot %d has role %s, forced %s" % [number, role, want])
 
 
 ## Classes 1 to 3 on the host's counts.

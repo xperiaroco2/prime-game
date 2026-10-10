@@ -3,50 +3,135 @@ extends Node
 ## fed by a fake ClientModel folded from events written here, as a host would send them. Dev only:
 ## nothing here reaches the game.
 
-enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS }
+## New previews go last: the preview scenes save the numbers.
+enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, MAP, PREGAME, MENU_VOICE }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
 ## A code as the lobby and the connecting screen show one (SignalCodec's alphabet).
 const PREVIEW_CODE := "K7M2QX"
+## The main menu's samples (#493's handoff): the code typed in code-ready, Direct's address.
+const PREVIEW_MENU_CODE := "K7Q2XR"
+const PREVIEW_ADDRESS := "192.168.0.12"
+## The version lines of fail-version (JoinProgress.version_text), made up for the preview.
+const PREVIEW_HOST_VERSION := "13 (a1b2c3)"
+const PREVIEW_OWN_VERSION := "12 (9f8e7d)"
 ## The round's fake facts (M4-8): the match clock's end, the package, the knife and its circle.
 const ROUND_END_TICK := 100 + 20 * 271
+## The pregame's `after` (#496): the round's first second, its clock at the handoff's 09:57.
+const AFTER_END_TICK := 100 + 20 * 597
+## How far through its fade the `after` preview freezes Night (a fraction of the fade's length).
+const PREGAME_FADE_SHOT := 0.5
 const PACKAGE := 7
 const KNIFE := 3
 const CIRCLE := 2
 const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
+## The fake house's rooms (fake_level): id, north-west corner, size in metres; laid out as the
+## sample rooms of prime-game-ui's s08 handoff (ui-0.4.0) at about 24 px a metre, in its order.
+const FAKE_ROOMS: Array[Array] = [
+	[&"storage", Vector3(-20, 0, -16), Vector2i(14, 12)],
+	[&"kitchen", Vector3(-4, 0, -16), Vector2i(11, 12)],
+	[&"lab", Vector3(9, 0, -16), Vector2i(12, 16)],
+	[&"office", Vector3(-20, 0, 1), Vector2i(10, 16)],
+	[&"hall", Vector3(-8, 0, 1), Vector2i(15, 16)],
+	[&"lounge", Vector3(9, 0, 2), Vector2i(12, 15)],
+]
+## The fake house's markers: group and position.
+const FAKE_MARKERS: Array[Array] = [
+	["spawn_package", Vector3(-17, 0, -13)],
+	["spawn_package", Vector3(-12, 0, -9)],
+	["spawn_package", Vector3(15, 0, -8)],
+	["spawn_circle", Vector3(1, 0, -10)],
+	["spawn_round_player", Vector3(-2, 0, 8)],
+	["spawn_round_player", Vector3(2, 0, 8)],
+]
+## The own player's place in the fake house (the hall, off its name) and its heading, radians
+## from north.
+const FAKE_OWN_PLACE := Vector3(-5, 0, 14)
+const FAKE_OWN_HEADING := 0.6
 
 @export var preview := Preview.MENU
-## The preview shows the host's view (its settings, Back to lobby, Esc's confirmation).
+## The preview shows the host's view (its settings, Esc's confirmation).
 @export var hosting := true
-## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, or the host's Leave or Quit.
+## The Esc menu's tab (Preview.ESC; #169, the Toy menu of #491): Game, Role, Guide, Lobby or
+## Settings; one the screen lacks leaves the tab the menu opens on.
 @export var esc_tab := EscMenuState.Tab.LOBBY
+## Settings' sub-page (esc_tab Settings).
+@export var esc_settings_page := SettingsPage.Page.SOUND
+## The host's question open over the menu (Action.LEAVE or QUIT; the `game-confirm` state).
+@export var esc_question := EscMenuState.Action.NONE
+## The tutorial's menu (`tutorial-game`, #601): Game, Guide and Settings.
+@export var esc_tutorial := false
+## The own role in the round (the Role tab): &"" keeps none, a dissident's team is one teammate.
+@export var esc_role: StringName = &""
+## Settings > Controls with Interact capturing a key (`settings-controls`).
+@export var esc_capture := false
+## The code service closed: the lobby shows its line in place of the code (`lobby-no-code`).
+@export var code_gone := false
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
-## The Voice tab (M5-6) as without the voice addon.
+## The Esc menu open over the preview's screen, as Esc opens it there (#656: over a black screen,
+## loading, the pregame or the post game, it is on the layer above theirs).
+@export var esc_over := false
+## The Voice tab (M5-6), or the main menu's Voice page (#301), as without the voice addon.
 @export var voice_unavailable := false
+## The Controls tab (#211) with Map and tasks on V, Talk's key: both rows marked "Same key". The
+## preview's controls stay in memory and the InputMap untouched.
+@export var controls_clash := false
+## The language of the words (Languages.ENGLISH or UKRAINIAN) and the large-text theme (#289).
+@export var language := Languages.ENGLISH
+@export var large_text := false
+## The post game (Preview.END, #498), from an Engineer's view as the handoff draws it: the side
+## that won (`crew`: the own team, the plate; `dissidents`: plain text), the host's reason id (the
+## win condition's, #548) and the round's seconds (the handoff's sample 7:41), all in MatchEnded.
+@export var end_winner: StringName = &"crew"
+@export var end_reason: StringName = &"every_task_done"
+@export var end_round_seconds := 461
+## The connecting screen's state (Preview.CONNECTING; #494): finding, connecting-direct, joined,
+## a failure's (ConnectingScreen.FAILURES), or load (Preview.LOADING shows load).
+@export var s3_state: StringName = &"finding"
+## The map (Preview.MAP, #253) with this task type's «?» focused by the keyboard, so its zones
+## light (s8's `zone`).
+@export var map_lit: StringName = &""
+## The how-to card of this task type (#254): open over the map (Preview.MAP), or on the loading
+## screen (Preview.LOADING, load-card).
+@export var howto_card: StringName = &""
+## The Guide tab's selected card (Preview.ESC with esc_tab GUIDE, #254): a basic's id or a task
+## type's; empty keeps the Guide's own first pick.
+@export var guide_card: StringName = &""
+## The main menu's state (Preview.MENU; #493): main, code, code-ready, direct or settings
+## (Preview.MENU_VOICE shows settings).
+@export var menu_state: StringName = &"main"
+## The pregame (Preview.PREGAME, #496): the own role (`crew`, the Engineer, or `dissident`); a
+## dissident with peer 3 as its teammate unless `pregame_alone`; `pregame_after` starts the
+## round, so the black fades out over the empty HUD of its first second (the `after` state).
+@export var pregame_role: StringName = &"crew"
+@export var pregame_alone := false
+@export var pregame_after := false
 
 
 func _ready() -> void:
 	var mode := load(MODE) as GameMode
+	# English on every machine unless `language` says otherwise, as a Game with no command line
+	# (Languages.apply): the words built in code (the Controls tab's, #211) follow the language,
+	# so a shot would follow the PC's.
+	TranslationServer.set_locale(language)
 	var ui := GameUi.new()
 	add_child(ui)
+	ui.set_large_text(large_text)
 	ui.esc.lobby.set_mode(mode)
+	ui.esc.guide.set_mode(mode)
 	var model := fake_model(mode, hosting)
-	ui.reads_device_input = false
-	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
-	ui.lobby_hud.show_code(code_line)
+	var code_line := JoinProgress.code_text(PREVIEW_CODE, code_gone)
+	ui.lobby_hud.show_code(PREVIEW_CODE, code_gone, false)
 	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
 	match preview:
-		Preview.MENU:
-			ui.menu.set_reason(
-				"The last session ended: %s." % EndReasons.words(DisconnectingEvent.LOAD_DEADLINE)
-			)
+		Preview.MENU, Preview.MENU_VOICE:
 			ui.show_screen(GameFlow.Screen.MENU)
+			show_menu_state(ui.menu, &"settings" if preview == Preview.MENU_VOICE else menu_state)
+			ui.menu.voice.show_facts(fake_voice(not voice_unavailable))
 		Preview.CONNECTING:
-			ui.connecting.set_target(JoinProgress.target_text(JoinTarget.of_code(PREVIEW_CODE)))
-			ui.connecting.set_step(JoinProgress.step_text(true, -1, false))
-			ui.show_screen(GameFlow.Screen.CONNECTING)
+			ui.show_screen(show_s3_state(ui.connecting, s3_state))
 		Preview.LOBBY:
 			model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": 160})
 			ui.show_screen(GameFlow.Screen.LOBBY)
@@ -54,30 +139,126 @@ func _ready() -> void:
 			model.fold(&"PhaseChanged", {"phase": &"loading", "end_tick": -1})
 			model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
 			model.fold(&"PlayerLoaded", {"peer": 1})
-			model.fold(&"PlayerLoaded", {"peer": 2})
 			ui.show_screen(GameFlow.Screen.LOADING)
+			ui.connecting.set_load_fraction(0.62)
+			if not howto_card.is_empty():
+				ui.show_loading_card(howto_card)
+		Preview.PREGAME:
+			fold_pregame(model, pregame_role, not pregame_alone)
+			ui.show_screen(GameFlow.Screen.PREGAME)
+			if pregame_after:
+				ui.refresh(model, mode, 100, hosting)
+				model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": AFTER_END_TICK})
+				ui.show_screen(GameFlow.Screen.ROUND)
+				var first := HudText.Local.new()
+				first.mic = true
+				ui.refresh_round(model, mode, 100, first)
+				if ui.pregame.fade != null:
+					# Freeze Night partway so the shot shows the fade over the HUD, not after it.
+					ui.pregame.fade.pause()
+					ui.pregame.fade.custom_step(PregameScreen.FADE_SECONDS * PREGAME_FADE_SHOT)
 		Preview.END:
-			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": -1})
-			model.fold(&"MatchEnded", {"side": &"dissidents"})
+			model.fold(&"RoleAssigned", {"role": &"crew"})
+			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
+			var ended := {
+				"side": end_winner, "reason": end_reason, "numbers": {&"time": end_round_seconds}
+			}
+			model.fold(&"MatchEnded", ended)
 			ui.show_screen(GameFlow.Screen.END)
 		Preview.ESC:
 			if esc_in_round:
 				fold_round(model, false)
+			if not esc_role.is_empty():
+				model.fold(&"RoleAssigned", {"role": esc_role})
+				var mates := PackedInt32Array([model.own_peer])
+				for peer: int in model.roster:
+					if peer != model.own_peer and mates.size() < 2:
+						mates.append(peer)
+				model.fold(&"Teammates", {"role": esc_role, "peers": mates})
+			ui.set_tutorial(esc_tutorial)
 			ui.show_screen(GameFlow.Screen.ROUND if esc_in_round else GameFlow.Screen.LOBBY)
 			ui.open_esc(hosting, model)
-			if esc_tab != EscMenuState.Tab.RESUME:
-				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
-				ui.esc.press(esc_tab)
+			ui.esc.press(esc_tab)
+			ui.esc.settings.show_page(esc_settings_page)
+			ui.esc.refresh(ui.screen, model, -1, hosting, mode)
+			if esc_question == EscMenuState.Action.LEAVE:
+				ui.esc.press_leave()
+			elif esc_question == EscMenuState.Action.QUIT:
+				ui.esc.press_quit()
 			ui.esc.voice.show_facts(fake_voice(not voice_unavailable))
-		Preview.ROUND, Preview.TASKS:
+			if not guide_card.is_empty():
+				ui.esc.guide.select(guide_card)
+			if controls_clash:
+				var key := InputEventKey.new()
+				key.physical_keycode = KEY_V
+				ui.esc.controls.controls.bind(&"map", key)
+				ui.esc.controls.refresh()
+			if esc_capture:
+				ui.esc.controls.start_capture(&"interact")
+		Preview.ROUND, Preview.MAP:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)
-			ui.show_tasks(preview == Preview.TASKS)
 			var local := HudText.Local.new()
 			local.stamina = 62.0
-			local.hint = "E: pick up Knife"
+			local.mic = true
+			local.placed = true
+			local.position = FAKE_OWN_PLACE
+			local.heading = FAKE_OWN_HEADING
 			ui.refresh_round(model, mode, 100, local)
+			if preview == Preview.MAP:
+				var house := fake_level()
+				ui.set_map_data(MapData.from_level(house, mode))
+				house.free()
+				ui.open_map()
+				if not map_lit.is_empty():
+					ui.map.focus_help(map_lit)
+				if not howto_card.is_empty():
+					ui.map.open_howto(howto_card)
+	if esc_over and preview != Preview.ESC:
+		ui.open_esc(hosting, model)
 	ui.refresh(model, mode, 100, hosting)
+
+
+## The connecting screen in `state` as the handoff's samples draw it (#494): a code join 4 s in,
+## a Direct one 2 s in, joined 9 s in with the host's lobby name; a failure, the version one with
+## both versions. Returns the screen to show.
+static func show_s3_state(screen: ConnectingScreen, state: StringName) -> GameFlow.Screen:
+	match state:
+		&"finding":
+			screen.show_join(PREVIEW_CODE, JoinProgress.Step.FINDING)
+			screen.set_elapsed(4)
+		&"connecting-direct":
+			screen.show_join("", JoinProgress.Step.CONNECTING)
+			screen.set_elapsed(2)
+		&"joined":
+			screen.show_join(PREVIEW_CODE, JoinProgress.Step.JOINED)
+			screen.set_lobby("", "Olena")
+			screen.set_elapsed(9)
+		_:
+			var versions := PackedStringArray([PREVIEW_HOST_VERSION, PREVIEW_OWN_VERSION])
+			screen.show_failure(state, versions)
+			return GameFlow.Screen.FAILURE
+	return GameFlow.Screen.CONNECTING
+
+
+## The main menu in `state` with the handoff's samples (#493): the own name, the code typed in
+## code-ready, the address in direct.
+static func show_menu_state(menu: MainMenu, state: StringName) -> void:
+	var settings := UserSettings.new()
+	var ukrainian := TranslationServer.get_locale() == Languages.UKRAINIAN
+	settings.player_name = "Олена" if ukrainian else "Olena"
+	menu.bind_name(settings)
+	match state:
+		&"code", &"code-ready":
+			menu.open_panel(MainMenu.Open.CODE)
+			if state == &"code-ready":
+				menu.code_edit.text = PREVIEW_MENU_CODE
+				menu.refresh_buttons()
+		&"direct":
+			menu.address_edit.text = PREVIEW_ADDRESS
+			menu.open_panel(MainMenu.Open.DIRECT)
+		&"settings":
+			menu.open_panel(MainMenu.Open.SETTINGS)
 
 
 ## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,
@@ -106,9 +287,9 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": 2, "name": "Player2", "ready": true},
-				{"peer": 3, "name": "Player3", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": 2, "name": "Player2", "ready": true, "colour": 1},
+				{"peer": 3, "name": "Player3", "ready": false, "colour": 2},
 			]
 		)
 	)
@@ -116,6 +297,14 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 	welcome.map = MAP
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
+	# Three players of the base mode's four at least: one more to start (#548's host text).
+	var shortfalls: Array[Dictionary] = [
+		{
+			"id": &"players_few",
+			"ids": PackedStringArray(),
+			"numbers": {&"count": 1, &"min": 4, &"max": 10}
+		}
+	]
 	(
 		model
 		. fold(
@@ -124,11 +313,23 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 				"settings": mode.default_settings(),
 				"id_sets": mode.default_id_sets(),
 				"map": MAP,
-				"shortfalls": PackedStringArray(["3 player(s), the mode plays with 4 to 10"]),
+				"shortfalls": shortfalls,
+				"lobby_name": "",
 			}
 		)
 	)
 	return model
+
+
+## The deal into the pregame on top of fake_model (#496), as the host sends it: the own `role`,
+## for a dissident Teammates with peer 3 (`with_mate`) or alone, then the pregame's PhaseChanged.
+static func fold_pregame(model: ClientModel, role: StringName, with_mate := true) -> void:
+	model.fold(&"LoadMatch", {"match_id": 0, "map": MAP, "settings": model.settings})
+	model.fold(&"RoleAssigned", {"role": role})
+	if role == &"dissident":
+		var peers := [model.own_peer, 3] if with_mate else [model.own_peer]
+		model.fold(&"Teammates", {"role": role, "peers": PackedInt32Array(peers)})
+	model.fold(&"PhaseChanged", {"phase": &"pregame", "end_tick": 160})
 
 
 ## The round on top of fake_model (M4-8): the own player (peer 1) a dissident with peer 3, a
@@ -169,3 +370,24 @@ static func fold_round(model: ClientModel, with_items := true) -> void:
 	model.fold(&"ItemSpawned", {"item": KNIFE, "kind": &"knife", "position": Vector3(1, 0, -1)})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": KNIFE})
 	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": PACKAGE, "belted": KNIFE})
+
+
+## A fake house for the map screen (#253): dev only, numbers that are not decisions. Six rooms by
+## PR #611's convention (a Node3D with `metadata/size_m`, its origin the north-west corner), the
+## packages' markers in the storage and the lab, a circle's marker in the kitchen and the round's
+## spawn points in the hall. The caller frees it.
+static func fake_level() -> Node3D:
+	var level := Node3D.new()
+	level.name = "FakeHouse"
+	for room: Array in FAKE_ROOMS:
+		var node := Node3D.new()
+		node.name = String(room[0] as StringName).to_pascal_case()
+		node.position = room[1] as Vector3
+		node.set_meta(MapData.SIZE_KEY, room[2])
+		level.add_child(node)
+	for marker: Array in FAKE_MARKERS:
+		var spot := Marker3D.new()
+		spot.position = marker[1] as Vector3
+		spot.add_to_group(StringName(marker[0] as String), true)
+		level.add_child(spot)
+	return level

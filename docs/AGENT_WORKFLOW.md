@@ -1230,7 +1230,8 @@ marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` 
   step 5) and the lease push. It stops before touching anything when the remote branch has a commit this branch never
   had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease alone would not
   protect it, because the fetch just updated the expected value. A conflict aborts the rebase and leaves the branch as
-  it was; a red `verify` pushes nothing. After its parent was rebased or amended, a stacked child replays only its own
+  it was; a red `verify` pushes nothing. When HEAD already holds the base's tip (a branch that took `main` or the base
+  in by a merge, #694) there is no rebase: it would drop the merges and replay what they brought in as the branch's own. After its parent was rebased or amended, a stacked child replays only its own
   commits: those after the parent commit `start` recorded (`branch.<task>.primeBaseTip`, renewed by each publish on the
   parent; `rebase --onto`), else those after the fork point (`--fork-point`, which needs the reflog of the parent's
   remote ref).
@@ -1280,7 +1281,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ assets/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Designer (optional) | none of his own: he may contribute anywhere, mostly in the content area, through PRs the engineer merges |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1353,7 +1354,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Credits [applied]:** one file per asset or pack, `docs/credits/<asset-slug>.md`: a `# <name>` title, then
   `- **Files:**` (repo-relative globs in backticks; `*` stays in one folder, `**` crosses folders), `- **Author:**`,
   `- **Source:**` and `- **License:**` lines; more fields and free text are copied as they are
-  ([example](credits/gdunit4.md)). `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
+  ([example](credits/gdunit4.md)). An entry that covers an LFS asset also has `- **AI generated:**` and
+  `- **Public repo OK:**`, each `true` or `false` first (the art manifest's `ai_generated` and `public_repo_ok`,
+  #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`. A file the engineer
+  adds by hand later gets its entry first with `- **Pending:** <what lands, and how>`: its globs may match no file
+  yet (#520, the Comfortaa font); `check` warns about it, and fails once every glob matches a file until the line
+  goes.
+  `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
   `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
   date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
@@ -1797,7 +1804,8 @@ with no folder here: not on this machine, #586); next to an ID that does, it get
 The real game in off-screen
 windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
 (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
-players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
+players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port; with the `tutorial` header it
+is the only window and starts the solo tutorial, `--tutorial`, #601), up to two more windows join it,
 and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
 scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
 host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
@@ -1812,7 +1820,7 @@ turns its own player, `PlayerController.look`, to face the nearest resting item 
 paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
 stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
-edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` holds at once on a hidden field
 (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
 off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
 playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
@@ -1826,8 +1834,8 @@ driver when every core is busy, #354; the bots after 10 s). Under a full-PC load
 are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
 debugging it. Desktop only: CI and `verify` never run it; an agent
 may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
-up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
-second round, #276).
+up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, the end screen's countdown
+and the return to the lobby with no button, #212, and a second round, #276).
 
 ### 11.14 Warnings [applied]
 `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
@@ -1839,8 +1847,9 @@ Python core `tools/run.py` with
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
 `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `unattended` (§8.2.11), `section` (§3), `signal` (the signalling Worker's
-tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25), and
-`hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
+`ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
+lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
 `tools/out/gdunit/`. The commands agents run in loops are quiet by default (#590, #572; `--verbose` prints the whole
@@ -2254,11 +2263,46 @@ sounds; a change to them is a table edit, not code. A WAV is read whole and fail
 `mono`, `sample-rate`, `category`, `duration`, `peak` (with the count of samples at full scale), `rms`,
 `leading-silence` or `dc-offset`. An OGG gets its identification header (Vorbis only; channels, rate) and its length
 (the last page's granule position) checked and is "header-checked only": the standard library cannot decode Vorbis.
+Mono or stereo passes for an OGG only (`sfx.OGG_CHANNELS`, #525: Kenney's packs ship stereo Ogg, and without ffmpeg
+nothing folds one to mono; a stereo WAV still fails `mono`).
 The JSON report goes to `tools/out/sfx/<set>.json`; exit 1 on any failure, each printed as `<file>: <rule>:
 <numbers>`. `--page` also writes `tools/out/sfx/<set>.html`: one file with the sounds inside it as data: URLs (no
 server, no external script or font; it still plays when moved), an `<audio>` per file grouped by category with its
 numbers and failures, approve or reject and a note (kept in the browser's storage for that page), and "Export
 verdicts", a JSON download that the engineer saves next to the set as `sfx-verdicts.json`.
+
+### 11.26 `ui-sync [tag] [--check] [--force] [--source S]` [applied] (#288)
+Pins the UI track's pack (xperiaroco2/prime-game-ui, `dist/pack/` at a tag `ui-<semver>`) for the generated theme
+(`docs/ARCHITECTURE.md` §4.7.25; `tools/runner/ui_sync.py`, tests: `test_ui_sync.py` on a fixture repository built in
+a temporary folder). It clones the tag with `--no-checkout` and reads the blobs with `git cat-file` (no working tree,
+no line-ending conversion, no credentials: the repository is public; `--source` takes a local clone or another URL).
+The pack is checked in memory before anything is written (`format`, a known `schema`, `version` = the tag, each
+asset's sha256 against the pack's `assets` record), so a bad tag leaves the pinned copy as it was. Its JSON and SVG
+files land byte for byte in `client/ui/theme/pack/` (`-text` in `.gitattributes`: git converts no line ending)
+under a `.gdignore` (Godot imports none of it; nothing at run
+time may read it, and exports leave it out), stale ones are removed, and `client/ui/theme/pack.lock.json` records
+`{repo, tag, commit, files: {path: sha256}, imported: {path: sha256}, deferred: {path: sha256}}`. Every asset of the
+pack's `assets` list (its icons and card art) also lands byte for byte in `assets/ui/toy_pack/`, which Godot imports
+(#520, `docs/ARCHITECTURE.md` §4.7.34): the PNGs through LFS, each SVG's `.import` with the pack's `svg_scale` (a
+minimal file where none exists, else only that line changed); commit the `.import` files the next import writes. A
+binary outside the `assets` list (a font, later) is not landed and is listed under `deferred`. With no tag, or `--check`, it
+verifies the pinned copy offline (each file against the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
+assets' sha256, nothing deferred on disk; the imported copy against `imported`, an LFS pointer file by its oid, each
+SVG's scale, no pack asset left out); a tag already pinned and intact is not fetched again unless `--force`. A
+runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.
+Then `tools\run.cmd run tools/theme/build_theme.gd --headless` regenerates the themes.
+
+### 11.27 `ui-copy <tag> [--from DIR]` [applied] (#208)
+The UI track's copy deck into the game: `copy/strings.csv` of xperiaroco2/prime-game-ui at a release tag
+`ui-<major>.<minor>.<patch>` becomes `client/i18n/strings.csv`, byte for byte, and `client/i18n/strings.lock.json`
+records the repo, the tag, its commit and the file's sha256 (the shape of #288's theme pack lock; `ui-sync` copies
+the pack, not the deck, so the deck has its own step). It reads GitHub through `gh api`, or with `--from` a local
+checkout of prime-game-ui (its tags fetched first). It refuses another tag form, a missing tag, a deck that is not
+UTF-8, has CR line ends or a byte-order mark, or another header than `keys,en,uk,?plural,?context`, and then writes
+nothing. Godot's import turns the deck into `strings.en.translation` and `strings.uk.translation` beside it
+(gitignored, rebuilt by every import); commit the deck, the lock and a changed `strings.csv.import`. The game's side:
+`docs/ARCHITECTURE.md` §4.7.26. Tests: `tools/runner/tests/test_ui_copy.py` (a throwaway git repository as the
+checkout, and the committed deck against its lock).
 
 ## 12. The designer's agent
 

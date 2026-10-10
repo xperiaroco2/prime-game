@@ -131,7 +131,10 @@ and RNNoise's state stay continuous, and `VoiceGate` decides per chunk whether i
   default of 0.1 (about −20 dBFS) and lowering it in Esc → Voice fixed them, so the default moved to 0.05; only the
   default moved: a saved threshold keeps its value, and the slider still clamps to at least 0.01.
 - **Push-to-talk:** while `voice_talk` (V, D11) is held, with no Esc menu open (the menu already releases the keys
-  held when it opened, #169).
+  held when it opened, #169). **Amended 2026-10-09 (#488):** the engineer's standing decision for the UI work, the
+  `ui-0.4.0` handoffs' «Layers and input» (s5: "the voice keeps working as set (voice activation, or the Talk key
+  while held)"), and #488's rule 4 keep the Talk key under the Esc menu; it does not count while a text field has
+  the focus or Settings › Controls captures a key, so typing or binding V never keys the microphone.
 - **Off:** voice turned off: the microphone is closed, nothing is captured, encoded or sent. Off concerns the own
   microphone; other players stay audible, and the Voice slider silences them (read from the answer's words, "turn
   voice off entirely" as a talking mode; "Needs the engineer" below).
