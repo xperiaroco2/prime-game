@@ -22,6 +22,7 @@ func test_back_resets_the_match_before_placing_players() -> void:
 				&"ReadyChanged",
 				&"ReadyChanged",
 				&"ReadyChanged",
+				&"SettingsChanged",
 				&"PlayersPlaced",
 				&"Correction",
 				&"PhaseChanged",
@@ -68,6 +69,53 @@ func test_placing_before_the_reset_would_place_a_downed_player() -> void:
 	second.state.player(P2).life = PlayerState.Life.DOWNED
 	FixtureModes.send(second, Intents.RETURN_TO_LOBBY, P1)
 	assert_array(after_reset.downed_seen).is_empty()
+
+
+## #737: a player who left mid-round is dropped from the roster on `End -> Lobby`, so the lobby
+## is short again in a mode that needs more players. Every peer back in the lobby gets the host's
+## shortfalls afresh, as a leave in the lobby sends them, not the empty ones of before the
+## countdown.
+func test_back_resends_the_shortfalls_to_everyone() -> void:
+	var mode := FixtureBaseMode.mode()
+	mode.min_players = 3
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureBaseMode.layouts())
+	game.keep_history = true
+	game.start(0)
+	var peers: Array[int] = [P1, P2, P3]
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	for peer: int in peers:
+		FixtureBaseMode.ready(game, peer)
+	FixtureModes.run_ticks(game, 101)
+	for peer: int in peers:
+		FixtureBaseMode.load_ack(game, peer)
+	FixtureBaseMode.through_pregame(game)
+	assert_str(game.phase_id()).is_equal("round")
+	var before := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
+	assert_array(before.shortfalls).is_empty()
+	FixtureModes.send(game, Intents.PEER_LEFT, P3)
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("end")
+	var left_from := game.view_of(P3).events.size()
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	for peer: int in [P1, P2]:
+		var changed := (
+			game.view_of(peer).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
+		)
+		assert_int(changed.players).is_equal(2)
+		assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+			[
+				{
+					"id": &"players_few",
+					"ids": PackedStringArray(),
+					"numbers": {&"count": 1, &"min": 3, &"max": FixtureBaseMode.MAX_PLAYERS}
+				}
+			]
+		)
+	# The player who left is no longer an audience: nothing more reaches it.
+	assert_int(game.view_of(P3).events.size()).is_equal(left_from)
 
 
 func test_the_next_match_has_the_next_id() -> void:
