@@ -8,10 +8,11 @@ wake, the secretary) or to the engineer.
 
 Read-only. It reads the session transcripts of the three track checkouts and their worktrees (metrics.track_checkouts)
 written in the last RECENT_HOURS, never the caller's own (CLAUDE_CODE_SESSION_ID), and Claude Code's live-session
-files (sessions.read_all). A session is flagged when its process is alive (or no session file says whether) and:
+files (sessions.read_all). A session is flagged when its process is alive (or no session file exists to say) and:
 - a workflow run of it finished more than STALL_MINUTES ago with no turn of its own after that (wave.build_runs: the
   run's notification, else the end of its journal), unless it was stopped or killed (NO_TURN_STATUSES); or
-- a notification has waited in its queue, undelivered, for more than STALL_MINUTES.
+- a notification has waited in its queue, undelivered, for more than STALL_MINUTES, after its last turn (before it,
+  only when the session waits on a permission card: the card's own turn may have been busy when the notification came).
 A turn is an assistant record. A queued notification is an `enqueue` queue-operation record with a
 <task-notification> that no later `remove`, `dequeue` (the queue's head) or user record carrying its task id took
 out; `queued_command` attachments only repeat an enqueue and do not deliver it. Each flagged line names what the
@@ -53,6 +54,7 @@ class Waiting:
     time: float
     tool: str
     what: str
+    turn: int = 0  # the number of the assistant message that made the call; parallel calls share it
     ask: str | None = None  # the guard's reason when a PreToolUse hook answered `ask`
 
 
@@ -117,7 +119,9 @@ def read_activity(path: Path) -> Activity:
     calls: dict[str, Waiting] = {}
     asks: dict[str, str] = {}
     queue: list[tuple[str, float]] = []  # (content, enqueue time): every item, so a dequeue takes the right head
-    last_result = float("-inf")
+    answered = -1  # the newest turn (message number) one of whose calls got a result
+    turn, last_id = 0, None
+    made: dict[str, Waiting] = {}  # every call: the turn of a result after its call left `calls`
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -131,17 +135,23 @@ def read_activity(path: Path) -> Activity:
             m = d.get("message") if isinstance(d.get("message"), dict) else {}
             if kind == "assistant" and t is not None:
                 act.last_turn = t if act.last_turn is None else max(act.last_turn, t)
+                mid = m.get("id")
+                if mid is None or mid != last_id:
+                    turn += 1
+                last_id = mid
                 for b in m.get("content") or []:
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
                         tool = str(b.get("name") or "?")
-                        calls[str(b["id"])] = Waiting(str(b["id"]), t, tool, what_of(b.get("input")))
+                        calls[str(b["id"])] = Waiting(str(b["id"]), t, tool, what_of(b.get("input")), turn)
+                        made[str(b["id"])] = calls[str(b["id"])]
             elif kind == "user":
                 content = m.get("content")
                 if isinstance(content, list):
                     for b in content:
                         if isinstance(b, dict) and b.get("type") == "tool_result":
+                            call = made.get(str(b.get("tool_use_id")))
                             calls.pop(str(b.get("tool_use_id")), None)
-                            last_result = max(last_result, t) if t is not None else last_result
+                            answered = max(answered, call.turn) if call else answered
                 gone = task_of(metrics.text_of(content))
                 if gone:
                     queue = [q for q in queue if task_of(q[0]) != gone]
@@ -165,8 +175,9 @@ def read_activity(path: Path) -> Activity:
                         queue.pop(hit)
     for call in calls.values():
         call.ask = asks.get(call.tool_use_id)
-    # A call left without a result before the newest result (an interrupted turn's) is not what the session waits on.
-    act.waiting = sorted((c for c in calls.values() if c.time >= last_result), key=lambda c: c.time)
+    # A call of a turn older than the newest answered call's (an interrupted turn's) is not what the session waits on.
+    # Parallel calls of one turn stay: one may have its result while another waits on its card.
+    act.waiting = sorted((c for c in calls.values() if c.turn >= answered), key=lambda c: c.time)
     act.queued = [n for content, t in queue for n in wave.notices_in(content, t)]
     return act
 
@@ -178,7 +189,10 @@ def stall_of(path: Path, sid: str, now: float, alive: bool | None, minutes: floa
     if act.last_turn is not None and act.last_turn >= cut:
         return None
     after = act.last_turn if act.last_turn is not None else float("-inf")
-    queued = [n for n in act.queued if n.time > after and n.time <= cut] if act.queued else []
+    waiting = waited_on(act.waiting)
+    # A card shows from its call on; a notification queued earlier, in the same busy turn, is behind it too.
+    since = float("-inf") if waiting and waiting.ask else after
+    queued = [n for n in act.queued if since < n.time <= cut]
     s = wave.read_session(path, sid)
     runs = []
     if s.launches:
@@ -188,7 +202,7 @@ def stall_of(path: Path, sid: str, now: float, alive: bool | None, minutes: floa
         return None
     runs.sort(key=lambda r: r.finished_at or 0.0)
     return Stall(sid=sid, folder=path.parent.name, title=s.title, last_turn=act.last_turn, runs=runs, queued=queued,
-                 waiting=waited_on(act.waiting), alive=alive)  # fmt: skip
+                 waiting=waiting, alive=alive)  # fmt: skip
 
 
 def waited_on(waiting: list[Waiting]) -> Waiting | None:
@@ -248,7 +262,8 @@ def recent_transcripts(dirs: list[Path], now: float, hours: float = RECENT_HOURS
 def liveness(read: Callable[[], list[sessions.Session]] = sessions.read_all,
              alive: Callable[[int, str], bool] = sessions.process_alive) -> Callable[[str], bool | None]:  # fmt: skip
     """Whether a session id's process lives: True or False from Claude Code's session files; None when no file names
-    the session (an older Claude Code, another machine's transcript, or the files unreadable)."""
+    the session and no file exists at all (an older Claude Code, or the files unreadable). Claude Code removes a
+    session's file when it exits, so with other files present, a session no file names is closed (False)."""
     try:
         known = read()
     except OSError:
@@ -259,7 +274,7 @@ def liveness(read: Callable[[], list[sessions.Session]] = sessions.read_all,
 
     def check(sid: str) -> bool | None:
         if sid not in by_id:
-            return None
+            return False if known else None
         return any(alive(s.pid, s.proc_start) for s in by_id[sid])
 
     return check

@@ -226,7 +226,30 @@ class StallTest(unittest.TestCase):
         files = [sessions.Session(pid=1, session_id=SID, cwd="D:/prime-game", status="idle", updated=0, name="m"),
                  sessions.Session(pid=2, session_id=OTHER, cwd="D:/prime-game", status="busy", updated=0, name="o")]
         check = wave_stall.liveness(lambda: files, lambda pid, start: pid == 2)
-        self.assertEqual((check(SID), check(OTHER), check("nobody")), (False, True, None))
+        self.assertEqual((check(SID), check(OTHER), check("nobody")), (False, True, False))  # a closed session
+        self.assertIsNone(wave_stall.liveness(lambda: [], lambda pid, start: True)("nobody"))  # no file at all
+
+    def test_a_card_call_next_to_a_call_that_got_its_result(self) -> None:
+        # One assistant message issues both calls; the first gets its result later than the second was issued.
+        self.p.add(tw.assistant(0, "m-0", [bash("b1", "git status"), bash("b2", CLEANUP)]), hook(0, "b2"),
+                   result(1, "b1"), tw.enqueue(5, timer_note("btimer")))  # fmt: skip
+        st = self.stall(40)
+        assert st is not None and st.waiting is not None
+        self.assertEqual((st.waiting.tool_use_id, bool(st.waiting.ask)), ("b2", True))
+        self.assertIn("waits on a permission card", wave_stall.line_of(st, minutes(40)))
+
+    def test_a_notification_queued_before_the_cards_call(self) -> None:
+        done = tw.note_text("t1", "wt1", "completed", '{"n":603,"pr":699}')
+        busy = [tw.assistant(-10, "m-a"), tw.enqueue(-5, done), tw.assistant(0, "m-clean", [bash("b1", CLEANUP)])]
+        self.p.add(*busy, hook(0, "b1"))
+        st = self.stall(40)
+        assert st is not None
+        self.assertEqual([n.task_id for n in st.queued], ["wt1"])
+        # Without a card, a notification older than the last turn is not counted.
+        self.p.add(result(41, "b1"), tw.assistant(42, "m-b"))
+        self.assertIsNone(self.stall(100))
+        self.p.add(tw.assistant(43, "m-c", [bash("b3", "sleep 1")]))
+        self.assertIsNone(self.stall(100))
 
     def test_the_command_line(self) -> None:
         args = cli.build_parser().parse_args(["wave", "--stalled"])
