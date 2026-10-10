@@ -59,6 +59,12 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - **Hiding spots** (the same revision): a dissident may hide a package anywhere a put-down allows, so every floor a
   put-down can reach must also be reachable for a pickup (the pick-up reach and line of sight, from somewhere a
   player can stand). No gap, ledge or thin wall may keep a package for good; a playtest checks it.
+- **Thrown items** ([throwing ADR](../docs/decisions/2026-10-09-throwing-held-items.md) TD5 (a), #646): a thrown
+  item rests wherever its flight ends, so the levels keep every surface a throw can reach within reach of a spot
+  where a player can stand (the pick-up's 2 m from the feet, with line of sight): no shelf, ledge, canopy or roof
+  that a throw lands on and no player reaches. The throw speed is kept below what reaches a lockable roof;
+  `tests/integration/levels/house_roof_throw_test.gd` guards House's (a change of the level near it, such as a higher
+  floor or perch beside it, can turn that test red).
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
