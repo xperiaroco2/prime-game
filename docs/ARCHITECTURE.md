@@ -3840,9 +3840,10 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   log or assert call (`push_error`, `print`, `assert`...) or in a call naming an engine thing (`get_node`, `connect`,
   `load`, `set_meta`...); a node's `name`. An allow-list line is `<path> | <literal as written> | <why>`, `*` for a
   whole file (the debug overlay, the command line's problems, the end reasons' log words); its why names the issue or
-  comment tracking the missing key (#150's requests, comment 6095875901: the lobby's "Map"; the Toy lobby HUD #495,
-  PR #717, which replaces the greybox lobby texts) or why the text is never shown. A line that matches nothing
-  fails, so a screen moving to keys deletes its lines (#497's downed screen did, on the rebase). Not seen by the
+  comment tracking the missing key (#150's requests, comment 6095875901: the lobby's "Map"; comment 6096420162: the
+  rest, items 5 to 11) or why the text is never shown (the greybox lobby texts the Toy lobby HUD #495 left unused).
+  A line that matches nothing fails, so a screen moving to keys deletes its lines (#497's downed screen did, on the
+  rebase, and #495's lobby HUD its old hint). Not seen by the
   scan: words built at run time and text a variable not named for text carries; #548's neutral shortfall line is
   ids and numbers, and the raise cue's stopgap a deck key (`tutorial.step.downed.how`), no literal. Nor does it
   read outside `client/`: `voice/voice_capture.gd`'s "the microphone ... did not open" and "froze" notices reach the
