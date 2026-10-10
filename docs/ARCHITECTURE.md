@@ -3500,7 +3500,7 @@ there would not follow from the commands.
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
 knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
 and its body falls as a ragdoll that a hit can send flying and a sloped roof can roll off. The
-[knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) is proposed: its KD1 to KD9 are the engineer's, and this
+[knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) is proposed: its KD1 to KD9, KE1 and KE5 are the engineer's, and this
 section follows each recommendation.
 - **Still.** A knocked-down player's `MoveClaim` moves nothing: the host takes its facing only (a spectator watching
   a knocked-down target looks through it) and ignores the rest, with no movement check and no `Correction` (KE4).
@@ -3523,7 +3523,8 @@ section follows each recommendation.
 - **The ragdoll** is the client's looks only (KE7): held by a spring to the interpolated point, colliding with the
   world layer only, and never read by the raise hint's reach, the camera, the ears or `SightHider`. The camera's
   pivot stops below a ceiling right above the body (KE8).
-- **Open for the engineer:** which hits launch a body (KD1), the launch (KD2), which floors make a body roll (KD3),
+- **Open for the engineer:** where the body's motion runs (KE1: `core/`, recommended, as the throwing design's
+  TE1), the own avatar in a knocked-down player's snapshot (KE5: the exception to §5), which hits launch a body (KD1), the launch (KD2), which floors make a body roll (KD3),
   raising a moving body (KD4), whom a knocked-down player hears (KD5), its camera (KD6), how a dead body and a revive
   look (KD7), a death during the motion (KD8) and the numbers (KD9). The proposed issues 728a to 728e are in the ADR.
 
@@ -4482,7 +4483,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
 | Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
-| The knockdown reworked (§7.1.17): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers (KD1 to KD9 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md), proposed) | #728, the engineer; then the issues 728a to 728e (M7) |
+| The knockdown reworked (§7.1.17): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers, where the body's motion runs, the own avatar in a knocked-down player's snapshot (KD1 to KD9, KE1 and KE5 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md), proposed) | #728, the engineer; then the issues 728a to 728e (M7) |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Designed in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), proposed): a return key per settings file, the old number back in the lobby only, nothing else restored; P1, P3, P4, P9, P11, P12, P13 and the split wait for the engineer. Proposed: 73-A and 73-B in M7 after #550 and #551; a return into a running round only as its own design (73-D) |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
