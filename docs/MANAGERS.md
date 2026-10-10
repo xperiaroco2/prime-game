@@ -68,6 +68,12 @@ skill and its `handover.md`.
   queued, and the card it waits on. Put that line in your "For you:". Send a PushNotification only for a stalled
   session you have not reported at an earlier wake (the line names the session and its last turn), so one night-long
   stall pushes once, not at every wake.
+- **The "nobody is watching" sign** (#750). Before a night, and before you leave a run alone with the engineer away,
+  run `tools\run.cmd unattended --until <HH:MM>` (or `--hours <n>`, at most 16) in your own session: the guard then
+  denies, with its reason and the line "unattended: put this command in the For-you block for the engineer", what it
+  would ask about, for you and your workflow agents, so no card holds your notifications. Put such a command in
+  "For you:". Clear it with `tools\run.cmd unattended --off` at his first message, before anything else; it also ends
+  at its time. Without the sign nothing changes (AGENT_WORKFLOW §8.2.11).
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`
