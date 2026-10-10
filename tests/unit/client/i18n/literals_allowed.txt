@@ -1,0 +1,39 @@
+# Player-facing literals in client/ the copy deck has no key for yet, and word-like literals never
+# shown (literal_strings_test.gd, #549, ARCHITECTURE §4.7.26). One line each:
+#   <path under client/> | <literal as written in the source> | <why: the issue or comment tracking its key>
+# `*` as the literal allows a whole file. A line that matches nothing fails the test.
+
+# Whole files: never on screen, or debug builds only.
+client/app/end_reasons.gd | * | never on screen: a reason's words for the log, Game.last_words and the headless session (the connecting screen words a failure by its state, #494)
+client/app/launch_options.gd | * | never on screen: command-line problems and the line the runner waits for, printed
+client/ui/debug_overlay.gd | * | the F3 debug overlay, debug builds only (client/CLAUDE.md)
+
+# Literals.
+client/app/code_room.gd | the signalling could not listen on TCP port %d | never on screen: a log line and Game.last_words (the connecting screen words a failure by its state, #494)
+client/app/game.gd | no code service is set (--signal=): use Host Direct under Direct (LAN or VPN) | never on screen: a log line and Game.last_words (the connecting screen words a failure by its state, #494)
+client/app/join_progress.gd | Code: %s | the greybox lobby HUD's code line; the Toy lobby HUD #495 (PR #717) replaces it
+client/app/join_progress.gd | Code: none (the code service closed or is unreachable): use Host Direct | the greybox lobby HUD's code line; the Toy lobby HUD #495 (PR #717) replaces it
+client/app/join_progress.gd | Code: waiting for the code service | the greybox lobby HUD's code line; the Toy lobby HUD #495 (PR #717) replaces it
+client/app/join_progress.gd | another build: the host's content is %s, this game's %s | never on screen: Game.last_words and the log (the failure screen shows both versions, #494)
+client/app/join_progress.gd | the host runs protocol %d, this game %d | never on screen: Game.last_words and the log (the failure screen shows both versions, #494)
+client/life/life_hud.gd | Player %d | a player who left the roster, by peer id (LifeHud.name_of: the dead's Watching, the downed's raiser); no deck key yet, listed in #549's PR
+client/ui/howto_cards.gd | task type %s has no how-to card at %s%s.tres | never on screen: a content check's problem for the test and the log
+client/ui/howto_cards.gd | the card of task type %s says it is %s's | never on screen: a content check's problem for the test and the log
+client/ui/howto_cards.gd | the card of task type %s: %s | never on screen: a content check's problem for the test and the log
+client/ui/key_label.gd | Mouse %d | a mouse button the deck has no word for (key.mouse_left and key.mouse_right only); listed in #549's PR
+client/ui/lobby_hud.gd | Esc: menu  ·  {ready}: ready | the greybox lobby HUD's hint; the Toy lobby HUD #495 (PR #717) drops it
+client/ui/lobby_panel.gd | Map | the lobby's map row label: deck key requested on #150 (comment 6095875901, item 1)
+client/ui/lobby_panel.gd | Starting in %d s | the greybox lobby HUD's roster and countdown; the Toy lobby HUD #495 (PR #717) replaces them
+client/ui/lobby_panel.gd | Waiting for everyone | the greybox lobby HUD's roster and countdown; the Toy lobby HUD #495 (PR #717) replaces them
+client/ui/lobby_panel.gd | not ready | the greybox lobby HUD's roster and countdown; the Toy lobby HUD #495 (PR #717) replaces them
+client/ui/voice_panel.gd |  back to them. Wear headphones. | the voice panel's greybox notes (#150): no deck key yet, listed in #549's PR
+client/ui/voice_panel.gd |  laptop's microphone array can freeze the game. Prefer 48 kHz and turn off Windows' sound | the voice panel's greybox notes (#150): no deck key yet, listed in #549's PR
+client/ui/voice_panel.gd | A headset microphone works best. Godot 4.7.2 reads only mono or stereo microphones (#22): a | the voice panel's greybox notes (#150): no deck key yet, listed in #549's PR
+client/ui/voice_panel.gd | Mute this window (debug) | the voice panel's debug rows, shown in debug builds only (E47)
+client/ui/voice_panel.gd | Test tone, not the microphone (debug) | the voice panel's debug rows, shown in debug builds only (E47)
+client/ui/voice_panel.gd | There is no echo cancellation: with loudspeakers your microphone sends the others' voices | the voice panel's greybox notes (#150): no deck key yet, listed in #549's PR
+client/ui/voice_panel.gd | Voice: Esc, then Settings, to pick your microphone | the greybox lobby HUD's voice hint; no deck key yet (#495, PR #717), listed in #549's PR
+client/voice/voice_control.gd | test tone | the debug test tone's device name, offered in debug builds only
+client/voice/voice_sender.gd | the voice codec made no encoder | the voice panel's notice when the voice codec is missing or fails (a technical line); no deck key yet, listed in #549's PR
+client/voice/voice_sender.gd | voice is unavailable: the voice addon (TwoVoIP) is not installed | the voice panel's notice when the voice codec is missing or fails (a technical line); no deck key yet, listed in #549's PR
+client/world/item_interactions.gd | %s: pick up %s | never on screen: hint() is kept for its tests; the HUD reads target() (#489)
