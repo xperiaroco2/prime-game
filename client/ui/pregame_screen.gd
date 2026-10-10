@@ -20,7 +20,7 @@ const FADE_SECONDS := 0.4
 const TITLE_KEY := "pregame.your_role"
 const TEAM_KEY := "pregame.teammate"
 ## The own role's generic goal by its id (the base mode's `crew` and `dissident`, as
-## HudText.ROLE_KEYS names them); a role not here shows no goal line (no deck key for it).
+## ContentNames names them); a role not here shows no goal line (no deck key for it).
 const GOAL_KEYS: Dictionary[StringName, String] = {
 	&"crew": "role.goal.engineer",
 	&"dissident": "role.goal.dissident",

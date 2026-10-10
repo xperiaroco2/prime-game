@@ -47,8 +47,9 @@ const ROOM_ICON := &"room/%s"
 class Row:
 	extends RefCounted
 	var type: StringName
-	## The type's display name in the client's own mode, or its id: the deck's `task.<id>` wins.
-	var fallback: String
+	## The type's ContentNames.task(): its deck key, else its display name in the client's own
+	## mode, else its id.
+	var name: String
 	var done := 0
 	var total := 0
 
@@ -289,10 +290,9 @@ static func rows(model: ClientModel, mode: GameMode) -> Array[Row]:
 		var task := model.tasks[id]
 		var row: Row = by_type.get(task.type)
 		if row == null:
-			var type := mode.find_task_type(task.type) if mode != null else null
 			row = Row.new()
 			row.type = task.type
-			row.fallback = type.display_name if type != null else String(task.type)
+			row.name = ContentNames.task(task.type, mode)
 			by_type[task.type] = row
 			made.append(row)
 		row.done += task.done
@@ -300,9 +300,9 @@ static func rows(model: ClientModel, mode: GameMode) -> Array[Row]:
 	return made
 
 
-## A row's name: the deck's `task.<id>` in the language now, else the mode's display name.
+## A row's name in the language now (ContentNames).
 static func name_of(row: Row) -> String:
-	return _translated("task.%s" % row.type, row.fallback)
+	return ContentNames.text(row.name)
 
 
 ## "3 of 6" in the language now.
@@ -586,7 +586,7 @@ func _clear_zones() -> void:
 
 
 func _room_name(id: StringName) -> String:
-	return _translated("room.%s" % id, String(id))
+	return ContentNames.text(ContentNames.room(id))
 
 
 ## The zones' tag under the first lit room, its left edge on the room's: the deck's

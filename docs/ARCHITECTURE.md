@@ -2717,7 +2717,7 @@ ADR's §6 check the rest.
 #### 4.7.26 Built in #208 (a), English and Ukrainian
 The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
 host-made text as ids with arguments on the wire is #548 (§4.7.47), and the source test against literal strings, the content
-names and the font's glyphs are #549.
+names and the font's glyphs are #549 (§4.7.48).
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
   ui-copy <tag>` (AGENT_WORKFLOW §11.27) copies it at a release tag into `client/i18n/strings.csv`, byte for byte,
@@ -3062,7 +3062,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   `use` and the spectate buttons already act only while the mouse is captured. The «?» buttons take the focus of
   the arrows and the d-pad since #490 (§4.7.41); Space, which jumps, is out of `ui_accept` since #488, so a focused
   one never presses with a jump.
-- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`task.<id>`, else the
+- **What it shows** (`client/ui/MapScreen`): the tasks, one row per task type (since #490; DealTasks deals a type once) with its name (`ContentNames.task`, §4.7.48: `task.<id>`, else the
   mode's display name, else the id), its counter (`map.progress`) and a «?» that emits `howto_requested(type)`, on which the
   screen opens that type's how-to card (§4.7.36); no description, no NEW mark (the engineer's #254 comment and the `ui-0.4.0` handoff), no shared
   progress line (nor has the HUD since #489, §4.7.37); the clock (`map.time`). The board (`MapData`): the rooms by name (`room.<id>`, else
@@ -3269,11 +3269,11 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
   Control ignores the mouse and takes no focus.
 - **What it shows** (`HudText`, pure, from the own `ClientModel`, the own mode and `HudText.Local`): the time left
-  as mm:ss (data); the own role as its deck key (`HudText.ROLE_KEYS`: `crew` is `role.engineer`); health as the
+  as mm:ss (data); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
   fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
   first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
   push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the hand and belt (a kind's
-  deck key, `HudText.ITEM_KEYS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
+  deck key, `ContentNames.ITEMS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
   name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
   and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
   `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10), or the rescuer's raise cue over a downed
@@ -3828,6 +3828,48 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   `lobby_hud_large_uk_preview` (`short` and `code-waiting` fold the host's `players_few` against four players, the
   handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
   (`esc_menu`, `end`).
+
+#### 4.7.48 Built in #549 (M6.2), no literal text, content names and the font's glyphs
+Part (c) of #208 (§4.7.26), after the Toy screens.
+- **No literal text.** `tests/unit/client/i18n/literal_strings_test.gd` reads every script and scene under `client/`
+  (`client/dev/`'s previews left out) and fails on a string literal that reads as words but is no deck key and not
+  in its allow-list `tests/unit/client/i18n/literals_allowed.txt`. Words: any Cyrillic, Latin words with a space
+  between (a placeholder counts as a word: "Mouse %d"), and one capitalised word only where it is text (a Control's
+  `text`, a value named for text such as `MAP_LABEL`, a `tr()` argument): elsewhere one word is a node's name, of
+  which the screens have hundreds. Not words: keys, ids, paths, formats; `&"..."` and `^"..."`; comments; strings in a
+  log or assert call (`push_error`, `print`, `assert`...) or in a call naming an engine thing (`get_node`, `connect`,
+  `load`, `set_meta`...); a node's `name`. An allow-list line is `<path> | <literal as written> | <why>`, `*` for a
+  whole file (the debug overlay, the command line's problems, the end reasons' log words); its why names the issue or
+  comment tracking the missing key (#150's requests, comment 6095875901: the lobby's "Map"; comment 6096420162: the
+  rest, items 5 to 11) or why the text is never shown (the greybox lobby texts the Toy lobby HUD #495 left unused).
+  A line that matches nothing fails, so a screen moving to keys deletes its lines (#497's downed screen did, on the
+  rebase, and #495's lobby HUD its old hint). Not seen by the
+  scan: words built at run time and text a variable not named for text carries; #548's neutral shortfall line is
+  ids and numbers, and the raise cue's stopgap a deck key (`tutorial.step.downed.how`), no literal. Nor does it
+  read outside `client/`: `voice/voice_capture.gd`'s "the microphone ... did not open" and "froze" notices reach the
+  voice panel through `VoiceControl.notice` and are English literals with no deck key yet (listed with
+  `voice_sender.gd`'s in the PR).
+- **Content names** (`client/ui/ContentNames`, pure): a role, item kind or task type shows by its deck key
+  (by the convention `role.<id>`, `item.<id>`, `task.<id>` where the deck has the key, so content adding a type the
+  deck names needs no edit; `ROLE_EXCEPTIONS` holds the one id that differs: the base mode's crew are
+  `role.engineer`), else the content's display name, else its id; a room by `room.<id>` where the deck has it, else
+  its id; a map by its scene's file name ("House"). A Control given one translates it and retranslates on a switch;
+  `text()` gives it in the language now. `HudText` (the HUD's role and slots), `RoleFacts`, `PregameScreen`,
+  `MapScreen` (task rows, rooms) and `LobbyPanel` (the task chips, the map picker) ask it (the unshown
+  `ItemInteractions.hint()` keeps the display name). The deck (`ui-0.4.0`) has no key for a map, the House's rooms or
+  the `tasks` count setting: they show as before (no key invented, the PR lists them).
+- **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
+  `assets/ui/comfortaa/comfortaa.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
+  through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
+  (placeholders and line breaks left out) it lacks. In a checkout without LFS content (CI, §4.7.21) the file is a
+  pointer and the import a stand-in font: the test prints a `skip:` line naming it and checks only that it is a
+  pointer, so the glyphs are checked on every machine with the font (the local `test` and `verify --full`).
+- Tests: the two above (each with planted cases: the literals it must find and pass, the allow-list's format, the
+  deck's characters without placeholders, a private-use character the real font lacks) and
+  `tests/unit/client/ui/content_names_test.gd` (every role, item kind and task type of every shipped mode has a deck
+  key with English and Ukrainian text; both languages and a switch; what the deck does not name);
+  `client/dev/menu_uk_preview.tscn`: a
+  `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

@@ -26,10 +26,7 @@ static func of(model: ClientModel, mode: GameMode) -> RoleFacts:
 	var facts := RoleFacts.new()
 	if model == null or model.role.is_empty():
 		return facts
-	if mode != null:
-		facts.role_key = HudText.role_key(model, mode)
-	else:
-		facts.role_key = str(HudText.ROLE_KEYS.get(model.role, model.role))
+	facts.role_key = ContentNames.role(model.role, mode)
 	facts.goal_key = str(GOAL_KEYS.get(model.role, ""))
 	var peers: Array[int] = []
 	for peer: int in model.teammates.get(model.role, PackedInt32Array()):

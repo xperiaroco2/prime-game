@@ -277,9 +277,9 @@ static func countdown_text(model: ClientModel, host_tick: int) -> String:
 	return "Starting in %d s" % left if left >= 0 else "Waiting for everyone"
 
 
-## A map's name for the picker: its scene's file name until maps have names ("House").
+## A map's name for the picker (ContentNames.map: its scene's file name, "House").
 static func map_name(map: String) -> String:
-	return map.get_file().get_basename().capitalize()
+	return ContentNames.map(map)
 
 
 ## A player's row name: the own "You", the host's marked, the others' names (data).
@@ -610,8 +610,7 @@ func _task_row(row_name: String, label: String, id: StringName, mode: GameMode) 
 	var chips := {}
 	var plates := {}
 	for task: TaskType in mode.task_types:
-		var key := "task." + String(task.id)
-		var words := key if KeyLabel.word(StringName(key)) != key else task.display_name
+		var words := ContentNames.task(task.id, mode)
 		var node_name := String(task.id).to_pascal_case()
 		var chip := UiParts.toggle(words, _send_bans.bind(id), &"ToyChipToggleOnLight")
 		chip.name = node_name
