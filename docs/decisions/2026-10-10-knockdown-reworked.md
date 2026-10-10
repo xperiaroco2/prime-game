@@ -303,9 +303,11 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   controller moves nothing and claims its look), and the game's raised-player hold (`game.gd`'s `_player.held`) and
   the test room's F1 "downed mode crawls" go with the crawl; the harness's `WalkTo` fails while knocked down;
   `dissident_kills_the_crew` without the crawl; the chaos rows, and `ChaosOracle`'s class 5 expecting no
-  `Correction` to a knocked-down peer for any claim (KE4); the tests of §9 that need no motion; ARCHITECTURE §4.1's
-  `MoveClaim` row, §4.2's `Revived` and `Correction` rows ("none at a revive"), §4.6.5, §7.1.7, §7.1.8, §4.7.7 and
-  §4.7.9. Depends on: nothing (decided). Files: `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
+  `Correction` to a knocked-down peer for any claim (KE4); the tests of §9 that need no motion; ARCHITECTURE: every
+  line that names the crawl or the raise's hold (`grep -n -i crawl` and `held in place` find them): §3.2, §4.1's
+  `MoveClaim` row, §4.2's `RaiseStarted`, `Revived` and `Correction` rows ("none at a revive"), §4.6.1, §4.6.2,
+  §4.6.5, §4.7.6 to §4.7.9, §7's opening, §7.1.3 to §7.1.5, §7.1.7, §7.1.8, §9.4.2's `RaiseDowned` row, §9.5.1's
+  `PlayerRules`, §9.5.6, §9.5.15, §9.5.16 and §9.7. Depends on: nothing (decided). Files: `core/movement/movement_rule.gd`, `core/content/player_rules.gd`,
   `core/life/life_rules.gd`, `core/life/raise_downed.gd`, `core/channel/` (`channel.gd`, `channel_effect.gd`,
   `channels.gd`), `client/player/player_controller.gd`, `client/app/game.gd`, `client/dev/test_room.gd`,
   `tests/harness/scenario_bot.gd`, `tests/harness/scenario_play.gd`, `tests/harness/chaos/` (`chaos_oracle.gd`,
