@@ -1519,7 +1519,7 @@ fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a rep
 pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
 with a release host's cost.
 
-### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]
+### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE] | --stalled [--minutes M]` [applied]
 (#277, #278; round 2 of the AI productivity track, a
 cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
 journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
@@ -1589,6 +1589,22 @@ writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is o
 fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
 manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
 `args-<n>.json` files, in #279.
+`--stalled [--minutes M]` (#731, `wave_stall.py`) looks at the other sessions instead of this one. On 2026-10-09 a
+manager's guarded cleanup command (a branch delete outside a task branch) became a permission card at 22:06Z. Claude
+Code held every task notification of that session behind it, four finished runs and the keep-alive timer, until the
+engineer allowed the call at 07:29Z. It reads every transcript of the three track checkouts and their worktrees
+written in the last 24 hours, except the caller's own. It flags a session whose process is alive (or that no session
+file names) when it has had no turn since either:
+- a run of its own finished more than M minutes ago (default 30; a stopped or killed run starts no turn and does not
+  count); or
+- a notification has waited undelivered in its queue that long: an `enqueue` record that no `remove`, `dequeue` or
+  delivering user record took out.
+
+One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
+call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
+the guard's reason; the line ends with what the engineer does. The command is read-only. It exits 3 when it flags a
+session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
+refused.
 
 ### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
