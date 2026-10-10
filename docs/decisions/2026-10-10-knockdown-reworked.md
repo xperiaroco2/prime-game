@@ -278,6 +278,11 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   runner's `ScenarioInvariants`: a decoded snapshot holds the viewer's own avatar exactly when the host's state has
   that viewer `DOWNED`, read from the life state, never from `for_peer`. It is seen failing on a planted own avatar of
   a living player and on a missing own avatar of a knocked-down one (the leak test is proven so, ARCHITECTURE §5).
+- The invariants with a body in motion: no scenario moves a body (the greybox), so 728b adds a core-runner test on a
+  fixture mode whose `motion_maps` lists its fixture map, with a launching strike, that runs `ScenarioInvariants`
+  (the `view_of` comparison, the own-avatar check, the voice distance) on every tick of the flight, and 728c the same
+  through a slide. Prevents: a check that reads a cached knockdown point instead of the moving one staying green
+  because no checked run ever has a moving body.
 - Chaos and bots: a knocked-down hostile peer's walking claims (its rows, ARCHITECTURE §4.6.5.3);
   `dissident_kills_the_crew` loses "and it crawls": a knocked-down bot's `WalkTo` fails the step, as a dead bot's does.
   No scenario, chaos run or perf run plays the launch or the slide: they play the greybox, where no body moves
@@ -335,12 +340,13 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   `moving`; KD8 in `die`; `leave` and `ResetMatch` clear it; the own avatar in a knocked-down viewer's snapshot
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
   gets its 16-avatar snapshot, the own-avatar check of §9 (from the life state, not from `for_peer`) in `LeakCheck`
-  and `ScenarioInvariants`, seen failing on both plants, and the protocol number, and the client's `AvatarViews` and
-  the bots' fold skipping it until 728d draws it, so no client draws itself as a stranger in between; `ChaosOracle`'s
-  reason table gains `moving`; a knockdown with no launch is today's, step for step (§4, step 2). Where bodies move
-  (KE12): `PlayerRules.motion_maps`, compared with `MatchState.map` in `knock_down`, the mode check refusing a path
-  that is not one of the mode's maps, and the base mode listing the House alone from this issue on, so no later
-  change can give the greybox a launch by leaving the list out; the body's gravity and the longest motion in
+  and `ScenarioInvariants`, seen failing on both plants, §9's run of the invariants through a flight, and the
+  protocol number, and the client's `AvatarViews` and the bots' fold skipping it until 728d draws it, so no client
+  draws itself as a stranger in between; `ChaosOracle`'s reason table gains `moving`; a knockdown with no launch is
+  today's, step for step (§4, step 2). Where bodies move (KE12): `PlayerRules.motion_maps`, compared with
+  `MatchState.map` in `knock_down`, the mode check refusing a path that is not one of the mode's maps, and the base
+  mode listing the House alone from this issue on, so no later change can give the greybox a launch by leaving the
+  list out; the body's gravity and the longest motion in
   `PlayerRules` with their bounds, set in the base mode and the fixture modes as placeholders marked "not a decision"
   (KD9 (b)); §9's tests of where bodies move. 728b ships with every launch at 0 (the knife sets none) until 728d
   draws the motion: before it, a launched player's camera and ears would stay where the knockdown started while every
@@ -378,9 +384,10 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   speed of 0 sliding nothing; in the base mode both placeholders marked "not a decision" (KD9 (b)), provisional
   under the MVP content ADR (728d is merged by then, so the reason 728b gives for a launch of 0 does not hold here);
   §4's step 4, on a map `motion_maps` lists only (KE12), with a unit test that a steep floor on another map slides
-  nothing; a fixture level with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test
-  of the answer; ARCHITECTURE §4.5.9, §9.5.1's `PlayerRules` and §7.1.17. Depends on: 728b, 728d; KD3, KD9
-  (answered), KD10 (open). Files: `core/world/`, `server/host_world_query.gd`, `core/life/`,
+  nothing; a fixture level with a roof, its edge, a chimney on it and stairs; unit tests (§9, the invariants through
+  a slide included) and an integration test of the answer; ARCHITECTURE §4.5.9, §9.5.1's `PlayerRules` and
+  §7.1.17. Depends on: 728b, 728d; KD3, KD9 (answered), KD10 (open). Files: `core/world/`,
+  `server/host_world_query.gd`, `core/life/`,
   `core/content/player_rules.gd`, `tests/fixtures/world/fixture_level_world.gd`,
   `tests/fixtures/match/fixture_terrain_world.gd`, `tests/fixtures/match/fixture_modes.gd`, `tests/fixtures/levels/`,
   `tests/unit/life/`, `tests/unit/content/player_rules_test.gd`, `tests/integration/server/`,
