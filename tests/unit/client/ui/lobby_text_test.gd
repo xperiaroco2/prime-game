@@ -59,13 +59,15 @@ func test_waiting_counts_the_ready_players_of_all() -> void:
 func test_short_says_what_the_host_says_holds_the_start_back() -> void:
 	# The host's players_few (#548): its count, not one of this client's own.
 	var model := _model(3, [[1, "Olena", true], [2, "Taras", true]])
-	_host_says(model, [_players_few(2)])
+	_host_says(model, [_players_few(1)])
 	var shown := LobbyText.of(model, _mode, NOW)
 	assert_int(shown.status).is_equal(LobbyText.Status.SHORT)
+	# SHORT's count is the ready players (Olena and Taras);
+	# the host's count of 1 missing is in the text.
 	assert_int(shown.count).is_equal(2)
-	assert_str(LobbyText.status_text(shown)).is_equal("2 more players to start")
+	assert_str(LobbyText.status_text(shown)).is_equal("1 more player to start")
 	TranslationServer.set_locale("uk")
-	assert_str(LobbyText.status_text(shown)).is_equal("Ще 2 гравці до старту")
+	assert_str(LobbyText.status_text(shown)).is_equal("Ще 1 гравець до старту")
 	# No shortfall from the host: not short, whatever the client's copy of the mode would count.
 	var mode := _mode.duplicate() as GameMode
 	mode.min_players = 8
