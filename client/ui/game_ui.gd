@@ -5,7 +5,8 @@ extends CanvasLayer
 ## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the map and tasks screen while
 ## it is open (#253: the game toggles it on the `map` action; one place holds whether it is open,
 ## and the Esc menu and every screen but the round close it); under them, in the lobby and the
-## round, the name plates over the others' heads (#257). It shows what the own ClientModel and the
+## round, the name plates over the others' heads (#257); in the tutorial's round its invite and
+## lesson plates over the HUD (#492, `tutorial`). It shows what the own ClientModel and the
 ## client's own mode hold; the game connects the screens' signals.
 ##
 ## Every screen is styled only through one shared Theme, THEME (the M4 manager's decision of

@@ -1867,7 +1867,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
-| Round | HUD; the task screen while Tab is held | the map | by its life (below) |
+| Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.50) | the map | by its life (below); none under the tutorial's invite |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
@@ -3664,20 +3664,21 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
   lesson 9 is the lesson runner's `finished` calling `Game.leave()` (§4.7.45).
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
-  `tutorial_requested` to `start_tutorial(false)` (the item stays disabled until #492, #672's answer 2A), starts it
+  `tutorial_requested` to `start_tutorial(false)` (the item was disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
   settings)` holds only with no launch option at all (`LaunchOptions.given`, a wrong one too), the settings read from
   a file (`UserSettings.path` set) and `UserSettings.tutorial_seen` (`[player] tutorial_seen`) false. A Game with no
   command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
   windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as
   `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in the headless session,
-  is a problem. `invite_open` says the invite is due (#492 draws it); until #492's Start and Skip set the flag, the
-  end of a tutorial that started with the invite sets it (`GameTutorial.mark_seen`, written), so a plain launch does
-  not start it every time (a choice under "Needs the engineer" in the PR).
+  is a problem. `invite_open` says the invite is due; since #492 (§4.7.50) only its Start and Skip (or Esc) set the
+  flag (`GameTutorial.mark_seen`, written): a session ended under the invite (the window closed) offers it again on
+  the next launch. Until #492 the end of an invited tutorial set it.
 - **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
   --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`
   and `clock` are refused naming their line. The window still prints the `session: hosting` line, which nothing
-  waits for with one window. Scenario `tutorial`: the room in the lessons phase with three players, and its Esc menu.
+  waits for with one window. Scenario `tutorial`: the room in the lessons phase with three players and lesson 1's
+  plates, lesson 2's after a walk (#492), and its Esc menu.
 - Tests: `tests/unit/client/app/game_flow_test.gd` (the tutorial mode's flow), `launch_options_test.gd` (`--tutorial`,
   `given` and the problems), `user_settings_test.gd` (the flag), `game_tutorial_test.gd` (the first-launch rule's
   table), `tests/unit/client/tutorial/stand_ins_source_test.gd` (only `stand_ins.gd` and `game_tutorial.gd` name
@@ -3882,6 +3883,53 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   key with English and Ukrainian text; both languages and a switch; what the deck does not name);
   `client/dev/menu_uk_preview.tscn`: a
   `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
+
+#### 4.7.50 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
+The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
+notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
+- **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`
+  and before the map: the HUD layer, under the map and the Esc menu), node for node: the invite (`Dim` ToyBackdrop
+  taking the mouse; `Lang`, the chips `Uk` and `En` of `ToyChipToggleOnDark` in one ButtonGroup, each `lang.*` key
+  naming its language in itself, the one spoken pressed; `Box`, a raised ToyPanelDialog 688 px wide with the title,
+  the body, Start (`UiParts.button`, ToyButtonPrimary) and Skip (ToyButtonGhostOnLight)), `Step` (912 px, 40 px
+  down: Progress `tutorial.step.progress`, Title, and How) and `List` (440 px, top right 256 px down: Head and the
+  nine `Rows`). Only pack variations, no override. `show_lessons(lessons, lesson, step, done)` draws the plates and
+  redraws only when its arguments or a bound key's label changed, so the game calls it every frame and a rebind in
+  Settings > Controls (or the layout, through `KeyLabel`) redraws the keycaps.
+- **How:** a step with a `how_key` is `tr()` of it split at `{key}` (`LifeHud.give_up_pieces`: `strip_edges()`, an
+  empty piece hidden), `Before`, the `Key` keycap and `After`; the keycap is a ToyKeyOnDark holding a ToyKeyText
+  label of `KeyLabel.of_action` of the step's first key (`key.space`, `key.mouse_left` from the deck), its width
+  `min_width`, or `wide_min_width` for Space, Shift, Tab and Esc (`KeyLabel.is_wide_action`), read again after each
+  theme change (the large-text 42 px); `TutorialStep.HOWTO_GLYPH` is a ToyKeyRound «?», the map's. A step with keys
+  and no `how_key` (lesson 1) is `HowKeys`: `Walk` (the four walking keys, `control.walk`), then a group per other
+  key named by its `Controls.ACTIONS` row (`Sprint`, `Jump`). A step with neither (lesson 4, title only) hides How.
+  Lesson 9's Esc keycap reads Godot's key name ("Escape"): the deck has no `key.esc`.
+- **List:** a done lesson is `<Name>Done` (its name, then the `check` icon tinted with ToyTextOnDark's
+  `font_color`), the current one `<Name>Now` (a one-line ToyChipLight; the plate grows to the left for a long one),
+  the rest the muted, wrapping names; `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
+  `PickUpNext` in one state and `HandBelt` in another: one rule here). `tutorial.list.map`'s `{key}` is the bound
+  `list_action`. Every plate node ignores the mouse and takes no focus. Texts with data or in pieces are set from
+  code (`auto_translate_mode` DISABLED) and rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
+- **Placement:** `GameUi.show_screen` shows the screen in the round while the tutorial runs (`set_tutorial`, which
+  also clears it at the end) and hides the HUD and the life plates under the invite (s1's `invite`). While the dead
+  player's Spectate plate shows (lesson 7) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
+  not a decision: s1 draws no dead player).
+- **The game** (`GameTutorial`): once the room is in with `invite_open`, `open_invite()` (Start focused) and the
+  mouse freed; `GameUi.blocks_keys()` (the Esc menu or the invite) and `frees_mouse()` (the map or the invite) feed
+  `Game._apply_player_flags`, so no key counts under the invite and a click does not recapture; the map key is
+  ignored there. Esc is the invite's Skip through a `UiOverlays` entry (`INVITE`, layer 2). Start writes
+  `tutorial_seen`, closes the invite, `begin()`s lesson 1 and captures the mouse (focused windows only); Skip writes
+  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). A chip calls `GameSettings.choose_language`
+  (applied and saved; the invite's texts follow). The main menu's Tutorial is enabled and starts it with no invite.
+- Shots: `client/dev/tutorial_preview.gd` (the tutorial room from its start spot, the HUD without timer and role):
+  `tutorial_invite_preview`, `tutorial_step_preview`, `tutorial_step_keys_preview`, `tutorial_step_howto_preview`,
+  each with a `_uk` twin, and `tutorial_invite_large_uk_preview`, `tutorial_step_large_uk_preview`; `playcheck
+  tutorial` shoots lesson 1 and lesson 2 in the game.
+- Tests: `tests/unit/client/ui/tutorial_screen_test.gd` (the tree of each state, lesson 4, the list, no mouse, a
+  rebind, Ukrainian, large text on screen for every step, the step under the Spectate plate),
+  `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
+  free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
+  `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
