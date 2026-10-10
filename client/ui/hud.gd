@@ -54,6 +54,12 @@ var watching_label := UiParts.styled_label("", &"ToyTitleOnDark")
 ## living.
 var aiming := true:
 	set = set_aiming
+## The role chip hides while the map is open (#491, the engineer on #652): at once, not at the
+## next show_hud. The Esc menu's Role tab holds the role and the team.
+var role_hidden := false:
+	set(value):
+		role_hidden = value
+		role.visible = not role_hidden and not _shown.role.is_empty()
 
 ## The last state shown (the translation change rebuilds the watched name's line from it).
 var _shown := HudText.Shown.new()
@@ -81,7 +87,7 @@ func show_hud(shown: HudText.Shown) -> void:
 	_shown = shown
 	timer.visible = not shown.time.is_empty()
 	time_label.text = shown.time
-	role.visible = not shown.role.is_empty()
+	role.visible = not role_hidden and not shown.role.is_empty()
 	role_label.text = shown.role
 	vitals.visible = shown.vitals
 	health.set_fraction(shown.health)

@@ -149,6 +149,7 @@ func _ready() -> void:
 	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.settings_changed.connect(change_settings)
 	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.lobby.map_changed.connect(change_map)
 	ui.esc.resume_requested.connect(close_esc)
@@ -303,8 +304,14 @@ func set_ready(on: bool) -> void:
 
 ## The host changes one setting: a whole number, or the ids of a set (banned task types).
 func change_setting(id: StringName, value: Variant) -> void:
+	change_settings({id: value})
+
+
+## The host changes several settings in one ChangeSettings (a preset card, #491): the host checks
+## them together, so it never refuses a preset half-applied.
+func change_settings(values: Dictionary) -> void:
 	if _client != null:
-		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": values})
 
 
 ## The host names the lobby (#214): "" asks for the default again. Cleaned as the host will, so a
@@ -501,7 +508,7 @@ func _process(_delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	# Alt+Enter on every screen, before Enter reaches a focused button (#517).
 	if event.is_action_pressed(&"toggle_fullscreen"):
-		window.toggle_fullscreen()
+		GameSettings.toggle_window(self)
 		get_viewport().set_input_as_handled()
 		return
 	if _overlay != null and event.is_action_pressed(&"debug_overlay"):
@@ -861,7 +868,7 @@ func _ready_settings() -> void:
 
 
 ## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
-## settings applied, and both Voice panels (the Esc menu's tab, the main menu's page, #301) wired
+## settings applied, and both Sound and voice pages (the Esc menu's, the main menu's, #301) wired
 ## to them.
 func _ready_voice() -> void:
 	AudioBuses.ensure()
@@ -871,25 +878,18 @@ func _ready_voice() -> void:
 	_sender.codec = voice_codec
 	add_child(_sender)
 	_voice_control = VoiceControl.new(settings, _sender)
-	for panel: VoicePanel in [ui.esc.voice, ui.menu.voice]:
-		panel.device_picked.connect(_voice_control.pick_device)
-		panel.mode_picked.connect(_voice_control.set_mode)
-		panel.threshold_changed.connect(_voice_control.set_threshold)
-		panel.denoise_toggled.connect(_voice_control.set_denoise)
-		panel.volume_changed.connect(_voice_control.set_volume)
-		panel.tone_toggled.connect(_voice_control.set_tone)
-		panel.mute_toggled.connect(_voice_control.set_muted)
+	GameSettings.wire_voice(self, _voice_control)
 	_voice_control.start()
 
 
 ## The player's controls applied (a test's or a playcheck window's stay the project's: the player's
-## file in user:// would rebind the process's keys), and the Controls tab wired to them.
+## file in user:// would rebind the process's keys), and both Settings pages wired (GameSettings).
 func _ready_controls() -> void:
 	if controls == null:
 		controls = Controls.for_this_player() if read_command_line else Controls.new()
 		if read_command_line:
 			controls.apply()
-	ui.esc.controls.setup(controls)
+	GameSettings.setup(self)
 
 
 ## The voices follow the new session's ClientSession, model and avatars; the own voice speaks
@@ -925,16 +925,12 @@ func _refresh_voice() -> void:
 ## the keys are letters or a binding then, and V must not key the microphone.
 func _typing() -> bool:
 	var focus := get_viewport().gui_get_focus_owner()
-	return focus is LineEdit or focus is TextEdit or ui.esc.controls.is_capturing()
+	return focus is LineEdit or focus is TextEdit or GameSettings.capturing(self)
 
 
-## The Voice panel on screen now: the Esc menu's Voice tab, the main menu's Settings panel, or null.
+## Settings' Sound and voice on screen now: the Esc menu's, the main menu's, or null.
 func shown_voice_panel() -> VoicePanel:
-	if ui.esc_open():
-		return ui.esc.voice if ui.esc.state.selected == EscMenuState.Tab.VOICE else null
-	if ui.screen == GameFlow.Screen.MENU and ui.menu.settings_open():
-		return ui.menu.voice
-	return null
+	return GameSettings.shown_voice(self)
 
 
 func _cannot_host(why: String) -> void:

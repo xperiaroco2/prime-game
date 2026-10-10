@@ -228,7 +228,9 @@ func test_the_focus_starts_on_host_goes_to_the_field_and_back_to_the_item() -> v
 	assert_object(_focus()).is_same(_menu.direct_item)
 	_menu.settings_item.button_pressed = true
 	await _frames(1)
-	assert_object(_focus()).is_same(_menu.voice.device_button)
+	# The Settings scene of #491: the focus starts on its selected sub-page chip, Sound and voice.
+	assert_object(_focus()).is_same(_menu.settings_page.first_focus())
+	assert_str(String(_menu.settings_page.first_focus().name)).is_equal("Sound")
 	_menu.settings_item.button_pressed = false
 	assert_object(_focus()).is_same(_menu.settings_item)
 
@@ -240,10 +242,12 @@ func test_the_settings_open_at_their_top_also_under_large_text() -> void:
 	await _frames(1)
 	_menu.settings_item.button_pressed = true
 	await _frames(3)
-	var scroll := _menu.settings_page as ScrollContainer
+	var scroll := _menu.settings_page.scroll
 	assert_bool(scroll.get_v_scroll_bar().max_value > scroll.size.y).is_true()
 	assert_int(scroll.scroll_vertical).is_equal(0)
-	assert_object(_focus()).is_same(_menu.voice.device_button)
+	# The Settings scene of #491: the focus starts on its selected sub-page chip, Sound and voice.
+	assert_object(_focus()).is_same(_menu.settings_page.first_focus())
+	assert_str(String(_menu.settings_page.first_focus().name)).is_equal("Sound")
 
 
 func test_the_code_field_takes_only_the_alphabet_upper_case_and_six_at_most() -> void:

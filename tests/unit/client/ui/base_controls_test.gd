@@ -28,6 +28,7 @@ const NAMED := {
 	"PanelContainer": "Godot's panel, no margins, so no size change (gap)",
 	"ProgressBar": "the default font size; Godot's StyleBoxes on the voice meter (gap)",
 	"TextureRect": "draws its texture only: a how-to card picture (#254), a tinted HUD icon (#489)",
+	"GridContainer": "every one gets a spacing variation (the Role tab's team: ToyGridList, #491)",
 }
 
 
@@ -181,7 +182,9 @@ func test_every_control_class_the_screens_build_is_covered_or_named() -> void:
 	for file: String in DirAccess.get_files_at(UI):
 		if file.ends_with(".gd"):
 			built.append_array(classes(FileAccess.get_file_as_string(UI.path_join(file))))
-	assert_array(Array(built)).contains(["LineEdit", "SpinBox", "OptionButton", "HSlider"])
+	assert_array(Array(built)).contains(
+		["LineEdit", "ScrollContainer", "OptionButton", "GridContainer"]
+	)
 	var unknown := PackedStringArray()
 	for cls in built:
 		if not covered.has(cls) and not NAMED.has(cls) and not unknown.has(cls):

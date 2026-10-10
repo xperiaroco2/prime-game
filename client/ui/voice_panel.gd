@@ -1,15 +1,18 @@
 class_name VoicePanel
 extends VBoxContainer
-## The Voice settings (the M5 ADR §1.7, D11, D15): the Esc menu's Voice tab in every screen with
-## the Esc menu, and the main menu's Settings panel before any session (#301), one each: the
-## microphone (the Windows default, then each device; no Off entry: Off is a mode), the mode (voice
-## activity, the default; push-to-talk with its key; Off), the voice-activity threshold with a live
-## meter of the microphone's peak, RNNoise, the four volume sliders (Master, Voice, Effects, Music),
-## the line that loudspeakers echo and headphones avoid it, the headset and #22 advice, and, without
-## the voice addon, the line that voice is unavailable. In debug builds a test tone instead of the
-## microphone and "mute this window", neither saved (E47). No talking indicator (D14): the meter
-## shows the microphone's level, never whether the gate sends. It shows a Shown (VoiceControl's) and
-## says what changed through its signals; built in code with the shared greybox theme only (#150).
+## Settings › Sound and voice (the M5 ADR §1.7, D11, D15; the Toy look of #491, prime-game-ui
+## handoff s05 `settings-sound` at ui-0.4.0): one in the Esc menu's Settings and one in the main
+## menu's (#301), both a SettingsPage. The rows: Mic (the Windows default, then each device; no
+## Off entry: Off is a mode), TalkMode (voice activation, the default; push to talk on the Talk
+## key; off), Threshold (voice activation only) with MicTest's live meter of the microphone's
+## peak, Noise (RNNoise, two chips) and the four volumes (Master, Voice, Effects, Music). Without
+## the voice addon the microphone rows give way to `settings.voice_unavailable`. Beside the
+## handoff (#491's differences): the line that loudspeakers echo and headphones avoid it, the
+## headset and #22 advice, the device's notice, and in debug builds a test tone instead of the
+## microphone and "mute this window", neither saved (E47); greybox English, as the deck has no
+## keys for them. No talking indicator (D14): the meter shows the microphone's level, never
+## whether the gate sends. The sliders keep the engine's units (the gate's peak, dB): no number
+## is drawn. It shows a Shown (VoiceControl's) and says what changed through its signals.
 
 signal device_picked(device: String)
 signal mode_picked(mode: UserSettings.Mode)
@@ -19,11 +22,7 @@ signal volume_changed(bus: StringName, db: float)
 signal tone_toggled(on: bool)
 signal mute_toggled(on: bool)
 
-## Greybox wording (#150).
-const UNAVAILABLE := (
-	"Voice is unavailable: the voice addon (TwoVoIP) is not installed. The game runs without"
-	+ " voice; the volumes below still apply."
-)
+## Greybox wording (#150): no deck key yet.
 const ECHO := (
 	"There is no echo cancellation: with loudspeakers your microphone sends the others' voices"
 	+ " back to them. Wear headphones."
@@ -33,24 +32,29 @@ const HEADSET := (
 	+ " laptop's microphone array can freeze the game. Prefer 48 kHz and turn off Windows' sound"
 	+ " enhancements."
 )
-const LOBBY_HINT := "Voice: Esc, then Voice, to pick your microphone"
-const DEFAULT_NAME := "Windows default"
-const MODE_NAMES: Dictionary[UserSettings.Mode, String] = {
-	UserSettings.Mode.VOICE_ACTIVITY: "Voice activity (the default)",
-	UserSettings.Mode.PUSH_TO_TALK: "Push-to-talk: hold %s",
-	UserSettings.Mode.OFF: "Off: your microphone is closed",
+const LOBBY_HINT := "Voice: Esc, then Settings, to pick your microphone"
+const DEFAULT_KEY := &"settings.mic.default"
+const UNAVAILABLE_KEY := "settings.voice_unavailable"
+## Each mode's deck key, in the dropdown's order.
+const MODE_KEYS: Dictionary[UserSettings.Mode, StringName] = {
+	UserSettings.Mode.VOICE_ACTIVITY: &"settings.talk_mode.open",
+	UserSettings.Mode.PUSH_TO_TALK: &"settings.talk_mode.push",
+	UserSettings.Mode.OFF: &"common.off",
 }
-const VOLUME_NAMES: Dictionary[StringName, String] = {
-	AudioBuses.MASTER: "Master",
-	AudioBuses.VOICE: "Voice",
-	AudioBuses.EFFECTS: "Effects",
-	AudioBuses.MUSIC: "Music",
+## Each bus's row: its node name and its deck key.
+const VOLUME_ROWS: Dictionary[StringName, Array] = {
+	AudioBuses.MASTER: ["Overall", "settings.game_volume"],
+	AudioBuses.VOICE: ["Voices", "settings.voice_volume"],
+	AudioBuses.EFFECTS: ["Effects", "settings.effects_volume"],
+	AudioBuses.MUSIC: ["Music", "settings.music_volume"],
 }
 const THRESHOLD_STEP := 0.005
 const VOLUME_STEP := 1.0
+## The meter's size (the handoff's MicTest: 500 x 10).
+const METER_SIZE := Vector2(500, 10)
 
 
-## What the tab shows.
+## What the page shows.
 class Shown:
 	extends RefCounted
 	## The voice codec is there.
@@ -73,137 +77,121 @@ class Shown:
 	var muted := false
 
 
-var unavailable_label := _text(UNAVAILABLE)
-var notice_label := _text("")
-var microphone_box := VBoxContainer.new()
-var device_button := OptionButton.new()
-var mode_button := OptionButton.new()
-var threshold_slider := HSlider.new()
+var unavailable_label := SettingRows.note(UNAVAILABLE_KEY)
+var notice_label := SettingRows.note("")
+var device_button := SettingRows.dropdown("Device")
+var mode_button := SettingRows.dropdown("Mode")
+var threshold_slider := SettingRows.slider(
+	VoiceGate.MIN_THRESHOLD, VoiceGate.MAX_THRESHOLD, THRESHOLD_STEP
+)
 var meter := ProgressBar.new()
-var denoise_check := CheckBox.new()
+## Noise suppression: the Off and On chips (one ButtonGroup).
+var denoise_chips: HBoxContainer
+var noise_row: Control
 var volume_sliders: Dictionary[StringName, HSlider] = {}
-var echo_label := _text(ECHO)
-var headset_label := _text(HEADSET)
+var mic_row: PanelContainer
+var mode_row: PanelContainer
+var threshold_row: PanelContainer
+var test_row: PanelContainer
+var echo_label := SettingRows.note(ECHO)
+var headset_label := SettingRows.note(HEADSET)
 var debug_box := VBoxContainer.new()
-var tone_check := CheckBox.new()
-var mute_check := CheckBox.new()
+var tone_chip := UiParts.toggle("common.on", Callable(), &"ToyChipToggleOnLight")
+var mute_chip := UiParts.toggle("common.on", Callable(), &"ToyChipToggleOnLight")
 
 var _devices := PackedStringArray()
+var _mode := UserSettings.Mode.VOICE_ACTIVITY
 
 
 func _init() -> void:
-	name = "VoicePanel"
-	theme_type_variation = &"EscPage"
+	name = "Sound"
+	theme_type_variation = &"ToyColumnEight"
 	add_child(unavailable_label)
-	notice_label.theme_type_variation = &"Shortfalls"
 	add_child(notice_label)
-	add_child(microphone_box)
 	# Choosing the item already shown counts: the Windows default before any pick, or a device
 	# whose opening froze the game, is picked by choosing it again.
 	device_button.allow_reselect = true
 	device_button.item_selected.connect(_on_device)
-	microphone_box.add_child(UiParts.labelled("Microphone", device_button))
-	for mode: UserSettings.Mode in MODE_NAMES:
-		mode_button.add_item(_mode_name(mode), mode)
+	mic_row = SettingRows.row("Mic", "settings.mic", device_button)
+	add_child(mic_row)
+	for mode: UserSettings.Mode in MODE_KEYS:
+		mode_button.add_item("", mode)
 	mode_button.item_selected.connect(_on_mode)
-	microphone_box.add_child(UiParts.labelled("Mode", mode_button))
-	threshold_slider.min_value = VoiceGate.MIN_THRESHOLD
-	threshold_slider.max_value = VoiceGate.MAX_THRESHOLD
-	threshold_slider.step = THRESHOLD_STEP
+	mode_row = SettingRows.row("TalkMode", "settings.talk_mode", mode_button)
+	add_child(mode_row)
 	threshold_slider.value_changed.connect(
 		func(value: float) -> void: threshold_changed.emit(value)
 	)
-	microphone_box.add_child(UiParts.labelled("Voice activity at", threshold_slider))
+	threshold_row = SettingRows.row("Threshold", "settings.voice_threshold", threshold_slider)
+	add_child(threshold_row)
+	meter.name = "Meter"
+	meter.theme_type_variation = &"ToyBarSlider"
+	meter.custom_minimum_size = METER_SIZE
 	meter.min_value = 0.0
 	meter.max_value = 1.0
 	meter.show_percentage = false
 	meter.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	microphone_box.add_child(UiParts.labelled("Microphone level", meter))
-	denoise_check.text = "Noise suppression (RNNoise)"
-	denoise_check.toggled.connect(func(on: bool) -> void: denoise_toggled.emit(on))
-	microphone_box.add_child(denoise_check)
-	microphone_box.add_child(echo_label)
-	microphone_box.add_child(headset_label)
-	add_child(UiParts.heading("Volume"))
+	test_row = SettingRows.row("MicTest", "settings.mic_test", meter)
+	add_child(test_row)
+	add_child(echo_label)
+	add_child(headset_label)
+	var noise_keys: Dictionary[String, String] = {"Off": "common.off", "On": "common.on"}
+	denoise_chips = SettingRows.chips("Toggle", noise_keys, _on_denoise)
+	noise_row = SettingRows.row("Noise", "settings.noise_suppression", denoise_chips)
+	add_child(noise_row)
 	for bus: StringName in UserSettings.VOLUMES:
-		var slider := HSlider.new()
-		slider.min_value = UserSettings.MIN_DB
-		slider.max_value = UserSettings.MAX_DB
-		slider.step = VOLUME_STEP
+		var slider := SettingRows.slider(UserSettings.MIN_DB, UserSettings.MAX_DB, VOLUME_STEP)
 		slider.value_changed.connect(func(db: float) -> void: volume_changed.emit(bus, db))
 		volume_sliders[bus] = slider
-		add_child(UiParts.labelled(VOLUME_NAMES[bus], slider))
-	tone_check.text = "Test tone instead of the microphone (debug, not saved)"
-	tone_check.toggled.connect(func(on: bool) -> void: tone_toggled.emit(on))
-	debug_box.add_child(tone_check)
-	mute_check.text = "Mute this window (debug, not saved)"
-	mute_check.toggled.connect(func(on: bool) -> void: mute_toggled.emit(on))
-	debug_box.add_child(mute_check)
+		var names: Array = VOLUME_ROWS[bus]
+		add_child(SettingRows.row(str(names[0]), str(names[1]), slider))
+	debug_box.name = "Debug"
+	debug_box.theme_type_variation = &"ToyColumnEight"
+	tone_chip.name = "Tone"
+	tone_chip.toggled.connect(func(on: bool) -> void: tone_toggled.emit(on))
+	debug_box.add_child(SettingRows.row("Tone", "Test tone, not the microphone (debug)", tone_chip))
+	mute_chip.name = "Mute"
+	mute_chip.toggled.connect(func(on: bool) -> void: mute_toggled.emit(on))
+	debug_box.add_child(SettingRows.row("Mute", "Mute this window (debug)", mute_chip))
 	add_child(debug_box)
-
-
-## The look on a light (cream) panel, the main menu's Settings panel (#493) until #491's Settings
-## scene: every text label in ink (ToyTextOnLight, the heading ToyTitleOnLight; the microphone
-## notice too, as the pack has no warning text for a light panel and Shortfalls' amber is
-## unreadable on cream), and each check box's words beside it in ink (a CheckBox has no light
-## variation in the pack); a click on the words toggles the box, as on a CheckBox with text.
-## The logic stays.
-func on_light() -> void:
-	for label: Label in _labels(self):
-		match label.theme_type_variation:
-			&"", &"Shortfalls":
-				label.theme_type_variation = &"ToyTextOnLight"
-			&"Title":
-				label.theme_type_variation = &"ToyTitleOnLight"
-	for check: CheckBox in [denoise_check, tone_check, mute_check]:
-		var holder := check.get_parent()
-		var at := check.get_index()
-		var row := HBoxContainer.new()
-		row.theme_type_variation = &"ToyRowEight"
-		holder.remove_child(check)
-		row.add_child(check)
-		var words := UiParts.styled_label(check.text, &"ToyTextOnLight")
-		words.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		words.mouse_filter = Control.MOUSE_FILTER_STOP
-		words.gui_input.connect(_on_words_input.bind(check))
-		row.add_child(words)
-		check.text = ""
-		holder.add_child(row)
-		holder.move_child(row, at)
+	_retext()
 
 
 ## Shows `facts`; a control the player is not moving takes its value without a signal.
 func show_facts(facts: Shown) -> void:
 	unavailable_label.visible = not facts.available
-	microphone_box.visible = facts.available
+	for each: Control in [mic_row, mode_row, test_row, noise_row, echo_label, headset_label]:
+		each.visible = facts.available
+	threshold_row.visible = facts.available and facts.mode == UserSettings.Mode.VOICE_ACTIVITY
 	notice_label.text = facts.notice
 	notice_label.visible = not facts.notice.is_empty()
 	if facts.devices != _devices:
 		_devices = facts.devices.duplicate()
-		device_button.clear()
-		for device: String in _devices:
-			device_button.add_item(device_name(device))
+		_list_devices()
 	var picked := facts.device if not facts.device.is_empty() else VoiceMicrophone.DEFAULT_DEVICE
 	device_button.select(_devices.find(picked))
-	# The talk key follows a rebind in the Controls tab (#211).
-	var talk := mode_button.get_item_index(UserSettings.Mode.PUSH_TO_TALK)
-	mode_button.set_item_text(talk, _mode_name(UserSettings.Mode.PUSH_TO_TALK))
+	_mode = facts.mode
 	mode_button.select(mode_button.get_item_index(facts.mode))
 	threshold_slider.set_value_no_signal(facts.threshold)
 	meter.value = facts.peak
-	denoise_check.set_pressed_no_signal(facts.denoise)
+	SettingRows.show_chip(denoise_chips, "On" if facts.denoise else "Off")
 	for bus: StringName in volume_sliders:
 		volume_sliders[bus].set_value_no_signal(
 			facts.volumes.get(bus, UserSettings.default_db(bus)) as float
 		)
 	debug_box.visible = facts.debug and facts.available
-	tone_check.set_pressed_no_signal(facts.tone)
-	mute_check.set_pressed_no_signal(facts.muted)
+	SettingRows.set_pressed(tone_chip, facts.tone)
+	SettingRows.set_pressed(mute_chip, facts.muted)
 
 
-## A device's name in the list: the Windows default by that name.
+## Whether noise suppression shows on.
+func denoise_on() -> bool:
+	return (denoise_chips.get_node(^"On") as Button).button_pressed
+
+
+## A device's name in the list: the Windows default by the deck's word.
 static func device_name(device: String) -> String:
-	return DEFAULT_NAME if device == VoiceMicrophone.DEFAULT_DEVICE else device
+	return KeyLabel.word(DEFAULT_KEY) if device == VoiceMicrophone.DEFAULT_DEVICE else device
 
 
 ## The talk key's name, from the input map (V by default, D11; rebindable, #211); "?" unbound.
@@ -212,9 +200,24 @@ static func talk_key() -> String:
 	return label if not label.is_empty() else "?"
 
 
-static func _mode_name(mode: UserSettings.Mode) -> String:
-	var words := MODE_NAMES[mode]
-	return words % talk_key() if mode == UserSettings.Mode.PUSH_TO_TALK else words
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and mode_button != null:
+		_retext()
+
+
+## The dropdowns' words in the current language (their items are set from code).
+func _retext() -> void:
+	for mode: UserSettings.Mode in MODE_KEYS:
+		mode_button.set_item_text(mode_button.get_item_index(mode), KeyLabel.word(MODE_KEYS[mode]))
+	_list_devices()
+
+
+func _list_devices() -> void:
+	var selected := device_button.selected
+	device_button.clear()
+	for device: String in _devices:
+		device_button.add_item(device_name(device))
+	device_button.select(selected if selected < _devices.size() else -1)
 
 
 func _on_device(index: int) -> void:
@@ -223,28 +226,10 @@ func _on_device(index: int) -> void:
 
 
 func _on_mode(index: int) -> void:
-	mode_picked.emit(mode_button.get_item_id(index) as UserSettings.Mode)
+	_mode = mode_button.get_item_id(index) as UserSettings.Mode
+	threshold_row.visible = mic_row.visible and _mode == UserSettings.Mode.VOICE_ACTIVITY
+	mode_picked.emit(_mode)
 
 
-## A left click on a check box's words (on_light) toggles it, its toggled signal included.
-static func _on_words_input(event: InputEvent, check: CheckBox) -> void:
-	var click := event as InputEventMouseButton
-	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
-		check.button_pressed = not check.button_pressed
-
-
-## Every Label under `root`.
-static func _labels(root: Node) -> Array[Label]:
-	var found: Array[Label] = []
-	for child: Node in root.get_children():
-		if child is Label:
-			found.append(child as Label)
-		found.append_array(_labels(child))
-	return found
-
-
-static func _text(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	return label
+func _on_denoise(chip: String) -> void:
+	denoise_toggled.emit(chip == "On")

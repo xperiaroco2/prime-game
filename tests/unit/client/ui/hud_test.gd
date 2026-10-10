@@ -247,6 +247,21 @@ func test_the_map_opens_with_its_rows_and_the_esc_menu_closes_it() -> void:
 	assert_bool(ui.map.visible).is_true()
 
 
+func test_the_role_chip_hides_while_the_map_is_open_and_comes_back_after() -> void:
+	# The engineer on #652 (carried to #491): the HUD's role line hides while the map is open, at
+	# once, not at the next refresh_round, and a refresh under the map keeps it hidden.
+	var ui: GameUi = auto_free(GameUi.new())
+	ui.show_screen(GameFlow.Screen.ROUND)
+	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
+	assert_bool(ui.hud.role.visible).is_true()
+	ui.open_map()
+	assert_bool(ui.hud.role.visible).is_false()
+	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
+	assert_bool(ui.hud.role.visible).is_false()
+	ui.close_map()
+	assert_bool(ui.hud.role.visible).is_true()
+
+
 ## Every field of `shown` but the role, as one line.
 func _fields(shown: HudText.Shown) -> String:
 	var parts: Array = [

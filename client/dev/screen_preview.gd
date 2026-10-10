@@ -53,9 +53,21 @@ const FAKE_OWN_HEADING := 0.6
 @export var preview := Preview.MENU
 ## The preview shows the host's view (its settings, Esc's confirmation).
 @export var hosting := true
-## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, Voice, Controls (#211), or the
-## host's Leave or Quit.
+## The Esc menu's tab (Preview.ESC; #169, the Toy menu of #491): Game, Role, Guide, Lobby or
+## Settings; one the screen lacks leaves the tab the menu opens on.
 @export var esc_tab := EscMenuState.Tab.LOBBY
+## Settings' sub-page (esc_tab Settings).
+@export var esc_settings_page := SettingsPage.Page.SOUND
+## The host's question open over the menu (Action.LEAVE or QUIT; the `game-confirm` state).
+@export var esc_question := EscMenuState.Action.NONE
+## The tutorial's menu (`tutorial-game`, #601): Game, Guide and Settings.
+@export var esc_tutorial := false
+## The own role in the round (the Role tab): &"" keeps none, a dissident's team is one teammate.
+@export var esc_role: StringName = &""
+## Settings > Controls with Interact capturing a key (`settings-controls`).
+@export var esc_capture := false
+## The code service closed: the lobby shows its line in place of the code (`lobby-no-code`).
+@export var code_gone := false
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
 ## The Voice tab (M5-6), or the main menu's Voice page (#301), as without the voice addon.
@@ -107,7 +119,7 @@ func _ready() -> void:
 	ui.esc.lobby.set_mode(mode)
 	ui.esc.guide.set_mode(mode)
 	var model := fake_model(mode, hosting)
-	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
+	var code_line := JoinProgress.code_text(PREVIEW_CODE, code_gone)
 	ui.lobby_hud.show_code(code_line)
 	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
 	match preview:
@@ -151,11 +163,23 @@ func _ready() -> void:
 		Preview.ESC:
 			if esc_in_round:
 				fold_round(model, false)
+			if not esc_role.is_empty():
+				model.fold(&"RoleAssigned", {"role": esc_role})
+				var mates := PackedInt32Array([model.own_peer])
+				for peer: int in model.roster:
+					if peer != model.own_peer and mates.size() < 2:
+						mates.append(peer)
+				model.fold(&"Teammates", {"role": esc_role, "peers": mates})
+			ui.set_tutorial(esc_tutorial)
 			ui.show_screen(GameFlow.Screen.ROUND if esc_in_round else GameFlow.Screen.LOBBY)
 			ui.open_esc(hosting, model)
-			if esc_tab != EscMenuState.Tab.RESUME:
-				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
-				ui.esc.press(esc_tab)
+			ui.esc.press(esc_tab)
+			ui.esc.settings.show_page(esc_settings_page)
+			ui.esc.refresh(ui.screen, model, -1, hosting, mode)
+			if esc_question == EscMenuState.Action.LEAVE:
+				ui.esc.press_leave()
+			elif esc_question == EscMenuState.Action.QUIT:
+				ui.esc.press_quit()
 			ui.esc.voice.show_facts(fake_voice(not voice_unavailable))
 			if not guide_card.is_empty():
 				ui.esc.guide.select(guide_card)
@@ -164,6 +188,8 @@ func _ready() -> void:
 				key.physical_keycode = KEY_V
 				ui.esc.controls.controls.bind(&"map", key)
 				ui.esc.controls.refresh()
+			if esc_capture:
+				ui.esc.controls.start_capture(&"interact")
 		Preview.ROUND, Preview.MAP:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)

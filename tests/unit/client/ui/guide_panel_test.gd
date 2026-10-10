@@ -110,7 +110,7 @@ func test_no_mode_lists_the_basics_only() -> void:
 
 
 func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
-	# The greybox Esc menu is dark until #491 restyles it light (the handoff's).
+	# The dark look stays an option (the greybox Esc menu used it before #491 made it light).
 	var guide: GuidePanel = auto_free(GuidePanel.new(ToyHints.DARK))
 	assert_str(String((guide.column.get_node(^"Basics") as Label).theme_type_variation)).is_equal(
 		"ToyTextMutedOnDark"
@@ -121,7 +121,8 @@ func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
 	assert_str(String(light.tasks_label.theme_type_variation)).is_equal("ToyTextMutedOnLight")
 	assert_str(String(light.chips[&"voice"].theme_type_variation)).is_equal("ToyChipToggleOnLight")
 	var ui: GameUi = auto_free(GameUi.new())
-	assert_str(String(ui.esc.guide.context)).is_equal(String(ToyHints.DARK))
+	# The Toy Esc menu (#491) hosts it on its light page.
+	assert_str(String(ui.esc.guide.context)).is_equal(String(ToyHints.LIGHT))
 	await get_tree().process_frame
 
 

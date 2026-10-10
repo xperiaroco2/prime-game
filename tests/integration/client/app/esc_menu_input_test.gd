@@ -58,7 +58,9 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_bool(game.pointer.captured()).is_false()
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
-	assert_array(_visible_buttons(game.ui)).contains(["Resume", "Lobby", "Leave", "Quit", "Ready"])
+	assert_array(_visible_buttons(game.ui)).contains(
+		["esc.tab.game", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "esc.lobby.ready"]
+	)
 	assert_bool(game.ui.esc.lobby.settings_editable()).is_true()
 	# Esc again: closed, the mouse captured again.
 	_press(KEY_ESCAPE)
@@ -69,7 +71,7 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	# Resume closes it the same way.
 	_press(KEY_ESCAPE)
 	await _frames(2)
-	game.ui.esc.tab_buttons[EscMenuState.Tab.RESUME].pressed.emit()
+	game.ui.esc.resume_button.pressed.emit()
 	assert_bool(game.ui.esc_open()).is_false()
 	assert_bool(game.pointer.captured()).is_true()
 	game.leave()
@@ -95,7 +97,9 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
-	assert_array(_visible_buttons(game.ui)).contains(["Resume", "Lobby", "Ready"])
+	assert_array(_visible_buttons(game.ui)).contains(
+		["esc.tab.game", "esc.tab.lobby", "esc.lobby.ready"]
+	)
 	game.leave()
 	await get_tree().process_frame
 
@@ -128,10 +132,10 @@ func test_esc_closes_the_hosts_question_first_and_then_the_menu() -> void:
 	game.pointer.capture(true)
 	_press(KEY_ESCAPE)
 	await _frames(2)
-	game.ui.esc.press(EscMenuState.Tab.LEAVE)
+	game.ui.esc.press_leave()
 	await _frames(1)
 	assert_bool(game.ui.esc.state.asking()).is_true()
-	# One Esc: the question goes, back to the default tab; the menu stays, the mouse free.
+	# One Esc: the question goes, the tab as it was; the menu stays, the mouse free.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
@@ -209,10 +213,11 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	var game := await _lobby_game(PORT + 4)
 	_press(KEY_ESCAPE)
 	await _frames(2)
-	game.ui.esc.press(EscMenuState.Tab.CONTROLS)
+	game.ui.esc.press(EscMenuState.Tab.SETTINGS)
+	game.ui.esc.settings.show_page(SettingsPage.Page.CONTROLS)
 	await _frames(1)
 	var panel := game.ui.esc.controls
-	assert_object(game.ui.esc.page()).is_same(panel)
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.settings)
 	assert_bool(panel.is_visible_in_tree()).is_true()
 	assert_object(panel.controls).is_same(game.controls)
 	panel.key_buttons[&"ready"].pressed.emit()
@@ -221,7 +226,7 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	assert_bool(panel.is_capturing()).is_false()
 	assert_bool(game.ui.esc_open()).is_true()
 	# One Esc, one overlay (#488): the capture's, the tab still Controls.
-	assert_object(game.ui.esc.page()).is_same(panel)
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.settings)
 	assert_str(panel.key_buttons[&"ready"].text).is_equal("F")
 	panel.key_buttons[&"ready"].pressed.emit()
 	_press(KEY_K)

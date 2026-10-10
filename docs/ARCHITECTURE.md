@@ -249,7 +249,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   "Dima 2"; the fallback too, so a player who chose "Player2" never meets a second one), its base cut so the
   whole stays within 16 characters; a leaver's name is free again. A name is never a reason to refuse a
   `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). The name is
-  fixed for the session (a change after joining needs an intent of its own, #491). Still to come (#73): the
+  fixed for the session (a change after joining needs an intent of its own: the Esc menu's Character page, which
+  waits for #73). Still to come (#73): the
   body colour, and a reconnecting player's old number.
   Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
   `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
@@ -2265,7 +2266,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
-  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
+  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.46).
   #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
   failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
 - #214 adds the lobby's name (§3.5) at the top of the Lobby tab: a `LineEdit` (`LobbyPanel.name_edit`, at most
@@ -2291,6 +2292,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
+- Since #491 the menu is the Toy one of §4.7.46: the tabs Game, Role, Guide, Lobby and Settings; the host's
+  question is a dialog.
 
 #### 4.7.12 Built in #168, the follow-up of the one-PC playtest on `release/m4` (PR #167)
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
@@ -2466,7 +2469,7 @@ a follow-up on #144 and #145):
   `esc_menu_state_test.gd`, the own voice line in `debug_overlay_test.gd`,
   `tests/integration/client/app/game_voice_test.gd` (the saved settings applied, the tab's changes saved, a word into
   a client's fake microphone delivered at the host), `input_actions_test.gd`, and the runner's `PRIME_INSTANCE` per
-  window in `tools/runner/tests/test_hostjoin.py`. `shot`: `client/dev/esc_voice_preview.tscn`,
+  window in `tools/runner/tests/test_hostjoin.py`. `shot`: `client/dev/esc_settings_sound_preview.tscn`,
   `debug_overlay_voice_preview.tscn`.
 - Not headless: a real microphone (headless runs open none: the Dummy driver captures nothing), the #22 laptop's
   windowed start with input enabled (the M5 ADR §6), and the one-PC and two-machine listening tests.
@@ -2761,8 +2764,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `THEME_LARGE` (or back) live; a screen with its own theme keeps it, a later one gets `shared_theme()`.
   `UiPrefs.reduced_motion` (a bool) defaults from `DisplayServer.accessibility_should_reduce_animation() == 1`:
   it answers -1 for unknown (Linux, the Steam Deck, headless), which GDScript reads as true; the screen issues
-  read it for the connecting spinner and the fades. Neither is stored yet: Settings > Accessibility (#491) sets and
-  saves both.
+  read it for the connecting spinner and the fades. Settings > Accessibility sets both and `UserSettings` saves
+  them (`large_text`, `reduced_motion`; #491, §4.7.46).
 - **The showcase** (`tools/theme/showcase.gd`, a dev tool): every live variation on its night or cream stage at
   1920x1080 in four pages, shot with `tools\run.cmd shot tools/theme/showcase.tscn --size 1920x1080` and the same for
   `showcase_1.tscn` to `showcase_3.tscn`. A Button row has each state Godot can force: hover through a per-cell theme
@@ -2811,8 +2814,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` ("Hold <key> to
   give up", the raise and spectate keys, through `LifeHud.Local.read_keys()`), `ItemInteractions.hint()`'s pick-up,
   `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind. Known gap until the Toy
-  screens (#491, #497) move these sentences to the deck: they are greybox English in every language (the give-up line
-  too, though the deck has `downed.give_up_hold`: translated alone it would mix the default downed panel), so under
+  screens (#495, #497; #491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
+  they are greybox English in every language (the give-up line too, though the deck has `downed.give_up_hold`: translated alone it would mix the default downed panel), so under
   Ukrainian a mouse button or Space reads in Ukrainian inside one ("ЛКМ and ПКМ: next and previous" by default,
   "Hold Пробіл to give up" or `LobbyHud`'s "Esc: menu · ЛКМ: ready" after a rebind).
 - `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
@@ -2838,9 +2841,10 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   row's key cancels the capture and starts that row's, K then toggles Ready
   and F no longer does; seen failing with the capture not consuming its events) and
   `tests/integration/client/life/life_network_test.gd` (a downed joiner gives up on F held, not on G, and no F in the
-  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_controls_preview.tscn` (the tab with a
+  round readies; seen failing with G bound). The `shot`s: `client/dev/esc_settings_controls_preview.tscn` (the page with a
   same-key clash) and `life_give_up_preview.tscn` (the downed panel's "Hold F to give up", from a real window's
   layout).
+- Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
 
 #### 4.7.29 Built in #257 (M6.2), name plates
 Name plates over the other players' heads, in line of sight within about 10 m for now, with a teammate mark on a
@@ -3189,8 +3193,8 @@ the map's «?», the loading screen, and the Esc menu's Guide. Nothing on the HU
 - **The Guide** (`client/ui/GuidePanel`, s5's `guide`): a Guide tab after Resume in every screen, the lobby
   included (`EscMenuState.Tab.GUIDE`, its label the deck's `esc.tab.guide`); the basics' chips and one chip per task
   type of the mode with a card, one ButtonGroup, the selected chip's card beside them (Delivery first). Its own
-  control, so #491's restyle hosts it; it draws for a light page (the handoff's) or, in today's dark greybox menu, a
-  dark one (`...OnDark` captions and chips).
+  control, so #491's restyle hosts it; it draws for a light page (the handoff's, the Toy Esc menu's since #491) or a
+  dark one (`...OnDark` captions and chips, an option no menu uses now).
 - **In `Game`** (`client/app/GameHowto`): its `howto` progress, the Guide tab's mode, the loading card and the follow, as
   static calls on the `Game`, read at each call (a test's `howto` set after `_ready` is the one used). They left
   `game.gd` when #488's lines and these took it past lint's 1000 (with the debug overlay's feed, `client/app/OverlayFeed`,
@@ -3305,13 +3309,11 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
   and saved; a field left empty keeps the name there was and shows it again on leaving the field. Empty until the
   player chooses one (the host then names them `Player<n>`): the engineer's answer on PR #621, which the handoff's
   "never empty, else the system user name" predates.
-- **The Settings panel.** `settings_page` is the one seam #491's Settings scene (shared with the Esc menu, opened on
-  Sound and voice) replaces: today `_build_settings()` returns the #301 `VoicePanel` in a ToyScroll, in its light
-  look (`VoicePanel.on_light()`: ink labels, the microphone notice too, as the pack has no warning text on light;
-  each check box's words beside it, a click on them toggling it; the logic unchanged, its words still
-  #150's greybox English). `Game` feeds it as before (`shown_voice_panel`, `settings_open()`). It opens at its top:
-  `follow_focus` scrolls to the focused first row before the panel's first sort, with the old sizes (290 px down
-  under large text), so the menu scrolls it back once the focus has landed.
+- **The Settings panel.** `settings_page` is #491's `SettingsPage` (§4.7.46), the same scene as the Esc menu's
+  Settings tab, opened on Sound and voice; its `VoicePanel` keeps #301's logic. `Game` feeds it as before
+  (`shown_voice_panel`, `settings_open()`). It opens at its top: `follow_focus` scrolls to the focused first row
+  before the panel's first sort, with the old sizes (290 px down under large text), so the menu scrolls it back once
+  the focus has landed.
 - **No reason line.** The handoff draws none: a failure shows on the connecting screen (§4.7.32); the words of the
   last end, or of a problem with a command-line target, are printed and kept in `Game.last_words`.
 - **Version.** `menu.version` with `application/config/version`; hidden while `project.godot` names no version.
@@ -3414,6 +3416,60 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   `map_card_uk_preview`), and `map_large_uk_preview.tscn` (`zone` at large text); `screen_preview.gd`'s fake house
   follows the handoff's sample rooms. The playcheck scenario `map` focuses a «?» with Down, opens its card with
   Enter and closes only the card with Esc.
+
+#### 4.7.46 Built in #491 (M6.2), the Esc menu in the Toy style
+- Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
+  `Dim`, the raised 1600x880 `Menu` with the `Tabs` column (ToyTab toggles in one ButtonGroup) and the `Page`, whose
+  title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
+  `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
+  round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
+  (`GameUi.set_tutorial(on)`, the hook the tutorial's issues #601 and #602 call at its start and end; not wired
+  yet); the default tab Lobby in the lobby and Game elsewhere; the last tab pressed is kept for the next opening on
+  the same kind of screen (lobby or other). Character waits for #73 (M7): no tab, no placeholder.
+- Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
+  ToyButtonSecondary, "Leave the tutorial" there) and Quit. The host's Leave and Quit open `ConfirmDim` and `Confirm`
+  (P1): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
+  close), Cancel has the focus, and Esc closes only the dialog through `GameUi`'s `esc_dialog` overlay (§4.7.35), not
+  an `_input` of its own; Cancel gives the focus back to the button that asked. Closing the window asks the same, but
+  in the tutorial (a solo session its player hosts), which quits at once.
+- Role (`RolePage`, the pure `RoleFacts`): the own role (HudText's key), its goal (`role.goal.*`) and, for a role
+  whose `Teammates` the own client holds, the team in join order without the own player or a player who left, in a
+  two-column ToyGridList scrolling in a 250 px view. It reads only `model.role`, `model.teammates[model.role]`,
+  `own_peer` and the roster's names (per-peer filtering decides what the model holds). The HUD's role chip hides
+  while the map is open (`Hud.role_hidden`, the engineer on #652).
+- Lobby (`LobbyPanel`, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
+  No knives, the own preset and Save your own; the values are placeholders, "not a decision"), a 784 px
+  `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
+  arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
+  allowed; a number with one allowed value hides) and `Side` (the code keycap with Copy, or `esc.lobby.code_gone`;
+  the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
+  change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
+  ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
+  `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
+  name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
+- Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
+  chips (Sound and voice, Controls, Display, Accessibility, Language) over a `follow_focus` scroll of 64 px
+  ToySettingRows (`SettingRows`: the row, the ToyDropdown with its ToyDropdownList, the ToySlider, the chip groups).
+  `VoicePanel` and `ControlsPanel` keep their logic and signals in the new rows (the sliders keep the engine's units,
+  no number is drawn; the echo, headset and notice lines and the debug rows stay, in greybox English).
+  `client/app/GameSettings` (out of `game.gd`) binds both pages to the player's `UserSettings` (new: `large_text`,
+  `reduced_motion` -1/0/1, `window_mode`), `Controls` and `GameWindow`, applies and saves each pick (large text
+  through `GameUi.set_large_text`, reduced motion through `UiPrefs`, the language through `Languages.choose`), keeps
+  Alt+Enter and the window chips in step, and keeps the talk key shut while either page captures a key. A page reads
+  its values again whenever it shows; the saved window mode applies only with the command line read.
+- Tests: `esc_menu_states_test.gd` (the 15 states the menu builds against the handoff's own lists: the lobby-host
+  tree, each state's Hidden list, Shown roots, pressed tab, title and Settings chip, its paths mapped onto the
+  built tree; no deck key shown as itself in en or uk; seen failing with a planted fault in each), `esc_menu_state_test.gd`,
+  `screens_test.gd` (the tree by name and variation, the host's question, its focus and the menu shut behind it,
+  the tutorial, the Lobby tab in the round), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
+  closes only the dialog), `role_page_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
+  with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
+  `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` for every
+  state of the handoff but Character (`lobby`, `lobby_guest`, `lobby_no_code`, `game_host`, `game_guest`,
+  `game_confirm`, `role_engineer`, `role_dissident`, `guide`, `guide_basics`, `settings_sound`, `settings_controls`,
+  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
+  the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
+  The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

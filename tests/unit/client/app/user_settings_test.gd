@@ -191,3 +191,25 @@ func test_each_window_has_its_own_file() -> void:
 	var own := UserSettings.for_this_window()
 	var expected := UserSettings.file_name(OS.get_environment(UserSettings.INSTANCE_ENV))
 	assert_str(own.path).is_equal("user://" + expected)
+
+
+func test_large_text_reduced_motion_and_the_window_mode_round_trip() -> void:
+	# Settings > Display and Accessibility (#491): saved per player; unset before a choice.
+	var settings := UserSettings.new(PATH)
+	assert_bool(settings.large_text).is_false()
+	assert_int(settings.reduced_motion).is_equal(-1)
+	assert_str(settings.window_mode).is_empty()
+	settings.large_text = true
+	settings.reduced_motion = 0
+	settings.window_mode = UserSettings.WINDOW_WINDOWED
+	assert_int(settings.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_bool(back.large_text).is_true()
+	assert_int(back.reduced_motion).is_equal(0)
+	assert_str(back.window_mode).is_equal(UserSettings.WINDOW_WINDOWED)
+	# A hand-edited value out of place reads as unset.
+	back.reduced_motion = 7
+	back.window_mode = "borderless"
+	assert_int(back.reduced_motion).is_equal(-1)
+	assert_str(back.window_mode).is_empty()

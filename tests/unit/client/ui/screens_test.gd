@@ -15,10 +15,10 @@ func test_the_roster_names_the_host_the_own_player_and_who_is_ready() -> void:
 
 
 func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them() -> void:
-	# #169: everyone sees the settings in the Esc menu's Lobby tab; only the host changes them.
+	# #169: everyone sees the settings in the Esc menu's Lobby tab; only the host changes them
+	# (#491: the host's steppers and preset cards; a player's values and "Preset: …").
 	var mode := load(MODE) as GameMode
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
-	# A Range emits value_changed only inside the tree.
 	add_child(panel)
 	panel.set_mode(mode)
 	var sent: Array = []
@@ -28,21 +28,29 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	panel.refresh(Preview.fake_model(mode, false), -1, false)
 	assert_bool(panel.settings_box.visible).is_true()
 	assert_bool(panel.settings_editable()).is_false()
-	assert_bool(panel.read_only_label.visible).is_true()
+	assert_bool(panel.presets.visible).is_false()
+	assert_bool(panel.preset_label.visible).is_true()
 	panel.refresh(Preview.fake_model(mode, true), -1, true)
 	assert_bool(panel.settings_box.visible).is_true()
 	assert_bool(panel.settings_editable()).is_true()
-	assert_bool(panel.read_only_label.visible).is_false()
+	assert_bool(panel.presets.visible).is_true()
+	assert_bool(panel.preset_label.visible).is_false()
 	assert_str(panel.shortfalls_label.text).contains("4 to 10")
-	assert_str(panel.countdown_label.text).is_equal("Waiting for everyone")
-	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
-	assert_int(boxes.size()).is_equal(5)
-	(boxes[0] as SpinBox).value = 3
-	assert_array(sent).is_equal([[&"match_duration", 3]])
+	assert_str(LobbyPanel.countdown_text(Preview.fake_model(mode, true), -1)).is_equal(
+		"Waiting for everyone"
+	)
+	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
+	assert_int(steppers.size()).is_equal(5)
+	# The task count is fixed (1 to 1): its row hides, nothing to choose.
+	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_false()
+	var duration := steppers[0] as SettingStepper
+	var spec := mode.find_setting(&"match_duration")
+	duration.less.pressed.emit()
+	assert_array(sent).is_equal([[&"match_duration", spec.default_value - 1]])
 
 
 func test_a_read_only_lobby_tab_sends_no_setting() -> void:
-	# A guest's read-only control that still changes (a SpinBox's arrows or wheel) sends nothing.
+	# A player's read-only controls that still change (a stepper's arrow, a task chip) send nothing.
 	var mode := load(MODE) as GameMode
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
@@ -51,12 +59,17 @@ func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 	panel.setting_changed.connect(
 		func(id: StringName, value: Variant) -> void: sent.append([id, value])
 	)
+	panel.settings_changed.connect(func(values: Dictionary) -> void: sent.append(values))
 	panel.refresh(Preview.fake_model(mode, false), -1, false)
-	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
-	(boxes[0] as SpinBox).value = 3
-	var checks := panel.settings_box.find_children("*", "CheckBox", true, false)
-	assert_bool(checks.is_empty()).is_false()
-	(checks[0] as CheckBox).button_pressed = not (checks[0] as CheckBox).button_pressed
+	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
+	var first := steppers[0] as SettingStepper
+	assert_bool(first.less.visible or first.more.visible).is_false()
+	first.less.pressed.emit()
+	var chips := panel.settings_box.find_children("Allowed", "HBoxContainer", true, false)
+	assert_bool(chips.is_empty()).is_false()
+	assert_bool((chips[0] as Control).visible).is_false()
+	((chips[0] as Node).get_child(0) as Button).pressed.emit()
+	panel.cards[LobbyPresets.QUICK].pressed.emit()
 	assert_array(sent).is_empty()
 
 
@@ -95,10 +108,12 @@ func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_lis
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
 	panel.set_mode(mode)
-	var name_row := panel.name_edit.get_parent()
-	var map_row := panel.map_picker.get_parent()
-	assert_object(name_row.get_parent()).is_same(panel)
-	assert_object(map_row.get_parent()).is_same(panel)
+	# #491: both are 64 px rows of SettingList (H, then the row), side by side down the list.
+	var name_row := panel.name_edit.get_parent().get_parent()
+	var map_row := panel.map_picker.get_parent().get_parent()
+	var list := panel.get_node(^"Body/SettingList")
+	assert_object(name_row.get_parent()).is_same(list)
+	assert_object(map_row.get_parent()).is_same(list)
 	assert_int(map_row.get_index()).is_equal(name_row.get_index() + 1)
 	assert_bool(panel.settings_box.is_ancestor_of(panel.map_picker)).is_false()
 	var one := mode.duplicate() as GameMode
@@ -139,15 +154,34 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool(menu.visible).is_true()
 	assert_object(menu.page()).is_same(menu.lobby)
 	assert_bool(menu.lobby.is_visible_in_tree()).is_true()
-	assert_bool(menu.confirm_box.visible or menu.resume_page.visible).is_false()
+	assert_bool(menu.confirm_box.visible or menu.actions.visible).is_false()
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].button_pressed).is_true()
 	assert_bool(menu.lobby.settings_editable()).is_true()
-	# The round starts under the open menu: no Lobby tab, the Resume page.
+	assert_str(menu.title_label.text).is_equal("esc.tab.lobby")
+	assert_bool(menu.host_note.visible).is_true()
+	assert_bool(menu.host_only.visible).is_false()
+	var marks := menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
+	assert_bool((marks[0] as Control).visible).is_true()
+	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_true()
+	# The round starts under the open menu: the Lobby tab stays, read-only for everyone (#491:
+	# "Lobby, a player (and everyone in a round)"): the host-only line, no host note, no Ready,
+	# no ready marks.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
+	assert_object(menu.page()).is_same(menu.lobby)
+	assert_bool(menu.lobby.settings_editable()).is_false()
+	assert_bool(menu.host_note.visible).is_false()
+	assert_bool(menu.host_only.visible).is_true()
+	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_false()
+	marks = menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
+	for mark: Node in marks:
+		assert_bool((mark as Control).visible).is_false()
+	# The end screen has no Lobby tab: the Game page.
+	menu.refresh(GameFlow.Screen.END, model, -1, true)
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
-	assert_object(menu.page()).is_same(menu.resume_page)
+	assert_object(menu.page()).is_same(menu.actions)
 	assert_bool(menu.lobby.visible).is_false()
+	assert_str(menu.title_label.text).is_equal("esc.tab.game")
 
 
 func test_the_pregame_screen_shows_the_own_role_and_no_word_on_the_microphone() -> void:
@@ -199,7 +233,7 @@ func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn
 	ui.close_esc()
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.open_esc(false)
-	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.RESUME)
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.GAME)
 
 
 func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
@@ -210,16 +244,21 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	menu.leave_requested.connect(func() -> void: said.append("leave"))
 	menu.quit_requested.connect(func() -> void: said.append("quit"))
 	menu.open(GameFlow.Screen.ROUND, null, false)
-	menu.tab_buttons[EscMenuState.Tab.LEAVE].pressed.emit()
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
+	menu.leave_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
+	assert_bool(menu.confirm_box.visible).is_false()
 	menu.open(GameFlow.Screen.ROUND, null, true)
-	menu.tab_buttons[EscMenuState.Tab.QUIT].pressed.emit()
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonDanger")
+	menu.quit_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
-	assert_object(menu.page()).is_same(menu.confirm_box)
-	assert_str(menu.confirm_label.text).is_equal("Quit, and end the session for every player?")
+	assert_bool(menu.confirm_box.visible and menu.confirm_dim.visible).is_true()
+	assert_str(menu.confirm_title.text).is_equal("esc.game.quit_confirm")
+	assert_str(menu.confirm_button.text).is_equal("esc.game.quit")
 	menu.confirm()
 	assert_array(said).is_equal(["leave", "quit"])
-	menu.tab_buttons[EscMenuState.Tab.RESUME].pressed.emit()
+	assert_bool(menu.confirm_box.visible).is_false()
+	menu.resume_button.pressed.emit()
 	assert_array(said).is_equal(["leave", "quit", "resume"])
 	assert_bool(menu.visible).is_false()
 
@@ -231,3 +270,108 @@ func _assert_pregame_names(screen: PregameScreen, words: Array) -> void:
 		var shown := (label.text + " " + tr(label.text)).to_lower()
 		for word: String in words:
 			assert_str(shown).override_failure_message("%s: %s" % [word, shown]).not_contains(word)
+
+
+func test_the_confirm_dialog_takes_the_focus_and_shuts_the_menu_behind_it() -> void:
+	# #491: while the host's question is open, focus cannot reach the menu behind (Menu's
+	# focus_behavior_recursive), Cancel has it; closing restores both.
+	var menu: EscMenu = auto_free(EscMenu.new())
+	add_child(menu)
+	menu.open(GameFlow.Screen.ROUND, null, true)
+	await get_tree().process_frame
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.resume_button)
+	menu.leave_button.pressed.emit()
+	await get_tree().process_frame
+	assert_str(menu.confirm_title.text).is_equal("esc.game.leave_confirm")
+	assert_int(menu.menu.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_DISABLED)
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.cancel_button)
+	menu.cancel_button.pressed.emit()
+	assert_bool(menu.confirm_box.visible).is_false()
+	assert_bool(menu.is_open()).is_true()
+	assert_int(menu.menu.focus_behavior_recursive).is_equal(Control.FOCUS_BEHAVIOR_INHERITED)
+	assert_object(get_viewport().gui_get_focus_owner()).is_same(menu.leave_button)
+
+
+func test_the_tutorials_menu_leaves_the_tutorial_at_once() -> void:
+	var menu: EscMenu = auto_free(EscMenu.new())
+	add_child(menu)
+	menu.state.tutorial = true
+	var said: Array[String] = []
+	menu.leave_requested.connect(func() -> void: said.append("leave"))
+	menu.open(GameFlow.Screen.ROUND, null, true)
+	assert_bool(menu.tab_buttons[EscMenuState.Tab.ROLE].visible).is_false()
+	assert_str(menu.leave_button.text).is_equal("esc.game.leave_tutorial")
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
+	menu.leave_button.pressed.emit()
+	assert_array(said).is_equal(["leave"])
+	assert_bool(menu.confirm_box.visible).is_false()
+
+
+func test_the_esc_menu_is_built_as_the_handoff_names_it() -> void:
+	# #491: prime-game-ui's s05 at ui-0.4.0, node for node (the differences are in the PR).
+	var menu: EscMenu = auto_free(EscMenu.new())
+	var paths: Dictionary[String, String] = {
+		"Dim": "ToyBackdropDeep",
+		"MenuRaised/Menu": "ToyPanelMenu",
+		"MenuRaised/Menu/H": "ToyRowTwentyFour",
+		"MenuRaised/Menu/H/Tabs": "ToyColumnEight",
+		"MenuRaised/Menu/H/Tabs/Game": "ToyTab",
+		"MenuRaised/Menu/H/Page": "ToyColumnSixteen",
+		"MenuRaised/Menu/H/Page/TitleRow/Title": "ToyTitleOnLight",
+		"MenuRaised/Menu/H/Page/TitleRow/HostNote": "ToyTextMutedOnLight",
+		"MenuRaised/Menu/H/Page/TitleRow/HostOnly": "ToyRowEight",
+		"MenuRaised/Menu/H/Page/Actions": "ToyColumnSixteen",
+		"MenuRaised/Menu/H/Page/Actions/ResumeRaised/Resume": "ToyButtonPrimary",
+		"MenuRaised/Menu/H/Page/Actions/Quit": "ToyButtonGhostOnLight",
+		"MenuRaised/Menu/H/Page/Role/Team/Scroll/Grid": "ToyGridList",
+		"MenuRaised/Menu/H/Page/Settings/Sub/Sound": "ToyChipToggleOnLight",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Sound/Mic": "ToySettingRow",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Bind": "ToyKeyButton",
+		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Same": "ToyChipAlert",
+		"ConfirmDim": "ToyBackdrop",
+		"ConfirmRaised/Confirm": "ToyPanelDialog",
+		"ConfirmRaised/Confirm/V/Buttons/ConfirmButtonRaised/ConfirmButton": "ToyButtonDanger",
+		"ConfirmRaised/Confirm/V/Buttons/Cancel": "ToyButtonGhostOnLight",
+	}
+	for path: String in paths:
+		var node := menu.get_node_or_null(NodePath(path)) as Control
+		assert_object(node).override_failure_message(path).is_not_null()
+		var variation := String(node.theme_type_variation)
+		assert_str(variation).override_failure_message(path).starts_with(paths[path])
+	assert_vector(menu.menu.custom_minimum_size).is_equal(EscMenu.MENU_SIZE)
+	(
+		assert_vector((menu.get_node(^"MenuRaised/Menu/H/Tabs") as Control).custom_minimum_size)
+		. is_equal(Vector2(288, 0))
+	)
+	assert_vector(menu.role.scroll.custom_minimum_size).is_equal(Vector2(0, 250))
+
+
+func test_the_lobby_tab_shows_the_code_to_whoever_knows_it_and_the_service_gone_in_its_place(
+) -> void:
+	# #491 (s05 lobby-host, lobby-no-code): the keycap and Copy with a code; the code service's
+	# absence instead when it closed (even with the old code still known); neither for Direct.
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	panel.show_code(JoinProgress.code_text("K7M2QX", false), "K7M2QX")
+	assert_bool(panel.code_row.visible).is_true()
+	assert_bool(panel.code_gone.visible).is_false()
+	assert_str(panel.code_label.text).is_equal("K7M2QX")
+	panel.show_code(JoinProgress.code_text("K7M2QX", true), "K7M2QX")
+	assert_bool(panel.code_row.visible).is_false()
+	assert_bool(panel.code_gone.visible).is_true()
+	panel.show_code("", "")
+	assert_bool(panel.code_row.visible or panel.code_gone.visible).is_false()
+
+
+func test_a_later_copy_press_keeps_copied_showing_for_its_own_full_time() -> void:
+	# The first press's timer firing must not end the second press's "Copied" early.
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.show_code(JoinProgress.code_text("K7M2QX", false), "K7M2QX")
+	panel.copy_button.pressed.emit()
+	var first := panel._copied_timer
+	panel.copy_button.pressed.emit()
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copied")
+	panel._end_copied(first)
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copied")
+	panel._end_copied(panel._copied_timer)
+	assert_str(panel.copy_button.text).is_equal("esc.lobby.copy")

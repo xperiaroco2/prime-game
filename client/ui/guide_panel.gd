@@ -6,7 +6,8 @@ extends HBoxContainer
 ## type of the mode with a card), one ButtonGroup over every chip; right, the selected chip's card
 ## (HowtoCardView, 160x120 art), titled with the chip's text. Its own control, so the Esc menu's
 ## restyle (#491) hosts it as it is. Drawn for a light page (the handoff's ToyPanelMenu: the
-## ...OnLight captions and chips) or, in the greybox Esc menu until #491, a dark one (...OnDark).
+## ...OnLight captions and chips; the Toy Esc menu since #491) or a dark one (...OnDark, an
+## option no menu uses now).
 
 ## The list's width (the handoff's: the longest chip at large text), in pixels (layout).
 const LIST_WIDTH := 332.0
