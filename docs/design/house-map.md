@@ -189,7 +189,8 @@ use spot, and still out of reach of the car (the [car repair ADR](../decisions/2
 5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
 (issue R5). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
 (later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
-player having a crouch (#727).
+player having a crouch (#727). He approved the car repair for the MVP only (PR #709, comment 6100556321): a much
+more interesting mechanic will replace it later. It plays on the House only, never on the greybox (#767).
 
 ## 7. Routes and travel times
 
