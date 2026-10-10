@@ -367,9 +367,10 @@ DD1 to DD8 (§5) are answered. Left for him:
   otherwise.
 
 ## Consequences
-- The MVP rules ADR records the engineer's change (its Deciders line, the Delivery bullet, the rows "Delivery circles
-  per match" and "Distinct circle colours"), each pointing here. When this ADR is accepted its Status says so, and the
-  issue that builds a rule here updates the line of the MVP rules it replaces.
+- The MVP rules ADR records the engineer's change (its Deciders line, the Delivery bullet, the settings' demand, the
+  HUD's destination, the rows "Delivery circles per match" and "Distinct circle colours"), each pointing here. When
+  this ADR is accepted its Status says so, and the issue that builds a rule here updates the line of the MVP rules it
+  replaces.
 - The M4 client design records DD4 (a) at its D10 (b) and its render checklist's item 5: once D3a lands, nothing in
   the client is drawn through walls, and a new marker through walls is a design change, not an exception to cite.
 - ARCHITECTURE §9.5.4 points here, §9.8 gains the row "Delivery by meaning" and §10 its last question (DD9); GDD §8
