@@ -46,7 +46,7 @@ export const meta = {
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -238,7 +238,11 @@ const SERIOUS = /blocker|major/i
 // same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
 // compares the two. It names no value of this run, so it is the same in every prompt.
 const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main\'s copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.'
-const RULES = [
+const GODOT_RULE = VISUAL
+  ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
+  : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).'
+const GAME_RULE = '- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".'
+const RULE_LINES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'} through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; the manager already ran \`start\`, never run it again). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\` (PowerShell), and use absolute paths under ${WT} for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close or reopen an issue (humans close issues), edit the body of #${PLAN}, \`gh pr merge\`.`,
@@ -253,18 +257,24 @@ const RULES = [
   '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.',
   '- Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.',
   '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
-  VISUAL
-    ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
-    : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).',
+  GODOT_RULE,
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
   READ_RULE,
   '- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).',
-  '- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".',
+  GAME_RULE,
   '- Files in content/ and levels/ are provisional under docs/decisions/2026-09-29-mvp-content-built-by-the-engineer.md: the engineer approves them in the PR; the PR says so and names them.',
   '- The engineer\'s answers in issue and PR comments override older text, including these notes.',
   '- Commits: small Conventional Commits, one logical change each, message from a file (`git commit -F`), each ending with the attribution line your system reminder gives for commits; a PR body ends with the line it gives for pull requests.',
   A.decisions ? `- The engineer's standing decisions for this work:\n${A.decisions}` : '',
-].filter(Boolean).join('\n')
+].filter(Boolean)
+const RULES = RULE_LINES.join('\n')
+// #696: the publisher's preamble leaves out lines it never uses (about 1.5k characters; its median launch prompt was
+// 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it; lean must change only
+// the agent type, so a lean-off publisher goes without it too, and lean off is only a resume of a pre-#458 run), no Godot windows unless the run is visual (it runs check, publish and
+// CI, nothing that opens one; a visual publisher may rerun playcheck, so it keeps the line) and the game-rule line
+// (it fixes review findings, and the implementer's needs_engineer reaches it in full).
+const PUB_DROPS = [READ_RULE, GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
+const PUB_RULES = RULE_LINES.filter(l => !PUB_DROPS.includes(l)).join('\n')
 
 // #470: the implementer's summary is capped (3,552 characters on average in the token audit of 2026-10-06, written
 // once and read by every later agent): a few lines on what changed and why; the why of each choice goes in decisions.
@@ -496,8 +506,8 @@ const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && 
 // characters at the median of 26 reviewers since 2026-10-05, 7.9k to 9.3k a run in the token audit of 2026-10-06):
 // its summary, whether it is complete and what it left on purpose (else a reviewer reports each deferred acceptance
 // criterion as a blocker), the changed paths, the content it marked provisional, and each decision and item for the
-// engineer cut to a line. They review the diff; the publisher still gets the whole report (the PR and the handoff
-// carry its rationale, what is left, the verify tail).
+// engineer cut to a line. They review the diff; the publisher gets the report but its commits, changed paths and
+// verify tail (pubReport, #696).
 const clip = (s, max) => {
   const t = s === undefined || s === null ? '' : String(s).trim()
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
@@ -512,6 +522,18 @@ const digest = r => ({
   ...(items(r.left).length ? { left: lines(items(r.left)) } : {}),
 })
 const REPORT = 'The implementer\'s report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change):'
+// #696: the publisher's copies, cut where it has the text another way (its median launch prompt was 28.8k characters
+// in #470's table). The report keeps its summary, decisions, left, needs_engineer, proposed_issues, provisional content
+// and playcheck whole (the PR and the handoff carry them); its commits, changed paths and verify tail come from `git
+// log`, `git diff --name-only` and the publisher's own publish (about 1.7k at the median). Each review finding keeps
+// its severity, file, line and problem, and its fix only on a blocker or major (the findings it must fix); the
+// reviewers' verdicts stay with them (1.5k to 2k).
+const PUB_REPORT_DROPS = ['commits', 'changed_paths', 'verify_tail']
+const pubReport = r => Object.fromEntries(Object.entries(r).filter(([k]) => !PUB_REPORT_DROPS.includes(k)))
+const pubReviews = rs => rs.map(r => ({
+  reviewer: r.reviewer,
+  findings: (r.findings || []).map(f => pick(f, ['severity', 'file', 'line', 'problem', ...(SERIOUS.test(f.severity) ? ['fix'] : [])])),
+}))
 
 // #469: a plan over PLAN_MAX characters of JSON is cut before the critique and the implementer read it (the whole plan
 // is the agent's comment on the issue): the summary to its cap, each list item and each file_map fact to a line, then
@@ -900,7 +922,7 @@ const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's ver
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
-    RULES,
+    PUB_RULES,
     `Task: report a stopped run of issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 30 tool calls.`,
     `The test review (test_review) reported: ${JSON.stringify(testReview)}`,
     `${MUTANTS_STOP} Check \`git status\` in the worktree first: it must show no planted fault.`,
@@ -909,11 +931,11 @@ const pub = stoppedByMutants
     'Return the structured result.',
   ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
   : await agent([
-    RULES,
+    PUB_RULES,
     `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${FULL_PUB_EFFORT}. Budget: at most about 150 tool calls.`,
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
-    `The implementer reported: ${JSON.stringify(impl)}`,
-    `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
+    `The implementer reported (its commits, changed paths and verify tail left out: \`git log\`, \`git diff --name-only\` and your \`publish\` give them): ${JSON.stringify(pubReport(impl))}`,
+    `Fresh reviewers found (each finding's fix only on a blocker or major): ${JSON.stringify(pubReviews(reviews))}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. After the fixes, run the tests they touch and \`tools\\run.cmd check\`, then publish (below) with no standalone \`verify\` before it: \`publish\` verifies, unless an identical tree was just verified green, and a red verify inside it pushes nothing. Red: fix and publish again (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
     TIER_LINE,
     AB_REVIEW ? 'Two code reviewers reviewed the same diff (ab_review, #535: an A/B of their models; the first two results above): a finding both raised is one finding, fixed once and one row in the PR\'s findings table.' : '',
     planned ? `The plan's summary and its critique (plan_review; the whole plan is the plan agent's comment on the issue, plan_comment, and stays in the run's journal): ${JSON.stringify({ plan_summary: planned.plan.summary, ...(planned.plan.comment_url ? { plan_comment: planned.plan.comment_url } : {}), critique: planned.critique })}\n\nIn the PR, under "Plan review": the plan in a few lines (from its summary) with a link to its comment, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
@@ -933,7 +955,7 @@ const pub = stoppedByMutants
       'Then, in this order (the definition of done; the reviews above were its review step):',
       '- Docs: durable knowledge that the change or your fixes alter goes into the doc that owns it (docs/ARCHITECTURE.md, docs/AGENT_WORKFLOW.md, an area CLAUDE.md, an ADR) on this branch. A human\'s correction of how the agents work that the notes or the issue\'s comments record: a docs/interventions/ entry by .claude/skills/log-intervention/SKILL.md (read it only then). A third-party asset: docs/credits/<asset>.md, then `tools\\run.cmd credits`. Commit these too.',
       `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, the tests the conflicts touched and \`check\`), then publish again (it verifies the new tree)${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}. If it stops on remote commits the branch never had, or with "cannot confirm that the parent … was merged", push nothing by hand: return published false with what it said, and the engineer's check under human_steps.`,
-      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md (if \`gh pr view ${A.branch}\` already finds a PR for the branch, update its body with \`gh pr edit <pr> --body-file <file>\` instead of creating a second one): \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, for a change in the content area (content/ levels/ docs/GDD.md docs/design/ and the skills .claude/skills/new-mechanic/ and .claude/skills/new-level-piece/), the engineer's word it was made on, with its link, and the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, with no tag (docs/AGENT_WORKFLOW.md §9; the "Approved by the engineer: <link>" line that lets the gate merge it is the manager's, once he approves); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md (if \`gh pr view ${A.branch}\` already finds a PR for the branch, update its body with \`gh pr edit <pr> --body-file <file>\` instead of creating a second one): \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary and the why, from the implementer's summary and decisions (not rebuilt from \`git log\`); the verification commands and the verify tail (from your \`publish\`; when it skipped verify on an identical tree, the "verify summary" block at the end of tools/out/logs/verify-output.log); screenshots "none" unless visual; docs updated; under Cross-area, for a change in the content area (content/ levels/ docs/GDD.md docs/design/ and the skills .claude/skills/new-mechanic/ and .claude/skills/new-level-piece/), the engineer's word it was made on, with its link, and the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, with no tag (docs/AGENT_WORKFLOW.md §9; the "Approved by the engineer: <link>" line that lets the gate merge it is the manager's, once he approves); the other owner's paths (.github/CODEOWNERS) also get \`--reviewer <their handle>\`; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
       `- \`gh pr checks <pr> --watch\`: CI's full suite is the test gate (the local verify ran lint and check only), so watch it to the end. Red: fix, run the touched tests and \`check\`, publish again (it verifies); at most two rounds, then report what is still red.`,
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
