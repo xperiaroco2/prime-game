@@ -848,7 +848,7 @@ func _refresh_join() -> void:
 	elif _target != null and _target.is_code():
 		code = _target.code
 	var line := JoinProgress.code_text(code, _room != null and _room.gone(), _room != null)
-	ui.lobby_hud.show_code(line)
+	ui.lobby_hud.show_code(code, _room != null and _room.gone(), _room != null)
 	ui.esc.lobby.show_code(line, code)
 
 
@@ -900,7 +900,7 @@ func _setup_voice() -> void:
 ## keys are typing, nor after it, until the talk key has been let go once (a V that ended a typing
 ## or bound a key is still held, and must not key the microphone); an open Voice panel (the Esc
 ## menu's tab, or the main menu's page with no session, #301) shows the settings and the
-## microphone's level (the device list read again as it opens); the lobby's hint.
+## microphone's level (the device list read again as it opens); the lobby's hint and mic (#495).
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
 	var typing := _typing()
@@ -916,6 +916,7 @@ func _refresh_voice() -> void:
 	if panel != null:
 		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+	ui.lobby_hud.show_mic(_sender.live())
 
 
 ## A text field has the focus (the Lobby tab's name, #214) or Settings > Controls captures a key:

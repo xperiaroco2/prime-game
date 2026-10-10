@@ -47,12 +47,14 @@ func after_test() -> void:
 func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab() -> void:
 	var game := await _lobby_game(PORT)
 	# Walking in the lobby with the mouse captured (a click): nothing clickable covers the game,
-	# only the keys' hint and the roster.
+	# only the lobby HUD, with no key prompt (#495): the own row "You" with no check, "Ready: no".
 	game.pointer.capture(true)
 	assert_array(_visible_buttons(game.ui)).is_empty()
 	assert_bool(game.ui.lobby_hud.is_visible_in_tree()).is_true()
-	assert_str(game.ui.lobby_hud.hint_label.text).is_equal("Esc: menu  ·  F: ready")
-	assert_str(game.ui.lobby_hud.roster_label.text).contains("(host, you)  not ready")
+	assert_array(game.ui.lobby_hud.row_texts()).is_equal(PackedStringArray(["You"]))
+	assert_array(game.ui.lobby_hud.row_checks()).is_equal([false])
+	var chip := game.ui.lobby_hud.ready_label
+	assert_str(chip.atr(chip.text)).is_equal("Ready: no")
 	# One Esc: the menu on its Lobby tab (Ready and the host's settings), the mouse free.
 	_press(KEY_ESCAPE)
 	await _frames(2)
@@ -250,16 +252,19 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await _frames(2)
 	assert_bool(panel.is_capturing()).is_false()
 	assert_str(back.text).is_equal("S")
-	# The menu closes on Esc as before; the lobby's hint names the new key.
+	# The menu closes on Esc as before; F readies nobody now, the new key does, and the lobby HUD's
+	# chip and the own row's check follow (#495: no key prompt to name it).
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_false()
-	assert_str(game.ui.lobby_hud.hint_label.text).is_equal("Esc: menu  ·  K: ready")
 	_press(KEY_F)
 	await _until(_ready_flag_is.bind(game, true), 20)
 	assert_bool(_own_ready(game)).is_false()
 	_press(KEY_K)
 	assert_bool(await _until(_ready_flag_is.bind(game, true))).is_true()
+	await _frames(2)
+	assert_str(game.ui.lobby_hud.ready_label.text).is_equal("lobby.ready_yes")
+	assert_array(game.ui.lobby_hud.row_checks()).is_equal([true])
 	game.leave()
 	await get_tree().process_frame
 

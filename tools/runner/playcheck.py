@@ -136,8 +136,9 @@ ACTIONS = ("press", "hold", "release")
 # the time, the bars' values as "0.80", the mic as on or off, the slots' item names, the name under the crosshair, the
 # raise bar's value, the crosshair), the LifeScreen (#497: the downed title, the time left, the bleed-out, raise and
 # give-up hold bars' values, the give-up line as drawn, the respawn time, "Watching: <name>", the protection chip),
-# the LobbyHud, the PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", and the kind
-# of the item in the FirstPersonHand under the current camera.
+# the LobbyHud (#495: the status, the rows as "<name> ready" or "<name> not ready", the ready chip), the
+# PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", and the kind of the item in the
+# FirstPersonHand under the current camera.
 FIELDS = (
     "hud.role",
     "hud.clock",
@@ -158,9 +159,9 @@ FIELDS = (
     "life.respawn",
     "life.watching",
     "life.protected",
-    "lobby.hint",
+    "lobby.status",
     "lobby.roster",
-    "lobby.countdown",
+    "lobby.ready",
     "pregame.role",
     "end.winner",
     "end.countdown",

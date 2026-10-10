@@ -1,7 +1,7 @@
 class_name GameUi
 extends CanvasLayer
 ## The `Ui` layer of the game (ARCHITECTURE §4.7): one screen at a time as GameFlow says, and Esc's
-## menu over it; in the lobby the lobby HUD (the keys' hint, the roster), whose Ready and settings
+## menu over it; in the lobby the lobby HUD (#495: status, players), whose Ready and settings
 ## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the map and tasks screen while
 ## it is open (#253: the game toggles it on the `map` action; one place holds whether it is open,
 ## and the Esc menu and every screen but the round close it); under them, in the lobby and the
@@ -40,7 +40,7 @@ var menu := MainMenu.new()
 ## The black screen of a join, its failure and the map loading (#494): Connecting, Failure and
 ## Loading show it, each its own part.
 var connecting := ConnectingScreen.new()
-## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
+## Walking in the lobby: the status, the players and the code, the ready chip and the mic (#495).
 var lobby_hud := LobbyHud.new()
 ## The silent seconds before the round: black, the own role, its goal and a dissident's team
 ## (#213, #496); over the HUD, so its black fades out over the round's first moment.
@@ -179,7 +179,7 @@ func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) 
 	esc.refresh(screen, model, host_tick, hosting, mode)
 	match screen:
 		GameFlow.Screen.LOBBY:
-			lobby_hud.refresh(model, host_tick)
+			lobby_hud.refresh(model, mode, host_tick)
 		GameFlow.Screen.LOADING:
 			connecting.refresh_loading(model)
 		GameFlow.Screen.PREGAME:

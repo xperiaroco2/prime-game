@@ -1862,7 +1862,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 |---|---|---|---|
 | no session | main menu (s2, #493, §4.7.38): the name row; Host, Join (the code panel), Join by address (the Direct panel), Tutorial, Settings (the Settings panel), Quit | none | none |
 | connecting, no `Welcome` yet | connecting screen (s3, #494, §4.7.32): the spinner, the title, the step, a code join's code and the time since Join, Cancel (Esc too) | none | none |
-| Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
+| Lobby, Countdown | lobby HUD (s4, #495, §4.7.42): the status (ready count, the host's shortfalls, countdown), the lobby's name, the code, the players with ready checks, the own ready chip, the mic; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
@@ -1880,8 +1880,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
   only the own `Respawned` (#191) and a `PlayersPlaced` naming the own player (`End -> Lobby` and the deal, #240)
   level the look (§4.7.13).
-- **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
-  · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
+- **The lobby** (#169): the player walks it like the round, with the lobby HUD (since #495 the Toy one, §4.7.42: the
+  status, the players with ready checks, the own ready chip; no key prompt) and nothing to click. The Esc menu's Lobby tab has the
   lobby's name (the host's to edit, #214, §4.7.11) with the map's picker right under it (#694), the roster, the
   Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
@@ -2275,7 +2275,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
   `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
   Lobby tab's page; read-only settings for everyone but the host) and `LobbyHud` (the lobby's corner: the hint, the
-  roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
+  roster, the countdown; it ignores the mouse; the Toy HUD since #495, §4.7.42). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
 - `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
   menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
   longer frees the mouse in the lobby (#517 replaced it with `GameFlow.pointer_on`). `MousePointer` captures and
@@ -2302,8 +2302,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   keystroke, each of which the host would answer with a `SettingsChanged` to everyone. A sent name stays in the
   field until the model's name moves (its echo is a round trip away), so it never flicks back to the old one; with
   no host in the roster the default is "" (never "'s lobby"). `Game.change_lobby_name`
-  sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default) for
-  the lobby HUD (#495). Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
+  sends it (cleaned again). `LobbyPanel.lobby_title(model)` is the name as shown (the host's or the default); the
+  lobby HUD (#495) builds the same from `LobbyText.title_text`, in the language of the moment. Tests: `lobby_panel_name_test.gd` (seen failing with the focus guard planted out) and
   `game_loop_test.gd` (the host's tab reaches every `Game`'s model; seen failing without the clean).
 - #694 (main's #627 taken into the slice) puts the map's picker (`LobbyPanel.map_picker`, built once, its items
   rebuilt by `set_mode`) in the row right under the name, out of the settings box: the two things that name the
@@ -2470,7 +2470,8 @@ CI's LFS step with #515):
   runs (`Game._typing`), and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
-  the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
+  the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked (a chip over
+  the ready chip since #495); the debug overlay's own voice
   line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
 - **The main menu's Voice page** (#301, the follow-up of #220's Esc-only tab; since #493 the Settings panel, §4.7.38):
   `MainMenu`'s Settings item opens a second `VoicePanel` (the same class, in its light look); Esc closes it and
@@ -2572,7 +2573,8 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 `HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
-`LifeScreen` (#497), the `LobbyHud`, the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
+`LifeScreen` (#497), the `LobbyHud` (#495: `lobby.status`, `lobby.ready`, and `lobby.roster`, a line per row "<name
+as drawn> ready" or "not ready"), the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
@@ -2838,11 +2840,11 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
   through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
   `downed.give_up_hold`, §4.7.44, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
-  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up,
-  `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind. Known gap until the Toy
-  screens (#495; #491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck: they
-  are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside one
-  (`LobbyHud`'s "Esc: menu · ЛКМ: ready" after a rebind).
+  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up and the Voice tab's push-to-talk name
+  use it, so each follows a rebind (`LobbyHud`'s hint did until the Toy lobby HUD dropped it, #495). Known gap
+  until the Toy screens (#491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck:
+  they are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside
+  one (the pick-up hint's "ЛКМ: pick up <item>" after a rebind).
 - `client/ui/ControlsPanel`: the Esc menu's new Controls tab (`EscMenuState.Tab.CONTROLS`, in every screen, after
   Voice): a row per action with its name, a key button with the label and a "Same key" mark (`Shortfalls`). A click
   or `ui_accept` starts a capture; the capture runs in `_input`, before `Game._input` and the GUI, and consumes every
@@ -3694,7 +3696,7 @@ Protocol 13 (§4.3.4).
 - **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
   and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
   pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
-  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) shows
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
   only. `players_many`, `markers`, `colours` and `no_layout` have none, so `HostTextView.plain` shows the id, its
@@ -3772,6 +3774,60 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   the runner's own `NextStage`, a card already showing as lesson 5's second step starts being no opening, lesson 8's
   quiet time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
   runner).
+
+#### 4.7.42 Built in #495 (M6.2), the lobby HUD in the Toy style
+The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
+`docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
+`check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
+at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
+- **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
+  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Status` ToyPlate (top centre, 40 px
+  down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
+  ToyColumnSixteen > `Info` ToyColumnEight (`LobbyName` ToyTextMutedOnDark; `CodeRow` ToyRowEight > `Label`
+  `common.code`, `Code` ToyKeyOnDark > `Text` ToyKeyText) and `List` ToyColumnEight (`Head` ToyTextOnDark, `Rows`
+  ToyColumnEight > one ToyRowTwelve per player: `HostRow`, the own `OwnRow`, the others `Row<n>`, each `Name`
+  ToyTextOnDark expanding and `Ready`, the pack's `check` at 24 px tinted ToyTextOnDark's `font_color`, shown while
+  that player is ready); `Bottom` ToyColumnTwelve (bottom left) > `ReadyChip` (ToyChipPlate `lobby.ready_no`, or
+  ToyChipLight `lobby.ready_yes`) and `Mic` ToyMic > `Icon` (`mic` tinted `icon_on`, else `mic-off` `icon_off`, as
+  the round's). The keycap's `min_width` (36, 42 at large text) is read again after each theme change
+  (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
+  lobby's name are cut with an ellipsis inside the plate.
+- **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
+  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.47's
+  `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
+  no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
+  `lobby.player_count` against the mode's
+  `max_players`; the lobby's name (`LobbyName`'s, else `lobby.default_name` with the host's name); the rows, the host
+  first, then the order the model got them (the Welcome's roster, then each `PlayerJoined`: the order they joined),
+  reading `player.you` for the own row, `lobby.host_mark` for the host's, else the name. All of it is the whole
+  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown, the host's shortfalls, which every
+  peer gets alike): no role, team or match fact. The
+  rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
+  `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
+- **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `Game._refresh_join`): the code to the host and every
+  code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
+  explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`Game._refresh_voice`).
+- **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
+- **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
+  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
+  (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
+- **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
+  the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
+- Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
+  English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
+  key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
+  lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
+  handoff's tree, anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
+  inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
+  language change, seen failing without the notification; large text's keycap), `esc_menu_input_test.gd` (no
+  prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
+  the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at
+  `--size 1920x1080`: `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`,
+  `lobby_hud_count_preview`, `lobby_hud_count_host_preview`, `lobby_hud_short_preview`,
+  `lobby_hud_code_waiting_preview` and `lobby_hud_direct_preview`, each with a `_uk` twin, and
+  `lobby_hud_large_uk_preview` (`short` and `code-waiting` fold the host's `players_few` against four players, the
+  handoff's sample). The playcheck fields `lobby.status`, `lobby.roster` and `lobby.ready` read the new nodes
+  (`esc_menu`, `end`).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -3951,9 +4007,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Failures in words** (`EndReasons`): `no_room`, `joins_closed`, `wrong_version`, `wrong_content` ("another
   build"), `service_unreachable` (use Direct) and `host_unreachable`, which also covers a full host (it answers a
   joiner nothing, so the join times out after 15 s) and names the playit.gg fallback under Direct.
-- **The lobby's code** (`LobbyHud` line, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
+- **The lobby's code** (`LobbyHud`'s code row, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
   transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
-  away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
+  away, `room_code()` turns empty and the tab's line says the code is gone (no reclaim); the HUD's keycap reads "…"
+  while the host waits for its room and "—" once it is gone (#495, §4.7.42). No wire change.
 - **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
   no address or ICE-state API and that `client/ui/` names no concrete transport (`EnetTransport`,
   `WebRtcTransport`, `LoopbackTransport`); the debug overlay takes only the own connection's `NetTransport.Route`.
