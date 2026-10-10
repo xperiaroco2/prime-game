@@ -1,6 +1,6 @@
 class_name HostTextView
 extends RefCounted
-## Host text in this client's language (ARCHITECTURE §4.7.38, #548): the host sends an id, its
+## Host text in this client's language (ARCHITECTURE §4.7.47, #548): the host sends an id, its
 ## subject ids and whole-number arguments (core's HostText, as {id, ids, numbers}), never a
 ## sentence; this client owns the table from the id to a key of the UI copy deck (§4.7.26) and
 ## words it with tr, so two players of one lobby each read it in their own language. Pure: no node.
