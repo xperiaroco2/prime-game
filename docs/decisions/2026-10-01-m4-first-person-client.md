@@ -9,8 +9,9 @@
   by the engineer): E33's hearing range is measured from the ears, not the listener's camera; built in M5-5 (#219)
 - **Amended by** [Delivery by meaning](2026-10-10-delivery-by-meaning.md)'s DD4 (a) (2026-10-10, the engineer, [PR
   #713, comment 6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718)): no marker is
-  drawn through walls any more. D10 (b)'s marker and item 5's one exception go; its D3a removes the marker. The D10
-  row and item 5 below keep the original text, each with a note
+  to be drawn through walls. D10 (b)'s marker and item 5's one exception go when its D3a removes the marker; until
+  then the client still draws that one marker (`client/world/circle_views.gd`), the exception covers it alone, and no
+  new marker may cite it. The D10 row and item 5 below keep the original text, each with a note
 - **Date:** 2026-10-01
 - **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134). The engineer, in
   chat with the M4 manager session on 2026-10-01: E31 to E33, and the designer's D4 to D10 by relay
@@ -122,7 +123,8 @@ design routes it for M4's client PRs, and since #158 the root routing and the sa
    player or an item is drawn in the world and hidden by the level like what it marks (no `no_depth_test`
    overlays), or it would show through walls what the eye could not; only the fixed, public circles may be marked
    through walls (D10). (Changed by the engineer on 2026-10-10, DD4 (a) of [Delivery by
-   meaning](2026-10-10-delivery-by-meaning.md): no exception is left; nothing is marked through walls.)
+   meaning](2026-10-10-delivery-by-meaning.md): the exception goes when its D3a removes today's marker, and then
+   nothing is marked through walls; until then it covers that one marker and no new one.)
 6. A dissident's own HUD may name its teammates (`Teammates`, its own knowledge); no other screen names a role.
 7. The attacker gets no hit confirmation beyond the accepted exceptions (a knockdown; a raise stopping in the tick of
    a swing): the client has no `Damaged` of another player and plays no hit sound or effect on the attacker's side.
@@ -391,7 +393,7 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
 | D7 | How items, circles and bodies are drawn | (a) greybox views in `client/` chosen by the kind's id, with a labelled box for an unknown kind; (b) a view scene on `ItemKind` and `StationKind` (a content-API change) that the designer's art fills | (a) for M4: no content-API change before the art pass, and a new item kind still shows up. (b) when the art pass (M7+) has the designer own the looks |
 | D8 | How a downed player, a body and invulnerability read (GDD §14) | (a) greybox stand-ins: a downed player is their capsule lying on its side in their colour; a body the same in grey with a dark cross; invulnerability a translucent white shell that pulses for the 3 s; (b) the designer's own | (a), as placeholders distinct at a glance in a `shot` |
 | D9 | Lift music and placeholder world sounds | (a) CC0 placeholders the engineer's agent picks, each with its `docs/credits/` entry (a lift-music loop; a swing, a pick-up and a put-down sound); (b) silence until the designer picks them | (a): the dead hear something the first time the feature is played, and `check` keeps each licence on record |
-| D10 | A package's destination on the HUD (MVP rules, HUD) | (a) a swatch of its circle's colour; (b) the swatch and a marker on screen over the destination circle, through walls too (circles are fixed, public places) | (b): "shows its destination" reads as where to go, and the marker reveals nothing that is not public; a new player otherwise searches the map for a colour. (Changed by the engineer on 2026-10-10, DD4 (a) of [Delivery by meaning](2026-10-10-delivery-by-meaning.md): Delivery goes by what an item is, with no swatch and no marker through walls.) |
+| D10 | A package's destination on the HUD (MVP rules, HUD) | (a) a swatch of its circle's colour; (b) the swatch and a marker on screen over the destination circle, through walls too (circles are fixed, public places) | (b): "shows its destination" reads as where to go, and the marker reveals nothing that is not public; a new player otherwise searches the map for a colour. (Changed by the engineer on 2026-10-10, DD4 (a) of [Delivery by meaning](2026-10-10-delivery-by-meaning.md): Delivery goes by what an item is, with no swatch and no marker through walls; its D3a removes the marker and D3 the swatch, which the client draws until then.) |
 
 ## Alternatives
 - **`change_scene_to_packed` per level** with an autoload holding the sessions (E19 (b)), or a scene change with the
