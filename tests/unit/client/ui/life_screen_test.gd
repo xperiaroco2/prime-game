@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The downed, dead and respawn screen (client/ui/LifeScreen, #497; ARCHITECTURE §4.7.38) under the
+## The downed, dead and respawn screen (client/ui/LifeScreen, #497; ARCHITECTURE §4.7.44) under the
 ## shared theme: the UI handoff's plates node for node (prime-game-ui `ui-0.4.0`
 ## `docs/handoff/s09-downed.md`: names, classes, variations, anchors, offsets, grow directions, size
 ## flags and minimum sizes), no node taking the mouse or focus, each state the handoff draws (down,

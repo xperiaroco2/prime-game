@@ -1,6 +1,6 @@
 class_name LifeHud
 extends RefCounted
-## What the downed, dead and respawn screen shows (LifeScreen, #497; ARCHITECTURE §4.7.38, the UI
+## What the downed, dead and respawn screen shows (LifeScreen, #497; ARCHITECTURE §4.7.44, the UI
 ## handoff s09), as data: pure, from the own ClientModel, the own LifeCountdowns at the estimated
 ## host tick and the life view's own state (whom a dead player watches, how long the give-up key
 ## has been held, and the give-up key bound now, KeyLabel's, so the line follows a rebind, #211).

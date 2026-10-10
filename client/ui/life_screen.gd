@@ -1,6 +1,6 @@
 class_name LifeScreen
 extends Control
-## The downed, dead and respawn screen in the Toy style (#497; ARCHITECTURE §4.7.38): the UI
+## The downed, dead and respawn screen in the Toy style (#497; ARCHITECTURE §4.7.44): the UI
 ## handoff's plates, node for node (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`), drawing
 ## what LifeHud says, on the round's HUD (Hud, #489), which hides and returns its own nodes from
 ## HudText. Px at the 1920x1080 base (#287):

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## LifeHud (#497; ARCHITECTURE §4.7.38): what the downed, dead and respawn screen shows, from a fake
+## LifeHud (#497; ARCHITECTURE §4.7.44): what the downed, dead and respawn screen shows, from a fake
 ## ClientModel and the own LifeCountdowns: nothing while living; downed, the bleed-out fraction and
 ## m:ss, the give-up hold and the key bound now (#211); raised, the raiser and the raise; dead, the
 ## respawn and the watched name and nothing of the target's; back, the respawn's protection

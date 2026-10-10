@@ -3379,7 +3379,7 @@ wide, wrapped. Pack variations only, no override.
   `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
   the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
   match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
-  it at once. To draw over the HUD it is now `GameUi`'s child after the HUD, the life panel and the map (under the
+  it at once. To draw over the HUD it is now `GameUi`'s child after the HUD, the life screen (§4.7.44) and the map (under the
   post game screen and the Esc menu). Every Control ignores the mouse and takes no focus; the pregame is frozen
   and silent by its phase (§3.6), so no mic shows (the HUD is hidden).
 - **Role sounds.** `role_revealed(role)` is emitted once per pregame when the own role shows: the hook for #213's
