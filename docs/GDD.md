@@ -216,8 +216,11 @@ Open questions (the engineer's):
 ### Cooking (#682)
 The House map's burger chain ([House map](design/house-map.md) §2, decision 6; its stations in §6). The rules below
 are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answers to the design's questions on
-[PR #701](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743)); the engine parts are in
-[the cooking ADR](decisions/2026-10-10-cooking-task.md). The name "Cooking" is a draft for his approval (below).
+[PR #701](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743), the last four in
+[comments 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400),
+[6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and
+[6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)); the engine parts are in
+[the cooking ADR](decisions/2026-10-10-cooking-task.md). Nothing is built yet.
 
 **Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
 kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
@@ -231,7 +234,8 @@ greenhouse, where a board decodes the order's herb icon.
 - Every order hangs on the kitchen's order board from the round's start. It shows the bun and the patty as pictures,
   and the herb as an icon that only the greenhouse's herb board decodes; the icon-to-herb mapping is new each round.
   Each place in the kitchen carries a number, and the board lists the orders by place number. Two orders may ask for
-  the same kind. The orders show only on the board; the task screen shows the burgers done of N.
+  the same kind. The orders show only on the board; the task screen's Cooking row shows the burgers done of N, struck
+  through once every burger is done (there is no shared total of all tasks, #738).
 - Kinds: 3 buns (white, sesame, and dark, rye-like), 3 patties (light, a bit redder, and redder still) and 5 herbs.
   The patties are not named after animals: they are told apart by look, so a player may read them as vegetarian.
 - Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds one,
@@ -243,10 +247,15 @@ greenhouse, where a board decodes the order's herb icon.
   F.)
 - The herb beds: a player presses E at a bed and gets one herb in the hand, without limit, and may then do anything
   with it. The herbs are shuffled among the beds each round.
-- Busy hands, as for the Generator: a player holding a two-handed item (a box, a package) cannot use the grill or a
-  plate; but a herb may go onto the belt while the hands carry a box.
-- Taking with full hands (an item in the hand and one on the belt) puts the hand item down on the ground, and the new
-  one goes into the hand. This holds at the boxes, the beds and the grill.
+- Busy hands, as for the Generator, but every take still works. A player holding a two-handed item (a box, a
+  package) can take: an ingredient from a box, a herb from a bed, the patty off the grill, an item from the floor. The
+  new item goes onto the belt; if the belt is full, its item drops at the player's feet; the two-handed item stays in
+  the hands. What is not a take is refused while the hands are busy: putting something onto a plate or the grill,
+  using a station, a hit. (The engineer's reason: the rule does for the player the routine of putting the box down,
+  swapping and picking it up again.) Picking up a second two-handed item still swaps it with the one in the hands,
+  since the belt holds only a one-handed item.
+- Taking with full hands (an item in the hand and one on the belt) puts the hand item down at the player's feet, and
+  the new one goes into the hand. This holds at the boxes, the beds and the grill.
 - An ingredient left lying vanishes after a while. Spamming takes is fine: nothing in the rules stops players covering
   the map in buns. (A short technical wait between one player's takes only guards the host against a flooding client;
   it is not a game rule.)
@@ -276,17 +285,17 @@ greenhouse, where a board decodes the order's herb icon.
 **Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
 board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
 
-**Drafts for the engineer's approval** (he gave the buns and the patties, and asked for the rest "so it all looks
-nice"; the whole table is the ADR's §5.1): the name "Cooking" and the lobby label "Burgers (Cooking)"; the five
-icons a sun, a moon, a star, a drop and a heart, told apart by shape alone; the bun boxes open wooden bakery crates
-and the patty boxes white cool boxes with a lid in their patty's colour, each showing what it gives; the fried
-patties keeping their hue under a brown crust, so an order's picture matches its box; the herbs, which he has not
-named: basil, dill, rosemary, chives and mint.
+**Words and looks** (he gave the buns and the patties, asked for the rest "so it all looks nice", and took the drafts
+as drafted on 2026-10-10; the whole table is the ADR's §5.1): the name "Cooking" and the lobby label "Burgers
+(Cooking)"; the five icons a sun, a moon, a star, a drop and a heart, told apart by shape alone; the bun boxes open
+wooden bakery crates and the patty boxes white cool boxes with a lid in their patty's colour, each showing what it
+gives; the fried patties keeping their hue under a brown crust, so an order's picture matches its box; the herbs
+basil, dill, rosemary, chives and mint.
 
 **Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
 goes and looks (the open-knowledge pillar, §1); which herb grows on which bed is seen at the beds. The code is shown
 only on the herb board, but a green herb on a plate also tells anyone looking which herb that order's icon means.
-What lies on a plate, red or green, is seen at the plate; the burgers done show on the HUD and the task screen.
+What lies on a plate, red or green, is seen at the plate; the burgers done show on the task screen's Cooking row.
 
 **Numbers** (to tune): 1 burger by default, at most 3; 3 buns, 3 patties, 5 herbs; fry 10 s, then 5 s before it
 burns. Placeholders: an ingredient vanishes after lying 60 s; a player uses a station from within 2 m.
@@ -299,11 +308,8 @@ left lying; a patty whose kind changes on the grill; items held by the grill and
 `levels/stations/` in place of the House's markers; the client's boards, beds, plates with their outlines, grill and
 sounds. The issues follow from the ADR's split.
 
-Open questions (the engineer's; the ADR's §9, each with a recommendation):
-- Do the drafts above stand: the name, the label, the item names, the icons, the looks, and the five herbs?
-- How far does "a herb onto a box carrier's belt" reach? May a box carrier also take from another box onto the belt,
-  and with a full belt does the carried box go down so the herb comes into the hand (recommended: yes to both)? The
-  grill and the plates still refuse a box carrier (recommended).
+Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
+in the playtest.
 
 ## 9. Meetings and voting
 
