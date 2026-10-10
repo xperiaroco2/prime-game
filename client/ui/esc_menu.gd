@@ -102,12 +102,14 @@ func close() -> void:
 	_sync()
 
 
-## Opens the menu on Game at the host's question to quit (the window's close button).
+## Opens the menu on Game at the host's question to quit (the window's close button); the
+## tutorial quits at once.
 func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> void:
 	_model = model
-	state.ask_quit(screen, model)
+	var action := state.ask_quit(screen, model)
 	_sync()
 	_focus()
+	_act(action)
 
 
 func is_open() -> bool:

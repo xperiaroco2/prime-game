@@ -143,6 +143,16 @@ func test_closing_the_window_asks_the_host_to_quit_on_the_game_tab() -> void:
 	assert_int(menu.confirm()).is_equal(ACT.QUIT)
 
 
+func test_closing_the_window_in_the_tutorial_quits_without_a_question() -> void:
+	# #491: the tutorial's Leave and Quit act at once, its window's close button too, though the
+	# solo session hosts.
+	var menu := EscMenuState.new()
+	menu.tutorial = true
+	menu.open(S.ROUND, null, true)
+	assert_int(menu.ask_quit(S.ROUND, null)).is_equal(ACT.QUIT)
+	assert_bool(menu.asking()).is_false()
+
+
 func test_only_the_host_changes_the_settings_and_only_in_the_lobby_phase() -> void:
 	var menu := EscMenuState.new()
 	var host := Preview.fake_model(_mode, true)

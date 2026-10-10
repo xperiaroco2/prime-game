@@ -54,11 +54,15 @@ func close() -> void:
 	question = Action.NONE
 
 
-## Opens the menu on Game with the host's question to quit (the window's close button).
-func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> void:
+## The host's window close button: the menu on Game with the question to quit. The tutorial's
+## solo session asks nothing: Action.QUIT at once, as its Quit.
+func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> Action:
 	open(screen, model, true)
 	selected = Tab.GAME
+	if tutorial:
+		return Action.QUIT
 	question = Action.QUIT
+	return Action.NONE
 
 
 ## Follows the game while open: a tab that went away (the round started) gives way to the default.
