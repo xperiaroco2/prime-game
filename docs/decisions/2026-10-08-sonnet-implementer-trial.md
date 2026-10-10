@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (#560). The trial is the engineer's decision 2 of 2026-10-08; the qualifying tasks, the scoring
   and the stop rule below are the issue's acceptance criteria, written by the meta manager under his delegation of
-  technical choices (#134). Its numbers are proposals he may change on the PR ("Needs the engineer" there).
+  technical choices (#134). Its numbers are proposals he may change on the PR ("Needs the engineer" there). The trial
+  ended 2026-10-10 with a keep (Outcome below): the Sonnet implementer is a standing habit under a revert rule.
 - **Date:** 2026-10-08
 - **Deciders:** the engineer. Approved by the engineer:
   https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6056243207 (item 2: "a trial of a Sonnet
@@ -71,7 +72,8 @@ reviewers stay on Opus, so a weaker diff is still reviewed as today before its P
 - The baseline mixes areas (the game track's Size S tasks with the meta track's), so its findings and fix rounds may
   differ from tooling alone; the per-task table lets the engineer compare like with like. It is small: most issues
   carry no `Size:` line, and a task without one is left out rather than guessed.
-- `models.implement: "sonnet"` stays possible after the trial only where the kickoff allows it (orchestrate-stage §3).
+- After the trial, `models.implement: "sonnet"` on qualifying tasks is the standing habit of the model-guard ADR's
+  amendment of 2026-10-10 (Outcome below), until its revert rule fires.
 
 ## Outcome (2026-10-10)
 The 6 tasks (#470, #760, #725, #750, #724, #677; `metrics --since 2026-09-30T00:00:00Z`) against 30 Opus Size S tasks, per
