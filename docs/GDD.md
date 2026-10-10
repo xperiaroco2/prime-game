@@ -279,8 +279,12 @@ greenhouse, where a board decodes the order's herb icon.
 - Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, a hiss when it burns, a
   chime for green and a buzz for red, a sound when a burger is done. A ring over the grill fills to fried and then to
   burnt.
-- Cooking plays on the House, the map being built for it, as the Generator does: in the base mode, every task type in
-  every match; the flat greybox stays the bots' map.
+
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
+Generator. The flat greybox, the bots' test map, gets no cooking and none of the House's chains: it keeps what it
+deals today (the engineer's read-back answer on the Generator,
+[PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). All the
+new mechanics come with M7 on the House, and bots playing them comes later, with the map.
 
 **Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
 board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
@@ -304,9 +308,10 @@ burns. Placeholders: an ingredient vanishes after lying 60 s; a player uses a st
 hangs the orders, draws the round's herb code and shuffles the herbs over the beds, with its places, grill, beds and
 boards as stations; the Generator's station-use intent (`Interact`) also naming an item, for the boxes; an item source
 that makes a new ingredient on every take, making room in the hands as the rules say; ingredients that vanish when
-left lying; a patty whose kind changes on the grill; items held by the grill and the plates; station scenes in
-`levels/stations/` in place of the House's markers; the client's boards, beds, plates with their outlines, grill and
-sounds. The issues follow from the ADR's split.
+left lying; a patty whose kind changes on the grill; items held by the grill and the plates; a task type
+that plays only on the maps its data lists (the Generator's part; Cooking: the House); station scenes in `levels/stations/` in place
+of the House's markers; the client's boards, beds, plates with their outlines, grill and sounds. The issues follow
+from the ADR's split, for the M7 backlog: for now the track only designs.
 
 Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
 in the playtest.
