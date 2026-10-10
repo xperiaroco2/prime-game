@@ -116,7 +116,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepStopRaise.new(),
 		StepGiveUp.new(),
 		StepSwap.new(),
-		StepTalk.new()
+		StepTalk.new(),
+		StepThrow.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -140,7 +141,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"StopRaise",
 			&"GiveUp",
 			&"Swap",
-			&"Talk"
+			&"Talk",
+			&"Throw"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -149,7 +151,7 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
 	for raising: ScenarioStep in [
-		StepRaise.new(), StepStopRaise.new(), StepGiveUp.new(), StepSwap.new()
+		StepRaise.new(), StepStopRaise.new(), StepGiveUp.new(), StepSwap.new(), StepThrow.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
 
@@ -165,6 +167,19 @@ func test_a_raise_step_targets_a_bot() -> void:
 	assert_array(Array(raise.problems())).is_equal(["hold_s -1.0 is outside 0 to 600"])
 	raise.hold_s = 2.0
 	assert_array(Array(raise.problems())).is_empty()
+
+
+func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
+	var throw := StepThrow.new()
+	assert_array(Array(throw.problems())).is_equal(["no towards"])
+	throw.towards = ScenarioTarget.new()
+	throw.pitch_deg = 90.5
+	assert_array(Array(throw.problems())).is_equal(["pitch_deg 90.5 is outside -90 to 90"])
+	throw.pitch_deg = NAN
+	assert_array(Array(throw.problems())).is_equal(["pitch_deg nan is outside -90 to 90"])
+	for pitch: float in [-90.0, 0.0, 30.0, 90.0]:
+		throw.pitch_deg = pitch
+		assert_array(Array(throw.problems())).is_empty()
 
 
 func _scenario() -> BotScenario:

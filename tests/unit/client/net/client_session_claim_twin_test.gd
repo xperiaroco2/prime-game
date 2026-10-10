@@ -87,6 +87,28 @@ func test_a_player_action_resends_the_last_claim_right_before_it() -> void:
 	assert_int(_told.size()).is_equal(told + 1)
 
 
+func test_a_throw_resends_the_last_claim_right_before_it() -> void:
+	# §7.1.16: the host launches from the last accepted position, so a lost claim would throw
+	# from a step behind; the twin carries it on the reliable lane just ahead of the Throw.
+	_harness.welcome(&"round", 1)
+	_harness.session.set_motion(Vector3(3, 0, -1), Vector3.ONE, Vector3.LEFT, true, true, true)
+	_harness.pump(TICK_USEC)
+	var told := _told.size()
+	var facing := Vector3(0.0, 0.5, -0.75)
+	var seq := _harness.session.send_intent(Intents.THROW, {"facing": facing})
+	assert_int(seq).is_greater(0)
+	_harness.deliver()
+	var last := _harness.sent.slice(-3)
+	assert_array(_names_of(last)).contains_exactly(
+		[Intents.MOVE_CLAIM, WireSchema.RELIABLE_CLAIM, Intents.THROW]
+	)
+	assert_dict(last[1].fields).is_equal(last[0].fields)
+	assert_int(last[2].seq).is_equal(seq)
+	assert_bool(last[2].fields["facing"] == facing).is_true()
+	assert_array(_harness.resends()).contains_exactly([last[1]])
+	assert_int(_told.size()).is_equal(told)
+
+
 func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 	var controls := {
 		Intents.SET_READY: {"ready": true},

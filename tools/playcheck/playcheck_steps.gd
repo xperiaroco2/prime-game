@@ -264,14 +264,15 @@ static func button_problem(buttons: Array[Button], text: String) -> String:
 	return "no visible button '%s'; the window shows [%s]" % [text, ", ".join(texts)]
 
 
-## The id of the item of `kind` nearest to `from` that rests (no holder, not delivered) in `model`,
-## the window's own ClientModel (item positions are public); -1 when none does.
+## The id of the item of `kind` nearest to `from` that rests (no holder, not in flight, not
+## delivered) in `model`, the window's own ClientModel (item positions are public); -1 when none
+## does.
 static func nearest_resting(model: ClientModel, kind: StringName, from: Vector3) -> int:
 	var best := -1
 	var best_sq := INF
 	for id: int in model.items:
 		var item := model.items[id]
-		if item.kind != kind or item.holder != ClientModel.NO_HOLDER or item.delivered:
+		if item.kind != kind or not item.rests() or item.delivered:
 			continue
 		var distance_sq := from.distance_squared_to(item.position)
 		if distance_sq < best_sq or (distance_sq == best_sq and id < best):

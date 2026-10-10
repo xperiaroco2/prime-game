@@ -166,6 +166,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _pick_up(bot, step as StepPickUp)
 	elif step is StepPutDown:
 		result = _put_down(bot, step as StepPutDown)
+	elif step is StepThrow:
+		result = _throw(bot, step as StepThrow)
 	elif step is StepUse:
 		result = _use(bot, step as StepUse)
 	elif step is StepRaise:
@@ -345,6 +347,36 @@ func _put_down(bot: ScenarioBot, step: StepPutDown) -> Result:
 			)
 	)
 	return _intent_result(bot, step, placed != null)
+
+
+## Faces the target flat, tilts that facing up by the step's pitch and sends Throw; done when the
+## ItemThrown of the item it held arrives (the flight's ItemPlaced comes later: WaitFor it).
+func _throw(bot: ScenarioBot, step: StepThrow) -> Result:
+	if bot.sent_seq < 0:
+		var flat := _facing(bot, step.towards)
+		if flat == Vector3.INF:
+			return _fail_step(bot, "the bot cannot know where to face")
+		if flat == Vector3.ZERO and absf(step.pitch_deg) != 90.0:
+			# Standing on the target: a flat facing of zero would make the host fall back to the
+			# last facing, a direction the scenario did not ask for.
+			return _fail_step(bot, "the bot cannot know where to throw")
+		var pitch := deg_to_rad(step.pitch_deg)
+		var facing := Vector3(flat.x * cos(pitch), sin(pitch), flat.z * cos(pitch))
+		bot.sent_item = bot.held
+		_send(bot, Intents.THROW, {"facing": facing})
+		return Result.WAITING
+	var item_id := bot.sent_item
+	var peer := bot.peer
+	var thrown := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			return (
+				event.name == &"ItemThrown"
+				and event.fields["item"] == item_id
+				and event.fields["peer"] == peer
+			)
+	)
+	return _intent_result(bot, step, thrown != null)
 
 
 func _use(bot: ScenarioBot, step: StepUse) -> Result:

@@ -166,6 +166,74 @@ func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
 	assert_bool(_model.items[3].belted).is_false()
 
 
+func test_an_item_thrown_leaves_the_hand_and_keeps_its_flight_until_it_rests() -> void:
+	# §7.1.16: ItemThrown carries the launch, exactly as the host's flight holds it; the item is in
+	# no hand and rests nowhere until its ItemPlaced (cause thrown).
+	_to_round()
+	_fold(ItemSpawnedEvent.new(2, &"package", Vector3(2, 0, 0), 7, Color.BLUE))
+	_fold(ItemPickedUpEvent.new(OWN, 2))
+	assert_bool(_model.items[2].rests()).is_false()
+	var origin := Vector3(1.25, 1.6, -3.5)
+	var velocity := Vector3(0.1, 4.999999, -8.660254)
+	var gravity := Vector3(0, -9.8, 0)
+	_fold(ItemThrownEvent.new(2, OWN, origin, velocity, gravity, 77))
+	var item: ClientModel.Item = _model.items[2]
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	assert_int(item.holder).is_equal(ClientModel.NO_HOLDER)
+	assert_bool(item.belted).is_false()
+	assert_bool(item.flying).is_true()
+	assert_bool(item.rests()).is_false()
+	assert_int(item.thrower).is_equal(OWN)
+	assert_bool(item.flight_origin == origin).is_true()
+	assert_bool(item.flight_velocity == velocity).is_true()
+	assert_bool(item.flight_gravity == gravity).is_true()
+	assert_int(item.flight_tick).is_equal(77)
+	assert_bool(item.position == origin).is_true()
+	_fold(ItemPlacedEvent.new(2, Vector3(6, 0, -9), Items.THROWN))
+	assert_bool(item.flying).is_false()
+	assert_bool(item.rests()).is_true()
+	assert_bool(item.position == Vector3(6, 0, -9)).is_true()
+	# A belted item thrown after a swap leaves the belt flag behind it.
+	_fold(ItemPickedUpEvent.new(OWN, 7))
+	_fold(ItemPickedUpEvent.new(OWN, 2, 7))
+	_fold(SwappedEvent.new(OWN))
+	_fold(ItemThrownEvent.new(7, OWN, origin, velocity, gravity, 90))
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	assert_int(_model.belt_item(OWN)).is_equal(2)
+	assert_bool(_model.items[7].belted).is_false()
+
+
+func test_a_thrown_package_delivered_or_another_players_throw_or_an_unknown_item() -> void:
+	_to_round()
+	_fold(ItemSpawnedEvent.new(2, &"package", Vector3(2, 0, 0), 7, Color.BLUE))
+	# Another player's throw empties that player's hand, never the own one.
+	_fold(ItemPickedUpEvent.new(1, 2))
+	_fold(ItemPickedUpEvent.new(OWN, 7))
+	_fold(ItemThrownEvent.new(2, 1, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 50))
+	assert_int(_model.hand_item(1)).is_equal(-1)
+	assert_int(_model.hand_item(OWN)).is_equal(7)
+	assert_int(_model.items[2].thrower).is_equal(1)
+	# A package thrown into its circle rests there (ItemPlaced), then is delivered.
+	_fold(ItemPlacedEvent.new(2, Vector3(0, 0, 1), Items.THROWN))
+	_fold(PackageDeliveredEvent.new(2, 7))
+	assert_bool(_model.items[2].flying).is_false()
+	assert_bool(_model.items[2].delivered).is_true()
+	# PackageDelivered alone ends a flight too.
+	_fold(ItemSpawnedEvent.new(3, &"package", Vector3(3, 0, 0), 7, Color.BLUE))
+	_fold(ItemPickedUpEvent.new(1, 3))
+	_fold(ItemThrownEvent.new(3, 1, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 60))
+	_fold(PackageDeliveredEvent.new(3, 7))
+	assert_bool(_model.items[3].flying).is_false()
+	# An item the client never heard of is ignored.
+	_fold(ItemThrownEvent.new(40, OWN, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 61))
+	assert_bool(_model.items.has(40)).is_false()
+	assert_int(_model.items.size()).is_equal(3)
+	# A new match forgets the flight with the items.
+	_fold(ItemThrownEvent.new(2, OWN, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 62))
+	_fold(LoadMatchEvent.new(2, "res://levels/a.tscn", {} as Dictionary[StringName, int]))
+	_assert_no_match_facts()
+
+
 func test_task_state_gives_each_tasks_row_for_the_task_screen() -> void:
 	_to_round()
 	assert_int(_model.tasks.size()).is_equal(1)

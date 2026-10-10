@@ -6,7 +6,9 @@ extends RefCounted
 ## target the bot cannot know from them fails the scenario, so a scenario also proves that its
 ## mechanic is playable with what a player is told.
 
-enum Where { GROUND, HAND, LOCKED, BELT }
+## A copy of ItemState.Where, in the same order (a test pins it): a FLYING item's place is unknown
+## until its flight ends.
+enum Where { GROUND, HAND, LOCKED, BELT, FLYING }
 
 ## The events for one peer whose fields name no peer (§4.6): whoever receives one is its subject,
 ## so a step's `peer` field matches the receiving bot.
@@ -255,7 +257,8 @@ func where_is(target: ScenarioTarget) -> Vector3:
 				found = stations[ids[target.index - 1]]
 		_:
 			var item := item_of(target)
-			if item >= 0:
+			# An item in flight is somewhere along its arc: its last known place would mislead a step.
+			if item >= 0 and items[item]["where"] != Where.FLYING:
 				found = items[item]["position"]
 	return found
 
@@ -333,6 +336,16 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				var was_held := held
 				held = belted
 				belted = was_held
+		&"ItemThrown":
+			var item := fields["item"] as int
+			if items.has(item):
+				items[item]["where"] = Where.FLYING
+				items[item]["position"] = fields["origin"] as Vector3
+			if held == item:
+				held = -1
+			if belted == item:
+				belted = -1
+		# Also the end of a flight (cause `thrown`): the item rests at `position` again.
 		&"ItemPlaced":
 			var item := fields["item"] as int
 			if items.has(item):
