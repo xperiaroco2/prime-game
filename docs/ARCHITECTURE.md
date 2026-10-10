@@ -3269,7 +3269,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   `custom_minimum_size` (`UiParts.sized`, `HudSlot` for the wide hand), again after the large-text swap. Every
   Control ignores the mouse and takes no focus.
 - **What it shows** (`HudText`, pure, from the own `ClientModel`, the own mode and `HudText.Local`): the time left
-  as mm:ss (data); the own role as its deck key (`ContentNames.ROLES`, §4.7.48: `crew` is `role.engineer`); health as the
+  as mm:ss (data); the own role as its deck key (`ContentNames.role`, §4.7.48: `crew` is `role.engineer`); health as the
   fraction of the mode's (`ToyBar`: the fill's ramp stop, §4.7.27) and the predicted stamina's, full before the
   first status; the mic (`VoiceSender.live()`: a microphone open, the own player heard in this phase and life, in
   push-to-talk the key held; `mic` tinted `icon_on`, else `mic-off` tinted `icon_off`); the hand and belt (a kind's
@@ -3844,14 +3844,19 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   PR #717, which replaces the greybox lobby texts) or why the text is never shown. A line that matches nothing
   fails, so a screen moving to keys deletes its lines (#497's downed screen did, on the rebase). Not seen by the
   scan: words built at run time and text a variable not named for text carries; #548's neutral shortfall line is
-  ids and numbers, and the raise cue's stopgap a deck key (`tutorial.step.downed.how`), no literal.
-- **Content names** (`client/ui/ContentNames`, pure): a role, item kind or task type shows by its deck key (the
-  tables `ROLES`, `ITEMS`, `TASKS`: the base mode's crew are `role.engineer`), else the content's display name, else
-  its id; a room by `room.<id>` where the deck has it, else its id; a map by its scene's file name ("House"). A
-  Control given one translates it and retranslates on a switch; `text()` gives it in the language now. `HudText`
-  (the HUD's role and slots), `RoleFacts`, `PregameScreen`, `MapScreen` (task rows, rooms), `LobbyPanel` (the task
-  chips, the map picker) and `ItemInteractions.hint()` all ask it. The deck (`ui-0.4.0`) has no key for a map, the
-  House's rooms or the `tasks` count setting: they show as before (no key invented, the PR lists them).
+  ids and numbers, and the raise cue's stopgap a deck key (`tutorial.step.downed.how`), no literal. Nor does it
+  read outside `client/`: `voice/voice_capture.gd`'s "the microphone ... did not open" and "froze" notices reach the
+  voice panel through `VoiceControl.notice` and are English literals with no deck key yet (listed with
+  `voice_sender.gd`'s in the PR).
+- **Content names** (`client/ui/ContentNames`, pure): a role, item kind or task type shows by its deck key
+  (by the convention `role.<id>`, `item.<id>`, `task.<id>` where the deck has the key, so content adding a type the
+  deck names needs no edit; `ROLE_EXCEPTIONS` holds the one id that differs: the base mode's crew are
+  `role.engineer`), else the content's display name, else its id; a room by `room.<id>` where the deck has it, else
+  its id; a map by its scene's file name ("House"). A Control given one translates it and retranslates on a switch;
+  `text()` gives it in the language now. `HudText` (the HUD's role and slots), `RoleFacts`, `PregameScreen`,
+  `MapScreen` (task rows, rooms) and `LobbyPanel` (the task chips, the map picker) ask it (the unshown
+  `ItemInteractions.hint()` keeps the display name). The deck (`ui-0.4.0`) has no key for a map, the House's rooms or
+  the `tasks` count setting: they show as before (no key invented, the PR lists them).
 - **The font's glyphs.** `tests/unit/client/i18n/deck_glyphs_test.gd` loads the real
   `assets/ui/comfortaa/comfortaa.ttf` from its own bytes (`FontFile.load_dynamic_font`, FreeType's character map
   through `has_char`), not Godot's import, and fails on any character of the deck's `en` and `uk` columns
@@ -3862,7 +3867,7 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   deck's characters without placeholders, a private-use character the real font lacks) and
   `tests/unit/client/ui/content_names_test.gd` (every role, item kind and task type of every shipped mode has a deck
   key with English and Ukrainian text; both languages and a switch; what the deck does not name);
-  `item_interactions_test.gd` checks the hint's item name in Ukrainian too. `client/dev/menu_uk_preview.tscn`: a
+  `client/dev/menu_uk_preview.tscn`: a
   `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
 
 ### 4.8 Signalling (M6-5a, #366)
