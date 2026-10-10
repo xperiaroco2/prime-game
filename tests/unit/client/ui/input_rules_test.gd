@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## #488 rule 4, per screen: the lobby HUD, the round HUD and the life panel (downed, spectating)
+## #488 rule 4, per screen: the lobby HUD, the round HUD and the life screen (downed, spectating)
 ## take no mouse, so the captured mouse and the keys stay the game's; the pregame takes no input.
 ## The connecting screen's backdrop stopping the mouse: connecting_screen_test.gd; the post game:
 ## end_screen_test.gd; the name plates: name_plate_test.gd.

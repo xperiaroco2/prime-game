@@ -3,10 +3,9 @@ extends Node3D
 ## sees while it watches Player2 from its eyes. The camera stands at Player2's eye with its look,
 ## Player2's own body hidden (`set_watched`) and its knife in the spectate camera's first-person
 ## hand, as Player2's own screen shows it; Player3 stands ahead with the package in both hands. The
-## HUD says "Watching: Player2" with Player2's hand and belt, with none of Player1's own slots,
-## numbers, role or aim (Player1's own aim is set, to show it stays hidden); the life panel shows
-## the respawn countdown. Dev only: nothing here reaches the
-## game.
+## LifeScreen's Spectate plate (#497) says "Back in 0:25" and "Watching: Player2"; the HUD shows
+## nothing, none of Player2's slots and none of Player1's own slots, numbers, role or aim (Player1's
+## own aim is set, to show it stays hidden). Dev only: nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -50,7 +49,6 @@ func _ready() -> void:
 	var local := HudText.Local.new()
 	local.stamina = 40.0
 	local.aim = Preview.KNIFE
-	local.watching = 2
 	ui.refresh_round(model, mode, floori(NOW), local)
 	ui.life.show_hud(_life_hud(mode, model))
 
@@ -69,7 +67,7 @@ static func _spectator_model(mode: GameMode) -> ClientModel:
 	return model
 
 
-## The life panel of Player1, dead since DIED_AT, watching Player2.
+## The LifeScreen's state for Player1, dead since DIED_AT, watching Player2.
 static func _life_hud(mode: GameMode, model: ClientModel) -> LifeHud.Shown:
 	var countdowns := LifeCountdowns.new(mode.player_rules, LifeCountdowns.raise_seconds_of(mode))
 	countdowns.on_event(&"Died", {"peer": 1, "position": Vector3.ZERO}, 1, DIED_AT)

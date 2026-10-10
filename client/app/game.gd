@@ -27,7 +27,7 @@ extends Node
 ##
 ## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
 ## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
-## the life inputs and the lift music; the Ui's life panel shows its words in the round.
+## the life inputs and the lift music; the Ui's LifeScreen draws its state in the round.
 ##
 ## Items (M4-8): `Items` (ItemWorld) draws the items, the circles and the destination marker, sends
 ## the item keys and plays the world sounds; the Ui's HUD and task screen show the round.
@@ -631,12 +631,12 @@ func _welcomed_model() -> ClientModel:
 
 
 ## What the HUD knows besides the model: the predicted stamina and the item under the crosshair
-## (ItemWorld), whom a dead player watches (LifeView, #168), the own raise's progress at the
-## estimated host tick `tick` and whether anyone may hear the own player (#489).
+## (ItemWorld), the own raise's progress at the estimated host tick `tick`, the raise cue's key and
+## whether anyone may hear the own player (#489, #497).
 func _hud_local(tick: float) -> HudText.Local:
 	var local := _items.hud_local()
-	local.watching = _life.target()
 	local.raising = _life.raise_shown(tick)
+	local.raise_key = _life.raise_cue()
 	local.mic = _sender.live()
 	if _player != null and not _player_dead():
 		local.placed = true

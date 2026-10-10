@@ -134,9 +134,10 @@ PLAYER_FIELDS = ("peer", "raiser", "target")
 ACTIONS = ("press", "hold", "release")
 # What `wait text` and `wait shown` read, the keys of playcheck_window.gd's GameView: the round's Hud (#489: the role,
 # the time, the bars' values as "0.80", the mic as on or off, the slots' item names, the name under the crosshair, the
-# raise bar's value, the "Watching: <name>" line, the crosshair), the LifePanel (title_label, lines_label, bar_label:
-# its bar's visibility), the LobbyHud, the PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined
-# with ", ", and the kind of the item in the FirstPersonHand under the current camera.
+# raise bar's value, the crosshair), the LifeScreen (#497: the downed title, the time left, the bleed-out, raise and
+# give-up hold bars' values, the give-up line as drawn, the respawn time, "Watching: <name>", the protection chip),
+# the LobbyHud, the PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", and the kind
+# of the item in the FirstPersonHand under the current camera.
 FIELDS = (
     "hud.role",
     "hud.clock",
@@ -147,11 +148,16 @@ FIELDS = (
     "hud.belt",
     "hud.aim",
     "hud.raising",
-    "hud.spectating",
     "hud.crosshair",
     "life.title",
-    "life.lines",
-    "life.bar",
+    "life.left",
+    "life.bleed",
+    "life.raise",
+    "life.give_up",
+    "life.hold",
+    "life.respawn",
+    "life.watching",
+    "life.protected",
     "lobby.hint",
     "lobby.roster",
     "lobby.countdown",

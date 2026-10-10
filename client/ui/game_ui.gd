@@ -49,8 +49,8 @@ var hud := Hud.new()
 var map := MapScreen.new()
 var end := EndScreen.new()
 var esc := EscMenu.new()
-## The own player's life in the round (M4-9).
-var life := LifePanel.new()
+## The downed, dead and respawn plates over the HUD in the round (M4-9; the Toy s09, #497).
+var life := LifeScreen.new()
 var screen := GameFlow.Screen.MENU
 ## What Esc closes, the topmost first (#488): Game._input asks it before it opens the Esc menu.
 var overlays := UiOverlays.new()

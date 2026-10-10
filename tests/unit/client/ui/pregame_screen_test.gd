@@ -259,7 +259,7 @@ func test_the_ui_lifts_it_into_the_round_and_hides_it_on_any_other_screen() -> v
 	UiPrefs.reduced_motion = false
 	var ui: GameUi = auto_free(GameUi.new())
 	add_child(ui)
-	# Over the round's HUD, the life panel and the map, so its black uncovers them; under the
+	# Over the round's HUD, the life screen and the map, so its black uncovers them; under the
 	# post game screen and the Esc menu.
 	var order := ui.get_children()
 	for under: Control in [ui.hud, ui.life, ui.map]:

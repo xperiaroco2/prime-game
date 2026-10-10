@@ -1,10 +1,9 @@
 extends Node3D
 ## A preview of the life looks for `tools\run.cmd shot` (the M4 ADR's §6 and D8): from the left, a
 ## living player, a downed one lying on its side in its colour, a body (grey with a dark cross) and
-## an invulnerable player in its white shell, on a floor; the life panel of a downed player being
-## raised over them, or (`raised` off, life_give_up_preview.tscn) the panel of a downed player
-## holding the give-up key, named by the key bound now (#211). Dev only: nothing here reaches the
-## game.
+## an invulnerable player in its white shell, on a floor; the LifeScreen (#497) of a downed player
+## being raised over them, or (`raised` off, life_give_up_preview.tscn) of a downed player holding
+## the give-up key, named by the key bound now (#211). Dev only: nothing here reaches the game.
 
 const MODE := "res://content/modes/base_mode.tres"
 const BODY := preload("res://client/player/remote_player_body.tscn")

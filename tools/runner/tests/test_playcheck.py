@@ -285,7 +285,8 @@ class ParserTest(unittest.TestCase):
         view = re.search(r"^class GameView:\n(.*?)^\S", window, re.MULTILINE | re.DOTALL)
         self.assertIsNotNone(view, "no class GameView in playcheck_window.gd")
         assert view is not None
-        keys = re.findall(r'^\t+"([a-z]+\.[a-z]+)":', view.group(1), re.MULTILINE)
+        # A field name may hold an underscore (#497's life.give_up): [a-z]+ alone missed it.
+        keys = re.findall(r'^\t+"([a-z_]+\.[a-z_]+)":', view.group(1), re.MULTILINE)
         self.assertEqual(len(keys), len(set(keys)), f"a key twice in GameView: {sorted(keys)}")
         self.assertEqual(sorted(keys), sorted(playcheck.FIELDS))
         self.assertEqual(len(playcheck.FIELDS), len(set(playcheck.FIELDS)))
