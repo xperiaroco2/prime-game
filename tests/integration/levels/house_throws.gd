@@ -11,7 +11,7 @@ extends RefCounted
 ## a player's eye above it (_add_column), so the balcony's columns give the balcony and the terrace
 ## under it, and a crate or a raised floor added at a column is swept from its top:
 ## - `balcony`: the balcony (30..40, 21..24 at 3.2 m), every metre, 0.5 m clear of its railing;
-## - `balcony_railing`: the tops of the balcony's railings (1 m high, so at 4.2 m): a player's
+## - `balcony_railing`: the tops of the balcony's four railings (1 m high, so at 4.2 m): a player's
 ##   1 m jump (PlayerRules.jump_height_m) may land a player on the 0.1 m edge (the playtest
 ##   checks it), and a thrower whose footprint touches it throws from 1 m higher (Items.eye_of
 ##   takes the highest floor under its footprint). The highest spot near the roof, so the one
@@ -62,6 +62,7 @@ static func spots(world: HostWorldQuery, headroom: float) -> Dictionary[String, 
 		_add_column(railing, world, Vector2(30.5 + x, 21.05), headroom)
 	for k in range(0, 5):
 		_add_column(railing, world, Vector2(30.05, 21.5 + 0.5 * k), headroom)
+		_add_column(railing, world, Vector2(39.95, 21.5 + 0.5 * k), headroom)
 	for x: float in [30.3, 31.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 39.7]:
 		_add_column(railing, world, Vector2(x, 23.95), headroom)
 	var stairs: Array[Vector3] = []
