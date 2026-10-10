@@ -1909,8 +1909,9 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   Connecting and the end screen free it (the first three for their buttons; the end screen only counts down since #212). A screen never captures it from under the Esc menu, nor while the
   window lacks the focus (`MousePointer.focused`): Windows clips the cursor to a capturing window even when another
   app has the focus (`DisplayServerWindows::_set_mouse_mode_impl`, 4.7.2); a click captures it there (never while the map is open: the map frees the mouse in the round, and closing it captures it again, §4.7.33). Closing the Esc
-  menu in Loading captures it too, and so does a screen change that closes the menu in Loading or Pregame (#726). Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown
-  runs on the lobby's screen, every round started with the cursor showing until a click.
+  menu in Loading captures it too, and so does a screen change that closes the menu in Loading or Pregame (#726).
+  Until #517 Loading freed it (`GameFlow.frees_pointer`), and since the countdown runs on the lobby's screen, every
+  round started with the cursor showing until a click.
 - **The window** (#517): an exported game starts in borderless fullscreen, `display/window/size/mode.template=3` in
   `project.godot`. Only an export template has the `template` feature, so everything the editor's binary runs (the
   runner's `shot`, `playcheck`, `host` and `join` windows, the tests, the editor's runs) starts in a window: in
@@ -1925,8 +1926,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   `tests/integration/client/app/game_window_input_test.gd` (Alt+Enter through `Input` events) and
   `pointer_flow_test.gd` (a host and a joined client through Ready, the countdown, Loading, the round, the end and
   back, the mouse captured all the way to the end screen; the match closes an open Esc menu, #726, and an unfocused
-  window stays free). Not
-  headless: the real mouse and window; the manual check is in the PR of #517.
+  window stays free). Not headless: the real mouse and window; the manual check is in the PR of #517.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled). In the solo
