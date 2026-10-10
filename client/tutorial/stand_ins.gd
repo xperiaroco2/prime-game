@@ -1,7 +1,7 @@
 class_name StandIns
 extends Node
 ## The solo tutorial's stand-ins (docs/design/tutorial.md §2.2: D25, D26, D35 (a), E67; ARCHITECTURE
-## §4.7.42): COUNT in-process players of the tutorial's private LoopbackHub, so lesson 6 has someone
+## §4.7.43): COUNT in-process players of the tutorial's private LoopbackHub, so lesson 6 has someone
 ## down to raise and lesson 7 someone to watch. Each is a ClientSession on a LoopbackTransport of
 ## its own that joins the hub's host on `port` (join_host()) and then only:
 ## - sends Hello with no name (#550's ""), so the host names it as any joiner (Player<n>);

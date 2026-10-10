@@ -1,7 +1,7 @@
 class_name GameTutorial
 extends RefCounted
 ## Game's solo tutorial session (docs/design/tutorial.md §2.1, §5: E62, E69, E70; ARCHITECTURE
-## §4.7.42), out of game.gd to keep it under lint's 1000 lines. Game.start_tutorial() hosts the
+## §4.7.43), out of game.gd to keep it under lint's 1000 lines. Game.start_tutorial() hosts the
 ## tutorial mode the way Game.host() hosts the base mode, through the same HostNode façade, but on
 ## a LoopbackTransport of a private LoopbackHub: no socket opens and nobody else can join. The own
 ## ClientSession runs on HostNode.own_client as when hosting; the two StandIns join the same hub.
