@@ -7,7 +7,9 @@ extends RefCounted
 ##
 ## No player stops a flight here: a living player only ends one earlier, and lower.
 ##
-## The spots (feet positions, each snapped to the floor below it):
+## The spots: columns (x, z) by area, each giving every floor in it below the roof with room for
+## a player's eye above it (_add_column), so the balcony's columns give the balcony and the terrace
+## under it, and a crate or a raised floor added at a column is swept from its top:
 ## - `balcony`: the balcony (30..40, 21..24 at 3.2 m), every metre, 0.5 m clear of its railing;
 ## - `balcony_railing`: the tops of the balcony's railings (1 m high, so at 4.2 m): a player's
 ##   1 m jump (PlayerRules.jump_height_m) may land a player on the 0.1 m edge (the playtest
@@ -40,38 +42,45 @@ const ATTIC_CEILING_Y := 8.6
 const YAW_STEP_DEG := 10
 const PITCH_STEP_DEG := 5
 const PITCH_TOP_DEG := 85
+## Each column of spots is read from this far under the roof (below its eave and the second
+## floor's ceiling), then from this far under each floor it finds.
+const COLUMN_TOP_BELOW_ROOF_M := 0.3
+const COLUMN_STEP_M := 0.3
 
 
-## Every spot by area, each an Array of feet positions on a floor of `world`.
-static func spots(world: HostWorldQuery) -> Dictionary[String, Array]:
+## Every spot by area, each an Array of feet positions on a floor of `world` with `headroom` clear
+## above it. Each area is a set of columns (x, z); every floor in a column below the roof is a spot
+## (_add_column), so a raised floor, a crate or a railing at a sampled column is thrown from at
+## its own height, and a level change that adds one there is swept (#646 review).
+static func spots(world: HostWorldQuery, headroom: float) -> Dictionary[String, Array]:
 	var balcony: Array[Vector3] = []
 	for x in range(0, 10):
 		for z: float in [21.5, 22.5, 23.5]:
-			_add(balcony, world, Vector3(30.5 + x, 3.2, z))
+			_add_column(balcony, world, Vector2(30.5 + x, z), headroom)
 	var railing: Array[Vector3] = []
 	for x in range(0, 8):
-		_add(railing, world, Vector3(30.5 + x, 4.2, 21.05))
+		_add_column(railing, world, Vector2(30.5 + x, 21.05), headroom)
 	for k in range(0, 5):
-		_add(railing, world, Vector3(30.05, 4.2, 21.5 + 0.5 * k))
+		_add_column(railing, world, Vector2(30.05, 21.5 + 0.5 * k), headroom)
 	for x: float in [30.3, 31.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 39.7]:
-		_add(railing, world, Vector3(x, 4.2, 23.95))
+		_add_column(railing, world, Vector2(x, 23.95), headroom)
 	var stairs: Array[Vector3] = []
 	for k in range(0, 7):
-		_add(stairs, world, Vector3(39.0, 3.2, 17.25 + 0.6 * k))
+		_add_column(stairs, world, Vector2(39.0, 17.25 + 0.6 * k), headroom)
 	var terrace: Array[Vector3] = []
 	for x in range(23, 42, 2):
 		for z: int in [17, 19, 21, 23]:
-			_add(terrace, world, Vector3(x, 0.0, z))
+			_add_column(terrace, world, Vector2(x, z), headroom)
 	var around: Array[Vector3] = []
 	for x in range(18, 43, 2):
-		_add(around, world, Vector3(x, 0.0, 45.5))
+		_add_column(around, world, Vector2(x, 45.5), headroom)
 	for z in range(24, 45, 2):
-		_add(around, world, Vector3(16.5, 0.0, z))
-		_add(around, world, Vector3(43.5, 0.0, z))
+		_add_column(around, world, Vector2(16.5, z), headroom)
+		_add_column(around, world, Vector2(43.5, z), headroom)
 	var second_floor: Array[Vector3] = []
 	for x in range(19, 42, 2):
 		for z in range(25, 44, 2):
-			_add(second_floor, world, Vector3(x, 3.2, z))
+			_add_column(second_floor, world, Vector2(x, z), headroom)
 	return {
 		"balcony": balcony,
 		"balcony_railing": railing,
@@ -151,9 +160,23 @@ static func rest_of(
 	return rest if rest != WorldQuery.NO_FLOOR else fallback
 
 
-## `at` snapped to the floor below it (asked from 0.5 m above its height), when there is one within
-## a storey's reach below.
-static func _add(into: Array[Vector3], world: HostWorldQuery, at: Vector3) -> void:
-	var floor_point := world.floor_below(at + Vector3.UP * 0.5)
-	if floor_point != WorldQuery.NO_FLOOR and floor_point.y > at.y - 3.5:
-		into.append(floor_point)
+## Every floor in the column at `column` (x, z), top down: the first downward ray starts
+## COLUMN_TOP_BELOW_ROOF_M under the roof, each next one COLUMN_STEP_M under the last hit (a ray
+## ignores a shape it starts inside, so a slab thicker than that is passed, not hit twice), down to
+## the ground. A floor with `headroom` clear above it is a spot; one under a ceiling (a wall's top,
+## the inside of a slab) is not, since no player stands there.
+static func _add_column(
+	into: Array[Vector3], world: HostWorldQuery, column: Vector2, headroom: float
+) -> void:
+	var from := Vector3(column.x, ROOF_Y - COLUMN_TOP_BELOW_ROOF_M, column.y)
+	while true:
+		var floor_point := world.floor_below(from)
+		if floor_point == WorldQuery.NO_FLOOR:
+			return
+		# Both ways: a ray misses a shape it starts in, so the upward one misses a crate standing
+		# on this floor and the downward one a ceiling slab its top ends in.
+		var feet := Items.lifted(floor_point)
+		var head := feet + Vector3.UP * headroom
+		if world.line_of_sight(feet, head) and world.line_of_sight(head, feet):
+			into.append(floor_point)
+		from = floor_point + Vector3.DOWN * COLUMN_STEP_M
