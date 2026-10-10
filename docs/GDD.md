@@ -398,7 +398,9 @@ cannot see who is under the car.
 
 **Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
 they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
-garage's walls hide the space under the car from the panel; no sound plays while a fit runs. Tasks are shared and
+garage's walls hide the space under the car from the panel; no sound plays while a fit runs. The end of a fit is
+not hidden: the part-fitted sound and the task screen tell everyone, the holder too, the moment a part is fitted,
+while the fitter is still under the car. Tasks are shared and
 every player sees the same task progress (#79): the task screen's Car repair row shows the parts fitted of N, struck
 through once every part is fitted (there is no shared total of all tasks, #738).
 
