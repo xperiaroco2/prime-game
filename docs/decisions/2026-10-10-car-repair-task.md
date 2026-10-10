@@ -215,7 +215,10 @@ What already holds (ARCHITECTURE §9, §5, §7.1), checked live on main:
 | Parts fitted out of needed | everyone, on the task screen too: the Car repair row, struck through once done, with no shared total of all tasks (#738) | `TaskState` and `TaskProgress` (generic) |
 
 "No view of who is under the car" and "nobody is told who let go" hold for every honest client. A modified client
-could show every avatar's position and so who is under the car, as it can show a hidden package today, and
+could show every avatar's position and so who is under the car, as it can show a hidden package today. Its own
+player may also stand under the raised car and leave it at sprint speed, since the host has no car (RE8), checks
+no crouch (RD1) and accepts a claim without the crouch flag at sprint speed: that shortens its own exit, the trust
+moment narrowed for that player alone. And
 `FitChanged` tells it outright that a fit runs, by whom; the engineer accepted that limit (RD15 (a)). No client
 needs a modification to learn when a fit ends: the part-fitted sound and the task screen's Car repair row tell
 everyone, the holder included, while the fitter is still under the car (RD14's trade-offs).
