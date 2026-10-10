@@ -119,8 +119,9 @@ Open questions:
 
 ### Photo (#687)
 The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
-are the engineer's (#687, chat of 2026-10-10); the engine parts and the questions still open are in
-[the photo task ADR](decisions/2026-10-10-photo-task.md).
+are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
+[PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907)); the engine
+parts and the questions still open are in [the photo task ADR](decisions/2026-10-10-photo-task.md).
 
 **Intent.** "For now the simplest possible thing": one player stands at the photo spot, another takes the shot with a
 flash; the photo travels to be printed and is hung in the darkroom, and it counts only if a person is really in it.
@@ -129,52 +130,61 @@ Closer to a real photography process where it helps. Later, not now: special pos
 **Rules.**
 - The photo is a task type, like the others. One hung photo with a person in it is one subtask; the host sets how
   many in the lobby settings (every task type has such a setting, #256).
-- The camera stands on a tripod in the photo zone (the gazebo, north-west), facing the photo spot. It takes two: one
-  player stands on the spot, another uses the camera. Using the camera enters a viewfinder view: the player looks
-  through it and sees the frame; a press takes the shot, with a flash.
-- The path: the camera records onto a memory card; the card is carried to the computer and printer in the study (the
-  second floor), where the photos are printed; a printed photo is carried to the darkroom (the basement) and hung on
-  its board. (The engineer leaned to this path "for game design", noting that walking around with printed photos is
-  less like the real process; a more natural touch stays open, below.)
-- A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot.
-- A hung photo counts only if a person is really in it; one without a person does not count.
-- A card holds 5 shots; once they are used, a new card is taken in storage (the balance is to be tuned).
+- The camera stands on a tripod in the photo zone (the gazebo, north-west), facing the photo spot; it never turns. It
+  takes two: one player stands on the spot, another uses the camera. Using the camera enters a viewfinder view: the
+  player looks through it and sees the frame; a press takes the shot, with a flash.
+- The camera takes a film loaded into it; the film is not carried by the shooter while shooting. A film has 5 frames,
+  and the frames left are shown on the camera. The players shoot the frames, then take the film out; it may be taken
+  out before every frame is used, and then only the frames shot are printed.
+- New films come from a box in storage, without limit. At the round's start one film lies at the photo zone.
+- The path: the film is carried to the computer and printer in the study (the second floor), where one use prints
+  every frame shot on it, at once; a printed photo is carried to the darkroom (the basement) and hung on its board.
+- A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot. A
+  film and a photo each take one hand: a player can hold one in the hand and one on the belt.
+- Who counts as a person in the photo: any living player whose head is in the frame and in the camera's sight,
+  anywhere in the frame, whatever the role, the shooter included. A knocked-down player does not count. One player
+  may be in several photos, and several players in one.
+- A hung photo counts only if a person is really in it, and then it stays on the board for good. One without a person
+  counts nothing and can be taken down and carried away.
+- Once the task is done, the camera, the printer and the board no longer work; the box still gives films.
 - Tasks are shared, and only living players do subtasks (#79); a dissident plays the same character under the same
-  rules, and a two-handed item stops a use (busy hands), as for the Generator (#679).
+  rules, and a two-handed item stops a use of the camera, the printer or the board (busy hands), as for the
+  Generator (#679). Taking a film from the box works as the burger chain's sources do (#682): a full hand puts its item
+  on the belt or down at the feet, and a package carrier gets the film on the belt.
+
+**Where it plays.** On the House, in the base mode, in every match, as the Generator (#679). The flat greybox stays
+the bots' test map, with the photo stations placed on it too.
 
 **Hidden information.** Whether a person is in a photo is decided by the host from where everyone stood at the moment
 of the shot, never from a player's picture. A photo shows its picture to whoever sees it; whether it counted
-everyone learns from the task's progress once it is hung.
+everyone learns from the task's progress once it is hung. Nobody is told who took a shot: players see it only by
+looking at the gazebo. Nothing shows through a wall.
 
-**Numbers** (the engineer's starting values, to tune): 5 shots a card.
+**Numbers** (the engineer's starting values, to tune): 5 frames a film. Placeholders until he sets them: 1 to 5 photos,
+3 by default; the camera's view 50° high, 4:3, counting people up to 10 m; a player uses a station from within 2 m;
+one take from the box per player every 0.25 s, as the burger chain's sources.
+
+**Name and description** (drafts for the engineer's approval in PR #704; the ADR's §6.1): the task "Photography"; the
+lobby setting "Photos (Photography)"; on the task screen, "Load a film into the camera, photograph a player on the
+spot, print the film, and hang the photos on the board: each one with a person in it counts."; the items "Film" and
+"Photo".
 
 **Engine parts** ([the photo task ADR](decisions/2026-10-10-photo-task.md) §1, §9): a photo task type with five
-station kinds (the camera, the photo spot, the box of cards, the printer, the board), all but the photo spot used
-through the Generator's `Interact(station)` (the spot is only where the subject stands); the host's check of who is in the frame (the camera's view and a sight line from its lens); each
-client draws a shot's picture from where the host says everyone stood; memory card and photo items, one player taking
-a card from the box at most once per a short cooldown (a placeholder, as the burger chain's boxes and herb beds);
-station scenes in `levels/stations/` in place of the House's markers; the client's viewfinder, flash and photos. The
-issues follow from the ADR's split.
+station kinds (the camera, the photo spot, the box of films, the printer, the board), all but the photo spot used
+through the Generator's `Interact(station)` (the spot is only where the subject stands); the film taken out of the
+camera by an ordinary pick-up; the host's check of who is in the frame (the camera's view and a sight line from its
+lens); each client draws a shot's picture from where the host says everyone stood; film and photo items, the box
+giving films as the burger chain's sources give their items; station scenes in `levels/stations/` in place of the
+House's markers; the client's viewfinder, the frames counter on the camera, the flash and the photos. The issues
+follow from the ADR's split.
 
-Open questions (the engineer's; #687's open items and the ADR's PD items, each with options and a recommendation):
-- Who counts as a person in the photo: any living player, a dissident too? Standing on the spot, or anywhere in the
-  frame? Does the same player count for several photos?
-- The printing: does one visit print every shot on the card? Does printing take time? Is the card used up or carried
-  back?
-- The cards in storage: unlimited? Does the first card lie at the photo zone? Can a player hold a card and a photo at
-  once (hands, the belt)?
-- A photo without a person once hung: can it be taken down again? Can a dissident take a good photo off the board?
-- A more natural touch: for example the darkroom as where photos develop before they count.
-- The default photo count and its range; the camera's view (how wide, how far a person still counts); how near a
-  player must stand to use a station; the task's name, its description and the lobby label of its setting.
-- Is the camera fixed on the spot, or can the shooter turn it? Does the card stay with the shooter, or go into the
-  camera?
-- After the task is done, do the camera, the printer and the board stop working?
-- Is a photo's content hidden by sight only (every client could know which shots have a person, as hidden packages
-  today), or should the host hide it until the photo is hung? May every client know who pressed the camera (who
-  carries which card is known today), or should only those who see the gazebo?
-- Does the photo task play on the greybox too, and does every match deal it?
-- The flash and the sounds (the shutter, the printer).
+Open questions (the engineer's; the ADR's §10, each with options and a recommendation):
+- A film once taken out: can it go back into the camera with its frames left, and is it used up at the printer?
+  Recommended: it never goes back in once shot, and the printer uses it up.
+- How a film is taken out of the camera: recommended, hold E over the camera, as over the burger chain's boxes.
+- "It takes two" now that the shooter counts: a shooter who steps in front of the lens, still within the camera's
+  reach, could photograph itself alone. Recommended: nobody standing within the camera's reach is in the photo.
+- The drafts above: the name, the setting's label, the description and the item names.
 
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
