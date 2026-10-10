@@ -139,14 +139,16 @@ func begin(game: Game) -> void:
 
 
 ## Every frame (Game._process): the local player's position and microphone, a card showing on the
-## map, a voice frame sent.
+## map, a voice frame sent. D31 (a)'s quiet time stands still while the Esc menu is open (the
+## engineer's answer on PR #722): no time counts for it there (an open microphone still resets it).
 func process(game: Game, delta: float) -> void:
 	var current := runner
 	if current == null or not current.is_running():
 		return
 	var player := game.player()
 	if player != null:
-		current.advance(delta, player.global_position, game.sender().live())
+		var quiet_delta := 0.0 if game.ui.esc_open() else delta
+		current.advance(quiet_delta, player.global_position, game.sender().live())
 	var shown := game.ui.map.howto_open()
 	if shown and not _howto_shown:
 		current.see(ClientSeen.HOWTO_OPENED)

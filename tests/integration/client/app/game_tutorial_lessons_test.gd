@@ -4,7 +4,8 @@ extends GdUnitTestSuite
 ## simulated clock as game_tutorial_test: the own player walks, picks up, delivers, swaps, opens
 ## the map and a card by its «?», raises the stand-in the host knocked down after the runner's own
 ## NextStage, dies after the second, switches the spectate target, respawns, waits 3 s near a
-## stand-in with no microphone (D31 (a)), and opens and closes the Esc menu: the session ends at
+## stand-in with no microphone (D31 (a); not while the Esc menu is open), and opens and closes the
+## Esc menu: the session ends at
 ## the main menu (D32 (b)). And when the lessons begin: by themselves without the invite, on
 ## begin() with it. No step feeds the runner by hand: the item keys' intents go out through the own
 ## session, the raise through LifeView, the card through its «?» button, the rest through Game.
@@ -19,6 +20,8 @@ const MAX_FRAMES := 900
 const SETTINGS_PATH := "user://game_tutorial_lessons_test.cfg"
 ## Metres from an item's or a downed player's feet the own player stops at: inside the reach.
 const NEAR_M := 1.0
+## Physics frames with the Esc menu open in lesson 8: 6 s at 60 Hz, twice D31 (a)'s 3 s.
+const QUIET_PAUSED_FRAMES := 360
 
 const S := GameFlow.Screen
 
@@ -107,6 +110,15 @@ func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() ->
 	assert_bool(await _until(func() -> bool: return model.is_alive(own))).is_true()
 	assert_int(runner.lesson()).is_equal(8)
 	assert_bool(game.sender().live()).is_false()
+	# The quiet time stands still under the Esc menu (the engineer's answer on PR #722): twice its
+	# 3 s there leave lesson 8 as it was; closed, it counts on.
+	game.open_esc()
+	for i in QUIET_PAUSED_FRAMES:
+		_now += WALK_USEC
+		await get_tree().physics_frame
+	await _settle()
+	assert_int(runner.lesson()).is_equal(8)
+	game.close_esc()
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 9)).is_true()
 	# 9: the Esc menu opens; as it closes the tutorial ends at the main menu, with no failure.
 	game.open_esc()
