@@ -5316,15 +5316,16 @@ levels/
   10 m, a placeholder, D33), an empty `Doors` (no opening) and `Stations` (the drop-off is Delivery's circle, a
   marker), a `Name` label "Tutorial", and box-mesh looks over one layer-1 `StaticBody3D`: the floor (top at y = 0),
   four 3 m walls and the two props, a shelf (2 × 1.8 × 0.5 m) and a table (1.6 × 0.8 × 0.8 m) against the north
-  wall. Its greybox colours are inline until `levels/kit/`'s role materials reach the base. The markers, all on the
-  floor in scene-tree (level) order, positions (x, z) in metres (placeholders, "not a decision"): `round_player`
-  Start (2, 5) by the west wall, `package` ShelfPackage (4, 1.3) in front of the shelf, `knife` TableKnife (8.5, 1.6)
-  in front of the table, `circle` DropOff (4, 8.5) by the south wall, across the room from the shelf,
-  `round_player` RaiseSpot (10.5, 3) by the east wall, `round_player` Corner (10.5, 8.5) and `respawn` Respawn
-  (8.5, 8.5), 2 m from the corner (more than `respawn_free_m`, within RoundVoice's 8 m). The ordered `PlacePlayers`
-  puts the own player on Start, stand-in 1 on RaiseSpot and stand-in 2 in the Corner. No `lobby_player` marker and
-  no lobby scene (`gather` plays at no level, E72). The environment track dresses it and keeps every marker where
-  it is. The room's map record (#306) waits for #306 (the follow-up named in #600's PR).
+  wall. Its looks use `levels/kit/`'s role materials (#658): `greybox_floor_house` on the floor, `greybox_material`
+  on the walls and props. The markers, all on the floor in scene-tree (level) order, positions (x, z) in metres
+  (placeholders, "not a decision"): `round_player` Start (2, 5) by the west wall, `package` ShelfPackage (4, 1.3)
+  in front of the shelf, `knife` TableKnife (8.5, 1.6) in front of the table, `circle` DropOff (4, 8.5) by the
+  south wall, across the room from the shelf, `round_player` RaiseSpot (10.5, 3) by the east wall, `round_player`
+  Corner (10.5, 8.5) and `respawn` Respawn (8.5, 8.5), 2 m from the corner (more than `respawn_free_m`, within
+  RoundVoice's 8 m). The ordered `PlacePlayers` puts the own player on Start, stand-in 1 on RaiseSpot and
+  stand-in 2 in the Corner. No `lobby_player` marker and no lobby scene (`gather` plays at no level, E72). The
+  environment track dresses it and keeps every marker where it is. The room's map record (#306) waits for #306
+  (the follow-up named in #600's PR).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
