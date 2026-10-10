@@ -1,42 +1,55 @@
 # The photo task (#687): shoot, print, hang: its engine parts, who is in the frame, and the split
 
 - **Status:** Proposed on 2026-10-10. Nothing here is built. The rules are the engineer's: #687's "Decided" list
-  (chat with the game-design manager session, 2026-10-10). The PD items are game rules and taste that list leaves
-  open: they are his (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (c)), each with
-  options and a recommendation, and the design proceeds with the recommendation where it can be reverted. The PE items
-  are technical, the game-design manager session's to decide and report (tier (a)): decided here, each revertible in
-  its issue.
+  (chat with the game-design manager session, 2026-10-10) and his answers of 2026-10-10 to PD1 to PD15
+  ([PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907)): every
+  recommendation stands except PD1, PD6 and PD3, PD4 and PD11, which he answered otherwise (the camera takes a
+  **film** loaded into it, not a memory card carried by the shooter), and PD2 and PD8, which he answered in his own
+  words (§6). PD16 to PD18, which his answers raise, are open: game rules (the
+  [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (c)), each with options and a
+  recommendation, and the design proceeds with the recommendation where it can be reverted. The PE items are
+  technical, the game-design manager session's to decide and report (tier (a)): decided here, each revertible in its
+  issue.
 - **Date:** 2026-10-10
-- **Deciders:** the engineer (the rules, PD1 to PD15); the game-design manager session of #676 (PE1 to PE16).
-  Designed by the agent of #687, on the engineer's word (#687; the track's kickoff on #593, comment 6088751685).
-- **Builds on:** [the Generator ADR](2026-10-10-generator-task.md) (#679, proposed: `Interact(station)`, a station
-  kind owning its rules, `AtStation`, `StationInSight`, `StationUsable`, `UseStation`, `TaskType.use_problem` and
-  `use_station`, busy hands, the station scenes of its GE11, the runners of its GE12, its issues G0 to G8),
+- **Deciders:** the engineer (the rules; PD1 to PD15, answered on 2026-10-10 in PR #704's comment 6095444907;
+  PD16 to PD18 open); the game-design manager session of #676 (PE1 to PE17). Designed by the agent of #687, on the
+  engineer's word (#687; the track's kickoff on #593, comment 6088751685).
+- **Builds on:** [the Generator ADR](2026-10-10-generator-task.md) (#679, PR #695, proposed: `Interact(station)`, a
+  station kind owning its rules, `AtStation`, `StationInSight`, `StationUsable` with `TaskType.use_problem`'s fixed
+  list of public reasons, `UseStation`, `TaskType.use_station`, busy hands, the station scenes of its GE11, the runners
+  of its GE12, its issues G0 to G8, and the engineer's GD7 made precise: where a chain plays),
   [content API v0](2026-09-29-content-api-v0.md) (task types are classes with settings; `Interact` is v1),
   [MVP rules](2026-09-29-mvp-rules.md) (Tasks: the engineer's decision of 2026-09-30, #79),
   [vision revision 1](2026-10-01-vision-revision-1.md) (V4's "living", no ghosts, two hands),
   [the M4 client design](2026-10-01-m4-first-person-client.md) (its render checklist, §3; E33's hearing range),
   [the zone task ADR](2026-10-09-m7-zone-task.md) (#36: the role-swap check, the scenario bans of M7-Z2, the station
   target), [level piece conventions](2026-10-09-level-piece-conventions.md) (station scenes in `levels/stations/`),
-  the cooking design (#682, proposed in parallel: `docs/decisions/2026-10-10-cooking-task.md` on its branch; its
-  item source of CE2, CE3, CD5 and CD6, its items locked on a station of CE5, its issues C1 to C8),
+  the cooking design (#682, PR #701, proposed: `docs/decisions/2026-10-10-cooking-task.md` on its branch; its parts
+  by name: `GiveItem.give_new` and the cap `ItemKind.max_items` (CE2, CE3; C1), `StationKind.display` (CE6; C1),
+  `Items.give` making room by the engineer's CD3 (b) and CD5 (b) (CE19, CE20; C2), the moves that lock an item at a
+  station or lay one there with the cause `on_station` (CE5; C2), `Items.vanish`, `ItemVanished` and an item's rest
+  tick (C10), `TaskType.use_reasons()` (CE11; C11), the take `Cooldown` (CE17)),
   [MVP content built by the engineer](2026-09-29-mvp-content-built-by-the-engineer.md) (content and levels are
   provisional, approved in their PRs), [the House map](../design/house-map.md) (§2 decision 7, the stations of §6),
-  [tests on CI](2026-10-09-tests-on-ci-local-lint-and-check.md) (#605: what "green" means in §8)
-- **Numbering:** PD and PE are this ADR's own; the issues are P1 to P10 (§9), which the manager opens from the PR's
-  handoff. G0 to G8 are the Generator ADR's issues.
+  [tests on CI](2026-10-09-tests-on-ci-local-lint-and-check.md) (#605: what "green" means in §8). Decided since, not
+  yet designed: the knockdown reworked (#728: no downed state beyond the knockdown, no movement or speech, a ragdoll)
+  and a crouch for every player (#727); and no marker through a wall anywhere (the Delivery redesign's DD4,
+  [PR #713, comment 6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718)).
+- **Numbering:** PD and PE are this ADR's own; the issues are P2 to P10 (§9; P1 is withdrawn), which the manager
+  opens from the PR's handoff. G0 to G8 are the Generator ADR's issues, C1 to C11 the cooking ADR's.
 
 ## Context
-The engineer's rules (#687, "Decided"), in short: the photo is a task type whose subtasks are hung photos with a
-person in them; the host sets how many. A camera stands on a tripod in the photo zone (the gazebo in the north-west of
-the yard), facing the photo spot. It takes two: one player stands on the spot, another uses the camera, which enters a
-viewfinder view; a press takes the shot, with a flash. The camera records onto a memory card of 5 shots; once they are
-used, a new card is taken in storage. The card is carried to the computer and printer in the study (second floor),
-where the photos are printed. A printed photo is an item held in the hand that shows exactly what the camera saw at
-the moment of the shot. It is carried to the darkroom (basement) and hung on its board, and it counts only if a
-person is really in it. "For now the simplest possible thing"; poses or gestures the photo must show come later.
-
-#687's six "Open" items are the engineer's; with the questions the mapping raises they are PD1 to PD15 (§6).
+The engineer's rules (#687, "Decided", and his answers of 2026-10-10), in short: the photo is a task type whose
+subtasks are hung photos with a person in them; the host sets how many. A camera stands on a tripod in the photo zone
+(the gazebo in the north-west of the yard), facing the photo spot. It takes two: one player stands on the spot, another
+uses the camera, which enters a viewfinder view; a press takes the shot, with a flash. The camera takes a **film
+loaded into it**, of 5 frames, and the frames left are shown on the camera. The players shoot, then take the film
+out, possibly before every frame is used: then only the frames shot are printed. New films come from a box in
+storage. The film is carried to the computer and printer in the study (second floor), where its frames are printed. A
+printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot. It is
+carried to the darkroom (basement) and hung on its board: it counts only if a person is really in it, and then it is
+fixed for good; one without a person can be taken down and carried away. Any living player in the photo counts, the
+shooter included. "For now the simplest possible thing"; poses or gestures the photo must show come later.
 
 The technical core: **the host decides whether a person is in the shot**, at the moment of the shot, from its own
 world (architecture invariant 1: a client's image or field is never trusted), and the photo's picture is a client's
@@ -44,32 +57,39 @@ render of that moment, for looks only.
 
 What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds (proposed, #679, PR #695):
 - **Tasks are shared** (#79): nobody owns one, any living player does any subtask, each type has its own subtasks
-  setting. **"Living" means ALIVE** (V4): the downed are not living, and the dead have no avatar.
-- **Hidden by sight is a client rule.** Every living or downed avatar and every item reaches every player; an honest
-  client shows an item only where it lies, depth-tested, and plays a world sound only within 12 m (the M4 render
-  checklist, items 5 and 10). §5's invariant: every player receives the same task events.
+  setting. **"Living" means ALIVE** (V4): the knocked-down (`DOWNED`; #728 reworks the knockdown) are not living, and
+  the dead have no avatar.
+- **Hidden by sight is a client rule.** Every living or knocked-down avatar and every item reaches every player; an
+  honest client shows an item only where it lies, depth-tested, and plays a world sound only within 12 m (the M4
+  render checklist, items 5 and 10); no marker shows through a wall (DD4). §5's invariant: every player receives the
+  same task events.
 - **The task slots:** a `TaskType` subclass with its task state as an inner class; `StationKind` (spawn tag, radius,
   height, palette); `ItemKind` (spawn tag, `hands`); `StationPlaced`, `ItemSpawned`, `TaskState` and `TaskProgress`;
   `Tasks.subtask_done`; `Items` as the one place that moves an item (§9.3).
 - **From the Generator** (G1 unless named): `Interact(station)`, sent on E over a placed station; a station kind's
   `actions` tried first for it; `AtStation` (the feet in the station's cylinder, `out_of_reach`), `StationInSight`
-  (`blocked`), `StationUsable` (`TaskType.use_problem`, else its reason), `UseStation` (`TaskType.use_station`, which
-  alone writes the task state); `HandNotTwoHanded` in each station rule (busy hands, #679); a station on every marker
-  of its tag, with exact demands (its GE10); station scenes with a use-spot marker and driven nodes, found by the
-  client by the nearest point in 3D (its GE11, G4); the runners snapping station markers only on the scenario levels,
-  so a basement station reads (its GE12, G3); `subtasks_setting` in `TaskType` (G0, optional); the client's station
-  hint, E taking the target nearest along the crosshair (G6); scenarios that interact with stations (`StepInteract`,
-  G8).
-- **The cooking chain** (#682, designed in parallel) designs an item source: `GiveItem(kind, max_items)`, a new item
-  spawned at the rule's target and taken into the hand (`ItemSpawned`, then `ItemPickedUp`), held under
-  `HandsHaveRoom` (`hands_full`), with a cap per given kind (32, a placeholder) at which the oldest loose item of that
-  kind comes to the taker instead (its CE2, CE3, CD5, CD6; issue C1); a herb bed is a station kind whose rule pays the
-  existing `Cooldown` cost (`core/combat/cooldown.gd`, `too_soon`; its CE17, the seconds its CD17) and ends in
-  `GiveItem`. It also locks an item at a station, as a delivered package is locked (its CE5; issue C2). The card box
-  uses the first and the board the second, by the same names (PE7, PE9). And it extends G1's API with
-  `TaskType.use_reasons()` (its CE11, built in C1): `StationUsable`'s one static `rejection_reason()` cannot name
-  several, so a type lists every reason its `use_problem` may return (the base: [`unavailable`]) and the mode check
-  tests each against the wire alphabet; `PhotoTask.use_reasons()` lists its five (PE16).
+  (`blocked`), `StationUsable` (`TaskType.use_problem`, a reason from a fixed list of public ones, else none),
+  `UseStation` (`TaskType.use_station`, which alone writes the task state); `HandNotTwoHanded` in each station rule
+  (busy hands, #679); a station on every marker of its tag, with exact demands (its GE10); station scenes with a
+  use-spot marker and driven nodes, found by the client by the nearest point in 3D (its GE11, G4); the runners
+  snapping station markers only on the scenario levels, so a basement station reads (its GE12, G3);
+  `subtasks_setting` in `TaskType` (G0, optional); the client's station hint, E taking the target nearest along the
+  crosshair (G6); scenarios that interact with stations (`StepInteract`, G8).
+- **From the cooking chain** (#682, designed in parallel; its issues): a source station gives an item through
+  `GiveItem.give_new(ctx, kind, at)`, as its herb beds do from `Cooking.use_station` (CE2, CE6; C1): a new item
+  spawned at the source (`ItemSpawned`) and given to the taker by `Items.give` (C2), which never refuses for full hands
+  (the engineer's CD5 (b): the hand item goes to the belt, else down at the taker's feet) and puts a new one-handed
+  item on the belt of a two-handed carrier (his CD3 (b)), ending in `ItemPickedUp`; a take pays the existing
+  `Cooldown` cost (`core/combat/cooldown.gd`, `too_soon`; CE17, 0.25 s by his CD17). A given kind has a cap,
+  `ItemKind.max_items`: a take at the cap first vanishes the loose item of that kind that has lain longest (CE3; C1,
+  through C10's `Items.vanish` and its public `ItemVanished`). C2 adds the `Items` moves that lock an item at a station
+  (`ItemState.Where.LOCKED`, as a delivered package) and lay one on the ground at a station, interactive, raising
+  `item_rested` with the cause `on_station` (CE5); C10 an item's rest tick, the tick it last came to rest, set by every
+  move that leaves it lying and cleared by every move that lifts it. C1 adds `StationKind.display`: a display station
+  is refused `nothing_to_do` before any owner and skipped by the client's targeting (CE6). C11 extends G1's API with
+  `TaskType.use_reasons()` (CE11): `StationUsable`'s one static `rejection_reason()` cannot name several, so a type
+  lists every reason its `use_problem` may return (the base: [`unavailable`]) and the mode check tests each against
+  the wire alphabet; `PhotoTask.use_reasons()` lists its six (PE16).
 
 ## Decision
 
@@ -81,27 +101,29 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 |---|---|---|---|
 | 1 | The photo is a task type, like the others | `PhotoTask extends TaskType` (`core/tasks/photo_task.gd`), no tick | missing: P2 |
 | 2 | One hung photo with a person is one subtask; the host sets how many | the type's own subtasks setting: `subtasks_setting`, the property Delivery (`core/tasks/delivery.gd`), the zone task and the Generator share and G0 lifts into `TaskType`, names a whole-number `SettingSpec` of the mode (id `photos`, provisional), one lobby control (`client/ui/lobby_panel.gd`), as Delivery's `packages` and the Generator's | exists as a pattern; the setting P5; #256's shared part G0 |
-| 3 | A camera on a tripod in the photo zone, facing the photo spot | two station kinds of the type: `camera` (the tripod; its use spot is where the shooter stands) and `photo_spot` (the floor mark the camera frames), each with its spawn tag, radius and height; both reach every client in `StationPlaced`. The photo spot is a display station with no rule (as #682's CE6 boards): E on it is refused `nothing_to_do`; the camera, the box, the printer and the board are the four with an `Interact` rule | the class exists (`core/content/station_kind.gd`); the data P5; the scenes P4 |
-| 4 | It takes two: one on the spot, another at the camera | the shooter is never counted in its own shot: the actor is left out of the frame check and of the shot's record (§3.2) | missing: P2 |
-| 5 | Using the camera enters a viewfinder view | a client camera mode: E over the camera, while the client's own reach and sight checks hold, puts the view at the frame's pose with the photo's aspect; the host never hears of it (PE1) | missing: P7 |
-| 6 | A press takes the shot | `Interact(camera)`, sent from the viewfinder; the camera kind's rule: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `StationUsable`, then `UseStation`, which calls `PhotoTask.use_station` | the parts: G1; the shot: P2 |
+| 3 | A camera on a tripod in the photo zone, facing the photo spot | two station kinds of the type: `camera` (the tripod; its use spot is where the shooter stands) and `photo_spot` (the floor mark the camera frames), each with its spawn tag, radius and height; both reach every client in `StationPlaced`. The photo spot is a display kind (`StationKind.display`, C1): no rule, refused `nothing_to_do`, never a target | the class exists (`core/content/station_kind.gd`); `display` C1; the data P5; the scenes P4 |
+| 4 | It takes two: one on the spot, another at the camera | nobody standing within the camera's reach is in the photo: a player whose feet are in the camera's cylinder (where one can press it) is neither counted nor drawn, so the shooter never photographs itself (PD18's recommendation; PD1: nobody is left out by who they are) | missing: P2 |
+| 5 | Using the camera enters a viewfinder view | a client camera mode: E over a camera that holds a film, while the client's own reach and sight checks hold, puts the view at the frame's pose with the photo's aspect; the host never hears of it (PE1) | missing: P7 |
+| 6 | A press takes the shot | `Interact(camera)`, sent from the viewfinder; the camera kind's rule: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `StationUsable`, then `UseStation`, which calls `PhotoTask.use_station`: with a film in the camera, a shot | the parts: G1; the shot: P2 |
 | 7 | With a flash | the public `ShotTaken` (§3.3); every client flashes a light at the lens, seen where the eye reaches, and plays the shutter within 12 m | the event P2; the flash and the sound P6 |
-| 8 | The camera records onto a memory card | a `memory_card` item kind (`hands` per PD5); the shooter carries the card (PD11); each shot takes one of its shots; the task state keeps each card's shots by item id (PE6) | missing: P2; the kind P5 |
-| 9 | A card holds 5 shots | `shots_per_card` in the type's data (5, the engineer's starting value) | missing: P2 (the property), P5 (the value) |
-| 10 | Once they are used, a new card is taken in storage | a `card_box` station kind in storage; its `Interact` rule, as a herb bed's: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `HandsHaveRoom`, the cost `Cooldown` (key `photo_take`, a provisional id; #682's CE17), then `GiveItem` (kind `memory_card`), the cooking design's item source (PE7) | `Cooldown` exists (`core/combat/cooldown.gd`); `GiveItem` and `HandsHaveRoom` missing: #682's C1 (or P1, if the photo task comes first); the data P5 |
-| 11 | The host decides whether a person is in the frame, from its own world at that moment | `PhotoFrame` (`core/tasks/photo_frame.gd`, pure math: the frustum from two markers and the type's data, PE3) and `WorldQuery.line_of_sight` from the lens to each candidate's head, its answers recorded in the command log (PE2) | `line_of_sight` exists (`core/world/`); the rest P2 |
-| 12 | A hung photo counts only if a person is really in it | the shot's `has_person`, kept in the task state, decided at the shot and never sent (PE5) | missing: P2 |
-| 13 | A printed photo shows exactly what the camera saw at the moment of the shot | the shot's record in `ShotTaken`: every avatar near the lens at that tick; each client renders the picture as it folds the event (PE4) | the record P2; the render P8 |
-| 14 | The card is carried to the computer and printer in the study, where the photos are printed | a `printer` station kind; `Interact(printer)`: `PhotoTask.use_station` prints the card's unprinted shots as `photo` items on the printer's tray marker (PD3, PE8) | missing: P3 |
-| 15 | A printed photo is an item held in the hand | a `photo` item kind (`hands` per PD5); `PickUp`, `PutDown` and `Swap` work on it as on any item (the mode's rules) | the rules exist; the kind P5 |
-| 16 | It is carried to the darkroom and hung on its board | a `photo_board` station kind; `Interact(board)` with a photo in the hand: the photo is locked on the board, by the cooking design's move that locks an item at a station (PE9), then `PhotoHung` | missing: P3; the move #682's C2 (or P1) |
-| 17 | It counts | `Tasks.subtask_done` when the photo's shot has a person and a subtask is left | exists (`core/tasks/tasks.gd`); the call P3 |
-| 18 | A dissident plays by the same rules (#679) | no condition reads a role, and a person in the frame counts whatever its role (PD1): a role-gated count would tell everyone a role through the board (§9.2, "a public event can reveal its rule's owner") | by design; the role-swap check P2, P3 |
-| 19 | Busy hands (#679) | `HandNotTwoHanded` in every station rule of the type; the box's also `HandsHaveRoom` (no free hand and no free belt for the hand's item) | `HandNotTwoHanded` exists (`core/items/hand_not_two_handed.gd`); `HandsHaveRoom` #682's C1 (or P1) |
-| 20 | Only living players do subtasks (#79, V4) | the phase's allowlist: `Interact` from the living (G5's Round row), so the downed get `not_accepted` and the dead send nothing | exists: `AcceptSpec` |
-| 21 | The host's own player follows the same rules | its client sends `Interact` like any other | exists |
-| 22 | The stations in the photo zone, storage, the study and the darkroom | station scenes in `levels/stations/` (the Generator's GE11): `camera.tscn`, `photo_spot.tscn`, `card_box.tscn`, `printer.tscn` (with its tray marker), `photo_board.tscn` (with its slots), in place of the markers `PoseScreen`, `Printer` and `PhotoBoard`, plus a camera and a card box at points the level task proposes | the markers exist (plain `Marker3D`s under `Stations` in `levels/house/rooms/photo_zone.tscn`, `study.tscn`, `darkroom.tscn`); the scenes P4 |
-| 23 | Tested without bots on House (ARCHITECTURE §9.7) | unit tests from fixtures (P1 to P3); integration tests on House in the host's real world (P9); scenarios on the greybox, whose station scenes stand above y = 0 (P10) | missing |
+| 8 | The camera takes a film loaded into it, not carried by the shooter | a `film` item kind (one-handed, PD5); `Interact(camera)` on an empty camera with a fresh film carried loads it: C2's move lays the film on the ground at the camera (`on_station`), interactive, and `FilmLoaded(station, item)` tells everyone; the camera's film is derived from the item, never stored as a flag (PE17) | missing: P2; C2's move; the kind P5 |
+| 9 | A film has 5 frames | `frames_per_film` in the type's data (5, the engineer's starting value); the task state keeps each film's shots by item id (PE6) | missing: P2 (the property), P5 (the value) |
+| 10 | The frames left are shown on the camera | every client counts them from public events (`FilmLoaded`, `ShotTaken` naming the film, the film's `ItemPickedUp` or `ItemVanished`) and shows them on the camera's counter in the world, depth-tested, and in the viewfinder; no new field | missing: P7, P8 |
+| 11 | The film is taken out, possibly before every frame is used | `PickUp` of the loaded film, the mode's existing rule (sent by a hold of E over the camera, PD17's recommendation); a film taken out is printable, and under PD16's recommendation never goes back in (`film_exposed`) | `PickUp` exists; the client P7 |
+| 12 | New films come from a box in storage | a `film_box` station kind in storage; its `Interact` rule, as cooking's herb bed's: `AtStation`, `StationInSight`, the cost `Cooldown` (key `photo_take`, a provisional id; CE17), then `UseStation`, for which `PhotoTask.use_station` gives a new film by `GiveItem.give_new` (PE7) | `Cooldown` exists (`core/combat/cooldown.gd`); `GiveItem` C1, `Items.give` C2; the rest P3, the data P5 |
+| 13 | The host decides whether a person is in the frame, from its own world at that moment | `PhotoFrame` (`core/tasks/photo_frame.gd`, pure math: the frustum from two markers and the type's data, PE3) and `WorldQuery.line_of_sight` from the lens to each candidate's head, its answers recorded in the command log (PE2) | `line_of_sight` exists (`core/world/`); the rest P2 |
+| 14 | A hung photo counts only if a person is really in it | the shot's `has_person`, kept in the task state, decided at the shot and never sent before the hang (PE5) | missing: P2 |
+| 15 | A printed photo shows exactly what the camera saw at the moment of the shot | the shot's record in `ShotTaken`: every avatar near the lens at that tick; each client renders the picture as it folds the event (PE4) | the record P2; the render P8 |
+| 16 | The film is carried to the computer and printer in the study, where its frames are printed; only the frames shot | a `printer` station kind; `Interact(printer)`: `PhotoTask.use_station` prints every shot of the carried film as `photo` items on the printer's tray marker, and the film is used up (PD3, PD16's recommendation, PE8) | missing: P3; `Items.vanish` C10 |
+| 17 | A printed photo is an item held in the hand | a `photo` item kind (one-handed, PD5); `PickUp`, `PutDown` and `Swap` work on it as on any item (the mode's rules) | the rules exist; the kind P5 |
+| 18 | It is carried to the darkroom and hung on its board | a `photo_board` station kind; `Interact(board)` with a photo carried: `PhotoHung(item, station, counted)` | missing: P3 |
+| 19 | It counts; a counted photo is fixed for good, one without a person can be taken down and carried away (PD6) | a counted photo is locked on the board (C2's lock), then `Tasks.subtask_done`; one without a person lies on the board, interactive (C2's lay, `on_station`), so `PickUp` takes it down (PE9) | `Tasks.subtask_done` exists (`core/tasks/tasks.gd`); the moves C2; the call P3 |
+| 20 | A dissident plays by the same rules (#679) | no condition reads a role, and a person in the frame counts whatever its role (PD1): a role-gated count would tell everyone a role through the board (§9.2, "a public event can reveal its rule's owner") | by design; the role-swap check P2, P3 |
+| 21 | Busy hands (#679) | `HandNotTwoHanded` in the camera's, the printer's and the board's rules; the box as cooking's sources: a package carrier gets the film on the belt (CD3 (b)), and full hands put the hand item down (CD5 (b)) | `HandNotTwoHanded` exists (`core/items/hand_not_two_handed.gd`); `Items.give` C2 |
+| 22 | Only living players do subtasks (#79, V4) | the phase's allowlist: `Interact` from the living (G5's Round row), so the knocked-down get `not_accepted` and the dead send nothing | exists: `AcceptSpec` |
+| 23 | The host's own player follows the same rules | its client sends `Interact` and `PickUp` like any other | exists |
+| 24 | The stations in the photo zone, storage, the study and the darkroom | station scenes in `levels/stations/` (the Generator's GE11): `camera.tscn` (with its film slot and its frames counter), `photo_spot.tscn`, `film_box.tscn`, `printer.tscn` (with its tray marker), `photo_board.tscn` (with its slots), in place of the markers `PoseScreen`, `Printer` and `PhotoBoard`, plus a camera, the box and the first film's marker at points the level task proposes | the markers exist (plain `Marker3D`s under `Stations` in `levels/house/rooms/photo_zone.tscn`, `study.tscn`, `darkroom.tscn`); the scenes P4 |
+| 25 | Tested without bots on House (ARCHITECTURE §9.7) | unit tests from fixtures (P2, P3); integration tests on House in the host's real world (P9); scenarios on the greybox, whose station scenes stand above y = 0 (P10) | missing |
 
 #### 1.2 Beside Delivery and the Generator
 
@@ -109,43 +131,56 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 |---|---|---|---|---|
 | Subtasks | one per package, done when it rests in its circle | the active switches, done together at full charge | one per hung photo with a person, done at the hang | #687: "one hung photo with a person in it is one subtask" |
 | Stations | one circle per package, on random markers, coloured | one per marker, exact counts | one per marker of five kinds, exact counts (one each on House), no colours | the stations are the level's devices (the Generator's GE10, GE11) |
-| Items | packages, dealt | none | cards (from the box; PD4: one dealt at the photo zone) and photos (printed) | the chain carries things between stations |
-| Uses | none (`PickUp`, `PutDown`) | `Interact` on a switch and the button | `Interact` on the camera, the box, the printer and the board | one intent for every station (the Generator's GE1) |
+| Items | packages, dealt | none | films (one dealt at the photo zone, PD4 (i); the rest from the box) and photos (printed) | the chain carries things between stations |
+| Uses | none (`PickUp`, `PutDown`) | `Interact` on a switch and the button | `Interact` on the camera (a load or a shot), the box, the printer and the board; `PickUp` takes a film out of the camera and an uncounted photo off the board | one intent for every station (the Generator's GE1) |
 | Host-side geometry | the cylinder (`StationState.contains`) | the cylinder, the sight line | the cylinder, the sight line, and the frame: a frustum and a sight line from the lens to each candidate | invariant 1: the host decides who is in the shot |
-| Events | `PackageDelivered` | `SwitchChanged`, `ButtonPressed`, `ZoneProgress` | `ShotTaken`, `PhotoPrinted`, `PhotoHung`, and the item events | each shows something new on the clients |
+| Events | `PackageDelivered` | `SwitchChanged`, `ButtonPressed`, `ZoneProgress` | `FilmLoaded`, `ShotTaken`, `PhotoPrinted`, `PhotoHung`, and the item events | each shows something new on the clients |
 | Tick | none | the charge | none (PD7 (b) would add one) | nothing in the photo runs on time |
 
-### 2. The rules as the engine runs them (with the recommendations)
+### 2. The rules as the engine runs them (with the engineer's answers)
 1. **The deal** (when `DealTasks` draws the photo task): a station on every marker of each of its five kinds, with no
-   draw for placement, in the order camera, photo spot, card box, printer, board (ids in that order, level order within
-   a kind). The demands are exact, as the Generator's (GE10 there): one `camera`, one `photo_spot`, one `card_box`, one
-   `printer`, one `photo_board` marker, and one `photo` marker (the printer's tray, the photo kind's spawn tag, not
-   snapped); with PD4's recommendation also one `memory_card` marker at the photo zone, where one card is dealt at the
-   round's start (`ItemSpawned`, then `item_rested` with the spawn cause). No RNG purpose: nothing is drawn. With 0
-   photos the task has no subtasks and is done (#79).
-2. **A shot** is `Interact(camera)` from a living player in Round. In this order it is refused `two_handed`,
-   `out_of_reach`, `blocked`, then the type's answer: `unavailable` once the task is done (PD12), `no_card` when the
-   actor carries no card, `card_full` when no card it carries has a shot left. Applied: the card (the hand's if it has
-   a shot left, else the belt's) takes the next shot; the host checks who is in the frame (§3.2), stores the shot with
-   its `has_person` and records the poses near the lens (§3.3); `ShotTaken` goes to everyone.
-3. **A card from the box** is `Interact(card_box)`: refused `two_handed`, `out_of_reach`, `blocked`, `hands_full`
-   (`HandsHaveRoom`: the hand holds an item that cannot move to the belt) or `too_soon` (the player took a card less
-   than the cooldown's seconds ago: #682's CE17, PE14). Applied: a new card appears at the box and
-   goes into the hand, a one-handed hand item to the empty belt (`ItemSpawned`, then `ItemPickedUp`); at the cap the
-   oldest loose card comes instead, as it is (PE10). A card nobody has used yet has no entry in the task state: it is
-   fresh.
-4. **A print** is `Interact(printer)`: refused `two_handed`, `out_of_reach`, `blocked`, then `unavailable` (done),
-   `nothing_to_print` (no carried card has an unprinted shot). Applied (PD3's recommendation): every
-   unprinted shot of the card (the hand's if it has one, else the belt's), in shot order, becomes a photo on the tray
-   marker (`ItemSpawned`, `PhotoPrinted`, then `item_rested`), and is marked printed, so a shot prints once. The card
-   stays with the player.
-5. **A hang** is `Interact(photo_board)`: refused `two_handed`, `out_of_reach`, `blocked`, then `unavailable` (done)
-   or `no_photo` (the hand holds no photo). Applied: the photo leaves the hand and is locked on the board (PE9);
-   `PhotoHung`; if its shot has a person, the next undone subtask is done through `Tasks.subtask_done` (`TaskState`,
-   `TaskProgress`, then `subtask_done` with the photo and its shot as the detail). With every subtask done the task is
-   done, and every later use of its stations is refused `unavailable` (PD12).
-6. **Nothing else** changes a shot, a card or a hung photo: no hit, knockdown, death or leave. A card or a photo drops
-   at a death or a leave like any item, and keeps its shots. The state stays in `MatchState` until `ResetMatch`.
+   draw for placement, in the order camera, photo spot, film box, printer, board (ids in that order, level order
+   within a kind). The demands are exact, as the Generator's (GE10 there): one `camera`, one `photo_spot`, one
+   `film_box`, one `printer`, one `photo_board` marker, one `photo` marker (the printer's tray, the photo kind's spawn
+   tag, not snapped) and one `film` marker at the photo zone, where one fresh film is dealt (PD4 (i), the engineer's:
+   `ItemSpawned`, then `item_rested` with the spawn cause). No RNG purpose: nothing is drawn. With 0 photos the task
+   has no subtasks and is done (#79), and nothing is dealt (no station, no film), as Delivery's and Cooking's deals.
+2. **A load** is `Interact(camera)` from a living player in Round, while the camera holds no film. In this order it is
+   refused `two_handed`, `out_of_reach`, `blocked`, then the type's answer: `unavailable` once the task is done
+   (PD12), `film_exposed` when every film the actor carries already has a shot (PD16's recommendation), `no_film`
+   when it carries none. Applied: the fresh film (the hand's, else the belt's) leaves the actor and lies at the camera
+   (C2's lay, `on_station`, no `ItemPlaced`); `FilmLoaded` goes to everyone.
+3. **A shot** is `Interact(camera)` while the camera holds a film (PE17): refused `two_handed`, `out_of_reach`,
+   `blocked`, then `unavailable` (done) or `no_frames_left` (the film has `frames_per_film` shots). Applied: the film
+   takes the next shot; the host checks who is in the frame (§3.2), stores the shot with its `has_person` and records
+   the poses near the lens (§3.3); `ShotTaken` goes to everyone. One `Interact(camera)` thus loads or shoots by the
+   camera's state, which every client knows; the client sends it from the viewfinder only for a shot (P7).
+4. **Taking the film out** is `PickUp` of the loaded film (the mode's rule: reach, sight, the hands as for any item;
+   PD17's recommendation for the input). Applied as any pick-up (`ItemPickedUp`); the camera is empty from then on
+   (PE17). Anyone may take it out, at any frame count; the task does not refuse it, done or not.
+5. **A film from the box** is `Interact(film_box)`: refused `out_of_reach`, `blocked` or `too_soon` (the player took
+   from a source less than the cooldown's seconds ago: CE17, PE14). Nothing in the hands refuses it, as at cooking's
+   sources (the engineer's CD3 (b) and CD5 (b)). Applied (`PhotoTask.use_station`, PE7): at the film kind's cap the
+   loose film that lay longest vanishes first (`ItemVanished`, CE3); a new film appears at the box (`ItemSpawned`) and
+   is given to the taker (`Items.give`: the hand, the hand item to the belt or down at the feet, or the belt of a
+   package carrier), ending in `ItemPickedUp`. The box still gives once the task is done (PD12). A film with no shot
+   has no entry in the task state: it is fresh.
+6. **A print** is `Interact(printer)`: refused `two_handed`, `out_of_reach`, `blocked`, then `unavailable` (done) or
+   `nothing_to_print` (no film carried has a shot). Applied (PD3, the engineer's; PD16's recommendation): the film (the
+   hand's if it has a shot, else the belt's) prints every shot it has, in shot order, each as a photo on the tray
+   marker (at the photo kind's cap the loose photo that lay longest vanishing first; `ItemSpawned`, `PhotoPrinted`,
+   then `item_rested`), and the film is used up (`Items.vanish`, `ItemVanished`). Unshot frames print nothing.
+7. **A hang** is `Interact(photo_board)`: refused `two_handed`, `out_of_reach`, `blocked`, then `unavailable` (done)
+   or `no_photo` (no photo carried). Applied to the hand's photo, else the belt's: if its shot has a person, the photo
+   is locked on the board (C2's lock), `PhotoHung` with `counted` true, and the next undone subtask is done through
+   `Tasks.subtask_done` (`TaskState`, `TaskProgress`, then `subtask_done` with the photo and its shot as the detail);
+   it stays there for good (PD6). Otherwise it lies on the board, interactive (C2's lay, `on_station`), with
+   `PhotoHung` and `counted` false: anyone takes it down with `PickUp` and carries it away (PD6). With every subtask
+   done the task is done, and every later use of the camera, the printer and the board is refused `unavailable`
+   (PD12).
+8. **Nothing else** changes a shot, a film or a hung photo: no hit, knockdown, death or leave. A carried film or photo
+   drops at a knockdown, a death or a leave like any item, and keeps its shots; a film in the camera belongs to no
+   player and stays. The state stays in `MatchState` until `ResetMatch`.
 
 ### 3. The shot: who is in the frame, and the picture
 #### 3.1 The frame (PE3)
@@ -164,48 +199,58 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
   host checks; P7 tests that the frame's corner points project onto the mask's corners.
 
 #### 3.2 Who is in it (PE2), on the host, in the shot's command
-- **The candidates**, in peer-id order: every ALIVE player but the actor (PD1's recommendation).
+- **The candidates**, in peer-id order: every ALIVE player of any role, the shooter included (PD1, the engineer's:
+  "excludes nobody"), whose feet are outside the camera's cylinder (`StationState.contains`; PD18's recommendation):
+  whoever stands where the camera can be pressed is never in the photo, so it takes two (#687) without leaving anyone
+  out by who they are.
 - **A candidate counts** when its head, its last accepted position raised by the mode's eye height (a jump raises it,
   so the rule counts the head where the picture draws it; unlike `Items.eye_of`, whose floor keeps an actor from
-  seeing over a wall from a jump, which does not apply to a subject), lies in the frame (`PhotoFrame.contains`) and the line from the lens to it is clear
-  (`WorldQuery.line_of_sight`, recorded in the command log, so a replay agrees).
+  seeing over a wall from a jump, which does not apply to a subject), lies in the frame (`PhotoFrame.contains`) and
+  the line from the lens to it is clear (`WorldQuery.line_of_sight`, recorded in the command log, so a replay agrees).
+  When #727's crouch lands, a crouched claim's head is raised by the crouched eye height and the record carries the
+  crouch, so the rule and the picture keep agreeing: whichever of #727's issue and P2 lands second adds it here.
 - **`has_person`** is whether any candidate counts; the task state also keeps who counted (`subjects`), for a later
-  rule that needs it (PD2 (b), poses).
+  rule that needs it (poses, #687's "later").
 - **Only the level blocks a line** (layer 1): a player hidden behind another still counts, which changes nothing while
-  any one person is enough (PD2 (a)).
+  any one person is enough (PD2, the engineer's: "all fine for now").
 
 #### 3.3 The record and the picture (PE4)
-- **The record** in `ShotTaken`: every player with an avatar (ALIVE or DOWNED) but the actor whose position lies within
-  `range_m` + 2 m of the lens (generous: the renderer clips the rest), as the snapshot's avatar row without its
-  velocity: the peer, its position, its facing, its flags (`downed`), its hand and belt items. At most the snapshot's 15
-  avatars. Ground items and bodies are not in it: they move only by events, so a client folding `ShotTaken` holds
-  exactly the host's items and bodies at that tick, while avatars come from snapshots it draws about 100 ms late.
+- **The record** in `ShotTaken`: every player with an avatar (ALIVE or knocked down) whose position lies within
+  `range_m` + 2 m of the lens (generous: the renderer clips the rest) and whose feet are outside the camera's cylinder
+  (§3.2), as the snapshot's avatar row without its velocity: the peer, its position, its facing, its flags (`downed`;
+  #727's crouch when it lands), its hand and belt items. At most the snapshot's 15 avatars. Ground items and bodies are
+  not in it: they move only by events, so a client folding `ShotTaken` holds exactly the host's items and bodies at
+  that tick, while avatars come from snapshots it draws about 100 ms late. A knocked-down avatar is drawn lying in a
+  rest pose: #728's ragdoll, if it stays each client's own look as its open item 4 proposes, is not in the record, so
+  the picture cannot copy it.
 - **The picture.** As a client folds `ShotTaken` it renders the shot once: a `SubViewport` with
   `render_target_update_mode` `UPDATE_ONCE`, its `Camera3D` at the frame, puppets of the record's avatars
   (`client/player/remote_player_body.tscn`) on a visual layer only that camera sees, while it skips the live avatars'
   layer (`VisualInstance3D.layers`, `Camera3D.cull_mask`), and the flash (an `OmniLight3D` at the lens) on; read back
-  after `RenderingServer.frame_post_draw` into an `Image`, kept per shot for the match as JPEG bytes (PE15's bound)
-  (`ImageTexture.create_from_image`). A printed photo shows its shot's picture (`PhotoPrinted` names the shot). A
-  headless client folds the record and renders nothing.
-- **The render stays out of the live view.** Every live camera (the first-person one, the downed and spectate cameras,
-  the viewfinder; none sets a `cull_mask` today) drops the photo layer from its `cull_mask`, so no live view draws a
-  puppet; the puppets cast no shadow (`GeometryInstance3D.cast_shadow` off), so none falls into the live view either.
-  The render's flash is P6's flash itself, the one light at the lens at that moment, its `light_cull_mask` including
-  the photo layer, so no second light shows in the live world. The render never changes a live view's `visible`
-  (only `SightHider` sets those, `client/CLAUDE.md`): toggling one for the frame would draw it through a wall in the
-  main view. So a picture rendered while the own player is downed leaves out the items and bodies `SightHider` hides
-  then, and live avatars' shadows near the lens may fall into the picture (they stand about where the record does):
-  both rare and cosmetic, never a rule.
+  after `RenderingServer.frame_post_draw` into an `Image`, kept as JPEG bytes while a film or a photo of that shot
+  exists (PE15's bound) (`ImageTexture.create_from_image`). A printed photo shows its shot's picture (`PhotoPrinted`
+  names the shot). A headless client folds the record and renders nothing.
+- **The render stays out of the live view.** Every live camera (the first-person one, the knocked-down and spectate
+  cameras, the viewfinder; none sets a `cull_mask` today) drops the photo layer from its `cull_mask`, so no live view
+  draws a puppet; the puppets cast no shadow (`GeometryInstance3D.cast_shadow` off), so none falls into the live view
+  either. The render's flash is P6's flash itself, the one light at the lens at that moment, its `light_cull_mask`
+  including the photo layer, so no second light shows in the live world. The render never changes a live view's
+  `visible` (only `SightHider` sets those, `client/CLAUDE.md`): toggling one for the frame would draw it through a wall
+  in the main view. So a picture rendered while the own player is knocked down leaves out the items and bodies
+  `SightHider` hides then, and live avatars' shadows near the lens may fall into the picture (they stand about where
+  the record does): both rare and cosmetic, never a rule.
 - **Bandwidth.** One `ShotTaken` is about 40 bytes plus about 33 per avatar in the record: under 400 bytes with 10
   players, to each player once. A picture sent as an image would be 10 to 50 KB per shot, uploaded and relayed to
   every player (the Alternatives).
 - **Leaks (invariant 2).** The record holds avatar fields every player receives in the snapshots anyway (§5: every
-  living or downed avatar reaches every player of the match), taken at the shot's command rather than at the tick's
-  end, so at most one movement claim apart; the one addition is the recipient's own pose, which it knows. Its card
-  and the actor left out of the record name the shooter to every client (§4; PD13 (x), the engineer's to confirm). So
-  `ShotTaken` is a task event every player receives alike (§5's invariant holds), with no new audience and no role in
-  it. `has_person` is never sent (PE5): the board's `TaskState` and `TaskProgress` at the hang tell what a look at the
-  photo tells. A modified client could compute it from the record, as it could from the snapshots (PD13).
+  living or knocked-down avatar reaches every player of the match), taken at the shot's command rather than at the
+  tick's end, so at most one movement claim apart; the one addition is the recipient's own pose, which it knows.
+  `ShotTaken` names the camera and its film, never a player, and the record leaves out everyone in the camera's
+  cylinder alike, so no event singles out the shooter: who stood at the camera stays what the snapshots show (PD13).
+  So `ShotTaken` is a task event every player receives alike (§5's invariant holds), with no new audience and no role
+  in it. `has_person` is never sent before the hang (PE5): `PhotoHung`'s `counted`, `TaskState` and `TaskProgress` at
+  the hang tell what a look at the photo tells. A modified client could compute it from the record, as it could from
+  the snapshots (PD13).
 - **Lag (PE13).** The host uses its positions at the shot's tick, not rewound to what the shooter saw (remote avatars
   drawn about 100 ms late, plus half a round trip), as for hits (§10's lag compensation after the MVP). A subject
   standing on the spot is the same in both; one walking through the frame may differ by a step.
@@ -215,12 +260,13 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 | What | Who learns it | How |
 |---|---|---|
 | Where the camera, the spot, the box, the printer and the board stand | everyone | `StationPlaced` in the deal (and the level's own scenes) |
-| A shot: when, at which camera, onto which card | every client receives it; an honest one shows the flash where the eye reaches and plays the shutter within 12 m | `ShotTaken` |
+| A film loaded, and the frames left | everyone; an honest client shows the film in the camera's slot and the frames left on its counter, in the world, depth-tested (no marker through a wall, DD4), and in the shooter's viewfinder | `FilmLoaded`, `ShotTaken` (naming the film), the film's `ItemPickedUp` or `ItemVanished` |
+| A shot: when, at which camera, onto which film | every client receives it; an honest one shows the flash where the eye reaches and plays the shutter within 12 m | `ShotTaken` |
+| Who took a shot | no event names the shooter; the snapshots show who stood in the camera's cylinder, and an honest client shows only the flash | §3.3, PD13 |
 | Who stood near the lens at the shot | every client receives it (as every snapshot shows); shown only in the photo's picture, depth-tested | `ShotTaken`'s record |
-| Whether a shot has a person | nobody, through an event, before its photo is hung; whoever sees the photo sees its picture | the picture; at the hang `TaskState` and `TaskProgress` |
-| A card taken, a photo printed, picked up, put down, hung | everyone | `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`, `PhotoPrinted`, `PhotoHung`; sounds within 12 m |
-| Who took a card, printed or hung | no photo task event names a player (they name stations and items), but `ItemPickedUp` names the taker, as for any item, so every client knows who holds which card and photo; the snapshots show who stood there | as for a delivery |
-| Who took a shot | every client, at any distance: `ShotTaken` names the card, whose holder every client knows (`ItemPickedUp`, `Swapped`), and its record leaves out exactly the actor, so comparing it with the snapshot's avatars near the lens singles out the shooter even with two players at the camera. An honest client shows only the flash; a modified one can tell, out of sight and earshot, who is filling cards with empty shots | `ShotTaken`'s card and record (PD13 asks whether that may stay public) |
+| Whether a shot has a person | nobody, through an event, before its photo is hung; whoever sees the photo sees its picture | the picture; at the hang `PhotoHung`'s `counted`, `TaskState` and `TaskProgress` |
+| A film taken from the box or out of the camera, a photo printed, picked up, put down, hung, taken down | everyone | `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`, `ItemVanished`, `PhotoPrinted`, `PhotoHung`; sounds within 12 m |
+| Who took a film, printed or hung | no photo task event names a player (they name stations and items), but `ItemPickedUp` names the taker, as for any item, so every client knows who holds which film and photo; the snapshots show who stood there | as for a delivery |
 | How many photos are needed and counted | everyone, on the task screen too | `TaskState`, `TaskProgress` |
 | A photo's picture | whoever sees the photo: in a hand, on the tray, on the board, or held up by its holder | drawn on the photo in the world, depth-tested; the holder may look at its own up close (P8) |
 
@@ -228,138 +274,186 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
 
 | What happens | What the engine does | Why |
 |---|---|---|
-| Two players shoot in one tick | commands in their order (§4.5.3): two shots, each on its shooter's card | determinism |
+| Two players shoot in one tick | commands in their order (§4.5.3): two frames of the camera's film; with one frame left the second is refused `no_frames_left` | determinism |
 | The subject steps out as the shot is taken | the host's position at the shot's tick decides; the picture shows the same moment (the record) | §3.3: one moment for the rule and the picture |
-| The shooter stands in front of its own lens | never counted, never drawn in its own shot | #687: "it takes two" |
-| The subject is knocked down in the frame | not counted (PD1's recommendation); drawn lying, as in the record | V4: "living" means ALIVE |
+| The shooter steps in front of the lens, within the camera's reach, and shoots | not counted, not drawn: its feet are in the camera's cylinder, as anyone's who stands there | it takes two (#687); PD18 |
+| The subject is knocked down in the frame | not counted (PD1, the engineer's: living players); drawn lying in a rest pose | V4: "living" means ALIVE; #728 |
 | A player behind the gazebo's wall, inside the frame | not counted: the line from the lens is blocked; the picture shows the wall | §3.2 |
 | A player far behind the spot, in the frame but beyond `range_m` | not counted; drawn small if the picture reaches it | PD9's range |
 | Only a body without a head in the frame (the head cut off by the frame's edge) | not counted | §3.2: the head must be in the frame (PD1) |
 | The subject jumps as the shot is taken | its head counts where it is in the air, the picture draws it there | §3.2: the record's position and the rule's head agree |
-| Another player's body fills the lens, its own head outside the frame, the subject behind it | the subject counts (only the level blocks a line), though the picture shows the body in front | accepted as rare: any one person is enough (PD2 (a)); a later rule needing a visible subject would test lines against the avatars too |
-| A package carrier at the camera, the box, the printer or the board | `two_handed` | busy hands (#679) |
-| A shooter with a knife in hand and a card on the belt | the shot goes onto the belt's card | the card may be in the hand or on the belt (PD11) |
-| A card with no shot left | `card_full`; the player fetches a new card from storage | #687 |
-| A card dropped, or left at a death | an item like any other, with its shots; anyone picks it up, shoots or prints with it | the card's shots belong to the card, not to a player |
-| A second print of a card | prints only shots not yet printed; with none, `nothing_to_print` | a shot prints once (PD3) |
-| A photo without a person hung | locked on the board, counts nothing (PD6) | #687: "one without a person does not count" |
+| Another player's body fills the lens, its own head outside the frame, the subject behind it | the subject counts (only the level blocks a line), though the picture shows the body in front | accepted as rare: any one person is enough (PD2); a later rule needing a visible subject would test lines against the avatars too |
+| A package carrier at the camera, the printer or the board | `two_handed` | busy hands (#679) |
+| A package carrier at the box | the film goes onto the belt; with the belt full, the package is put down at the feet and the film comes into the hand | cooking's sources: CD3 (b), CD5 (b) |
+| A film taken out after two frames | prints those two; under PD16's recommendation it cannot go back in (`film_exposed`) | the engineer: "then only the frames shot are printed" |
+| The film taken out while someone looks through the viewfinder | that client leaves the view; a shot already sent is refused `no_film`, or, if its sender carries a fresh film, loads it: one intent loads or shoots by the camera's state | PE1, PE17 |
+| A camera with a film, a second film carried | E enters the viewfinder; the second film goes in only once the first is taken out | one film in a camera |
+| A film with no frame left | `no_frames_left`; someone takes it out and fetches a new film from storage | #687 |
+| A carried film dropped, or left at a death | an item like any other, with its shots; anyone picks it up and prints it | a film's shots belong to the film, not to a player |
+| A photo without a person hung | lies on the board, counts nothing; anyone takes it down and carries it away, or hangs it again (counting nothing) | PD6, the engineer's |
+| A dissident tries to take a counted photo down | it is locked: `PickUp` refuses it as any locked item | PD6: fixed for good |
 | A photo hung after every subtask is done | `unavailable` (PD12) | the Generator's "done for good" |
-| A dissident hides a card or a photo | an item like any other: the others search for it or take a new card | the same play as hiding a package |
-| A dissident wastes shots on an empty spot | the card fills; the shots print as photos without a person | same rules for everyone (#679) |
+| A dissident takes the film out and hides it, or hides a photo | an item like any other: the others search for it or fetch a new film; the box never runs out | the same play as hiding a package |
+| A dissident wastes frames on an empty spot | the film fills; its frames print as photos without a person | same rules for everyone (#679) |
 | A player in the viewfinder is hit or knocked down | the client leaves the view (P7); the host never knew of it | PE1 |
-| A client sends `Interact(camera)` from afar or in a burst | `out_of_reach`; each accepted shot uses a shot of its own card; the reliable-intent bucket bounds the rest (§4.5.6) | PE14 |
-| The box pressed again and again, each card put down | refused `too_soon` but one take per the cooldown's seconds (0.25 s, a placeholder: 4 a second); each accepted take goes to everyone; at the cap (32 cards, a placeholder) the oldest loose card comes back to the taker, with whatever shots it holds | PE10, PE14; #682's CE17, CD6 |
+| A client sends `Interact(camera)` from afar or in a burst | `out_of_reach`; each accepted shot uses a frame of the camera's film; the reliable-intent bucket bounds the rest (§4.5.6) | PE14 |
+| The box pressed again and again | refused `too_soon` but one take per the cooldown's seconds (0.25 s: 4 a second); each accepted take makes its own room (once the hands are full, a put-down at the feet) and goes to everyone; at the film cap (32, a placeholder) the loose film that lay longest vanishes, whatever its shots, even the one in the camera | PE10, PE14; CE3, CE17 |
 | Round ends | nothing more counts; the state stays until `ResetMatch` | §9.1 |
 
 ### 6. PD items (the engineer's: game rules and taste)
+The engineer answered PD1 to PD15 on 2026-10-10
+([PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907)): every
+recommendation stands except PD1, PD6 and the film (PD3, PD4, PD11), which he answered otherwise; PD2 and PD8 he
+answered in his own words. The options stay for the record; the last column is what holds now. PD16 to PD18 follow
+from his answers and are open.
 
-| # | Question | Options | Trade-offs, and the failure each prevents | Recommendation |
+| # | Question | Options | Trade-offs, and the failure each prevents | Decided |
 |---|---|---|---|---|
-| PD1 | Who counts as "a person in the photo" (#687's open item 1) | Who: (i) any ALIVE player but the shooter, whatever the role; (ii) the downed too. Where: (a) anywhere in the frame, with the head in the frame and in sight of the lens; (b) only standing on the spot (its cylinder) and in sight; (c) any part of the body in the frame | (ii) a downed player lying in the frame counts, so knocking someone down on the spot becomes a way to do the task; (i) matches "only living players do subtasks" (V4). A role test would tell everyone a role through the board (§9.2), so "whatever the role" is also the leak-safe answer. (b) a person clearly in the picture but a step off the spot does not count, against "counts only if a person is really in it" and "shows exactly what the camera saw". (c) a hand at the frame's edge counts: a "photo with a person" in which nobody can be seen | (i) and (a): the rule and the picture agree, and the spot is where players stand because the camera frames it |
-| PD2 | Does the same player count for several photos (open item 1) | (a) yes: any photo with any living person in it counts; (b) each counted photo must show someone not yet counted | (b) needs as many subjects as photos (4 players: at most 3 subjects, the shooter excluded), so the count would depend on the player count, and the host must say why a photo does not count. (a) two players can do the task alone; others help by carrying | (a), "the simplest possible thing" |
-| PD3 | The printing (open item 2) | One use prints: (a) every unprinted shot of the card, onto the printer's tray; (b) one shot per use; (c) into the hands. Time: (i) at once; (ii) after N seconds standing at the printer (a channel, like the raise). The card: (x) stays with the player, each shot printing once; (y) the printer keeps it | (b) up to five presses for one card, no new decision in them. (c) the hands hold two items, one of them the card, so five photos cannot go there. (ii) adds a wait with nothing to decide. (y) a card with shots left is lost, and every trip needs a new one from storage. A shot that prints twice would make one good shot every subtask | (a), (i), (x) |
-| PD4 | The cards in storage (open item 3) | Supply: (a) a box of cards in storage that hands one card into the hand per press of E, without limit (as #682's boxes and herb beds); (b) a fixed stock dealt in storage at the round's start; (c) a box with a limit. The first card: (i) one card lies at the photo zone at the round's start, later ones come from storage; (ii) every card comes from storage | (b) and (c) can run out, and a dissident who hides the stock ends the task for good. (a) never runs out; its only bound is the engine's item cap (PE10). (ii) every round starts with a run from the gazebo down to the basement and back before the first shot; house-map decision 5 lists the chains that start in storage, and the photo is not one of them; #687 says "once they are used, a new card is taken in storage" | (a) and (i) |
-| PD5 | Hands (open item 3) | (a) the card and the photo are one-handed: a player holds a card and a photo at once (hand and belt), like the cooking chain's ingredients (#682); (b) the photo takes both hands; (c) photos take no slot (a pocket) | (b) a photo carrier cannot use the camera or the box, and carries one photo at a time. (c) a new slot kind in the engine. (a) is the item rules as they are: one in the hand, one on the belt | (a) |
-| PD6 | A hung photo (open item 4) | (a) locked on the board for good, with or without a person: nobody takes it down; (b) one without a person can be taken down again; (c) any photo can be taken down, a counted one undoing its subtask | (c) a dissident undoes the team's progress, and `Tasks` never undoes a subtask (the shared progress would go down on every screen). (b) one more use of the board for a photo that changes nothing. (a) junk photos clutter the board and change nothing | (a) |
-| PD7 | A more natural touch (open item 5, the engineer's wish) | (a) none now; (b) a hung photo develops on the board for N seconds before it counts, its picture fading in (one tick, `TaskTicks`, and one number); (c) hanging takes N seconds of holding E (a channel); (d) the printer prints blank photos that show their picture only once developed in the darkroom | (d) breaks the decided "a printed photo shows exactly what the camera saw". (c) a wait with nothing to decide. (b) the darkroom becomes where photos develop, as in a real one; with photos locked once hung (PD6 (a)) nobody can spoil one while it develops, so it delays the count without adding a decision | (a) for the first build; (b) as the first candidate, a small change on top of P3 |
-| PD8 | The words (open item 6) | the task's name; the task screen's description; the lobby label of the photo-count setting (`SettingSpec.display_name`). For comparison: "Carry each package to the circle of its colour. Packages take both hands." (Delivery), "Switch on every active switch, then press the generator's button to charge it." (the Generator) | the mode check refuses an empty description, so P5 cannot land without one | his words; until then P5 carries placeholders marked "not a decision", his to approve in its PR |
-| PD9 | The numbers (open item 6) | the photo count's default and range; the frame's `fov_deg`, `aspect` and `range_m`; each station's `radius_m` and `height_m` (how near a player must stand to use it, as the Generator's GD6); the shortest time between two card takes by one player (the box's `Cooldown`, PE14) | a large range or a wide frame counts a distant passer-by in the yard; a narrow one makes the subject hunt for the frame. For comparison: Delivery 1 to 10 (default 6), the Generator 2 to 4 (default 3), Cooking default 1; the gazebo is 10 x 10 m | his numbers; until then placeholders in P5, "not a decision": for example 1 to 5 photos (one card's worth at most), default 3; 50° vertical, 4:3, 10 m; 2 m and 2 m for the stations, as the Generator's GD6; the take's cooldown his answer to #682's CD17 (0.25 s there, a placeholder) |
-| PD10 | The frame | (a) fixed: the camera always frames the spot ("facing the photo spot"), no turning, no zoom; (b) the shooter turns it within limits | (b) the shot's intent must carry a direction, a client claim the host clamps, and the frame on the host is no longer the level's. (a) is #687's decided "facing the photo spot" read literally | (a) |
-| PD11 | The card and the camera | (a) the shooter carries the card (in the hand or on the belt) and each shot goes onto it; (b) the card goes into the camera and stays there until someone takes it out | (b) two more uses (put in, take out), and a card left in the camera can be taken by anyone. (a) no state on the camera; the shooter walks off with its shots | (a) |
-| PD12 | After the task is done | (a) the camera, the printer and the board refuse (`unavailable`); the box still gives cards; (b) everything keeps working and counts nothing | (b) photos and junk keep piling up for nothing. (a) as the Generator's decided "can no longer be used"; the box is a plain item source, like #682's beds | (a) |
-| PD13 | How hidden a photo's content is before it is hung, and who took a shot | Content: (a) hidden by sight: every client receives every shot's record and shows a picture only on a photo seen in the world or held (PE4); (b) hidden on the wire: a peer receives a shot's record only when it picks up that photo, or when it is hung. The shooter (§4): (x) public on the wire, through the card's holder and the record that leaves the actor out; (y) hidden on the wire: the record keeps the actor (the renderer clips it, as it stands behind the lens; only the host's count leaves it out) and `ShotTaken` names the camera, not the card, the shot going onto a card only in the host's state, the HUD's shots left then coming from a public per-card count the host sends | (a) a modified client could tell which shots have a person, as it can draw every hidden package today, the record holding only what the snapshots showed. (b) a private task event (§5's "every player receives the same task events" would change), a photo in another player's hand drawn blank, and a render at pick-up that can no longer show the items as they lay at the shot. (x) a modified client learns from across the map who pressed the camera, which an honest one learns only by watching the gazebo; but who carries which card is public anyway, and the snapshots show who stands at the camera. (y) a modified client still sees who stood in the camera's cylinder, and a printed photo's card still tells whose shots they were; it costs a second event or field for the count | (a), as the Generator's GD11 (a); and (x), since (y) hides little that positions and cards do not already show |
-| PD14 | Where the photo task plays, and how many task types a match deals | as the Generator's GD7: (a) in the base mode, with the five station scenes instanced on the greybox at placeholder points; (b) on House only, banned on the greybox by hand; and `tasks`: every type every match, or drawn | as there; with every chain's type in every match the match clock (10 minutes) may want a retune | the same answer as his GD7 for the Generator |
-| PD15 | The flash and the sounds | a flash light at the lens on each shot, seen where the eye reaches; a shutter click; a printer sound while it prints; a sound at the hang; each within 12 m | #687: "with a flash"; the sounds are not in it | the flash, the shutter and the printer; placeholder blips built in code, as `WorldSounds` makes today's, until his CC0 files arrive with their `docs/credits/` entries |
+| PD1 | Who counts as "a person in the photo" (#687's open item 1) | Who: (i) any ALIVE player but the shooter, whatever the role; (ii) the knocked-down too. Where: (a) anywhere in the frame, with the head in the frame and in sight of the lens; (b) only standing on the spot (its cylinder) and in sight; (c) any part of the body in the frame | (ii) a knocked-down player lying in the frame counts, so knocking someone down on the spot becomes a way to do the task; (i) matches "only living players do subtasks" (V4). A role test would tell everyone a role through the board (§9.2), so "whatever the role" is also the leak-safe answer. (b) a person clearly in the picture but a step off the spot does not count. (c) a hand at the frame's edge counts | **The engineer's:** any living player counts, **the shooter included** (he sees no way the shooter could be in the frame, but excludes nobody), whatever the role, with (a). PD18 asks how the shooter stays out of the frame |
+| PD2 | Does the same player count for several photos (open item 1) | (a) yes: any photo with any living person in it counts; (b) each counted photo must show someone not yet counted | (b) needs as many subjects as photos, so the count would depend on the player count. (a) two players can do the task alone; others help by carrying | **(a), the engineer's words:** "one player in several photos, several players in one: all fine for now" |
+| PD3 | The printing (open item 2) | One use prints: (a) every unprinted shot, onto the printer's tray; (b) one shot per use; (c) into the hands. Time: (i) at once; (ii) after N seconds at the printer. The card: (x) stays with the player, each shot printing once; (y) the printer keeps it | (b) up to five presses for one card. (c) the hands hold two items. (ii) a wait with nothing to decide. (y) a card with shots left is lost | **The engineer's film** (with PD4 and PD11): the frames shot on a film are printed, only those; one use prints them all, at once ((a) and (i), which his answer leaves as recommended). What becomes of the film: PD16 |
+| PD4 | The supply (open item 3) | Supply: (a) a box in storage that hands one item into the hand per press of E, without limit; (b) a fixed stock dealt in storage; (c) a box with a limit. The first: (i) one lies at the photo zone at the round's start, later ones come from storage; (ii) every one comes from storage | (b) and (c) can run out, and a dissident who hides the stock ends the task for good. (ii) every round starts with a run from the gazebo down to the basement and back before the first shot | **(a) and (i), the engineer** ("PD4's box, as recommended"), for films: new films come from the box in storage, a fixed station, without limit; one fresh film lies at the photo zone at the round's start |
+| PD5 | Hands (open item 3) | (a) the card (now the film) and the photo are one-handed: a player holds both at once (hand and belt); (b) the photo takes both hands; (c) photos take no slot | (b) a photo carrier cannot use the camera, and carries one photo at a time. (c) a new slot kind | **(a), the engineer** (the recommendation) |
+| PD6 | A hung photo (open item 4) | (a) locked on the board for good, with or without a person; (b) one without a person can be taken down again; (c) any photo can be taken down, a counted one undoing its subtask | (c) a dissident undoes the team's progress, and `Tasks` never undoes a subtask. (a) junk photos clutter the board | **(b), the engineer's:** a photo with a person is fixed for good; one without can be taken down and carried away (PE9) |
+| PD7 | A more natural touch (open item 5, the engineer's wish) | (a) none now; (b) a hung photo develops on the board for N seconds before it counts, its picture fading in; (c) hanging takes N seconds of holding E; (d) the printer prints blank photos that show their picture only once developed | (d) breaks "a printed photo shows exactly what the camera saw". (c) a wait with nothing to decide. (b) the darkroom becomes where photos develop | **(a), the engineer** (the recommendation); (b) stays the first candidate, a small change on top of P3 |
+| PD8 | The words (open item 6) | the task's name; the task screen's description; the lobby label of the photo-count setting (`SettingSpec.display_name`) | the mode check refuses an empty description, so P5 cannot land without one | **The engineer: the agents draft them**, for his approval in this PR: §6.1. P5 uses what he approves, else the drafts marked "not a decision" |
+| PD9 | The numbers (open item 6) | the photo count's default and range; the frame's `fov_deg`, `aspect` and `range_m`; each station's `radius_m` and `height_m`; the shortest time between two takes from the box by one player | a large range or a wide frame counts a distant passer-by in the yard; a narrow one makes the subject hunt for the frame | **The engineer, the recommendation:** placeholders in P5, "not a decision": 1 to 5 photos (one film's worth at most), default 3; 50° vertical, 4:3, 10 m; 2 m and 2 m for the stations, as the Generator's GD6; the take's cooldown 0.25 s, his CD17 answer for cooking's sources (CE17) |
+| PD10 | The frame | (a) fixed: the camera always frames the spot, no turning, no zoom; (b) the shooter turns it within limits | (b) the shot's intent must carry a direction, a client claim the host clamps | **(a), the engineer** (the recommendation) |
+| PD11 | The card and the camera | (a) the shooter carries the card and each shot goes onto it; (b) the card goes into the camera and stays there until someone takes it out | (b) two more uses (put in, take out), and a card left in the camera can be taken by anyone. (a) no state on the camera | **(b)'s kind, the engineer's film:** the camera on its tripod takes a film loaded into it; a film has 5 frames (#687), and the frames left are shown on the camera; the players shoot, then take the film out, possibly before every frame is used (then only the frames shot are printed); the film is loaded into the camera, not carried by the shooter while shooting. How it is taken out: PD17; whether it goes back in: PD16 |
+| PD12 | After the task is done | (a) the camera, the printer and the board refuse (`unavailable`); the box still gives; (b) everything keeps working and counts nothing | (b) photos and junk keep piling up for nothing | **(a), the engineer** (the recommendation); a film in the camera can still be taken out |
+| PD13 | How hidden a photo's content is before it is hung, and who took a shot | Content: (a) hidden by sight: every client receives every shot's record and shows a picture only on a photo seen in the world or held; (b) hidden on the wire until the photo is picked up or hung. The shooter: (x) public on the wire; (y) hidden on the wire | (a) a modified client could tell which shots have a person, as it can draw every hidden package today. (b) a private task event, a photo in another player's hand drawn blank. (y) costed a second event or field while the card named its holder | **(a) and (x), the engineer** (the recommendation). With the film in the camera no event names the shooter any more at no cost (§3.3): less is public than (x) allowed, never more |
+| PD14 | Where the photo task plays, and how many task types a match deals | as the Generator's GD7 | as there | **The engineer's GD7, made precise:** the photo task plays on the House in the base mode, in every match, with P4's station scenes; the flat greybox stays the bots' map, with the station scenes above y = 0 (P5), so the base mode fits it. The match clock stays the base mode's until he retunes it after a playtest |
+| PD15 | The flash and the sounds | a flash light at the lens on each shot, seen where the eye reaches; a shutter click; a printer sound while it prints; a sound at the hang; each within 12 m | #687: "with a flash"; the sounds are not in it | **The engineer, the recommendation:** the flash, the shutter and the printer; placeholder blips built in code, as `WorldSounds` makes today's, until his CC0 files arrive with their `docs/credits/` entries |
+| PD16 | A film after it is taken out, and at the printer (from PD3 and PD11) | (a) one way: a film that has a shot never goes back into a camera (`film_exposed`), and the printer uses it up as it prints (it vanishes); (b) reusable: a film taken out goes back in with its frames left, and the printer leaves it with the player, each shot printing once; (c) as (a), but the printer hands the empty film back | (b) a film can go between the camera and the printer several times, so the task state must mark each shot printed, and a half-shot film looks the same as a fresh one in a hand. (c) an empty film nobody needs, left lying. (a) is how a real film goes (the engineer's "closer to a real photography process where it helps"), and "only the frames shot are printed" holds with nothing to remember; the cost is that a film taken out too early wastes its other frames | **Open; recommended (a)**; P2 and P3 start on it, each revertible |
+| PD17 | How a film is taken out of the camera | (a) hold E over the camera, as cooking's hold over a box (his CD4 (a)), which sends `PickUp` of the film; (b) a key in the viewfinder; (c) aim at the film in the camera's slot and press E | (b) a second key to learn, and taking the film out only from the viewfinder. (c) the film's slot is a small target on the tripod, next to the camera's own. (a) one gesture the player already knows from cooking's boxes, and the host needs nothing new: `PickUp` is the existing intent | **Open; recommended (a)**; P7 starts on it |
+| PD18 | How "it takes two" (#687) holds now that the shooter counts (PD1) | (a) nobody standing within the camera's reach (its cylinder, where one can press it) is in the photo: neither counted nor drawn; (b) as answered, literally: anyone in the frame counts, so a shooter who steps up to 2 m in front of the lens, still within the camera's reach, photographs itself and does the task alone | the engineer sees no way the shooter could be in the frame, but the camera's reach (2 m, PD9) extends in front of the lens, and the frame starts 0.3 m from it, so with (b) one player alone completes every photo. (a) makes his reading true by place, not by person: a second player standing in the camera's reach is left out too, which matters only if the spot is that near the camera (P4 places it farther) | **Open; recommended (a)**; P2 starts on it, one condition to revert |
+
+#### 6.1 The drafts (PD8), for the engineer's approval
+He asked the agents to draft the name, the description and the setting's label. Each row is a draft for his approval
+in this PR; P5 uses what he approves, or these drafts marked "not a decision" until he does.
+
+| What | Draft | Why this draft |
+|---|---|---|
+| The task's name | "Photography" | one word beside "Delivery" and "Cooking"; the lobby label then reads "Photos (Photography)" |
+| The subtasks setting's label (`SettingSpec.display_name`) | "Photos (Photography)" | Delivery's pattern, "Packages (Delivery)": what the number counts, then the task |
+| The task screen's description | "Load a film into the camera, photograph a player on the spot, print the film, and hang the photos on the board: each one with a person in it counts." | the chain in the order it is played, and the one rule a player must know; no room names, as the base mode deals it on the greybox too (PD14) |
+| The item names (the HUD's hand item) | "Film", "Photo" | short, and a film in the hand reads as what goes into the camera |
 
 ### 7. PE items (technical: the manager decides and reports)
 
 | # | Choice | Options | The failure it prevents | Decision |
 |---|---|---|---|---|
-| PE1 | The shot's intent, and the viewfinder | (a) the viewfinder is a client camera mode the host never hears of; the shot is `Interact(camera)` sent from it, the host checking everything again; (b) the host keeps who uses the camera: enter and leave intents, one user at a time, and a `Use` takes the shot; (c) `Use(facing)` in the view | (c) `Use` goes to the hand item's rule first (§9.2): a knife holder would stab. (b) two more intents and a "busy" state to clear on every hit, knockdown, death and leave, for nothing the rules need. (a) a modified client could shoot without looking: it gains nothing, the host decides who is in the frame | (a) |
-| PE2 | Who decides "a person in the frame" | (a) the host, at the shot's tick, from its own state: `PhotoFrame` and `WorldQuery.line_of_sight` from the lens to each candidate's head (§3.2); (b) the client reports whom it saw; (c) the client sends its picture and the host analyses it | (b) and (c) trust a client's field or image, against invariant 1: a modified client "sees" a person who was not there. (c) also needs image analysis on the host | (a) |
+| PE1 | The intents at the camera, and the viewfinder | (a) the viewfinder is a client camera mode the host never hears of; a shot is `Interact(camera)` sent from it, a load `Interact(camera)` on an empty camera, the host telling them apart by the camera's state and checking everything again; the film comes out by `PickUp`; (b) the host keeps who uses the camera: enter and leave intents, one user at a time; (c) `Use(facing)` in the view | (c) `Use` goes to the hand item's rule first (§9.2): a knife holder would stab. (b) two more intents and a "busy" state to clear on every hit, knockdown, death and leave, for nothing the rules need. A shot and a take-out both by `Interact(camera)` could not be told apart, so one of them needs another intent, and `PickUp` already takes an item. (a) a modified client could shoot without looking: it gains nothing, the host decides who is in the frame | (a) |
+| PE2 | Who decides "a person in the frame" | (a) the host, at the shot's tick, from its own state: `PhotoFrame` and `WorldQuery.line_of_sight` from the lens to each candidate's head, the candidates every ALIVE player whose feet are outside the camera's cylinder (§3.2); (b) the client reports whom it saw; (c) the client sends its picture and the host analyses it | (b) and (c) trust a client's field or image, against invariant 1: a modified client "sees" a person who was not there. (c) also needs image analysis on the host | (a) |
 | PE3 | The frame's pose | (a) from two station markers, the camera's and the spot's (both snapped, both in `StationPlaced`), the mode's eye height and the type's numbers; one `PhotoFrame` in `core/` used by the host and the client; (b) an oriented marker: `LevelLayout` gains a rotation per marker, read from a lens node; (c) `StationPlaced` gains a facing | (b) changes `LevelLayout`, `MarkerReader` and the command log's layouts, and the client would still need the rotation sent. (c) a wire change for every station kind. Both let the level's lens node and the host's frame drift apart unseen. (a) needs no change to the layout, the reader or the wire, and the client builds the very frame the host checks from public data | (a); P9 tests on House that the camera scene's look matches the frame (the lens point clear of collision, the line from the lens to the aim clear) |
 | PE4 | How the picture reaches the clients | (a) each client renders it from the shot's record (§3.3) as it folds `ShotTaken`; (a2) the same at `PhotoPrinted`; (b) the shooter's client renders and uploads an image that the host relays; (c) the host renders | (b) 10 to 50 KB per shot uploaded and relayed to every player, a large message split over ENet's reliable lane and WebRTC's message size, and a client-authored picture: a modified client shows a person who was not there, or anything at all. (c) a headless host has no renderer (its worlds are physics only, §4.5.9), and `core/` and `server/` hold no rendering. (a2) items moved since the shot would be drawn where they lie then, unless the record held them too, and the flash would not be in the same frame. (a) under 400 bytes per shot; the record holds only what the snapshots showed | (a) |
-| PE5 | `has_person` on the wire | (a) never sent: kept in the task state; the hang's `TaskState` and `TaskProgress` are the only signal; (b) in `ShotTaken` or `PhotoPrinted` | (b) a client could print "person: yes" beside a photo nobody has looked at, which no picture says | (a) |
-| PE6 | Where the state lives | (a) the task state (`PhotoTask.State`): the station ids; per shot its id, card, tick, `has_person`, `subjects` and whether it is printed; per card (item id) its shots; per photo (item id) its shot; the hung photos in order; (b) the per-part state table; (c) fields on `ItemState` (shots on a card, a shot on a photo) | (b) splits one task over two homes where §9.1 names the task state. (c) fields every item carries for one type. With (a) a card the box gave is unknown to the state until its first shot, and counts as fresh | (a) |
-| PE7 | Giving a card | (a) the cooking design's item source, by its names: a composed rule on the box's station kind, `HandNotTwoHanded`, `AtStation`, `StationInSight`, `HandsHaveRoom` (`hands_full`), the cost `Cooldown` (#682's CE17: key `photo_take`, a provisional id; the seconds PD9's, CD17's answer reused; `too_soon`), then `GiveItem(kind, max_items)`: a new card at the box's position, taken into the hand in the same command (`ItemSpawned`, then `ItemPickedUp` with `belted`), no `item_rested` as it never rests; (b) `PhotoTask.use_station` for the box too; (c) a photo-only effect | (b) a task-type call for something that touches no task state. (c) a second item source beside #682's for the same thing. (a) a herb bed and the card box are the same rule with another kind; the printer is not one (PE8) | (a); if the photo task is built before #682's C1, P1 builds these parts by #682's CE2, CE3, CD5 and CD6, and C1 adds only its item target. The box's cooldown key is its own, so a card take and a herb take never wait on each other: each source bounds its own spam |
-| PE8 | Where printed photos appear | (a) on the printer's tray: the photo kind's spawn tag (`photo`) on a marker in the printer's scene, not snapped; each photo `ItemSpawned` there, then `PhotoPrinted(item, shot)`, then `item_rested` (spawn); (b) into the actor's hands; (c) at the printer's use spot on the floor | (b) the hands hold two items, one of them the card (PD3). (c) photos lying on the floor in front of the printer. A new item kind reusing `ItemSpawned` keeps one way for a client to learn of a new item; `PhotoPrinted` adds only the binding to its shot, as `ItemSpawned` binds a package to its circle | (a) |
-| PE9 | Hanging | (a) the cooking design's move that locks an item at a station (its CE5, built in C2): the photo out of the hand, locked at the board's position (`ItemState.Where.LOCKED`, as a delivered package), no `item_rested`; then `PhotoHung(item, station)`; then `Tasks.subtask_done` if it counts; the client draws hung photos in hang order on the board scene's slots; (b) `Items.place` at the board, raising `item_rested`, and the type's `on_fact` locks it | (b) a fact that every task type's check then reads for a photo no circle wants, and an `ItemPlaced` that says the photo lies on the floor. (a) one move in `Items`, the one place that moves items (§9.3), shared with the grill and the plates | (a); P1 builds the move if #682's C2 has not landed |
-| PE10 | A bound on items | (a) the cooking design's cap per given kind (`GiveItem.max_items`, 32, a placeholder; its CE3) with the engineer's answer to its CD6 at the cap (recommended: the oldest loose item of the kind comes to the taker); photos need no cap of their own, as each shot prints once and the shots are bounded by the cards (at most `max_items` x `shots_per_card`); (b) a bound on all items in `Items`, refusing a new one (`too_many_items`); (c) none | (c) a box "without limit" lets one client create a card per two intents (take, put down), about 10 a second within the bucket (4 under PE14's cooldown): item ids are `u16`, and long before they run out every client draws thousands of items. (b) a second bound beside #682's for the same failure, and a refusal that lets one spammer block the box. With (a) a card that comes back at the cap keeps its shots, since it is the same item; only a spammer reaches 32 cards, as normal play uses one or two | (a) |
-| PE11 | Which card, and the order of events | a shot uses the hand's card if it has a shot left, else the belt's; a print the hand's card if it has an unprinted shot, else the belt's. One shot: `ShotTaken`. One print: per photo in shot order `ItemSpawned`, `PhotoPrinted`, `item_rested`. One hang: `PhotoHung`, then, if counted, `TaskState`, `TaskProgress`, `subtask_done`, as Delivery sends `PackageDelivered` first. The deal: `StationPlaced` per station in id order, then the first card's `ItemSpawned` | a `PhotoPrinted` before its item exists on the client; a count shown before the photo is on the board | as stated |
-| PE12 | The mode checks and the demands | `PhotoTask.check`: the five station kinds set, with different spawn tags (and ZE3 across the mode); the card and photo item kinds set, declared by the mode, with spawn tags different from every station kind's; `shots_per_card` at least 1; `fov_deg` within 1 to 179, `aspect` within 0.25 to 4, `range_m` within 0.5 to 100, their neutral defaults outside; the subtasks setting declared, a whole number, minimum at least 0; the camera's, printer's and board's stations each holding an `Interact` rule whose effect is `UseStation`; the box's holding one that pays a `Cooldown` and whose effect is `GiveItem` of the card kind, with a cap (`max_items`) of at least twice the mode's maximum of players plus 1 (#682's CE3 floor applied to cards: a card is never locked, so only the hands can hold one that is not loose, and at the cap a loose card always exists for CD6's recycle; at the cap with none, which this floor makes impossible today, CE3 refuses the take `unavailable` and spawns nothing); the photo spot's holding none. Demands: exactly one marker of each station kind's tag, exactly one `photo` marker, and with PD4 (i) exactly one `memory_card` marker, whatever the setting and the players | a camera without a spot has no frame; a second printer would have no tray of its own; a box that gives another kind leaves no way to get a card | as stated |
+| PE5 | `has_person` on the wire | (a) never sent before the hang: kept in the task state; the hang's `PhotoHung` (`counted`), `TaskState` and `TaskProgress` are the only signal; (b) in `ShotTaken` or `PhotoPrinted` | (b) a client could print "person: yes" beside a photo nobody has looked at, which no picture says. At the hang `counted` says no more than `TaskProgress` does, and the client needs it to know a counted photo is fixed (PD6) | (a) |
+| PE6 | Where the state lives | (a) the task state (`PhotoTask.State`): the station ids; per camera the film its last load laid there and that load's tick (PE17); per shot its id, film, tick, `has_person` and `subjects`; per film (item id) its shots; per photo (item id) its shot; the counted photos in hang order; (b) the per-part state table; (c) fields on `ItemState` (shots on a film, a shot on a photo) | (b) splits one task over two homes where §9.1 names the task state. (c) fields every item carries for one type. With (a) a film the box gave is unknown to the state until its first shot, and counts as fresh | (a) |
+| PE7 | Giving a film | (a) as cooking's herb bed (its CE6): the box's station kind holds a rule `AtStation`, `StationInSight`, the cost `Cooldown` (key `photo_take`, a provisional id; the seconds PD9's), then `UseStation`; `PhotoTask.use_station` for the box calls C1's `GiveItem.give_new(ctx, film, the box's position)`: the cap, `ItemSpawned`, `Items.give` (C2) and `ItemPickedUp`, in cooking's CE13 order; (b) a composed `GiveItem(film)` effect on the box's rule; (c) the box as cooking's carried box item (its CE1, CE7), taken from by `Interact(item)`; (d) a photo-only source | (b) C1's effect spawns at the rule's target item's rest position; a station target would extend C1 for one task. (c) a box that can be carried off and hidden ends the supply, against the engineer's "new films come from storage". (d) a second item source beside cooking's for the same thing | (a). The box's cooldown key is its own, so a film take and a cooking take never wait on each other: each source bounds its own spam |
+| PE8 | Where printed photos appear, and the film after | (a) on the printer's tray: the photo kind's spawn tag (`photo`) on a marker in the printer's scene, not snapped; each photo `ItemSpawned` there, then `PhotoPrinted(item, shot)`, then `item_rested` (spawn); then the film vanishes (C10's `Items.vanish`, `ItemVanished`; PD16 (a)); (b) into the actor's hands; (c) at the printer's use spot on the floor | (b) the hands hold two items, one of them the film, and a film prints up to five photos. (c) photos lying on the floor in front of the printer. A new item kind reusing `ItemSpawned` keeps one way for a client to learn of a new item; `PhotoPrinted` adds only the binding to its shot, as `ItemSpawned` binds a package to its circle | (a) |
+| PE9 | Hanging | (a) cooking's moves at a station (its CE5, built in C2): a counted photo locked at the board's position (`ItemState.Where.LOCKED`, as a delivered package), so no `PickUp` takes it; one without a person laid on the ground at the board (`on_station`), interactive, so `PickUp` takes it down (PD6); `PhotoHung(item, station, counted)` either way; then `Tasks.subtask_done` if counted; the client draws hung photos in hang order on the board scene's slots; (b) `Items.place` at the board for both, the type's `on_fact` locking a counted one | (b) a fact that every task type's check then reads for a photo no circle wants, and an `ItemPlaced` that says the photo lies on the floor. (a) two moves in `Items`, the one place that moves items (§9.3), shared with the grill and the plates | (a) |
+| PE10 | A bound on items | (a) C1's cap per kind (CE3): the film kind's `max_items` 32 and the photo kind's 64 (placeholders, "not a decision"), applied by the box's take and by each photo a print makes: at the cap the loose one that lay longest vanishes first; neither kind has `vanish_seconds`, so nothing vanishes on a timer; (b) a bound on all items in `Items`, refusing a new one (`too_many_items`); (c) none | (c) a box "without limit" lets one client create a film per intent (a take makes its own room, CD5 (b)), 4 a second under PE14's cooldown: item ids are `u16`, and long before they run out every client draws thousands of items; the photos follow the films. (b) a second bound beside C1's for the same failure, and a refusal that lets one spammer block the box. A timer would lose a film or a photo set down for a minute, a game rule nobody asked for. With (a) only a spammer reaches a cap (normal play uses one or two films and a few photos), and C10's id reuse handles the rest | (a) |
+| PE11 | Which item, and the order of events | a load takes the hand's film if it is fresh, else the belt's; a print the hand's film if it has a shot, else the belt's; a hang the hand's photo, else the belt's. One load: `FilmLoaded`. One shot: `ShotTaken`. One take from the box: CE13's (at the cap `ItemVanished`, `ItemSpawned`, a put-down's `ItemPlaced` if any, `ItemPickedUp`). One print: per photo in shot order (at the cap `ItemVanished`), `ItemSpawned`, `PhotoPrinted`, `item_rested`; then the film's `ItemVanished`. One hang: `PhotoHung`, then, if counted, `TaskState`, `TaskProgress`, `subtask_done`, as Delivery sends `PackageDelivered` first. The deal: `StationPlaced` per station in id order, then the first film's `ItemSpawned` | a `PhotoPrinted` before its item exists on the client; a film gone before its photos are bound to its shots; a count shown before the photo is on the board | as stated |
+| PE12 | The mode checks and the demands | `PhotoTask.check`: the five station kinds set, with different spawn tags (and ZE3 across the mode); the photo spot a display kind (C1) with no rule; the film and photo item kinds set, declared by the mode, one-handed, with spawn tags different from every station kind's; `frames_per_film` at least 1; `fov_deg` within 1 to 179, `aspect` within 0.25 to 4, `range_m` within 0.5 to 100, their neutral defaults outside; the subtasks setting declared, a whole number, minimum at least 0; the camera's, box's, printer's and board's stations each holding an `Interact` rule whose effect is `UseStation`, the box's paying a `Cooldown`; the film kind's cap at least twice the mode's maximum of players plus 1, and the photo kind's at least twice that maximum plus the setting's maximum plus `frames_per_film` plus 1 (CE3's floor: the hands hold at most two a player and the board locks at most the setting's maximum, so at a cap a loose one always exists to vanish, and a print never vanishes a photo of its own batch; with none, which these floors make impossible today, C1 refuses the take `unavailable` and the print stops there). Demands: exactly one marker of each station kind's tag, exactly one `photo` marker and exactly one `film` marker, whatever the setting and the players | a camera without a spot has no frame; a second printer would have no tray of its own; a box that gives another kind leaves no way to get a film; a cap a full table of players can hold entirely in their hands | as stated |
 | PE13 | Lag | (a) the host's positions at the shot's tick; (b) rewind the subjects to what the shooter saw | (b) a rewind buffer the MVP has for nothing (§10: lag compensation after the MVP playtest); a subject standing still is the same in both | (a) |
-| PE14 | A rate limit on the photo task's events | (a) no window: `ShotTaken` and `PhotoHung` follow one accepted intent each; a print's photos are bounded by the shots, each printing once; the box's takes, which emit two events each (`ItemSpawned`, then `ItemPickedUp`), are bounded by its `Cooldown` (#682's CE17); (b) ZE4's window; (c) the bucket alone, for the box too | (c) a spammer alternating a take and a put-down sends about 30 reliable events a second to every player (#682's CE17), the rate the Generator's GE8 rejects; with the cooldown at 0.25 s, 12 a second, under today's `PickUp` and `PutDown` spam. For the rest the bucket bounds the intents (§4.5.6), and nothing in the photo task changes on its own over time, unlike a zone's presence | (a); the chaos bots' burst rows check it (§8) |
-| PE15 | The client's render | puppets on a photo-only visual layer that every live camera's `cull_mask` drops, casting no shadow, live avatars on a layer the photo camera skips (no second `World3D`, no copy of the level), the flash P6's own light, no live view's visibility touched (§3.3); 384 pixels high and as wide as `aspect` makes it (512 at 4:3), kept per shot for the match as JPEG bytes (`Image.save_jpg_to_buffer`, tens of KB), decoded (`Image.load_jpg_from_buffer`) into a texture only while a photo of that shot is drawn, dropped at a new match; renders queued, one per frame; headless clients render nothing. The worst case one hostile peer can force on every client: shots are bounded by the cards, (the cap + the dealt card) x `shots_per_card`, 33 x 5 = 165 with the placeholders, so 165 renders and, as JPEG, under about 10 MB (as raw `Image`s, about 0.6 MB each, it would be about 100 MB) | a second world would copy the House's nodes; hiding the live avatars for one frame would flicker on screen; raw images kept for every shot let one card spammer cost every client about 100 MB; a render deferred to the print would lose the moment (PE4 (a2)) | as stated; P8 measures the memory over a normal match and at the spammed worst case |
-| PE16 | The rejection reasons | (a) four new reasons, `no_card`, `card_full`, `nothing_to_print` and `no_photo`, and `unavailable` reused, all returned by `PhotoTask.use_problem` through G1's `StationUsable` and listed in `PhotoTask.use_reasons()` (#682's CE11, which extends G1's API); each joins the wire alphabet and ARCHITECTURE §3.2's rejection table, from which `ChaosOracle` is written (§4.6.5), in the issue that first returns it; (b) `unavailable` for everything | (b) a client hint that cannot say why the camera refused. Without `use_reasons()` the static `Condition.rejection_reason()` that `RuleRunner` and `ModeCheck` read names one reason per condition, so the four could be neither emitted nor checked, and a reason missing from the alphabet makes the encoder refuse the `Rejected`. Each reveals only what the sender carries and whether the task is done, both public | (a); P2 and P3 depend on #682's C1 for `use_reasons()`, or P1 builds it by CE11 |
+| PE14 | A rate limit on the photo task's events | (a) no window: `FilmLoaded`, `ShotTaken` and `PhotoHung` follow one accepted intent each; a print's photos are bounded by the film's frames, the film used up; the box's takes, which emit up to four events each, are bounded by its `Cooldown` (CE17); (b) ZE4's window; (c) the bucket alone, for the box too | (c) a take makes its own room (CD5 (b)), so a spammer takes at the bucket's 20 intents a second, each take emitting up to four reliable events to every player: 80 a second (CE17), the rate the Generator's GE8 rejects; with the cooldown at 0.25 s, at most 16 a second, under today's 20 for `PickUp` and `PutDown` spam. For the rest the bucket bounds the intents (§4.5.6), and nothing in the photo task changes on its own over time | (a); the chaos bots' burst rows check it (§8) |
+| PE15 | The client's render | puppets on a photo-only visual layer that every live camera's `cull_mask` drops, casting no shadow, live avatars on a layer the photo camera skips (no second `World3D`, no copy of the level), the flash P6's own light, no live view's visibility touched (§3.3); 384 pixels high and as wide as `aspect` makes it (512 at 4:3), kept as JPEG bytes (`Image.save_jpg_to_buffer`, tens of KB) while a film or a photo of that shot exists, decoded (`Image.load_jpg_from_buffer`) into a texture only while a photo of it is drawn, all dropped at a new match; renders queued, one per frame; headless clients render nothing. The worst case one hostile peer can force on every client: the pictures kept are bounded by the caps (PE10), the films' unprinted shots plus the photos, 32 x 5 + 64 = 224 with the placeholders, under about 10 MB as JPEG (as raw `Image`s, about 0.6 MB each, it would be about 130 MB); renders follow the shots, each needing a film fetched from storage and loaded at the gazebo | a second world would copy the House's nodes; hiding the live avatars for one frame would flicker on screen; raw images kept for every shot let one film spammer cost every client over 100 MB; pictures kept for the whole match would grow with every film a spammer fetches, since a cap vanishes old films rather than refusing new ones; a render deferred to the print would lose the moment (PE4 (a2)) | as stated; P8 measures the memory over a normal match and at the caps' worst case |
+| PE16 | The rejection reasons | (a) five new reasons, `no_film`, `no_frames_left`, `film_exposed` (PD16 (a)), `nothing_to_print` and `no_photo`, and `unavailable` reused, all returned by `PhotoTask.use_problem` through G1's `StationUsable` and listed in `PhotoTask.use_reasons()` (C11); each joins the wire alphabet and ARCHITECTURE §3.2's rejection table, from which `ChaosOracle` is written (§4.6.5), in the issue that first returns it; (b) `unavailable` for everything | (b) a client hint that cannot say why the camera refused. Without `use_reasons()` the static `Condition.rejection_reason()` that `RuleRunner` and `ModeCheck` read names one reason per condition, so the five could be neither emitted nor checked, and a reason missing from the alphabet makes the encoder refuse the `Rejected`. Each reveals only public state: the camera's film and its frames (drawn on the camera), what the sender carries, and whether the task is done | (a); P2 and P3 depend on C11 for `use_reasons()` |
+| PE17 | The film in the camera | (a) derived from the item: the camera holds the film its last load laid there while that film still lies on the ground with the rest tick the load gave it (C10's rest tick), so any move that takes it away (a pick-up, a swap, a vanish at the cap, a later throw or knock) empties the camera with no code of its own; `FilmLoaded(station, item)` tells the clients, which empty the camera on the film's `ItemPickedUp` or `ItemVanished`; (b) a stored flag, cleared by a new `item_taken` fact that `Items` raises; (c) the film locked in the camera (C2's lock) and given back by a second intent | (b) every move, present and later, that lifts an item off the ground must raise the fact, and one that forgets leaves a camera shooting onto a film in someone's pocket. (c) a shot and a take-out would both be `Interact(camera)` (PE1), so a new intent for one of them. (a) reads what `Items` already keeps, and a film laid at the camera is a ground item the existing `PickUp` takes | (a); P2 tests each move that empties the camera |
 
 ### 8. Testing
-- **Unit tests** (P1 to P3; fixtures only, never `content/`, ARCHITECTURE §9.6): `PhotoFrame` (a point at the centre,
-  just inside and just outside each edge, nearer than 0.3 m, beyond `range_m`, behind the lens); the shot: a subject
-  counted, one outside the frame, one behind a `FlatWorldQuery` wall, one downed, the shooter in front of its own lens,
-  one beyond the range, a head cut off by the frame's edge; each refusal in its order (§2); the card choice (hand, then
-  belt); `card_full` after `shots_per_card` shots; the record's contents (the actor left out, the radius, the downed
-  flag); the print (every unprinted shot once, the tray's position, `nothing_to_print`); the hang (counted or not, the
-  last subtask, `unavailable` after done, `no_photo`); the card box's rule (a card into the hand, the hand's knife to
-  the belt, `hands_full`, `too_soon`: one player's takes on 100 ticks in a row give at most 100 / 5 + 1 cards at 0.25 s;
-  `GiveItem` itself is #682's C1's to test); the deal, the exact demands and the fit check;
-  PE12's checks (a box cap of twice the fixture mode's maximum of players refused, plus 1 accepted); `ModeCheck` testing every reason `PhotoTask.use_reasons()` lists against the wire alphabet (one
-  removed from the alphabet is found); the order of events (PE11);
-  `ResetMatch` clearing the state; the wire rows' round trips; a replay of a shot agreeing on `line_of_sight`.
+- **Unit tests** (P2, P3; fixtures only, never `content/`, ARCHITECTURE §9.6): `PhotoFrame` (a point at the centre,
+  just inside and just outside each edge, nearer than 0.3 m, beyond `range_m`, behind the lens); the load (a fresh
+  film from the hand, then from the belt; `film_exposed`; `no_film`; the film laid at the camera with `FilmLoaded`);
+  the camera's film (PE17: emptied by a pick-up, by a swap that leaves another item at its place, and by a vanish at
+  the cap; another film a swap leaves at its place not loaded); the shot: a subject counted, one outside the frame,
+  one behind a `FlatWorldQuery` wall, one knocked down, the shooter and another player in front of the lens within the
+  camera's cylinder (neither counted nor in the record), one beyond the range, a head cut off by the frame's edge;
+  each refusal in its order (§2); `no_frames_left` after `frames_per_film` shots; the record's contents (the radius, the cylinder, the knocked-down
+  flag); the box's take (a film into the hand, the hand's knife to the belt, a package carrier's belt, `too_soon`: one
+  player's takes on 100 ticks in a row give at most 100 / 5 + 1 films at 0.25 s; `GiveItem` and `Items.give`
+  themselves are C1's and C2's to test); the print (every shot of the film once, in shot order, the tray's position,
+  the film vanishing last, `nothing_to_print` for a fresh film); the caps (the film kind's at a take, the photo kind's
+  at a print, the loose one that lay longest vanishing); the hang (counted and locked, uncounted and taken down by
+  `PickUp`, a counted one refused to `PickUp`, the last subtask, `unavailable` after done, `no_photo`); the deal, the
+  exact demands and the fit check; PE12's checks (each cap one below its floor refused, at its floor accepted);
+  `ModeCheck` testing every reason `PhotoTask.use_reasons()` lists against the wire alphabet (one removed from the
+  alphabet is found); the order of events (PE11); `ResetMatch` clearing the state; the wire rows' round trips; a
+  replay of a shot agreeing on `line_of_sight`.
 - **The role-swap check** (P2, P3): the same seed and commands with two players' forced roles swapped emit identical
-  `ShotTaken`, `PhotoPrinted`, `PhotoHung`, `TaskState` and `TaskProgress` streams, as the zone task's. Planted once
-  (the frame skips dissidents), it fails; reverted.
-- **The leak test's lists** (P2, P3): the three events join the task events every player receives alike
-  (`LeakCheck`, `ScenarioInvariants`); the plant waits for P10's scenario, as the Generator's G8. `ShotTaken` is the
-  first event to carry other players' avatar rows, which until now only §5's snapshot rules guarded, and the leak test
-  compares events against `view_of`, which reads the same record, so a record-building bug would pass it. P2 adds an
-  invariant to `ScenarioInvariants` and `LeakCheck` written independently of the record builder: every row of a
-  decoded `ShotTaken` names a peer that is ALIVE or DOWNED at that tick (never dead, left or not a player), at the
-  host's accepted position, within `range_m` + 2 m of the lens. Planted once (a dead player's row), it fails; reverted.
-- **The chaos bots** (P2, P3; P10 against dealt stations): the three new H→C kinds in the wrong-direction list; a
-  hostile `Interact` at the camera, the box, the printer and the board from out of reach, without a card, and in a
-  burst, getting only its `Rejected`s (`out_of_reach`, `no_card`, `card_full`, `nothing_to_print`, `no_photo`,
-  `hands_full`, `too_soon`, `two_handed`, `unavailable`), the burst stopped at the bucket, and a burst of takes at the
-  box refused `too_soon` but one per the cooldown's seconds.
+  `FilmLoaded`, `ShotTaken`, `PhotoPrinted`, `PhotoHung`, `TaskState` and `TaskProgress` streams, as the zone task's.
+  Planted once (the frame skips dissidents), it fails; reverted.
+- **The leak test's lists** (P2, P3): the four events join the task events every player receives alike
+  (`LeakCheck`, `ScenarioInvariants`); `ScenarioBot._learn` folds `FilmLoaded` and `PhotoHung` (the item leaves the
+  bot's hands with no `ItemPlaced`), as cooking's C4 does for its station events, with a unit case; the plant waits
+  for P10's scenario, as the Generator's G8. `ShotTaken` is the first event to carry other players' avatar rows, which
+  until now only §5's snapshot rules guarded, and the leak test compares events against `view_of`, which reads the
+  same record, so a record-building bug would pass it. P2 adds an invariant to `ScenarioInvariants` and `LeakCheck`
+  written independently of the record builder: every row of a decoded `ShotTaken` names a peer that is ALIVE or
+  knocked down at that tick (never dead, left or not a player), at the host's accepted position, within `range_m` +
+  2 m of the lens and outside the camera's cylinder. Planted once (a dead player's row), it fails; reverted.
+- **The chaos bots** (P2, P3; P10 against dealt stations): the four new H→C kinds in the wrong-direction list; a
+  hostile `Interact` at the camera, the box, the printer and the board from out of reach, without a film, and in a
+  burst, getting only its `Rejected`s (`out_of_reach`, `no_film`, `no_frames_left`, `film_exposed`,
+  `nothing_to_print`, `no_photo`, `too_soon`, `two_handed`, `unavailable`), the burst stopped at the bucket, and a
+  burst of takes at the box refused `too_soon` but one per the cooldown's seconds.
 - **Integration tests on House** (P9; bots do not play House, ARCHITECTURE §9.7): `Match` over `HostWorldQuery` with
   House's level: a player on the photo spot is counted in a shot from the camera; one behind the gazebo's wall or
-  outside the frame is not; the lens point is clear of the camera scene's collision and the line from the lens to the
-  aim is clear; a scripted chain (a card, a shot, the print in the study, the hang in the darkroom) completes a
-  subtask; the five stations and the tray read without errors.
+  outside the frame is not; the photo spot lies outside the camera's cylinder; the lens point is clear of the camera
+  scene's collision and the line from the lens to the aim is clear; a scripted chain (the dealt film loaded, a shot,
+  the film taken out, the print in the study, the hang in the darkroom) completes a subtask; the five stations, the
+  tray and the first film's marker read without errors.
 - **Scenarios on the greybox** (P10, content, provisional): bots play the chain on the greybox's station scenes (a
-  subject walks to the spot, a shooter interacts with the camera, a carrier prints and hangs), one of them in `bots`
-  over the real wire; the leak plant there (`ShotTaken` declared to the actor only fails `LeakCheck` and
+  subject walks to the spot, a shooter loads and shoots, a carrier takes the film out, prints and hangs), one of them
+  in `bots` over the real wire; the leak plant there (`ShotTaken` declared to the actor only fails `LeakCheck` and
   `ScenarioInvariants`); reverted, recorded in the PR.
 - **The client** (P7, P8): the viewfinder's camera equals `PhotoFrame` (the frame's corner points project onto the
-  mask's corners); the fold of `ShotTaken`, `PhotoPrinted` and `PhotoHung`; a headless client renders nothing; a
-  rendered picture from a fixture record (`shot` previews); the hint over the camera, the box, the printer and the
-  board only when usable; the M4 render checklist, the PRs routed to `netcode-security-reviewer` too.
+  mask's corners); the fold of `FilmLoaded`, `ShotTaken`, `PhotoPrinted` and `PhotoHung`, and the camera's counter
+  following them and the film's pick-up or vanish; a headless client renders nothing; a rendered picture from a fixture
+  record (`shot` previews); the hint over the camera, the box, the printer and the board only when usable, none over
+  the photo spot; the M4 render checklist, no marker through a wall (DD4), the PRs routed to
+  `netcode-security-reviewer` too.
 - **Green** (#605): `verify` (lint and check) locally, then CI's full suite on the PR, for each issue of §9.
 
 ### 9. The split
-Sizes as in M6 and M7: S up to about 400 changed lines, M up to about 900. Base: `main`. Effort: high for `core/`,
-`net/` and `tests/harness/`. Every issue below lands after the Generator's G1 (the station-use intent and its parts),
-which lands after `release/m7` in main.
+Sizes as in M6 and M7: S up to about 400 changed lines, M up to about 900. Effort: high for `core/`, `net/` and
+`tests/harness/`. Base (#676, comment 6095620770): the engine issues (P2, P3, P6 to P9) stack on `release/m7`, with
+PRs into it, merged by the M7 manager and shipped with M7, protocol numbers kept in step with it; the level and content
+issues (P4, P5, P10) go into `main`, P5 and P10 once what they use has reached main with M7's merge. Every engine issue
+lands after the Generator's G1 (the station-use intent and its parts) and the cooking parts it names. **P1 is
+withdrawn**: the shared item parts it would have built are cooking's C1, C2, C10 and C11, by that ADR's names and the
+engineer's answers there; if the photo task is scheduled first, those four go first.
 
 | Issue | Labels | Goal | Acceptance | Files | Depends on | Size |
 |---|---|---|---|---|---|---|
-| P1 | needs-engine, area:core | Only if the photo task is built before the cooking chain's C1 and C2: the shared item parts | the cooking design's parts by its names and choices (CE2, CE3, CD5, CD6, CE5's lock): `HandsHaveRoom` (`hands_full`), `GiveItem(kind, max_items)` with the cap and the engineer's CD6 answer, the `Items` move that locks an item at a station; `TaskType.use_reasons()` (base: [`unavailable`]) with `ModeCheck` testing each listed reason against the wire alphabet, by CE11; no `Interact(item)`, which stays C1's; unit tests; ARCHITECTURE §9.3 (`Items`), §9.4.1, §9.4.2. Opened only if the photo task is scheduled first; else P3 and P5 depend on C1 and C2 | `core/items/hands_have_room.gd`, `core/items/give_item.gd`, `core/items/items.gd`, `core/content/task_type.gd`, `core/content/mode_check.gd`, `tests/unit/items/`, `tests/unit/content/`, `docs/ARCHITECTURE.md` | G1 | S |
-| P2 | needs-engine, area:core, area:net | The photo task type, the frame and the shot | §2.1 and §2.2 with the recommendations taken (PD1, PD9's placeholders in fixtures, PD10, PD11); §3.1 to §3.3's host half; PE2, PE3, PE5, PE6, PE11 to PE14 for the shot; `PhotoTask` with its deal, exact demands and checks; `PhotoFrame`; `ShotTaken` with its wire row and a protocol bump; PE16: `PhotoTask.use_reasons()` listing all five reasons, and `no_card` and `card_full` in the wire alphabet and §3.2's rejection table; §8's unit tests for the frame and the shot, the role-swap check, the chaos row (the wrong-direction kind), `ShotTaken` in the leak test's lists and §8's independent record invariant with its plant; ARCHITECTURE: the photo task's entry beside Delivery's (§9.5), §4.2, §4.3.4, §5's task events, and §5's snapshot paragraph gaining the record's exception to "nobody gets their own avatar" with its audience reasoning (§3.3) | `core/tasks/photo_task.gd`, `core/tasks/photo_frame.gd`, `core/events/shot_taken_event.gd`, `net/messages/`, `core/match/phases/join_rules.gd` (the version), `tests/harness/scenario_invariants.gd`, `tests/harness/bots/leak_check.gd`, `tests/harness/chaos/`, `tests/unit/tasks/`, `tests/fixtures/tasks/`, `docs/ARCHITECTURE.md` | G1; #682's C1 (`use_reasons()`, PE16) or P1; G0 if it lands first; the engineer's PD1, PD10, PD11 (each revertible, so P2 may start on the recommendations) | M |
-| P3 | needs-engine, area:core, area:net | The print and the hang | §2.4 to §2.6 with PD2, PD3, PD6 and PD12's recommendations; PE8, PE9, PE11; `PhotoPrinted` and `PhotoHung` with their wire rows and a protocol bump; `nothing_to_print` and `no_photo` in the wire alphabet and §3.2's rejection table (PE16); the subtask count; §8's unit tests, the role-swap check over the whole chain, the chaos rows, both events in the leak test's lists; ARCHITECTURE §9.5's entry completed, §4.2, §4.3.4, §5 | `core/tasks/photo_task.gd`, `core/events/photo_printed_event.gd`, `core/events/photo_hung_event.gd`, `net/messages/`, `core/match/phases/join_rules.gd`, `tests/harness/`, `tests/unit/tasks/`, `docs/ARCHITECTURE.md` | P2; #682's C1 and C2 (or P1); the engineer's PD2, PD3, PD6, PD12 | M |
-| P4 | area:level | The station scenes, in place of the House markers | by the Generator's GE11: `levels/stations/camera.tscn` (a tripod: greybox look, collision on layer 1 kept below the line from the lens to the aim, its use-spot `Marker3D` in `spawn_camera` behind it, where the shooter stands), `photo_spot.tscn` (a floor mark, `spawn_photo_spot`), `card_box.tscn` (`spawn_card_box`), `printer.tscn` (`spawn_printer`, and a `spawn_photo` tray marker on its top), `photo_board.tscn` (`spawn_photo_board`, and named slots for the hung photos); the tags provisional, "not a decision"; `photo_spot.tscn` instanced at the photo spot in place of `PoseScreen`, `printer.tscn` and `photo_board.tscn` in place of `Printer` and `PhotoBoard`, `camera.tscn` facing the spot in the photo zone and `card_box.tscn` in storage at points the PR proposes, a `spawn_memory_card` marker beside the camera (PD4 (i)); `levels/CLAUDE.md`'s spawn points gain the tags; a `shot` of each room; provisional, named in the PR for the engineer's approval | `levels/stations/`, `levels/house/rooms/photo_zone.tscn`, `storage.tscn`, `study.tscn`, `darkroom.tscn`, `levels/CLAUDE.md`, `docs/design/house-map.md` (§6's two new points) | G4 (the station scene conventions it sets); before P5 | S |
-| P5 | area:content | The photo task in the base mode | `content/tasks/photo.tres` with the engineer's words (PD8) and numbers (PD9), `shots_per_card` 5, the five station kinds with their `Interact` rules (the camera, printer and board: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `StationUsable`, then `UseStation`; the box: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `HandsHaveRoom`, `Cooldown` (key `photo_take`, the seconds PD9's), then `GiveItem`); `content/items/memory_card.tres` and `content/items/photo.tres` (`hands` per PD5); the base mode: the type, its subtasks setting, `tasks` per PD14; P4's station scenes on the greybox at placeholder points (PD14 (a)), above y = 0; the MVP's scenarios ban the photo task too (M7-Z2's bans) and keep dealing Delivery alone; every test that loads the base mode still passes, each changed expectation named in the PR; provisional files named for the engineer's approval | `content/tasks/`, `content/items/`, `content/modes/base_mode.tres`, `levels/greybox/greybox.tscn`, `content/scenarios/`, `tests/unit/content/`, `tests/integration/`, `tests/scenarios/`, `docs/ARCHITECTURE.md` (§9.5, §9.6) | P2, P3, P4; #682's C1 (or P1); G3 (the darkroom's board is below y = 0), G5 (Round accepting `Interact`); the engineer's PD5, PD8, PD9, PD14 | M |
-| P6 | area:client | The flash and the sounds | `ShotTaken`'s flash: an `OmniLight3D` pulse at the lens with `shadow_enabled` and a short `omni_range`, so it never lights a room through a wall (a light without shadows passes through walls, which would show a flash where no eye reaches); the shutter, the printer's and the hang's sounds through `SoundChooser` and `WorldSounds`, within 12 m (`AudioStreamPlayer3D.max_distance`) and muffled behind the level (M5-7); placeholder blips (PD15); the M4 render checklist (items 5 and 10) | `client/world/world_sounds.gd`, `client/world/sound_chooser.gd`, `client/world/`, `tests/unit/client/` | P2, P3; the engineer's PD15 | S |
-| P7 | area:client | The viewfinder | E over the camera enters the view only while the client's own `AtStation` (the camera's cylinder) and `StationInSight` hold for its position, as G6's usable hint does, so no view from afar or through a window shows more than standing there (the M4 render checklist, items 3 and 5); it leaves when either stops holding, as on E, Esc, a hit, a knockdown or a death (tests: no view from outside the cylinder, none through a wall); the active camera at `PhotoFrame`'s pose (`Camera3D.fov`, `keep_aspect` `KEEP_HEIGHT`), the screen outside the aspect masked, movement held; the shot on the primary button sends `Interact(camera)`; E or Esc leaves, as does a hit, a knockdown or a death; the HUD shows the carried card's shots left (counted from `ShotTaken`); the hints over the camera, the box, the printer and the board only when usable (G6's `TargetChoice`); a test that the frame's corners project onto the mask's corners; ARCHITECTURE §4.7 | `client/player/`, `client/world/`, `client/ui/hud.gd`, `tests/unit/client/`, `tests/integration/client/`, `docs/ARCHITECTURE.md` | P2, P4; G6 | S |
-| P8 | area:client | The pictures and the photo's look | PE15: `ClientModel` folds `ShotTaken`'s record, `PhotoPrinted` and `PhotoHung`; each shot's picture rendered as it is folded (`SubViewport` `UPDATE_ONCE`, puppets on the photo layer, the flash on, read back after `RenderingServer.frame_post_draw`); §3.3's isolation: every live camera's `cull_mask` drops the photo layer (a test for each), the puppets cast no shadow, the flash is P6's light, the render never sets a live view's `visible`; the photo item drawn with its picture (`ItemView` gains `photo` and `memory_card`), photos on the tray spread apart, hung photos on the board's slots in hang order, all depth-tested; a way for the holder to look at its own photo up close; headless clients render nothing; memory measured over a normal match and at PE15's worst case (165 shots with the placeholders); `shot` previews; the M4 render checklist (items 1, 3 and 5), the PR routed to `netcode-security-reviewer` too; ARCHITECTURE §4.7 | `client/net/client_model.gd`, `client/world/`, `client/player/first_person_hand.gd`, `client/dev/`, `tests/unit/client/`, `docs/ARCHITECTURE.md` | P3, P4, P7 | M |
-| P9 | needs-engine, area:core | Integration tests: the photo task on House | §8's House tests in the host's real world | `tests/integration/levels/`, `docs/ARCHITECTURE.md` (§9.7's House line) | P3, P4, P5 | S |
+| P2 | needs-engine, area:core, area:net | The photo task type, the frame, the load and the shot | §2.1 to §2.4 with the engineer's answers and the recommendations of PD16 to PD18 (each revertible); §3.1 to §3.3's host half; PE2, PE3, PE5, PE6, PE11 to PE14 and PE17 for the load and the shot; `PhotoTask` with its deal, exact demands and checks (PE12); `PhotoFrame`; `FilmLoaded` and `ShotTaken` with their wire rows and a protocol bump; PE16: `PhotoTask.use_reasons()` listing all six reasons, and `no_film`, `no_frames_left` and `film_exposed` in the wire alphabet and §3.2's rejection table; §8's unit tests for the frame, the load, the camera's film and the shot, the role-swap check, the chaos row (the wrong-direction kinds), both events in the leak test's lists, `ScenarioBot._learn` folding `FilmLoaded`, and §8's independent record invariant with its plant; ARCHITECTURE: the photo task's entry beside Delivery's (§9.5), §4.2, §4.3.4, §5's task events, and §5's snapshot paragraph gaining the record's exception to "nobody gets their own avatar" with its audience reasoning (§3.3) | `core/tasks/photo_task.gd`, `core/tasks/photo_frame.gd`, `core/events/film_loaded_event.gd`, `core/events/shot_taken_event.gd`, `net/messages/`, `core/match/phases/join_rules.gd` (the version), `tests/harness/scenario_invariants.gd`, `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_bot.gd`, `tests/harness/chaos/`, `tests/unit/tasks/`, `tests/unit/harness/scenario_bot_test.gd`, `tests/fixtures/tasks/`, `docs/ARCHITECTURE.md` | G1; cooking's C1 (`StationKind.display`), C2 (the lay at a station), C10 (the rest tick), C11 (`use_reasons()`); G0 if it lands first | M |
+| P3 | needs-engine, area:core, area:net | The box, the print and the hang | §2.5 to §2.8 with the engineer's PD3, PD6 and PD12 and PD16's recommendation; PE7 to PE11; the box's `use_station` through `GiveItem.give_new`; `PhotoPrinted` and `PhotoHung` with their wire rows and a protocol bump; `nothing_to_print` and `no_photo` in the wire alphabet and §3.2's rejection table (PE16); the film used up at the print; the photo kind's cap at the print; the subtask count; §8's unit tests, the role-swap check over the whole chain, the chaos rows, both events in the leak test's lists, `ScenarioBot._learn` folding `PhotoHung`; ARCHITECTURE §9.5's entry completed, §4.2, §4.3.4, §5 | `core/tasks/photo_task.gd`, `core/events/photo_printed_event.gd`, `core/events/photo_hung_event.gd`, `net/messages/`, `core/match/phases/join_rules.gd`, `tests/harness/`, `tests/unit/tasks/`, `tests/unit/harness/scenario_bot_test.gd`, `docs/ARCHITECTURE.md` | P2; cooking's C1 (`GiveItem.give_new`, the cap), C2 (`Items.give`, the lock and the lay at a station), C10 (`Items.vanish`) | M |
+| P4 | area:level | The station scenes, in place of the House markers | by the Generator's GE11: `levels/stations/camera.tscn` (a tripod: greybox look, collision on layer 1 kept below the line from the lens to the aim, its use-spot `Marker3D` in `spawn_camera` behind it, where the shooter stands; a `FilmSlot` node where the loaded film is drawn and a `FramesLeft` `Label3D`, depth-tested (`no_depth_test` off), for the frames left), `photo_spot.tscn` (a floor mark, `spawn_photo_spot`, placed farther from the camera's use spot than the camera's reach, PD18), `film_box.tscn` (`spawn_film_box`), `printer.tscn` (`spawn_printer`, and a `spawn_photo` tray marker on its top), `photo_board.tscn` (`spawn_photo_board`, and named slots for the hung photos); the tags provisional, "not a decision"; `photo_spot.tscn` instanced at the photo spot in place of `PoseScreen`, `printer.tscn` and `photo_board.tscn` in place of `Printer` and `PhotoBoard`, `camera.tscn` facing the spot in the photo zone and `film_box.tscn` in storage at points the PR proposes, a `spawn_film` marker beside the camera (PD4 (i)); `levels/CLAUDE.md`'s spawn points gain the tags; a `shot` of each room; provisional, named in the PR for the engineer's approval | `levels/stations/`, `levels/house/rooms/photo_zone.tscn`, `storage.tscn`, `study.tscn`, `darkroom.tscn`, `levels/CLAUDE.md`, `docs/design/house-map.md` (§6's three new points) | G4 (the station scene conventions it sets); before P5 | S |
+| P5 | area:content | The photo task in the base mode | `content/tasks/photo.tres` with the engineer's approved words or §6.1's drafts marked "not a decision" (PD8) and PD9's placeholders, `frames_per_film` 5, the five station kinds with their rules (the camera, printer and board: `HandNotTwoHanded`, `AtStation`, `StationInSight`, `StationUsable`, then `UseStation`; the box: `AtStation`, `StationInSight`, `Cooldown` (key `photo_take`, 0.25 s), then `UseStation`; the photo spot `display`, no rule); `content/items/film.tres` and `content/items/photo.tres` (one-handed, `max_items` 32 and 64, no `vanish_seconds`, their spawn tags `film` and `photo`), both listed in the base mode's `item_kinds`; the base mode: the type, its subtasks setting, `tasks` with every type (PD14), Round accepting `Interact` from the living (if G5 has not added it); P4's station scenes on the greybox at placeholder points, above y = 0 (PD14); the MVP's scenarios ban the photo task too (M7-Z2's bans) and keep dealing Delivery alone; once the base mode deals the photo task, the chaos and perf harnesses deal it with its defaults: their waits scoped to it, or it banned there, in this change, as the Generator's G5; every test that loads the base mode still passes, each changed expectation named in the PR; provisional files named for the engineer's approval | `content/tasks/`, `content/items/`, `content/modes/base_mode.tres`, `levels/greybox/greybox.tscn`, `content/scenarios/`, `tests/harness/chaos/`, `tests/harness/perf/`, `tests/unit/content/`, `tests/integration/`, `tests/scenarios/`, `docs/ARCHITECTURE.md` (§9.5, §9.6) | P2, P3, P4; G3 (the darkroom's board and the storage box are below y = 0), G5 (Round accepting `Interact`); the engineer's PD8 drafts approved, or kept as placeholders | M |
+| P6 | area:client | The flash and the sounds | `ShotTaken`'s flash: an `OmniLight3D` pulse at the lens with `shadow_enabled` and a short `omni_range`, so it never lights a room through a wall (a light without shadows passes through walls, which would show a flash where no eye reaches); the shutter, the printer's and the hang's sounds through `SoundChooser` and `WorldSounds`, within 12 m (`AudioStreamPlayer3D.max_distance`) and muffled behind the level (M5-7); placeholder blips (PD15); the M4 render checklist (items 5 and 10) | `client/world/world_sounds.gd`, `client/world/sound_chooser.gd`, `client/world/`, `tests/unit/client/` | P2, P3 | S |
+| P7 | area:client | The viewfinder and the camera's inputs | E over a camera holding a film enters the view only while the client's own `AtStation` (the camera's cylinder) and `StationInSight` hold for its position, as G6's usable hint does, so no view from afar or through a window shows more than standing there (the M4 render checklist, items 3 and 5); it leaves when either stops holding, when the film leaves the camera, and on E, Esc, a hit, a knockdown or a death (tests: no view from outside the cylinder, none through a wall); the active camera at `PhotoFrame`'s pose (`Camera3D.fov`, `keep_aspect` `KEEP_HEIGHT`), the screen outside the aspect masked, movement held; the shot on the primary button sends `Interact(camera)`; E over an empty camera with a fresh film carried sends `Interact(camera)` (the load); a hold of E over a camera holding a film sends `PickUp` of it (PD17 (a)); the view shows the frames left; the hints over the camera, the box, the printer and the board only when usable (G6's `TargetChoice`), none over the photo spot (C1's display kind) or the loaded film; a test that the frame's corners project onto the mask's corners; ARCHITECTURE §4.7 | `client/player/`, `client/world/`, `client/ui/hud.gd`, `tests/unit/client/`, `tests/integration/client/`, `docs/ARCHITECTURE.md` | P2, P4; G6 | S |
+| P8 | area:client | The pictures, the camera's counter and the photo's look | PE15: `ClientModel` folds `FilmLoaded`, `ShotTaken`'s record, `PhotoPrinted` and `PhotoHung`; each shot's picture rendered as it is folded (`SubViewport` `UPDATE_ONCE`, puppets on the photo layer, the flash on, read back after `RenderingServer.frame_post_draw`) and dropped when no film or photo of that shot remains; §3.3's isolation: every live camera's `cull_mask` drops the photo layer (a test for each), the puppets cast no shadow, the flash is P6's light, the render never sets a live view's `visible`; the loaded film drawn in the camera's `FilmSlot`, the frames left on its `FramesLeft` label, depth-tested, emptied on the film's pick-up or vanish; the film and photo items drawn (`ItemView` gains `film` and `photo`), a photo with its picture, photos on the tray spread apart, hung photos on the board's slots in hang order (an uncounted one leaving its slot when taken down), all depth-tested, no marker through a wall (DD4); a way for the holder to look at its own photo up close; headless clients render nothing; memory measured over a normal match and at PE15's worst case (224 pictures with the placeholders); `shot` previews; the M4 render checklist (items 1, 3 and 5), the PR routed to `netcode-security-reviewer` too; ARCHITECTURE §4.7 | `client/net/client_model.gd`, `client/world/`, `client/player/first_person_hand.gd`, `client/dev/`, `tests/unit/client/`, `docs/ARCHITECTURE.md` | P3, P4, P7 | M |
+| P9 | needs-engine, area:core | Integration tests: the photo task on House | §8's House tests in the host's real world | `tests/integration/levels/`, `docs/ARCHITECTURE.md` (§9.7's House line) | P3, P4, P5 (on whichever base holds all three first) | S |
 | P10 | area:content, area:tooling | Scenarios that play the photo task, its leak plant | §8's greybox scenarios (provisional, the engineer approves the scripts), one in `bots`; the leak plant planted once and reverted, recorded in the PR; the chaos bots against dealt stations; the scenario runner's and `bots`' tests still pass | `content/scenarios/`, `tests/scenarios/`, `tests/harness/chaos/`, `docs/ARCHITECTURE.md` (§9.7, §4.6.5.3) | P3, P5; G8 (`StepInteract`) | S |
 
 ### 10. Needs the engineer
-One batched question: PD1 to PD15 (§6), each with its options and a recommendation. "Every recommendation" is a full
-answer to PD1 to PD7 and PD10 to PD15; PD8's words and PD9's numbers are his to give, or to approve as placeholders
-marked "not a decision" in P5's PR. P1 and P4 need none of them; P2 and P3 start on the recommendations, each
-revertible in its code.
+His answers of 2026-10-10 settle PD1 to PD15 (§6). Left, one batched question for his approval in this PR; each is
+revertible, and P2, P3, P5 and P7 proceed with the recommendation until he answers:
+1. **PD16, a film after it is taken out**: (a) one way: a shot film never goes back in, and the printer uses it up;
+   (b) reusable, each shot printing once; (c) as (a), the printer handing the empty film back. Recommended: (a).
+2. **PD17, taking the film out**: (a) hold E over the camera; (b) a key in the viewfinder; (c) aim at the film's slot.
+   Recommended: (a).
+3. **PD18, "it takes two" now that the shooter counts**: (a) nobody within the camera's reach is in the photo; (b)
+   anyone in the frame, so one player alone can photograph itself from the camera's reach. Recommended: (a).
+4. **The drafts of §6.1** (PD8): the name "Photography", the label "Photos (Photography)", the description and the
+   item names. (a) as drafted; (b) his changes. Recommended: (a).
+
+The placeholder numbers (PD9's, and the manager's caps of 32 films and 64 photos of PE10) are tuned in the playtest;
+none blocks an issue.
 
 ## Alternatives
+- **A memory card carried by the shooter** (this ADR's first design, PD11 (a)): the engineer chose a film loaded into
+  the camera.
 - **An image uploaded by the shooter** (PE4 (b)): 10 to 50 KB per shot relayed to every player, and a picture a
   modified client can fake.
 - **A picture rendered on the host** (PE4 (c)): a headless host has no renderer, and `core/` and `server/` hold none.
@@ -367,26 +461,31 @@ revertible in its code.
 - **An oriented marker or a facing in `StationPlaced`** (PE3 (b), (c)): a layout, reader or wire change for what two
   positions already give.
 - **A host-known viewfinder** (PE1 (b)): enter and leave intents and a busy state the rules never read.
-- **`has_person` on the wire** (PE5 (b)): a flag a client could show where no picture says it.
-- **The box as a task-type call, or a photo-only item source** (PE7 (b), (c)): code for what #682's item source
-  already does.
-- **A bound on all items, refusing a new one** (PE10 (b)): a second bound beside #682's cap, which one spammer could
+- **A take-out fact, or the film locked in the camera** (PE17 (b), (c)): a fact every lifting move must remember, or a
+  second intent at the camera.
+- **`has_person` on the wire before the hang** (PE5 (b)): a flag a client could show where no picture says it.
+- **The box as a carried item, a composed `GiveItem` rule, or a photo-only item source** (PE7 (b) to (d)): a supply a
+  dissident can carry off, an extension of C1 for one task, or code for what cooking's source already does.
+- **A bound on all items, refusing a new one** (PE10 (b)): a second bound beside C1's cap, which one spammer could
   use to block the box.
 - **Hanging through `item_rested`** (PE9 (b)): a fact and an `ItemPlaced` that say the photo lies on the floor.
 - **Rewinding the subjects** (PE13 (b)): lag compensation the MVP has nowhere else.
 - **A second world for the render** (PE15): a copy of the level's nodes for one frame per shot.
 
 ## Consequences
-- GDD §8 gains the photo chain's section with its open questions; ARCHITECTURE §9.8 gains the photo task's row and
-  §10 its open row, pointing here; house-map §6 gains the camera and the card box (to be placed by P4).
-- When P2 and P3 land, ARCHITECTURE gains the photo task's entry in §9.5 and its three events in §4.2, §4.3.4 and §5,
-  with their `Built in` lines; `HandsHaveRoom`, `GiveItem`, its cap and the lock at a station arrive with #682's C1
-  and C2 (or P1).
-- The protocol version goes up in P2 and in P3; kind numbers and versions are taken when each lands, never from here.
-- The card box and the board reuse the cooking design's item source and its lock at a station by their names (#682's
-  CE2, CE3, CE5); the printer does not use `GiveItem`, since each photo binds its own shot and one print makes up to
-  five photos (PE8).
+- GDD §8's photo section records the engineer's answers, with PD16 to PD18 and the drafts open; ARCHITECTURE §9.8's
+  row and §10's open row point here; house-map §6 gains the camera, the box of films and the first film's point (to be
+  placed by P4).
+- When P2 and P3 land, ARCHITECTURE gains the photo task's entry in §9.5 and its four events in §4.2, §4.3.4 and §5,
+  with their `Built in` lines; `GiveItem`, the caps, `Items.give`, the moves at a station, the vanish and
+  `use_reasons()` arrive with cooking's C1, C2, C10 and C11.
+- The protocol version goes up in P2 and in P3; kind numbers and versions are taken when each lands, in step with
+  `release/m7`, never from here.
+- The box reuses cooking's source as its herb beds do, and the camera and the board its moves at a station, by their
+  names (CE2, CE3, CE5, CE6); the printer does not use `GiveItem`, since each photo binds its own shot and one print
+  makes up to five photos (PE8).
 - The picture is a render from public data, so later rules on a photo's content (poses, gestures, #687's "later")
-  need only the host's check to read more of the subject (its facing, a gesture state) and the record to carry it.
-- With PD14 (a) every map of the base mode needs the five station scenes and a tray; House has them once P4 lands,
-  the greybox in P5.
+  need only the host's check to read more of the subject (its facing, a gesture state, #727's crouch) and the record
+  to carry it.
+- With PD14 every map of the base mode needs the five station scenes, a tray and the first film's marker; House has
+  them once P4 lands, the greybox in P5.
