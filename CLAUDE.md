@@ -123,3 +123,5 @@ Add a row per real misrecognition you resolved; never guess.
 |---|---|
 | "посеред науки" | "посеред двору" (in the middle of the yard) |
 | "хаоса" | "House" (the map: "немає хаоса" = "the House is not there") |
+| "поїзд" | "пояс" (the belt: "траву можна на поїзд" = a herb may go on the belt, #682 CD3) |
+| "старілка" | "тарілка" (the plate: "старілка не може прийняти сиру котлету", #682 CD8) |
