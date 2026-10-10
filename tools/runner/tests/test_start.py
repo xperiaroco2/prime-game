@@ -42,7 +42,8 @@ def copy_template(test: unittest.TestCase, template: Path, prefix: str, clones: 
     for name in clones:
         config = tmp / name / ".git" / "config"
         text = config.read_text(encoding="utf-8").replace(template.as_posix(), tmp.as_posix())
-        if template.as_posix() in text:
+        left = {template.as_posix(), str(template), str(template).replace("\\", "\\\\")}  # git escapes a backslash
+        if any(form.lower() in text.lower() for form in left):
             raise AssertionError(f"{config} still points into the template {template}")
         config.write_text(text, encoding="utf-8", newline="\n")
     return tmp
@@ -65,6 +66,23 @@ class SlugAndAreaTest(unittest.TestCase):
             self.assertIn(text, str(caught.exception))
         with self.assertRaises(Failure):
             start.area_of([], "docs", 5)
+
+
+class CopyTemplateTest(unittest.TestCase):
+    def test_copy_points_clones_at_the_copy_and_refuses_a_path_left_in_another_form(self) -> None:
+        template = make_template(type(self), "copy-template-")
+        (template / "work" / ".git").mkdir(parents=True)
+        config = template / "work" / ".git" / "config"
+        config.write_text(f"[remote]\n\turl = {template.as_posix()}/remote.git\n", encoding="utf-8", newline="\n")
+        tmp = copy_template(self, template, "copy-", ("work",))
+        text = (tmp / "work" / ".git" / "config").read_text(encoding="utf-8")
+        self.assertIn(tmp.as_posix(), text)
+        self.assertNotIn(template.as_posix(), text)
+        escaped = str(template).replace("\\", "\\\\")  # a Windows path as git stores it in a config value
+        config.write_text(f"[core]\n\thooksPath = {escaped}\n", encoding="utf-8", newline="\n")
+        if escaped != template.as_posix():
+            with self.assertRaises(AssertionError):
+                copy_template(self, template, "copy-", ("work",))
 
 
 class StartTest(unittest.TestCase):
