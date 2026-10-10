@@ -116,6 +116,10 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
   than "continue", post it on #302 with the table and stop passing `implement` (a keep needs the engineer's yes and
   an amendment of the model-guard ADR).
+- **`checkpoint: true`** on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it (#759),
+  then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
+  implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's
+  estimate says so. After each wave: the results' `handoffs` key and `metrics`' handoff table.
 - `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch
   ([resume.md](resume.md) §7); for a run launched before #458 without `lean`, add `lean: false` and `lean_reason: "a
   resume of <run id>, launched before #458"` (launch-args.md §3's row), or the lean agent types change its agents and
