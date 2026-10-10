@@ -28,6 +28,10 @@ go strictly in series. For each PR, in the order given, with no manager turn bet
 4. The gate and the merge: `merge.merge(<pr>, base="main")`, the same code as `merge <pr> --base main`; it prints
    the `wave:` line of the merge. A refusal skips the PR (its reasons are printed above).
 
+One run keeps its git answers (merge.one_run, #724): a commit-hash question is asked once, a ref until the train
+fetches or a publish or merge in a worktree has pushed (merge.CACHE.moved); `held` asks git for the worktree's state in
+three calls, not nine.
+
 A final summary, from a line "merge-train summary" (which `wait` prints), lists the merged and skipped PRs; exit 0
 when every PR merged, else 1. `--dry-run` prints the plan (the worktree and the way of each PR, or why it would be
 skipped) and each gate's verdict now (later PRs show "behind main" until the earlier ones merge), changes nothing
@@ -150,20 +154,23 @@ def held(wt: Path, pr: merge.PullRequest, recent_minutes: int) -> str:
         recent = recent_minutes > 0 and now - session.updated < recent_minutes * 60  # idle: may wait for its human
         if (session.status == "busy" or recent) and session.session_id != me:
             return f"the Claude Code session {session.describe(now)} works there"
-    for name, what in GIT_STATES.items():
-        where = _wt(wt, "rev-parse", "--git-path", name).out.strip()
+    asked = _wt(wt, "rev-parse", *[arg for name in GIT_STATES for arg in ("--git-path", name)])  # one call for all
+    answers = [a.strip() for a in asked.out.splitlines()] if asked.rc == 0 and not asked.timed_out else []
+    if len(answers) != len(GIT_STATES):  # a warning line among them would shift the answers: ask one by one
+        answers = [_wt(wt, "rev-parse", "--git-path", name).out.strip() for name in GIT_STATES]
+    for (name, what), where in zip(GIT_STATES.items(), answers, strict=True):
         if where and (wt / where).exists():
             return f"a {what} is in progress there"
     dirty = _wt(wt, "status", "--porcelain", "--untracked-files=no").out.strip()
     if dirty:
         return f"uncommitted changes there ({len(dirty.splitlines())} files)"
-    head = _wt(wt, "rev-parse", "HEAD").out.strip()
+    last = _wt(wt, "log", "-1", "--format=%H %ct")  # HEAD and its commit time in one call
+    head, _, stamp = last.out.strip().partition(" ") if last.rc == 0 and not last.timed_out else ("", "", "")
     if head != pr.oid:
         return (
             f"its HEAD {head[:10]} is not the PR's head {pr.oid[:10]}: commits nobody published, or the PR moved "
             "since a run worked there"
         )
-    stamp = _wt(wt, "log", "-1", "--format=%ct").out.strip()
     age = time.time() - int(stamp) if stamp.isdigit() else None
     if recent_minutes > 0 and age is not None and age < recent_minutes * 60:
         return (
@@ -344,6 +351,7 @@ def ride(number: int, recent_minutes: int) -> Outcome:
     say(f"train: {pr.label}: in {planned.worktree.as_posix()}; way: {WAYS[planned.way]}")
     if planned.way not in ("up to date", "no overlap"):
         why = by_publish(planned) if planned.way == "publish" else by_merge(planned)
+        merge.CACHE.moved()  # the worktree's publish or push moved the remote-tracking refs
         if why:
             return Outcome(number, pr.head, False, why)
         oid = _wt(planned.worktree, "rev-parse", "HEAD").out.strip()
@@ -376,6 +384,7 @@ def survey(number: int, recent_minutes: int) -> bool:
     return True
 
 
+@merge.in_one_run
 def main(numbers: list[int], base: str, dry_run: bool = False, recent_minutes: int = RECENT_MINUTES) -> int:
     order = list(dict.fromkeys(numbers))
     say(f"merge-train {' '.join(map(str, order))} --base {base}" + (" --dry-run" if dry_run else ""))
