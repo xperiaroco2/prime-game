@@ -19,6 +19,12 @@
   `Rejected`, so the refusal is a condition, and ModeCheck requires `HoldsItem` and `OverFloor`, not negated, in every
   rule that holds a `ThrowItem`. So ARCHITECTURE §9.8 counts three part classes for throwing, not two. No change to
   a TD or TE answer.
+- **Update 2026-10-10 (TD5, House's roof):** the engineer settled House's roof by a throw too weak to reach it, not by
+  TD5 (b)'s "no rest" volume
+  ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6096074314): the roof is walkable but may
+  be locked), so the volume task (#733) is closed. PR #744 (37f, #646) derived the provisional speed 5.0 m/s by a
+  sweep: the limit, 5.5 m/s, is set by the balcony railing tops, a 1 m jump. House's roof test guards the speed, and
+  the lower roofs get a test per map in #746.
 - **Date:** 2026-10-09
 - **Deciders:** the engineer (TD1 to TD12, TE1); designed by the agent of #37 in the meta manager session's M7 design
   workflow, started on the engineer's word (#302, his answer 3 of 2026-10-09)
