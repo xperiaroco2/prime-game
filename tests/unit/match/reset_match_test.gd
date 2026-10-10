@@ -76,20 +76,9 @@ func test_placing_before_the_reset_would_place_a_downed_player() -> void:
 ## shortfalls afresh, as a leave in the lobby sends them, not the empty ones of before the
 ## countdown.
 func test_back_resends_the_shortfalls_to_everyone() -> void:
-	var mode := FixtureBaseMode.mode()
-	mode.min_players = 3
-	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureBaseMode.layouts())
-	game.keep_history = true
-	game.start(0)
-	var peers: Array[int] = [P1, P2, P3]
-	for peer: int in peers:
-		FixtureBaseMode.join(game, peer)
-	for peer: int in peers:
-		FixtureBaseMode.ready(game, peer)
-	FixtureModes.run_ticks(game, 101)
-	for peer: int in peers:
-		FixtureBaseMode.load_ack(game, peer)
-	FixtureBaseMode.through_pregame(game)
+	var game := FixtureBaseMode.in_round([P1, P2, P3])
+	# The mode needs three from here on: the host reads it when it sends the shortfalls.
+	game.mode.min_players = 3
 	assert_str(game.phase_id()).is_equal("round")
 	var before := game.view_of(P1).events_named(&"SettingsChanged")[-1] as SettingsChangedEvent
 	assert_array(before.shortfalls).is_empty()
@@ -149,3 +138,10 @@ func _in_end(mode: GameMode) -> Match:
 	game.state.add_to_counter(0, &"crew_win", 1)
 	FixtureModes.run_ticks(game, 1)
 	return game
+
+
+## The action says what it emits, since the mode check reads it (#737 added the shortfalls).
+func test_it_declares_what_it_emits() -> void:
+	assert_array(ResetMatch.new().emits()).contains_exactly(
+		[ReadyChangedEvent, SettingsChangedEvent]
+	)
