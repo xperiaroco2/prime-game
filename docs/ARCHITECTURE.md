@@ -3811,10 +3811,8 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
   (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
-- **A known gap** (#737, core): back in the lobby after a match the host does not send its shortfalls again yet, so
-  after a player left mid-round in a mode with `min_players` above 1 the status reads the ready count, not
-  `players_few`, until the next join, leave or settings change. The Esc Lobby page has the same gap; the fix is
-  the host's, not a count of the client's own.
+- **After a match** the host sends its shortfalls again as the match returns to the lobby (`ResetMatch`, #737), so
+  the status and the Esc Lobby page read `players_few` there too, never a count of the client's own.
 - Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
   English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
   key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
