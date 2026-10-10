@@ -41,6 +41,9 @@ enum Shape {
 	DEBUG_CLOCK,
 	NEXT_STAGE_NO_SEQ,
 	NEXT_STAGE_TRAILING,
+	SET_PROFILE_NO_COLOUR,
+	SET_PROFILE_TRAILING,
+	SET_PROFILE_BAD_NAME,
 }
 
 ## The hostile MoveClaims. STALE_TICK repeats a client tick the host already has: dropped, or, as
@@ -64,8 +67,9 @@ const FUTURE_TICKS := 5000
 ## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
 const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## Kinds no row of the table has (0 is the transport's ADMIT, never a client's). 15 left it when
-## NextStage took it (#599); 16 took its place.
-const UNASSIGNED: Array[int] = [0, 16, 19, 23, 26, 31, 66, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## NextStage took it (#599), 16 took its place; 16 and 66 left it when SetProfile and
+## ProfileChanged took them (#551), 17 and 67 took theirs.
+const UNASSIGNED: Array[int] = [0, 17, 19, 23, 26, 31, 67, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## MoveClaim's layout (§4.3), its RELIABLE twin's too: the first float of position, velocity and
 ## facing, and the flags (jumps, sprint_ticks and moved_ticks follow them).
 const CLAIM_FLOATS_AT := 8
@@ -300,6 +304,8 @@ static func _bad_payload(
 			# NextStage without its whole seq: NetFrame takes the frame, the codec cannot read it.
 			var short := _random_bytes(rng, rng.randi_range(0, 3))
 			packet = framed(schema.kind_of(&"NextStage"), short, NetKindTable.Lane.RELIABLE)
+		Shape.SET_PROFILE_NO_COLOUR, Shape.SET_PROFILE_TRAILING, Shape.SET_PROFILE_BAD_NAME:
+			packet = _bad_profile(shape, rng, schema)
 		_:
 			# DEBUG_KIND: a well-formed ForceRole from a peer other than 1 (E17).
 			var role := {"role": "dissident"}
@@ -322,3 +328,19 @@ static func _random_bytes(rng: RandomNumberGenerator, count: int) -> PackedByteA
 	for i in count:
 		bytes[i] = rng.randi_range(0, 255)
 	return bytes
+
+
+## A SetProfile the codec refuses (#551), under its cap so NetFrame takes it: without its colour
+## byte, with bytes after it, or with a name that is not UTF-8 (a lone continuation byte).
+static func _bad_profile(shape: Shape, rng: RandomNumberGenerator, schema: WireSchema) -> Packet:
+	var fields := {"name": "Hostile", "colour": rng.randi_range(0, 9)}
+	var payload := schema.encode(WireMessage.new(&"SetProfile", fields, CHAOS_SEQ))
+	match shape:
+		Shape.SET_PROFILE_NO_COLOUR:
+			payload = payload.slice(0, payload.size() - 1)
+		Shape.SET_PROFILE_TRAILING:
+			payload.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
+		_:
+			# seq 4 bytes, the name's length byte, then its first byte.
+			payload[5] = 0x80 + rng.randi_range(0, 0x3F)
+	return framed(schema.kind_of(&"SetProfile"), payload, NetKindTable.Lane.RELIABLE)

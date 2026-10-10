@@ -47,6 +47,7 @@ static func mode() -> GameMode:
 				AcceptSpec.of(Intents.MOVE_CLAIM, living),
 				AcceptSpec.of(Intents.SET_READY, player),
 				AcceptSpec.of(Intents.CHANGE_SETTINGS, host),
+				AcceptSpec.of(Intents.SET_PROFILE, player),
 			]
 		)
 	)
@@ -170,6 +171,15 @@ static func hello(
 
 static func ready(game: Match, peer: int, is_ready: bool = true, seq: int = 0) -> void:
 	FixtureModes.send(game, Intents.SET_READY, peer, {"ready": is_ready}, seq)
+
+
+## `peer` sends SetProfile(`player_name`, `colour`) (#551); either may be any Variant, as a raw
+## command can carry.
+static func profile(
+	game: Match, peer: int, player_name: Variant, colour: Variant, seq: int = 0
+) -> void:
+	var fields := {"name": player_name, "colour": colour}
+	FixtureModes.send(game, Intents.SET_PROFILE, peer, fields, seq)
 
 
 ## A lobby with `peers` joined and all ready: the match is in the countdown.

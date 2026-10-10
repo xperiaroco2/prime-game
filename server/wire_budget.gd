@@ -66,7 +66,14 @@ static func _welcome(content: _Content) -> WireMessage:
 	var roster: Array[Dictionary] = []
 	var spots := content.spots(content.mode.max_players)
 	for peer: int in spots:
-		roster.append({"peer": peer, "name": "P".repeat(NAME_BYTES), "ready": true})
+		roster.append(
+			{
+				"peer": peer,
+				"name": "P".repeat(NAME_BYTES),
+				"ready": true,
+				"colour": PlayerColours.COUNT - 1
+			}
+		)
 	var others := content.spots(content.mode.max_players - 1)
 	var fields := {
 		"peer": 1,

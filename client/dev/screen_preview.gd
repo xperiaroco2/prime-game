@@ -287,9 +287,9 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": 2, "name": "Player2", "ready": true},
-				{"peer": 3, "name": "Player3", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": 2, "name": "Player2", "ready": true, "colour": 1},
+				{"peer": 3, "name": "Player3", "ready": false, "colour": 2},
 			]
 		)
 	)

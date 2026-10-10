@@ -18,8 +18,8 @@ func before_test() -> void:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": OWN, "name": "Player2", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": OWN, "name": "Player2", "ready": false, "colour": 1},
 			]
 		)
 	)
@@ -68,12 +68,29 @@ func test_the_lobby_name_follows_welcome_and_settings_changed() -> void:
 
 
 func test_the_roster_follows_joins_leaves_and_ready() -> void:
-	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9)))
+	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9), 2))
 	_fold(ReadyChangedEvent.new(3, true))
 	assert_bool(_model.roster[3].ready).is_true()
 	assert_vector(_model.spots[3]).is_equal(Vector3(0, 0, 9))
 	_fold(PlayerLeftEvent.new(1))
 	assert_array(_model.roster.keys()).contains_exactly([OWN, 3])
+
+
+## #551: every body colour is public; the Welcome, a join and a profile change carry it.
+func test_the_colours_follow_welcome_joins_and_profile_changes() -> void:
+	assert_int(_model.colour_of(1)).is_equal(0)
+	assert_int(_model.colour_of(OWN)).is_equal(1)
+	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9), 2))
+	assert_int(_model.colour_of(3)).is_equal(2)
+	_fold(ProfileChangedEvent.new(1, "Діма", 7))
+	assert_str(_model.roster[1].name).is_equal("Діма")
+	assert_int(_model.colour_of(1)).is_equal(7)
+	assert_bool(_model.roster[1].ready).is_true()
+	assert_str(_model.host_name()).is_equal("Діма")
+	# A peer not on the roster: colour 0, and a profile of it adds nobody.
+	assert_int(_model.colour_of(9)).is_equal(0)
+	_fold(ProfileChangedEvent.new(9, "Ghost", 4))
+	assert_array(_model.roster.keys()).contains_exactly([1, OWN, 3])
 
 
 func test_settings_changed_and_phase_changed() -> void:

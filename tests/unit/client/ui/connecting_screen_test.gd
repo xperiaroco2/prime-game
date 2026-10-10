@@ -282,7 +282,7 @@ func test_the_focus_is_on_cancel_the_primary_or_the_lone_back() -> void:
 func test_the_loading_lists_the_host_first_the_own_row_you_and_who_has_loaded() -> void:
 	var mode := load(MODE) as GameMode
 	var model := Preview.fake_model(mode, false)
-	model.fold(&"PlayerJoined", {"peer": 7, "name": "Taras", "spot": Vector3.ZERO})
+	model.fold(&"PlayerJoined", {"peer": 7, "name": "Taras", "spot": Vector3.ZERO, "colour": 0})
 	model.fold(&"PlayerLoaded", {"peer": 1})
 	_screen.show_loading("tip.two_hands")
 	_screen.set_load_fraction(0.62)

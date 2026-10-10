@@ -77,8 +77,8 @@ func welcome(phase := &"lobby", epoch := 1) -> WelcomeEvent:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": peer, "name": "Player2", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": peer, "name": "Player2", "ready": false, "colour": 1},
 			]
 		)
 	)

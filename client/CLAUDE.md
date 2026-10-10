@@ -19,7 +19,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
-  and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
+  and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks), `BodyColours` (body colour index to Color, #551).
 - The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `UiOverlays` (pure: what Esc closes, one per press, #488,
   §4.7.35), `EscMenuState` (pure), `EscMenu` (the Toy menu, #491, §4.7.46), its pages `LobbyPanel` (`LobbyPresets`, `SettingStepper`), `RolePage` (the pure `RoleFacts`), `GuidePanel` and `SettingsPage` (also the main menu's: `SettingRows`, `VoicePanel` M5-6, `ControlsPanel` #211, §4.7.28: `app/Controls`, `ui/KeyLabel`; wired by `app/GameSettings`), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and

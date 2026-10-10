@@ -298,7 +298,9 @@ func _lobby(own: int, names: Array, all_ready := false) -> ClientModel:
 	for index in names.size():
 		var peer := index + 1
 		var ready_now := all_ready or peer != own
-		welcome.roster.append({"peer": peer, "name": names[index], "ready": ready_now})
+		welcome.roster.append(
+			{"peer": peer, "name": names[index], "ready": ready_now, "colour": index}
+		)
 	welcome.settings = _mode.default_settings()
 	welcome.map = "res://levels/greybox/greybox.tscn"
 	welcome.phase = &"lobby"

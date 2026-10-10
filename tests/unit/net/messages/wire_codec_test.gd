@@ -150,9 +150,13 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	# A name (#550, #214) is UTF-8 of at most 80 bytes, not characters, and holds no control.
 	for bad_name: String in ["x".repeat(WireField.NAME_MAX_BYTES + 1), "é".repeat(41), "a" + BELL]:
 		_assert_refused(
-			WireMessage.new(&"PlayerJoined", {"peer": 2, "name": bad_name, "spot": Vector3.ZERO})
+			WireMessage.new(
+				&"PlayerJoined", {"peer": 2, "name": bad_name, "spot": Vector3.ZERO, "colour": 0}
+			)
 		)
-	_assert_refused(WireMessage.new(&"PlayerJoined", {"peer": 2, "name": 7, "spot": Vector3.ZERO}))
+	_assert_refused(
+		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": 7, "spot": Vector3.ZERO, "colour": 0})
+	)
 	_assert_refused(WireMessage.new(&"MoveClaim", _claim_with("sprint", 1)))
 	_assert_refused(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": PackedByteArray()}))
 	var frame := PackedByteArray()
@@ -181,7 +185,9 @@ func test_a_refusal_names_a_byte_array_by_its_size_and_cuts_a_long_value() -> vo
 	assert_str(role.problem).is_equal('role: &"Crew" is not an id')
 	var long_name := "x".repeat(WireField.NAME_MAX_BYTES + 1)
 	var joined := _schema.write(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
+		WireMessage.new(
+			&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO, "colour": 0}
+		)
 	)
 	assert_int(joined.problem.length()).is_less(100)
 	assert_str(joined.problem).ends_with("... is not a name")
@@ -286,7 +292,9 @@ func test_the_decoder_rejects_broken_payloads() -> void:
 	claim[44] = 0x08
 	_assert_rejected(5, claim, "unknown flag bits")
 	var joined := _schema.encode(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": "P", "spot": Vector3.ZERO})
+		WireMessage.new(
+			&"PlayerJoined", {"peer": 2, "name": "P", "spot": Vector3.ZERO, "colour": 0}
+		)
 	)
 	joined[5] = 0x7F
 	_assert_rejected(34, joined, "byte")

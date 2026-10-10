@@ -28,7 +28,7 @@ func after_test() -> void:
 func test_the_rows_are_the_host_first_then_the_join_order() -> void:
 	# The Welcome's roster in the host's order (a later joiner may come before the host in it).
 	var model := _model(3, [[7, "Taras", true], [1, "Olena", true], [3, "Ivan", false]])
-	model.fold(&"PlayerJoined", {"peer": 2, "name": "Marko", "spot": Vector3.ZERO})
+	model.fold(&"PlayerJoined", {"peer": 2, "name": "Marko", "spot": Vector3.ZERO, "colour": 3})
 	var rows := LobbyText.of(model, _mode, NOW).rows
 	var order: Array[int] = []
 	for row in rows:
@@ -196,8 +196,11 @@ func _handoff_lobby() -> ClientModel:
 func _model(own: int, roster: Array) -> ClientModel:
 	var model := ClientModel.new(_mode)
 	var welcome := WelcomeEvent.new(own, Vector3.ZERO, 1)
-	for entry: Array in roster:
-		welcome.roster.append({"peer": entry[0], "name": entry[1], "ready": entry[2]})
+	for index in roster.size():
+		var entry: Array = roster[index]
+		welcome.roster.append(
+			{"peer": entry[0], "name": entry[1], "ready": entry[2], "colour": index}
+		)
 	welcome.settings = _mode.default_settings()
 	welcome.map = "res://levels/greybox/greybox.tscn"
 	welcome.phase = &"lobby"

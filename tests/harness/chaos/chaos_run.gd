@@ -598,8 +598,27 @@ func _check_after() -> void:
 	# one, so the lobby keeps its default.
 	if not game.state.lobby_name.is_empty():
 		failures.append("the lobby is named %s, which only the host may do" % game.state.lobby_name)
+	_check_profiles()
 	if chaos_mode == Mode.CHAOS:
 		_check_chaos_counts()
+
+
+## The hostile's SetProfiles (#551) carry a new name and colour only where no phase takes them, so
+## every player ends with the name and the distinct colour it joined with: none is "Hacked" and no
+## two share a colour.
+func _check_profiles() -> void:
+	var owners: Dictionary[int, int] = {}
+	for peer: int in game.state.present_peers():
+		var player := game.state.player(peer)
+		if player.name == ChaosHostile.HACKED_NAME:
+			failures.append(
+				"peer %d is named %s, a refused SetProfile's name" % [peer, player.name]
+			)
+		if owners.has(player.colour):
+			failures.append(
+				"peers %d and %d share colour %d" % [owners[player.colour], peer, player.colour]
+			)
+		owners[player.colour] = peer
 
 
 ## Over WebRTC, the order check (OrderLog): both ways for the honest remote bots and the

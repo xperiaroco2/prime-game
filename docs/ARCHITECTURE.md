@@ -111,7 +111,7 @@ hello deadline.
 
 | Phase | On enter | Accepts (§4.1) | Voice (§6) | Clock |
 |---|---|---|---|---|
-| Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
+| Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host), `SetProfile` (#551); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
@@ -248,12 +248,30 @@ dissidents, no crew present only once every crew member left, End widens nothing
   that a present player has, ignoring case, gets the first free suffix " 2", " 3" and so on ("Dima", then
   "Dima 2"; the fallback too, so a player who chose "Player2" never meets a second one), its base cut so the
   whole stays within 16 characters; a leaver's name is free again. A name is never a reason to refuse a
-  `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). The name is
-  fixed for the session (a change after joining needs an intent of its own: the Esc menu's Character page, which
-  waits for #73). Still to come (#73): the
-  body colour, and a reconnecting player's old number.
+  `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). In the lobby a
+  player changes its name with `SetProfile` (#551, the next item); a reconnecting player's old number is still
+  to come (#73, M7).
   Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
   `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
+- **Body colours and `SetProfile`** (#551, the engineer's answers on #73 of 2026-10-08): a player's body is one of
+  10 preset colours (no picker), held in `core/` as an index 0..9 (`PlayerColours`, `PlayerState.colour`;
+  `core/` never holds a `Color`, the client draws the index, §4.7.50). The colour is **public**: `PlayerJoined`,
+  `Welcome`'s roster and `ProfileChanged` carry it to everyone. A joiner takes the first colour no present
+  player has (`PlayerColours.first_free`; `Hello` asks for none). `SetProfile(name, colour)` (§4.1) changes both,
+  in the Lobby only, from a player (the base mode's accept row; Countdown, Loading, Pregame, Round and End answer
+  `not_accepted`, so a profile never changes under a countdown or in a match; the tutorial accepts it nowhere).
+  The host's rule (`JoinRules.set_profile`): a `name` that is not text or a `colour` that is not an int is
+  `bad_args`; a colour outside 0..9 `out_of_bounds`; the name goes through `PlayerNames.clean` and
+  `PlayerNames.unique` against the **other** present players (re-sending one's own "Dima 2" keeps it), and a name
+  with nothing usable left keeps the current one (it never counts a join: `MatchState.joins` numbers joins
+  only); the colour is the one asked when no other present player has it, else the **first free** one (the
+  engineer's answer, literally: its own colour counts as free, so a clash can leave the sender where it was);
+  both as they are: `unchanged`. Else both change and `ProfileChanged` goes to everyone; the ready flag stays.
+  `ResetMatch` keeps colours and names. `GameMode.check` refuses a mode whose `max_players` exceeds the 10
+  colours, so a free colour always exists (`first_free` of ten taken would give 0, unreachable). A returning
+  player (M7) gets name and colour by these rules as any joiner. Tests: `player_colours_test.gd`,
+  `join_rules_profile_test.gd`, `mode_check_test.gd`, `content_modes_test.gd` (the accept row),
+  `host_session_profile_test.gd` (every client's roster over loopback) and the chaos run (§4.6.5).
 - **The lobby's name** (#214, the engineer's answers on #214 of 2026-10-08): the host names the lobby, at most
   20 characters, with the same cleaning as a player's name (`LobbyName.clean`, `core/match/lobby_name.gd`, which
   is `PlayerNames.clean_to` with `LobbyName.MAX_CHARS`): controls and invisible characters dropped, blank edges
@@ -662,6 +680,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
 | `NextStage()` | the host (peer 1) only, `AcceptSpec` HOST; only a scripted mode's phase that lists it (the tutorial's `lessons` and `raise_stage`, `docs/design/tutorial.md` §2.4, E65). The base mode lists it in no phase: `not_accepted` (#599) | nothing more: the phase's rule reports `next` (§9.4 `ReportOutcome`) and its one `next` row runs. A session control like `ReturnToLobby` (not in `Intents.PLAYER_ACTIONS`), so the client does not resend it; as every applied intent it stops the sender's own channel first |
+| `SetProfile(name, colour)` | a player; Lobby only (#551; the base mode's accept row, the tutorial lists it nowhere): elsewhere `not_accepted` | `name` text and `colour` an int (`bad_args`); `colour` one of the 10 (`out_of_bounds`); the name cleaned and made unique against the other players (§3.5; nothing usable left keeps the current name), a colour another player has replaced by the first free one; both as they are: `unchanged`. Applied: `ProfileChanged` to everyone; the ready flag stays. A session control, not in `Intents.PLAYER_ACTIONS` |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 
@@ -677,10 +696,11 @@ wire schemas of the events and the snapshot are §4.3.
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions; the lobby's name ("" while it is the default, #214) | the joiner | its `Hello` is accepted |
-| `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's final names, §3.5), ready flags and body colours (#551); the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions; the lobby's name ("" while it is the default, #214) | the joiner | its `Hello` is accepted |
+| `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point, body colour (an index 0..9, #551) | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
+| `ProfileChanged` | peer, name and body colour as the host settled them (§3.5) | everyone | an accepted `SetProfile` in the lobby (#551) |
 | `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back, as host text (an id, its subject ids and whole-number arguments, which each client words in its own language, #548); the lobby's name ("" while it is the default, #214) | everyone | `ChangeSettings`, a join or leave in Lobby or Countdown (the demands change), and `End → Lobby` (`ResetMatch`, #737: the players who left mid-match are dropped, so the shortfalls of before the countdown are stale) |
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
@@ -720,7 +740,8 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 `RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
-(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4).
+(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
+in `PlayerJoined` and the `Welcome` roster.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -808,6 +829,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
 | 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
 | 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
+| 16 | `SetProfile` | RELIABLE | `seq: u32`, `name: name`, `colour: u8` (#551; core refuses a colour past 9, `out_of_bounds`) | 6 to 86; 86 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -828,8 +850,8 @@ directive has no row, because it reaches no peer.
 | Kind | Event | Fields | Bytes; cap |
 |---|---|---|---|
 | 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
-| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 411; 2048 |
-| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3` | 25; 97 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: name, ready: bool, colour: u8>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>`, `lobby_name: name` | 171; 2048 |
+| 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3`, `colour: u8` (#551) | 26; 98 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
 | 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<record{id: id, ids: list<id>, numbers: map<id, s32>}>` (host text, #548), `lobby_name: name` | 251 with no shortfall and the default name; 8192 |
@@ -861,6 +883,7 @@ directive has no row, because it reaches no peer.
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
 | 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
+| 66 | `ProfileChanged` | `peer: peer`, `name: name`, `colour: u8` (audience *everyone*, #551) | 6 to 86; 86 |
 
 #### 4.3.5 State and voice
 
@@ -893,9 +916,10 @@ The rules of the table:
   when #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster,
   11 when #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
   and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
-  97, 12 since T1 (#599, E65) added the tutorial's `NextStage` (15), and is 13 since #548 turned
-  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason. M4's protocol PRs each set
-  it to their base's plus one at the rebase before the merge (the M4 ADR §4).
+  97, 12 since T1 (#599, E65) added the tutorial's `NextStage` (15), 13 since #548 turned
+  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason, and is 14 since #551 added
+  `SetProfile` (16), `ProfileChanged` (66) and the body colour of `PlayerJoined` (cap 98) and the `Welcome`
+  roster. M4's protocol PRs each set it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -1685,9 +1709,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13, 15 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
-covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
-`ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 16, 19, 23, 26, 31, 66, 80, 95, 97, 111,
+The C→H kinds 1 to 13, 15, 16 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
+`host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
+and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 17, 19, 23, 26, 31,
+67, 80, 95, 97, 111,
 113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
@@ -1700,6 +1725,13 @@ in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with i
 `ChangeSettings` also carries a `lobby_name`: a non-host rename is caught by the oracle's `not_accepted` check of
 `ChangeSettings` (`From.HOST`), and `ChaosRun` also fails a run that ends with the lobby named (only the host may
 name it, and the host's bot never does), a backstop not yet seen failing.
+Kind 16, `SetProfile` (#551): the oracle's lobby row (`From.PLAYER`); the hostile sends its own name and colour in any
+phase (`unchanged` in the lobby, `not_accepted` elsewhere: no race can make it a change, since nobody else renames
+it), and "Hacked" with the next colour only while its client is in loading or pregame, where the host cannot be
+in the lobby (not in the round: its last frames could meet the lobby after End); its malformed shapes `SET_PROFILE_NO_COLOUR`, `SET_PROFILE_TRAILING` and
+`SET_PROFILE_BAD_NAME` (not UTF-8) are each under the cap, so the codec refuses them (`BAD_PAYLOAD`). `ChaosRun`
+fails a run that ends with a player named "Hacked" or two players sharing a colour. Seen failing: with
+`Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
@@ -3938,6 +3970,23 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
   `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
   free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
   `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
+#### 4.7.50 Built in #551 (M6.2), the bodies in their players' colours
+The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
+`ProfileChanged` (which also renames), and `ClientModel.colour_of(peer)` gives 0 for a peer not on the roster.
+`BodyColours` (`client/player/`) maps an index to what is drawn: the delivery circles' ten colours (the
+circle `StationKind`'s palette in `content/tasks/delivery.tres`, in its order, which `body_colours_test.gd` pins),
+the engineer's choice on PR #745 until the UI track's player-colour list (asked on #150) replaces them; one const
+array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics frame through
+`RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh per frame; a
+colour set before the body is ready waits for its rules); the lying pose is the same mesh, so a downed body keeps its
+colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
+when the life changes, `LifeLooks.PLAYER_COLOUR` offline. A dead body stays `LifeLooks.BODY_COLOUR`, grey. No picker
+yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
+(`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. The Toy lobby HUD (§4.7.42) shows no
+colour: its handoff (s04) draws none, the swatches are only on s05's Character page. Dev preview:
+`tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
+`body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
+material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -5366,7 +5415,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36's zone task, designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)) | none | the task types' events | 2f (#62) |
-| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
+| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`, `SetProfile` (#551: name and body colour, §3.5; `out_of_bounds` also for a colour past the ten); leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged`, `ProfileChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58); #551 (`SetProfile`) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |

@@ -168,6 +168,11 @@ script = ExtResource("6_accept")
 intent = &"ChangeSettings"
 from = 16
 
+[sub_resource type="Resource" id="Accept_lobby_profile"]
+script = ExtResource("6_accept")
+intent = &"SetProfile"
+from = 2
+
 [sub_resource type="Resource" id="Voice_lobby"]
 script = ExtResource("31_proximity")
 radius_m = 8.0
@@ -176,7 +181,7 @@ radius_m = 8.0
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true

@@ -25,6 +25,8 @@ class Member:
 	extends RefCounted
 	var name := ""
 	var ready := false
+	## The body colour, an index into PlayerColours (#551): public, every player sees it.
+	var colour := 0
 
 
 ## One item as the events describe it.
@@ -188,6 +190,12 @@ func phase_spec() -> PhaseSpec:
 	return _mode.find_phase(phase)
 
 
+## The body colour of `peer` (an index into PlayerColours), 0 for a peer not on the roster.
+func colour_of(peer: int) -> int:
+	var member: Member = roster.get(peer)
+	return member.colour if member != null else 0
+
+
 ## The host's name as the roster has it (its own player is peer 1), or "" when it is not there:
 ## the default lobby name `lobby.default_name` is built from it (#214).
 func host_name() -> String:
@@ -211,6 +219,7 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 		&"PlayerJoined":
 			var member := Member.new()
 			member.name = fields["name"]
+			member.colour = fields["colour"]
 			roster[fields["peer"] as int] = member
 			spots[fields["peer"] as int] = fields["spot"]
 		&"PlayerLeft":
@@ -223,6 +232,11 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 			var member: Member = roster.get(fields["peer"] as int)
 			if member != null:
 				member.ready = fields["ready"]
+		&"ProfileChanged":
+			var changed: Member = roster.get(fields["peer"] as int)
+			if changed != null:
+				changed.name = fields["name"]
+				changed.colour = fields["colour"]
 		&"SettingsChanged":
 			settings = fields["settings"]
 			id_sets = fields["id_sets"]
@@ -296,6 +310,7 @@ func _welcome(fields: Dictionary) -> void:
 		var member := Member.new()
 		member.name = entry["name"]
 		member.ready = entry["ready"]
+		member.colour = entry["colour"]
 		roster[entry["peer"] as int] = member
 	settings = fields["settings"]
 	map = fields["map"]

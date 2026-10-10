@@ -1,7 +1,7 @@
 class_name WelcomeEvent
 extends MatchEvent
 ## A joiner's accepted Hello (ARCHITECTURE §3.5, §4.2): its peer id, spawn point and epoch, and
-## the public facts of the lobby it arrives in: the roster with names and ready flags, the
+## the public facts of the lobby it arrives in: the roster with names, ready flags and colours, the
 ## settings and the map, the phase, the other players' positions and the lobby's name (#214). It
 ## holds nothing hidden (§5): in Lobby and Countdown nobody has a role, and everyone is alive.
 ## Audience: only the joiner.
@@ -12,7 +12,8 @@ const AUDIENCE_KIND := Audience.Kind.ONLY
 var peer: int
 var spot: Vector3
 var epoch: int
-## Per player, in peer-id order: {"peer", "name", "ready"}.
+## Per player, in peer-id order: {"peer", "name", "ready", "colour"} (the colour an index into
+## PlayerColours, #551).
 var roster: Array[Dictionary] = []
 var settings: Dictionary[StringName, int] = {}
 var map: String

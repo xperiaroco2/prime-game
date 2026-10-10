@@ -219,6 +219,7 @@ func set_life(value: ClientModel.Life) -> void:
 			collision_layer = 0
 	if _lying != null:
 		_lying.visible = life == ClientModel.Life.DOWNED
+		_paint_lying()
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
@@ -280,6 +281,17 @@ func _apply_rules() -> void:
 	_contacts.exclude = [get_rid()]
 	_lying.mesh = LifeLooks.capsule(rules, LifeLooks.PLAYER_COLOUR)
 	_lying.transform = LifeLooks.lying(rules)
+	_paint_lying()
+
+
+## Paints the lying capsule the own body colour (#551), the one the others see it in; offline (no
+## session) it keeps LifeLooks.PLAYER_COLOUR. Only the lobby changes a colour, where nobody lies.
+func _paint_lying() -> void:
+	var mesh := _lying.mesh as CapsuleMesh
+	if mesh == null or session == null:
+		return
+	var own := session.model.colour_of(session.model.own_peer)
+	(mesh.material as StandardMaterial3D).albedo_color = BodyColours.of(own)
 
 
 ## One step held by a raise: no movement and no gravity (it lies on the floor where the host holds

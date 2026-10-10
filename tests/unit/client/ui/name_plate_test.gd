@@ -103,7 +103,7 @@ func test_the_layer_shows_in_the_lobby_and_the_round_under_every_screen() -> voi
 func _model() -> ClientModel:
 	var model := ClientModel.new(FixtureBaseMode.mode())
 	var welcome := WelcomeEvent.new(OWN, Vector3.ZERO, 1)
-	welcome.roster.assign([{"peer": OWN, "name": "Me", "ready": false}])
+	welcome.roster.assign([{"peer": OWN, "name": "Me", "ready": false, "colour": 0}])
 	welcome.settings = FixtureBaseMode.mode().default_settings()
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())

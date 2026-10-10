@@ -20,8 +20,8 @@ static func events() -> Dictionary[String, Array]:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": 3, "name": "Діма 2", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": 3, "name": "Діма 2", "ready": false, "colour": 9},
 			]
 		)
 	)
@@ -32,11 +32,16 @@ static func events() -> Dictionary[String, Array]:
 	welcome.lobby_name = "Лобі Діми " + String.chr(0x1F600)
 	found["WelcomeEvent"] = [welcome]
 	found["PlayerJoinedEvent"] = [
-		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE),
-		PlayerJoinedEvent.new(4, "Ann " + String.chr(0x1F600), Vector3.ZERO),
+		PlayerJoinedEvent.new(0x7FFFFFFF, "Player12", Vector3.ONE, 9),
+		PlayerJoinedEvent.new(4, "Ann " + String.chr(0x1F600), Vector3.ZERO, 0),
+		PlayerJoinedEvent.new(7, "Ж".repeat(40), Vector3(-1.5, 0.25, 8.0), 9),
 	]
 	found["PlayerLeftEvent"] = [PlayerLeftEvent.new(5)]
 	found["ReadyChangedEvent"] = [ReadyChangedEvent.new(5, true)]
+	found["ProfileChangedEvent"] = [
+		ProfileChangedEvent.new(0x7FFFFFFF, "Ж".repeat(40), 9),
+		ProfileChangedEvent.new(2, "Ann " + String.chr(0x1F600), 0),
+	]
 	found["SettingsChangedEvent"] = [_settings_changed()]
 	found["PhaseChangedEvent"] = [
 		PhaseChangedEvent.new(&"countdown", 4096), PhaseChangedEvent.new(&"end", -1)
@@ -117,6 +122,9 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"Swap", {}, 17),
 		WireMessage.new(&"NextStage", {}, 18),
 		WireMessage.new(&"NextStage", {}, 0xFFFFFFFF),
+		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
+		WireMessage.new(&"SetProfile", {"name": "P".repeat(80), "colour": 255}, 0xFFFFFFFF),
+		WireMessage.new(&"SetProfile", {"name": "", "colour": 0}, 20),
 	]
 
 

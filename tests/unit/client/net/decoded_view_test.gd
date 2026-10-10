@@ -20,7 +20,7 @@ func after_test() -> void:
 
 func test_it_holds_the_events_in_order_as_core_emitted_them() -> void:
 	var sent: Array[MatchEvent] = [
-		PlayerJoinedEvent.new(3, "Player3", Vector3(1, 0, 1)),
+		PlayerJoinedEvent.new(3, "Player3", Vector3(1, 0, 1), 2),
 		ReadyChangedEvent.new(3, true),
 		PhaseChangedEvent.new(&"countdown", 400),
 		ItemSpawnedEvent.new(4, &"package", Vector3(2, 0, 2), 1, Color.RED),
