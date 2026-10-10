@@ -4671,7 +4671,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
   package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
   `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
-  network runner's travel after a respawn). The first
+  network runner's travel after a respawn). #646: `crew_throws_a_package_into_its_circle` (a crew bot picks up the
+  only package, walks to 3.6 m short of its circle and throws it 45 degrees up with the base mode's `Throw` rule; it
+  rests in the circle and is delivered, TD4 (a), and the crew wins). The first
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
   `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
   `none`. None of M4-5's runs in `bots-enet`.
