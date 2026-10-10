@@ -189,6 +189,13 @@ class RevertRuleTest(unittest.TestCase):
         # Only the first ten count: a bad eleventh task changes nothing; tasks before the keep date never count.
         self.assertTrue(self.advice([0] * 10 + [9], before=6).startswith("keep Sonnet"))
 
+    def test_unreviewed_tasks_are_named_in_the_advice(self) -> None:
+        got = metrics.revert_advice(self.rows([1, None, 0, 0, None, 0, 0, 0, 0, 0]))[0]
+        self.assertEqual((got["tasks"], got["reviewed"], got["serious"]), (10, 8, 0.125))
+        self.assertEqual(got["advice"], "keep Sonnet for qualifying tasks (10 of 10 Sonnet-implemented tasks since "
+                                        "2026-10-10 18:06Z, 8 reviewed; 0.12 blockers and majors a task, within 0.3)")  # fmt: skip
+        self.assertNotIn("reviewed", self.advice([0] * 10), "all reviewed: no count")
+
     def test_the_trials_tasks_of_the_keep_day_never_count(self) -> None:
         # #750 and #760 ran on 2026-10-10 hours before the keep (18:06:44Z): the trial judged them, the rule does not.
         self.assertEqual(metrics.KEEP_FROM, "2026-10-10T18:06:44Z")

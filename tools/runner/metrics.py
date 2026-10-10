@@ -186,8 +186,9 @@ tasks, the totals and the advice.
 Since the engineer kept the Sonnet implementer (2026-10-10 18:06Z, the model-guard ADR's amendment) the table's advice
 line is the revert rule (revert_advice): over the first REVERT_TASKS trial tasks whose first run started on or after
 KEEP_FROM (the keep's own time, so the trial's tasks of that day never count), revert when their blockers and majors
-per task pass REVERT_OVER, else keep; fewer tasks: continue. The JSON record's "revert" holds those tasks' count, mean
-and advice; "advice" stays the trial's own verdict.
+per task pass REVERT_OVER, else keep; fewer tasks: continue. A task with no counted review (a red or unpublished run)
+stays out of the mean, and the advice then says how many were reviewed. The JSON record's "revert" holds those tasks'
+count, the reviewed count, the mean and advice; "advice" stays the trial's own verdict.
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -2575,6 +2576,8 @@ def revert_advice(rows: list[dict]) -> tuple[dict, str]:
     known = [x["serious"] for x in judged if x["serious"] is not None]
     mean = sum(known) / len(known) if known else None
     where = f"{len(judged)} of {REVERT_TASKS} Sonnet-implemented tasks since {KEEP_SINCE}"
+    if known and len(known) < len(judged):  # a red or unpublished run has no counted review: say the mean's base
+        where += f", {len(known)} reviewed"
     if mean is None:
         advice = f"continue: {where}; no review counted yet"
     elif len(judged) < REVERT_TASKS:
@@ -2583,7 +2586,7 @@ def revert_advice(rows: list[dict]) -> tuple[dict, str]:
         advice = f"revert: drop Sonnet for the implementer ({where}; {mean:.2f} blockers and majors a task, over {REVERT_OVER:g})"
     else:
         advice = f"keep Sonnet for qualifying tasks ({where}; {mean:.2f} blockers and majors a task, within {REVERT_OVER:g})"
-    return {"tasks": len(judged), "serious": mean, "advice": advice}, advice
+    return {"tasks": len(judged), "reviewed": len(known), "serious": mean, "advice": advice}, advice
 
 
 def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: dict | None) -> dict:
