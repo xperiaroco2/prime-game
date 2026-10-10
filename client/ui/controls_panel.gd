@@ -39,7 +39,8 @@ const ROW_NAMES: Dictionary[StringName, String] = {
 	&"spectate_next": "SpectateNext",
 	&"spectate_previous": "SpectatePrevious",
 }
-## The gap above Reset (the handoff's ResetGap: 4 + 12 + 4 = 20 px), layout.
+## The spacer above Reset, the handoff's ResetGap (0, 12). Its note says "4 + 12 + 4 = 20 px", but
+## it builds the column as ToyColumnEight, so the gap is 8 + 12 + 8 = 28 px; the node data wins.
 const RESET_GAP := Vector2(0, 12)
 
 ## The controls this panel changes; in memory until the game gives it the player's.

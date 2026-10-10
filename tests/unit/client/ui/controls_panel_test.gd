@@ -44,6 +44,8 @@ func test_a_row_per_action_with_the_bound_keys_and_no_clash_by_default() -> void
 	assert_object(_panel.reset_button.get_parent()).is_same(_panel)
 	var gap := _panel.get_child(_panel.reset_button.get_index() - 1)
 	assert_str(String(gap.name)).is_equal("ResetGap")
+	assert_vector((gap as Control).custom_minimum_size).is_equal(Vector2(0, 12))
+	assert_str(String(_panel.theme_type_variation)).is_equal("ToyColumnEight")
 	var row := _panel.get_node(^"Talk") as PanelContainer
 	assert_str(String(row.theme_type_variation)).is_equal("ToySettingRow")
 	assert_object(row.get_node(^"H/Bind")).is_same(_panel.key_buttons[&"voice_talk"])
