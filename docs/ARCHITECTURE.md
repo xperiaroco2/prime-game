@@ -3446,7 +3446,10 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
 The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
-`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
+`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
+The living rescuer's "Hold <interact> to raise" over a downed teammate went with it: the deck has no key for it and
+no Toy screen draws it, so aiming at a downed teammate shows no cue until the engineer settles one (#497's PR); E
+still sends `Raise` within `LifeView.raise_hint_reach_of()`.- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
   a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
   ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
