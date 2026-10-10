@@ -3513,7 +3513,9 @@ reads, do not move.
   physics step, and the avatar's flags gain `crouched` (4), relayed in the snapshot: one protocol bump, no byte more
   (KE1); the photo task's `ShotTaken` record, once built, carries the same bit, and its subject's head takes the
   crouched eye (KE2). Prevents: a separate crouch intent on another lane, whose pose disagrees with the position for
-  a round trip.
+  a round trip. `crouched` joins the public avatar fields (§5, both leak-test allowlists), and a scenario invariant
+  reads the mode's data, not the rule, to fail a crouch relayed for a player not living or where the crouch does not
+  play (the ADR's "Who sees what").
 - **The host** keeps `PlayerState.crouched` from the last accepted claim, false at every placement and knockdown, and
   ignores a downed claim's bit (KE2). It reads it for the eye (`Items.eye_of` takes `crouch_eye_height_m`, so every
   sight line of a crouched player starts there: a crouched player does all a standing one does, from that eye, KD8)
