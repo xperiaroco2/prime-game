@@ -307,9 +307,10 @@ silent; a test keeps it so.
   role", the own role on the title plate, its generic goal and, for a dissident, its teammates' names (the engineer
   on #175); nothing of any other player's role. At the round's start Night fades out over the HUD. Frozen as Loading
   and End, and the mouse kept as in Loading (#517).
-- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175): the pregame screen
-  plays the own side's once as it reveals the own role (its `role_revealed` hook, #716, §4.7.39), never in the
-  round, where nobody hears anybody; local to the own client, so no peer hears another's.
+- **Role sounds.** The refinement of 2026-10-02 asks one sound per role in the pregame (#175): the pregame screen,
+  where nobody hears anybody, plays the own side's once as it reveals the own role (its `role_revealed` hook,
+  #716, §4.7.39), and stops it when the pregame ends, so none plays in the round; local to the own client, so no peer
+  hears another's.
 Tests: `tests/unit/match/phases/pregame_phase_test.gd` (the last `LoadAck` enters it with roles dealt and no clock;
 the round, `RoundStarted` and the clock on its end tick; each peer's own `RoleAssigned` only; a dropped `MoveClaim`
 and `not_accepted` for the rest; no win check before the round's entry; a leave as Round's; a connection refused;
@@ -3579,7 +3580,8 @@ No new event, row or rule: a client plays a sound only for the events and the sn
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
-  (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS, one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
+  (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
+  one `docs/credits/` entry per pack. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -3614,7 +3616,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   first End and kept; no voice is routed through it (#213). `UiSounds.role` (#716), from
   `PregameScreen.role_revealed` (once per pregame, the own side's, §4.7.39): `ui_role_engineers` or
   `ui_role_dissidents`, each from its own player (`UiRoleEngineers`, `UiRoleDissidents`, polyphony 1) under the
-  root on the UI bus, made at its first reveal and kept; local to the own client, no voice routed through it.
+  root on the UI bus, made at its first reveal and kept, and stopped (`UiSounds.stop_roles`) when the pregame
+  ends (`lift`, `stop`), so none reaches the round; local to the own client, no voice routed through it.
 - Tests: `tests/unit/client/world/footstep_cadence_test.gd` (the interval at walk and sprint speed, between and
   below; one step per interval; none standing; a still frame; a placement; only horizontal movement),
   `footstep_surface_test.gd` (the tag, the nearest ancestor's, the default), `sound_chooser_test.gd` (the step's
