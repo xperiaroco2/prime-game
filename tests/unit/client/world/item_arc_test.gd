@@ -147,6 +147,30 @@ func test_the_no_floor_fallback_at_the_throwers_feet_ends_the_drawn_arc_at_once(
 	assert_vector(arc.position()).is_equal(feet)
 
 
+func test_the_own_arc_that_ran_past_the_stop_glides_back_to_the_rest() -> void:
+	# The thrower's clock is ahead of the host's flight by the round trip: its item flew on through
+	# a living player the host stopped it on, and ItemPlaced finds it well past the stop.
+	var arc := ItemArc.thrown(_launch(10))
+	arc.own = true
+	var stop_point := ItemFlight.point(O, V, G, 6)
+	var rest := Vector3(stop_point.x, 0, stop_point.z)
+	arc.n = 12.0
+	var past := arc.position()
+	arc.end_at(_placed(rest), 12.0)
+	assert_bool(arc.finished()).is_false()
+	assert_vector(arc.position()).is_equal(past)
+	arc.n = 12.0 + ItemArc.GLIDE_S * Ticks.RATE * 0.5
+	assert_vector(arc.position()).is_equal_approx(past.lerp(rest, 0.5), Vector3.ONE * 1e-4)
+	arc.n = 12.0 + ItemArc.GLIDE_S * Ticks.RATE + 0.01
+	assert_bool(arc.finished()).is_true()
+	assert_vector(arc.position()).is_equal(rest)
+	# The same lateness on another player's screen (the avatars' timeline) still ends at once.
+	var other := ItemArc.thrown(_launch(10))
+	other.n = 12.0
+	other.end_at(_placed(rest), 12.0)
+	assert_bool(other.finished()).is_true()
+
+
 func test_the_drawn_item_flies_to_the_stop_then_falls_to_the_rest() -> void:
 	var arc := ItemArc.thrown(_launch(10))
 	var stop_point := ItemFlight.point(O, V, G, 12)

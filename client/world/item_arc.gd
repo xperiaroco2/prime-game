@@ -36,6 +36,9 @@ const EASE_S := 0.2
 const STOP_SLACK_TICKS := 3.0
 ## How many ticks the drawn item may have flown past the stop and still fall from the stop.
 const PAST_STOP_TICKS := 1.0
+## How long the own arc glides back to a rest it flew past, in seconds. A placeholder, "not a
+## decision".
+const GLIDE_S := 0.15
 ## A squared horizontal speed below this (m²/s²) is a throw straight up or down.
 const VERTICAL_SPEED_SQ := 1e-6
 ## stop_of()'s answer for a rest that is not below the arc.
@@ -74,6 +77,9 @@ var _fall_start_n := 0.0
 var _fall_s := 0.0
 ## Ended at once at the rest.
 var _snapped := false
+## The own arc ran past its stop while the host's answer was on its way: it glides to the rest
+## instead of jumping there.
+var _gliding := false
 ## What adopt() added to keep the drawn item where it was, fading out over EASE_S.
 var _offset := Vector3.ZERO
 var _ease_left_s := 0.0
@@ -190,14 +196,7 @@ func position_at(at_n: float) -> Vector3:
 	if _snapped:
 		return rest
 	if _fall_from.is_finite() and at_n >= _fall_start_n:
-		var seconds := (at_n - _fall_start_n) / Ticks.RATE
-		if seconds >= _fall_s:
-			return rest
-		var flat := Vector2(_fall_from.x, _fall_from.z).lerp(
-			Vector2(rest.x, rest.z), seconds / _fall_s
-		)
-		var height := _fall_from.y - 0.5 * gravity.length() * seconds * seconds
-		return Vector3(flat.x, maxf(height, rest.y), flat.y)
+		return _fall_point((at_n - _fall_start_n) / Ticks.RATE)
 	if blocked_at.is_finite():
 		return blocked_at
 	if at_n < 0.0:
@@ -236,6 +235,15 @@ func end_at(fields: Dictionary, latest_n: float) -> void:
 	if blocked_at.is_finite():
 		_fall_from = blocked_at
 		_fall_start_n = maxf(n, 0.0)
+	elif stop != NO_STOP and own and n > stop + PAST_STOP_TICKS and position().is_finite():
+		# The thrower's clock runs ahead of the host's flight by the round trip, so its drawn item
+		# may have passed the stop (a living player the host stopped it on, which its own sweep
+		# does not see): it glides back to the rest rather than jumping.
+		_gliding = true
+		_fall_from = position()
+		_fall_start_n = n
+		_fall_s = GLIDE_S
+		return
 	elif stop == NO_STOP or n > stop + PAST_STOP_TICKS:
 		_snapped = true
 		return
@@ -252,6 +260,17 @@ func finished() -> bool:
 	if _snapped:
 		return true
 	return _fall_from.is_finite() and n >= _fall_start_n + _fall_s * Ticks.RATE
+
+
+## The item `seconds` into its fall (or its glide) from `_fall_from` to the rest.
+func _fall_point(seconds: float) -> Vector3:
+	if seconds >= _fall_s:
+		return rest
+	if _gliding:
+		return _fall_from.lerp(rest, seconds / _fall_s)
+	var flat := Vector2(_fall_from.x, _fall_from.z).lerp(Vector2(rest.x, rest.z), seconds / _fall_s)
+	var height := _fall_from.y - 0.5 * gravity.length() * seconds * seconds
+	return Vector3(flat.x, maxf(height, rest.y), flat.y)
 
 
 static func _first_throw(rules: Array[Rule]) -> Rule:
