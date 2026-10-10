@@ -183,6 +183,10 @@ it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its 
 Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
 verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
 tasks, the totals and the advice.
+Since the engineer kept the Sonnet implementer (2026-10-10, the model-guard ADR's amendment) the table's advice line is
+the revert rule (revert_advice): over the first REVERT_TASKS trial tasks whose first run started on or after KEEP_FROM,
+revert when their blockers and majors per task pass REVERT_OVER, else keep; fewer tasks: continue. The JSON record's
+"revert" holds those tasks' count, mean and advice; "advice" stays the trial's own verdict.
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -415,6 +419,11 @@ TRIAL_TASKS = 6
 TRIAL_EARLY_TASKS = 4
 TRIAL_RED_TWICE = 2
 TRIAL_SERIOUS_OVER = 1.0
+# The revert rule of the keep (the model-guard ADR, amendment of 2026-10-10): drop Sonnet when the blockers and majors
+# per task pass REVERT_OVER over the first REVERT_TASKS trial tasks started on or after KEEP_FROM.
+KEEP_FROM = "2026-10-10T00:00:00Z"
+REVERT_TASKS = 10
+REVERT_OVER = 0.3
 # The per-task means the table compares, and those the keep rule needs no worse than the baseline's.
 TRIAL_MEASURES = ("red_runs", "verify_runs", "verify_red", "serious", "fix_rounds", "ci_fix_rounds", "calls", "usd")
 TRIAL_NO_WORSE = {"red_runs": "red runs", "verify_red": "verify reds", "fix_rounds": "publisher fix rounds",
@@ -2506,6 +2515,7 @@ def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | 
         "issue": first["issue"], "wf": first["wf"], "key": key, "size": size,
         "models": sorted({str(implementer_family(r)) for r, _p, _q in members}),
         "design": any(q["design"] for _r, _p, q in members),
+        "start": min((r["start"] for r, _p, _q in members if r.get("start") is not None), default=None),
         "runs": len(members), "red_runs": sum(run_red(r) for r, _p, _q in members),
         "verify_runs": sum(p["summaries"] for _r, p, _q in members),
         "verify_red": sum(p["summaries_failed"] for _r, p, _q in members),
@@ -2553,6 +2563,26 @@ def trial_advice(trial: dict, base: dict) -> str:
     return "keep Sonnet for qualifying tasks (the engineer decides; a habit only by a further amendment)"
 
 
+def revert_advice(rows: list[dict]) -> tuple[dict, str]:
+    """The revert rule (the module docstring) over the trial tasks: the first REVERT_TASKS that started on or after
+    KEEP_FROM, as (their count and mean blockers and majors, the advice)."""
+    keep_from = parse_time(KEEP_FROM)
+    since = sorted((x for x in rows if x.get("start") is not None and x["start"] >= keep_from), key=lambda x: x["start"])
+    judged = since[:REVERT_TASKS]
+    known = [x["serious"] for x in judged if x["serious"] is not None]
+    mean = sum(known) / len(known) if known else None
+    where = f"{len(judged)} of {REVERT_TASKS} Sonnet-implemented tasks since {KEEP_FROM[:10]}"
+    if mean is None:
+        advice = f"continue: {where}; no review counted yet"
+    elif len(judged) < REVERT_TASKS:
+        advice = f"continue: {where}; {mean:.2f} blockers and majors a task (revert above {REVERT_OVER:g})"
+    elif mean > REVERT_OVER:
+        advice = f"revert: drop Sonnet for the implementer ({where}; {mean:.2f} blockers and majors a task, over {REVERT_OVER:g})"
+    else:
+        advice = f"keep Sonnet for qualifying tasks ({where}; {mean:.2f} blockers and majors a task, within {REVERT_OVER:g})"
+    return {"tasks": len(judged), "serious": mean, "advice": advice}, advice
+
+
 def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: dict | None) -> dict:
     """The Sonnet implementer trial (#560) from the finished issue-task runs, their per_task records and their
     scorecard rows (the three in one order), and the issues' sizes from read_github's list."""
@@ -2571,7 +2601,7 @@ def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: 
             base.append(row)
     totals = {"trial": trial_totals(trial), "baseline": trial_totals(base)}
     return {"tasks": trial, "baseline": base, "totals": totals, "sizes_known": isinstance(issues, list),
-            "advice": trial_advice(totals["trial"], totals["baseline"])}  # fmt: skip
+            "advice": trial_advice(totals["trial"], totals["baseline"]), "revert": revert_advice(trial)[0]}  # fmt: skip
 
 
 def trial_section(record: dict) -> list[str]:
@@ -2617,7 +2647,11 @@ def trial_section(record: dict) -> list[str]:
         "",
         table(total_head, totals),
         "",
-        f"Advice: {record['advice']}.",
+        f"Revert rule since {KEEP_FROM[:10]} (the engineer kept Sonnet; the model-guard ADR): drop it when blockers and "
+        f"majors pass {REVERT_OVER:g} a task over the next {REVERT_TASKS} Sonnet-implemented tasks. The trial's own "
+        f"verdict: {record['advice']}.",
+        "",
+        f"Advice: {record['revert']['advice']}.",
         "",
     ]
 

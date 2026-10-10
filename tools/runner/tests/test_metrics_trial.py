@@ -18,14 +18,14 @@ def agent(role: str, result: dict | None, model: str = OPUS) -> dict:
 
 def member(issue: int | None, wf: str, model: str, *, green: bool = True, pub: dict | None = None,
            verifies: tuple[int, int] = (1, 0), calls: int = 100, serious: int | None = 0, fix_rounds: int | None = 0,
-           pr: int | None = None, ci: int | None = None, usd: float = 5.0, design: bool = False) -> tuple:  # fmt: skip
+           pr: int | None = None, ci: int | None = None, usd: float = 5.0, design: bool = False, start: float | None = None) -> tuple:  # fmt: skip
     """A finished run with its per_task record and its scorecard row."""
     agents = [agent("implementer", {"verify_green": green}, model)]
     if serious is not None:
         agents.append(agent("code-reviewer", {"findings": [{"severity": "major"}] * serious}))
     if pub is not None:
         agents.append(agent("publisher", pub, SONNET))
-    run = {"session": "s", "issue": issue, "wf": wf, "agents": agents}
+    run = {"session": "s", "issue": issue, "wf": wf, "agents": agents, "start": start}
     task = {"summaries": verifies[0], "summaries_failed": verifies[1], "calls": calls}
     row = {"pr": pr, "ci_red_rounds": ci, "serious": serious, "fix_rounds": fix_rounds, "design": design, "usd": usd}
     return run, task, row
@@ -110,7 +110,8 @@ class TrialRecordTest(unittest.TestCase):
         self.assertIn("| #71 | S | opus, sonnet | 3 (2) | 3 (0) | 0 | 0 | 2 | 300 | $10 |", md)
         self.assertIn("| Sonnet trial | 2 | 1 | 1.50 | 3.50 | 1.50 | 0.50 | 0.50 | 1.50 | 235 | $8.50 | $8.50 |", md)
         self.assertIn("| Opus, Size S | 1 | 0 | 0.00 | 1.00 | 0.00 | 2.00 | 0.00 | 0.00 | 100 | $8.00 | $8.00 |", md)
-        self.assertIn("Advice: continue: 2 of 6 trial tasks.", md)
+        self.assertIn("The trial's own verdict: continue: 2 of 6 trial tasks.", md)
+        self.assertIn("Advice: continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet.", md)
         only_opus = [m for m in self.MEMBERS if m[0]["issue"] not in (70, 71)]
         self.assertEqual(metrics.trial_section(record(only_opus, self.ISSUES)), [], "no trial task, no table")
 
@@ -159,6 +160,42 @@ class TrialAdviceTest(unittest.TestCase):
         self.assertEqual(advice(totals(6, usd=4.0, fix_rounds=1.5, ci_fix_rounds=None), base),
                          "drop Sonnet for the implementer (worse or unknown: publisher fix rounds, CI fix rounds)")  # fmt: skip
         self.assertTrue(advice(totals(6, red_runs=1.2, verify_red=1.1), base).endswith("red runs, verify reds)"))
+
+
+class RevertRuleTest(unittest.TestCase):
+    """The keep's revert rule (the model-guard ADR, 2026-10-10): blockers and majors a task over the first 10 Sonnet
+    tasks started on or after the keep date."""
+
+    KEEP = metrics.parse_time(metrics.KEEP_FROM)
+
+    def rows(self, serious: list[int | None], *, before: int = 0) -> list[dict]:
+        """`before` older trial tasks (3 blockers or majors each), then one task a day per entry of `serious`."""
+        old = [{"start": self.KEEP - 86400 * (i + 1), "serious": 3} for i in range(before)]
+        return old + [{"start": self.KEEP + 86400 * i, "serious": n} for i, n in enumerate(serious)]
+
+    def advice(self, serious: list[int | None], **kw: int) -> str:
+        return metrics.revert_advice(self.rows(serious, **kw))[1]
+
+    def test_before_ten_tasks_it_continues(self) -> None:
+        self.assertEqual(self.advice([]), "continue: 0 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet")
+        self.assertEqual(self.advice([None, None]), "continue: 2 of 10 Sonnet-implemented tasks since 2026-10-10; no review counted yet")
+        self.assertEqual(self.advice([1, 0, 0], before=6),
+                         "continue: 3 of 10 Sonnet-implemented tasks since 2026-10-10; 0.33 blockers and majors a task (revert above 0.3)")  # fmt: skip
+
+    def test_ten_tasks_decide_by_the_mean(self) -> None:
+        keep = self.advice([1, 1, 1] + [0] * 7)  # 0.30 exactly: within the rule, "pass 0.3" is a strict excess
+        self.assertTrue(keep.startswith("keep Sonnet for qualifying tasks (10 of 10"), keep)
+        self.assertTrue(self.advice([1, 1, 1, 1] + [0] * 6, before=6).startswith("revert: drop Sonnet for the implementer (10 of 10"))
+        # Only the first ten count: a bad eleventh task changes nothing; tasks before the keep date never count.
+        self.assertTrue(self.advice([0] * 10 + [9], before=6).startswith("keep Sonnet"))
+
+    def test_the_record_carries_it(self) -> None:
+        got = record([member(70, "wf1", SONNET, serious=2, start=RevertRuleTest.KEEP + 5)], [issue(70, "S")])
+        self.assertEqual((got["revert"]["tasks"], got["revert"]["serious"]), (1, 2.0))
+        self.assertTrue(got["revert"]["advice"].startswith("continue: 1 of 10"), got["revert"]["advice"])
+        md = "\n".join(metrics.trial_section(got))
+        self.assertIn(f"Advice: {got['revert']['advice']}.", md)
+        self.assertIn("Revert rule since 2026-10-10", md)
 
 
 class TrialBuildTest(unittest.TestCase):
