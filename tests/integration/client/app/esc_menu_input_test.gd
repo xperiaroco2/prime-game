@@ -83,7 +83,6 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
 	# #204: the Welcome folds in the session's physics step and Game._process draws the lobby
 	# after it, so an Esc in between found the UI still on Connecting and opened on Resume.
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 3)])
-	game.pointer = FakePointer.new()
 	var drawn_at_esc: Array[GameFlow.Screen] = []
 	game.client().welcomed.connect(
 		func(_own: int) -> void:
@@ -97,6 +96,8 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
 	assert_int(drawn_at_esc[0]).is_not_equal(S.LOBBY)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
+	# The lobby captures the mouse, but not from under the menu it kept.
+	assert_bool(game.pointer.captured()).is_false()
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
 	assert_array(_visible_buttons(game.ui)).contains(
 		["esc.tab.game", "esc.tab.lobby", "esc.lobby.ready"]
@@ -267,7 +268,6 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 ## Settings ones, and gives the focus back to its item; no Esc menu opens with no session.
 func test_on_the_main_menu_esc_closes_the_open_panel_and_opens_no_esc_menu() -> void:
 	var game := _game([])
-	game.pointer = FakePointer.new()
 	await _frames(2)
 	assert_int(game.screen()).is_equal(S.MENU)
 	var menu := game.ui.menu
@@ -293,7 +293,6 @@ func test_on_the_main_menu_esc_closes_the_open_panel_and_opens_no_esc_menu() -> 
 ## its Back, the failure's Primary focused till then; no Esc menu opens on either.
 func test_esc_cancels_a_join_and_leaves_a_failure_for_the_menu() -> void:
 	var game := _game([])
-	game.pointer = FakePointer.new()
 	await _frames(2)
 	game.ui.menu.address_edit.text = "127.0.0.1:%d" % (PORT + 9)
 	game.ui.menu.join_requested.emit(game.ui.menu.address_edit.text, game.ui.menu.default_port)
@@ -434,7 +433,6 @@ func _assert_menu_gone(game: Game) -> void:
 ## A host's Game alone in the lobby, its pointer a FakePointer, its screens shown.
 func _lobby_game(port: int) -> Game:
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % port])
-	game.pointer = FakePointer.new()
 	assert_bool(await _until(func() -> bool: return game.screen() == S.LOBBY)).is_true()
 	await _frames(2)
 	return game
