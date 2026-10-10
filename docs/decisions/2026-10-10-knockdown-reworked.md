@@ -119,10 +119,14 @@ inside it).
    and `launch_up_mps` upwards, both 0 by default. `damage` hands it on to `knock_down` only when the hit knocks the
    player down: a hit that does not pushes nothing, because the living move client-side (invariant 7). A knockdown
    by anything else (nothing else knocks down today) launches nothing.
-2. **The knockdown** starts the motion at the last accepted position, lifted as `Items.lifted` lifts a point so the
+2. **The knockdown.** With no launch (both speeds 0, or a knockdown that is not a strike's) it is today's, unchanged:
+   the body lies at `floor_below` of the last accepted position at once, mid-jump included, `KnockedDown` and the
+   `Correction` name that point, and no motion starts (under 728c a floor there steeper than the slide angle then
+   starts a slide, step 4, which a slide speed of 0 never does). With a launch it starts the motion at the last
+   accepted position, lifted as `Items.lifted` lifts a point so the
    floor under the feet is no contact, with the launch as its velocity, and asks once for the fallback rest,
-   `floor_below` of that point (logged like every answer). `KnockedDown(peer, position)` now names where the motion
-   starts. Its `Correction` (a new epoch) still drops the walking claims in flight.
+   `floor_below` of that point (logged like every answer). `KnockedDown(peer, position)` then names where the motion starts,
+   and its `Correction` (a new epoch) still drops the walking claims in flight.
 3. **Flying**, each tick (`LifeTicks`, before the deadlines): the throw's arc function (#642) gives the next point
    from the stored origin, velocity and gravity and the motion's own count of ticks; `WorldQuery.sweep` (#641) moves
    the sphere along the segment; the first contact stops it, and the body drops to `floor_below` of the stop, lifted.
@@ -143,8 +147,9 @@ inside it).
 The snapshot's velocity is the motion's (the arc's, or the slide's), so each client starts its ragdoll moving. The
 voice distance, the raise's reach and sight, a respawn marker's free radius and the car's footprint read the point
 as it moves. A death ends the motion where it is (KD8 (a): `die` takes the floor below, as today); a leave ends it,
-leaving no body; End, which lists no `LifeTicks`, pauses it; `ResetMatch` clears it. A launch of 0 on a floor rests
-the body where today's knockdown lays it, so every life test of today holds with the knife's launch at 0.
+leaving no body; End, which lists no `LifeTicks`, pauses it; `ResetMatch` clears it. With no launch, step 2 is today's
+knockdown (the same event, the same `Correction`, no motion, so a `Raise` on the knockdown's tick is not rejected as
+`moving`), and every life test of today holds with the knife's launch and the slide speed at 0.
 
 Where a body may come to rest follows the throwing design's TD5 for items: a body that rests where no player can
 stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a body
@@ -198,7 +203,7 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 
 | Case | What happens | What it prevents |
 |---|---|---|
-| Knocked down in a jump, feet in the air | the motion starts there and falls; today's knockdown put the body on the floor at once | a ragdoll jumping from mid-air to the floor in one tick |
+| Knocked down in a jump, feet in the air | with no launch, as today: the point drops to the floor below at once, and the ragdoll falls to it, held by its spring (KE7); with a launch the motion starts in the air and falls | a knockdown with no launch that changes what today's tests assert |
 | Knocked down against a wall, launched into it | the sweep stops at once; the body drops where it stood | a body pushed through the wall |
 | Launched off the balcony or a ledge | it lands below and can be raised there | a body resting in the air over the yard |
 | Launched over no floor | it rests at the fallback; the match logs an error | a body nobody can reach, and its items with it |
@@ -215,7 +220,7 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 
 ### 9. Testing
 
-- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a launch of 0 rests the body where today's knockdown does
+- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a knockdown with no launch is today's (its event, its `Correction`, no motion)
   (every existing life test passes at 0); a launch into a wall, off a ledge, over no floor (the fallback and its
   error); the longest motion; a pause in a phase without `LifeTicks`; a death, a give-up and a leave during a motion;
   `Raise` rejected with `moving`; a slope slides, stairs do not, a wall stops a slide, an edge throws it off; the
@@ -257,8 +262,8 @@ content file named is provisional under the
   `moving`; KD8 in `die`; `leave` and `ResetMatch` clear it; the own avatar in a knocked-down viewer's snapshot
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
   gets its 16-avatar snapshot, the leak test's rule and the protocol number, and the client's `AvatarViews` and the bots' fold
-  skipping it until 728d draws it, so no client draws itself as a stranger in between; a launch of 0 reproduces
-  today's rest; 728b ships with every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a
+  skipping it until 728d draws it, so no client draws itself as a stranger in between; a knockdown with no launch is
+  today's, step for step (§4, step 2); 728b ships with every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a
   launched player's camera and ears would stay where the knockdown started while every other screen showed the body
   fly, and its client's voice cutoff (E41) would measure from the wrong place; ARCHITECTURE §5,
   §4.2's `KnockedDown` row, §4.3.5's `Snapshot` row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the
