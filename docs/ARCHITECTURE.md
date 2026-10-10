@@ -3505,7 +3505,8 @@ follows each recommendation. A crouch shrinks the capsule from the top: the feet
 do not move.
 - **The claim.** `MoveClaim`'s and `MoveClaimReliable`'s flags gain `crouched` (8), the pose at the claim's last
   physics step, and the avatar's flags gain `crouched` (4), relayed in the snapshot: one protocol bump, no byte more
-  (KE1). Prevents: a separate crouch intent on another lane, whose pose disagrees with the position for a round trip.
+  (KE1); the photo task's `ShotTaken` record, once built, carries the same bit, and its subject's head takes the
+  crouched eye (KE2). Prevents: a separate crouch intent on another lane, whose pose disagrees with the position for a round trip.
 - **The host** keeps `PlayerState.crouched` from the last accepted claim, false at every placement and knockdown, and
   ignores a downed claim's bit (KE2). It reads it for the eye (`Items.eye_of` takes `crouch_eye_height_m`, so every
   sight line of a crouched player starts there) and for the capsule (`Strike`'s vertical overlap and the end of its
