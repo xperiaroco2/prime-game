@@ -197,8 +197,8 @@ new mechanics come with M7 on the House, and bots playing them comes later, with
 
 **Hidden information.** Whether a person is in a photo is decided by the host from where everyone stood at the moment
 of the shot, never from a player's picture. A photo shows its picture to whoever sees it; whether it counted
-everyone learns once it is hung, from the photo task's row on the Tab task screen: the photos counted of N, struck
-through once every photo is counted. There is no shared total of every task's subtasks, in the HUD or on the task
+everyone learns once it is hung, from the photo task's row on the map screen (M): the photos counted of N, struck
+through once every photo is counted. There is no shared total of every task's subtasks, in the HUD or on the map
 screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)). Nobody is told who took a shot: players see it
 only by looking at the gazebo. Nothing shows through a wall.
 
@@ -395,11 +395,11 @@ gone (the engineer, 2026-10-10, the ADR's GD13 (b):
 [6100663476](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100663476)). All the new mechanics
 come with M7 on the House, and bots playing them comes later, with the map.
 
-**Hidden information.** Everyone sees the charge percentage. On the Tab task screen the Generator's row is a bar of its
+**Hidden information.** Everyone sees the charge percentage. On the map screen (M) the Generator's row is a bar of its
 charge, a percentage that grows while someone charges it, where every other task's row shows its own count of done
 subtasks ("2 / 5"); a task whose subtasks are all done is struck through. So a player sees the Generator at 20 % and
 growing (someone is on it), at 0 (nobody is), or stuck at 30 % (something happened there). There is no shared total of
-every task's subtasks, in the HUD or on the task screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)).
+every task's subtasks, in the HUD or on the map screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)).
 The battery is seen only at the generator's panel, not on any screen. Nobody is told who switched a switch: players
 learn it only by seeing it or guessing (hearing a click nearby follows from "every action has a sound"). The switches
 are hidden by sight: a player's game shows a switch only where that player can see or hear it.
@@ -413,7 +413,7 @@ apart, measured between where players stand to use them (at least 16 m between t
 Placeholders until he sets them: a player uses a switch or the button from within 2 m of it, and the lobby label of the
 switch count.
 
-**Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the task screen,
+**Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the map screen,
 "Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in
 the content PR).
 
