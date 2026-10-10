@@ -36,7 +36,8 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 	for game: Game in [host, joiner]:
 		assert_str(game.ui.lobby_hud.code_label.text).is_equal(CODE)
 		assert_bool(game.ui.lobby_hud.code_row.visible).is_true()
-		assert_str(game.ui.esc.lobby.code_label.text).is_equal("Code: K7M2QX")
+		assert_str(game.ui.esc.lobby.code_label.text).is_equal(CODE)
+		assert_bool(game.ui.esc.lobby.code_row.visible).is_true()
 		assert_bool(game.ui.esc.lobby.copy_button.visible).is_true()
 		for text: String in _texts(game.ui):
 			assert_str(text).override_failure_message(text).not_contains("127.0.0.1")
@@ -137,8 +138,9 @@ func test_the_host_lobby_says_when_its_code_service_is_gone() -> void:
 	host.room().lan.stop()
 	var gone := func() -> bool: return host.ui.lobby_hud.code_label.text == LobbyHud.CODE_GONE
 	assert_bool(await _until(gone)).is_true()
-	# The Esc Lobby tab explains it (the handoff: the HUD reads "—").
-	assert_str(host.ui.esc.lobby.code_label.text).is_equal(JoinProgress.CODE_GONE)
+	# The Esc Lobby page explains it (#491's `esc.lobby.code_gone`; the handoff: the HUD reads "—").
+	assert_bool(host.ui.esc.lobby.code_gone.visible).is_true()
+	assert_bool(host.ui.esc.lobby.code_row.visible).is_false()
 	host.leave()
 	await get_tree().process_frame
 
