@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## What the lobby HUD shows (client/ui/LobbyText, #495; ARCHITECTURE §4.7.42): the rows in join
-## order with the host first, the status (the ready count, the players missing, the countdown from
-## 5 to 1), the count against the mode's limit, the lobby's name and each row's name, in English
-## and Ukrainian (the plural of `lobby.need_more` for 1, 2, 5, 11 and 21); and nothing that is not
-## the whole lobby's to see.
+## order with the host first, the status (the ready count, the host's shortfalls through
+## HostTextView, #548, the countdown from 5 to 1), the count against the mode's limit, the lobby's
+## name and each row's name, in English and Ukrainian (the plural of `lobby.need_more` for 1, 2, 5,
+## 11 and 21); and nothing that is not the whole lobby's to see.
 
 const MODE := "res://content/modes/base_mode.tres"
 const NOW := 100
@@ -56,32 +56,47 @@ func test_waiting_counts_the_ready_players_of_all() -> void:
 	assert_str(LobbyText.head_text(shown)).is_equal("Гравці 4 / 10")
 
 
-func test_short_says_how_many_more_the_mode_needs() -> void:
-	var mode := _mode.duplicate() as GameMode
-	mode.min_players = 4
-	var shown := LobbyText.of(_model(3, [[1, "Olena", true], [2, "Taras", true]]), mode, NOW)
+func test_short_says_what_the_host_says_holds_the_start_back() -> void:
+	# The host's players_few (#548): its count, not one of this client's own.
+	var model := _model(3, [[1, "Olena", true], [2, "Taras", true]])
+	_host_says(model, [_players_few(2)])
+	var shown := LobbyText.of(model, _mode, NOW)
 	assert_int(shown.status).is_equal(LobbyText.Status.SHORT)
 	assert_int(shown.count).is_equal(2)
 	assert_str(LobbyText.status_text(shown)).is_equal("2 more players to start")
-	# The mode's own bounds: a full lobby is not short.
-	mode.min_players = 2
-	assert_int(LobbyText.of(_handoff_lobby(), mode, NOW).status).is_equal(LobbyText.Status.WAITING)
+	TranslationServer.set_locale("uk")
+	assert_str(LobbyText.status_text(shown)).is_equal("Ще 2 гравці до старту")
+	# No shortfall from the host: not short, whatever the client's copy of the mode would count.
+	var mode := _mode.duplicate() as GameMode
+	mode.min_players = 8
+	_host_says(model, [])
+	assert_int(LobbyText.of(model, mode, NOW).status).is_equal(LobbyText.Status.WAITING)
+
+
+func test_short_shows_an_id_the_deck_lacks_as_the_neutral_line_one_line_each() -> void:
+	var model := _handoff_lobby()
+	var markers := {
+		"id": &"markers",
+		"ids": PackedStringArray(["crew"]),
+		"numbers": {&"need": 5, &"have": 3},
+	}
+	_host_says(model, [_players_few(1), markers, {"id": &"no_layout"}])
+	var shown := LobbyText.of(model, _mode, NOW)
+	assert_int(shown.status).is_equal(LobbyText.Status.SHORT)
+	assert_str(LobbyText.status_text(shown)).is_equal(
+		"1 more player to start\nmarkers crew have=3 need=5\nno_layout"
+	)
 
 
 func test_the_ukrainian_plurals_of_need_more_for_1_2_5_11_and_21() -> void:
 	var forms: Array[String] = []
 	for missing: int in [1, 2, 5, 11, 21]:
-		var mode := _mode.duplicate() as GameMode
-		mode.min_players = 1 + missing
-		mode.max_players = maxi(mode.max_players, mode.min_players)
+		var model := _model(1, [[1, "Olena", false]])
+		_host_says(model, [_players_few(missing)])
 		TranslationServer.set_locale("uk")
-		forms.append(
-			LobbyText.status_text(LobbyText.of(_model(1, [[1, "Olena", false]]), mode, NOW))
-		)
+		forms.append(LobbyText.status_text(LobbyText.of(model, _mode, NOW)))
 		TranslationServer.set_locale("en")
-		var english := LobbyText.status_text(
-			LobbyText.of(_model(1, [[1, "Olena", false]]), mode, NOW)
-		)
+		var english := LobbyText.status_text(LobbyText.of(model, _mode, NOW))
 		assert_str(english).is_equal(
 			"%d more player%s to start" % [missing, "" if missing == 1 else "s"]
 		)
@@ -100,22 +115,21 @@ func test_the_ukrainian_plurals_of_need_more_for_1_2_5_11_and_21() -> void:
 
 
 func test_the_countdown_reads_5_to_1_and_comes_before_short() -> void:
-	var mode := _mode.duplicate() as GameMode
-	mode.min_players = 8
 	var model := _handoff_lobby()
+	_host_says(model, [_players_few(4)])
 	model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": NOW + 5 * Ticks.RATE})
 	var counted: Array[int] = []
 	for second in 6:
-		var shown := LobbyText.of(model, mode, NOW + second * Ticks.RATE)
+		var shown := LobbyText.of(model, _mode, NOW + second * Ticks.RATE)
 		assert_int(shown.status).is_equal(LobbyText.Status.COUNTDOWN)
 		counted.append(shown.count)
 	assert_array(counted).is_equal([5, 4, 3, 2, 1, 1])
-	var first := LobbyText.of(model, mode, NOW)
+	var first := LobbyText.of(model, _mode, NOW)
 	assert_str(LobbyText.status_text(first)).is_equal("Starting in 5")
 	TranslationServer.set_locale("uk")
 	assert_str(LobbyText.status_text(first)).is_equal("Старт через 5")
 	# No host tick known yet: no countdown.
-	assert_int(LobbyText.of(model, mode, -1).status).is_not_equal(LobbyText.Status.COUNTDOWN)
+	assert_int(LobbyText.of(model, _mode, -1).status).is_not_equal(LobbyText.Status.COUNTDOWN)
 
 
 func test_the_lobby_name_is_the_hosts_or_the_default_with_its_name() -> void:
@@ -187,3 +201,25 @@ func _model(own: int, roster: Array) -> ClientModel:
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
 	return model
+
+
+## The host's SettingsChanged with `shortfalls` (core's HostTexts as dicts, #548), the rest as the
+## Welcome's.
+func _host_says(model: ClientModel, shortfalls: Array) -> void:
+	var fields := {
+		"settings": model.settings,
+		"id_sets": model.id_sets,
+		"map": model.map,
+		"shortfalls": shortfalls,
+		"lobby_name": model.lobby_name,
+	}
+	model.fold(&"SettingsChanged", fields)
+
+
+## FitCheck's players_few: `missing` more players to the base mode's bounds.
+static func _players_few(missing: int) -> Dictionary:
+	return {
+		"id": &"players_few",
+		"ids": PackedStringArray(),
+		"numbers": {&"count": missing, &"min": 1 + missing, &"max": 10},
+	}

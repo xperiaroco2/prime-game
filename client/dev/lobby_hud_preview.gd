@@ -6,15 +6,15 @@ extends "res://client/dev/hud_preview.gd"
 ## stands in view with his name plate. Seen by a code joiner (peer 3), or with `hosting` by Olena:
 ## - `wait`: three of four ready, the own player not; the code K7Q2XR;
 ## - `count`: everyone ready, the countdown at 5;
-## - `short`: Marko gone and the mode needing four (this preview's copy of the mode only, not a
-##   decision): one more player to start;
-## - `code-waiting`: the host alone before the code service made the room (always hosting; the
-##   mode needing four as in `short`: three more to start);
+## - `short`: Marko gone and the host saying one more player of four is needed (its players_few,
+##   #548; the handoff's sample, not a decision): one more player to start;
+## - `code-waiting`: the host alone before the code service made the room (always hosting; four
+##   needed as in `short`: three more to start);
 ## - `direct`: `wait` joined directly, with no code.
 ## The microphone on. Dev only: nothing here reaches the game.
 
-## The players the copy of the mode needs in `short` and `code-waiting`: the handoff's sample, not
-## a decision.
+## The players the host's shortfall counts against in `short` and `code-waiting`: the handoff's
+## sample, not a decision.
 const SHORT_MIN_PLAYERS := 4
 const CODE := "K7Q2XR"
 ## Taras, in view to the right (the handoff's plate sits right of the centre).
@@ -28,9 +28,7 @@ const TARAS_AT := Vector3(1.4, 0.0, -4.0)
 
 func _ready() -> void:
 	TranslationServer.set_locale(language)
-	var mode := (load(MODE) as GameMode).duplicate() as GameMode
-	if lobby_state in ["short", "code-waiting"]:
-		mode.min_players = SHORT_MIN_PLAYERS
+	var mode := load(MODE) as GameMode
 	var rules := mode.player_rules
 	_add_room()
 	_model = _fake_lobby(mode)
@@ -87,6 +85,19 @@ func _fake_lobby(mode: GameMode) -> ClientModel:
 	welcome.map = Preview.MAP
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
+	if count < SHORT_MIN_PLAYERS:
+		# The host's SettingsChanged (#548): players_few, `count` the players still missing.
+		var missing := SHORT_MIN_PLAYERS - count
+		var bounds := {&"count": missing, &"min": SHORT_MIN_PLAYERS, &"max": mode.max_players}
+		var players_few := {"id": &"players_few", "ids": PackedStringArray(), "numbers": bounds}
+		var changed := {
+			"settings": model.settings,
+			"id_sets": model.id_sets,
+			"map": model.map,
+			"shortfalls": [players_few],
+			"lobby_name": "",
+		}
+		model.fold(&"SettingsChanged", changed)
 	if lobby_state == "count":
 		model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": NOW + 5 * Ticks.RATE})
 	return model

@@ -7,14 +7,14 @@ extends RefCounted
 ##
 ## Only what every peer of the lobby may see: the roster's names and ready flags (public: every
 ## Welcome and ReadyChanged reaches everyone), who the host is (peer 1), the lobby's name, the
-## countdown's end and the mode's player bounds. Nothing of a role, a team or a match.
+## countdown's end, the mode's player limit and the host's shortfalls (SettingsChanged, the same to
+## every peer, #548). Nothing of a role, a team or a match.
 
 ## The status plate's three states (the handoff's `wait`, `short` and `count`).
 enum Status { WAITING, SHORT, COUNTDOWN }
 
-## The copy deck's keys the HUD draws.
+## The copy deck's keys the HUD draws (`short`'s through HostTextView: `lobby.need_more`).
 const WAITING_KEY := "lobby.waiting"
-const NEED_MORE_KEY := "lobby.need_more"
 const COUNTDOWN_KEY := "lobby.countdown"
 const PLAYER_COUNT_KEY := "lobby.player_count"
 const HOST_MARK_KEY := "lobby.host_mark"
@@ -44,9 +44,11 @@ class Row:
 class Shown:
 	extends RefCounted
 	var status := Status.WAITING
-	## WAITING: the ready players; SHORT: the players still missing; COUNTDOWN: the seconds left
-	## (5 to 1).
+	## WAITING and SHORT: the ready players; COUNTDOWN: the seconds left (5 to 1).
 	var count := 0
+	## SHORT: what holds the start back, the host's shortfalls in its order (core's HostTexts as
+	## {id, ids, numbers}, as the model keeps them; HostTextView words them).
+	var shortfalls: Array[Dictionary] = []
 	## WAITING: the players in the lobby.
 	var total := 0
 	## The players in the lobby and the mode's limit (`lobby.player_count`).
@@ -69,7 +71,7 @@ class Shown:
 		return "\n".join(keys)
 
 
-## What the lobby HUD shows of `model` under `mode` (null: no bounds known yet) at `host_tick`.
+## What the lobby HUD shows of `model` under `mode` (null: no limit known yet) at `host_tick`.
 static func of(model: ClientModel, mode: GameMode, host_tick: int) -> Shown:
 	var shown := Shown.new()
 	shown.players = model.roster.size()
@@ -84,14 +86,15 @@ static func of(model: ClientModel, mode: GameMode, host_tick: int) -> Shown:
 			shown.own_ready = row.ready
 	shown.total = shown.players
 	var left := GameFlow.seconds_left(model.end_tick, host_tick)
-	var least := mode.min_players if mode != null else 0
 	if left >= 0:
 		shown.status = Status.COUNTDOWN
 		# The phase ends at 0: the count reads 5 to 1, never 0.
 		shown.count = maxi(1, left)
-	elif shown.players < least:
+	elif not model.shortfalls.is_empty():
+		# The host's word, never a count of this client's own: the host counts the players it has
+		# against the mode it runs, and its other demands (markers, colours, the map's layout).
 		shown.status = Status.SHORT
-		shown.count = least - shown.players
+		shown.shortfalls.assign(model.shortfalls)
 	return shown
 
 
@@ -120,10 +123,9 @@ static func status_text(shown: Shown) -> String:
 		Status.COUNTDOWN:
 			return _tr(COUNTDOWN_KEY).format({"count": shown.count})
 		Status.SHORT:
-			var line := TranslationServer.translate_plural(
-				NEED_MORE_KEY, NEED_MORE_KEY, shown.count
-			)
-			return String(line).format({"count": shown.count})
+			# `players_few` reads `lobby.need_more` (tr_n); an id the deck has no key for, the
+			# neutral line (HostTextView.plain); one line each.
+			return HostTextView.shortfalls(shown.shortfalls)
 	return _tr(WAITING_KEY).format({"count": shown.count, "total": shown.total})
 
 

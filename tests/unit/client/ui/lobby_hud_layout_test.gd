@@ -210,14 +210,13 @@ func test_count_lights_the_chip_and_titles_the_countdown() -> void:
 
 func test_short_code_waiting_direct_and_a_gone_code() -> void:
 	var hud := await _hud()
-	var mode := _mode.duplicate() as GameMode
-	mode.min_players = 4
-	hud.refresh(_lobby(3, ["Olena", "Taras", "Ivan"]), mode, NOW)
+	# The host's players_few (#548): one more of the four the handoff's sample needs.
+	hud.refresh(_short(_lobby(3, ["Olena", "Taras", "Ivan"]), 1), _mode, NOW)
 	assert_str(hud.status_label.text).is_equal("1 more player to start")
 	assert_str(hud.head_label.text).is_equal("Players 3 / 10")
 	assert_array(_names(hud.rows)).is_equal(["HostRow", "Row2", "OwnRow"])
 	# code-waiting: the host alone, its row `player.you` with no check, the code "…".
-	hud.refresh(_lobby(1, ["Olena"]), mode, NOW)
+	hud.refresh(_short(_lobby(1, ["Olena"]), 3), _mode, NOW)
 	hud.show_code("", false, true)
 	assert_str(hud.status_label.text).is_equal("3 more players to start")
 	assert_array(_names(hud.rows)).is_equal(["HostRow"])
@@ -331,3 +330,22 @@ func _hud() -> LobbyHud:
 	hud.show_code(CODE, false, false)
 	await get_tree().process_frame
 	return hud
+
+
+## `model` with the host's SettingsChanged saying `missing` more players are needed (FitCheck's
+## players_few against four, the handoff's sample).
+static func _short(model: ClientModel, missing: int) -> ClientModel:
+	var players_few := {
+		"id": &"players_few",
+		"ids": PackedStringArray(),
+		"numbers": {&"count": missing, &"min": 4, &"max": 10},
+	}
+	var fields := {
+		"settings": model.settings,
+		"id_sets": model.id_sets,
+		"map": model.map,
+		"shortfalls": [players_few],
+		"lobby_name": model.lobby_name,
+	}
+	model.fold(&"SettingsChanged", fields)
+	return model

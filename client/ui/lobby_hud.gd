@@ -5,8 +5,9 @@ extends Control
 ## edges sit 40 px in (px at the 1920x1080 base, #287); the name plates are GameUi's `Plates`
 ## under it (#257), as in the round:
 ## - `Cross` (centre): the crosshair.
-## - `Status` (top centre): the ready count, the players still missing while the lobby has fewer
-##   than the mode needs, or the countdown in ToyTitleOnDark.
+## - `Status` (top centre): the ready count, what the host says holds the start back (its
+##   shortfalls, one line each: the players still missing, #548), or the countdown in
+##   ToyTitleOnDark.
 ## - `Players` (top right, 400 px): the lobby's name and the code row (the host and every code
 ##   joiner; hidden for a Direct game; "…" while the code service has not made the room, "—" once
 ##   it is gone), then the count and one row per player, the host first, a check on each ready one.
