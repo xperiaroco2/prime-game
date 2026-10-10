@@ -156,8 +156,8 @@ func test_the_items_are_menu_items_with_the_pointer_and_three_toggle_in_one_grou
 	assert_bool(_menu.item_group.allow_unpress).is_true()
 	for item: Button in [_menu.host_item, _menu.tutorial_item, _menu.quit_item]:
 		assert_bool(item.toggle_mode).is_false()
-	# No tutorial yet (#492): the item is drawn, unplugged.
-	assert_bool(_menu.tutorial_item.disabled).is_true()
+	# The tutorial's screens are in (#492): the item is plugged.
+	assert_bool(_menu.tutorial_item.disabled).is_false()
 	# The pointer shows only on the focused, hovered or pressed item (ToyMenuItem's colours).
 	assert_float(_menu.host_item.get_theme_color(&"icon_normal_color").a).is_equal(0.0)
 	assert_float(_menu.host_item.get_theme_color(&"icon_focus_color").a).is_equal(1.0)
