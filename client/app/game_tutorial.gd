@@ -27,6 +27,9 @@ const STAND_INS_NAME := "StandIns"
 var running := false
 ## It started on a first launch: the invite is due (#492 draws it over the room, Start or Skip).
 var invite_open := false
+## The hub of the next start; null: a fresh private one. A test seam: a port taken in it makes the
+## host refuse to start.
+var hub: LoopbackHub
 
 ## Game.mode before the tutorial took its place.
 var _base_mode: GameMode
@@ -63,13 +66,15 @@ func start(game: Game, with_invite: bool) -> bool:
 	running = true
 	invite_open = with_invite
 	var schema := WireSchema.game(OS.is_debug_build())
-	var hub := LoopbackHub.new()
-	var transport := LoopbackTransport.new(schema.kind_table(), hub)
+	var session_hub := hub if hub != null else LoopbackHub.new()
+	var transport := LoopbackTransport.new(schema.kind_table(), session_hub)
 	if not game.host_on(transport, PORT, LaunchOptions.LOCALHOST):
+		# The player never saw the invite: a first launch must offer it again.
+		invite_open = false
 		end(game)
 		return false
 	game.client().welcomed.connect(_on_welcomed.bind(game))
-	_stand_ins = StandIns.new(hub, game.mode, PORT, game.clock, schema)
+	_stand_ins = StandIns.new(session_hub, game.mode, PORT, game.clock, schema)
 	_stand_ins.name = STAND_INS_NAME
 	game.add_child(_stand_ins)
 	return true

@@ -174,6 +174,60 @@ func test_a_launch_starts_it_by_itself_only_on_a_first_launch() -> void:
 	await _settle()
 
 
+func test_only_a_seen_invite_marks_the_tutorial_seen() -> void:
+	# A tutorial without the invite (the menu, --tutorial) leaves the flag as it was.
+	var plain := _game(["--port=24997"], _file_settings(false))
+	plain.start_tutorial()
+	assert_bool(plain.tutorial.running).is_true()
+	plain.leave()
+	var back := UserSettings.new(SETTINGS_PATH)
+	back.read()
+	assert_bool(back.tutorial_seen).is_false()
+	# A first launch whose host cannot start (the port is taken in its hub) never showed the
+	# invite: the flag stays absent, and Try again starts it without the invite.
+	var failing := _game(["--port=24998"], _file_settings(false))
+	var taken := LoopbackTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
+	assert_int(taken.host(GameTutorial.PORT, 4)).is_equal(OK)
+	failing.tutorial.hub = _hub
+	assert_bool(failing.start_tutorial(true)).is_false()
+	assert_bool(failing.tutorial.running).is_false()
+	assert_bool(failing.tutorial.invite_open).is_false()
+	assert_int(failing.screen()).is_equal(S.FAILURE)
+	assert_str(String(failing.ui.connecting.state())).is_equal("host-failed")
+	assert_object(failing.mode).is_same(load(BASE))
+	back.read()
+	assert_bool(back.tutorial_seen).is_false()
+	taken.close()
+	failing.retry()
+	assert_bool(failing.tutorial.running).is_true()
+	assert_bool(failing.tutorial.invite_open).is_false()
+	failing.leave()
+	back.read()
+	assert_bool(back.tutorial_seen).is_false()
+	await _settle()
+
+
+func test_it_does_not_start_while_a_session_runs() -> void:
+	var game := _game([])
+	var base := game.mode
+	assert_bool(game.host(PORT)).is_true()
+	assert_bool(game.start_tutorial()).is_false()
+	assert_bool(game.tutorial.running).is_false()
+	assert_object(game.mode).is_same(base)
+	assert_bool(game.hosting()).is_true()
+	var hosts := game.get_children().filter(func(n: Node) -> bool: return n is HostNode)
+	assert_int(hosts.size()).is_equal(1)
+	game.leave()
+	await _settle()
+	# And not twice: a second start while the tutorial runs changes nothing.
+	assert_bool(game.start_tutorial()).is_true()
+	var mode := game.mode
+	assert_bool(game.start_tutorial()).is_false()
+	assert_object(game.mode).is_same(mode)
+	game.leave()
+	await _settle()
+
+
 ## Settings under user:// (a path, as a real launch reads), the tutorial flag as given.
 func _file_settings(seen: bool) -> UserSettings:
 	var settings := UserSettings.new(SETTINGS_PATH)
