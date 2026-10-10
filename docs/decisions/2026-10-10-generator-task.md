@@ -253,9 +253,10 @@ task's recipe, is its own design.
   needs a charged generator, which a chaos run does not reach (the fixed switches, which gave it before GD5's answer,
   are no stations): G1's and G2's unit tests cover it.
 - **Integration tests on House** (G7; bots do not play House, ARCHITECTURE §9.7): `Match` over `HostWorldQuery` with
-  House's level: a player at each use spot uses its station (`AtStation`, `StationInSight` pass); one in the next
-  room, within the radius but behind the wall, is refused `blocked`; a full charge from scripted commands; the five
-  stations read without errors.
+  House's level: with the subtasks setting at 4, so every switch is a station, a player at each use spot uses its
+  station (`AtStation`, `StationInSight` pass); one in the next room, within the radius but behind the wall, is refused
+  `blocked`; a full charge from scripted commands; the five markers read without errors; with the setting at 2, the two
+  switch markers the deal left hold no station (GE14).
 - **The maps** (G5): the spacing test (§1.1, row 23; its bound is GD12) on every map of the base mode; the content
   test's fit.
 - **The client** (G6): the fold, the panel's bars (pure, the fixed switches lit), the hint over usable stations only, a
