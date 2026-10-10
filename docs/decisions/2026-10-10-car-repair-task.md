@@ -222,7 +222,7 @@ could show every avatar's position and so who is under the car, as it can show a
 | The fit completes and the hold stops in the same tick | a stop in that tick's command step (a `StopRaise`, another applied action of the holder, a knockdown, a leave) drops the car before `ChannelTicks` runs, so the fitter always dies first, whatever the ids; a stop found by `ChannelTicks` itself (the holder out of the cylinder or sight) follows actor-id order: the lower id's channel first, so the fitter fits and then dies, or dies first | determinism (§4.5.3: commands before tick systems); every case is a legal outcome |
 | A bystander beside the car | lives: its feet are outside the box | RE7, RD6 |
 | A player on the car's roof | cannot happen for an honest client: the car's collision has no top to stand on (RE8); a modified client's claim there floats above the host's floor and is corrected; were its feet above `clearance_m`, it would live | RE7, RE8 |
-| A knocked-down player under the car (a fitter knocked down there, who cannot move away, #728) | killed with the others (RD7: "the living and the knocked-down"); its items drop at its body under the car; where its ragdoll lies on a client changes nothing: the host judges the position it holds | "whoever is under it" |
+| A knocked-down player under the car (a fitter knocked down there: today it crawls at 1 m/s, vision revision 1; once #728 lands it cannot move away) | killed with the others (RD7: "the living and the knocked-down"); its items drop at its body under the car; where its ragdoll lies on a client changes nothing: the host judges the position it holds | "whoever is under it" |
 | A player invulnerable (3 s after a revive or a respawn) under the car | killed (RD7; the recommendation's "invulnerable or not" stands): invulnerability spares from strikes and damage, and the drop is neither | `LifeRules.damage` checks it; `kill` does not |
 | A standing player walks at the raised car | an honest client's capsule meets the car's body: only a crouched player gets under it (RD1, #727); a modified client standing under it is judged by its feet, as everyone | RE8: the host has no car to check the crouch against |
 | A player under the car while nobody holds (a modified client walking through the lowered car) | nothing until a hold and its drop; then killed with the others | the host does not check movement through walls (§7.1.9) |
@@ -411,8 +411,9 @@ each revertible (none holds up R1 or R2):
   view of who is under the car, that anyone holding may let go, and the picture of the needed part on a garage wall.
 - The car depends on two mechanics designed elsewhere: from #727's crouch it needs a crouched height below the raised
   car's underside (R5, R7); from #728's knockdown nothing new, since the drop reads the host's position of a
-  knocked-down player, wherever a client's ragdoll lies, and a knocked-down player under the car cannot crawl out or
-  call for help (it cannot move or talk), which only sharpens the trust moment.
+  knocked-down player, wherever a client's ragdoll lies. Until #728 lands, a knocked-down player crawls (vision
+  revision 1) and may crawl out from under the car; once it lands, it cannot crawl out or call for help (it cannot
+  move or talk), which only sharpens the trust moment.
 - When R1 lands, the channel is a primitive for stations as well as players: a later timed use of a station (a long
   repair, a printer that takes time) is a `HoldStation` in its kind's rule and its task type's hooks.
 - When R2 lands, `LifeRules` has a second way to die. The later single-shot weapon of decision 10 is a `kill` in an

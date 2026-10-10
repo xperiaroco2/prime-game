@@ -379,8 +379,9 @@ cannot see who is under the car.
 - As for the Generator (#679): a dissident plays the same character under the same rules, so either side may hold the
   lift, let it go or fit a part; busy hands: a player holding a two-handed item, such as a package, cannot use the
   lift panel, the car or the shelf.
-- The knockdown (reworked in #728): a knocked-down player cannot move or talk (hears, but cannot speak) and falls as a
-  ragdoll; the drop kills a knocked-down player under the car too.
+- The drop kills a knocked-down player under the car too. The knockdown is being reworked in #728 (needs-design): once
+  it lands, a knocked-down player cannot move or talk (hears, but cannot speak) and falls as a ragdoll; until then it
+  crawls slowly, as the accepted vision revision 1 says.
 
 **Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
 they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
