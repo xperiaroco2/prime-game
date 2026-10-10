@@ -229,11 +229,11 @@ func _see(signal_name: StringName) -> void:
 
 
 func _on_event(
-	event_name: StringName, fields: Dictionary, lessons: LessonRunner, game: Game
+	event_name: StringName, fields: Dictionary, source: LessonRunner, game: Game
 ) -> void:
-	if lessons != runner:
+	if source != runner:
 		return
-	lessons.on_event(event_name, fields)
+	source.on_event(event_name, fields)
 	if event_name == &"PhaseChanged" and not invite_open:
 		var phase: Variant = fields.get("phase")
 		if (phase is StringName or phase is String) and str(phase) == LESSONS_PHASE:
@@ -241,10 +241,10 @@ func _on_event(
 
 
 func _on_claim(
-	_epoch: int, _tick: int, covered: int, _sprint: bool, moved_itself: bool, lessons: LessonRunner
+	_epoch: int, _tick: int, covered: int, _sprint: bool, moved_itself: bool, source: LessonRunner
 ) -> void:
-	if lessons == runner:
-		lessons.on_claim(covered, moved_itself)
+	if source == runner:
+		source.on_claim(covered, moved_itself)
 
 
 func _on_next_stage(game: Game) -> void:

@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The tutorial's screens (client/ui/TutorialScreen, #492; ARCHITECTURE §4.7.50) under the shared
+## The tutorial's screens (client/ui/TutorialScreen, #492; ARCHITECTURE §4.7.49) under the shared
 ## theme: the UI handoff's s1 node for node (prime-game-ui `ui-0.4.0`
 ## `docs/handoff/s01-tutorial.md`: names, classes, variations, anchors, offsets, grow directions,
 ## size flags and minimum sizes) in
@@ -128,10 +128,10 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	assert_int(screen.title_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
 	_assert_node(screen.how, "How", "HBoxContainer", &"ToyRowEight")
 	assert_int(screen.how.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	var before := screen.how.get_node("Before") as Label
-	_assert_node(before, "Before", "Label", &"ToyTextOnDark")
-	assert_str(before.text).is_equal("Aim at the package and press")
-	assert_int(before.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
+	var lead := screen.how.get_node("Before") as Label
+	_assert_node(lead, "Before", "Label", &"ToyTextOnDark")
+	assert_str(lead.text).is_equal("Aim at the package and press")
+	assert_int(lead.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	var key := screen.how.get_node("Key") as PanelContainer
 	_assert_node(key, "Key", "PanelContainer", &"ToyKeyOnDark")
 	assert_vector(key.custom_minimum_size).is_equal(Vector2(36, 0))
