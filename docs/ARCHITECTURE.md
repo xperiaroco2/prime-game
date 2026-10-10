@@ -3696,7 +3696,7 @@ Protocol 13 (§4.3.4).
 - **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
   and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
   pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
-  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) shows
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
   only. `players_many`, `markers`, `colours` and `no_layout` have none, so `HostTextView.plain` shows the id, its
@@ -3793,12 +3793,15 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
   lobby's name are cut with an ellipsis inside the plate.
 - **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
-  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else `lobby.need_more` (`tr_n`) while the roster has fewer
-  players than the mode's `min_players`, else `lobby.waiting` (ready of all); `lobby.player_count` against the mode's
+  one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.47's
+  `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
+  no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
+  `lobby.player_count` against the mode's
   `max_players`; the lobby's name (`LobbyName`'s, else `lobby.default_name` with the host's name); the rows, the host
   first, then the order the model got them (the Welcome's roster, then each `PlayerJoined`: the order they joined),
   reading `player.you` for the own row, `lobby.host_mark` for the host's, else the name. All of it is the whole
-  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown): no role, team or match fact. The
+  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown, the host's shortfalls, which every
+  peer gets alike): no role, team or match fact. The
   rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
   `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
 - **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `Game._refresh_join`): the code to the host and every
@@ -3806,10 +3809,11 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`Game._refresh_voice`).
 - **No key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
-  ready chip (plain English, as before). The other unmet demands of the settings (#208's shortfalls) do not change
-  the status yet; the Esc Lobby tab lists them.
+  ready chip (plain English, as before). Besides `players_few` the status shows the host's other shortfalls
+  (`players_many`, `markers`, `colours`, `no_layout`) in #548's neutral line until the deck words them.
 - Tests: `tests/unit/client/ui/lobby_text_test.gd` (the rows' order, the status's three states and their texts in
-  English and Ukrainian, `lobby.need_more` for 1, 2, 5, 11 and 21, the countdown from 5 to 1 before short, the
+  English and Ukrainian, `lobby.need_more` from the host's `players_few` for 1, 2, 5, 11 and 21, an id without a
+  key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
   lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
   handoff's tree, anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
   inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
@@ -3819,7 +3823,7 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`, `lobby_hud_count_preview`,
   `lobby_hud_count_host_preview`, `lobby_hud_short_preview`, `lobby_hud_code_waiting_preview` and
   `lobby_hud_direct_preview`, each with a `_uk` twin, and `lobby_hud_large_uk_preview` (`short` and `code-waiting`
-  give the preview's copy of the mode four players, the handoff's sample). The playcheck fields `lobby.status`,
+  fold the host's `players_few` against four players, the handoff's sample). The playcheck fields `lobby.status`,
   `lobby.roster` and `lobby.ready` read the new nodes (`esc_menu`, `end`).
 
 ### 4.8 Signalling (M6-5a, #366)
