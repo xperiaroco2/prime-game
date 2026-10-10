@@ -53,6 +53,15 @@ static func role(screen: Node, id: StringName) -> void:
 		roles.append(id)
 
 
+## Stops every role sound still playing under the root of `tree`: the pregame ended, and a sound
+## that began near its end must not reach the round, where the microphone is open (#716).
+static func stop_roles(tree: SceneTree) -> void:
+	for id: StringName in ROLE_PLAYERS:
+		var player := role_player_in(tree, id)
+		if player != null and player.playing:
+			player.stop()
+
+
 ## The click's player under the root of `tree`, or null before the first click.
 static func player_in(tree: SceneTree) -> AudioStreamPlayer:
 	return tree.root.get_node_or_null(NodePath(String(PLAYER))) as AudioStreamPlayer

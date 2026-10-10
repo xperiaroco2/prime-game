@@ -125,6 +125,7 @@ func lift() -> void:
 	if not visible:
 		return
 	column.visible = false
+	_stop_roles()
 	_stop_fade()
 	if UiPrefs.reduced_motion or not is_inside_tree():
 		_lifted()
@@ -137,6 +138,7 @@ func lift() -> void:
 
 ## Any screen but the round's start: hidden at once, ready for the next pregame.
 func stop() -> void:
+	_stop_roles()
 	_stop_fade()
 	_lifted()
 
@@ -186,6 +188,12 @@ func _retext() -> void:
 func _play_role_sound(_role: StringName, side: StringName) -> void:
 	if SIDE_SOUNDS.has(side):
 		UiSounds.role(self, SIDE_SOUNDS[side])
+
+
+## A role sound that began near the pregame's end stops with it, so none plays in the round.
+func _stop_roles() -> void:
+	if is_inside_tree():
+		UiSounds.stop_roles(get_tree())
 
 
 func _stop_fade() -> void:

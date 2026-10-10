@@ -321,6 +321,34 @@ func test_no_role_sound_before_the_role_outside_the_pregame_or_for_an_unknown_si
 	assert_array(_played_since(played_before)).is_empty()
 
 
+func test_a_known_role_of_a_side_the_table_lacks_plays_nothing() -> void:
+	# A later mode's side (say pirates) has no sound: the table's guard, not a missing key.
+	var screen := _screen()
+	var played_before := UiSounds.roles.size()
+	screen._play_role_sound(&"x", &"pirates")
+	assert_array(_played_since(played_before)).is_empty()
+
+
+func test_the_role_sound_stops_when_the_pregame_ends() -> void:
+	# A reveal near the pregame's end must not play into the round, where the microphone is open.
+	AudioBuses.ensure()
+	UiPrefs.reduced_motion = true
+	var screen := _screen()
+	screen.reveal()
+	screen.refresh(_pregame(&"dissident"), _mode)
+	var player := UiSounds.role_player_in(get_tree(), SfxSet.UI_ROLE_DISSIDENTS)
+	assert_bool(player.playing).is_true()
+	screen.lift()
+	assert_bool(player.playing).is_false()
+	# Any other screen (stop) ends it too.
+	var other := _screen()
+	other.reveal()
+	other.refresh(_pregame(&"dissident"), _mode)
+	assert_bool(player.playing).is_true()
+	other.stop()
+	assert_bool(player.playing).is_false()
+
+
 func test_the_role_sound_stays_on_the_own_client() -> void:
 	# #716: no peer hears another's role sound. It is a UI-bus player of the own client, chosen
 	# from the own role only (the model test above); neither file sends anything or names a
