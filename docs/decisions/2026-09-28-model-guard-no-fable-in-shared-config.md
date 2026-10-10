@@ -4,7 +4,8 @@
   (#308: `godot-api-checker`'s effort, the publisher trial under amendment A); amended 2026-10-05 (the Sonnet
   publisher on clean runs a standing rule, the weekly budget ADR's N5 (a)); amended 2026-10-07 (#469: the Sonnet
   planner, a manager habit like N5, the engineer's option (a)); amended 2026-10-07 (#535: the A/B of a Sonnet code
-  reviewer); amended 2026-10-08 (#560: the Sonnet implementer trial)
+  reviewer); amended 2026-10-08 (#560: the Sonnet implementer trial); amended 2026-10-10 (#560: the Sonnet implementer
+  kept, a standing manager habit)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -76,6 +77,15 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     reviewers stay as they are. It is a trial, not a habit: a keep becomes a standing `models.implement` only by a
     further amendment, after the engineer's yes on the verdict. Sonnet is in the shared list, so it needs no allowance
     under amendment A; no script, default or agent file names the model, and the workflow tests still assert it.
+  - **2026-10-10** (#560, the trial's outcome in the [trial ADR](2026-10-08-sonnet-implementer-trial.md)). Approved by
+    the engineer: https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6100590082 (item 1: keep). The
+    Sonnet implementer is now a standing manager habit: `models: {implement: "sonnet"}` beside `publish_clean` on
+    every qualifying `issue-task` launch, same rule as the trial (Size XS or S, `area:tooling` or docs-only, nothing
+    under `core/ server/ net/ client/ voice/`, not a design task, no `.claude/workflows/` edit). **Revert rule:** drop
+    it if blockers and majors pass 0.3 a task over the next 10 Sonnet-implemented tasks (counted from the keep,
+    2026-10-10 18:06Z; `metrics` reads it). Reverting ends the `models.implement` launches and changes nothing else. Sonnet is in the
+    shared list, so it needs no allowance under amendment A; no script, default or agent file names the model, and the
+    workflow tests still assert it.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.

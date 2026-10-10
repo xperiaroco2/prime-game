@@ -108,14 +108,15 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   issue): the planner on Sonnet, the critique on the review model (Opus), with `publish_clean` beside it on a
   non-design task. The result's `plan.model` shows it; `metrics`' plan phase table compares the plan and critique $,
   the planner files the implementer read again and the critique's findings with the runs before (they must not rise).
-- **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch during #560's
-  trial ([trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md); the engineer's yes on #302):
+- **`models: {implement: "sonnet"}`** beside `publish_clean` on every qualifying `issue-task` launch
+  (a standing habit since 2026-10-10, #560: [trial ADR](../../../docs/decisions/2026-10-08-sonnet-implementer-trial.md),
+  model-guard ADR amendment; the engineer's yes on #302):
   Size S or XS by its `Size:` line, `area:tooling` or docs-only, nothing under `core/ server/ net/ client/ voice/`, not a
   design task, no `.claude/workflows/` edit. Red once: the fresh relaunch stays on Sonnet; red twice: relaunch once
-  more without `models.implement` (Opus). Check the first trial run with `tools\run.cmd agents-check`; read `tools\run.cmd metrics
-  --since 2026-09-30T00:00:00Z`'s "Sonnet implementer trial" table before each wave, and once its advice is other
-  than "continue", post it on #302 with the table and stop passing `implement` (a keep needs the engineer's yes and
-  an amendment of the model-guard ADR).
+  more without `models.implement` (Opus). Revert rule: read `tools\run.cmd metrics --since 2026-09-30T00:00:00Z`'s
+  "Sonnet implementer trial" table before each wave; once its advice says revert (blockers and majors over 0.3 a task
+  across the 10 Sonnet tasks since the keep, 2026-10-10 18:06Z), post it on #302 with the table and stop passing
+  `implement`.
 - **`checkpoint: true`** on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it (#759),
   then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
   implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's
