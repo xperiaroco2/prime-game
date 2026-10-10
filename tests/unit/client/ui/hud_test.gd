@@ -312,6 +312,7 @@ func _fields(shown: HudText.Shown) -> String:
 		shown.aim,
 		shown.raising,
 		shown.raise_key,
+		shown.bars,
 	]
 	for slot: HudText.Slot in [shown.hand, shown.belt]:
 		parts.append_array([slot.item, slot.icon, slot.two_handed])
