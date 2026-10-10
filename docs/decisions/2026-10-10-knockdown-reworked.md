@@ -90,7 +90,7 @@ ragdoll is only how each client draws a body at that place.
 | **KD6** | What a knocked-down player sees and does | (a) today's camera above the body (the arm and its mouse look, the render checklist's item 3), following the body through its motion; it may give up and open the task screen and the Esc menu, nothing else; (b) first person from the ragdoll's head; (c) a fixed camera with no look | **(a)**: built and tested, and the player watches its own ragdoll. (b) tumbles with physics that differ on each screen, and its eye can pass through a wall the host knows nothing of. (c) leaves ten seconds with nothing to do |
 | **KD7** | How a dead body and a revive look | (a) at the death the ragdoll keeps its pose, greyed and with today's dark cross, until the respawn removes it; a revived player stands up at once, with no clip; (b) the dead switch to today's body capsule; (c) as (a), plus a get-up clip from #522's set, blended from the ragdoll's pose | **(a)**: no pop at the death, and a dead body still reads as dead at a glance (GDD §14). (c) needs a clip and a blend that #522 does not plan; it can replace the pop-up later |
 | **KD8** | A death during the motion (the time running out, a give-up, the car's drop) | (a) the motion ends: the body lies on the floor below its point at that tick, and both slots drop there, as a death does today; (b) the body moves on to where its motion ends, and its items drop below where it died | **(a)**: a body and its items stay together, and the dead body never becomes a second moving thing. Such a death is rare (a flight lasts about a second; a give-up takes a 1 s hold). Its cost: a body that stops short on a roof |
-| **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing |
+| **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing, and a slide speed of 0 is valid and slides nothing |
 
 ### 3. The technical choices (KE)
 
@@ -258,7 +258,9 @@ content file named is provisional under the
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
   gets its 16-avatar snapshot, the leak test's rule and the protocol number, and the client's `AvatarViews` and the bots' fold
   skipping it until 728d draws it, so no client draws itself as a stranger in between; a launch of 0 reproduces
-  today's rest; ARCHITECTURE §5,
+  today's rest; 728b ships with every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a
+  launched player's camera and ears would stay where the knockdown started while every other screen showed the body
+  fly, and its client's voice cutoff (E41) would measure from the wrong place; ARCHITECTURE §5,
   §4.2's `KnockedDown` row, §4.3.5's `Snapshot` row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the
   snapshot's 15 avatars take 680 bytes"), §9.4's `TargetDowned` and §7.1.17. Depends on: 728a, #641,
   #642; KE1, KE5, KD1, KD2, KD4, KD8 (it opens only after his answers on KE1 and KE5). Files: `core/life/`, `core/combat/strike.gd`, `core/match/player_state.gd`,
@@ -268,7 +270,8 @@ content file named is provisional under the
   `tests/harness/bots/leak_check.gd`, `docs/ARCHITECTURE.md`.
 - **728c core: a body slides down a steep floor and off its edge** (size S). Goal: a body on a sloped roof rolls
   off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port, `FlatWorldQuery`, `RecordingWorldQuery`,
-  the replay and `HostWorldQuery`; the slide angle and speed in `PlayerRules` with bounds; §4's step 4; a fixture
+  the replay and `HostWorldQuery`; the slide angle and speed in `PlayerRules` with bounds, a slide speed of 0 sliding nothing, and the base mode at 0
+  until 728e (for the reason 728b gives); §4's step 4; a fixture
   level with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test of the answer;
   ARCHITECTURE §4.5.9 and §7.1.17. Depends on: 728b; KD3, KD9. Files: `core/world/`, `server/host_world_query.gd`,
   `core/life/`, `core/content/player_rules.gd`, `tests/fixtures/levels/`, `tests/unit/life/`,
@@ -289,7 +292,8 @@ content file named is provisional under the
   motion numbers (KD9); a bot scenario on a greybox map (bots do not play House, ARCHITECTURE §9.7) in which a
   dissident's knockdown launches a crew bot and a teammate raises it where it lands; beside #646's roof check, a
   test that no knife launch from where players stand on House rests a body on the locked roof; the playtest's list
-  (KD2, KD3, KD6). Depends on: 728b, 728c, #646; KD9. Files: `content/modes/base_mode.tres`, `content/scenarios/`,
+  (KD2, KD3, KD6). Depends on: 728b, 728c, 728d (the first non-zero launch or slide in the base mode needs the own
+  avatar's camera and ears to follow the body), #646; KD9. Files: `content/modes/base_mode.tres`, `content/scenarios/`,
   `tests/integration/`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
