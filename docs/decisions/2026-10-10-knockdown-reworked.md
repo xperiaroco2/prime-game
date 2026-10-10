@@ -343,16 +343,19 @@ rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 
   (KD9 (b)); §9's tests of where bodies move. 728b ships with every launch at 0 (the knife sets none) until 728d
   draws the motion: before it, a launched player's camera and ears would stay where the knockdown started while every
   other screen showed the body fly, and its client's voice cutoff (E41) would measure from the wrong place.
-  ARCHITECTURE: §5; §4.1's `Raise` row and §9.5.13's rejection list (`moving`); §4.2's `KnockedDown` row and its
-  `Swapped` row ("its avatar is never sent to it"); §4.3.1's bound ("the snapshot's avatars at most 15: never the
-  viewer's own"); §4.3.5's `Snapshot` row ("16 avatars: 725" for "15 avatars: 680"); §4.4's "the snapshot's 15
-  avatars take 680 bytes"; §4.6.1.1 and §4.6.1.2 ("the own player's never arrives"); §4.7.8 ("since the own avatar
-  never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and their bounds), its `TargetDowned` row
-  and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §9.5.1's `PlayerRules` (the gravity, the longest
-  motion, `motion_maps`: the House); §7.1.17. Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all
-  answered). The throwing design is still proposed, its TE1 the engineer's: if he defers throwing or takes TE1 (b),
-  so that #641 and #642 never land, 728b builds `WorldQuery.sweep` and the arc function itself, in the shapes those
-  issues set (KE1 (a) needs both either way), and a later throw reuses them. Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
+  ARCHITECTURE: §5 (the per-peer rule, and its "Widening" bullet: a knockdown now widens its own player's snapshot
+  by its avatar); §4.6.2 (the bots' fold skips the own avatar); §4.6.4 (the leak test's list of invariants: the
+  own-avatar check) and §4.6.4.1 (its two plants, seen failing); §4.1's `Raise` row and §9.5.13's rejection list
+  (`moving`); §4.2's `KnockedDown` row and its `Swapped` row ("its avatar is never sent to it"); §4.3.1's bound
+  ("the snapshot's avatars at most 15: never the viewer's own"); §4.3.5's `Snapshot` row ("16 avatars: 725" for "15
+  avatars: 680"); §4.4's "the snapshot's 15 avatars take 680 bytes"; §4.6.1.1 and §4.6.1.2 ("the own player's never
+  arrives"); §4.7.8 ("since the own avatar never arrives"); §9.4's `Strike` row (its launch fields, 0 launching
+  nothing, and their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the motion and its no-floor
+  error); §9.5.1's `PlayerRules` (the gravity, the longest motion, `motion_maps`: the House); §7.1.17. Depends on:
+  728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all answered). The throwing design is still proposed, its TE1 the
+  engineer's: if he defers throwing or takes TE1 (b), so that #641 and #642 never land, 728b builds
+  `WorldQuery.sweep` and the arc function itself, in the shapes those issues set (KE1 (a) needs both either way), and
+  a later throw reuses them. Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
   `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
   `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd` (`MAX_AVATARS`),
   `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
