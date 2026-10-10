@@ -319,8 +319,9 @@ func _first_words(schema: WireSchema, crew_peer: int) -> Dictionary:
 
 
 func test_the_oracle_refuses_throw_in_every_phase_and_life_state_whatever_the_facing() -> void:
-	# §4.6.5.3: no phase of the base mode accepts Throw until its rule (37f, #646, which changes
-	# this test with ChaosOracle.ACCEPTS); a refused Throw is answered, never dropped in silence.
+	# §3.2, §4.6.5.3: Round takes Throw from the living only (the base mode's Throw rule, #646),
+	# whose empty hand HoldsItem refuses as empty_hand; elsewhere, and from the downed, the dead
+	# and a newcomer, not_accepted. A refused Throw is answered, never dropped in silence.
 	var living := PlayerState.new(4, "Player4")
 	var downed := PlayerState.new(4, "Player4")
 	downed.life = PlayerState.Life.DOWNED
@@ -328,9 +329,13 @@ func test_the_oracle_refuses_throw_in_every_phase_and_life_state_whatever_the_fa
 	dead.life = PlayerState.Life.DEAD
 	var host := PlayerState.new(1, "Player1")
 	for phase: StringName in ChaosOracle.ACCEPTS:
-		assert_bool(ChaosOracle.ACCEPTS[phase].has(Intents.THROW)).is_false()
+		var in_round := phase == &"round"
+		assert_bool(ChaosOracle.ACCEPTS[phase].has(Intents.THROW)).is_equal(in_round)
 		for player: PlayerState in [living, downed, dead, host, null]:
 			var peer := 1 if player == host else 4
+			var expected := "not_accepted"
+			if in_round and (player == living or player == host):
+				expected = "empty_hand"
 			for facing: Vector3 in ChaosFrames.THROW_FACINGS:
 				var answer := ChaosOracle.answer(
 					Intents.THROW, {"facing": facing}, peer, phase, player, 0
@@ -338,8 +343,18 @@ func test_the_oracle_refuses_throw_in_every_phase_and_life_state_whatever_the_fa
 				(
 					assert_str(str(answer))
 					. override_failure_message("%s %s %s" % [phase, peer, facing])
-					. is_equal("not_accepted")
+					. is_equal(expected)
 				)
+
+
+func test_the_oracle_leaves_a_throw_with_a_held_item_to_the_check() -> void:
+	# A living player holding an item could throw it: the hostile never sends that ("?").
+	var holder := PlayerState.new(4, "Player4")
+	holder.held_item = 0
+	var answer := ChaosOracle.answer(
+		Intents.THROW, {"facing": Vector3.FORWARD}, 4, &"round", holder, 0
+	)
+	assert_str(str(answer)).is_equal("?")
 
 
 func test_the_hostile_throws_with_each_facing_and_only_those() -> void:

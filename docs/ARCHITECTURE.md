@@ -112,7 +112,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -588,7 +588,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
-| `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round from 37f, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
+| `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -1664,8 +1664,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
 The C→H kinds 1 to 13, 15 and 112 (`Throw`'s facing from `ChaosFrames.THROW_FACINGS`: a unit vector, zero, a
-1e-30 vector and a 1e38 vector, each refused `not_accepted` in every phase until the base mode's rule, 37f (#646),
-adds its `ChaosOracle.ACCEPTS` row; non-finite facings are the codec's, class 1, #644),
+1e-30 vector and a 1e38 vector: since the base mode's rule (#646) Round takes it from the living, so the hostile's
+`Throw` there, with the empty hand its bot always has, is refused `empty_hand` (`HoldsItem` comes before
+`OverFloor`), and `not_accepted` in every other phase and from the downed and the dead; non-finite facings are the
+codec's, class 1, #644),
 kind 14, `MoveClaimReliable`, has no chaos shape: `host_session_claim_twin_test`
 covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24 and 25 (`ForceRole`,
 `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 23, 26, 31, 75, 76, 80, 95, 97, 111,
@@ -3677,7 +3679,7 @@ there would not follow from the commands.
   `TargetChoice` and `PlaycheckSteps` skip a flying item (`item_views_test.gd`, `target_choice_test.gd`,
   `playcheck_steps_test.gd`); `ScenarioBot` folds it into `Where.FLYING`, whose place it cannot know, and the
   `Throw` step (§9.7) sends it (`scenario_runner_test.gd`); `throw_scenarios_test.gd` throws a package end to end
-  on a copy of the base mode with a test's Throw rule, through the core runner and the network, where the leak
+  (with the base mode's own rule since #646), through the core runner and the network, where the leak
   check compares each `ItemThrown` exactly; chaos sends its facing extremes (§4.6.5.3; `chaos_frames_test.gd`,
   `chaos_test.gd`).
 - **The engineer's answers** (all as recommended, #302): strength and range (TD1 (a); 10 m/s, provisional), which
