@@ -83,6 +83,27 @@ The base mode has no meetings and no votes.
 Open questions:
 - Without meetings, what makes the crew suspect someone during a Round, and what can they do about it?
 
+### Movement: the crouch (#727)
+Decided by the engineer (#727, 2026-10-10): every player can crouch by holding Ctrl, and Shift while crouched moves
+a bit faster. A crouched player is lower, so it passes under things a standing one does not: the raised car in the
+garage, under which the fitter works crouched (car repair, #688). The art has or will have a crouch animation. A
+knocked-down player cannot crouch, since it cannot move (#728). The numbers are placeholders, "not a decision":
+crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and 1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk:
+4.5 m/s).
+
+Open questions (the engineer's; the options and a recommendation for each are in the
+[crouch ADR](decisions/2026-10-10-crouch.md), KD1 to KD8):
+- Are a crouched player's footsteps quieter than a walk's?
+- Does a crouched player's name plate follow its head (and hide behind a low wall), disappear, or stay at the
+  standing height?
+- Is the car's height alone what asks for the crouch, with no rule checking it? (The car repair design asks the same.)
+- Can a player stand up under a low ceiling, or does it stay crouched until there is room?
+- Does Shift while crouched cost stamina?
+- What does Space do while crouched?
+- Is a crouched player a smaller target for the knife and for a thrown item?
+- Can a crouched player do everything a standing one can: pick up, put down, the knife, the raise, a throw, a task
+  station?
+
 ## 4. Roles
 
 - Which roles exist in the first playable version, and which come later?
