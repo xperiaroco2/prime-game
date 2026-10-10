@@ -79,6 +79,12 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	var key := KeyLabel.of_action(&"interact")
 	assert_str(_pair.host.life().raise_cue()).is_equal(key)
 	assert_str(life.raise_cue()).is_empty()
+	# Another player already raising them: the host would answer a second Raise with `busy`, so the cue
+	# is gone until that raise stops.
+	_pair.host.client().model.fold(&"RaiseStarted", {"raiser": joiner + 1000, "target": joiner})
+	assert_str(_pair.host.life().raise_cue()).is_empty()
+	_pair.host.client().model.fold(&"RaiseStopped", {"target": joiner})
+	assert_str(_pair.host.life().raise_cue()).is_equal(key)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_bool(_pair.host.ui.hud.aim.visible).is_true()
