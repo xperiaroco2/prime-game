@@ -60,7 +60,9 @@ func test_no_throw_at_the_base_mode_s_numbers_rests_on_the_roof() -> void:
 	for area: String in spots:
 		for feet: Vector3 in spots[area]:
 			var found := _roof_rests(feet, _throw.speed_mps)
-			var first: Variant = found[0] if not found.is_empty() else null
+			var first := "none"
+			if not found.is_empty():
+				first = str(found[0])
 			(
 				assert_int(found.size())
 				. override_failure_message(
