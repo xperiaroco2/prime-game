@@ -164,8 +164,8 @@ func _part(part: TutorialPart) -> String:
 		words.append(String(seen.event))
 		var names: Array = seen.fields.keys()
 		names.sort()
-		for name: Variant in names:
-			words.append("%s=%s" % [name, seen.fields[name]])
+		for field: Variant in names:
+			words.append("%s=%s" % [field, seen.fields[field]])
 	elif part is ClientSeen:
 		var seen := part as ClientSeen
 		words.append(String(seen.signal_name))
