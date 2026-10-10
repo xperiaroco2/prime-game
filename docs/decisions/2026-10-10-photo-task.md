@@ -377,25 +377,25 @@ in this PR; P5 uses what he approves, or these drafts marked "not a decision" un
 - **Unit tests** (P2, P3; fixtures only, never `content/`, ARCHITECTURE §9.6): `PhotoFrame` (a point at the centre,
   just inside and just outside each edge, nearer than 0.3 m, beyond `range_m`, behind the lens); the load (a fresh
   film from the hand, then from the belt; `film_exposed`; `no_film`; the film laid at the camera with `FilmLoaded`);
-  the camera's film (PE17: emptied by a pick-up, by `PickUp`'s exchange that leaves the picker's hand item where the
-  film lay, and by a vanish at the cap; another film that exchange leaves at its place not loaded; emptied by a
+  the camera's film (PE17: emptied by a pick-up, by `PickUp`'s exchange that leaves the picker's hand item where
+  the film lay, and by a vanish at the cap; another film that exchange leaves at its place not loaded; emptied by a
   `PickUp` then a `PutDown` of the film in the load's own tick, and by a pick-up then a death drop in that tick, the
   next `Interact(camera)` with a fresh film a load, not a shot); the shot: a subject counted, one outside the frame,
-  one behind a `FlatWorldQuery` wall, one knocked down, the shooter and another player in front of the lens within the
-  camera's cylinder (neither counted nor in the record), one beyond the range, a head cut off by the frame's edge;
-  each refusal in its order (§2); `no_frames_left` after `frames_per_film` shots; the record's contents (the radius,
-  the cylinder, the knocked-down flag); the box's take (a film into the hand, the hand's knife to the belt, a package
-  carrier's belt, `too_soon`: one player's takes on 100 ticks in a row give at most 100 / 5 + 1 films at 0.25 s;
-  `GiveItem` and `Items.give` themselves are C1's and C2's to test); the print (every shot of the film once, in shot order, the tray's position,
-  the film vanishing last, `nothing_to_print` for a fresh film); the caps (the film kind's at a take, the photo kind's
-  at a print, the loose one that lay longest vanishing, its task state entry dropped: a new film given a recycled id
-  loads as fresh and prints nothing old); the hang (counted and locked, uncounted and taken down by
-  `PickUp`, a counted one refused to `PickUp`, the last subtask, `unavailable` after done, `no_photo`); the deal, the
-  exact demands and the fit check (a photo spot directly above the camera, or within its reach horizontally,
-  refused); PE12's checks (each cap one below its floor refused, at its floor accepted);
-  `ModeCheck` testing every reason `PhotoTask.use_reasons()` lists against the wire alphabet (one removed from the
-  alphabet is found); the order of events (PE11); `ResetMatch` clearing the state; the wire rows' round trips; a
-  replay of a shot agreeing on `line_of_sight`.
+  one behind a `FlatWorldQuery` wall, one knocked down, the shooter and another player in front of the lens within
+  the camera's cylinder (neither counted nor in the record), one beyond the range, a head cut off by the frame's
+  edge; each refusal in its order (§2); `no_frames_left` after `frames_per_film` shots; the record's contents
+  (the radius, the cylinder, the knocked-down flag); the box's take (a film into the hand, the hand's knife to
+  the belt, a package carrier's belt, `too_soon`: one player's takes on 100 ticks in a row give at most 100 / 5 +
+  1 films at 0.25 s; `GiveItem` and `Items.give` themselves are C1's and C2's to test); the print (every shot of
+  the film once, in shot order, the tray's position, the film vanishing last, `nothing_to_print` for a fresh film);
+  the caps (the film kind's at a take, the photo kind's at a print, the loose one that lay longest vanishing,
+  its task state entry dropped: a new film given a recycled id loads as fresh and prints nothing old); the hang
+  (counted and locked, uncounted and taken down by `PickUp`, a counted one refused to `PickUp`, the last subtask,
+  `unavailable` after done, `no_photo`); the deal, the exact demands and the fit check (a photo spot directly above
+  the camera, or within its reach horizontally, refused); PE12's checks (each cap one below its floor refused, at
+  its floor accepted); `ModeCheck` testing every reason `PhotoTask.use_reasons()` lists against the wire alphabet
+  (one removed from the alphabet is found); the order of events (PE11); `ResetMatch` clearing the state; the wire
+  rows' round trips; a replay of a shot agreeing on `line_of_sight`.
 - **The role-swap check** (P2, P3): the same seed and commands with two players' forced roles swapped emit identical
   `FilmLoaded`, `ShotTaken`, `PhotoPrinted`, `PhotoHung`, `TaskState` and `TaskProgress` streams, as the zone task's.
   Planted once (the frame skips dissidents), it fails; reverted.
