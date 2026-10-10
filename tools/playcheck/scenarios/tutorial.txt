@@ -1,8 +1,10 @@
 # The solo tutorial session (#601) in the game's real window: --tutorial starts it without the
 # invite, its host on a private in-process hub (no port), with the game's two stand-ins. gather
 # has no level, so the loading screen shows until the room is in; then the lessons phase shows
-# the round in the tutorial room with three players in the roster. The lessons and the invite
-# come later (T4 #602, #492): this shows the room and the session as T3 leaves them.
+# the round in the tutorial room with three players in the roster, and #492's plates over the
+# HUD: lesson 1's row of keycaps (step-keys), then, after a walk, lesson 2's sentence with its
+# keycap (step), then the tutorial's Esc menu. The invite shows only on a first launch, which no
+# playcheck window is (E70): its shots are the previews' (client/dev/tutorial_*_preview.tscn).
 tutorial
 timeout 60
 
@@ -12,6 +14,11 @@ wait screen round
 wait players 3
 frames 30
 shot tutorial_room
+hold move_forward
+frames 80
+release move_forward
+frames 30
+shot tutorial_step
 press ui_cancel
 wait esc open
 shot tutorial_esc
