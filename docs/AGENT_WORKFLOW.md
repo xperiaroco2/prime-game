@@ -1203,7 +1203,7 @@ that runs while the engineer is away needs the guard to refuse instead of ask. T
   command goes into the For-you block (MANAGERS §3). Nothing is allowed that was not before: the deny and ask rules,
   the guard's findings and Claude Code's own checks are unchanged, and a call the guard finds nothing in is left
   alone (the `acceptEdits` allow of §8.2.10 is a separate sign).
-- **Fail-closed, per session.** The hook (`hooks.unattended_sign`, read only when the guard would ask) counts the sign
+- **Fail-closed, per session.** The hook (`hooks.manager_sign`, read only when the guard would ask) counts the sign
   for a call whose `session_id`, or an id in its `transcript_path`, is the sign's session. A workflow agent's
   transcript sits under the manager's session id (`<session id>/subagents/workflows/<run>/`, seen 2026-10-10), so the
   manager's sign covers its agents. A human's own session has another id and no file, so it keeps its prompts, also

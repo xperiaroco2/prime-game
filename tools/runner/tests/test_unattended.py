@@ -149,7 +149,7 @@ class GuardAnswerTest(SignFolderCase):
         out = io.StringIO()
         call = {"tool_name": "Bash", "tool_input": {"command": "git status"}, "cwd": MAIN, "session_id": SESSION}
         with (
-            unittest.mock.patch.object(hooks, "unattended_sign", side_effect=AssertionError("read without an ask")),
+            unittest.mock.patch.object(hooks, "manager_sign", side_effect=AssertionError("read without an ask")),
             unittest.mock.patch("sys.stdout", out),
         ):
             self.assertEqual(hooks.pre_tool_use(call), 0)

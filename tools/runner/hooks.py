@@ -76,7 +76,7 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     routine shell work as a bypass session would. The deny and ask rules and Claude Code's own delete checks still
     hold over an allow. A human's own acceptEdits session (the humans' default mode) keeps its prompts: unattended
     needs a positive sign (a desktop-app session the app does not mark attended), so a CLI or IDE session never gets
-    the allow. A different positive sign, a manager's `unattended` file for the session (unattended_sign, #750), turns
+    the allow. A different positive sign, a manager's `unattended` file for the session (manager_sign, #750), turns
     every ask into a deny with the same reason and one line more: nothing is allowed that was not, and no sign leaves
     the ask."""
     tool = payload.get("tool_name")
@@ -95,7 +95,7 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     analysis = guard.judge(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud_session())
     if analysis.findings:
         text = guard.reason(analysis.findings)
-        if unattended_sign(payload):
+        if manager_sign(payload):
             # Nobody answers a permission card, and one holds the session's every notification until someone does
             # (#750): refuse with the same reason, so the agent goes on and the engineer gets the command in For you.
             note = f"{text}\n{UNATTENDED_NOTE}"
@@ -171,7 +171,7 @@ def sign_sessions(payload: dict[str, object]) -> list[str]:
     return [name for name in dict.fromkeys(found) if name]
 
 
-def unattended_sign(payload: dict[str, object], folder: str | None = None, now: datetime | None = None) -> bool:
+def manager_sign(payload: dict[str, object], folder: str | None = None, now: datetime | None = None) -> bool:
     """Nobody is watching this session: a sign the manager set (`run unattended`) for it is in force (#750)."""
     return any(read_sign(name, folder, now) is not None for name in sign_sessions(payload))
 
