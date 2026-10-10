@@ -5357,8 +5357,9 @@ levels/
   This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
   `content/` or `levels/`. Only the mode check (§9.1) with the content tests beside it (`tests/unit/content/`, and
-  `tests/integration/levels/` for a map against its design) and the scenarios load them, so a change to `content/` can
-  break a scenario or a content test, which is what they are for, and never a part's unit test.
+  `tests/unit/levels/` or `tests/integration/levels/` for a map against its design) and the scenarios load them,
+  so a change to `content/` can break a scenario or a content test, which is what they are for, and never a
+  part's unit test.
 
 ### 9.7 Bot scenarios
 A bot scenario is a scripted match that shows a mechanic working end to end, played only with what each player is
