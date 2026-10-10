@@ -77,9 +77,16 @@ func test_the_nine_lessons_run_on_the_real_session_and_end_at_the_main_menu() ->
 	assert_bool(await _until(func() -> bool: return runner.lesson() == 5)).is_true()
 	assert_bool(runner.is_done(4)).is_true()
 	assert_str(String(model.phase)).is_equal("lessons")
-	# 5: the map, then a card from its «?» (the button's own press).
+	# 5: the map, then a card from its «?» (the button's own press). A card already showing as the
+	# step starts is no opening: the step holds over frames until the card opens anew (#602 mutant).
+	assert_bool(game.ui.map.open_howto(&"delivery")).is_true()
+	await _settle()
 	game.ui.open_map()
 	assert_int(runner.step()).is_equal(2)
+	await _settle()
+	assert_int(runner.lesson()).is_equal(5)
+	assert_int(runner.step()).is_equal(2)
+	game.ui.map.close_howto()
 	await _settle()
 	var helps := game.ui.map.find_children("Help", "Button", true, false)
 	assert_array(helps).is_not_empty()
