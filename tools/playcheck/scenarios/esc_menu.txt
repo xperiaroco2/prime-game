@@ -75,7 +75,7 @@ wait ready off
 wait text lobby.roster has You not ready
 button esc.lobby.ready
 wait ready on
-wait text lobby.countdown has Starting in
+wait text lobby.status has Starting in
 frames 10
 wait esc open
 shot esc_countdown_guest
