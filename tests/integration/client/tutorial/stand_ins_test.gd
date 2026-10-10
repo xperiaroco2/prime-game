@@ -112,11 +112,13 @@ func test_each_stand_in_joins_readies_acknowledges_and_stands_and_sends_nothing_
 
 func _on_packet(from_peer: int, kind: int, payload: PackedByteArray) -> void:
 	var message := _schema.decode(kind, payload)
-	if message == null:
-		return
 	if not _sent.has(from_peer):
 		_sent[from_peer] = []
 		_claims[from_peer] = []
+	if message == null:
+		# Not in ALLOWED, so the check fails on it.
+		_sent[from_peer].append(StringName("<undecoded kind %d>" % kind))
+		return
 	_sent[from_peer].append(message.name)
 	if message.name == &"Hello":
 		_hellos[from_peer] = message

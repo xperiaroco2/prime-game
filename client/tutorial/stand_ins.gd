@@ -81,6 +81,7 @@ func welcomed() -> int:
 
 
 ## The Corrections the host sent for refused claims, all stand-ins together: 0 while each stands.
+## An accepted test hook (Correction is a private event of its player): only the tests call it.
 func corrections() -> int:
 	var found := 0
 	for session: ClientSession in _sessions:
