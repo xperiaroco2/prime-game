@@ -1902,7 +1902,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   A new screen closes it, its question too, when it opened over another (`EscMenuState.over_screen`, #726): the
   match leaving the lobby, the end screen, the lobby again (the countdown is still the lobby's screen and keeps it;
-  the menu opened over the live screen in #204's frame stays). A dropdown's open list hides with it (OptionButton).
+  the menu opened over the live screen in #204's frame stays). `EscMenu.close` hides a dropdown's open list, a window of its own, too.
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **The mouse** (#517): `GameFlow.pointer_on` says what each screen asks of it. The lobby and the round capture it
   when they show (no click first; also after End's return), Loading and Pregame keep it as it was, and the menu, a failure (#494),
