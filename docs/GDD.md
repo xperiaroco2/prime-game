@@ -428,6 +428,95 @@ screen. The issues follow from the ADR's split, for the M7 backlog: for now the 
 Open questions: none; the engineer answered the ADR's GD1 to GD13 on 2026-10-10 and approved this design with the
 last two (ADR §9). The numbers above are tuned in the playtest.
 
+### Car repair (#688)
+The House map's garage chain ([House map](design/house-map.md) §2, decisions 5, 9 and 10; its stations in §6). The
+rules below are the engineer's: #688 (chat of 2026-10-10) and his answers to the design's questions (PR #709,
+[comment 6095445261](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6095445261),
+[comment 6097878738](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6097878738) and
+[comment 6100556321](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6100556321)); the engine parts
+are in [the car repair ADR](decisions/2026-10-10-car-repair-task.md).
+
+**For the MVP only.** The engineer approved this design for the MVP: a much more interesting mechanic will replace
+it later (comment 6100556321).
+
+**Intent.** A two-player chain with the game's one rare one-shot kill. One player holds the lift, another goes under
+the car to fit a part brought from storage, and a dropped car kills at once. It runs on trust: the one at the lift
+cannot see who is under the car.
+
+**Rules.**
+- Car repair is a task type, like the others, and the host's per-task-type subtask count applies (#256, #679). One
+  subtask is one part fitted; a repair may need several parts, one after another.
+- The car stands on a lift in the garage, the lift panel in the garage too, the parts shelf in storage. The panel
+  stands near enough to the car for the holder and the fitter to talk (within the voice range), out of reach of the
+  car.
+- The car stays up only while someone holds E at the lift panel. It rises over a few seconds once the hold starts, and
+  a part can be fitted only when it is fully up. Let go, or be knocked down, and the car drops at once and kills
+  whoever is under it (decision 9): every player whose feet are under the car, living or knocked down, invulnerable
+  or not. The player respawns as usual (decision 10). A hit that does not knock the holder down does not drop the
+  car. The holder leaving the match or losing the connection drops it too, with the kill; the round's end lowers it
+  without one.
+- A picture on the garage wall shows which part the car needs, one of several kinds, never the same kind twice in a
+  row. (Later, ideally, something nicer: a player crawls under the car to see what it needs; not now.)
+- The part is taken from the parts shelf in storage, one place per part kind with the same picture, as many as the
+  players like, and carried to the garage in one hand.
+- Taking a part works as at the kitchen's boxes (the belt rule): with an item in the hand and the belt empty, the
+  hand item goes onto the belt; with full hands (an item in the hand and one on the belt), the hand item drops at the
+  player's feet; then the part goes into the hand. A player holding a two-handed item, such as a package, can still
+  take a part: it goes onto the belt (a full belt's item drops at the player's feet), and the two-handed item stays
+  in the hands.
+- A part put down lies until someone takes it; it does not vanish.
+- Fitting a part: under the car, crouched, with the right part in hand, the player holds E for some seconds. Every
+  player can crouch: hold Ctrl; Shift while crouched moves a bit faster (its own mechanic, #727). The raised car is
+  too low to stand under, so a player crouches to get under it and comes out crouched; nothing else checks the crouch
+  (height alone). A wrong part is
+  refused and stays in the hand. A hit on the fitter stops the fit, which then starts again from zero.
+- After the last part the lift cannot be raised again; a hold that still runs drops and kills as always.
+- The lift panel has no view of who is under the car: the one holding the lift relies on trust and voice.
+- As for the Generator (#679): a dissident plays the same character under the same rules, so either side may hold the
+  lift, let it go or fit a part; busy hands: a player holding a two-handed item, such as a package, cannot use the
+  lift panel or the car (a take at the shelf still works, above).
+- The drop kills a knocked-down player under the car too. The knockdown is being reworked in #728 (its design in PR
+  #754): once it lands, a knocked-down player cannot move or talk (hears, but cannot speak) and falls as a ragdoll;
+  until then it crawls slowly, as the accepted vision revision 1 says.
+
+**Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
+they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
+garage's walls hide the space under the car from the panel; no sound plays while a fit runs. The end of a fit is
+not hidden: the part-fitted sound and the task screen tell everyone, the holder too, the moment a part is fitted,
+while the fitter is still under the car. Tasks are shared and
+every player sees the same task progress (#79): the task screen's Car repair row shows the parts fitted of N, struck
+through once every part is fitted (there is no shared total of all tasks, #738).
+
+**Edge cases.** Only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md),
+V4): a knocked-out player and a dead player can do nothing. The host's own player follows the same rules as everyone.
+
+**Sounds.** The lift's motor, the drop's crash, a part taken and a part fitted; none while a fit runs.
+
+**Where it plays.** On the House only, in the base mode: the one map its data lists. Never on the flat greybox, which
+is a test bench only (#767: players always play the House). Bots do not play the House, so car repair is tested by
+integration tests on the House and over the real wire, not by bot scenarios. Every House match deals it.
+
+**Name and description** (drafted by the agents, approved by the engineer as drafted): "Repair the car"; "Take the
+part shown on the garage wall from the shelf in storage, then fit it under the car while someone holds the lift.";
+the lobby label of its part count: "Parts to fit".
+
+**Numbers** (placeholders, approved as proposed and still "not a decision": the engineer tunes them after a
+playtest): a 5 s fit; a 2 s rise; 3 part kinds; 1 to 3 parts per repair, 2 by default; the raised car's underside at
+1.4 m, above a crouched player (1.2 m, the crouch's placeholder) and below a standing one (1.8 m); the panel 5 m from
+the car; at most one take from the shelf per 0.25 s, a flood guard.
+
+**Engine parts** ([the car repair ADR](decisions/2026-10-10-car-repair-task.md) §1, §8): a car repair task type with
+four station kinds (the car, the lift panel, one bin per part kind on the shelf, the picture on the wall); the lift's
+hold and the fit as holds of E on a station (the raise's channel, extended to stations and to a hold with no end);
+the drop as an instant kill of every player under the car, decided by the host; the parts as items from the shelf (the
+cooking design's item source, #682); the Generator's `Interact(station)` (#679); station scenes in
+`levels/stations/` in place of the House's markers; the client's car, picture, fitter and sounds. The crouch (#727, its
+own ADR) and the knockdown rework (#728) are designs of their own. The issues follow from the ADR's split, as M7
+backlog: nothing is built until the engineer says so.
+
+Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
+in the playtest.
+
 ## 9. Meetings and voting
 
 Dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md): no game mode has meetings. The questions

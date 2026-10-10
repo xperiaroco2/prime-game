@@ -170,7 +170,8 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
-| Car repair | Lift control (proposal: no view of who is under the car) | 0 | 57, 46 | Garage |
+| Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
+| Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
 | Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
@@ -185,6 +186,18 @@ cylinder: at least 12 m between the cylinders, so the switch markers stand at le
 (the engineer,
 [PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117)); the
 nearest pair here is 20 m.
+
+The car repair (the engineer, 2026-10-10, #688; the rules in [GDD](../GDD.md) §8): the lift panel has no view of who
+is under the car; a dissident plays by the same rules (#679's shared rule), so anyone holding the lift may let it go.
+The panel's proposed point stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot
+hold the lift and fit a part; but that is beyond the voice range (8 m) from parts of the panel's reach, and the holder
+relies on voice. So the panel moves nearer: every point of its reach within the voice range less a margin of the car's
+use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2:
+5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
+(issue R5). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
+(later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
+player having a crouch (#727). He approved the car repair for the MVP only (PR #709, comment 6100556321): a much
+more interesting mechanic will replace it later. It plays on the House only, never on the greybox (#767).
 
 ## 7. Routes and travel times
 
@@ -242,10 +255,9 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
   charges only while every switch is on, and anyone may switch any active switch on or off):
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
-  - the lift control has no view of who is under the car;
-  - how dissidents interfere with each chain (a wrong herb or part, letting the lift go, a wrong pose or a spoiled
-    shot; for the burgers he decided it in #682: a dissident may hide a box, and the rules let anyone burn a patty
-    or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
+  - how dissidents interfere with each chain (a wrong herb, a wrong pose or a spoiled shot; a wrong part is no longer
+    one: the car refuses it, decided in #688; for the burgers he decided it in #682: a dissident may hide a box, and
+    the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
   - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
     [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).
