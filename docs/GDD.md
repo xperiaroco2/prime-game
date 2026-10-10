@@ -405,8 +405,8 @@ everyone.
 
 **Numbers** (the engineer's starting values, to tune): 3 active switches by default (2 to 4, a host setting); the charge
 takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m; every two switches more than 12 m
-apart. Placeholders until he sets them: a player uses a switch or the button from within 2 m of it, and the lobby label
-of the switch count.
+apart, measured between where players stand to use them. Placeholders until he sets them: a player uses a switch or
+the button from within 2 m of it, and the lobby label of the switch count.
 
 **Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the task screen,
 "Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in
