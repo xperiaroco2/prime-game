@@ -390,6 +390,7 @@ func quit() -> void:
 func open_esc() -> void:
 	ui.open_esc(hosting(), _welcomed_model(), screen())
 	pointer.capture(false)
+	tutorial.esc_opened()
 
 
 ## Esc again with no question open on it (its Resume), or Resume: the menu closes; in the lobby,
@@ -398,6 +399,8 @@ func close_esc() -> void:
 	ui.close_esc()
 	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
 		pointer.capture(true)
+	# Last: after lesson 9 the tutorial leaves here (D32 (b)).
+	tutorial.esc_closed()
 
 
 ## The map opened (#253): the mouse is free for its «?»; the player keeps walking.
@@ -495,7 +498,7 @@ func voice_control() -> VoiceControl:
 	return _voice_control
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_check_runner()
 	if _room != null:
 		_room.poll()
@@ -518,6 +521,7 @@ func _process(_delta: float) -> void:
 	OverlayFeed.refresh(_overlay, _client, _host, _avatars, _sender, _voices)
 	_refresh_voice()
 	_apply_player_flags(now)
+	tutorial.process(self, delta)
 
 
 func _input(event: InputEvent) -> void:

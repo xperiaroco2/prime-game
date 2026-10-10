@@ -26,6 +26,10 @@ extends Node3D
 ## Cameras are placed in the physics step at PHYSICS_PRIORITY: after the avatars (-80) and the
 ## local player (0) moved, before SightHider (10) casts from the pivot.
 
+## The dead player switched the spectate target to another one (cycle_target), never the first
+## target drawn at the death or one replacing a lost target (the tutorial's lesson 7, #602).
+signal target_switched(peer: int)
+
 enum View { FIRST_PERSON, DOWNED, SPECTATE_EYES, SPECTATE_ABOVE }
 
 const PHYSICS_PRIORITY := 5
@@ -294,8 +298,11 @@ func _cast_raise_target() -> int:
 func cycle_target(step: int) -> void:
 	if not _is_dead():
 		return
+	var before := _target
 	_target = SpectateTargets.cycle(model, model.own_peer, _target, step)
 	_target_life = model.life_of(_target)
+	if before != 0 and _target != 0 and _target != before:
+		target_switched.emit(_target)
 
 
 func _process(delta: float) -> void:
