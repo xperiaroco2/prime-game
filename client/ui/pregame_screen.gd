@@ -10,9 +10,10 @@ extends Control
 ## It reads only the own player's view: `ClientModel.role`, the own role's `teammates`, and the
 ## roster's (public) names of those teammates; nothing of any other player's role (#175).
 
-## Emitted once per pregame when the own role shows: the hook for the one sound per role (#213,
-## #175). No role sound exists yet, so nothing is connected and the intro is silent.
-signal role_revealed(role: StringName)
+## Emitted once per pregame when the own role shows, with the own role's side in the client's own
+## mode (empty for a role the mode does not know), never once the round has started: the screen
+## plays the side's sound on it (SIDE_SOUNDS, UiSounds.role on the UI bus; #716, #213, #175).
+signal role_revealed(role: StringName, side: StringName)
 
 ## Night's fade when the round starts (the handoff's 0.4 s); a cut under UiPrefs.reduced_motion.
 const FADE_SECONDS := 0.4
@@ -24,6 +25,12 @@ const TEAM_KEY := "pregame.teammate"
 const GOAL_KEYS: Dictionary[StringName, String] = {
 	&"crew": "role.goal.engineer",
 	&"dissident": "role.goal.dissident",
+}
+## The own side's sound by the side's id in the mode (the base mode's `crew` and `dissidents`, as
+## EndScreen.SIDE_KEYS names them); a side not here plays nothing (#716).
+const SIDE_SOUNDS: Dictionary[StringName, StringName] = {
+	&"crew": SfxSet.UI_ROLE_ENGINEERS,
+	&"dissidents": SfxSet.UI_ROLE_DISSIDENTS,
 }
 
 ## The opaque black (P2); it fades out over the round's HUD.
@@ -88,15 +95,20 @@ func _init() -> void:
 		control.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		control.focus_mode = Control.FOCUS_NONE
 	_show_role("", "", PackedStringArray())
+	role_revealed.connect(_play_role_sound)
 
 
-## Shows the intro from the own `model` and the client's own `mode`.
+## Shows the intro from the own `model` and the client's own `mode`. The own role revealed for the
+## first time in this pregame emits `role_revealed`; not while Night fades out over the round (a
+## role that arrives that late plays no sound in the round).
 func refresh(model: ClientModel, mode: GameMode) -> void:
 	var goal_key: String = GOAL_KEYS.get(model.role, "")
 	_show_role(HudText.role_key(model, mode), goal_key, team_of(model))
-	if not model.role.is_empty() and not _revealed and is_visible_in_tree():
-		_revealed = true
-		role_revealed.emit(model.role)
+	if model.role.is_empty() or _revealed or fade != null or not is_visible_in_tree():
+		return
+	_revealed = true
+	var role := mode.find_role(model.role)
+	role_revealed.emit(model.role, role.side if role != null else &"")
 
 
 ## The pregame shows: Night opaque, the column as the role allows. Called on every frame of it.
@@ -169,6 +181,11 @@ func _retext() -> void:
 		team_label.text = ""
 	else:
 		team_label.text = tr(TEAM_KEY).format({"names": ", ".join(team_names)})
+
+
+func _play_role_sound(_role: StringName, side: StringName) -> void:
+	if SIDE_SOUNDS.has(side):
+		UiSounds.role(self, SIDE_SOUNDS[side])
 
 
 func _stop_fade() -> void:
