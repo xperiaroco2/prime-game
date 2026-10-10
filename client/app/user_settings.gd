@@ -80,6 +80,9 @@ var reduced_motion := -1:
 var window_mode := "":
 	set(value):
 		window_mode = value if value in [WINDOW_FULLSCREEN, WINDOW_WINDOWED] else ""
+## The Lobby tab's own preset (Save your own, #491): setting id -> a whole number or the ids of a
+## set; empty before the host saved one. LobbyPresets keeps only what the mode declares.
+var own_preset: Dictionary = {}
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -145,6 +148,8 @@ func read() -> Error:
 	var motion: Variant = file.get_value("interface", "reduced_motion", -1)
 	reduced_motion = motion as int if motion is int else -1
 	window_mode = str(file.get_value("display", "window_mode", ""))
+	var preset: Variant = file.get_value("lobby", "own_preset", {})
+	own_preset = preset as Dictionary if preset is Dictionary else {}
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -165,6 +170,7 @@ func write() -> Error:
 	file.set_value("interface", "large_text", large_text)
 	file.set_value("interface", "reduced_motion", reduced_motion)
 	file.set_value("display", "window_mode", window_mode)
+	file.set_value("lobby", "own_preset", own_preset)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)

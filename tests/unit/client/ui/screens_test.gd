@@ -15,10 +15,10 @@ func test_the_roster_names_the_host_the_own_player_and_who_is_ready() -> void:
 
 
 func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them() -> void:
-	# #169: everyone sees the settings in the Esc menu's Lobby tab; only the host changes them.
+	# #169: everyone sees the settings in the Esc menu's Lobby tab; only the host changes them
+	# (#491: the host's steppers and preset cards; a player's values and "Preset: …").
 	var mode := load(MODE) as GameMode
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
-	# A Range emits value_changed only inside the tree.
 	add_child(panel)
 	panel.set_mode(mode)
 	var sent: Array = []
@@ -28,21 +28,29 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	panel.refresh(Preview.fake_model(mode, false), -1, false)
 	assert_bool(panel.settings_box.visible).is_true()
 	assert_bool(panel.settings_editable()).is_false()
-	assert_bool(panel.read_only_label.visible).is_true()
+	assert_bool(panel.presets.visible).is_false()
+	assert_bool(panel.preset_label.visible).is_true()
 	panel.refresh(Preview.fake_model(mode, true), -1, true)
 	assert_bool(panel.settings_box.visible).is_true()
 	assert_bool(panel.settings_editable()).is_true()
-	assert_bool(panel.read_only_label.visible).is_false()
+	assert_bool(panel.presets.visible).is_true()
+	assert_bool(panel.preset_label.visible).is_false()
 	assert_str(panel.shortfalls_label.text).contains("4 to 10")
-	assert_str(panel.countdown_label.text).is_equal("Waiting for everyone")
-	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
-	assert_int(boxes.size()).is_equal(5)
-	(boxes[0] as SpinBox).value = 3
-	assert_array(sent).is_equal([[&"match_duration", 3]])
+	assert_str(LobbyPanel.countdown_text(Preview.fake_model(mode, true), -1)).is_equal(
+		"Waiting for everyone"
+	)
+	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
+	assert_int(steppers.size()).is_equal(5)
+	# The task count is fixed (1 to 1): its row hides, nothing to choose.
+	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_false()
+	var duration := steppers[0] as SettingStepper
+	var spec := mode.find_setting(&"match_duration")
+	duration.less.pressed.emit()
+	assert_array(sent).is_equal([[&"match_duration", spec.default_value - 1]])
 
 
 func test_a_read_only_lobby_tab_sends_no_setting() -> void:
-	# A guest's read-only control that still changes (a SpinBox's arrows or wheel) sends nothing.
+	# A player's read-only controls that still change (a stepper's arrow, a task chip) send nothing.
 	var mode := load(MODE) as GameMode
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
@@ -51,12 +59,17 @@ func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 	panel.setting_changed.connect(
 		func(id: StringName, value: Variant) -> void: sent.append([id, value])
 	)
+	panel.settings_changed.connect(func(values: Dictionary) -> void: sent.append(values))
 	panel.refresh(Preview.fake_model(mode, false), -1, false)
-	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
-	(boxes[0] as SpinBox).value = 3
-	var checks := panel.settings_box.find_children("*", "CheckBox", true, false)
-	assert_bool(checks.is_empty()).is_false()
-	(checks[0] as CheckBox).button_pressed = not (checks[0] as CheckBox).button_pressed
+	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
+	var first := steppers[0] as SettingStepper
+	assert_bool(first.less.visible or first.more.visible).is_false()
+	first.less.pressed.emit()
+	var chips := panel.settings_box.find_children("Allowed", "HBoxContainer", true, false)
+	assert_bool(chips.is_empty()).is_false()
+	assert_bool((chips[0] as Control).visible).is_false()
+	((chips[0] as Node).get_child(0) as Button).pressed.emit()
+	panel.cards[LobbyPresets.QUICK].pressed.emit()
 	assert_array(sent).is_empty()
 
 
@@ -95,10 +108,12 @@ func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_lis
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
 	panel.set_mode(mode)
-	var name_row := panel.name_edit.get_parent()
-	var map_row := panel.map_picker.get_parent()
-	assert_object(name_row.get_parent()).is_same(panel)
-	assert_object(map_row.get_parent()).is_same(panel)
+	# #491: both are 64 px rows of SettingList (H, then the row), side by side down the list.
+	var name_row := panel.name_edit.get_parent().get_parent()
+	var map_row := panel.map_picker.get_parent().get_parent()
+	var list := panel.get_node(^"Body/SettingList")
+	assert_object(name_row.get_parent()).is_same(list)
+	assert_object(map_row.get_parent()).is_same(list)
 	assert_int(map_row.get_index()).is_equal(name_row.get_index() + 1)
 	assert_bool(panel.settings_box.is_ancestor_of(panel.map_picker)).is_false()
 	var one := mode.duplicate() as GameMode
@@ -315,3 +330,19 @@ func test_the_esc_menu_is_built_as_the_handoff_names_it() -> void:
 		. is_equal(Vector2(288, 0))
 	)
 	assert_vector(menu.role.scroll.custom_minimum_size).is_equal(Vector2(0, 250))
+
+
+func test_the_lobby_tab_shows_the_code_to_whoever_knows_it_and_the_service_gone_in_its_place(
+) -> void:
+	# #491 (s05 lobby-host, lobby-no-code): the keycap and Copy with a code; the code service's
+	# absence instead when it closed (even with the old code still known); neither for Direct.
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	panel.show_code(JoinProgress.code_text("K7M2QX", false), "K7M2QX")
+	assert_bool(panel.code_row.visible).is_true()
+	assert_bool(panel.code_gone.visible).is_false()
+	assert_str(panel.code_label.text).is_equal("K7M2QX")
+	panel.show_code(JoinProgress.code_text("K7M2QX", true), "K7M2QX")
+	assert_bool(panel.code_row.visible).is_false()
+	assert_bool(panel.code_gone.visible).is_true()
+	panel.show_code("", "")
+	assert_bool(panel.code_row.visible or panel.code_gone.visible).is_false()

@@ -182,7 +182,9 @@ func test_every_control_class_the_screens_build_is_covered_or_named() -> void:
 	for file: String in DirAccess.get_files_at(UI):
 		if file.ends_with(".gd"):
 			built.append_array(classes(FileAccess.get_file_as_string(UI.path_join(file))))
-	assert_array(Array(built)).contains(["LineEdit", "SpinBox", "OptionButton", "GridContainer"])
+	assert_array(Array(built)).contains(
+		["LineEdit", "ScrollContainer", "OptionButton", "GridContainer"]
+	)
 	var unknown := PackedStringArray()
 	for cls in built:
 		if not covered.has(cls) and not NAMED.has(cls) and not unknown.has(cls):

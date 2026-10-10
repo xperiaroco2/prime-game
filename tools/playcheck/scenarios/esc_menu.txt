@@ -68,7 +68,7 @@ press ready
 frames 60
 wait ready off
 wait text lobby.roster has (you) not ready
-button Ready
+button esc.lobby.ready
 wait ready on
 press ui_cancel
 wait esc closed

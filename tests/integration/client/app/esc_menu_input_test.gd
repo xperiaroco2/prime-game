@@ -59,7 +59,7 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	assert_bool(game.pointer.captured()).is_false()
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
 	assert_array(_visible_buttons(game.ui)).contains(
-		["esc.tab.game", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "Ready"]
+		["esc.tab.game", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "esc.lobby.ready"]
 	)
 	assert_bool(game.ui.esc.lobby.settings_editable()).is_true()
 	# Esc again: closed, the mouse captured again.
@@ -97,7 +97,9 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
-	assert_array(_visible_buttons(game.ui)).contains(["esc.tab.game", "esc.tab.lobby", "Ready"])
+	assert_array(_visible_buttons(game.ui)).contains(
+		["esc.tab.game", "esc.tab.lobby", "esc.lobby.ready"]
+	)
 	game.leave()
 	await get_tree().process_frame
 

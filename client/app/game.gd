@@ -149,6 +149,7 @@ func _ready() -> void:
 	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.settings_changed.connect(change_settings)
 	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.lobby.map_changed.connect(change_map)
 	ui.esc.resume_requested.connect(close_esc)
@@ -303,8 +304,14 @@ func set_ready(on: bool) -> void:
 
 ## The host changes one setting: a whole number, or the ids of a set (banned task types).
 func change_setting(id: StringName, value: Variant) -> void:
+	change_settings({id: value})
+
+
+## The host changes several settings in one ChangeSettings (a preset card, #491): the host checks
+## them together, so it never refuses a preset half-applied.
+func change_settings(values: Dictionary) -> void:
 	if _client != null:
-		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": values})
 
 
 ## The host names the lobby (#214): "" asks for the default again. Cleaned as the host will, so a

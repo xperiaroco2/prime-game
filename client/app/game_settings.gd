@@ -33,6 +33,14 @@ static func setup(game: Game) -> void:
 		page.reduced_motion_toggled.connect(set_reduced_motion.bind(game))
 		page.window_mode_picked.connect(set_fullscreen.bind(game))
 		page.language_chosen.connect(choose_language.bind(game))
+	# The Lobby tab's own preset (Save your own) is the player's too.
+	game.ui.esc.lobby.set_own_preset(saved.own_preset)
+	game.ui.esc.lobby.preset_saved.connect(save_own_preset.bind(game))
+
+
+static func save_own_preset(values: Dictionary, game: Game) -> void:
+	game.settings.own_preset = values
+	_save(game)
 
 
 ## Both pages' Sound and voice wired to `control` (the game's VoiceControl).
