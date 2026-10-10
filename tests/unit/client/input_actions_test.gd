@@ -11,6 +11,7 @@ const ACTIONS: Array[StringName] = [
 	&"jump",
 	&"interact",
 	&"put_down",
+	&"throw",
 	&"use",
 	&"debug_overlay",
 	&"give_up",
@@ -41,6 +42,19 @@ func test_put_down_is_q() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_Q])
+
+
+func test_throw_is_g_and_q_stays_an_exact_put_down() -> void:
+	# The throwing ADR's TD7 (a): `throw` is an action of its own, so Q never waits to tell a tap
+	# from a hold. G is the meta manager's provisional pick on the engineer's delegation (#302
+	# comment 6085904317), "not a decision"; G is also give_up, which acts only while downed.
+	for pair: Array in [[&"throw", KEY_G], [&"put_down", KEY_Q]]:
+		var keys: Array[Key] = []
+		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
+			var key := event as InputEventKey
+			if key != null:
+				keys.append(key.physical_keycode)
+		assert_array(keys).contains_exactly([pair[1]])
 
 
 func test_ready_is_f() -> void:

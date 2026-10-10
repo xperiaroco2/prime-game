@@ -26,7 +26,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   level per phase, pure), `GameWindow` (fullscreen and Alt+Enter, #517), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
   there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
   in code, the HUD and the task screen (M4-8), and the shared theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
-  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds; `ZoneViews`, #650).
+  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds; `ZoneViews`, #650; throws, #645).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
 - Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
@@ -65,7 +65,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Under the Esc menu no gameplay key is read and the keys held when it opened are released (`Game._process`);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse").
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
-- The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
+- The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.25).
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,
   stamina) come from the client's own copy of the mode's `PlayerRules`; `PlayerTuning` keeps client feel only (the
   push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.

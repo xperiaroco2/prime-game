@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://byicnf2ec3mmc"]
+
+[ext_resource type="Script" uid="uid://585ayd74qfek" path="res://client/dev/throw_preview.gd" id="1_preview"]
+
+[node name="ThrowPreview" type="Node3D" unique_id=1248864098]
+script = ExtResource("1_preview")

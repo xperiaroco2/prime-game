@@ -6,14 +6,22 @@ extends Node3D
 ## - Q (`put_down`) sends PutDown(facing) while the own hand holds an item;
 ## - the left mouse button (`use`) sends Use(facing) while the own hand holds an item; the click
 ##   that captures the mouse is not a use;
-## - X (`swap`) sends Swap() while the own hand or belt holds an item.
+## - X (`swap`) sends Swap() while the own hand or belt holds an item;
+## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
+##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
+##   that takes Throw from the living, one at a time (`predicting`): `throw_sent` then starts its
+##   predicted arc (ItemViews, §4.7.25). With no such rule nothing is sent.
 ## The facing is the camera's look vector (E22). The host decides everything and the client
-## predicts nothing of an action's outcome: the slots change only with the host's events. The keys
+## predicts nothing of an action's outcome but the throw's drawn arc, which changes no slot: the
+## slots change only with the host's events. The keys
 ## a raise uses (E on a downed player, LifeView) are M4-9's: a downed player in front of an item
 ## stops the item's ray, so E on a downed player picks up nothing behind it.
 ##
 ## The target is cast in the physics step, the only time the physics space may be read (it is
 ## locked outside it with physics on its own thread), after the local player moved (0).
+
+## The throw key sent Throw as `seq` from the camera at `eye` along `look` (ItemViews predicts).
+signal throw_sent(seq: int, eye: Vector3, look: Vector3)
 
 const PHYSICS_PRIORITY := 6
 
@@ -27,6 +35,8 @@ var reads_device_input := true
 ## Whether the item keys apply now (the game turns it off under the Esc menu and outside the
 ## round).
 var listening := true
+## Whether a throw still waits for the host's answer (ItemWorld gives ItemViews.is_predicting).
+var predicting := Callable()
 
 var _target := -1
 ## The reach the hint offers within (TargetChoice.hint_reach_of): the host's, less a margin.
@@ -91,6 +101,29 @@ func swap() -> int:
 	return session.send_intent(Intents.SWAP)
 
 
+## G: Throw(facing) of the own hand item, when the client's own copy of the mode has a Throw rule
+## for it (found as core finds it) and the phase takes Throw from the living, and no throw waits
+## for its answer; the sequence number sent, or -1 when nothing was sent.
+func throw() -> int:
+	if not _acts() or mode == null:
+		return -1
+	var item: ClientModel.Item = model.items.get(model.hand_item(model.own_peer))
+	if item == null or ItemArc.rule_of(mode, item.kind, model.role) == null:
+		return -1
+	var phase := mode.find_phase(model.phase)
+	var living := AcceptSpec.From.LIVING | AcceptSpec.From.PLAYER
+	if phase == null or (phase.senders_of(Intents.THROW) & living) == 0:
+		return -1
+	if predicting.is_valid() and predicting.call() as bool:
+		return -1
+	var eye := player.get_camera().global_position
+	var look := player.look_vector()
+	var seq := session.send_intent(Intents.THROW, {"facing": look})
+	if seq >= 0:
+		throw_sent.emit(seq, eye, look)
+	return seq
+
+
 ## The target's cast: the camera's ray against the level (as the host's line of sight) and the
 ## downed players' capsules (a downed player in front is M4-9's raise target, and E there picks up
 ## nothing behind it), then the item along it and the reach from the feet (TargetChoice); then
@@ -141,6 +174,8 @@ func _process(_delta: float) -> void:
 		put_down()
 	if Input.is_action_just_pressed(&"swap"):
 		swap()
+	if Input.is_action_just_pressed(&"throw"):
+		throw()
 	if captured and was_captured and Input.is_action_just_pressed(&"use"):
 		use()
 

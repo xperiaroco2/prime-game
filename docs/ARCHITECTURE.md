@@ -2098,8 +2098,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the same margin short of the raise's `TargetInReach`, which the host also measures from that claim's feet (#352:
   `LifeView.raise_hint_reach_of`, through `TargetChoice.hint_reach`). The host's `InReach` and `TargetInReach` are
   unchanged. The keys send `PickUp(item)`,
-  `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
-  again (§7.1), and the client predicts nothing of an action's outcome.
+  `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()` (and, since #645,
+  `Throw(facing)` on G); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
+  but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
+  `PhaseChanged` or `LoadMatch` (§4.7.25), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
   display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
   through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
@@ -2144,7 +2146,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
-- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
+- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons). G is
+  also `throw` since #645 (§4.7.25), so the give-up hold counts only from a press made while downed
+  (`LifeView.hold_give_up`): G held for a throw through the own knockdown gives nothing up until it is let go.
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
   human picks a CC0 track with its `docs/credits/` entry.
 - Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
@@ -2173,10 +2177,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
-  drawn and when the own living player holds it. Each view joins `SightHider.GROUP` and gives `sight_point()`; the
-  root's `visible` is left to the sight hiding, `ItemViews` toggles the look under it. `ItemViews` places in the
-  physics step at priority 1, after the avatars and the player moved and before `SightHider` (10) casts, so a view
-  out of the body's eye's sight is never drawn for a frame. `CircleViews` finds a station kind's size in the task types'
+  drawn and when the own living player holds it; in flight, on its arc (§4.7.25). Each view joins
+  `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
+  toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
+  player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
+  frame. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
   over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's). It leaves out a
   zone, which `ZoneViews` (§4.7.24) draws.
@@ -2553,7 +2558,9 @@ the two-client push runs over the loopback with the interpolation delay. Key eve
 `Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
-ADR's §6 check the rest.
+ADR's §6 check the rest. A thrown item's arc, stop and fall are pure (`ItemArc`, `ItemFlights`, unit-tested against
+core's `ItemFlight.point()` and a fixture match's real throw); the arcs in a physics world, the own arc's sweep
+against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/integration/client/world/` (§4.7.25).
 
 #### 4.7.24 Built in M7-Z4 (#650), the zones, their fill and the done look
 The client side of the zone task (§9.5.17; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
@@ -2595,6 +2602,83 @@ ZD11 (b) and ZE8, as the engineer answered them on #302).
   `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
   `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
   `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
+
+#### 4.7.25 Built in #645 (37e), the throw key, the predicted arc and the remote arcs
+The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
+TE5 (a)). The wire is unchanged.
+- **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
+  6085904317), "not a decision"; Q stays an exact put-down. G is also `give_up`, which acts only while downed and
+  counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
+  (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
+  client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
+  the role's, then the mode's, the first rule triggered by `Throw`, its first `ThrowItem`, as core finds it), the
+  phase takes `Throw` from the living, and no earlier throw waits for its answer. With no such rule G sends
+  nothing (the base mode until 37f). `ClientSession` sends the last claim's reliable twin right before it (#644).
+- **The prediction** (`ItemFlights`, `ItemArc`, pure, in `client/world/`). `throw_sent` hands the seq, the camera
+  and the look to `ItemViews.predict_throw`: the arc starts at the camera with the velocity and gravity built as
+  `ThrowItem` builds them from the rule's numbers (bit for bit the host's for the same facing), drawn on the
+  thrower's own clock from the press, and the first-person hand shows nothing. Until the arc's `ItemPlaced`, each
+  physics frame sweeps the drawn item's step through the own scene (a sphere of the rule's radius against the world
+  layer: `intersect_shape` at the start, then `cast_motion`'s safe fraction, as `HostWorldQuery.sweep`) and holds
+  it where the sweep stops it: presentation only. The own `ItemThrown` swaps in the host's vectors and launch tick,
+  and an offset that keeps the drawn item where it was fades out over `ItemArc.EASE_S` (0.2 s, not a decision); the
+  drawn time stays on the thrower's clock. The Throw's `Rejected` (by seq), or no answer within
+  `ItemFlights.PREDICTION_TIMEOUT_S` (2 s, not a decision; the reliable lane always answers), drops the arc and the
+  hand shows the item again.
+- **The remote arcs.** Every other `ItemThrown` gets an arc drawn at `AvatarViews.drawn_at()` less the launch tick,
+  the host-tick timeline the avatars are drawn on (behind by the interpolation delay). Between two whole ticks the
+  item is on the straight segment from point(k) to point(k + 1), the segment `FlightTicks` sweeps; at a whole tick it
+  is `ItemFlight.point()` exactly, no second copy of the formula. Before the drawn tick reaches the launch the item
+  stays at the thrower body's hand point (`carry_point()` for a two-handed kind), so it leaves the hand as the body
+  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed. A spectator
+  watching the thrower from its eyes sees no such item there: `LifeView` hides the views that
+  `ItemFlights.awaiting_launch_of(peer)` names, with the watched peer's hand and belt items (#168).
+- **The stop and the fall.** `ItemPlaced` with the cause `thrown` ends an arc: the host drops a stopped item straight
+  down, so the stop is the arc's point whose x and z are the rest's (`ItemArc.stop_of`; within
+  `REST_TOLERANCE_M`, 5 cm, not a decision), and a throw with no horizontal speed falls back to the rest's height;
+  the stop can lie no later than the estimated host tick at the event's arrival (`AvatarViews.host_tick()`; the
+  thrower's own clock for its own arc) plus `STOP_SLACK_TICKS` (3, not a decision). The drawn item flies on to the
+  stop, then falls straight down with the arc's gravity (sqrt(2h/g)); the own arc held at a wall falls from there.
+  A rest not below the arc (off its line, behind the launch, the no-floor fallback at the thrower's feet, TD11 (a)),
+  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest. The exception
+  is the own arc past a stop: its clock runs ahead of the host's flight by the round trip, and its sweep sees the
+  level only, not a living player the host stopped the item on, so it glides back to the rest over
+  `ItemArc.GLIDE_S` (0.15 s, not a decision) instead of jumping.
+- **A phase change.** `PhaseChanged` and `LoadMatch` drop every arc and the prediction; the model keeps `flying`, so
+  `ItemViews` hides the item until its `ItemPlaced`, if one comes, and no later phase draws it again (after a phase
+  without `FlightTicks` the host's flown ticks are no longer the host tick less the launch tick). An item picked up,
+  or gone from the model, loses its arc.
+- **The view** (the M4 ADR's §3 items 3, 5 and 10): the item in flight is its ordinary depth-tested `ItemView`, with
+  no trail, outline, label or `no_depth_test` overlay, already in `SightHider.GROUP` (its `sight_point()` follows
+  the arc), placed in `ItemViews`' physics step (priority 1, after the avatars and before `SightHider`).
+- **The sounds.** `SoundChooser` plays `ItemThrown` at its origin, the thrower's eye (`THROW`, aim at the origin),
+  cut beyond `HEARING_RANGE_M` of the ears and muffled behind the level by `WorldSounds`' ray: uncut, it would tell
+  every client where a package was just thrown to hide it. `ItemWorld` forwards every event to `ItemViews` and
+  plays neither `ItemThrown` nor a thrown item's `ItemPlaced` on arrival: `ItemViews.sound_due` hands them to
+  `WorldSounds.on_event` when the drawn item launches (the own throw at the press, from the predicted origin; the
+  host's own `ItemThrown` repeats nothing) and when it reaches its rest; an `ItemPlaced` with no arc lands at once.
+  The launch sound is a generated placeholder blip like the others (`WorldSounds.blip`); the asset is the
+  engineer's to pick.
+- Tests: `tests/unit/client/world/item_arc_test.gd` (the points against `ItemFlight.point()`, the fraction on the
+  segment; the prediction against a fixture match's real `ItemThrown`, bit for bit; `rule_of` in core's order
+  against a match's launch speed; the stop against a fixture match's wall stop, the longest flight, a vertical
+  throw, a rest off the arc and the no-floor fallback: seen failing without the past-the-stop rule, reverted; the
+  fall; the easing), `tests/unit/client/world/item_flights_test.gd` (the hidden hand, `Rejected` by seq, the
+  timeout, the own adoption with no second launch sound, the remote timeline and its launch sound, the stop, fall
+  and landing sound, no arc for a landing, the own sweep held at the wall: seen failing without the hold, reverted;
+  no sweep of a remote arc; a phase change, a new match, a pick-up),
+  `tests/integration/client/world/item_views_flight_test.gd` (a remote throw in the body's hand, then on the arc at
+  the drawn tick, to its stop and rest; the view in `SightHider`'s group with nothing drawn through walls; hidden at
+  a phase change until its rest; the own throw's empty hand and `Rejected`; the own drawn item held before a
+  fixture wall: seen failing without the sweep, reverted), `item_interactions_test.gd` (G after the claim's twin,
+  one at a time, Q still `PutDown`; nothing without a rule, in a phase that takes none, for a belt item, downed),
+  `item_world_throw_test.gd` (the launch sound at the press, none for the host's own `ItemThrown`, the landing sound
+  only once the drawn item lands, a put-down's at once), `sound_chooser_test.gd` (a launch beyond the hearing range
+  plays nothing), `world_sounds_test.gd` (a launch behind a wall muffled, none beyond the range),
+  `tests/unit/client/life/life_view_give_up_test.gd` (G held through the knockdown: seen failing without the guard,
+  reverted) and `input_actions_test.gd`. The `shot`: `client/dev/throw_preview.tscn`, on a `Throw` rule of its own
+  built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
+  a wall, and the own predicted knife held at a wall a step ahead.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -3605,7 +3689,7 @@ speed and the provisional gravity, radius and longest flight in the next two com
 them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
 and their wire rows (37c, #643, below).
 The client's model, the chaos shapes and the bots' step (37d, #644, below);
-the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e) are still to come.
+the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e, #645) are in §4.7.25.
 The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
@@ -4758,7 +4842,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
-| Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (5 m/s since #646: the highest speed at which no throw rests on House's roof, less 0.5 m/s, #302 comment 6096074314), the item's radius (0.15 m) and the longest flight (3 s) are provisional, for the first playtest | the engineer, at the playtest; 37a to 37d (#641 to #644) and 37f (#646) are built, 37e follows |
+| Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (5 m/s since #646: the highest speed at which no throw rests on House's roof, less 0.5 m/s, #302 comment 6096074314), the item's radius (0.15 m) and the longest flight (3 s) are provisional, for the first playtest | the engineer, at the playtest; 37a to 37f (#641 to #646) are built |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Returning players (#73): what identifies one, what a return restores, a return while a round runs, joining again from the menu, and where masks and ready-made parts go | Designed in #73 ([ADR](decisions/2026-10-09-returning-players-keep-their-number.md), proposed): a return key per settings file, the old number back in the lobby only, nothing else restored; P1, P3, P4, P9, P11, P12, P13 and the split wait for the engineer. Proposed: 73-A and 73-B in M7 after #550 and #551; a return into a running round only as its own design (73-D) |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
