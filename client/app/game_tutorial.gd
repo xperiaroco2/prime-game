@@ -15,7 +15,12 @@ extends RefCounted
 ## (GameUi.set_tutorial, #491) from start() to end(): Game, Guide and Settings.
 ##
 ## It starts by itself only on a first launch (first_launch()); the main menu's Tutorial and
-## --tutorial start it without the invite. #492 draws the invite while `invite_open` holds.
+## --tutorial start it without the invite. The screens (#492, GameUi.tutorial, TutorialScreen):
+## while `invite_open` holds, the invite shows once the room is in (the round screen), the mouse
+## free and no key counting (GameUi.blocks_keys); its Start begins lesson 1 and its Skip (or Esc)
+## leaves for the main menu, each setting the first-launch flag (mark_seen); a language chip
+## applies and saves the language. Every frame the plates draw the runner's lesson, step and done
+## set.
 ##
 ## The lessons (#602, §4.7.45): a LessonRunner over the own session's model plays
 ## content/tutorial/tutorial.tres. Without the invite they begin as the first lesson phase comes
@@ -46,6 +51,8 @@ var invite_open := false
 var hub: LoopbackHub
 ## The running tutorial's lessons, from start() to end(); null else. #492's screens read it.
 var runner: LessonRunner
+## The lessons the runner plays (the plates draw their keys).
+var lessons: TutorialLessons
 
 ## Game.mode before the tutorial took its place.
 var _base_mode: GameMode
@@ -68,6 +75,9 @@ static func first_launch(options: LaunchOptions, settings: UserSettings) -> bool
 ## Tutorial, then --tutorial, else the first launch's own start.
 func setup(game: Game) -> void:
 	game.ui.menu.tutorial_requested.connect(func() -> void: game.start_tutorial(false))
+	game.ui.tutorial.start_pressed.connect(_on_start.bind(game))
+	game.ui.tutorial.skip_pressed.connect(_on_skip.bind(game))
+	game.ui.tutorial.language_chosen.connect(GameSettings.choose_language.bind(game))
 	# These outlive every session: connected once, they reach whichever runner runs.
 	game.ui.map_opened.connect(_see.bind(ClientSeen.MAP_OPENED))
 	game.life().target_switched.connect(
@@ -118,13 +128,14 @@ func _on_welcomed(_own_peer: int, game: Game) -> void:
 ## This session's runner, fed its events and claims; a handler bound to an older session's
 ## runner does nothing.
 func _start_lessons(game: Game) -> void:
-	var lessons := LessonRunner.new()
-	lessons.setup(load(LESSONS_PATH) as TutorialLessons, game.client().model)
-	lessons.next_stage_requested.connect(_on_next_stage.bind(game))
-	lessons.finished.connect(game.leave)
-	game.client().event_received.connect(_on_event.bind(lessons, game))
-	game.client().claim_sent.connect(_on_claim.bind(lessons))
-	runner = lessons
+	lessons = load(LESSONS_PATH) as TutorialLessons
+	var playing := LessonRunner.new()
+	playing.setup(lessons, game.client().model)
+	playing.next_stage_requested.connect(_on_next_stage.bind(game))
+	playing.finished.connect(game.leave)
+	game.client().event_received.connect(_on_event.bind(playing, game))
+	game.client().claim_sent.connect(_on_claim.bind(playing))
+	runner = playing
 
 
 ## Lesson 1 begins (the invite's Start, #492; by itself without the invite); the voice frames and
@@ -143,6 +154,8 @@ func begin(game: Game) -> void:
 ## engineer's answer on PR #722): no time counts for it there (an open microphone still resets it).
 func process(game: Game, delta: float) -> void:
 	var current := runner
+	if current != null:
+		_show(game, current)
 	if current == null or not current.is_running():
 		return
 	var player := game.player()
@@ -157,6 +170,44 @@ func process(game: Game, delta: float) -> void:
 	if sent > _voice_sent:
 		current.see(ClientSeen.VOICE_SENT)
 	_voice_sent = sent
+
+
+## The screens follow the runner: the invite once the room is in (the mouse freed for it), then the
+## plates (TutorialScreen.show_lessons redraws only on a change, a rebind included).
+func _show(game: Game, current: LessonRunner) -> void:
+	var screen := game.ui.tutorial
+	var in_room := game.ui.screen == GameFlow.Screen.ROUND
+	if invite_open and in_room and not screen.invite_shown():
+		screen.open_invite()
+		game.pointer.capture(false)
+	var done: Array[bool] = []
+	for number in range(1, current.lesson_count() + 1):
+		done.append(current.is_done(number))
+	screen.show_lessons(lessons, current.lesson(), current.step(), done)
+
+
+## The invite's Start: the flag is set, the invite goes, lesson 1 begins and the round's mouse is
+## captured again (only while the window has the focus, as after the Esc menu).
+func _on_start(game: Game) -> void:
+	if not invite_open:
+		return
+	invite_open = false
+	mark_seen(game)
+	game.ui.tutorial.close_invite()
+	begin(game)
+	if GameFlow.pointer_on(game.screen()) != GameFlow.Pointer.FREE and game.pointer.focused():
+		game.pointer.capture(true)
+
+
+## The invite's Skip, or Esc on it: the flag is set and the session ends at the main menu (the
+## reason `closed`: no failure shows).
+func _on_skip(game: Game) -> void:
+	if not invite_open:
+		return
+	invite_open = false
+	mark_seen(game)
+	game.ui.tutorial.close_invite()
+	game.leave()
 
 
 ## Game.open_esc: the Esc menu opened.
@@ -178,11 +229,11 @@ func _see(signal_name: StringName) -> void:
 
 
 func _on_event(
-	event_name: StringName, fields: Dictionary, lessons: LessonRunner, game: Game
+	event_name: StringName, fields: Dictionary, source: LessonRunner, game: Game
 ) -> void:
-	if lessons != runner:
+	if source != runner:
 		return
-	lessons.on_event(event_name, fields)
+	source.on_event(event_name, fields)
 	if event_name == &"PhaseChanged" and not invite_open:
 		var phase: Variant = fields.get("phase")
 		if (phase is StringName or phase is String) and str(phase) == LESSONS_PHASE:
@@ -190,10 +241,10 @@ func _on_event(
 
 
 func _on_claim(
-	_epoch: int, _tick: int, covered: int, _sprint: bool, moved_itself: bool, lessons: LessonRunner
+	_epoch: int, _tick: int, covered: int, _sprint: bool, moved_itself: bool, source: LessonRunner
 ) -> void:
-	if lessons == runner:
-		lessons.on_claim(covered, moved_itself)
+	if source == runner:
+		source.on_claim(covered, moved_itself)
 
 
 func _on_next_stage(game: Game) -> void:
@@ -201,9 +252,9 @@ func _on_next_stage(game: Game) -> void:
 		game.client().send_intent(Intents.NEXT_STAGE)
 
 
-## The session ended (Game._end_session, after the host went): the stand-ins go and the mode is
-## the one before again. A tutorial that began with the invite counts as seen (the flag written):
-## until #492's Start and Skip set it, a first launch must not start it on every launch.
+## The session ended (Game._end_session, after the host went): the stand-ins go, the mode is the
+## one before again and the screens clear. Only the invite's Start and Skip set the flag: a
+## session that ended under the invite (the window closed) offers it on the next launch.
 func end(game: Game) -> void:
 	if not running:
 		return
@@ -215,8 +266,7 @@ func end(game: Game) -> void:
 	_base_mode = null
 	game.ui.set_tutorial(false)
 	runner = null
-	if invite_open:
-		mark_seen(game)
+	lessons = null
 	running = false
 	invite_open = false
 

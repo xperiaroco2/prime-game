@@ -150,8 +150,8 @@ func test_with_the_invite_the_lessons_wait_for_begin() -> void:
 	await _hold()
 	assert_int(runner.lesson()).is_equal(0)
 	assert_bool(runner.is_running()).is_false()
-	# #492's Start.
-	first.tutorial.begin(first)
+	# #492's Start, pressed.
+	first.ui.tutorial.start_button.pressed.emit()
 	assert_int(runner.lesson()).is_equal(1)
 	first.tutorial.begin(first)
 	assert_int(runner.lesson()).is_equal(1)

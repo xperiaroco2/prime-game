@@ -13,6 +13,8 @@ extends RefCounted
 
 ## The main menu's open page (no session: no Esc menu under it).
 const MENU_PANEL := 10
+## The tutorial's invite (#492; layer 2 of the handoffs, s1): Esc is its Skip.
+const INVITE := 20
 ## The map and tasks screen (layer 3 of the handoffs).
 const MAP := 30
 ## A how-to card over the map (#254; layer 3, above the map).

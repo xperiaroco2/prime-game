@@ -597,11 +597,12 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 	if _player == null:
 		return
 	_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
-	var listening := not GameFlow.frozen(now) and not ui.esc_open()
+	var listening := not GameFlow.frozen(now) and not ui.blocks_keys()
 	_player.reads_device_input = device_input and listening
 	# The map frees the mouse for its «?» while the player still walks, jumps, picks up and talks
-	# (the designer's answer on #253): the controller only stops looking and recapturing.
-	_player.mouse_free = ui.map_is_open()
+	# (the designer's answer on #253): the controller only stops looking and recapturing. So
+	# does the tutorial's invite (#492), under which no key counts.
+	_player.mouse_free = ui.frees_mouse()
 	_life.reads_device_input = device_input
 	_life.listening = listening and now == GameFlow.Screen.ROUND
 	_items.interactions.reads_device_input = device_input
