@@ -171,8 +171,8 @@ per place, so the bots' scenarios keep playing on the flat greybox. The issues f
 Open question (the engineer's; the ADR's DD9, with options and a recommendation):
 - The flat greybox keeps only the basic Delivery (his answer on PR #695). Is that this Delivery, and how does a player
   there tell its places apart: this Delivery with a greybox prop at each place (a dining table, a terrace table, a
-  patch of lawn, a workbench; recommended), this Delivery on bare places, or today's colour circles on the greybox
-  alone?
+  patch of lawn, a workbench, which players and items pass through, as the bots' level stays flat; recommended),
+  this Delivery on bare places, or today's colour circles on the greybox alone?
 
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Nothing is decided beyond what already holds: tasks are
