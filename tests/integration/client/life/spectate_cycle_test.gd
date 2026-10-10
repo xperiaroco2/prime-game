@@ -91,6 +91,36 @@ func test_cycling_shows_the_left_target_and_its_items_again() -> void:
 	_assert_watched(watched)
 
 
+func test_only_the_players_own_switch_is_announced() -> void:
+	# The tutorial's lesson 7 (#602, docs/design/tutorial.md §1): the first target drawn at the
+	# death, a lost target replaced, a cycle with one candidate, a living player and reset() are no
+	# switch.
+	var switched: Array[int] = []
+	_life.target_switched.connect(func(peer: int) -> void: switched.append(peer))
+	_others_at({FIRST: Vector3(4, 0, 0), SECOND: Vector3(-4, 0, 0)})
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	await _drawn()
+	var watched := _life.target()
+	assert_int(watched).is_not_equal(0)
+	assert_array(switched).is_empty()
+	_life.cycle_target(1)
+	var next := _life.target()
+	assert_int(next).is_not_equal(watched)
+	assert_array(switched).is_equal([next])
+	# The watched one dies: the view draws the other, by itself.
+	_model.lives[next] = ClientModel.Life.DEAD
+	await _drawn()
+	assert_int(_life.target()).is_equal(watched)
+	# One candidate left: cycling keeps it.
+	_life.cycle_target(1)
+	_life.cycle_target(-1)
+	assert_int(_life.target()).is_equal(watched)
+	_model.lives.erase(OWN)
+	_life.cycle_target(1)
+	_life.reset()
+	assert_array(switched).is_equal([next])
+
+
 ## `peer` is watched from its eyes as it sees itself, and the other target is drawn as any other
 ## player: its body by the spectate camera, its items at its body.
 func _assert_watched(peer: int) -> void:
