@@ -171,6 +171,7 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
 | Car repair | Lift control (its point a proposal; no view of who is under the car, decided in #688) | 0 | 57, 46 | Garage |
+| Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
 | Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
@@ -184,9 +185,11 @@ is under the car; a dissident plays by the same rules (#679's shared rule), so a
 The panel's proposed point stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot
 hold the lift and fit a part; but that is beyond the voice range (8 m) from parts of the panel's reach, and the holder
 relies on voice. So the panel moves nearer: every point of its reach within the voice range less a margin of the car's
-use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2
-asks for the distance, its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
-(issue R5).
+use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2:
+5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
+(issue R5). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
+(later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
+player having a crouch (#727).
 
 ## 7. Routes and travel times
 
