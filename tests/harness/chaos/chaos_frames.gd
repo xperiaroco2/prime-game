@@ -65,7 +65,8 @@ const UNASSIGNED: Array[int] = [0, 19, 23, 26, 31, 75, 76, 80, 95, 97, 111, 113,
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
 ## zero, and two whose squared length underflows (1e-30) or overflows (1e38) in single precision.
 ## Finite on purpose: a NaN or infinite float is class 1, which the codec refuses before any rule.
-## No phase of the base mode accepts Throw yet (37f, #646), so each is refused `not_accepted`.
+## Round takes Throw from the living (#646): with the hostile's empty hand each is refused
+## `empty_hand` there, `not_accepted` elsewhere.
 const THROW_FACINGS: Array[Vector3] = [
 	Vector3.FORWARD, Vector3.ZERO, Vector3(1e-30, 0, 0), Vector3(1e38, 0, 0)
 ]

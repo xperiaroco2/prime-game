@@ -16,9 +16,10 @@ extends RefCounted
 ##   teleports it next to the item, which the host corrects: reach is measured from the host's
 ##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
-## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, Throw only
-## while no phase accepts it (its facings: ChaosFrames.THROW_FACINGS; 37f, #646, which opens Round
-## to it, changes this with ChaosOracle), nothing a race could turn into an action.
+## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, PutDown,
+## Use and Throw (its facings: ChaosFrames.THROW_FACINGS) only with the empty hand its bot always
+## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
+## is `empty_hand`), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4

@@ -60,6 +60,9 @@
 [ext_resource type="Script" uid="uid://d3je3vwistkvf" path="res://core/items/carries_item.gd" id="75_carries"]
 [ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="76_one_handed"]
 [ext_resource type="Script" uid="uid://dfwrfalg8jysm" path="res://core/items/swap_hands.gd" id="77_swap"]
+[ext_resource type="Script" uid="uid://dtq8afy52ua35" path="res://core/items/throw_item.gd" id="78_throw"]
+[ext_resource type="Script" uid="uid://uvlgs3p3qbgt" path="res://core/items/over_floor.gd" id="79_over_floor"]
+[ext_resource type="Script" uid="uid://doh8ordg6dl1t" path="res://core/items/flight_ticks.gd" id="80_flight_ticks"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -147,6 +150,25 @@ script = ExtResource("1_o02jd")
 trigger = &"Swap"
 conditions = Array[ExtResource("21_condition")]([SubResource("Swap_carries"), SubResource("Swap_one_handed")])
 effects = Array[ExtResource("14_effect")]([SubResource("Swap_hands")])
+
+[sub_resource type="Resource" id="Throw_holds"]
+script = ExtResource("26_holds")
+
+[sub_resource type="Resource" id="Throw_over_floor"]
+script = ExtResource("79_over_floor")
+
+[sub_resource type="Resource" id="Throw_item"]
+script = ExtResource("78_throw")
+speed_mps = 5.0
+gravity_mps2 = 9.8
+radius_m = 0.15
+longest_flight_s = 3.0
+
+[sub_resource type="Resource" id="Rule_throw"]
+script = ExtResource("1_o02jd")
+trigger = &"Throw"
+conditions = Array[ExtResource("21_condition")]([SubResource("Throw_holds"), SubResource("Throw_over_floor")])
+effects = Array[ExtResource("14_effect")]([SubResource("Throw_item")])
 
 [sub_resource type="Resource" id="Accept_lobby_hello"]
 script = ExtResource("6_accept")
@@ -271,6 +293,11 @@ script = ExtResource("6_accept")
 intent = &"Swap"
 from = 4
 
+[sub_resource type="Resource" id="Accept_round_throw"]
+script = ExtResource("6_accept")
+intent = &"Throw"
+from = 4
+
 [sub_resource type="Resource" id="Respawn_round"]
 script = ExtResource("66_respawn")
 tag = &"respawn"
@@ -283,6 +310,9 @@ respawn = SubResource("Respawn_round")
 [sub_resource type="Resource" id="ChannelTicks_round"]
 script = ExtResource("67_channel_ticks")
 
+[sub_resource type="Resource" id="FlightTicks_round"]
+script = ExtResource("80_flight_ticks")
+
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
 
@@ -294,8 +324,8 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("TaskTicks_round")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap"), SubResource("Accept_round_throw")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("FlightTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
 voice_rule = SubResource("Voice_round")
@@ -493,7 +523,7 @@ roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_
 item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn", "res://levels/house/house.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap"), SubResource("Rule_throw")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery"), ExtResource("30_zone")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])

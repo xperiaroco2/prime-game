@@ -1,33 +1,14 @@
 extends GdUnitTestSuite
-## A throw end to end (#644, 37d; ARCHITECTURE §7.1.16, §9.7): a bot picks up a package and throws
-## it, the other bot sees the flight and its end, on the core runner and through the network, where
-## the leak check compares each ItemThrown a client decoded with the host's view exactly. The base
-## mode accepts Throw in no phase until 37f (#646), so the throw runs on a copy of it with the
-## fixture's Throw rule (FixtureThrowModes: a test's numbers, not a decision); the unchanged base
-## mode refuses it as not_accepted.
+## A throw end to end (#644, 37d; #646, 37f; ARCHITECTURE §7.1.16, §9.7): a bot picks up a package
+## and throws it with the base mode's Throw rule, the other bot sees the flight and its end, on the
+## core runner and through the network, where the leak check compares each ItemThrown a client
+## decoded with the host's view exactly; a throw with an empty hand is refused as empty_hand.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://throw_scenarios_test"
 
-## Held for the whole suite, so load() hands every test this cached object, as it does to a run's
-## other suites while anything holds it: a change to it would outlive the test.
-var _base: GameMode
-
-
-func before() -> void:
-	_base = load(BASE_MODE) as GameMode
-
 
 func after_test() -> void:
-	# The copy never reaches the cached base mode.
-	assert_object(load(BASE_MODE)).is_same(_base)
-	var round_spec := _base.find_phase(&"round")
-	for accepted: AcceptSpec in round_spec.accepts:
-		assert_str(String(accepted.intent)).is_not_equal(String(Intents.THROW))
-	for system: TickSystem in round_spec.tick_systems:
-		assert_bool(system is FlightTicks).is_false()
-	for rule: Rule in _base.actions:
-		assert_str(String(rule.trigger)).is_not_equal(String(Intents.THROW))
 	if not DirAccess.dir_exists_absolute(OUT):
 		return
 	for file: String in DirAccess.get_files_at(OUT):
@@ -35,20 +16,20 @@ func after_test() -> void:
 	DirAccess.remove_absolute(OUT)
 
 
-func test_the_mode_copy_with_a_throw_rule_passes_the_mode_check() -> void:
-	var mode := _throwing_mode()
-	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
-	assert_bool(mode.find_phase(&"round").accepts.any(_is_throw)).is_true()
+func test_the_base_mode_round_accepts_throw_from_the_living() -> void:
+	var mode := _base_mode()
+	var round_spec := mode.find_phase(&"round")
+	assert_int(round_spec.senders_of(Intents.THROW)).is_equal(AcceptSpec.From.LIVING)
 
 
 func test_a_bot_throws_a_package_and_the_other_sees_its_flight_on_the_core_runner() -> void:
-	var runner := ScenarioRunner.play(_throw_scenario(_throwing_mode()))
+	var runner := ScenarioRunner.play(_throw_scenario(_base_mode()))
 	assert_array(Array(runner.failures)).is_empty()
 	_assert_thrown_then_rested(runner.bots)
 
 
 func test_a_bot_throws_a_package_through_the_network_and_nothing_leaks() -> void:
-	var runner := BotsRunner.play(_throw_scenario(_throwing_mode()), OUT)
+	var runner := BotsRunner.play(_throw_scenario(_base_mode()), OUT)
 	# The leak check is part of the failures: every ItemThrown a client decoded equals the host's.
 	assert_array(Array(runner.failures)).is_empty()
 	_assert_thrown_then_rested(runner.bots)
@@ -58,25 +39,26 @@ func test_a_bot_throws_a_package_through_the_network_and_nothing_leaks() -> void
 		_assert_model_rested(runner.clients[bot.number].model, bot, runner.bots[0])
 
 
-func test_the_base_mode_refuses_a_throw_as_not_accepted() -> void:
-	var scenario := _throw_scenario(load(BASE_MODE) as GameMode)
+func test_the_base_mode_refuses_a_throw_with_an_empty_hand() -> void:
+	var scenario := _throw_scenario(_base_mode())
 	var thrower := scenario.scripts[0]
 	var throw := thrower.steps[4] as StepThrow
-	throw.expect_rejected = RejectReasons.NOT_ACCEPTED
-	# It still holds the package: nothing flies, nothing rests.
-	thrower.steps.resize(5)
+	throw.expect_rejected = HoldsItem.EMPTY_HAND
+	# No package held, so no circle of it: a point ahead.
+	var ahead := ScenarioTarget.new()
+	ahead.point = Vector3(0, 0, 20)
+	throw.towards = ahead
+	# No pick-up first (and no walk to the package): nothing flies, nothing rests.
+	var steps: Array[ScenarioStep] = [thrower.steps[0], thrower.steps[1], throw]
+	thrower.steps = steps
 	scenario.scripts[1].steps.resize(2)
 	var runner := ScenarioRunner.play(scenario)
 	assert_array(Array(runner.failures)).is_empty()
-	assert_int(runner.bots[0].held).is_greater_equal(0)
+	assert_int(runner.bots[0].held).is_equal(-1)
 
 
-## The base mode deep-copied (its phases are internal subresources, so the copy has its own
-## PhaseSpecs and arrays) with the fixture's Throw rule, Round accepting Throw and FlightTicks.
-func _throwing_mode() -> GameMode:
-	var base := load(BASE_MODE) as GameMode
-	var copy := base.duplicate_deep(Resource.DEEP_DUPLICATE_INTERNAL) as GameMode
-	return FixtureThrowModes.with_throw(copy)
+func _base_mode() -> GameMode:
+	return load(BASE_MODE) as GameMode
 
 
 ## Bot 1 walks to its first package, picks it up and throws it towards the package's circle,
@@ -168,7 +150,3 @@ func _rested() -> StepWaitFor:
 	step.event = &"ItemPlaced"
 	step.fields = {"cause": String(Items.THROWN)}
 	return step
-
-
-func _is_throw(accepted: AcceptSpec) -> bool:
-	return accepted.intent == Intents.THROW
