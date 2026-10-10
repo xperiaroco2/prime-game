@@ -12,8 +12,9 @@ extends Control
 ##   raised.
 ## - `Spectate` (top centre, while dead): the time to respawn and whom the player watches.
 ## - `Protect` (24 px under the HUD's timer): the respawn's protection, 3, 2, 1, then hidden.
-## Styled only through the shared theme's variations (no override; the keycap's `min_width` read
-## into `custom_minimum_size` with UiParts.sized, again after the large-text swap); every node
+## Styled only through the shared theme's variations (no override; the keycap's `min_width`, or
+## `wide_min_width` for a wide key such as Space, read into `custom_minimum_size` as UiParts.sized
+## does, again after the large-text swap and a rebind); every node
 ## ignores the mouse and takes no focus. Texts with data are set from code (`auto_translate_mode`
 ## DISABLED) and written again on NOTIFICATION_TRANSLATION_CHANGED (#208). It reads nothing itself:
 ## the game feeds it.
@@ -51,6 +52,8 @@ var protect_label := UiParts.styled_label("", &"ToyChipLightText")
 
 ## The last state shown (a translation change writes its texts again).
 var _shown := LifeHud.Shown.new()
+## Whether the keycap has the wide size (the bound give_up key's, ARCHITECTURE §4.7.30 rule 7).
+var _key_wide := false
 
 
 func _init() -> void:
@@ -93,6 +96,9 @@ func show_hud(shown: LifeHud.Shown) -> void:
 	raise_bar.value = shown.raise
 	give_up.visible = down
 	key_label.text = shown.give_up_key
+	if shown.give_up_wide != _key_wide:
+		_key_wide = shown.give_up_wide
+		_size_key()
 	hold_bar.value = shown.give_up
 	spectate.visible = shown.state == LifeHud.State.DEAD
 	respawn_label.visible = not shown.respawn.is_empty()
@@ -113,6 +119,12 @@ func give_up_text() -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_write()
+
+
+## The keycap's width from its variation: `wide_min_width` for a wide key, else `min_width`.
+func _size_key() -> void:
+	if key.is_inside_tree():
+		key.custom_minimum_size.x = UiParts.size_of(key, _key_wide).x
 
 
 ## The texts with data: each a deck key through tr(), then its data.
@@ -177,7 +189,10 @@ func _build_give_up() -> void:
 	line.add_child(before_label)
 	key.name = "Key"
 	key.theme_type_variation = &"ToyKeyOnDark"
-	line.add_child(UiParts.sized(key))
+	# UiParts.sized() with a width that follows the binding: read again after every theme change
+	# (deferred, for sized()'s cache reason) and when show_hud() is given a key of the other width.
+	key.theme_changed.connect(_size_key, CONNECT_DEFERRED)
+	line.add_child(key)
 	key_label.name = "Text"
 	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	key.add_child(key_label)

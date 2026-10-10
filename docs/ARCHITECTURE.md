@@ -3446,8 +3446,7 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
 The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `ui-0.2.0` the give-up pieces are
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
-`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
-- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
+`LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
   a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
   ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
@@ -3463,7 +3462,9 @@ at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`)
   `down`: `downed.title`, the bleed-out bar (`LifeCountdowns.knockdown_fraction()`: the time left over the mode's
   knockdown) and `downed.time_left` (m:ss, rounded up), and the give-up line: `tr("downed.give_up_hold")` split at
   `{key}`, each piece through `strip_edges()`, an empty piece hidden (uk: "Щоб здатися, утримуй" [F]), around the
-  keycap of `KeyLabel.of_action(&"give_up")` (§4.7.28), so it follows a rebind; the hold bar fills over
+  keycap of `KeyLabel.of_action(&"give_up")` (§4.7.28), so it follows a rebind, wide (`wide_min_width`) when
+  `KeyLabel.is_wide_action(&"give_up")` says so (§4.7.30 rule 7, carried as `LifeHud.Shown.give_up_wide`, read
+  again on every theme change); the hold bar fills over
   `LifeView.GIVE_UP_HOLD_S` and stays shown, empty, at rest (`down-holding`). `raise` (a raiser in the model):
   `downed.raised_by` with the raiser's name, the raise's progress (the raiser's HUD bar's value, §4.7.37) in place
   of the bar and the time, no GiveUp; when the raise stops the bleed-out returns. `dead` (or gone): `dead.respawn_in`
@@ -3478,7 +3479,8 @@ at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`)
   `hud.spectating`; the `spectate` scenario waits on them.
 - Tests: `tests/unit/client/ui/life_screen_test.gd` (the tree, anchors, offsets, grow directions and minimum sizes;
   no mouse or focus; every state in English and Ukrainian and a language switch; the bleed fill's ramp stop; the
-  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; 36 and 42 px at large
+  hold leaving the plate's size alone; the keycap following a rebind through `LifeView.hud()`; Space's 96 px wide keycap on both themes and K's
+  36 and 42 px after it; 36 and 42 px at large
   text with every plate on the screen; the `Ui` shows it in the round only), `tests/unit/client/life/life_hud_test.gd`
   (each state's data, the m:ss rounding, the raise stopping, the protection after a respawn and not a raise, the
   sentence's pieces), `life_countdowns_test.gd` (`knockdown_fraction`, `protection_left_s`), `hud_test.gd` and

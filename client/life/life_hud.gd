@@ -29,6 +29,9 @@ class Shown:
 	## DOWN: the give-up hold's progress (0 at rest, 1 gives up) and the give-up key's label.
 	var give_up := 0.0
 	var give_up_key := "F"
+	## DOWN: whether the give-up keycap takes the wide size (KeyLabel.is_wide_action: Space, Shift,
+	## Tab or Esc bound; ARCHITECTURE §4.7.30 rule 7).
+	var give_up_wide := false
 	## RAISE: the raiser's name and the raise's progress, 0 to 1.
 	var raiser := ""
 	var raise := 0.0
@@ -50,10 +53,14 @@ class Local:
 	var give_up_hold_s := 1.0
 	## The label of the give_up key bound now (KeyLabel.of_action); the project's default F.
 	var give_up_key := "F"
+	## Whether that key's keycap takes the wide size (KeyLabel.is_wide_action).
+	var give_up_wide := false
 
-	## The label of the give-up key bound now, from the InputMap and the keyboard layout.
+	## The label of the give-up key bound now, from the InputMap and the keyboard layout, and
+	## whether its keycap is wide.
 	func read_keys() -> void:
 		give_up_key = KeyLabel.of_action(&"give_up")
+		give_up_wide = KeyLabel.is_wide_action(&"give_up")
 
 
 static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local) -> Shown:
@@ -88,6 +95,7 @@ static func _downed(
 	if local.give_up_hold_s > 0.0:
 		shown.give_up = clampf(local.give_up_held_s / local.give_up_hold_s, 0.0, 1.0)
 	shown.give_up_key = local.give_up_key
+	shown.give_up_wide = local.give_up_wide
 
 
 ## Seconds as m:ss ("0:10", "1:05"), the downed and dead plates' times.

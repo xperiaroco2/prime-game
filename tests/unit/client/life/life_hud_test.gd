@@ -63,6 +63,9 @@ func test_the_give_up_key_is_the_one_bound_now() -> void:
 	_fold(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
 	_local.give_up_key = "K"
 	assert_str(_shown(0.0).give_up_key).is_equal("K")
+	assert_bool(_shown(0.0).give_up_wide).is_false()
+	_local.give_up_wide = true
+	assert_bool(_shown(0.0).give_up_wide).is_true()
 
 
 func test_the_raised_see_the_raiser_and_the_raise_in_place_of_the_bleed_out() -> void:

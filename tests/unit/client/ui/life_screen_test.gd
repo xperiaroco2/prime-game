@@ -285,6 +285,30 @@ func test_the_keycap_follows_a_rebind_through_the_life_view() -> void:
 	assert_str(screen.give_up_text()).is_equal("Hold K to give up")
 
 
+func test_a_wide_key_widens_the_keycap_on_both_themes() -> void:
+	# §4.7.30 rule 7: Space, Shift, Tab and Esc take the theme's `wide_min_width`; a narrow key
+	# bound again takes `min_width` back.
+	var screen := await _screen()
+	var holder := screen.get_parent() as Control
+	var view := _downed_view()
+	screen.show_hud(view.hud(0.0))
+	assert_float(screen.key.custom_minimum_size.x).is_equal(36.0)
+	_bind_give_up(KEY_SPACE)
+	screen.show_hud(view.hud(0.0))
+	assert_float(screen.key.custom_minimum_size.x).is_equal(96.0)
+	holder.theme = GameUi.THEME_LARGE
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_float(screen.key.custom_minimum_size.x).is_equal(96.0)
+	_bind_give_up(KEY_K)
+	screen.show_hud(view.hud(0.0))
+	assert_float(screen.key.custom_minimum_size.x).is_equal(42.0)
+	holder.theme = GameUi.THEME
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_float(screen.key.custom_minimum_size.x).is_equal(36.0)
+
+
 func test_large_text_widens_the_keycap_and_keeps_every_plate_on_screen() -> void:
 	var screen := await _screen()
 	var holder := screen.get_parent() as Control
@@ -344,6 +368,27 @@ static func _down() -> LifeHud.Shown:
 
 
 ## A LifeScreen under the shared theme at the 1920x1080 base, after its sizes were read.
+## A life view whose own player is downed, at tick 0.
+func _downed_view() -> LifeView:
+	var view := auto_free(LifeView.new()) as LifeView
+	view.model = ClientModel.new(FixtureBaseMode.mode())
+	view.model.own_peer = OWN
+	view.countdowns = LifeCountdowns.new(FixtureModes.player_rules(), 3.0)
+	var knocked := {"peer": OWN, "position": Vector3.ZERO}
+	view.model.fold(&"KnockedDown", knocked)
+	view.countdowns.on_event(&"KnockedDown", knocked, OWN, 0.0)
+	return view
+
+
+## Binds give_up to the physical key `physical` (after_test() restores the project's bindings).
+func _bind_give_up(physical: Key) -> void:
+	var controls := Controls.new()
+	var key := InputEventKey.new()
+	key.physical_keycode = physical
+	controls.bind(&"give_up", key)
+	controls.apply()
+
+
 func _screen() -> LifeScreen:
 	var holder: Control = auto_free(Control.new())
 	holder.theme = GameUi.THEME
