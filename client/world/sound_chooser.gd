@@ -13,7 +13,11 @@ extends RefCounted
 ## Where each one plays:
 ## - Swung: at the swinger: the local player for the own swing, else its interpolated pose;
 ## - ItemPickedUp: where the item lay (the model's fold keeps the item's last resting place);
-## - ItemPlaced: at the event's position.
+## - ItemPlaced: at the event's position;
+## - ItemThrown: at the launch's origin, the thrower's eye (37e: ItemViews hands it over when the
+##   drawn item launches, and a thrown item's ItemPlaced when it lands at its rest). ItemThrown
+##   reaches everyone with its origin: uncut, the launch would tell every client where a package
+##   was just thrown to hide it.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -24,10 +28,13 @@ const HEARING_RANGE_M := 12.0
 ## Placeholders, "not a decision".
 const SWING_AIM_M := 1.0
 const ITEM_AIM_M := 0.3
+## A launch plays at the thrower's eye, in the air: the ray aims at the origin itself.
+const THROW_AIM_M := 0.0
 
 const SWING := &"swing"
 const PICK_UP := &"pick_up"
 const PUT_DOWN := &"put_down"
+const THROW := &"throw"
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -74,6 +81,8 @@ static func source(
 			return Sound.new(PICK_UP, item.position, ITEM_AIM_M) if item != null else null
 		&"ItemPlaced":
 			return Sound.new(PUT_DOWN, fields["position"] as Vector3, ITEM_AIM_M)
+		&"ItemThrown":
+			return Sound.new(THROW, fields["origin"] as Vector3, THROW_AIM_M)
 	return null
 
 

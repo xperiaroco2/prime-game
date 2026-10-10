@@ -4,10 +4,10 @@ extends Node3D
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
 ## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
-## As it starts, one ray from the ears to the sound's aim (SoundChooser.SWING_AIM_M or ITEM_AIM_M
-## above it) against the world layer of the client's own level (the M5 ADR §1.6, E42 (a), D13 (a);
-## M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the muffled Effects bus's
-## low-pass), and stays so to its end (0.15 s).
+## As it starts, one ray from the ears to the sound's aim (SoundChooser's SWING_AIM_M, ITEM_AIM_M
+## or THROW_AIM_M above it) against the world layer of the client's own level (the M5 ADR §1.6,
+## E42 (a), D13 (a); M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the
+## muffled Effects bus's low-pass), and stays so to its end (0.15 s).
 ##
 ## The sounds are short blips built in code (no asset, nothing downloaded): placeholders, until
 ## the engineer's CC0 files arrive with their docs/credits/ entries (D9; #144).
@@ -32,7 +32,9 @@ var _muffled := 0
 
 
 func _init() -> void:
-	for id: StringName in [SoundChooser.SWING, SoundChooser.PICK_UP, SoundChooser.PUT_DOWN]:
+	for id: StringName in [
+		SoundChooser.SWING, SoundChooser.PICK_UP, SoundChooser.PUT_DOWN, SoundChooser.THROW
+	]:
 		_streams[id] = blip(id)
 
 
@@ -92,7 +94,8 @@ func position_of(peer: int) -> Variant:
 
 
 ## The placeholder sound `id`: a short 16-bit mono blip, a falling noise burst for a swing, a
-## rising tone for a pick-up and a low thud for a put-down.
+## rising tone for a pick-up, a low thud for a put-down and a swelling then fading noise for a
+## throw's launch.
 static func blip(id: StringName) -> AudioStreamWAV:
 	var seconds := 0.15
 	var data := PackedByteArray()
@@ -107,6 +110,8 @@ static func blip(id: StringName) -> AudioStreamWAV:
 		match id:
 			SoundChooser.SWING:
 				value = rng.randf_range(-1.0, 1.0) * fade * fade
+			SoundChooser.THROW:
+				value = rng.randf_range(-1.0, 1.0) * sin(PI * float(i) / count) * 0.8
 			SoundChooser.PICK_UP:
 				value = sin(TAU * (500.0 + 2000.0 * t) * t) * fade
 			_:

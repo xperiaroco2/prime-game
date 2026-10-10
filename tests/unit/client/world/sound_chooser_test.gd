@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The sound chooser (client/world/sound_chooser.gd; ARCHITECTURE §4.7, a hearing range; the M4
-## ADR's §3 item 10, E33 (a)): Swung, ItemPickedUp and ItemPlaced play at their places only within
-## the hearing range of the listener's camera, and nothing at all for an event from farther away;
-## every other event is silent. And WorldSounds sets each player's max_distance to the same range.
+## ADR's §3 item 10, E33 (a)): Swung, ItemPickedUp, ItemPlaced and ItemThrown (#645) play at their
+## places only within the hearing range of the listener's camera, and nothing at all for an event
+## from farther away; every other event is silent. And WorldSounds sets each player's max_distance
+## to the same range.
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 
@@ -62,6 +63,27 @@ func test_nothing_plays_beyond_the_hearing_range() -> void:
 	assert_bool(SoundChooser.audible(Vector3(RANGE + 0.01, 0, 0), Vector3.ZERO)).is_false()
 
 
+func test_a_launch_plays_at_its_origin_and_none_beyond_the_hearing_range() -> void:
+	# The plant E33 guards against for throws (#645): ItemThrown reaches everyone with its origin,
+	# so an uncut launch would tell every client where a package was just thrown to hide it.
+	var launch := {
+		"item": 5,
+		"peer": 2,
+		"origin": Vector3(0, 1.6, 3),
+		"velocity": Vector3(0, 4, -8),
+		"gravity": Vector3(0, -9.8, 0),
+		"tick": 30,
+	}
+	var sound := _choose(&"ItemThrown", launch, Vector3.ZERO)
+	assert_str(String(sound.id)).is_equal(String(SoundChooser.THROW))
+	assert_that(sound.position).is_equal(Vector3(0, 1.6, 3))
+	assert_that(sound.aim).is_equal(Vector3(0, 1.6, 3))
+	launch["origin"] = Vector3(0, 0, RANGE + 0.5)
+	assert_object(_choose(&"ItemThrown", launch, Vector3.ZERO)).is_null()
+	launch["origin"] = Vector3(0, 0, RANGE)
+	assert_object(_choose(&"ItemThrown", launch, Vector3.ZERO)).is_not_null()
+
+
 func test_other_events_are_silent() -> void:
 	for event_name: StringName in [&"Damaged", &"PackageDelivered", &"KnockedDown", &"Swapped"]:
 		assert_object(_choose(event_name, {"peer": 2}, Vector3.ZERO)).is_null()
@@ -88,7 +110,9 @@ func test_world_sounds_plays_with_the_range_as_max_distance() -> void:
 
 
 func test_the_placeholder_blips_are_short_sound() -> void:
-	for id: StringName in [SoundChooser.SWING, SoundChooser.PICK_UP, SoundChooser.PUT_DOWN]:
+	for id: StringName in [
+		SoundChooser.SWING, SoundChooser.PICK_UP, SoundChooser.PUT_DOWN, SoundChooser.THROW
+	]:
 		var blip := WorldSounds.blip(id)
 		assert_float(blip.get_length()).is_between(0.05, 0.5)
 		assert_int(blip.data.size()).is_greater(1000)
