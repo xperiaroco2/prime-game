@@ -1,7 +1,10 @@
 class_name ClientSeen
 extends TutorialTrigger
-## Trigger: one of the own client's signals (docs/design/tutorial.md §3), which never reach the
-## host as anything it can react to. `Game` feeds them to the LessonRunner while a tutorial runs.
+## Trigger: one of the own client's signals (docs/design/tutorial.md §3). The signals themselves
+## never go on the wire, but completing a step starts the next one, and a step's RequestStage sends
+## NextStage: a content author must not put a RequestStage in the step after spectate_switched
+## (whom a dead player watches never leaves its client).
+## `Game` feeds them to the LessonRunner while a tutorial runs.
 
 ## The own claims report the player moving itself (ClientSession.claim_sent).
 const MOVED := &"moved"

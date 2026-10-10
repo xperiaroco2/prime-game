@@ -3753,8 +3753,8 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   calls `Game.leave()`. Without the invite, lesson 1 begins as `PhaseChanged` brings the `lessons` phase; with it,
   `GameTutorial.begin(game)` is #492's Start.
 - **The nine lessons** follow the design's §1 table on the deck keys of `client/i18n/strings.csv` (ui-0.4.0): lesson
-  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150), lesson 4 on `tutorial.step.deliver.how`,
-  whose text the UI track replaces with D30 (b)'s Delivery v1 words (#150); lesson 7 completes on the switch or the
+  3 as drawn (D29 (a)) until the UI track's first instruction exists (#150), lesson 4 title only (`how_key` empty: D30 (b) is the UI track's Delivery v1 how text, #150, and the deck's
+  `tutorial.step.deliver.how` holds the v2 sentence, which misleads over v1's coloured circle, D30 (c)); lesson 7 completes on the switch or the
   own `Respawned` (D36 (a)); lesson 8 waits for the own life living. The numbers (1 s, 3 s) are D33's placeholders.
   If the host refuses a `NextStage`, nothing sends it again: the lesson stays.
 - Tests: `tests/unit/content/tutorial/tutorial_parts_test.gd` (the closed list, each `problems()`, `OwnLife.LIVES`

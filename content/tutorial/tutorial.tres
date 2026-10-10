@@ -98,7 +98,6 @@ event = &"PackageDelivered"
 [sub_resource type="Resource" id="Step_deliver"]
 script = ExtResource("3_step")
 title_key = &"tutorial.step.deliver.title"
-how_key = &"tutorial.step.deliver.how"
 done_when = Array[ExtResource("5_condition")]([SubResource("Tasks_done")])
 triggers = Array[ExtResource("4_trigger")]([SubResource("Event_delivered")])
 

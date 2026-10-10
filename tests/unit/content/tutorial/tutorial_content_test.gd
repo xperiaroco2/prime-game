@@ -37,7 +37,7 @@ func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
 		),
 		"hand_belt | hand_belt.title | press | swap | trigger EventSeen Swapped peer=own",
 		(
-			"deliver | deliver.title | deliver.how | - | done_when TasksDone"
+			"deliver | deliver.title | - | - | done_when TasksDone"
 			+ " | trigger EventSeen PackageDelivered"
 		),
 		"map | map.title | press | map | trigger ClientSeen map_opened",
@@ -91,6 +91,29 @@ func test_only_lessons_6_and_7_ask_for_a_stage() -> void:
 				if action is RequestStage:
 					asking.append(i + 1)
 	assert_array(asking).is_equal([6, 7])
+
+
+func test_no_stage_request_follows_the_spectate_switch() -> void:
+	# Completing a step starts the next, and a RequestStage sends NextStage: the host would learn when
+	# the dead player switched targets (ARCHITECTURE §5: whom it watches never leaves its client).
+	var steps: Array[TutorialStep] = []
+	for lesson: TutorialLesson in _lessons().lessons:
+		steps.append_array(lesson.steps)
+	var switched := 0
+	for i in steps.size():
+		var seen_switch := false
+		for trigger: TutorialTrigger in steps[i].triggers:
+			var seen := trigger as ClientSeen
+			seen_switch = (
+				seen_switch or (seen != null and seen.signal_name == ClientSeen.SPECTATE_SWITCHED)
+			)
+		if not seen_switch:
+			continue
+		switched += 1
+		if i + 1 < steps.size():
+			for action: TutorialAction in steps[i + 1].on_start:
+				assert_bool(action is RequestStage).is_false()
+	assert_int(switched).is_equal(1)
 
 
 func test_no_step_waits_for_what_nothing_can_complete() -> void:
