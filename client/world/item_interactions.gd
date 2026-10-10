@@ -60,8 +60,7 @@ func hint() -> String:
 	var item: ClientModel.Item = model.items.get(_target) if model != null else null
 	if item == null:
 		return ""
-	var kind := mode.find_item_kind(item.kind)
-	var what := kind.display_name if kind != null else String(item.kind)
+	var what := ContentNames.text(ContentNames.item(item.kind, mode))
 	return "%s: pick up %s" % [KeyLabel.of_action(&"interact"), what]
 
 

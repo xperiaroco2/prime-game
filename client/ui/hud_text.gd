@@ -16,18 +16,6 @@ extends RefCounted
 ## microphone shows; dead (spectating, #168) nothing of the HUD shows (no time, role, bars, slots or
 ## mic), so nothing of the watched player's either (the M4 ADR's §3 item 2): its name is LifeHud's.
 
-## The copy deck's key of each role the base mode has, by role id (#208); a role not named here
-## shows its display name.
-const ROLE_KEYS: Dictionary[StringName, String] = {
-	&"crew": "role.engineer",
-	&"dissident": "role.dissident",
-}
-## The copy deck's key of each item kind, by kind id; a kind not named here shows its display name.
-const ITEM_KEYS: Dictionary[StringName, String] = {
-	&"package": "item.package",
-	&"knife": "item.knife",
-	&"switch": "item.switch",
-}
 ## The UI pack's icon of each item kind (ToyIcons); a kind with none shows its name instead.
 const ITEM_ICONS: Dictionary[StringName, StringName] = {
 	&"package": &"item",
@@ -151,14 +139,12 @@ static func clock_text(seconds: int) -> String:
 	return "%02d:%02d" % [floori(seconds / 60.0), seconds % 60]
 
 
-## The own role's deck key, its display name when the deck has none, "" before RoleAssigned.
+## The own role's deck key, its display name when the deck has none (ContentNames), "" before
+## RoleAssigned.
 static func role_key(model: ClientModel, mode: GameMode) -> String:
 	if model.role.is_empty():
 		return ""
-	if ROLE_KEYS.has(model.role):
-		return ROLE_KEYS[model.role]
-	var role := mode.find_role(model.role)
-	return role.display_name if role != null else String(model.role)
+	return ContentNames.role(model.role, mode)
 
 
 ## The own health as a fraction of the mode's; full before the first SelfStatus.
@@ -185,10 +171,7 @@ static func slot_of(model: ClientModel, mode: GameMode, item_id: int) -> Slot:
 	if item == null:
 		return slot
 	var kind := mode.find_item_kind(item.kind)
-	if ITEM_KEYS.has(item.kind):
-		slot.item = ITEM_KEYS[item.kind]
-	else:
-		slot.item = kind.display_name if kind != null else String(item.kind)
+	slot.item = ContentNames.item(item.kind, mode)
 	slot.icon = ITEM_ICONS.get(item.kind, &"")
 	slot.two_handed = kind != null and kind.is_two_handed()
 	return slot
