@@ -1867,7 +1867,7 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
 | Loading | the connecting screen's loading (#494): this machine's load, who has loaded (`PlayerLoaded`), one tip | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | a phase with no level (the tutorial's `gather`, #601, §4.7.43) | the same loading screen (`GameFlow.screen`: `PhaseSpec.level` `NONE`) | none | frozen, the mouse kept |
 | Pregame | pregame screen (#496, §4.7.39): black, "Your role", the own role on the title plate, its goal, a dissident's teammates; at the round's start the black fades out over the HUD (#213, §3.6) | the map, not drawn | frozen |
-| Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.50) | the map | by its life (below); none under the tutorial's invite |
+| Round | HUD; the task screen while Tab is held; in the tutorial its invite and lesson plates (#492, §4.7.49) | the map | by its life (below); none under the tutorial's invite |
 | End | post game screen (#498, §4.7.31): black, "End of the round", the winning side (the title plate for its players), why the round ended; "Back to the lobby in 3…" from End's `end_tick`, for everyone, no button (#212) | the map, not drawn | frozen |
 | ended | the connecting screen's failure in plain words until Back (#494), then the main menu, its panel and what was typed kept; the player's own leaving (`left`, `closed`) goes straight to the menu | none | none |
 
@@ -3153,7 +3153,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
 - **Esc closes the topmost overlay, one per press** (rule 2). `client/ui/UiOverlays` (pure) holds the overlays by
   layer, each registered with what tells whether it is open and what closes it, asked on every press (a freed one
   counts as closed): `MENU_PANEL` (the main menu's open panel, code, Direct or Settings since #493, §4.7.38, only
-  while the main menu shows), `MAP`, `CARD`,
+  while the main menu shows), `INVITE` (the tutorial's invite, its Skip; #492, §4.7.49), `MAP`, `CARD`,
   `ESC_MENU` (closed as its Resume, so `Game.close_esc` captures the mouse again), `ESC_DIALOG` (the host's Leave or
   Quit question, `EscMenuState.asking()`: back to the default tab). `GameUi` registers all but the card. `Game._input`
   asks, in order: Alt+Enter, F3, the black screens' Esc (Cancel on Connecting, Back on a failure, §4.7.32), then
@@ -3163,7 +3163,7 @@ the UI work), set once so every screen issue relies on it. #211 (§4.7.28) built
   `overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)`; the last argument makes the
   map key close it too. It closes with the map (`map_closed`), which `open_esc` closes. #488's tests use a stub card.
 - **The map key** (rule 3): `GameUi.press_map_key()` closes a card over the map if one is open (the top overlay
-  the map key closes), else toggles the map; under the Esc menu it does nothing and returns false.
+  the map key closes), else toggles the map; under the Esc menu or the tutorial's invite (`GameUi.blocks_keys`, #492) it does nothing and returns false.
 - **Gameplay input per screen** (rule 4). Under the Esc menu the own character takes no key and no look (§4.7.4) and
   the voice keeps working as set, the Talk key too (an amendment of the M5 ADR's push-to-talk line): `Game._typing()`
   alone stops it, while a `LineEdit` or `TextEdit` has the focus (the Lobby tab's name, #214) or a key capture
@@ -3672,7 +3672,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   command line (every test and `playcheck` window) keeps its settings in memory, and the runner's `host` and `join`
   windows pass options: none of them starts it (a test whose settings come from a file sets `tutorial_seen`, as
   `game_voice_test` does). `--tutorial` with `--host`, `--join=`, `--local` or `--code`, or in the headless session,
-  is a problem. `invite_open` says the invite is due; since #492 (§4.7.50) only its Start and Skip (or Esc) set the
+  is a problem. `invite_open` says the invite is due; since #492 (§4.7.49) only its Start and Skip (or Esc) set the
   flag (`GameTutorial.mark_seen`, written): a session ended under the invite (the window closed) offers it again on
   the next launch. Until #492 the end of an invited tutorial set it.
 - **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
@@ -3885,7 +3885,7 @@ Part (c) of #208 (§4.7.26), after the Toy screens.
   `client/dev/menu_uk_preview.tscn`: a
   `shot` of the main menu in Ukrainian, beside the Esc menu's `*_uk_preview.tscn`.
 
-#### 4.7.50 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
+#### 4.7.49 Built in #492 (M6.2), the tutorial's invite and lesson plates in the Toy style
 The UI handoff's s1 (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`, with ui-0.3.0's keycap and `check`
 notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `docs/design/tutorial.md` §1, §5.
 - **`TutorialScreen`** (`client/ui/tutorial_screen.gd`, `GameUi.tutorial`, a child of `GameUi` after `LifeScreen`

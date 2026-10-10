@@ -1,6 +1,6 @@
 class_name TutorialScreen
 extends Control
-## The tutorial's screens in the Toy style (#492; ARCHITECTURE §4.7.50): the UI handoff's s1, node
+## The tutorial's screens in the Toy style (#492; ARCHITECTURE §4.7.49): the UI handoff's s1, node
 ## for node (prime-game-ui `ui-0.4.0` `docs/handoff/s01-tutorial.md`), over the round's HUD (#489)
 ## on the HUD layer. Px at the 1920x1080 base (#287):
 ## - The invite (first launch only, open_invite()): `Dim` (ToyBackdrop), `Lang` (two language
