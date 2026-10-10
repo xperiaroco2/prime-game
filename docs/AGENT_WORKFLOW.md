@@ -736,7 +736,10 @@ then). So a session that waits on a card looks like one inside a long call. Sinc
 (§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
 minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
 known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
-the engineer's screen.
+the engineer's screen. The transcript shows more (#731, the night of 2026-10-09/10). The card's call has a PreToolUse
+`hook_success` record whose `permissionDecision` is `ask`, then no result. The session's notifications pile up as
+queue `enqueue` records with nothing delivered. `tools\run.cmd wave --stalled` (§11.11) reads those records and names
+the session, the card and the guard's reason.
 
 **Set up** (the engineer, once): the issue and its pin.
 ```powershell
