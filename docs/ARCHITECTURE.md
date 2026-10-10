@@ -3507,7 +3507,7 @@ section follows each recommendation.
   §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's hold go; `revive` sends a `Correction`
   (KE6). Prevents: an old or hostile client crawling, and a correction storm while the host moves the body.
 - **Mute.** Nothing changes: §6.3 already routes no voice from a speaker who is not living, its client sends none,
-  and the HUD's mic is off while knocked down (KE10).
+  and the HUD's mic (#489, open) is to show off while knocked down (KE10).
 - **The body's motion** (KE1 (a)). The body stays a point, the knocked-down player's last accepted position, and
   `core/` moves it. A strike that knocks down launches it (the strike's `launch_mps` away from the attacker and
   `launch_up_mps` upwards; KD2, KE9). Each tick `LifeTicks` flies it along the throw's arc (§7.1.16) through
