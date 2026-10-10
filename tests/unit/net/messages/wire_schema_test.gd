@@ -263,6 +263,29 @@ func test_the_version_is_cores_protocol_version() -> void:
 	assert_int(WireSchema.VERSION).is_equal(JoinRules.PROTOCOL_VERSION)
 
 
+## Host text travels as ids plus arguments (#548): no row carries a sentence (TEXT or NOTE) that
+## a client would show in the host's language.
+func test_no_row_carries_free_text() -> void:
+	for each: WireRow in WireSchema.game(true).rows():
+		for field: WireField in _every_field(each.fields):
+			(
+				assert_bool(field.type in [WireField.Type.TEXT, WireField.Type.NOTE])
+				. override_failure_message("%s.%s carries free text" % [each.name, field.name])
+				. is_false()
+			)
+
+
+func _every_field(fields: Array[WireField]) -> Array[WireField]:
+	var found: Array[WireField] = []
+	for field: WireField in fields:
+		found.append(field)
+		found.append_array(_every_field(field.parts))
+		for inner: WireField in [field.element, field.key]:
+			if inner != null:
+				found.append_array(_every_field([inner]))
+	return found
+
+
 func _every_name(fields: Array[WireField]) -> PackedStringArray:
 	var found := PackedStringArray()
 	for field: WireField in fields:

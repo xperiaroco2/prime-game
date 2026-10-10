@@ -15,8 +15,10 @@ extends RefCounted
 ## 9 since #429 added MoveClaimReliable (kind 14); 10 since #550 added Hello's `name` and made
 ## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8); 11 since #214 added
 ## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes;
-## 12 since #599 added NextStage (kind 15).
-const VERSION := 12
+## 12 since #599 added NextStage (kind 15);
+## 13 since #548 turned SettingsChanged's shortfalls into host text (ids plus arguments) and gave
+## MatchEnded its reason.
+const VERSION := 13
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -43,6 +45,9 @@ const MAX_AVATARS := MAX_PLAYERS - 1
 const MAX_ENTRIES := 32
 const MAX_TASK_TYPES := 16
 const MAX_SHORTFALLS := 32
+## Host text (#548): the most subject ids and whole-number arguments of one text.
+const MAX_TEXT_IDS := 2
+const MAX_TEXT_NUMBERS := 4
 ## One 20 ms Opus frame.
 const MAX_OPUS := 500
 ## A VoiceBatch's frames: as many 1-byte frames as fit its 1024-byte cap behind its tick and
@@ -294,9 +299,7 @@ static func _events() -> Array[WireRow]:
 			_numbers("map_markers"),
 			_numbers("needed_colours"),
 			_numbers("palettes"),
-			WireField.list(
-				"shortfalls", _of("", WireField.Type.NOTE), MAX_SHORTFALLS, TYPE_PACKED_STRING_ARRAY
-			),
+			WireField.list("shortfalls", WireField.record("", _host_text()), MAX_SHORTFALLS),
 			_name("lobby_name"),
 		]
 	)
@@ -368,7 +371,15 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
 		_down(56, &"Correction", 28, [_u32("epoch"), _vec3("position"), _vec3("velocity")]),
-		_down(57, &"MatchEnded", 33, [_id("side")]),
+		_down(
+			57,
+			&"MatchEnded",
+			216,
+			[
+				_id("side"),
+				WireField.when("has_reason", [_id("reason"), _text_numbers("numbers")]),
+			]
+		),
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
 		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
@@ -536,3 +547,18 @@ static func _name(field_name: String) -> WireField:
 ## A map<id, s32>: whole-number settings, markers or colours per id.
 static func _numbers(field_name: String) -> WireField:
 	return WireField.map(field_name, _id(""), _s32(""), MAX_ENTRIES)
+
+
+## Host text (#548): an id, its subject ids and its whole-number arguments, never a sentence; the
+## client words it in its own language. Core's HostText.to_dict().
+static func _host_text() -> Array[WireField]:
+	return [
+		_id("id"),
+		WireField.list("ids", _id(""), MAX_TEXT_IDS, TYPE_PACKED_STRING_ARRAY),
+		_text_numbers("numbers"),
+	]
+
+
+## A host text's arguments: a map<id, s32> of at most MAX_TEXT_NUMBERS.
+static func _text_numbers(field_name: String) -> WireField:
+	return WireField.map(field_name, _id(""), _s32(""), MAX_TEXT_NUMBERS)

@@ -83,10 +83,11 @@ static func _welcome(content: _Content) -> WireMessage:
 
 
 static func _settings_changed(content: _Content) -> WireMessage:
-	var shortfalls := PackedStringArray()
-	# At most one per demanded spawn tag and station kind, plus the player count and the layout.
+	var shortfalls: Array[Dictionary] = []
+	# At most one per demanded spawn tag and station kind, plus the player count and the layout
+	# (FitCheck), each counted as the longest host text the wire takes (#548).
 	for i: int in content.tags.size() + content.stations.size() + 2:
-		shortfalls.append("s".repeat(WireField.NOTE_MAX))
+		shortfalls.append(_longest_text())
 	var fields := {
 		"settings": content.numbers,
 		"id_sets": content.id_sets,
@@ -107,6 +108,23 @@ static func _change_settings(content: _Content) -> Dictionary:
 	settings.merge(content.numbers)
 	settings.merge(content.id_sets)
 	return {"settings": settings, "map": content.map, "lobby_name": "L".repeat(NAME_BYTES)}
+
+
+## The longest host text the wire takes (#548): a 32-character id, the most subject ids and
+## whole-number arguments, every id 32 characters.
+static func _longest_text() -> Dictionary:
+	var subjects := PackedStringArray()
+	for i: int in WireSchema.MAX_TEXT_IDS:
+		subjects.append(_wire_id("i", i))
+	var numbers: Dictionary[StringName, int] = {}
+	for i: int in WireSchema.MAX_TEXT_NUMBERS:
+		numbers[StringName(_wire_id("n", i))] = WireField.S32_MIN
+	return {"id": StringName(_wire_id("t", 0)), "ids": subjects, "numbers": numbers}
+
+
+## A wire id of WireField.ID_MAX characters: `prefix`, then `index` padded with zeros.
+static func _wire_id(prefix: String, index: int) -> String:
+	return prefix + str(index).pad_zeros(WireField.ID_MAX - prefix.length())
 
 
 ## What the worst cases are built from.

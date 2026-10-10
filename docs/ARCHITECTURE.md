@@ -210,7 +210,7 @@ fixture win conditions in the base mode's order (`tests/unit/life/life_rules_tes
 (`tests/unit/win/none_alive_test.gd`), with the control that the same package put down wins for the crew.
 
 Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
-everyone the side, and nothing else (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
+everyone the side and why (#548: the winning condition's id and the round's play time), no name and no role (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
 `tests/unit/win/` (the crew wins on the last delivery only, a delivery on the end tick counts, time up with 0
 dissidents, no crew present only once every crew member left, End widens nothing; M4-2).
 
@@ -679,7 +679,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `PlayerJoined` | peer, name (the host's final name, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
-| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back; the lobby's name ("" while it is the default, #214) | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
+| `SettingsChanged` | settings (the whole numbers, and the banned task types) and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns, for any draw of the task types) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back, as host text (an id, its subject ids and whole-number arguments, which each client words in its own language, #548); the lobby's name ("" while it is the default, #214) | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
@@ -707,7 +707,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
 | `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
-| `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
+| `MatchEnded` | the winning side (crew or dissidents) and, when a win condition reported the `won`, its id as the reason with `numbers` {`time`: the round's play time in whole seconds, when the clock ran} (#548); no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
@@ -746,7 +746,7 @@ Little-endian; sizes in bytes.
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
 | `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 (no row uses it since #550) | another byte |
 | `name` | 1 + n | `u8` n, then n bytes of UTF-8, n up to 80 (`WireField.NAME_MAX_BYTES`: the lobby's 20 characters of at most 4 bytes, #214; a player's name keeps 16, #550); empty allowed (the host's fallback, the lobby's default) | a malformed sequence (checked by hand before any decode: a lone or missing continuation byte, an overlong form, a surrogate, above U+10FFFF), a C0 or C1 control, DEL, an invisible format character (U+200B to U+200F, U+2028 to U+202E, U+2060 to U+2064, U+2066 to U+2069), U+FEFF (a decoder drops it silently), bytes that do not encode back the same; the encoder refuses the same and over 80 bytes. `PlayerNames.is_dropped` (`core/`) refuses exactly these characters, so every host-made name encodes; a test pins the two, and `lobby_name_test.gd` pins both limits at 4 bytes a character within the bound. Since 80 bytes, a `Hello` name of 17 to 20 characters decodes and the host cuts it to 16 |
-| `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
+| `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (no row uses it since #548: the shortfalls became host text) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
 | `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
@@ -754,15 +754,24 @@ Little-endian; sizes in bytes.
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
 snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
-set of task types at most 16 ids; shortfalls at most 32. The sizes below are the MVP's with 10 players, then the cap.
+set of task types at most 16 ids; shortfalls at most 32, and a host text's subject ids at most 2 and its arguments at
+most 4 (#548). The sizes below are the MVP's with 10 players, then the cap.
 These maxima bound the decoder, not the payload: at the maxima some kinds exceed their caps (`SettingsChanged`'s
 `id_sets` alone could reach about 18 KB). How big they get depends on the content, so the content is checked
 (E16): `WireBudget` (`server/`, 3d) computes, from a game mode, the worst case of every kind whose size its content
 sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
 `PlayersPlaced`), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
-spawn tag and station kind, plus the player count and the layout, each a full `note`). A mode over a cap is refused
+spawn tag and station kind, plus the player count and the layout, each the longest host text the wire takes). A mode over a cap is refused
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
+
+**Host text** (#548). No row carries a sentence: what the host words for players travels as host text, `record{id:
+id, ids: list<id>, numbers: map<id, s32>}` (`core/`'s `HostText`: an id, its subjects such as a spawn tag or a station
+kind, and its whole-number arguments by name), and each client words it in its own language through the copy deck
+(§4.7.47), so two players of one lobby read it each in theirs. `SettingsChanged`'s shortfalls are host text;
+`MatchEnded`'s reason is the winning `WinCondition`'s id with its `numbers`. The other ids a client shows (`Rejected`'s,
+`CountdownCancelled`'s and `Disconnecting`'s `reason`) were ids already. A test (`wire_schema_test.gd`,
+`test_no_row_carries_free_text`) fails on any row with a `text` or `note` field.
 
 #### 4.3.2 Intents (C→H)
 Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
@@ -821,7 +830,7 @@ directive has no row, because it reaches no peer.
 | 34 | `PlayerJoined` | `peer: peer`, `name: name`, `spot: vec3` | 25; 97 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
-| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>`, `lobby_name: name` | 251 with no shortfall and the default name; 8192 |
+| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<record{id: id, ids: list<id>, numbers: map<id, s32>}>` (host text, #548), `lobby_name: name` | 251 with no shortfall and the default name; 8192 |
 | 38 | `PhaseChanged` | `phase: id`, `end_tick: tick` (optional) | 10; 37 |
 | 39 | `CountdownCancelled` | `reason: id` | 9; 33 |
 | 40 | `PlayersPlaced` | `spots: map<peer, vec3>` | 161; 257 |
@@ -841,7 +850,7 @@ directive has no row, because it reaches no peer.
 | 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool`, `claim_tick: s64` (a client tick, a u32, or -1 for none; #155) | 17; 17 |
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
-| 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h) | 11; 33 |
+| 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h), `has_reason: bool`, then `reason: id` (the winning `WinCondition`'s id) and `numbers: map<id, s32>` (at most 4; `time`, the round's play time in seconds, when the clock ran), #548 | 12 without a reason, 30 with `time_up` and its time; 216 |
 | 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 | 59 | `KnockedDown` | `peer: peer`, `position: vec3` (audience *everyone*, M4-2, #138) | 16; 16 |
 | 60 | `Respawned` | `peer: peer`, `position: vec3` (audience *everyone*, M4-3, #139) | 16; 16 |
@@ -882,7 +891,8 @@ The rules of the table:
   when #550 added `Hello`'s `name` and the `name` type (UTF-8) for it, `PlayerJoined` and the `Welcome` roster,
   11 when #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
   and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
-  97, and is 12 since T1 (#599, E65) added the tutorial's `NextStage` (15). M4's protocol PRs each set
+  97, 12 since T1 (#599, E65) added the tutorial's `NextStage` (15), and is 13 since #548 turned
+  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason. M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -932,7 +942,7 @@ The rules of the table:
   9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 2 KB/s with headers. A payload over its cap is never
   truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
-  longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
+  longest shortfall of each kind, as host text, encodes within its cap or is refused by `WireBudget` first (#548); and a synthetic mode at
   the declared maxima is refused with the kind named.
 - **Voice batching** (M5-4b, built in M6-8, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
   frame it hears in that poll, in the relay's order (per speaker in peer-id order, each speaker's in its seq order);
@@ -1875,7 +1885,8 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
   sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and the mode has
-  two or more maps); the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
+  two or more maps); the demands and shortfalls come from `SettingsChanged` (the
+  shortfalls worded by `HostTextView`, §4.7.47). Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** (the post game screen, §4.7.31) shows the winning side's deck line, on the title plate when the
@@ -2690,7 +2701,7 @@ ADR's §6 check the rest.
 
 #### 4.7.26 Built in #208 (a), English and Ukrainian
 The game speaks English and Ukrainian (the engineer, 2026-10-02). Part (a) builds the base the Toy screens use;
-host-made text as ids with arguments on the wire is #548, and the source test against literal strings, the content
+host-made text as ids with arguments on the wire is #548 (§4.7.47), and the source test against literal strings, the content
 names and the font's glyphs are #549.
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
@@ -2940,10 +2951,11 @@ plain plate, a teammate's with the mark, a head over a wall and a player beyond 
   (`own_team_won`, from the own `ClientModel` and the client's own mode) it is `Winner` on the raised ToyTitlePlate
   (`WinnerRaised`, a `ToyRaised` on ToyBaseTitle, SHRINK_CENTER); otherwise `WinnerLoss`, plain ToyTextOnDark. No
   other line says who won, and no role is shown.
-- **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by the host's reason
-  id (`REASON_KEYS`); any other id hides the line. `MatchEnded` carries only the side until #548 adds the reason, so
-  in a game the line is hidden (and its `Result` box with it, so no empty gap is left); `show_reason(id, seconds)` is where
-  #548 feeds it (the previews and tests call it). Hiding the screen clears the reason, the round's time and the
+- **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
+  reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
+  other id, `no_crew_present` too (the deck at ui-0.4.0 has no key for it), and a `MatchEnded` without one hide the
+  line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
+  model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
   countdown, so the next End starts without the last round's.
 - **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
@@ -3525,6 +3537,43 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   downed; seen failing with the life checks and the own steps' ray planted). The listening checklist is the
   engineer's, in a two-client `host`/`join` session (the PR).
 
+#### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
+Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the
+client words it in its own language, so two players of one lobby read the same shortfall or end reason each in theirs.
+Protocol 13 (§4.3.4).
+- **On the host.** `core/`'s `HostText` (`core/events/host_text.gd`): an id, its subject ids and its whole-number
+  arguments by name, never a sentence. `FitCheck.shortfalls` makes `players_few` and `players_many` (`count`: how many
+  players short or over, `min`, `max`) and `no_layout` (no arguments: a map path is no wire id, and `SettingsChanged`
+  names the map); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`) and `colours` (the station kind;
+  `need`, `have`). `MatchEnded`'s reason is the id of the win condition that reported the `won` (`Match` keeps it with
+  the step's outcome and hands it to the row as `MatchContext.outcome_reason`), with `time`, the seconds the round's
+  clock ran (`StartClock` records `MatchState.clock_ticks_total`; no time when it never started); a `won` that no win
+  condition reported has neither. The reason ids are the content's (`WinCondition.id`), with no content change.
+- **On the client.** `ClientModel` keeps the shortfalls as decoded (`{id, ids, numbers}`) and `MatchEnded`'s reason
+  and time (`ended_by`, `round_seconds`, cleared with the match). `HostTextView` (`client/ui/host_text_view.gd`,
+  pure) owns the table from a shortfall id to its deck key and words it with `TranslationServer`, the plural by the
+  argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) shows
+  its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
+- **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
+  only. `players_many`, `markers`, `colours` and `no_layout` have none, so `HostTextView.plain` shows the id, its
+  subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
+  base mode only `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
+  lacks markers, colours or a layout); `no_crew_present` hides the reason line. No key is invented: the UI track's
+  deck adds them, then one table entry each.
+- **Tests.** `tests/unit/net/messages/wire_schema_test.gd` (no row carries `text` or `note`, seen failing on row 37
+  before the change), `wire_codec_test.gd` (the longest host text round-trips; a sentence as an id, a third subject,
+  a fifth argument refused; 32 longest texts beside 32 long settings over the cap), `wire_samples.gd` (all five
+  shortfall ids, `MatchEnded` with and without a reason, round-tripped and fuzzed),
+  `tests/unit/events/host_text_test.gd` (the decoder's types), `tests/unit/match/phases/lobby_phase_test.gd` and
+  `lobby_phase_bans_test.gd` (each shortfall's id and arguments, `players_many`, `no_layout`),
+  `tests/unit/win/end_match_test.gd` (the reason and the time, a rule's `won` without them, no clock no time; seen
+  failing on the old `EndMatch`), `clock_ended_test.gd` and `content_modes_test.gd` (the base mode's reasons),
+  `tests/unit/server/wire_budget_test.gd` (FitCheck's and Demands' longest texts encode),
+  `tests/unit/client/ui/host_text_view_test.gd`, `end_screen_test.gd` (the reason from the model),
+  `tests/unit/client/net/host_text_locale_test.gd` (one payload over the loopback in English, then Ukrainian, with
+  the plural forms) and `tests/integration/server/host_session_host_text_test.gd` (every client of a host session
+  decodes the same shortfall, and the same reason at the end, equal to `view_of`).
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -3761,8 +3810,11 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   a raise and a revive are as public as the two avatars (M4-4), a dead player
   gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
   no event that a living peer present then does not get (the leak test checks it, §4.6.4; M4-2 tests the snapshots in
-  `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
-  side, and each player knows from its own role whether it won. A later mode that reveals roles would add an event with
+  `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names the winning
+  side and why (#548): the id of the win condition that ended the round and the round's play time. Both are public:
+  every player sees what ends a round (the tasks done, the clock, who is left), and the time follows from the public
+  `RoundStarted` and the end, so a condition whose holding were a secret must not be a win condition. Each player
+  knows from its own role whether it won. A later mode that reveals roles would add an event with
   its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. What a dead player saw while spectating, all of it
   public, is fair game after the respawn (vision revision 1, V1): nothing is narrowed then.
@@ -4701,13 +4753,15 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
 - **Win conditions** (`WinCondition`: a side and its conditions) are checked in the mode's order, in phases whose
   spec says so (Round in the base mode): after every fact, and at the end of every step (a command, a tick, a phase
   entry). The first that holds reports `won(side)`, and once a step has an outcome no win condition is checked again
-  in it. The check after every fact orders the effects of one command (§3.4): the last crew member leaving raises
+  in it. Its `id` reaches every player as `MatchEnded`'s reason (#548): which condition held must be a fact every player
+  may learn. The check after every fact orders the effects of one command (§3.4): the last crew member leaving raises
   `player_left` before its package drops into its circle, so "no crew present" is reported first, while a death's
   `player_died` meets no win condition and the dropped package then delivers. The check at the step's end catches a
   change that raised no fact.
 - **Outcomes** come from phase classes, win conditions and `ReportOutcome`; the first in a step wins (§3.1). An
   outcome and its argument reach no peer: `PhaseChanged` names only the new phase, and only an event that a
-  transition action emits can carry the argument (`EndMatch`: the side of `won`), with that event's audience.
+  transition action emits can carry the argument (`EndMatch`: the side of `won`, and the id of the win condition
+  that reported it as the reason, #548), with that event's audience.
 - **Events and who sees them.** An effect emits event classes (§4.2), and each event class declares its audience,
   evaluated at emission (§5). Neither the data nor an effect chooses recipients: a mechanic that needs a new audience
   needs a new event class, which is an engine request. Each part lists every event it can emit, so reviewing a part
@@ -4915,8 +4969,8 @@ names the facts that do.
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2); with `ordered` the players in peer-id order onto the markers in level order, with no draw (the host's player, peer 1, on the first: the tutorial's deal, `docs/design/tutorial.md` §2.5). Too few markers, or no layout, is a rule error and places nobody | `tag`, RNG purpose (`spawns`; not required when `ordered`), `ordered` (false: the draw) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49); `ordered` T1 (#599). The new setting changes `ContentHash.of` of every mode that places players, so a command log recorded before #599 refuses to replay |
 | `KnockDown` | knocks down one present living player where it stands (`LifeRules.knock_down`); with `then_die`, `LifeRules.die` at once (the body, the drop of both slots at it). `pick` 0 is the host's player (peer 1), n the n-th present player other than peer 1 in peer-id order. A pick that names nobody present, or a player who is not alive, is a rule error during the row (`Match.row_error_count`, so `HostSession` ends the session, §4.5.11), exactly one, and nothing happens: `then_die` only kills a player this action downed (so `die`'s own error cannot follow a successful knockdown). Without `then_die` only a `LifeTicks` of the phase entered runs the knockdown out; mode check: a **warning** on a row whose `KnockDown` without `then_die` enters a phase with no `LifeTicks`, where the downed stays downed for good. The tutorial's `raise_stage` is the intended case (`docs/design/tutorial.md` §2.3: lesson 6 waits however long the player takes to raise the stand-in). Mode check: `pick` 0 to the mode's maximum players minus 1; an **error** on a row whose `KnockDown` changes the level (`Match` switches the world to the entered phase's level before a row's actions run, so the floor asked would be a level the player is not in): only on a row that stays on one level | `pick` (whole, class default 0), `then_die` (class default false) | `RaiseStopped` (everyone, for a channel involving the player: none in a row, which stops every channel first), `KnockedDown` (everyone), `Correction` (the downed); with `then_die` `Died` (everyone) and per dropped item `ItemPlaced` (death, everyone); facts `player_died`, then `item_rested` per item. No new event or audience | T1 (#599, `core/life/knock_down.gd`, `tests/unit/life/knock_down_test.gd`, `tests/unit/content/mode_check_stage_test.gd`) |
-| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); alone on the row into the round (`Pregame, pregame_done → Round`, #213), so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
-| `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
+| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); alone on the row into the round (`Pregame, pregame_done → Round`, #213), so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). It records the clock's length (`MatchState.clock_ticks_total`, for `EndMatch`'s time, #548). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
+| `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side and, when a win condition reported the `won`, its id as `reason` with the round's play time (`numbers.time`, whole seconds the clock ran; none when it never started), #548 | 2h (#64, `core/win/end_match.gd`) |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
 #### 9.4.4 Demands
@@ -5045,7 +5099,7 @@ What it does: the side that wins only when every task is done (§3.4).
 Settings: id `crew`; display name "Engineer" (its side's "Engineers"; vision revision 1, M4-1); side `crew`; knows
 its teammates: no; actions: none. The default role of `DealRoles`.
 Produces: `RoleAssigned(crew)`.
-Visible to: that player only (§5); `MatchEnded` names only the winning side, never a player's role.
+Visible to: that player only (§5); `MatchEnded` names the winning side and the win condition, never a player's role.
 Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`; named Engineer in M4-1 (#137). Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (which pins both names).
 
@@ -5145,8 +5199,8 @@ flag; M4-3), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 #### 9.5.7 Every task done (win condition)
 What it does: the crew's only win.
 Settings: side `crew`; conditions: `AllSubtasksDone`.
-Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)`.
-Visible to: everyone, the side only.
+Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)` with the reason `every_task_done` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_done.tres`. Tests:
 `tests/unit/win/all_subtasks_done_test.gd`, `tests/unit/win/clock_ended_test.gd` (a delivery on the end tick),
 `tests/unit/content/content_modes_test.gd` (the base mode's data).
@@ -5155,8 +5209,8 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_d
 What it does: the dissidents win when every crew member has left (vision revision 1, V10). A downed or dead crew
 member is still present: killing takes time from the crew, it does not end the round.
 Settings: side `dissidents`; conditions: `NoneAlive` (side `crew`; the class keeps its old name).
-Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
-Visible to: everyone, the side only.
+Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `no_crew_present` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 (#138):
 `content/win_conditions/no_crew_present.tres` (provisional), in `no_crew_alive.tres`'s place in the order. Tests:
 `tests/unit/win/none_alive_test.gd` (a knockdown and a death end nothing, the leaves, the §3.4 order),
@@ -5165,8 +5219,8 @@ Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 
 #### 9.5.9 Time up (win condition)
 What it does: the dissidents win when the clock ends with a subtask not done, with 0 dissidents too.
 Settings: side `dissidents`; conditions: `ClockEnded`, `AllSubtasksDone` negated.
-Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
-Visible to: everyone, the side only.
+Produces: `won(dissidents)`, then `MatchEnded(dissidents)` with the reason `time_up` and the round's time.
+Visible to: everyone: the side, this condition's id and the time (#548).
 Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres`. Tests:
 `tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
 `tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).

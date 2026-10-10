@@ -285,8 +285,14 @@ func test_demands_are_packages_per_tag_and_colours_per_circle() -> void:
 		layout.add_marker(&"circle", Vector3(i, 0, 0))
 		layout.add_marker(&"package", Vector3(i, 0, 1))
 	assert_array(Array(demands.shortfalls(layout))).is_empty()
-	assert_array(Array(many.shortfalls(layout))).is_equal(
-		["13 circle colour(s) needed, the palette has 12"]
+	assert_array(HostText.to_dicts(many.shortfalls(layout))).is_equal(
+		[
+			{
+				"id": &"colours",
+				"ids": PackedStringArray(["circle"]),
+				"numbers": {&"need": 13, &"have": 12}
+			}
+		]
 	)
 
 

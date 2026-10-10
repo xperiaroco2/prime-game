@@ -57,7 +57,7 @@ func test_the_lobby_name_follows_welcome_and_settings_changed() -> void:
 	# A roster without the host (it left) has no host name.
 	assert_str(other.host_name()).is_empty()
 	var no_sets: Dictionary[StringName, PackedStringArray] = {}
-	var problems := PackedStringArray()
+	var problems: Array[HostText] = []
 	var renamed_event := SettingsChangedEvent.new(
 		{}, "res://levels/a.tscn", 2, Demands.new(null), null, problems, no_sets, "Діма's den"
 	)
@@ -81,7 +81,9 @@ func test_settings_changed_and_phase_changed() -> void:
 	var sets: Dictionary[StringName, PackedStringArray] = {
 		&"banned_task_types": PackedStringArray(["delivery"])
 	}
-	var problems := PackedStringArray(["2 knife marker(s) needed, the map has 0"])
+	var problems: Array[HostText] = [
+		HostText.of(HostText.MARKERS, PackedStringArray(["knife"]), {&"need": 2, &"have": 0})
+	]
 	_fold(
 		SettingsChangedEvent.new(
 			numbers, "res://levels/b.tscn", 2, Demands.new(null), null, problems, sets
@@ -90,7 +92,7 @@ func test_settings_changed_and_phase_changed() -> void:
 	assert_int(_model.settings[&"knives"]).is_equal(4)
 	assert_array(_model.id_sets[&"banned_task_types"]).contains_exactly(["delivery"])
 	assert_str(_model.map).is_equal("res://levels/b.tscn")
-	assert_array(_model.shortfalls).has_size(1)
+	assert_array(_model.shortfalls).is_equal(HostText.to_dicts(problems))
 	_fold(PhaseChangedEvent.new(&"countdown", 100))
 	assert_str(String(_model.phase)).is_equal("countdown")
 	assert_int(_model.end_tick).is_equal(100)
@@ -119,6 +121,14 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	assert_bool(_model.is_alive(OWN)).is_true()
 	_fold(MatchEndedEvent.new(&"crew"))
 	assert_str(String(_model.winner)).is_equal("crew")
+	assert_str(String(_model.ended_by)).is_empty()
+	assert_int(_model.round_seconds).is_equal(-1)
+	_fold(MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}))
+	assert_str(String(_model.ended_by)).is_equal("time_up")
+	assert_int(_model.round_seconds).is_equal(600)
+	_fold(MatchEndedEvent.new(&"crew", &"no_crew_present", {}))
+	assert_str(String(_model.ended_by)).is_equal("no_crew_present")
+	assert_int(_model.round_seconds).is_equal(-1)
 
 
 func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
@@ -199,6 +209,7 @@ func test_a_newer_snapshot_replaces_the_avatars_and_an_older_one_does_not() -> v
 
 func test_load_match_clears_the_match_and_keeps_the_roster() -> void:
 	_to_round()
+	_fold(MatchEndedEvent.new(&"crew", &"every_task_done", {&"time": 461}))
 	var settings: Dictionary[StringName, int] = {&"knives": 1}
 	_fold(LoadMatchEvent.new(4, "res://levels/c.tscn", settings))
 	_assert_no_match_facts()
@@ -210,6 +221,7 @@ func test_load_match_clears_the_match_and_keeps_the_roster() -> void:
 
 func test_entering_the_lobby_clears_the_match() -> void:
 	_to_round()
+	_fold(MatchEndedEvent.new(&"crew", &"every_task_done", {&"time": 461}))
 	_fold(PhaseChangedEvent.new(&"end", -1))
 	assert_int(_model.items.size()).is_equal(1)
 	_fold(PhaseChangedEvent.new(&"lobby", -1))
@@ -429,6 +441,8 @@ func _assert_no_match_facts() -> void:
 	assert_int(_model.tasks.size()).is_equal(0)
 	assert_int(_model.start_tick).is_equal(-1)
 	assert_str(String(_model.winner)).is_empty()
+	assert_str(String(_model.ended_by)).is_empty()
+	assert_int(_model.round_seconds).is_equal(-1)
 	assert_int(_model.snapshot_tick).is_equal(-1)
 	assert_bool(_model.avatars.is_empty()).is_true()
 

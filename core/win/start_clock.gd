@@ -20,6 +20,7 @@ func run(ctx: MatchContext) -> void:
 		ctx.state.clock_ticks_left = Ticks.from_seconds(ctx.state.forced_clock_s)
 	else:
 		ctx.state.clock_ticks_left = Ticks.from_minutes(ctx.setting(minutes_setting))
+	ctx.state.clock_ticks_total = ctx.state.clock_ticks_left
 	ctx.state.clock_ended = false
 	ctx.emit(RoundStartedEvent.new(ctx.tick))
 

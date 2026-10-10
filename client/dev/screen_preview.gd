@@ -79,10 +79,10 @@ const FAKE_OWN_HEADING := 0.6
 @export var language := Languages.ENGLISH
 @export var large_text := false
 ## The post game (Preview.END, #498), from an Engineer's view as the handoff draws it: the side
-## that won (`crew`: the own team, the plate; `dissidents`: plain text), the host's reason id
-## and the round's seconds (the handoff's sample 7:41).
+## that won (`crew`: the own team, the plate; `dissidents`: plain text), the host's reason id (the
+## win condition's, #548) and the round's seconds (the handoff's sample 7:41), all in MatchEnded.
 @export var end_winner: StringName = &"crew"
-@export var end_reason: StringName = &"all_tasks"
+@export var end_reason: StringName = &"every_task_done"
 @export var end_round_seconds := 461
 ## The connecting screen's state (Preview.CONNECTING; #494): finding, connecting-direct, joined,
 ## a failure's (ConnectingScreen.FAILURES), or load (Preview.LOADING shows load).
@@ -157,8 +157,10 @@ func _ready() -> void:
 		Preview.END:
 			model.fold(&"RoleAssigned", {"role": &"crew"})
 			model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": 160})
-			model.fold(&"MatchEnded", {"side": end_winner})
-			ui.end.show_reason(end_reason, end_round_seconds)
+			var ended := {
+				"side": end_winner, "reason": end_reason, "numbers": {&"time": end_round_seconds}
+			}
+			model.fold(&"MatchEnded", ended)
 			ui.show_screen(GameFlow.Screen.END)
 		Preview.ESC:
 			if esc_in_round:
@@ -290,6 +292,14 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 	welcome.map = MAP
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
+	# Three players of the base mode's four at least: one more to start (#548's host text).
+	var shortfalls: Array[Dictionary] = [
+		{
+			"id": &"players_few",
+			"ids": PackedStringArray(),
+			"numbers": {&"count": 1, &"min": 4, &"max": 10}
+		}
+	]
 	(
 		model
 		. fold(
@@ -298,7 +308,7 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 				"settings": mode.default_settings(),
 				"id_sets": mode.default_id_sets(),
 				"map": MAP,
-				"shortfalls": PackedStringArray(["3 player(s), the mode plays with 4 to 10"]),
+				"shortfalls": shortfalls,
 				"lobby_name": "",
 			}
 		)

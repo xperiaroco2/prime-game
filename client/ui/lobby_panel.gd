@@ -214,7 +214,7 @@ func refresh(model: ClientModel, _host_tick: int, may_change: bool, in_round := 
 	if not typing and name_edit.text != shown:
 		name_edit.text = shown
 	shortfalls_label.visible = not in_round and not model.shortfalls.is_empty()
-	shortfalls_label.text = "\n".join(model.shortfalls)
+	shortfalls_label.text = HostTextView.shortfalls(model.shortfalls)
 	map_picker.disabled = not may_change or _maps.size() < 2
 	# A map not in the own mode's list (none yet, before the Welcome) shows no map, never a wrong one.
 	map_picker.select(_maps.find(model.map))
@@ -507,6 +507,7 @@ func _build_side() -> VBoxContainer:
 	side.add_child(players)
 	shortfalls_label.name = "Shortfalls"
 	shortfalls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Worded by HostTextView in the current language (#548), every refresh: never a key itself.
 	shortfalls_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	side.add_child(shortfalls_label)
 	var ready_raised := UiParts.button(
