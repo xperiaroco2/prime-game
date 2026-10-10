@@ -3973,13 +3973,13 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
 #### 4.7.50 Built in #551 (M6.2), the bodies in their players' colours
 The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and
 `ProfileChanged` (which also renames), and `ClientModel.colour_of(peer)` gives 0 for a peer not on the roster.
-`BodyColours` (`client/player/`) maps an index to what is drawn: a **placeholder palette, "not a decision"**: neither
-the engineer's answers on #73 nor the UI pack (prime-game-ui 0.4.0) name ten player colours, so the ten are the
-pack's own palette tokens (`BodyColours.TOKENS`, each colour its token's hex, which `body_colours_test.gd` pins)
-until the engineer picks them; one const array changes them. `AvatarViews` paints each remote body every physics
-frame through `RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh
-per frame; a colour set before the body is ready waits for its rules); the lying pose is the same mesh, so a downed
-body keeps its colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
+`BodyColours` (`client/player/`) maps an index to what is drawn: the delivery circles' ten colours (the
+circle `StationKind`'s palette in `content/tasks/delivery.tres`, in its order, which `body_colours_test.gd` pins),
+the engineer's choice on PR #745 until the UI track's player-colour list (asked on #150) replaces them; one const
+array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics frame through
+`RemotePlayerBody.set_colour`, which only recolours the capsule's own material on a change (no mesh per frame; a
+colour set before the body is ready waits for its rules); the lying pose is the same mesh, so a downed body keeps its
+colour. The own lying capsule (`PlayerController`, seen from the downed camera) takes the own colour
 when the life changes, `LifeLooks.PLAYER_COLOUR` offline. A dead body stays `LifeLooks.BODY_COLOUR`, grey. No picker
 yet: the Esc menu's Character page (#491, M7) and the main menu's remembered colour will send `SetProfile`
 (`ClientSession.send_intent`); `client/app/` and `client/ui/` are untouched. Dev preview:

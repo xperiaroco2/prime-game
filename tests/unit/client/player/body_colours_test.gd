@@ -1,15 +1,17 @@
 extends GdUnitTestSuite
-## BodyColours (#551): one colour per PlayerColours index, ten distinct ones, each the hex of the
-## UI pack's palette token it names (a placeholder until the engineer picks the ten); an index
-## outside them draws index 0's. RemotePlayerBody keeps a colour set before it is ready.
+## BodyColours (#551): one colour per PlayerColours index, ten distinct ones, each the delivery
+## circles' palette colour of the same index (the engineer's choice until the UI pack has a
+## player-colour list); an index outside them draws index 0's. RemotePlayerBody keeps a colour set
+## before it is ready.
 
-const PACK := "res://client/ui/theme/pack/toy.pack.json"
+const DELIVERY := "res://content/tasks/delivery.tres"
 const BODY := preload("res://client/player/remote_player_body.tscn")
+## A hex string holds a channel to 1/255: half of that, and a little float slack, either way.
+const CHANNEL_SLACK := 0.5 / 255.0 + 0.0001
 
 
 func test_one_distinct_colour_per_index() -> void:
 	assert_int(BodyColours.HEXES.size()).is_equal(PlayerColours.COUNT)
-	assert_int(BodyColours.TOKENS.size()).is_equal(PlayerColours.COUNT)
 	var seen: Array[Color] = []
 	for index: int in PlayerColours.COUNT:
 		var colour := BodyColours.of(index)
@@ -18,16 +20,21 @@ func test_one_distinct_colour_per_index() -> void:
 		seen.append(colour)
 
 
-func test_each_colour_is_its_pack_token() -> void:
-	var pack: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PACK))
-	var tokens: Dictionary = pack["tokens"]
+func test_each_colour_is_the_delivery_circles_colour() -> void:
+	var delivery := load(DELIVERY) as Delivery
+	var palette := delivery.circle.palette
+	assert_int(palette.size()).is_equal(PlayerColours.COUNT)
 	for index: int in PlayerColours.COUNT:
-		var token: Dictionary = tokens[BodyColours.TOKENS[index]]
-		assert_str(token["type"] as String).is_equal("color")
+		var body := BodyColours.of(index)
+		var circle := palette[index]
+		var apart := maxf(
+			maxf(absf(body.r - circle.r), absf(body.g - circle.g)),
+			maxf(absf(body.b - circle.b), absf(body.a - circle.a))
+		)
 		(
-			assert_object(BodyColours.of(index))
-			. override_failure_message(BodyColours.TOKENS[index])
-			. is_equal(Color(token["hex"] as String))
+			assert_float(apart)
+			. override_failure_message("%d: %s vs %s" % [index, body, circle])
+			. is_less_equal(CHANNEL_SLACK)
 		)
 
 

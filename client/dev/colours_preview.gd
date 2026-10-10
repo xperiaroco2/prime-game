@@ -1,8 +1,8 @@
 extends Node3D
 ## A preview of the ten body colours for `tools\run.cmd shot` (#551): ten players in a row, peer
-## n + 1 in colour n (BodyColours, a placeholder palette), drawn by a real AvatarViews from fake
-## snapshots and the roster's colours; the last two lie downed, so the lying capsule shows its
-## colour too. Dev only: nothing here reaches the game.
+## n + 1 in colour n (BodyColours, the delivery circles' colours), drawn by a real AvatarViews
+## from fake snapshots and the roster's colours; the last two lie downed, so the lying capsule
+## shows its colour too. Dev only: nothing here reaches the game.
 
 const MODE := "res://content/modes/base_mode.tres"
 const TICK_USEC := 50000
