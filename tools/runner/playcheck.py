@@ -137,8 +137,9 @@ ACTIONS = ("press", "hold", "release")
 # raise bar's value, the crosshair), the LifeScreen (#497: the downed title, the time left, the bleed-out, raise and
 # give-up hold bars' values, the give-up line as drawn, the respawn time, "Watching: <name>", the protection chip),
 # the LobbyHud (#495: the status, the rows as "<name> ready" or "<name> not ready", the ready chip), the
-# PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", and the kind of the item in the
-# FirstPersonHand under the current camera.
+# PregameScreen's role, the EndScreen, the visible Esc tabs' texts joined with ", ", the kind of the item in the
+# FirstPersonHand under the current camera, and the TutorialScreen's step (#492: "Step 2 of 9", its how line as
+# drawn).
 FIELDS = (
     "hud.role",
     "hud.clock",
@@ -167,6 +168,8 @@ FIELDS = (
     "end.countdown",
     "esc.tabs",
     "hand.item",
+    "tutorial.step",
+    "tutorial.how",
 )
 TEXT_OPS = ("is", "has", "lacks")
 FIELDS_ARE = f"; the fields are {', '.join(FIELDS)}"

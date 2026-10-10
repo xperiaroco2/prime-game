@@ -158,6 +158,8 @@ class GameView:
 				found = [", ".join(names), ui.esc.is_visible_in_tree()]
 			"lobby.roster":
 				found = [_roster(ui.lobby_hud), ui.lobby_hud.rows.is_visible_in_tree()]
+			"tutorial.how":
+				found = [ui.tutorial.how_text(), ui.tutorial.step.is_visible_in_tree()]
 			"hand.item":
 				var hand := _hand()
 				var kind := hand.shown_kind() if hand != null else &""
@@ -196,6 +198,7 @@ class GameView:
 			"pregame.role": ui.pregame.role_label,
 			"end.winner": ui.end.winner_shown(),
 			"end.countdown": ui.end.countdown_label,
+			"tutorial.step": ui.tutorial.progress_label,
 		}
 
 	## The FirstPersonHand under the current camera: the own player's, or the spectated target's

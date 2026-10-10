@@ -2575,7 +2575,8 @@ window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen
 filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
 is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
 `LifeScreen` (#497), the `LobbyHud` (#495: `lobby.status`, `lobby.ready`, and `lobby.roster`, a line per row "<name
-as drawn> ready" or "not ready"), the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
+as drawn> ready" or "not ready"), the `EndScreen`, the `TutorialScreen` (#492: `tutorial.step`, its "Step n of 9", and
+`tutorial.how`, its how line as drawn), the visible Esc tabs and the kind in the `FirstPersonHand` under
 `get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
@@ -3924,7 +3925,7 @@ notes) over the tutorial session (§4.7.43) and its lesson runner (§4.7.45); `d
 - Shots: `client/dev/tutorial_preview.gd` (the tutorial room from its start spot, the HUD without timer and role):
   `tutorial_invite_preview`, `tutorial_step_preview`, `tutorial_step_keys_preview`, `tutorial_step_howto_preview`,
   each with a `_uk` twin, and `tutorial_invite_large_uk_preview`, `tutorial_step_large_uk_preview`; `playcheck
-  tutorial` shoots lesson 1 and lesson 2 in the game.
+  tutorial` shoots lesson 1 and lesson 2 in the game, waiting on the new fields `tutorial.step` and `tutorial.how`.
 - Tests: `tests/unit/client/ui/tutorial_screen_test.gd` (the tree of each state, lesson 4, the list, no mouse, a
   rebind, Ukrainian, large text on screen for every step, the step under the Spectate plate),
   `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
