@@ -3448,9 +3448,9 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
   `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
   round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
-  (`GameUi.set_tutorial(on)`, the hook the tutorial's issues #601 and #602 call at its start and end; not wired
-  yet); the default tab Lobby in the lobby and Game elsewhere; the last tab pressed is kept for the next opening on
-  the same kind of screen (lobby or other). Character waits for #73 (M7): no tab, no placeholder.
+  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.43); the default tab Lobby in the lobby
+  and Game elsewhere; the last tab pressed is kept for the next opening on the same kind of screen (lobby or other).
+  Character waits for #73 (M7): no tab, no placeholder.
 - Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
   ToyButtonSecondary, "Leave the tutorial" there) and Quit. The host's Leave and Quit open `ConfirmDim` and `Confirm`
   (P1): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
@@ -3571,9 +3571,10 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   table), which no base-mode phase is. The loading screen's how-to card counts this loading like any other (the
   tutorial teaches Delivery anyway): no tutorial branch in `GameHowto`.
 - **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
-  window's close act at once, with no question, and the Lobby tab's host settings stay off. Leave ends it as a
-  host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after lesson 9 is T4's call of
-  `Game.leave()`.
+  window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
+  Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
+  Leave ends it as a host's own leaving (`EndReasons.CLOSED`: no failure, the main menu). D32 (b)'s end after
+  lesson 9 is T4's call of `Game.leave()`.
 - **When it starts (E70):** `GameTutorial.setup` (the last line of `Game._ready`) wires the main menu's
   `tutorial_requested` to `start_tutorial(false)` (the item stays disabled until #492, #672's answer 2A), starts it
   without the invite on `--tutorial`, and with the invite on a first launch: `GameTutorial.first_launch(options,
@@ -3596,10 +3597,11 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   from each stand-in: one `Hello` with no name, one `SetReady`, one `LoadAck`, claims at one spot at rest, nothing
   else, seen failing with a planted voice frame; leaving the tree leaves), and
   `tests/integration/client/app/game_tutorial_test.gd` (E71: `start_tutorial` to the lessons and through both stages,
-  the loading screen in `gather`, seen failing without `GameFlow`'s rule; Leave with no question, the base mode again
-  and a networked host after it, seen failing without the restore; no replay, seen failing without the skip; the
-  first launch, `--tutorial`, a wrong launch and the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the
-  header, its refusals and its one window's command line).
+  the loading screen in `gather`, seen failing without `GameFlow`'s rule; the Esc menu's tutorial tabs (none after
+  it) and its Game page's Leave with no question, the base mode again and a networked host after it, seen failing
+  without the restore; no replay, seen failing without the skip; the first launch, `--tutorial`, a wrong launch and
+  the menu's Tutorial); `tools/runner/tests/test_playcheck.py` (the header, its refusals and its one window's
+  command line).
 
 #### 4.7.47 Built in #548 (M6.2), host text as ids plus arguments
 Part (b) of #208 (§4.7.26): text the host makes for players reaches each client as an id plus arguments, and the

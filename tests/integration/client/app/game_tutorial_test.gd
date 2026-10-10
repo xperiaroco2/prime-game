@@ -107,10 +107,18 @@ func test_leave_ends_it_at_once_and_a_networked_session_after_it_uses_the_base_m
 	var replays := ReplayFiles.list()
 	assert_bool(game.start_tutorial()).is_true()
 	assert_bool(await _until(func() -> bool: return game.screen() == S.ROUND)).is_true()
-	# The Esc menu's Leave acts at once: no "end the session for every player?".
+	# The Esc menu is its tutorial variant (#491): Game, Guide and Settings, Game shown.
 	game.open_esc()
-	game.ui.esc.press(EscMenuState.Tab.LEAVE)
-	assert_bool(game.ui.esc.state.asking()).is_false()
+	var esc := game.ui.esc.state
+	assert_bool(esc.tutorial).is_true()
+	assert_array(esc.tabs()).contains_exactly(
+		[EscMenuState.Tab.GAME, EscMenuState.Tab.GUIDE, EscMenuState.Tab.SETTINGS]
+	)
+	assert_int(esc.selected).is_equal(EscMenuState.Tab.GAME)
+	# The Game page's Leave acts at once: no "end the session for every player?".
+	game.ui.esc.press_leave()
+	assert_bool(esc.asking()).is_false()
+	assert_bool(game.ui.esc_open()).is_false()
 	assert_object(game.client()).is_null()
 	assert_int(game.screen()).is_equal(S.MENU)
 	assert_str(String(game.failure)).is_empty()
@@ -121,6 +129,8 @@ func test_leave_ends_it_at_once_and_a_networked_session_after_it_uses_the_base_m
 	assert_int(game.tutorial.stand_ins()).is_equal(0)
 	assert_object(game.get_node_or_null(GameTutorial.STAND_INS_NAME)).is_null()
 	assert_object(game.mode).is_same(base)
+	# The menu is the networked one again.
+	assert_bool(esc.tutorial).is_false()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_object(game.get_node_or_null("HostNode")).is_null()
@@ -193,6 +203,7 @@ func test_only_a_seen_invite_marks_the_tutorial_seen() -> void:
 	assert_bool(failing.tutorial.running).is_false()
 	assert_bool(failing.tutorial.invite_open).is_false()
 	assert_int(failing.screen()).is_equal(S.FAILURE)
+	assert_bool(failing.ui.esc.state.tutorial).is_false()
 	assert_str(String(failing.ui.connecting.state())).is_equal("host-failed")
 	assert_object(failing.mode).is_same(load(BASE))
 	back.read()

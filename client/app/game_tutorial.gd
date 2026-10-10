@@ -11,7 +11,8 @@ extends RefCounted
 ## mode again. The tutorial's host writes no replay (Game.host_on asks `running`), the game sends
 ## the own SetReady(true) once welcomed (the tutorial has no Ready key), and Game.hosting() is
 ## false: Leave and Quit act at once, with no question for other players, and end it as a host's
-## Leave does (the reason `closed`: no failure shows).
+## Leave does (the reason `closed`: no failure shows). The Esc menu shows its tutorial variant
+## (GameUi.set_tutorial, #491) from start() to end(): Game, Guide and Settings.
 ##
 ## It starts by itself only on a first launch (first_launch()); the main menu's Tutorial and
 ## --tutorial start it without the invite. #492 draws the invite while `invite_open` holds.
@@ -65,6 +66,7 @@ func start(game: Game, with_invite: bool) -> bool:
 	game.mode = load(MODE_PATH) as GameMode
 	running = true
 	invite_open = with_invite
+	game.ui.set_tutorial(true)
 	var schema := WireSchema.game(OS.is_debug_build())
 	var session_hub := hub if hub != null else LoopbackHub.new()
 	var transport := LoopbackTransport.new(schema.kind_table(), session_hub)
@@ -100,6 +102,7 @@ func end(game: Game) -> void:
 		_stand_ins = null
 	game.mode = _base_mode
 	_base_mode = null
+	game.ui.set_tutorial(false)
 	if invite_open:
 		mark_seen(game)
 	running = false
