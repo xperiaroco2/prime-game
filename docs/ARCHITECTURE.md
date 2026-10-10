@@ -5170,7 +5170,9 @@ Settings:
 - Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
   there (the engineer's answer on #49): players, the match settings and the phase settings. The Godot saver drops
   a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
-- players 1 to 10. Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
+- players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
+  lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719; the recommended size stays a hint in the
+  lobby, not a minimum). Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
   number of the mode's task types; #79); `banned_task_types` (a set of task types, empty; with one type nothing can
   be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision"); `dissidents` 1 (0 to
   9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
@@ -5218,7 +5220,8 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and
-greybox of §9.6.
+greybox of §9.6. A lone player (#719): `tests/unit/content/lone_player_test.gd` (Crew for 32 seeds at 1 and 9
+`dissidents`, and a round alone that no win condition ends until every package is delivered).
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
 `Loading, all_loaded → Round` row until #213 moved it to `Pregame, pregame_done → Round`) and `EndMatch`
 (`Round, won → End`); `content_modes_test.gd` plays a whole match from this data to the end and back to the lobby, twice (the second time with no intent: End's 3 s, nobody heard
