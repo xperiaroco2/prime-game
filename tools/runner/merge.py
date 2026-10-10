@@ -80,6 +80,11 @@ tools/out/logs/merge-check-<PRs>-output.log or merge-<pr>-output.log (one per ru
 merge-check prints the tables' flagged rows, a count of the clean ones and the verdict (clean_rows_counted); merge
 drops its `ok` progress lines; the verdict, the `wave:` line and the exit code are the same. `wave` calls `check` itself and gets every line, as before.
 
+Within one run (`merge`, `merge-check`, `merge-train`: `one_run`, #724) the runner asks git a question once: merge-base,
+ancestry, a diff, a textual merge and a Change are functions of full commit hashes and are kept for the run; a ref
+(`refs/remotes/origin/main`) is kept until the run fetches, pushes or publishes (`CACHE.moved`), and `ls-remote`
+(the late-move check) is never kept. A 2-PR `merge-train --dry-run` asked git 72 times before and 32 now.
+
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
 checkout and from any worktree (test_merge.py). Typed by hand, `git worktree remove` of the scratch worktree would ask
@@ -96,11 +101,12 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
+from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from .common import (
     OUT,
@@ -266,7 +272,68 @@ def _must(res: Result, what: str) -> str:
     return res.out.strip()
 
 
-def _sha(ref: str) -> str:
+# --- one run's git answers (#724) -------------------------------------------------------------------------------------
+
+SHA_RE = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?\Z")
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+class RunCache:
+    """The git answers of one command run (merge, merge-check, merge-train), so the same question is not asked twice:
+    merge-train's 2-PR dry run asked 72 git questions, most of them repeats. Only inside `one_run`; outside it (a test
+    calling a helper, a second command) every call goes to git, as before.
+
+    `facts` are functions of full commit hashes alone (merge-base, ancestry, a diff, a textual merge, whether a commit
+    exists): a hash fixes its whole history, so they hold for the run and a fetch cannot change them. `refs` are
+    answers about a name (`refs/remotes/origin/main`): `moved` forgets them, and it is called wherever the run itself
+    fetches, pushes or merges (fetch, ensure_head, _push, merge-train after a publish or a merge in a worktree). A
+    name not found, or a hash not found yet, is never kept as a fact."""
+
+    def __init__(self) -> None:
+        self.depth = 0
+        self.facts: dict[tuple[Any, ...], Any] = {}
+        self.refs: dict[str, str] = {}
+
+    def moved(self) -> None:
+        self.refs.clear()
+
+
+CACHE = RunCache()
+
+
+@contextmanager
+def one_run() -> Iterator[None]:
+    """The scope of one run's cache; nested scopes (merge-train calling merge) share the outer one."""
+    CACHE.depth += 1
+    try:
+        yield
+    finally:
+        CACHE.depth -= 1
+        if not CACHE.depth:
+            CACHE.facts.clear()
+            CACHE.refs.clear()
+
+
+def in_one_run(fn: F) -> F:
+    @wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        with one_run():
+            return fn(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def _fact(kind: str, shas: tuple[str, ...], compute: Callable[[], Any]) -> Any:
+    """compute() once per run for these full commit hashes (anything else is computed every time)."""
+    if not CACHE.depth or not all(SHA_RE.match(s) for s in shas):
+        return compute()
+    key = (kind, *shas)
+    if key not in CACHE.facts:
+        CACHE.facts[key] = compute()
+    return CACHE.facts[key]
+
+
+def _resolve(ref: str) -> str:
     res = subprocess.run(
         ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd=REPO, capture_output=True,
         timeout=TIMEOUT, stdin=subprocess.DEVNULL,
@@ -274,12 +341,40 @@ def _sha(ref: str) -> str:
     return res.stdout.decode().strip() if res.returncode == 0 else ""
 
 
+def _sha(ref: str) -> str:
+    """The commit a ref or hash names, or "" (a hash not found is asked again: a fetch may bring it)."""
+    if not CACHE.depth:
+        return _resolve(ref)
+    if SHA_RE.match(ref):
+        key = ("commit", ref)
+        if key not in CACHE.facts:
+            found = _resolve(ref)
+            if not found:
+                return ""
+            CACHE.facts[key] = found
+        return str(CACHE.facts[key])
+    if ref not in CACHE.refs:
+        CACHE.refs[ref] = _resolve(ref)
+    return CACHE.refs[ref]
+
+
 def _is_ancestor(commit: str, of: str) -> bool:
-    return _git("merge-base", "--is-ancestor", commit, of).rc == 0
+    return bool(_fact("ancestor", (commit, of), lambda: _git("merge-base", "--is-ancestor", commit, of).rc == 0))
+
+
+def _merge_base(a: str, b: str) -> str:
+    return str(_fact("merge-base", (a, b), lambda: _out("merge-base", a, b).strip()))
+
+
+def _count_since(fork: str, tip: str) -> int:
+    """Commits in tip that fork does not have."""
+    return int(_fact("count", (fork, tip), lambda: int(_out("rev-list", "--count", f"{fork}..{tip}").strip() or 0)))
 
 
 def fetch() -> None:
+    CACHE.moved()  # whatever the fetch does, and even when it fails
     _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
+    CACHE.moved()
     ok(f"fetched {REMOTE}")
 
 
@@ -288,6 +383,7 @@ def ensure_head(pr: PullRequest) -> None:
     if _sha(pr.oid):
         return
     _git("fetch", REMOTE, f"refs/pull/{pr.number}/head")
+    CACHE.moved()
     if not _sha(pr.oid):
         raise Failure(f"{pr.label}'s head {pr.oid[:10]} is not on {REMOTE}; run merge-check again in a minute")
 
@@ -303,6 +399,10 @@ def merge_message(pr: PullRequest) -> str:
 
 def textual(ours: str, theirs: str) -> list[str]:
     """The files `git merge-tree --write-tree` finds in conflict between two commits; empty when they merge."""
+    return list(_fact("textual", (ours, theirs), lambda: _textual(ours, theirs)))
+
+
+def _textual(ours: str, theirs: str) -> list[str]:
     res = subprocess.run(
         ["git", "merge-tree", "--write-tree", "--name-only", "--no-messages", ours, theirs], cwd=REPO,
         capture_output=True, timeout=TIMEOUT, stdin=subprocess.DEVNULL,
@@ -726,10 +826,15 @@ def read_blobs(specs: list[str]) -> dict[str, str]:
 
 
 def build_change(label: str, before: str, after: str) -> Change:
-    """The symbols that `before..after` removes, renames or changes, and what its added lines use."""
-    change = Change(label)
+    """The symbols that `before..after` removes, renames or changes, and what its added lines use (built once per run
+    for the same two commits; the label is the caller's, and nothing downstream changes a Change)."""
     if before == after:
-        return change
+        return Change(label)
+    return replace(_fact("change", (before, after), lambda: _build_change(before, after)), label=label)
+
+
+def _build_change(before: str, after: str) -> Change:
+    change = Change("")
     files = parse_diff(
         _out(
             "-c", "core.quotePath=false", "diff", "-U0", "-M", "--no-color", "--no-ext-diff", "--no-textconv",
@@ -1002,12 +1107,14 @@ class Sides:
             tip = _sha(f"refs/remotes/{REMOTE}/{pr.base}")
             if not tip:
                 raise Failure(f"{REMOTE}/{pr.base} not found after the fetch")
-            self.forks[pr.number] = _out("merge-base", tip, pr.oid).strip()
+            self.forks[pr.number] = _merge_base(tip, pr.oid)
         return self.forks[pr.number]
 
     def touched(self, pr: PullRequest) -> set[str]:
         if pr.number not in self.paths:
-            out = _out("-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", self.fork(pr), pr.oid, "--")
+            fork = self.fork(pr)
+            out = _fact("names", (fork, pr.oid), lambda: _out(
+                "-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", fork, pr.oid, "--"))  # fmt: skip
             self.paths[pr.number] = {line for line in out.split("\n") if line}
         return self.paths[pr.number]
 
@@ -1031,7 +1138,7 @@ def check_group(base: str, prs: list[PullRequest], sides: Sides | None = None) -
             since[fork] = build_change(base, fork, tip)
         behind = ""
         if fork != tip:
-            behind = f" ({_out('rev-list', '--count', fork + '..' + tip).strip()} commits since its fork)"
+            behind = f" ({_count_since(fork, tip)} commits since its fork)"
         semantic = both_ways(sides.change(pr), since[fork])
         rows.append(Row.of(f"{pr.label} onto {base}{behind}", textual(tip, pr.oid), semantic))
     for a, b in itertools.combinations(prs, 2):
@@ -1169,6 +1276,7 @@ def report_cross(bases: list[str], rows: list[Row], apart: list[str]) -> None:
     _details(rows)
 
 
+@in_one_run
 def check(numbers: list[int], base: str | None = None, trial: bool = False) -> int:
     say("merge-check" + (" --trial" if trial else ""))
     if trial:
@@ -1427,6 +1535,7 @@ def refuse_base(base: str, sync_main: bool = False) -> None:
 
 def _push(sha: str, base: str) -> None:
     res = _git("push", REMOTE, f"{sha}:refs/heads/{base}")
+    CACHE.moved()  # a push moves the remote-tracking ref, accepted or not
     for line in res.lines:
         if line.strip():
             say(f"        {line.rstrip()}")
@@ -1452,6 +1561,7 @@ def _confirm(number: int) -> bool:
     return False
 
 
+@in_one_run
 def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool = False) -> int:
     say(f"merge {'--sync-main' if sync_main else f'#{number}'} --base {base}" + (" --dry-run" if dry_run else ""))
     if (number is None) == (not sync_main):
@@ -1556,7 +1666,8 @@ def strip_comments(body: str) -> str:
 
 def changed_paths(fork: str, head: str) -> list[tuple[str, str]]:
     """(status letter, path) of each file the head changes since its fork; a rename is a delete and an add."""
-    out = _out("-c", "core.quotePath=false", "diff", "--name-status", "--no-renames", fork, head, "--")
+    out = _fact("name-status", (fork, head), lambda: _out(
+        "-c", "core.quotePath=false", "diff", "--name-status", "--no-renames", fork, head, "--"))  # fmt: skip
     found = []
     for line in out.split("\n"):
         status, _, path = line.partition("\t")
@@ -1774,7 +1885,7 @@ def behind_reason(pr: PullRequest, base: str, tip: str, mergeable: str) -> str:
     merge-train's way): no path it changes since its fork is one the base changed since then, and GitHub reports it
     MERGEABLE; CI green on its head is the caller's own check, and CI runs on the base after the merge. Else why it is
     refused (#622): CI tested the head's own tree, not the tree that would land, which differs where it counts."""
-    fork = _out("merge-base", tip, pr.oid).strip()
+    fork = _merge_base(tip, pr.oid)
     both = sorted({p for _, p in changed_paths(fork, pr.oid)} & {p for _, p in changed_paths(fork, tip)})
     if both:
         why = f"{base} changed {len(both)} of its files since its fork: {', '.join(both)}"
@@ -1790,7 +1901,7 @@ def behind_reason(pr: PullRequest, base: str, tip: str, mergeable: str) -> str:
 
 def behind_note(pr: PullRequest, base: str, tip: str) -> str:
     """The gate's words for a behind head that passed behind_reason, for the wave line."""
-    n = int(_out("rev-list", "--count", f"{pr.oid}..{tip}").strip() or 0)
+    n = _count_since(pr.oid, tip)
     return f"behind by {n} commit{'' if n == 1 else 's'}, no overlap: merged; CI runs on {base}"
 
 
@@ -1854,7 +1965,7 @@ def _who_refusals(pr: PullRequest, view: dict[str, Any]) -> list[str]:
 def _content_refusals(pr: PullRequest, view: dict[str, Any], tip: str) -> list[str]:
     """The exceptions in the paths the head changes since its fork from main at tip, and open "Needs the engineer"."""
     body = str(view.get("body") or "")
-    fork = _out("merge-base", tip, pr.oid).strip()
+    fork = _merge_base(tip, pr.oid)
     reasons = exception_reasons(changed_paths(fork, pr.oid), body, pr.head)
     return reasons + [f"\"Needs the engineer\": {p}" for p in open_needs(body)]
 
