@@ -64,8 +64,10 @@ skill and its `handover.md`.
   meta manager silent until 07:29Z. So while a run is in flight, or before he leaves, run no command the guard asks
   about (a worktree removal or branch delete outside a task's worktree, AGENT_WORKFLOW §8.2). Put it in "For you:"
   instead. At each wake, run `tools\run.cmd wave --stalled` (from `D:\prime-game`, read-only, about a second). It
-  names another session that has taken no turn for 30 minutes after a run of its own finished, and the card it waits
-  on. Put that line in your "For you:" and send a PushNotification.
+  names another session that has taken no turn for 30 minutes after a run of its own finished or a notification
+  queued, and the card it waits on. Put that line in your "For you:". Send a PushNotification only for a stalled
+  session you have not reported at an earlier wake (the line names the session and its last turn), so one night-long
+  stall pushes once, not at every wake.
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`

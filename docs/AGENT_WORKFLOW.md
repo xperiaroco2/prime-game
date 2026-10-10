@@ -734,9 +734,9 @@ pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` ren
 result as `[assistant] (called Bash)`, with no arguments and no result line (the running "META" session's last event
 then). So a session that waits on a card looks like one inside a long call. Since agents block no call over 180 s
 (§11.17), the secretary reads a running session whose last event is such a call and whose `lastActivityAt` is over 5
-minutes old as "probably waits on a permission card", and names the session and the tool. Not yet seen: a session
-known to sit on a card (does `lastActivityAt` stay frozen meanwhile?). The secretary's first runs check it against
-the engineer's screen. The transcript shows more (#731, the night of 2026-10-09/10). The card's call has a PreToolUse
+minutes old as "probably waits on a permission card", and names the session and the tool. A session known to
+sit on a card was seen on the night of 2026-10-09/10 (#731); whether `lastActivityAt` stayed frozen meanwhile was not
+checked. The transcript shows the card: its call has a PreToolUse
 `hook_success` record whose `permissionDecision` is `ask`, then no result. The session's notifications pile up as
 queue `enqueue` records with nothing delivered. `tools\run.cmd wave --stalled` (§11.11) reads those records and names
 the session, the card and the guard's reason.
@@ -1596,12 +1596,13 @@ manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill
 manager's guarded cleanup command (a branch delete outside a task branch) became a permission card at 22:06Z. Claude
 Code held every task notification of that session behind it, four finished runs and the keep-alive timer, until the
 engineer allowed the call at 07:29Z. It reads every transcript of the three track checkouts and their worktrees
-written in the last 24 hours, except the caller's own. It flags a session whose process is alive (or that no session
-file names) when it has had no turn since either:
+written in the last 24 hours, except the caller's own. It flags a session whose process is alive when it has had no
+turn since either (a session no file in `~/.claude/sessions` names is closed, Claude Code removes the file at exit;
+with no file at all, the process is unknown and the session is flagged):
 - a run of its own finished more than M minutes ago (default 30; a stopped or killed run starts no turn and does not
   count); or
-- a notification has waited undelivered in its queue that long: an `enqueue` record that no `remove`, `dequeue` or
-  delivering user record took out.
+- a notification has waited undelivered in its queue that long, after the session's last turn (before it, only when a
+  permission card waits): an `enqueue` record that no `remove`, `dequeue` or delivering user record took out.
 
 One line per session gives its title, its id, how long it has had no turn, the runs and queued notifications, and the
 call it waits on. When a PreToolUse hook answered `ask` for that call, the line calls it a permission card and quotes
