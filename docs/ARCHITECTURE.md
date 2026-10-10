@@ -3521,8 +3521,9 @@ section follows each recommendation.
   protocol bump and the wire's `MAX_AVATARS` raised from 15 to 16, so a full match's snapshot still decodes), so its
   camera and ears follow the body.
 - **The ragdoll** is the client's looks only (KE7): held by a spring to the interpolated point, colliding with the
-  world layer only, and never read by the raise hint's reach, the camera, the ears or `SightHider`. The camera's
-  pivot stops below a ceiling right above the body (KE8).
+  world layer only, and never read by the raise hint's reach, the camera, the ears or `SightHider`. `DownedCamera`'s
+  pivot, for the own player and for a spectator of a knocked-down target, rises no higher than the standing eye height
+  above the floor below the body and stops below a ceiling right above it (KE8).
 - **Open for the engineer:** where the body's motion runs (KE1: `core/`, recommended, as the throwing design's
   TE1), the own avatar in a knocked-down player's snapshot (KE5: the exception to §5), which hits launch a body (KD1), the launch (KD2), which floors make a body roll (KD3),
   raising a moving body (KD4), whom a knocked-down player hears (KD5), its camera (KD6), how a dead body and a revive
