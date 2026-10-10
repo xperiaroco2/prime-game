@@ -14,6 +14,9 @@
   [content API v0](2026-09-29-content-api-v0.md)
 - **Amended 2026-10-08 (#591):** the pillar "Macro skill over micro skill" allows rare one-shot moments that are hard
   to abuse ([below](#amendment-2026-10-08-rare-one-shot-moments-591)).
+- **Amended 2026-10-10 (#682, the cooking ADR's CE21; the engineer's comment 6096157421 on PR #701):** beside a
+  two-handed hand item a one-handed picked item goes onto the belt, and a two-handed picked item keeps the swap
+  ([below](#amendment-2026-10-10-a-take-beside-a-two-handed-item-682)).
 
 ## Context
 The [MVP rules](2026-09-29-mvp-rules.md) were decided before the game had a vision of its own. Since then a vision
@@ -92,7 +95,9 @@ and the leak test still checks it. The pillar is about game design, not about wh
 - **Picking up:** the picked item always goes to the hand. If the hand holds a one-handed item and the belt is
   empty, the hand item moves to the belt. Otherwise the hand item is swapped: it rests where the picked item lay, a
   spot already known to be valid. That holds whether the package is the picked item or the hand item, and it
-  replaces the first draft's "drops in front of the player".
+  replaces the first draft's "drops in front of the player". (Amended 2026-10-10: beside a two-handed hand item a
+  one-handed picked item goes onto the belt instead,
+  [below](#amendment-2026-10-10-a-take-beside-a-two-handed-item-682).)
 - A player with two items always has one in hand, never both on the belt. A player with one item may carry it on the
   belt with an empty hand.
 - **Swap** is refused while a two-handed item is in the hand, so a package carrier cannot draw a belted knife (V13);
@@ -478,3 +483,20 @@ Decided by the engineer on 2026-10-08 in chat with his agent while agreeing the 
 - **Unchanged:** no aim-heavy mechanics; death does not take a player out of the game, and killing is not a win.
 - Where it lives: `docs/GDD.md` §1 (Pillars). The pillar's text under "Vision pillars" above is the 2026-10-01
   wording.
+
+## Amendment 2026-10-10: a take beside a two-handed item (#682)
+
+Decided by the engineer on 2026-10-10 on the cooking design's PR
+([PR #701, comment 6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421));
+recorded in [the cooking ADR](2026-10-10-cooking-task.md) (CD3 (b), CE19 to CE21). Not built yet: the cooking ADR's
+issue C2 builds it.
+
+- **Why:** a player carrying a box or a package who wants a one-handed item had to put the two-handed item down, pick
+  up, and pick the two-handed item up again. Every take now does that routine for him.
+- **"Picking up" now reads, beside a two-handed hand item:** a one-handed picked item goes onto the belt and the
+  two-handed item stays in the hand; a full belt's item first drops at the taker's feet. A two-handed picked item
+  keeps the swap above (the belt holds only one-handed items), and a one-handed hand item keeps the rule above.
+- **What changes in play:** a package carrier who picks up a one-handed item lying in the package's circle keeps the
+  package and belts the item, so the package is not delivered by that pick-up; a package swapped onto its circle by a
+  two-handed picked item still is.
+- **Unchanged:** the belt holds at most one one-handed item; Swap is refused while a two-handed item is in the hand.

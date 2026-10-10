@@ -215,6 +215,109 @@ Open questions (the engineer's):
 - Does every match deal both Delivery and the zone task, or one of them at random?
 - Where do zones stand on the maps (the [House map](design/house-map.md)'s task stations, its §6, include none), and how do they look?
 
+### Cooking (#682)
+The House map's burger chain ([House map](design/house-map.md) §2, decision 6; its stations in §6). The rules below
+are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answers to the design's questions on
+[PR #701](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743), the last four in
+[comments 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400),
+[6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and
+[6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)); the engine parts are in
+[the cooking ADR](decisions/2026-10-10-cooking-task.md). Nothing is built yet.
+
+**Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
+kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
+the far south-west corner of the yard and carried back (the long meat run is intended); the herb is picked in the
+greenhouse, where a board decodes the order's herb icon.
+
+**Rules.**
+- Cooking is a task type, like Delivery and the Generator. One burger (one order) is one subtask; the host sets the
+  count in the lobby settings (every task type has its own subtask count, #256). Default: 1; at most 3, tuned in the
+  playtest.
+- Every order hangs on the kitchen's order board from the round's start. It shows the bun and the patty as pictures,
+  and the herb as an icon that only the greenhouse's herb board decodes; the icon-to-herb mapping is new each round.
+  Each place in the kitchen carries a number, and the board lists the orders by place number. Two orders may ask for
+  the same kind. The orders show only on the board; the task screen's Cooking row shows the burgers done of N, struck
+  through once every burger is done (there is no shared total of all tasks, #738).
+- Kinds: 3 buns (white, sesame, and dark, rye-like), 3 patties (light, a bit redder, and redder still) and 5 herbs.
+  The patties are not named after animals: they are told apart by look, so a player may read them as vegetarian.
+- Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds one,
+  like any one-handed item.
+- Boxes: one per kind, 3 bun boxes and 3 patty boxes, starting in storage. A box is a two-handed item that gives its
+  ingredient wherever it stands, storage included: one per tap of E, without limit, to anyone; holding E picks the box
+  up. A player may take a patty straight from storage, or carry the box to the kitchen so nobody steals it (worth it
+  when several orders need the same kind). (A future idea, not a rule: the engineer may later move another action to
+  F.)
+- The herb beds: a player presses E at a bed and gets one herb in the hand, without limit, and may then do anything
+  with it. The herbs are shuffled among the beds each round.
+- Busy hands, as for the Generator, but every take still works. A player holding a two-handed item (a box, a
+  package) can take: an ingredient from a box, a herb from a bed, the patty off the grill, an item from the floor. The
+  new item goes onto the belt; if the belt is full, its item drops at the player's feet; the two-handed item stays in
+  the hands. What is not a take is refused while the hands are busy: putting something onto a plate or the grill,
+  using a station that gives no item, a hit. (The engineer's reason: the rule does for the player the routine of
+  putting the box down, swapping and picking it up again.) Picking up a second two-handed item still swaps it with
+  the one in the hands, since the belt holds only a one-handed item.
+- Taking with full hands (an item in the hand and one on the belt) puts the hand item down at the player's feet, and
+  the new one goes into the hand. This holds at the boxes, the beds and the grill.
+- An ingredient left lying vanishes after a while. Spamming takes is fine: nothing in the rules stops players covering
+  the map in buns. (A short technical wait between one player's takes only guards the host against a flooding client;
+  it is not a game rule.)
+- The grill takes one patty at a time. A patty put on it fries for 10 s; then there are 5 s to take it off; left
+  longer it burns: black and unusable. A fried patty stays fried. Only a raw patty goes on; one taken off early is
+  still raw and starts again from 0; E at a busy grill takes the patty off; a burnt patty stays until someone takes it
+  off.
+- Assembly on a plate: each order has its own place in the kitchen with a plate already standing on it, not carried.
+  A player with an ingredient in the hand presses E on the plate and the ingredient goes on it (a patty on a bun goes
+  into the bun). The order of the layers does not matter. Only E puts an ingredient on: one put down or dropped near
+  the plate lies on the floor.
+- Each ingredient is checked against that place's order at once. A raw or burnt patty is refused outright and stays
+  in the hand; any other wrong one shows a red outline and can be taken back; a right one shows a green outline and
+  can no longer be taken.
+- A burger is done on the spot, once its bun, patty and herb are all green on its place.
+- Sabotage: a dissident may take a box and hide it; the others must search for it (the same play as hiding a
+  package). Beyond that, the rules above already let anyone take items, burn a patty or put a wrong ingredient on a
+  plate.
+- A dissident plays the same character as an engineer (role `crew`), under the same rules, and only living players
+  do subtasks (#79; vision revision 1, V4).
+- Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, a hiss when it burns, a
+  chime for green and a buzz for red, a sound when a burger is done. A ring over the grill fills to fried and then to
+  burnt.
+
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
+Generator. The flat greybox, the bots' test map, gets no cooking and none of the House's chains: it keeps what it
+deals today (the engineer's read-back answer on the Generator,
+[PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). All the
+new mechanics come with M7 on the House, and bots playing them comes later, with the map.
+
+**Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
+board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+
+**Words and looks** (he gave the buns and the patties, asked for the rest "so it all looks nice", and took the drafts
+as drafted on 2026-10-10; the whole table is the ADR's §5.1): the name "Cooking" and the lobby label "Burgers
+(Cooking)"; the five icons a sun, a moon, a star, a drop and a heart, told apart by shape alone; the bun boxes open
+wooden bakery crates and the patty boxes white cool boxes with a lid in their patty's colour, each showing what it
+gives; the fried patties keeping their hue under a brown crust, so an order's picture matches its box; the herbs
+basil, dill, rosemary, chives and mint.
+
+**Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
+goes and looks (the open-knowledge pillar, §1); which herb grows on which bed is seen at the beds. The code is shown
+only on the herb board, but a green herb on a plate also tells anyone looking which herb that order's icon means.
+What lies on a plate, red or green, is seen at the plate; the burgers done show on the task screen's Cooking row.
+
+**Numbers** (to tune): 1 burger by default, at most 3; 3 buns, 3 patties, 5 herbs; fry 10 s, then 5 s before it
+burns. Placeholders: an ingredient vanishes after lying 60 s; a player uses a station from within 2 m.
+
+**Engine parts** ([the cooking ADR](decisions/2026-10-10-cooking-task.md) §1, §8): a Cooking task type whose deal
+hangs the orders, draws the round's herb code and shuffles the herbs over the beds, with its places, grill, beds and
+boards as stations; the Generator's station-use intent (`Interact`) also naming an item, for the boxes; an item source
+that makes a new ingredient on every take, making room in the hands as the rules say; ingredients that vanish when
+left lying; a patty whose kind changes on the grill; items held by the grill and the plates; a task type
+that plays only on the maps its data lists (the Generator's part; Cooking: the House); station scenes in `levels/stations/` in place
+of the House's markers; the client's boards, beds, plates with their outlines, grill and sounds. The issues follow
+from the ADR's split, for the M7 backlog: for now the track only designs.
+
+Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
+in the playtest.
+
 ## 9. Meetings and voting
 
 Dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md): no game mode has meetings. The questions
