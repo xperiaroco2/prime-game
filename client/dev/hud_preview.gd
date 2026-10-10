@@ -7,6 +7,7 @@ extends Node3D
 ## - `tired`: stamina at 0.18; `hurt`: health at 0.22;
 ## - `mate`: a dissident with a knife on the belt looking at a teammate (the name plate's mark);
 ## - `raising`: holding Interact on a downed teammate (the raise bar in place of Aim);
+## - `cue`: the crosshair on a downed player (the raise cue in Aim, #497, the engineer on PR #721);
 ## and the handoff s09's (`docs/handoff/s09-downed.md`, #497), drawn by the game's LifeScreen from
 ## LifeHud over the same HUD:
 ## - `downed`: 3 s into the mode's 10 s knockdown (the bleed-out bar at 0.7, "0:07"), the mic off;
@@ -35,6 +36,7 @@ const TICK_USEC := 50000
 	"hurt",
 	"mate",
 	"raising",
+	"cue",
 	"downed",
 	"holding",
 	"raised",
@@ -119,6 +121,8 @@ func _local() -> HudText.Local:
 	local.mic = state not in ["downed", "holding", "raised", "dead"]
 	if state in ["empty", "tired", "hurt"]:
 		local.aim = LYING
+	if state == "cue":
+		local.raise_key = KeyLabel.of_action(&"interact")
 	if state == "raising":
 		local.raising = 0.6
 	return local
