@@ -290,6 +290,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
 
     p = sub.add_parser(
+        "unattended",
+        help="the guard's 'nobody is watching' sign: asks become denials until its end time (--until | --hours | "
+        "--off | --status)",
+        description="A manager's sign, set before a night and cleared when the engineer is back (docs/AGENT_WORKFLOW.md "
+        "§8.2.11, #750). While it is in force for this session (CLAUDE_CODE_SESSION_ID) and its workflow agents, the "
+        "guard answers deny, with the reason it would have asked with and the line 'unattended: put this command in "
+        "the For-you block for the engineer', where it would ask: a permission card holds every notification of the "
+        "session until a human clicks it (#731). Nothing that asks today is allowed, deny rules are unchanged, and "
+        "without the sign nothing changes. --until HH:MM (the next such local time) or an ISO time, or --hours N, "
+        "at most 16 h ahead; --off clears this session's sign (--all: every sign); --status lists the signs. The sign "
+        "is a file per session in tools/out/unattended/ of the main checkout and fails closed: another session's, "
+        "an unreadable, malformed or expired one counts for nothing, so a human's own session never counts.",
+    )
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument("--until", metavar="TIME", help="HH:MM (the next such local time) or an ISO 8601 time")
+    what.add_argument("--hours", type=float, metavar="N", help="from now for N hours (more than 0, at most 16)")
+    what.add_argument("--off", action="store_true", help="clear this session's sign")
+    what.add_argument("--status", action="store_true", help="list the signs and whether they are in force")
+    p.add_argument("--all", action="store_true", help="with --off: clear every session's sign")
+
+    p = sub.add_parser(
         "slots",
         help="who holds and waits for the verify slots (--status); one slot for a while (--quiet <hours> | off)",
         description="The machine-wide verify slots, shared by every checkout of this PC (docs/AGENT_WORKFLOW.md §11). "
@@ -861,6 +882,12 @@ def main(argv: list[str] | None = None) -> int:
             from . import load
 
             return load.main(args.loops, args.seconds)
+        if args.command == "unattended":
+            from . import unattended
+
+            if args.all and not args.off:
+                raise Failure("--all goes with --off")
+            return unattended.main(args.until, args.hours, args.off, args.all, args.status)
         if args.command == "slots":
             from . import slots
 

@@ -1186,6 +1186,34 @@ session's workflow agents, and that a scheduled session carries one of the two s
 `CLAUDE_CODE_SESSION_ATTENDED=1` or runs outside the desktop app, the hook allows nothing and the run prompts as
 before #312).
 
+#### 8.2.11 The "nobody is watching" sign (#750)
+A guard `ask` is a permission card, and a card has no timeout: while a call waits on one, Claude Code holds every
+notification of that session (finished workflows, the keep-alive timer) until a human clicks it. On 2026-10-09 one ask
+at 22:06Z kept the meta manager silent for 9 h 23 min (#731). The card shows in every mode, bypass included, so a manager
+that runs while the engineer is away needs the guard to refuse instead of ask. That is the sign:
+
+- **Set** by the manager before a night, from its own session: `tools\run.cmd unattended --until 07:30` (the next such
+  local time; or an ISO time such as `2026-10-11T05:30Z`) or `--hours 9`. At most 16 h ahead; a longer one is refused.
+  It writes `tools/out/unattended/<session id>.json` in the main checkout (any worktree writes there), with the
+  session id from `CLAUDE_CODE_SESSION_ID`, so the shell must be the manager's own.
+- **Cleared** by the manager when the engineer is back (his first message), before anything else: `unattended --off`
+  (`--off --all` clears every session's; `--status` lists the signs). It also ends by itself at its time.
+- **Effect.** In a call with the sign in force, every guard `ask` is a `deny` with the same reason plus one line:
+  "unattended: put this command in the For-you block for the engineer". The agent gets an error and goes on; the
+  command goes into the For-you block (MANAGERS §3). Nothing is allowed that was not before: the deny and ask rules,
+  the guard's findings and Claude Code's own checks are unchanged, and a call the guard finds nothing in is left
+  alone (the `acceptEdits` allow of §8.2.10 is a separate sign).
+- **Fail-closed, per session.** The hook (`hooks.manager_sign`, read only when the guard would ask) counts the sign
+  for a call whose `session_id`, or an id in its `transcript_path`, is the sign's session. A workflow agent's
+  transcript sits under the manager's session id (`<session id>/subagents/workflows/<run>/`, seen 2026-10-10), so the
+  manager's sign covers its agents. A human's own session has another id and no file, so it keeps its prompts, also
+  when the manager forgot to clear the sign. No file, another session's, one that has ended, one that ends more than 16 h
+  ahead, an unreadable or malformed one, or an id that is not a UUID: the ask, as before. Unverified until a night shows
+  it: that the hook payload's `session_id` equals `CLAUDE_CODE_SESSION_ID` and that a workflow agent's call carries the
+  manager's id in its `transcript_path`; if not, the sign changes nothing and the ask stays (`unattended --status` shows
+  the sign; the first night's For-you says whether a guard ask still came).
+- Out of scope (the engineer's answers on #741): a `Notification` hook, a Claude Code feature request.
+
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
 `git config *hooksPath*` is denied). It blocks pushes to `main`, all deletions and force pushes (any non-fast-forward
@@ -1817,7 +1845,7 @@ Python core `tools/run.py` with
 `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
+`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `unattended` (§8.2.11), `section` (§3), `signal` (the signalling Worker's
 tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
 `ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
 lists only the names, §3). Pins and pass/fail

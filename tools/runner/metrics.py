@@ -396,7 +396,8 @@ NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
 # #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
-REVIEW_TIER = re.compile(r"^Review tier \(#606\): (light|full)\b", re.MULTILINE)
+# The harness indents every line of a workflow's computed task text by two spaces (#761), so the line may lead with blanks.
+REVIEW_TIER = re.compile(r"^[ \t]*Review tier \(#606\): (light|full)\b", re.MULTILINE)
 # The tier of a run whose publisher's prompt names none: before #606, stopped before its publisher, or pr-rebase.
 NO_TIER = "unknown"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.

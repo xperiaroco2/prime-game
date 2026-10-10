@@ -16,10 +16,16 @@ def prompt(minutes: float, text: str) -> dict:
     return {"type": "user", "timestamp": at(minutes), "message": {"role": "user", "content": text}}
 
 
-def task(n: int, start: float, tier_line: str | None, usd_scale: int = 1) -> list[tuple]:
+def indented(text: str) -> str:
+    """text as the harness hands a workflow's computed task to its agent (#761): every line indented by two spaces."""
+    return "\n".join("  " + line if line else line for line in text.split("\n"))
+
+
+def task(n: int, start: float, tier_line: str | None, usd_scale: int = 1, indent: bool = False) -> list[tuple]:
     """One finished issue-task run of issue n from minute start: an implementer, a code reviewer and a publisher whose
-    prompt carries tier_line (none: a run before #606)."""
-    pub_prompt = [prompt(start + 8, f"Task: publish issue #{n}.\n\n{tier_line}\n\nThen, in this order:")] if tier_line else []
+    prompt carries tier_line (none: a run before #606), indented as the harness indents it when indent."""
+    text = f"Task: publish issue #{n}.\n\n{tier_line}\n\nThen, in this order:"
+    pub_prompt = [prompt(start + 8, indented(text) if indent else text)] if tier_line else []
     return [
         ("k-i", f"a-i{n}", f"implement:#{n}", "Implement", {"verify_green": True}, [
             assistant(start, f"msg-i{n}", usage(inp=10, write=10000 * usd_scale, out=100)),
@@ -83,6 +89,14 @@ class ReviewTierTest(unittest.TestCase):
         self.assertIn("; review tier light", light[0])
         before = metrics.run_lines(metrics.run_spend(self.wf / "wf_done", now=metrics.parse_time(UNTIL)))
         self.assertNotIn("review tier", before[0])
+
+    def test_a_publisher_prompt_indented_by_the_harness_names_its_tier(self) -> None:
+        Fixture.run(self.wf / "wf_ind_light", task(15, 130, LIGHT, indent=True))
+        Fixture.run(self.wf / "wf_ind_full", task(16, 150, FULL, indent=True))
+        _md, record = self.build()
+        tiers = {t["issue"]: t["tier"] for t in record["tasks"]}
+        self.assertEqual((tiers[15], tiers[16]), ("light", "full"))
+        self.assertEqual(tiers[14], "unknown")  # a mid-line quote still names none
 
 
 if __name__ == "__main__":
