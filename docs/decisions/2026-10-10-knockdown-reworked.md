@@ -85,8 +85,8 @@ ragdoll is only how each client draws a body at that place.
 | 4 | It cannot move | `MovementRule`; the client's `PlayerController` | the crawl | its claims move nothing: the host takes their facing only (KE4); the crawl, its slack and `crawl_speed_mps` go |
 | 5 | It cannot talk, and it hears | `VoiceRule.speakers_of`; `VoiceSender.may_speak_of`; the HUD's mic (#489, #497) | built, but the HUD (#489, #497) is open and has no mic yet | nothing (KE10); KD5 reads "hears" |
 | 6 | Its body falls as a ragdoll, with no animation | the client's views of knocked-down avatars and bodies | a lying capsule | a ragdoll held to the host's point (KE7) |
-| 7 | A hit can send the body flying | `Strike`, then `damage`, then `knock_down(launch)`; the motion | none | §4 |
-| 8 | A body on a sloped roof can roll off it | the motion's slide, in `LifeTicks` | none | §4 (KD3) |
+| 7 | A hit can send the body flying, on the House only | `Strike`, then `damage`, then `knock_down(launch)`; the motion; `PlayerRules.motion_maps` | none | §4; the greybox launches nothing (KE12) |
+| 8 | A body on a sloped roof can roll off it, on the House only | the motion's slide, in `LifeTicks`; `PlayerRules.motion_maps` | none | §4 (KD3); the greybox slides nothing (KE12) |
 | 9 | The lift's drop kills the living and the knocked-down under the car (RD7) | #688's drop, `LifeRules.kill` (PR #709, its RE6) | designed in #688 | it reads the body's point at the drop's tick, moving or not (§7) |
 
 ### 2. The engineer's questions (KD), answered
@@ -122,6 +122,7 @@ recommendation. By the same answer the launch (KD1, KD2) and the slide (KD3) pla
 | **KE9** | The launch's direction | Horizontal, from the attacker's feet towards the victim's (both last accepted positions); when they coincide, the horizontal part of the attacker's facing; when that has none, straight up only | Prevents: the direction resting on a claimed facing (harmless, but a glancing swing would launch a body sideways) |
 | **KE10** | Voice and the mic | No change: `VoiceRule.speakers_of` drops every speaker who is not living, `VoiceSender.may_speak_of` sends nothing unless the own life is living, and #489's mic, once built, shows off while downed. The tests that pin the first two stay (ARCHITECTURE §6.3) | Prevents: a second mute path (a knocked-down check inside a voice rule) that a mode's data could route around |
 | **KE11** | The code's name | `PlayerState.Life.DOWNED`, the wire's `downed` and the tests keep their names; players read "knocked down" ("You're down", #497's planned `downed.title`) | The engineer's "no downed state" is about the game (no wounded state that crawls), not an identifier. A rename touches about 160 files and the wire's flag for no change in behaviour |
+| **KE12** | How the launch and the slide play on the House alone (the engineer's answer: not on the flat greybox), while the base mode keeps both maps and the knife is one item on both | (a) one list in the mode's data: `PlayerRules.motion_maps`, the paths of the mode's maps on which a knockdown launches a body and a body slides, empty (the class default) for every map, the shape of `TaskType.maps` (the Generator ADR's GE15 (a), its issue G8 on PR #695, proposed). `knock_down` compares the match's map (`MatchState.map`) with it: on a map it does not list a knockdown takes no launch, whatever the strike's numbers, and starts no slide, so it is today's knockdown (§4, step 2). The mode check refuses a listed path that is not one of the mode's maps, as G8's does. The base mode lists the House alone from 728b on, where the field arrives, before any launch or slide has a number (728e); (b) a mode of its own for the House; (c) the numbers in the House's scene (a node or metadata the host reads with the markers); (d) a list on each `Strike` and another for the slide; (e) as (a), with an empty list meaning no map | **(a)**: the data says where bodies move, read the same way as where a task type plays, so the next House-only mechanic follows one pattern. It prevents the knife's launch numbers, which live in `content/items/knife.tres` and travel with the knife to every map, moving bodies on the greybox: the base mode's first map, where every scenario, the chaos run and the perf run play. (b) fails as GE15 (d) does: the client loads one mode (`Game.MODE_PATH`), so a second needs a mode choice in the lobby and splits the settings a host knows. (c) puts a game rule in a level scene, which the humans lay out by hand, outside the content API and the mode check's bounds. (d) gives two lists that can disagree, where the answer moves the launch and the slide together. (e) keeps a forgotten list from reaching the greybox, but unlike `TaskType.maps`, and every fixture mode would have to list its map; 728e's test that the base mode on the greybox moves no body catches a forgotten list instead. Not dependent on G8: G8 changes the deal and the demands, this changes the life rules |
 
 ### 4. The body's motion (KE1 (a); KD1 to KD4 and KD8 (a), the engineer's)
 
@@ -130,28 +131,35 @@ the body at rest, as an item's rest is its base point. In motion, a sphere moves
 radius is the capsule's (less the margin #641 fixes for a thrown item, so a body against a wall does not start
 inside it).
 
+**Where.** A body moves only on a map that `PlayerRules.motion_maps` lists (KE12; the base mode lists the House
+alone, from 728b on). On every other map, the flat greybox included, a knockdown takes no launch and starts no slide:
+it is step 2's knockdown with no launch, today's, and the body lies still and mute, drawn as a ragdoll (KE7), as the
+engineer answered ("the rework itself (still, mute, ragdoll) applies wherever today's knockdown does").
+
 1. **The launch.** `Strike` hands `damage` the launch of its rule (KD2): `launch_mps` away from the attacker (KE9)
    and `launch_up_mps` upwards, both 0 by default. `damage` hands it on to `knock_down` only when the hit knocks the
    player down: a hit that does not pushes nothing, because the living move client-side (invariant 7). A knockdown
-   by anything else (nothing else knocks down today) launches nothing.
-2. **The knockdown.** With no launch (both speeds 0, or a knockdown that is not a strike's) it is today's, unchanged:
-   the body lies at `floor_below` of the last accepted position at once, mid-jump included, `KnockedDown` and the
-   `Correction` name that point, and no motion starts (under 728c a floor there steeper than the slide angle then
-   starts a slide, step 4, which a slide speed of 0 never does). With a launch it starts the motion at the last
-   accepted position, lifted as `Items.lifted` lifts a point so the
-   floor under the feet is no contact, with the launch as its velocity, and asks once for the fallback rest,
-   `floor_below` of that point (logged like every answer). `KnockedDown(peer, position)` then names where the motion starts,
-   and its `Correction` (a new epoch) still drops the walking claims in flight.
+   by anything else (nothing else knocks down today) launches nothing, and `knock_down` drops the launch on a map
+   `motion_maps` does not list (KE12).
+2. **The knockdown.** With no launch (both speeds 0, a knockdown that is not a strike's, or a map `motion_maps` does
+   not list) it is today's, unchanged: the body lies at `floor_below` of the last accepted position at once, mid-jump
+   included, `KnockedDown` and the `Correction` name that point, and no motion starts (under 728c a floor there
+   steeper than the slide angle then starts a slide, step 4, which a slide speed of 0 or a map the list leaves out
+   never does). With a launch it starts the motion at the last accepted position, lifted as `Items.lifted` lifts a
+   point so the floor under the feet is no contact, with the launch as its velocity, and asks once for the fallback
+   rest, `floor_below` of that point (logged like every answer). `KnockedDown(peer, position)` then names where the
+   motion starts, and its `Correction` (a new epoch) still drops the walking claims in flight.
 3. **Flying**, each tick (`LifeTicks`, before the deadlines): the throw's arc function (#642) gives the next point
    from the stored origin, velocity and gravity and the motion's own count of ticks; `WorldQuery.sweep` (#641) moves
    the sphere along the segment; the first contact stops it, and the body drops to `floor_below` of the stop, lifted.
    With no contact the point moves on. A body passes through players, living or knocked down, as the crawling downed
    did (vision revision 1).
-4. **The slope** (KD3 (a)), at each landing: when the floor's normal (`floor_normal_below`, KE2) is steeper than the
-   slide angle, the body slides. Each tick it moves one step of the slide speed downhill (the normal's horizontal
-   part), swept a step height above the slope so the slope itself is no contact, then drops to the floor below. A
-   wall stops it there. A drop of more than the step height within one step is an edge: the body leaves it flying,
-   with the slide's velocity, and lands again (step 3). A floor no steeper than the angle ends the slide.
+4. **The slope** (KD3 (a)), at each landing on a map `motion_maps` lists: when the floor's normal
+   (`floor_normal_below`, KE2) is steeper than the slide angle, the body slides. Each tick it moves one step of the
+   slide speed downhill (the normal's horizontal part), swept a step height above the slope so the slope itself is
+   no contact, then drops to the floor below. A wall stops it there. A drop of more than the step height within one
+   step is an edge: the body leaves it flying, with the slide's velocity, and lands again (step 3). A floor no
+   steeper than the angle ends the slide.
 5. **The rest.** The motion ends; the point is the floor point, the velocity zero. No event: the snapshot shows the
    position and velocity to everyone, as for any avatar.
 6. **No floor** (launched off the map's edge or into a hole): the body rests at the fallback, and the match logs an
@@ -164,7 +172,8 @@ voice distance, the raise's reach and sight, a respawn marker's free radius and 
 as it moves. A death ends the motion where it is (KD8 (a): `die` takes the floor below, as today); a leave ends it,
 leaving no body; End, which lists no `LifeTicks`, pauses it; `ResetMatch` clears it. With no launch, step 2 is today's
 knockdown (the same event, the same `Correction`, no motion, so a `Raise` on the knockdown's tick is not rejected as
-`moving`), and every life test of today holds with the knife's launch and the slide speed at 0.
+`moving`), and every life test of today holds with the knife's launch and the slide speed at 0, and on any map
+`motion_maps` leaves out whatever the numbers: the greybox's scenarios, chaos run and perf run see no motion.
 
 Where a body may come to rest follows the throwing design's TD5 for items: a body that rests where no player can
 stand keeps its items there once it dies. With a launch lower and shorter than a throw (KD9's numbers), a launched
@@ -189,7 +198,7 @@ and a sliding body beside it (728e).
 | A knocked-down avatar: position, velocity, facing, the flag `downed`, the hand and belt items | everyone, in the snapshot (as today) | the position moves after the knockdown; the velocity is the motion's |
 | The own avatar while knocked down | that player only | new (KE5) |
 | `KnockedDown(peer, position)` | everyone; no attacker, no cause | the position is where the motion starts |
-| Which side the blow came from | every present peer, the dead and the knocked-down included, whatever their sight: the moving position and the launch velocity are in every snapshot (public, as every position is; `Swung` already names the swinger to everyone) | an accepted hint (KD2) |
+| Which side the blow came from | on the House only (KE12): every present peer, the dead and the knocked-down included, whatever their sight: the moving position and the launch velocity are in every snapshot (public, as every position is; `Swung` already names the swinger to everyone) | an accepted hint (KD2); on the greybox, nothing new |
 | The ragdoll's limbs | nobody: each client's own physics | new looks, never sent, never read (KE7) |
 | A knocked-down player's voice | nobody | unchanged (the invariant) |
 | A knocked-down player's look | everyone, as the avatar's facing; a spectator's camera follows it | unchanged (KE4 keeps it) |
@@ -235,14 +244,19 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 | A body slides under the raised car when it drops | it dies (RD7) | a body that survives under the car on one screen |
 | Snapshots lost or late | the client interpolates as for any avatar; the ragdoll snaps when farther than its snap distance | a ragdoll drifting away from the host's point |
 | The host's own player is knocked down | the same: its client gets its own filtered snapshot, its own avatar included | the host's player seeing more than a guest |
+| A knife knockdown on the flat greybox (a map `motion_maps` does not list) | no launch and no slide, whatever the knife's numbers: the body lies where it fell, still and mute, drawn as a ragdoll; the own avatar still reaches its player (KE5), at rest | a new mechanic on the greybox, against the engineer's answer and his standing rule |
 
 ### 9. Testing
 
-- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a knockdown with no launch is today's (its event, its `Correction`, no motion)
-  (every existing life test passes at 0); a launch into a wall, off a ledge, over no floor (the fallback and its
-  error); the longest motion; a pause in a phase without `LifeTicks`; a death, a give-up and a leave during a motion;
-  `Raise` rejected with `moving`; a slope slides, stairs do not, a wall stops a slide, an edge throws it off; the
-  command log replays the same rest.
+- `core/` (`tests/unit/life/`, `tests/unit/combat/`): a knockdown with no launch is today's (its event, its
+  `Correction`, no motion) (every existing life test passes at 0); a launch into a wall, off a ledge, over no floor
+  (the fallback and its error); the longest motion; a pause in a phase without `LifeTicks`; a death, a give-up and a
+  leave during a motion; `Raise` rejected with `moving`; a slope slides, stairs do not, a wall stops a slide, an edge
+  throws it off; the command log replays the same rest.
+- Where bodies move (KE12; `tests/unit/life/`, `tests/unit/content/`): on a fixture mode with two maps whose
+  `motion_maps` lists one, a launching strike and a steep floor move the body on the listed map, and on the other the
+  knockdown is today's, step for step (no motion, no slide); an empty list moves bodies on every map; the mode check
+  refuses a listed path that is not one of the mode's maps.
 - Movement (`tests/unit/movement/`): a knocked-down claim of a far place moves nothing and sends no `Correction`; its
   facing is taken; a malformed, a negative-tick and a past-credit claim of a knocked-down sender are dropped with no
   `Correction` and no facing taken; stale claims are dropped as before.
@@ -254,17 +268,27 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   a living player and on a missing own avatar of a knocked-down one (the leak test is proven so, ARCHITECTURE §5).
 - Chaos and bots: a knocked-down hostile peer's walking claims (its rows, ARCHITECTURE §4.6.5.3);
   `dissident_kills_the_crew` loses "and it crawls": a knocked-down bot's `WalkTo` fails the step, as a dead bot's does.
+  No scenario, chaos run or perf run plays the launch or the slide: they play the greybox, where no body moves
+  (KE12), and bots do not play the House (ARCHITECTURE §9.7).
+- The House, by integration tests in the host's world of the map (`LevelWorld` and `HostWorldQuery`, as
+  `tests/integration/levels/house_stairs_test.gd` reads it; 728e): the base mode's knife launches and slides there,
+  each body coming to rest on a floor within the longest motion, and none on the locked roof (beside #646's throw
+  check); and the base mode on the greybox moves no body, whatever the knife's numbers.
 - The client, over the loopback: a knocked-down joiner holding the move keys stays where the host has it with 0
   `Correction`s; launched, its camera follows its own avatar and stops under a low ceiling; the ragdoll's root stays
   within the snap distance of the point every frame; a revived joiner stands at the host's point.
 - `shot`: `life_preview` shows a ragdoll at rest and a dead body in place of the lying capsule.
-- The human playtest: the launch's feel (KD2, KD9), a roof's slide (KD3), the camera (KD6).
+- The human playtest, on the House: the launch's feel (KD2, KD9), a slide off a steep floor (KD3), the camera (KD6);
+  on the greybox, that a knocked-down body lies still where it fell.
 
 ### 10. The split
 
-Proposals for the M7 backlog, each `base: release/m7`; the manager opens them after the engineer's answers. Every
-content file named is provisional under the
-[MVP content ADR](2026-09-29-mvp-content-built-by-the-engineer.md), for his approval in its PR.
+Proposals for the M7 backlog, each `base: release/m7`; the manager opens them now that the engineer has answered
+(§11), and none is built until he says so. Every content file named is provisional under the
+[MVP content ADR](2026-09-29-mvp-content-built-by-the-engineer.md), for his approval in its PR, and every number in
+one is a placeholder marked "not a decision" (KD9 (b)). 728a and 728d apply on every map, the greybox included (the
+rework "applies wherever today's knockdown does"); the motion of 728b, 728c and 728e moves bodies on the House only
+(KE12).
 
 - **728a core and client: a knocked-down player holds still and looks** (size M). Goal: a knocked-down player cannot
   move; its claims carry its look only. Acceptance: `MovementRule` takes a knocked-down claim's facing only (KE4),
@@ -297,32 +321,43 @@ content file named is provisional under the
   gets its 16-avatar snapshot, the own-avatar check of §9 (from the life state, not from `for_peer`) in `LeakCheck`
   and `ScenarioInvariants`, seen failing on both plants, and the protocol number, and the client's `AvatarViews` and
   the bots' fold skipping it until 728d draws it, so no client draws itself as a stranger in between; `ChaosOracle`'s
-  reason table gains `moving`; a knockdown with no launch is today's, step for step (§4, step 2). 728b ships with
-  every launch at 0 (the base mode sets none) until 728d draws the motion: before it, a launched player's camera and
-  ears would stay where the knockdown started while every other screen showed the body fly, and its client's voice
-  cutoff (E41) would measure from the wrong place. ARCHITECTURE: §5; §4.1's `Raise` row and §9.5.13's rejection list
-  (`moving`); §4.2's `KnockedDown` row and its `Swapped` row ("its avatar is never sent to it"); §4.3.5's `Snapshot`
-  row ("16 avatars: 725" for "15 avatars: 680", and §4.3.5's "the snapshot's 15 avatars take 680 bytes"); §4.6.1.1
-  and §4.6.1.2 ("the own player's never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and
-  their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §7.1.17.
-  Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all answered).
-  Files: `core/life/`, `core/combat/strike.gd`, `core/match/player_state.gd`, `core/match/snapshots.gd`,
-  `core/match/reset_match.gd`, `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd`
-  (`MAX_AVATARS`), `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
+  reason table gains `moving`; a knockdown with no launch is today's, step for step (§4, step 2). Where bodies move
+  (KE12): `PlayerRules.motion_maps`, compared with `MatchState.map` in `knock_down`, the mode check refusing a path
+  that is not one of the mode's maps, and the base mode listing the House alone from this issue on, so no later
+  change can give the greybox a launch by leaving the list out; the body's gravity and the longest motion in
+  `PlayerRules` with their bounds, set in the base mode and the fixture modes as placeholders marked "not a decision"
+  (KD9 (b)); §9's tests of where bodies move. 728b ships with every launch at 0 (the knife sets none) until 728d
+  draws the motion: before it, a launched player's camera and ears would stay where the knockdown started while every
+  other screen showed the body fly, and its client's voice cutoff (E41) would measure from the wrong place.
+  ARCHITECTURE: §5; §4.1's `Raise` row and §9.5.13's rejection list (`moving`); §4.2's `KnockedDown` row and its
+  `Swapped` row ("its avatar is never sent to it"); §4.3.5's `Snapshot` row ("16 avatars: 725" for "15 avatars:
+  680", and §4.3.5's "the snapshot's 15 avatars take 680 bytes"); §4.6.1.1 and §4.6.1.2 ("the own player's never
+  arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and their bounds), its `TargetDowned` row
+  and §9.4.5's `LifeTicks` row (the motion and its no-floor error); §9.5.1's `PlayerRules` (the gravity, the longest
+  motion, `motion_maps`: the House); §7.1.17. Depends on: 728a, #641, #642; KE1, KE5, KD1, KD2, KD4, KD8 (all
+  answered). Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
+  `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
+  `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `net/messages/wire_schema.gd` (`MAX_AVATARS`),
+  `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
   `tests/harness/scenario_bot.gd`, `tests/harness/chaos/chaos_oracle.gd`, `tests/unit/life/`, `tests/unit/combat/`,
-  `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_invariants.gd`, `docs/ARCHITECTURE.md`.
+  `tests/unit/content/player_rules_test.gd`, `tests/fixtures/match/fixture_modes.gd`,
+  `tests/harness/bots/leak_check.gd`, `tests/harness/scenario_invariants.gd`, `content/modes/base_mode.tres`,
+  `docs/ARCHITECTURE.md`.
 - **728c core: a body slides down a steep floor and off its edge** (size S). Goal: a body on a sloped roof rolls
   off it. Acceptance: `WorldQuery.floor_normal_below` (KE2) in the port, `FlatWorldQuery`, `RecordingWorldQuery`,
   the replay, `HostWorldQuery`, and the two test worlds that override `floor_below`
   (`tests/fixtures/world/fixture_level_world.gd`, `tests/fixtures/match/fixture_terrain_world.gd`: the port's
   default answers like an empty world, so without their own answer a body would never slide there, which is why the
   throwing ADR's 37a lists them for `sweep`); the slide angle and speed in `PlayerRules` with bounds, a slide speed
-  of 0 sliding nothing, and the base mode at 0 until 728e (for the reason 728b gives); §4's step 4; a fixture level
-  with a roof, its edge, a chimney on it and stairs; unit tests (§9) and an integration test of the answer;
-  ARCHITECTURE §4.5.9 and §7.1.17. Depends on: 728b; KD3, KD9. Files: `core/world/`, `server/host_world_query.gd`,
-  `core/life/`, `core/content/player_rules.gd`, `tests/fixtures/world/fixture_level_world.gd`,
-  `tests/fixtures/match/fixture_terrain_world.gd`, `tests/fixtures/levels/`, `tests/unit/life/`,
-  `tests/integration/server/`, `docs/ARCHITECTURE.md`.
+  of 0 sliding nothing; in the base mode the angle a placeholder marked "not a decision" (KD9 (b)) and the speed at
+  0 until 728e (for the reason 728b gives); §4's step 4, on a map `motion_maps` lists only (KE12), with a unit test
+  that a steep floor on another map slides nothing; a fixture level with a roof, its edge, a chimney on it and
+  stairs; unit tests (§9) and an integration test of the answer; ARCHITECTURE §4.5.9, §9.5.1's `PlayerRules` and
+  §7.1.17. Depends on: 728b; KD3, KD9 (answered). Files: `core/world/`, `server/host_world_query.gd`, `core/life/`,
+  `core/content/player_rules.gd`, `tests/fixtures/world/fixture_level_world.gd`,
+  `tests/fixtures/match/fixture_terrain_world.gd`, `tests/fixtures/match/fixture_modes.gd`, `tests/fixtures/levels/`,
+  `tests/unit/life/`, `tests/unit/content/player_rules_test.gd`, `tests/integration/server/`,
+  `content/modes/base_mode.tres`, `docs/ARCHITECTURE.md`.
 - **728d client: a knocked-down body drawn as a ragdoll** (size M). Goal: a knocked-down body falls and flies as a
   ragdoll held to where the host has it. Acceptance: the ragdoll view (KE7) for remote knocked-down avatars and the
   own one; on the greybox avatar one `RigidBody3D` capsule on the `downed` layer with the world mask only, started
@@ -336,15 +371,22 @@ content file named is provisional under the
   `client/world/avatar_views.gd`, `client/world/body_views.gd`, `client/life/life_view.gd`,
   `client/life/downed_camera.gd`, `client/life/ears.gd`, `client/dev/life_preview.tscn`, `tests/integration/client/`,
   `docs/ARCHITECTURE.md`.
-- **728e content: the launch and the slide in the base mode, a bot scenario and the playtest** (size S). Goal: the
-  base mode launches bodies. Acceptance, on the engineer's word: the knife's launch numbers and `PlayerRules`'
-  motion numbers (KD9); a bot scenario on a greybox map (bots do not play House, ARCHITECTURE §9.7) in which a
-  dissident's knockdown launches a crew bot and a teammate raises it where it lands; beside #646's roof check, a
-  test that no knife launch from where players stand on House, and no slide off a roof players can reach, rests a
-  body on the locked roof (items do not slide, so #646's throw check does not cover a slide); the playtest's list
-  (KD2, KD3, KD6). Depends on: 728b, 728c, 728d (the first non-zero launch or slide in the base mode needs the own
-  avatar's camera and ears to follow the body), #646; KD9. Files: `content/modes/base_mode.tres`,
-  `content/scenarios/`, `tests/integration/`.
+- **728e content: the launch and the slide on the House, its integration tests and the playtest** (size S). Goal: on
+  the House a knife knockdown launches the body and a steep floor slides it; the greybox moves no body. Acceptance:
+  the knife's `launch_mps` and `launch_up_mps` (`content/items/knife.tres`) and the base mode's slide speed,
+  placeholders the agents pick, marked "not a decision" (KD9 (b)), provisional under the MVP content ADR for the
+  engineer's approval in its PR; `motion_maps` still the House alone (KE12, from 728b). Integration tests on the House
+  in the host's world (`LevelWorld` and `HostWorldQuery`, as `house_stairs_test.gd` reads the map), since bots do
+  not play the House (ARCHITECTURE §9.7): a knife launch in each direction from a sample of places players stand
+  (the yard, the terrace, the balcony) rests the body on a floor within the longest motion; beside #646's roof
+  check, no knife launch from where players stand and no slide off a roof players can reach rests a body on the
+  locked roof (items do not slide, so #646's throw check does not cover a slide); and the base mode on the greybox
+  moves no body with these numbers (a knife knockdown there is today's, step for step). No bot scenario: the
+  scenarios, the chaos run and the perf run play the greybox, where nothing moves, and stay as they are. The
+  playtest's list, on the House (KD2, KD3, KD6). ARCHITECTURE §9.5.1 (the slide speed) and §9.5.6 (the knife's
+  launch). Depends on: 728b, 728c, 728d (the first non-zero launch or slide in the base mode needs the own avatar's
+  camera and ears to follow the body), #646. Files: `content/items/knife.tres`, `content/modes/base_mode.tres`,
+  `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
   revived" follows KD7; the manager adds this to #522.
@@ -373,17 +415,26 @@ the M7 backlog, none built until he says so.
 - **Keeping the crawl, with a ragdoll only for looks:** against "cannot move".
 - **A new life state for a body in motion:** a knockdown in motion is still a knockdown; a state would touch every
   reader of the life state, the wire's flag and the client's life fold, for what `PlayerState.motion` holds.
-- **A lying animation, or a get-up clip now:** against "no animation"; the get-up clip waits for KD7 (c).
+- **A lying animation, or a get-up clip now:** against "no animation"; the get-up clip was KD7 (c), and the engineer
+  chose (a). It can replace the pop-up later.
 - **A `Correction` per tick, or the own client computing its motion:** KE5.
 - **Muting in a voice rule:** KE10. **Renaming `DOWNED`:** KE11.
+- **The launch and the slide on every map, the greybox included:** against the engineer's answer and his standing
+  rule (no new mechanic on the greybox).
+- **A mode of its own for the House, the numbers in the House's scene, or one list per strike:** KE12 (b) to (d).
+- **A greybox bot scenario of a launched body:** the greybox moves no body, and bots do not play the House
+  (ARCHITECTURE §9.7), so the House's integration tests check the motion (728e).
 
 ## Consequences
 
 - Once built, a knocked-down player never moves on its own, so "crawling into a circle and giving up" (vision
-  revision 1, V4) is gone; a launch can carry a body, and its package, instead.
-- The point the raise, voice and the car read can move after `KnockedDown`; each of them already reads it every tick.
-- `MovementRule` sheds the crawl and the hold; `PlayerRules` loses `crawl_speed_mps` and gains the motion's numbers;
-  `Strike` gains a launch; `WorldQuery` gains one answer (under KD3 (a)); the snapshot's own-avatar rule gets one
-  exception, with a protocol bump and `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS`.
+  revision 1, V4) is gone; on the House a launch can carry a body, and its package, instead.
+- The point the raise, voice and the car read can move after `KnockedDown` on the House; each of them already reads
+  it every tick. On the greybox it stays where the body fell.
+- `MovementRule` sheds the crawl and the hold; `PlayerRules` loses `crawl_speed_mps` and gains the motion's numbers
+  and `motion_maps`; `Strike` gains a launch; `WorldQuery` gains one answer (under KD3 (a)); the snapshot's own-avatar
+  rule gets one exception, with a protocol bump and `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS`.
+- `motion_maps` is the second per-map list in the mode's data, beside `TaskType.maps` (the Generator ADR's GE15, if
+  merged as proposed): a later House-only mechanic follows the same shape.
 - The throwing issues #641 and #642 become prerequisites of 728b.
-- The playtest tunes the launch and the slide; the bounds keep a forgotten number out.
+- The playtest on the House tunes the launch and the slide; the bounds keep a forgotten number out.
