@@ -179,8 +179,10 @@ What already holds (ARCHITECTURE §9, §5), and what the Generator's design adds
    done the task is done, and every later use of the camera, the printer and the board is refused `unavailable`
    (PD12).
 8. **Nothing else** changes a shot, a film or a hung photo: no hit, knockdown, death or leave. A carried film or photo
-   drops at a knockdown, a death or a leave like any item, and keeps its shots; a film in the camera belongs to no
-   player and stays. The state stays in `MatchState` until `ResetMatch`.
+   drops at a death or a leave like any item, and keeps its shots; a knocked-down player keeps both slots (vision
+   revision 1, ARCHITECTURE §7.1.11 and §7.1.13; if #728's rework changes that, it is cited here then, and the photo
+   task needs no code of its own for it). A film in the camera belongs to no player and stays. The state stays in
+   `MatchState` until `ResetMatch`.
 
 ### 3. The shot: who is in the frame, and the picture
 #### 3.1 The frame (PE3)
