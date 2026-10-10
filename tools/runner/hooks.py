@@ -15,6 +15,8 @@ import sys
 TYPE_CHECKING = False  # typing.TYPE_CHECKING: importing typing cost the guard about 5 ms per shell call (#568)
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from .common import Result
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,6 +33,13 @@ CHECK_LINE_RE = re.compile(r"^CHECK (error|warning) (.*?)(?: \[[^\]]*\])?$")
 # and what it says then.
 ACCEPT_EDITS = "acceptEdits"
 ALLOW_REASON = "guard: nothing to ask for in acceptEdits, so it runs as in bypass (docs/AGENT_WORKFLOW.md §8.2, #312)"
+# The "nobody is watching" sign (issue #750, docs/AGENT_WORKFLOW.md §8.2.11): one file per session in this folder of the
+# main checkout, named by the session's id. While it is in force, a guard ask becomes a deny that says so.
+UNATTENDED_FOLDER = ("tools", "out", "unattended")
+UNATTENDED_NOTE = "unattended: put this command in the For-you block for the engineer"
+# The longest a sign runs (a night); a file that ends later is ignored, and `unattended` writes no such file.
+MAX_UNATTENDED_HOURS = 16.0
+UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
 
 
 def main(name: str) -> int:
@@ -67,7 +76,9 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     routine shell work as a bypass session would. The deny and ask rules and Claude Code's own delete checks still
     hold over an allow. A human's own acceptEdits session (the humans' default mode) keeps its prompts: unattended
     needs a positive sign (a desktop-app session the app does not mark attended), so a CLI or IDE session never gets
-    the allow."""
+    the allow. A different positive sign, a manager's `unattended` file for the session (unattended_sign, #750), turns
+    every ask into a deny with the same reason and one line more: nothing is allowed that was not, and no sign leaves
+    the ask."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if tool not in ("Bash", "PowerShell") or not isinstance(tool_input, dict):
@@ -83,7 +94,14 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     # A cloud session works in the main checkout on its task branch: there it is the session's own (#381).
     analysis = guard.judge(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud_session())
     if analysis.findings:
-        _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(analysis.findings))
+        text = guard.reason(analysis.findings)
+        if unattended_sign(payload):
+            # Nobody answers a permission card, and one holds the session's every notification until someone does
+            # (#750): refuse with the same reason, so the agent goes on and the engineer gets the command in For you.
+            note = f"{text}\n{UNATTENDED_NOTE}"
+            _emit("PreToolUse", permissionDecision="deny", permissionDecisionReason=note)
+        else:
+            _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=text)
     elif payload.get("permission_mode") == ACCEPT_EDITS and unattended() and guard.allows(analysis):
         _emit("PreToolUse", permissionDecision="allow", permissionDecisionReason=ALLOW_REASON)
     return 0
@@ -100,6 +118,62 @@ def unattended() -> bool:
     if attended:
         return attended in ("0", "false", "no")
     return os.environ.get("CLAUDE_CODE_ENTRYPOINT", "") == "claude-desktop"
+
+
+def main_root(root: str = ROOT) -> str:
+    """The main checkout, also when the hook (or the runner) runs from a worktree's copy."""
+    return re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+[\\/]?$", "", root)
+
+
+def unattended_folder() -> str:
+    """Where the signs are: the main checkout's tools/out/unattended, shared by every worktree of the PC."""
+    return os.path.join(main_root(), *UNATTENDED_FOLDER)
+
+
+def sign_stamp(moment: datetime) -> str:
+    """A UTC time as the sign file writes it: 2026-10-10T22:00:00Z."""
+    from datetime import UTC
+
+    return moment.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def read_sign(session_id: str, folder: str | None = None, now: datetime | None = None) -> datetime | None:
+    """The end time of the session's "nobody is watching" sign, or None. Fails closed: no file, an unreadable or
+    malformed one, a different session's, one without an end time, one that has ended, and one that ends more than
+    MAX_UNATTENDED_HOURS ahead (the `unattended` command writes none) all mean attended."""
+    from datetime import UTC, datetime, timedelta
+
+    if not UUID_RE.fullmatch(session_id):  # the id names a file: nothing else goes into a path
+        return None
+    path = os.path.join(folder if folder is not None else unattended_folder(), f"{session_id.lower()}.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        if not isinstance(data, dict) or str(data.get("session", "")).lower() != session_id.lower():
+            return None
+        until = datetime.fromisoformat(str(data["until"]).strip().replace("Z", "+00:00"))
+    except (OSError, ValueError, KeyError):
+        return None
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=UTC)
+    now = now or datetime.now(UTC)
+    if until <= now or until > now + timedelta(hours=MAX_UNATTENDED_HOURS, minutes=1):
+        return None
+    return until
+
+
+def sign_sessions(payload: dict[str, object]) -> list[str]:
+    """The session ids a hook call can belong to: its own `session_id`, and the ids in its transcript path. A workflow
+    agent's transcript sits under the manager's session (`<session id>/subagents/workflows/<run>/`, seen 2026-10-10,
+    #731), so the manager's sign covers its workflow agents; another session's id is never among them."""
+    found = [str(payload.get("session_id") or "")]
+    found += UUID_RE.findall(str(payload.get("transcript_path") or ""))
+    return [name for name in dict.fromkeys(found) if name]
+
+
+def unattended_sign(payload: dict[str, object], folder: str | None = None, now: datetime | None = None) -> bool:
+    """Nobody is watching this session: a sign the manager set (`run unattended`) for it is in force (#750)."""
+    return any(read_sign(name, folder, now) is not None for name in sign_sessions(payload))
 
 
 def cloud_session() -> bool:
