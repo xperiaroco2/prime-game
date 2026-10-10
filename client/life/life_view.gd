@@ -192,6 +192,18 @@ func raise_shown(tick: float) -> float:
 	return countdowns.raise_progress(tick)
 
 
+## The rescuer's cue in the HUD's Aim (#497, the engineer on PR #721): the label of the raise key
+## bound now (KeyLabel's `interact`) while the living own player's crosshair is on a downed player E
+## would raise (raise_target()); "" otherwise. It offers exactly what E does, so it follows the
+## mode's raise: the base mode's raise has no team condition (anyone raises any downed player), so
+## a dissident sees it over a downed engineer too. Whether a player is downed is public; nothing
+## else of the downed player is in it.
+func raise_cue() -> String:
+	if model == null or _own_life() != ClientModel.Life.ALIVE or raise_target() == 0:
+		return ""
+	return KeyLabel.of_action(&"interact")
+
+
 ## What the downed, dead and respawn screen shows now (LifeScreen, #497), at the estimated host
 ## tick `tick`.
 func hud(tick: float) -> LifeHud.Shown:

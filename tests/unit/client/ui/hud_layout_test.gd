@@ -240,6 +240,31 @@ func test_raising_replaces_aim_and_the_map_hides_the_middle() -> void:
 	assert_bool(hud.aim.visible).is_true()
 
 
+func test_the_raise_cue_takes_aims_place_in_the_decks_words_with_the_key() -> void:
+	# The rescuer's cue (#497, the engineer on PR #721): `tutorial.step.downed.how` with the raise
+	# key's label, set in code and written again on a language switch; the own raise replaces it.
+	var locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("en")
+	var hud := await _hud()
+	var cue := _state(&"cue")
+	hud.show_hud(cue)
+	assert_bool(hud.aim.visible).is_true()
+	assert_str(hud.aim_label.text).is_equal("Hold E next to them")
+	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+	TranslationServer.set_locale("uk")
+	hud.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
+	assert_str(hud.aim_label.text).is_equal("Утримуй E поруч")
+	cue.raising = 0.6
+	hud.show_hud(cue)
+	assert_bool(hud.aim.visible).is_false()
+	assert_bool(hud.raising.visible).is_true()
+	# An item's name again: its deck key, translated by the label.
+	hud.show_hud(_state(&"empty"))
+	assert_str(hud.aim_label.text).is_equal("item.package")
+	assert_int(hud.aim_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_INHERIT)
+	TranslationServer.set_locale(locale)
+
+
 func test_the_mic_off_is_mic_off_tinted_icon_off() -> void:
 	var hud := await _hud()
 	var shown := _state(&"empty")
@@ -318,6 +343,9 @@ static func _state(state: StringName) -> HudText.Shown:
 			shown.belt = _slot("item.knife", &"knife", false)
 		&"raising":
 			shown.raising = 0.6
+		&"cue":
+			shown.aim = ""
+			shown.raise_key = "E"
 	return shown
 
 

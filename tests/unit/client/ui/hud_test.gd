@@ -114,6 +114,45 @@ func test_aim_names_the_item_under_the_crosshair_and_the_raise_replaces_it() -> 
 	assert_str(HudText.of(model, _mode, NOW, local).aim).is_empty()
 
 
+func test_the_raise_cue_takes_aims_place_for_the_living_only() -> void:
+	# The rescuer's cue (#497, the engineer on PR #721): the raise key's label over the item's name
+	# (both are on E); the own raise replaces it, and neither the downed nor the dead see it.
+	var model := _round_model()
+	model.fold(&"ItemSpawned", {"item": 41, "kind": &"package", "position": Vector3(1, 0, 1)})
+	var local := HudText.Local.new()
+	local.aim = 41
+	local.raise_key = "E"
+	var cue := HudText.of(model, _mode, NOW, local)
+	assert_str(cue.raise_key).is_equal("E")
+	assert_str(cue.aim).is_empty()
+	local.raising = 0.3
+	var raising := HudText.of(model, _mode, NOW, local)
+	assert_str(raising.raise_key).is_empty()
+	assert_float(raising.raising).is_equal(0.3)
+	local.raising = -1.0
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	assert_str(HudText.of(model, _mode, NOW, local).raise_key).is_empty()
+	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	assert_str(HudText.of(model, _mode, NOW, local).raise_key).is_empty()
+
+
+func test_a_dissident_sees_the_raise_cue_as_an_engineer_does_and_it_names_nobody() -> void:
+	# The base mode's raise has no team condition: anyone raises any downed player, so the cue is
+	# the role's business no more than E is (LifeView.raise_cue()). It carries the key alone.
+	var local := HudText.Local.new()
+	local.raise_key = "E"
+	var dissident := HudText.of(_round_model(), _mode, NOW, local)
+	var crew_model := _round_model()
+	crew_model.fold(&"RoleAssigned", {"role": &"crew"})
+	crew_model.teammates.clear()
+	var crew := HudText.of(crew_model, _mode, NOW, local)
+	assert_str(dissident.raise_key).is_equal("E")
+	assert_str(_fields(dissident)).is_equal(_fields(crew))
+	assert_str(HudText.raise_cue("E")).contains("E")
+	for word: String in ["Player2", "Player3", "teammate", "engineer", "dissident"]:
+		assert_str(_fields(dissident) + HudText.raise_cue("E")).not_contains(word)
+
+
 func test_a_dead_spectator_sees_nothing_of_the_hud() -> void:
 	# The handoff s09's `dead` (#497): the Spectate plate (LifeScreen) is the only UI; the HUD shows
 	# none of the spectator's own time, role, vitals, mic, aim, raise or slots, and none of the
@@ -272,6 +311,7 @@ func _fields(shown: HudText.Shown) -> String:
 		shown.slots,
 		shown.aim,
 		shown.raising,
+		shown.raise_key,
 	]
 	for slot: HudText.Slot in [shown.hand, shown.belt]:
 		parts.append_array([slot.item, slot.icon, slot.two_handed])

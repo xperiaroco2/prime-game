@@ -3,6 +3,8 @@ extends GdUnitTestSuite
 ## LoopbackHub (NetPair, with the base mode's life rules: the raise, the give-up and a 2 s respawn
 ## on the fixture's markers). The real controllers, cameras and life views, driven through their
 ## wish fields and the life view's actions (headless runs have no input):
+## - the host's player aiming at a downed joiner sees the raise cue in its Aim, as a dissident too
+##   (#497);
 ## - a downed joiner raised by the host's player holds still while it tries to crawl and is never
 ##   corrected; it stands up living, in first person, invulnerable for the mode's time, with the
 ##   look it had (the knockdown's Correction and the revive keep it, #191);
@@ -70,6 +72,17 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	var raiser := _pair.host.player()
 	assert_bool(await _face_from(raiser, downed.global_position, 1.3)).is_true()
 	assert_int(_pair.host.life().raise_target()).is_equal(joiner)
+	# The rescuer's cue in the host's Aim (#497, the engineer on PR #721), whatever the host's
+	# role: the base mode's raise has no team condition, so a dissident is offered it over a downed
+	# player as an engineer is. The downed joiner is offered none.
+	_pair.host.client().model.fold(&"RoleAssigned", {"role": &"dissident"})
+	var key := KeyLabel.of_action(&"interact")
+	assert_str(_pair.host.life().raise_cue()).is_equal(key)
+	assert_str(life.raise_cue()).is_empty()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(_pair.host.ui.hud.aim.visible).is_true()
+	assert_str(_pair.host.ui.hud.aim_label.text).is_equal(HudText.raise_cue(key))
 	var lay := downed.global_position
 	_pair.host.life().press_raise()
 	assert_bool(await _until(func() -> bool: return downed.held)).is_true()

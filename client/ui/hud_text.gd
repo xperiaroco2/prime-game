@@ -7,7 +7,8 @@ extends RefCounted
 ## it: texts are copy deck keys (#208) or data.
 ##
 ## Only the own player's facts: the time left, its own role, its health and stamina as fractions,
-## its microphone, its hand and belt, the item its crosshair is on and the raise it runs. Never a
+## its microphone, its hand and belt, the item its crosshair is on, the raise it runs and the raise
+## it could start (the rescuer's cue: the raise key's label alone, nothing of the downed). Never a
 ## key, walking or running, a player list, who knocked it down, a destination or task progress (the
 ## handoff), no other player's role, health or slots. The respawn's protection is LifeHud's chip.
 ##
@@ -32,6 +33,10 @@ const ITEM_ICONS: Dictionary[StringName, StringName] = {
 	&"package": &"item",
 	&"knife": &"knife",
 }
+## The rescuer's cue: the deck has no raise sentence (ui-0.4.0, ui-0.5.0), so it is the nearest key
+## with `{key}`, the tutorial's raise step ("Hold {key} next to them"), as the engineer chose on
+## PR #721.
+const RAISE_CUE := "tutorial.step.downed.how"
 
 
 ## What the HUD knows besides the model and the mode.
@@ -45,6 +50,9 @@ class Local:
 	var mic := false
 	## The own raise's progress (LifeView.raise_shown()), 0 to 1; negative for none.
 	var raising := -1.0
+	## The label of the raise key bound now while the crosshair is on a downed player E would raise
+	## (LifeView.raise_cue()); "" for none.
+	var raise_key := ""
 	## The own body's place for the map screen (#253): whether it has one (the dead have none), the
 	## place, and the heading in radians clockwise from north (-Z) seen from above.
 	var placed := false
@@ -90,6 +98,9 @@ class Shown:
 	var aim := ""
 	## The own raise's progress, 0 to 1; negative hides the bar (it replaces Aim).
 	var raising := -1.0
+	## The rescuer's cue in Aim (#497, the engineer on PR #721): the raise key's label that fills
+	## RAISE_CUE's `{key}`, in place of the item's name; "" for none.
+	var raise_key := ""
 
 
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
@@ -114,9 +125,19 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 	shown.hand = slot_of(model, mode, model.hand_item(model.own_peer))
 	shown.belt = slot_of(model, mode, model.belt_item(model.own_peer))
 	shown.raising = local.raising
-	if local.raising < 0.0 and local.aim >= 0:
+	if local.raising >= 0.0:
+		return shown
+	# A downed player under the crosshair matters more than an item lying near it: E raises it.
+	if not local.raise_key.is_empty():
+		shown.raise_key = local.raise_key
+	elif local.aim >= 0:
 		shown.aim = slot_of(model, mode, local.aim).item
 	return shown
+
+
+## The rescuer's cue in Aim, translated, with the raise key's label `key` (`RAISE_CUE`).
+static func raise_cue(key: String) -> String:
+	return String(TranslationServer.translate(RAISE_CUE)).format({"key": key})
 
 
 ## Whether the own player spectates: dead (or gone), with no body of its own to show.
