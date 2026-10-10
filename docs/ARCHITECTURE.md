@@ -2832,7 +2832,8 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   `key.space`, `key.mouse_left` and `key.mouse_right` only through #208's translations (§4.7.26: Space, Пробіл;
   no table of its own), as are `Controls`' action names and `ControlsPanel`'s words. `LifeHud` (the give-up key,
   through `LifeHud.Local.read_keys()`; since #497 the Toy downed screen's keycap inside the deck's
-  `downed.give_up_hold`, §4.7.44, and no raise or spectate key), `ItemInteractions.hint()`'s pick-up,
+  `downed.give_up_hold`, §4.7.44, and no spectate key), `LifeView.raise_cue()` (the HUD's raise cue, the deck's
+  `tutorial.step.downed.how`, §4.7.44), `ItemInteractions.hint()`'s pick-up,
   `LobbyHud`'s hint and the Voice tab's push-to-talk name use it, so each follows a rebind. Known gap until the Toy
   screens (#495; #491's Settings page keeps the Voice rows' greybox lines) move these sentences to the deck: they
   are greybox English in every language, so under Ukrainian a mouse button or Space reads in Ukrainian inside one
@@ -3265,11 +3266,12 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   deck key, `HudText.ITEM_KEYS`, else its display name; its pack icon, `HudText.ITEM_ICONS`; empty shows the slot's
   name, a one-handed item only its 48 px icon, a two-handed one widens the hand to `wide_width` and shows its icon
   and its name, cut at 106 px with an ellipsis; a kind with no icon shows its name); `Aim`, the name of the item
-  `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10); `Raising`, the own raise's progress
+  `ItemInteractions.target()` is on (the hint's reach and sight, §4.7.10), or the rescuer's raise cue over a downed
+  player E would raise (#497, §4.7.44); `Raising`, the own raise's progress
   (`LifeView.raise_shown()`: the countdowns' `raise_progress`, the same value as the downed player's bar), in
   place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
-  hides Cross, Aim and Raising. The HUD shows no key, walking or running, player list, who knocked the player
-  down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
+  hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
+  knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
   swatch and the crosshair's "E: pick up" hint are gone (the world's marker still shows the destination, §4.7.10;
   the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
 - **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
@@ -3447,9 +3449,15 @@ The handoff s09 (prime-game-ui `ui-0.4.0` `docs/handoff/s09-downed.md`; since `u
 stripped and the keycap's `min_width` follows the text size, #497's comment), node for node on §4.7.37's HUD, px
 at the 1920x1080 base, the pack's variations only (no override, `theme_test.gd`). It replaces M4-9's greybox
 `LifePanel` (its words "Knocked down", "Dying in n s", "Respawn in n s", the raise hint and the spectate keys).
-The living rescuer's "Hold <interact> to raise" over a downed teammate went with it: the deck has no key for it and
-no Toy screen draws it, so aiming at a downed teammate shows no cue until the engineer settles one (#497's PR); E
-still sends `Raise` within `LifeView.raise_hint_reach_of()`.- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
+The living rescuer's greybox "Hold <interact> to raise" went with it; the engineer's answer 6B on PR #721 brought
+it back in §4.7.37's `Aim`: the deck (`ui-0.4.0`, nor `ui-0.5.0`) has no raise sentence, so it is the nearest key
+with `{key}`, `tutorial.step.downed.how` ("Hold {key} next to them", "Утримуй {key} поруч"), with the bound
+`interact` key's label (`KeyLabel`), set in code and written again on a language switch (`Hud._show_aim_text`).
+`LifeView.raise_cue()` gives the key while the living own player's crosshair is on a downed player E would raise
+(`raise_target()`, within `raise_hint_reach_of()`), so it offers exactly what E does: the base mode's raise has no
+team condition, so a dissident sees it over a downed engineer too. `HudText` puts it in place of the item's name
+(both are on E); the own raise's `Raising` bar replaces it; the downed and the dead see none. It names nobody.
+- **The tree** (`client/ui/LifeScreen`, built in code, `GameUi.life` after `Hud` under `Ui`): `Downed` ToyPlate
   (top centre, 152 px down, 688 px) > `V` ToyColumnEight > `Title` ToyTitleOnDark (600 px, word-wrapped), `Bleed`
   a health `ToyBar` (600 x 16, its fill 10 px high and tinted by the ramp's stop, §4.7.27), `Left`
   ToyTextMutedOnDark, `Raise` ToyBarProgress (600 x 16) and `Pad` (0 x 4); `GiveUp` ToyPlate (bottom centre, 128 px
@@ -3487,9 +3495,12 @@ still sends `Raise` within `LifeView.raise_hint_reach_of()`.- **The tree** (`cli
   text with every plate on the screen; the `Ui` shows it in the round only), `tests/unit/client/life/life_hud_test.gd`
   (each state's data, the m:ss rounding, the raise stopping, the protection after a respawn and not a raise, the
   sentence's pieces), `life_countdowns_test.gd` (`knockdown_fraction`, `protection_left_s`), `hud_test.gd` and
-  `hud_layout_test.gd` (the HUD's part), `tests/integration/client/life/life_network_test.gd` (the raised joiner's
-  title and bar, the spectator's plate with the HUD empty, the chip after the respawn). The `shot`s:
-  `client/dev/hud_<state>_preview.tscn` for downed, holding, raised, dead and back, each with a `_uk` twin, and
+  `hud_layout_test.gd` (the HUD's part; the raise cue in place of the item's name for the living only, the same for
+  a dissident and an engineer, naming nobody, in en and uk and after a switch),
+  `tests/integration/client/life/life_network_test.gd` (the host's player, as a dissident, aiming at the downed
+  joiner sees the cue in its Aim, seen failing with `Game` not passing it on; the raised joiner's title and bar, the
+  spectator's plate with the HUD empty, the chip after the respawn). The `shot`s:
+  `client/dev/hud_<state>_preview.tscn` for cue, downed, holding, raised, dead and back, each with a `_uk` twin, and
   `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
   too.
 
