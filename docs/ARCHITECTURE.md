@@ -3445,8 +3445,8 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   the players' rows, scrolling; the shortfalls; Ready). The pressed card is derived from the model, so any other
   change deselects it and a player reads "Preset: Custom"; a card sends every value it changes in one
   ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. The own preset is
-  `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: no Ready, no ready
-  marks, no shortfalls (`refresh(..., in_round)`).
+  `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
+  name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
 - Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
   chips (Sound and voice, Controls, Display, Accessibility, Language) over a `follow_focus` scroll of 64 px
   ToySettingRows (`SettingRows`: the row, the ToyDropdown with its ToyDropdownList, the ToySlider, the chip groups).
