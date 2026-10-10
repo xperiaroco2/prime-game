@@ -38,8 +38,16 @@ func test_a_lone_player_is_dealt_crew_whatever_the_seed_and_the_dissidents_setti
 			)
 			var told := game.view_of(LONE).events_named(&"RoleAssigned")
 			assert_int(told.size()).override_failure_message(context).is_equal(1)
-			assert_str((told[0] as RoleAssignedEvent).role).is_equal("crew")
-			assert_array(game.view_of(LONE).events_named(&"Teammates")).is_empty()
+			(
+				assert_str((told[0] as RoleAssignedEvent).role)
+				. override_failure_message(context)
+				. is_equal("crew")
+			)
+			(
+				assert_array(game.view_of(LONE).events_named(&"Teammates"))
+				. override_failure_message(context)
+				. is_empty()
+			)
 			assert_array(Array(game.diagnostics)).override_failure_message(context).is_empty()
 
 
