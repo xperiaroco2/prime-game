@@ -23,7 +23,8 @@ extends RuleEffect
 
 ## Metres per second, 1 to 40 (TD1 (a): one speed per rule). Each neutral default is out of
 ## bounds on purpose: the data sets it, so the mode check refuses a rule that forgot it. The
-## bounds are placeholders, "not a decision"; the numbers are the engineer's (37f).
+## bounds are placeholders, "not a decision"; the base mode's numbers (content/, #646) are the
+## engineer's provisional ones.
 @export var speed_mps := 0.0
 ## Metres per second squared, 1 to 40, straight down.
 @export var gravity_mps2 := 0.0

@@ -10,7 +10,7 @@ extends RefCounted
 ## (living players by default) and lists FlightTicks after LifeTicks. The fixture capsule: radius
 ## 0.4 m, height 1.8 m, eye at 1.6 m, so a throw radius up to 0.19 m fits it.
 ##
-## The numbers are a test's, not a decision: the base mode's come with 37f.
+## The numbers are a test's, not a decision: the base mode's are in content/ (#646).
 
 const SPEED_MPS := 10.0
 const GRAVITY_MPS2 := 9.8
