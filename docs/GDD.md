@@ -146,6 +146,71 @@ Open question:
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
 
+### Delivery (#683)
+The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md), Tasks; `docs/ARCHITECTURE.md`
+§9.5.4), reworked by the engineer on 2026-10-10 (#683 and its comments; his answers on PR #713, comments
+[6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718) and
+[6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677), where he approved the
+design): on the House it no longer goes by colours. The engine parts are in
+[the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md). Nothing of it is built yet, and nothing
+will be until the engineer says so.
+
+**Intent.** Carrying things around the house to where they belong. Storage holds different items, and each kind has
+its own place that fits what it is. Players tell the items and their places apart by meaning, not by colour.
+
+**Rules** (the engineer's; DD1 to DD8 of the ADR):
+- Storage holds different items; each kind is carried to its own place, chosen by what it is; nothing goes by colour.
+- Four kinds, one per drop-off of the [House map](design/house-map.md)'s §6: the wine to the dining table, the motor
+  oil to the garage's workbench, the garden gnome to the garden, the parasol to the terrace table. The gnome, the
+  parasol and the name "Motor oil" were drafted by the agents and approved by the engineer as drafted (comment
+  6100696677; the ADR's §5.1).
+- How many: the host's `packages` setting. The round's items are spread over the places, so every place gets one
+  before any gets a second; with fewer items than places, which places get one is drawn each round.
+- An item counts when it rests inside its place: a cylinder standing on the floor at the table, the bench or the
+  garden spot, so on the floor around it or on its top.
+- A player tells where an item goes by meaning alone: its look, and its name in the hand slot. Nothing points to the
+  place: no marker through walls (the one over a package's circle goes too), no line on the HUD, no sign.
+- An item at a wrong place: nothing happens, and anyone may pick it up again.
+- Every item takes both hands. A carrier who takes a one-handed item (a knife from the floor, say) puts it onto the
+  belt and keeps the carried item in the hands (the engineer's rule for every take, PR #701); picking up a second
+  Delivery item swaps the two, as today.
+- Any kind starts on any storage spot.
+- The task screen shows Delivery's row with its own count of delivered items, struck through once every item is
+  delivered; no shared total of all tasks, on the HUD or the task screen (#738).
+- Unchanged ([MVP rules](decisions/2026-09-29-mvp-rules.md), #79): one shared task that nobody owns; one item is one
+  subtask; any living player carries and delivers any item; an item counts when it rests at its place, however it got
+  there (put down, swapped, dropped at a death or a leave, thrown); a delivered item is locked; the dissidents
+  sabotage by hiding items.
+- On House, storage is the hub ([House map](design/house-map.md) §2, decision 5).
+
+**Hidden information.** None: everyone may know which kind goes where, where each item started and every delivery.
+Where a moved item lies now is not shown: players find it by looking.
+
+**Edge cases.** A knocked-out player and a dead player deliver nothing; an item dropped at a body counts if it rests at
+its place. The host's own player follows the same rules as everyone.
+
+**Numbers:** the host's `packages` setting, 1 to 10, default 6; a place's radius 1 m (a circle's, the engineer's in
+#79) and height 2 m (a placeholder, "not a decision").
+
+**Name and description.** The name "Delivery" and the lobby label "Packages (Delivery)" stay. The description,
+drafted by the agents and approved by the engineer as drafted (comment 6100696677): "Carry each item from storage to
+the place where it belongs. Every item takes both hands."
+
+**Where it plays.** On the House only (the engineer's DD9 (c), comment 6100696677, through
+[#767](https://github.com/xperiaroco2/prime-game/issues/767): the flat greybox becomes a test bench only, and players
+always play the House). The greybox keeps today's colour-matched Delivery (a package to the circle of its colour) as
+far as its bot scenarios and the information-leak test need it, and gets no drop-offs. Bots do not play the House
+([ARCHITECTURE](ARCHITECTURE.md) §9.7), so Delivery by meaning is tested without bots: unit tests, integration tests
+on the House and a test over the wire codec.
+
+**Engine parts** ([the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md) §1, §8): a second
+Delivery task type beside today's, each listing the one map it plays on; one item kind per kind of item; one station
+kind per place, on its own marker on the House; a list in its data saying which kind goes to which place; no colours
+in its rules or on the screen; House gets one marker per place and loses its circles. The issues follow from the ADR's
+split, for M7.
+
+Open questions: none. The engineer answered every one on 2026-10-10 and 2026-10-11 (the ADR's §5 and §10).
+
 ### Photo (#687)
 The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
 are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
