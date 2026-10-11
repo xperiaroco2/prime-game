@@ -112,6 +112,12 @@ func report_outcome(reported: StringName, argument: Variant = null) -> void:
 	_match.report_outcome(reported, argument, command)
 
 
+## Whether the current step already has an outcome (a win recorded, a phase's report): nothing
+## dies after it (LifeRules.settle_kills; the car repair ADR's RD16 (c), RE17).
+func step_has_outcome() -> bool:
+	return _match.step_has_outcome()
+
+
 ## A rule error that must not pass silently: logged in every build with its source.
 func error(message: String) -> void:
 	_match.record_error("%s: %s" % [source, message] if not source.is_empty() else message)

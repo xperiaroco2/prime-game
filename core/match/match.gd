@@ -8,7 +8,9 @@ extends RefCounted
 ##
 ## server/ (and the tests) drive it: start(tick) once, then for every host tick first apply()
 ## each command stamped with that tick, in the order received, then tick(tick). Each of these is
-## a step; after every step the first outcome reported in it moves the match on.
+## a step; after every step the first outcome reported in it moves the match on. The kills a step
+## queues (LifeRules.kill_later) land once the command's dispatch, the phase's own timers or each
+## tick system has finished, before the step's win check, and never after its outcome (RE17).
 
 ## A chain of facts deeper than this is a bug (§9.2).
 const MAX_FACT_DEPTH := 16
@@ -177,6 +179,7 @@ func apply(command: MatchCommand) -> bool:
 	command_log.commands.append(command)
 	_begin_step()
 	_dispatch(command)
+	_settle_kills()
 	_finish_step()
 	# A rule that read a field its intent does not declare is a bug a test must see (§4.4).
 	for key: String in command.undeclared_reads:
@@ -204,8 +207,10 @@ func tick(at_tick: int) -> bool:
 	_in_tick = true
 	_begin_step()
 	_phase.on_tick(_context("phase %s" % _phase_spec.id))
+	_settle_kills()
 	for system: TickSystem in _phase_spec.tick_systems:
 		system.run(_context("tick system of phase %s" % _phase_spec.id))
+		_settle_kills()
 	if _phase_spec.clock_runs and state.clock_ticks_left > 0:
 		state.clock_ticks_left -= 1
 		if state.clock_ticks_left == 0 and not state.clock_ended:
@@ -342,6 +347,11 @@ func report_outcome(outcome: StringName, argument: Variant, sender: MatchCommand
 	_step_argument = argument
 
 
+## Whether the current step already has an outcome (MatchContext.step_has_outcome).
+func step_has_outcome() -> bool:
+	return _step_has_outcome
+
+
 ## Logs an error in every build and keeps it in `diagnostics`.
 func record_error(message: String) -> void:
 	diagnostics.append("error: %s" % message)
@@ -387,6 +397,13 @@ func _finish_step() -> void:
 			return
 
 
+## Kills the players queued in the command or tick system that just ran (LifeRules.settle_kills;
+## the car repair ADR's RE17), before the step's win check.
+func _settle_kills() -> void:
+	if LifeRules.kills_queued(state):
+		LifeRules.settle_kills(_context("kills"))
+
+
 func _check_wins() -> void:
 	if _in_transition or _step_has_outcome or _phase_spec == null or not _phase_spec.checks_wins:
 		return
@@ -421,6 +438,8 @@ func _transition(outcome: StringName, argument: Variant, reason: StringName) -> 
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
 	_phase.exit(_context("phase %s" % from))
+	# Nothing dies after the outcome (the car repair ADR's RD16 (c)): a kill queued now is dropped.
+	LifeRules.drop_kills(state)
 	_in_transition = false
 	_enter_phase(row.to)
 	return true
