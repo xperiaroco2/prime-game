@@ -245,7 +245,8 @@ class ShardedRepeatTest(unittest.TestCase):
                 (logs / "test.log").write_text("all", encoding="utf-8")
                 slow = {"timed_out": True} if xml == "timeout" else {}
                 first: dict[str, object] = {"shard": 1, "rc": 0, "seconds": 1.0}
-                second: dict[str, object] = {"shard": 2, "rc": 0, "seconds": 1.0, **slow}
+                rc = 100 if failed and not slow else 0  # a failed run without a timeout: shard 2 had failed tests
+                second: dict[str, object] = {"shard": 2, "rc": rc, "seconds": 1.0, **slow}
                 gdunit._remember([first, second], [])
                 return failed
 
@@ -324,6 +325,11 @@ class ShardedRepeatTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertEqual(self.summary["runs"][1]["note"], f"2 processes, shard 2 timed out after {gdunit.TIMEOUT}s")
         self.assertEqual(self.summary["runs"][1]["tests"], 0)
+
+    def test_a_failed_shard_says_why_in_the_runs_note(self) -> None:
+        rc, _, _, _ = self.run_repeat([(False, self.GREEN), (True, self.RED)])
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.summary["runs"][1]["note"], "2 processes; shard 2: exit 100, tests failed")
 
     def test_named_paths_at_fixed_fps_in_shards_keep_the_fixed_clock(self) -> None:
         rc, calls, _, printed = self.run_repeat(

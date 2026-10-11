@@ -1005,6 +1005,16 @@ def _sharded_run(index: int, items: list[str], count: int, why: str, fixed_fps: 
     note = f"{len(processes)} processes"
     if slow:
         note += f", shard {', '.join(slow)} timed out after {TIMEOUT}s"
+    for process in processes:
+        rc = process.get("rc")
+        if process.get("timed_out") or rc == 0:
+            continue
+        if not isinstance(rc, int):
+            why_failed = f"could not start: {process.get('error', '')}"
+        else:
+            meaning = EXIT_MEANING.get(rc)
+            why_failed = f"exit {rc}, " + (meaning.split(":")[0] if meaning else "crashed or exited unexpectedly")
+        note += f"; shard {process['shard']}: {why_failed}"
     return RunOutcome(index, "FAILED" if failed else "passed", note)
 
 
