@@ -62,6 +62,21 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_array(sent).is_equal([[&"match_duration", spec.default_value - 1]])
 
 
+func test_the_lobby_tab_of_a_mode_with_zones_hides_the_fixed_zone_count() -> void:
+	# The base mode with the zone task (#649's, now a fixture since #842): its task count is
+	# 1 to 2, so its row shows, and the zone count, fixed at 1, hides: nothing to choose.
+	var mode := FixtureBaseModeWithZones.mode()
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
+	# match_duration, tasks, packages, zones (#649), dissidents, knives.
+	assert_int(steppers.size()).is_equal(6)
+	assert_bool((panel.settings_box.get_node(^"Zones") as Control).visible).is_false()
+	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_true()
+
+
 func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 	# A player's read-only controls that still change (a stepper's arrow, a task chip) send nothing.
 	var mode := load(MODE) as GameMode

@@ -8,6 +8,8 @@ extends GdUnitTestSuite
 ## ceilings and furniture (the convention in `levels/CLAUDE.md`, checked here in the host's
 ## collision world; a `shot` still shows it). The House is the base mode's second map (#626); the
 ## scenarios play only its flat first map (ARCHITECTURE §9.7), whose fake world is one flat floor.
+## The zone checks read the zone task from FixtureBaseModeWithZones: the engineer took it out of
+## the shipped base mode on #842, and the House keeps its zones.
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
 const MAP := "res://levels/house/house.tscn"
@@ -45,7 +47,7 @@ func test_the_markers_are_the_engineer_s_counts() -> void:
 
 
 func test_the_zones_keep_ze9_s_spacing() -> void:
-	var mode := _base_mode()
+	var mode := _zone_mode()
 	var zone := Spacing.zone_task(mode).zone
 	var layout := _read(mode).layout
 	assert_int(layout.count(zone.spawn_tag)).is_greater(0)
@@ -53,7 +55,7 @@ func test_the_zones_keep_ze9_s_spacing() -> void:
 
 
 func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
-	var mode := _house_mode()
+	var mode := _house_mode(_zone_mode())
 	var zone := Spacing.zone_task(mode)
 	var map := _read(mode).layout
 	var settings := mode.default_settings()
@@ -67,7 +69,7 @@ func test_the_house_fits_ten_players_at_the_most_zones_and_packages() -> void:
 
 
 func test_each_zone_stands_on_flat_floor_clear_of_walls_and_ceilings() -> void:
-	var mode := _base_mode()
+	var mode := _zone_mode()
 	var zone := Spacing.zone_task(mode).zone
 	var level := LevelWorld.build(MAP)
 	var world := _world(level)
@@ -93,7 +95,7 @@ func test_the_clearance_check_refuses_a_zone_by_a_wall_a_ceiling_or_over_the_sta
 	# The check above can fail: a zone pressed to the landing's west wall, one over the main
 	# stairs' well (docs/design/house-map.md §5: they reach the landing at x 28, y 33) and one in
 	# the attic, whose ceiling (2.2 m over its floor) is lower than the zone's cylinder.
-	var zone := Spacing.zone_task(_base_mode()).zone
+	var zone := Spacing.zone_task(_zone_mode()).zone
 	var level := LevelWorld.build(MAP)
 	var world := _world(level)
 	var by_wall := world.floor_below(Vector3(26.5, 4.2, 41))
@@ -149,9 +151,15 @@ func _base_mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
 
 
-## The base mode playing on the House alone, with no lobby.
-func _house_mode() -> GameMode:
-	var mode := _base_mode().duplicate() as GameMode
+## The base mode with the zone task (#649's; a fixture since the engineer took the zone task out
+## of the shipped base mode, #842): the zone checks read their zone kind and numbers from it.
+func _zone_mode() -> GameMode:
+	return FixtureBaseModeWithZones.mode()
+
+
+## `base` (the base mode by default) playing on the House alone, with no lobby.
+func _house_mode(base: GameMode = null) -> GameMode:
+	var mode := (base if base != null else _base_mode()).duplicate() as GameMode
 	mode.lobby_level = ""
 	mode.maps = PackedStringArray([MAP])
 	return mode

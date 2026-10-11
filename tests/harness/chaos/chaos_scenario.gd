@@ -1,8 +1,9 @@
 class_name ChaosScenario
 extends RefCounted
 ## The honest match the chaos peers play in (ARCHITECTURE §9.7's steps, built in code: it is the
-## chaos run's fixture, not content). Four bots of the base mode at its default draw, both task
-## types (#649): one package and one zone.
+## chaos run's fixture, not content). Four bots of the base mode with the zone task
+## (FixtureBaseModeWithZones: the engineer took it out of the shipped base mode on #842) at its
+## default draw, both task types (#649): one package and one zone.
 ## - bot 1, the host's own client, takes a knife, waits until bot 4 has left the zone (the zone's
 ##   stop, then the freeze's time), knocks bot 4 down with two hits and waits for the end;
 ## - bot 2 takes the package to its circle, waits there until bot 4 is downed (with `until_dead`,
@@ -30,7 +31,7 @@ extends RefCounted
 const HOSTILE := 4
 const BOTS := 4
 const SEED := 488_000_000_001
-const MODE := "res://content/modes/base_mode.tres"
+const MODE := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
 const TIME_LIMIT_S := 90.0
 ## How long bot 3 stays into End after the match ended, so the chaos peers send there too.
 const END_WAIT_S := 2.0
@@ -38,7 +39,7 @@ const END_WAIT_S := 2.0
 const EXPECT_WITHIN_S := 1.0
 ## How long bot 2 waits at the circle for bot 4's knockdown, and then its death.
 const WAIT_AT_CIRCLE_S := 45.0
-## The zone's station kind, and the one zone the base mode deals.
+## The zone's station kind, and the one zone the mode deals.
 const ZONE := &"zone"
 ## How long bot 4 stands counted in the zone before it freezes.
 const SETTLE_S := 1.0

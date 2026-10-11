@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The base mode's zone task in `content/` (ARCHITECTURE §9.5.18; the zone task ADR, ZD7, ZD8 (a),
+## The zone task in `content/` (ARCHITECTURE §9.5.18; the zone task ADR, ZD7, ZD8 (a),
 ## ZE9; #649): Hold the zone with the engineer's provisional numbers and names (#302 comment
 ## 6085251071), its `zones` setting, the greybox's fit at the most zones and packages, and ZE9's
 ## spacing on every map of the base mode (`fixture_zone_spacing.gd`, which the House map's
@@ -8,10 +8,11 @@ extends GdUnitTestSuite
 ## fake puts House's storeys on one floor, which hides a spawn point beside an upstairs zone. The
 ## wall and ceiling clearance is a level convention (`levels/CLAUDE.md`), checked by a `shot`,
 ## and on House by its marker test too. Like the mode check, this test loads `content/` on
-## purpose (§9.6).
+## purpose (§9.6). Its mode is FixtureBaseModeWithZones, the base mode with the zone task: the
+## engineer took the zone task out of the shipped base mode on #842 ("only from the mode, now").
 
 const Spacing := preload("res://tests/fixtures/tasks/fixture_zone_spacing.gd")
-const BASE_MODE := "res://content/modes/base_mode.tres"
+const BASE_MODE := FixtureBaseModeWithZones.PATH
 
 
 func test_hold_the_zone_has_the_engineer_s_provisional_values() -> void:
