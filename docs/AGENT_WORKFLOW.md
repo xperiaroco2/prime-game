@@ -175,7 +175,10 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   The implementer's default reading list names no area `CLAUDE.md` file and no rule: those load by path when it Reads a
   file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
   .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
-  table go with it.
+  table go with it. The task's ADR since #815: every agent of `issue-task.js` and `pr-rebase.js` (the publisher and the
+  read-only ones too) has one line of the shared rules, read each section of it once per context and again only after
+  the file changed or a compaction (PR #794's `metrics --adr-reads` table: about 960 of 976 section reads of ADRs in
+  three days were repeats of the same task ADRs).
 - **Auto memory stays on.** It is personal and machine-local, and never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -469,7 +472,8 @@ Rules for every workflow run:
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
-  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies).
+  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies, #818's reviewer rules, #815's ADR
+  line).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
   agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
   most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
