@@ -175,7 +175,12 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   The implementer's default reading list names no area `CLAUDE.md` file and no rule: those load by path when it Reads a
   file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
   .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
-  table go with it.
+  table go with it. The task's ADR since #815: every agent of `issue-task.js` and `pr-rebase.js` (the publisher and the
+  read-only ones too) has one line of the shared rules: read each section of the ADR once per context, and again only
+  after the file changed or a compaction (PR #794's `metrics --adr-reads` table: about 960 of 976 section reads of ADRs in
+  three days were repeats of the same task ADRs). Since #816 the same line says to read it by section, never whole
+  (`section <adr>`, then `section <adr> <§>`): the table's 39 whole-file reads of the 2026-10-10 task ADRs cost $9.32
+  of $33.
 - **Auto memory stays on.** It is personal and machine-local, and never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -420,10 +425,12 @@ Rules for every workflow run:
   `NETCODE` rule), and the result says so.
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
-  read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
-  carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
+  read their prompt, not this file, so every agent of both scripts and of `quick-task.js` (since #818 the read-only
+  ones too: reviewers, the plan critique, the A/B judge and the skeptics get them as `REVIEW_RULES`, beside the
+  reading line) has one line each for the two calls that stopped them most (#312, #326): read the hooks path with
   `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
-  foreground `sleep N; cat <log>` (§11.17, "Bounded waits"); the test pins both lines, identical in the two scripts.
+  foreground `sleep N; cat <log>` or PowerShell's `Start-Sleep N` (§11.17, "Bounded waits"); the test pins both
+  lines, identical in the three scripts.
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
   rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
@@ -467,7 +474,8 @@ Rules for every workflow run:
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads,
-  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies).
+  #468's reading line, #471's publish steps, #470's digests, #696's publisher copies, #818's reviewer rules, #815's ADR
+  line, #816's section reads in it).
   `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2
   agents). Since #469 the plan agent posts the whole plan as one comment on the issue and returns its short form, at
   most about 8,000 characters of JSON (3 plan results of 23 to 28 KB had not parsed and were sent again; a longer one
@@ -2097,11 +2105,13 @@ Since #388 every agent, a main or manager session too, runs `verify`, `publish` 
 `wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
 (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
-the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
-`wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
-`run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
-run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
-the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
+the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326, the reviewers' since
+#818), and so is PowerShell's `Start-Sleep -Seconds N` (2 of the 12 workflow-agent refusals from 2026-10-07
+to 11): wait with `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the
+job in the Bash tool with `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers
+the rest), with a new log per run under its scratch folder:
+`cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>`
+(in the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
 `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
 default 120000 would cut a 180 s wait short. `wait` polls every 3 s for at most S seconds (default 180, 1 to 180;
 else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
@@ -2148,8 +2158,9 @@ project settings in a worktree's editor (`ProjectSettings.save()`) copies both k
 ### 11.19 `test` in shards [applied] (#182)
 `test` with no paths runs the suites in K GdUnit4 processes at once, K =
 half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
-or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
-`gdunit.main(paths)` stay one process. The shards are balanced by the last per-suite times
+or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>` and `gdunit.main(paths)` stay one
+process unless `--shards K`; `test --repeat N` takes the same count for each of its runs since #817, its shards at
+the run's clock. The shards are balanced by the last per-suite times
 (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
 checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
 shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
@@ -2386,9 +2397,18 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run, in real time (the #222 class,
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, in real time (the #222 class,
   #341; `verify` runs the frame-bound suites at fixed fps); any failed run fails it.
-  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
+  Each run takes as many processes as `test` would (§11.19: `--shards K`, else one for named paths, else
+  `PRIME_TEST_SHARDS`, else half the CPUs; `<paths> --fixed-fps --shards K` runs every shard at fixed fps),
+  because one real-time process outgrew the runner's `TIMEOUT` of 600 s per process when the suite grew past about 300 suites (#817: nightly run 38120577422, all three runs of
+  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times
+  CI saves, to balance the shards (a suite CI times at fixed fps alone counts its seconds there x
+  `FIXED_FPS_SPEEDUP`); a release ref whose runner is older ignores the variable and runs one process
+  per run, as before, so the job's options check (`test --repeat`) did not change. A shard still has the 600 s
+  limit: when the suite outgrows two shards, raise the job's count.
+  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` (the shards' merged `results.xml`) and its log to
+  `tools/out/logs/test-run<i>.log` (sharded: also `test-run<i>-shard<j>.log`);
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
