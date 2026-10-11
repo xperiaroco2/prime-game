@@ -1648,7 +1648,7 @@ fails that sweep).
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
 `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
-default draw of one package and one zone since #649; bot 4 walks into the zone and freezes, bot 1 then knocks it
+default draw of one package and one zone since #649, on `FixtureBaseModeWithZones` since #842; bot 4 walks into the zone and freezes, bot 1 then knocks it
 down, bot 2 delivers and bot 3 holds the zone) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
@@ -5888,12 +5888,9 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
-  `tasks` 2 (1 to 2, the number of the mode's task types; #79; 2 since #649, ZD8 (a): every match deals Delivery and
-  the zone task); `banned_task_types` (a set of task types, empty; a ban that leaves fewer types than `tasks` needs
-  the lower `tasks` in the same change); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a
-  decision"); `zones`, the zone task's subtasks, 1 (1 to 1: the engineer's one zone, and the palette's one colour
-  allows no more; the bounds a placeholder, "not a decision", #649); `dissidents` 1 (0 to 9, lowered to N − 1 by the
-  deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  `tasks` 1 (1 to 1, the number of the mode's task types; #79); `banned_task_types` (a set of task types, empty;
+  with one type nothing can be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a
+  decision"); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed crawl at 1 m/s (`crawl_speed_mps`, 0.1 to the
@@ -5934,7 +5931,10 @@ LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the rai
 between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
-the task types, the `zones` setting and `tasks` 2 (1 to 2). Tests: the mode check of 2a,
+the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)).
+`FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
+from the shipped one when it loads, for the zone task's tests, scenarios, chaos and perf runs. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
@@ -6208,15 +6208,16 @@ and respawns; nobody else dies; expects `none`) in the core runner and in `tools
 #### 9.5.18 Zone task (task type)
 What it does: one shared task of `zones` zones (#36); a zone is done once living players have stood in it for
 `seconds` in all, and a subtask is a zone. Nobody owns the task: any living player of any role works any zone. The
-second task type, beside Delivery (§9.5.4). In the base mode (#649): `content/tasks/hold_the_zone.tres`, id
+second task type, beside Delivery (§9.5.4). Dealt by the base mode from #649 until the engineer took it out on #842
+(only from the mode; it may come back with a name and a how-to card), and by `FixtureBaseModeWithZones` (§9.5.1): `content/tasks/hold_the_zone.tres`, id
 `hold_the_zone`, "Hold the zone" (the players' word; the Ukrainian UI's «Утримати зону» once the client is
 translated), described "Stand in the zone until it fills."
 Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
 the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
 must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302
-comment 6085251071), in the base mode's data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
+comment 6085251071), in its data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
 height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
-per subtask; the base mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
+per subtask; the fixture mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
 placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
 he moves them, #302 comment 6085904317): the yard (48, 0, 37), the garden (52, 0, 20) and the landing (30, 3.2, 41).
 None in the attic, whose sloped roof leaves no clear spot, and none in the basement, where the scenarios' flat fake
@@ -6472,7 +6473,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
     harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
-    (`PerfScenario`) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
+    (`PerfScenario`, on `FixtureBaseModeWithZones` since #842) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
     zone markers lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one spoke crosses it and the
     run meters `ZoneProgress` too.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
@@ -6516,8 +6517,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
-  M7-Z3 (#649; the zone task ADR's §7): every scenario above bans the zone task with `tasks` 1 in its setup's one
-  `ChangeSettings` (ZE7), so it deals Delivery alone. Three play the zone, each expecting `crew`:
+  M7-Z3 (#649; the zone task ADR's §7): three scenarios play the zone, each expecting `crew`; since #842 they live in
+  `tests/fixtures/scenarios/` on `FixtureBaseModeWithZones` (the base mode no longer deals the zone task, so the
+  scenarios above no longer ban it), and `bots` and `scenarios_test` play that folder too:
   `crew_works_every_zone` (the default draw with one package: a crew bot delivers it, another walks to `station(zone,
   1)` and holds it until its `ZoneProgress` at 200 ticks, and the crew wins on the second subtask),
   `zone_paused_by_a_knockdown` (Delivery banned: the crew bot holds the zone from 1.2 m short of its centre, on its
