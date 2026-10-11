@@ -24,6 +24,6 @@
 
 **Where the rule lives now.**
 - This entry.
-- Root `CLAUDE.md`, "Talking to the humans".
+- `docs/HUMAN_SESSIONS.md`, "Talking to the humans" (moved there from root `CLAUDE.md` in #836, which now points to it).
 - Committed on the #14 spike branch (`client/14-m1-spike-first-person-capsules-walking`) at the engineer's request;
   that branch is not merged as a whole, so this commit goes to `main` on its own.

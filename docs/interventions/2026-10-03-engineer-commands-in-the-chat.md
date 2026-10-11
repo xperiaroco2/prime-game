@@ -33,7 +33,7 @@
 
 **Where the rule lives now.**
 - This entry.
-- Root `CLAUDE.md`, "Talking to the humans": the bullet "A command for a human …" was reworded in place, within the
+- `docs/HUMAN_SESSIONS.md`, "Talking to the humans" (moved there from root `CLAUDE.md` in #836, which now points to it): the bullet "A command for a human …" was reworded in place, within the
   150-line launch budget.
 - `.claude/skills/orchestrate-stage/SKILL.md` §4 "On each completion" and §8 "Notifications and housekeeping" (with
   an example block), and §6's wave-comment list ("also in the chat").

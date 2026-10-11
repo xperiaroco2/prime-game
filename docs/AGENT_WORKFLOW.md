@@ -101,7 +101,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, memory guardrail, dictation glossary; each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 9,216 bytes loaded, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), the shell rules that prevent prompts and lost work (the quirks: §2.2), ownership, review routing (skills route by their descriptions), definition of done, stop-and-ask list, a pointer to `docs/HUMAN_SESSIONS.md` (talking to the humans, memory, the dictation glossary: a chat with a human reads it, no workflow agent needs it, #836); each rule in short with a pointer to the section that has the detail (#561) | ≤ 150 lines and 9,216 bytes loaded, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -147,7 +147,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
   `SKILL_BYTES` in `tools/runner/instructions.py`): the launch-time files at most 9,216 (every agent carries them on
-  every call; root `CLAUDE.md` has little room left, so a rule or glossary row added there trims another rule into its
+  every call; root `CLAUDE.md` has little room left, so a rule added there trims another rule into its
   doc in the same PR), and each `SKILL.md` body at most 16,000 (an invocation injects it whole and a compaction re-attaches
   only its first 5,000 tokens, code.claude.com/docs/en/skills); a skill's detail goes into supporting files in its
   folder, read on demand (`orchestrate-stage`'s core names the file for each event, §6). It also fails on rule
@@ -2379,7 +2379,7 @@ waits on him; the engineer's sessions do the content work otherwise.
   stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" →
   small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
-  one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
+  one short question only if a misreading would change what gets built. The glossary in `docs/HUMAN_SESSIONS.md` grows from
   real misrecognitions.
 - **Two readings are read back:** when a human's answer to a design question could describe different things to build
   (the look or the mechanics), the agent says its reading back in one sentence and records it in an issue, an ADR or

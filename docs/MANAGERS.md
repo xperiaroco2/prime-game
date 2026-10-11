@@ -16,6 +16,10 @@ the "For you:" block, the kickoff, the effort or a launch's estimate (§9), this
 rule out (its tools, its plan issue, its workflows) stays in its own repo: for game and meta, the `orchestrate-stage`
 skill and its `handover.md`.
 
+**How you talk to the engineer** (dictation, plain explanations, a command for a human in the chat, memory, the
+dictation glossary, launching a workflow): `D:\prime-game\docs\HUMAN_SESSIONS.md`, read at your start with this file
+(#836). This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files do not carry it.
+
 ## 1. The session: mode and effort
 - A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, with
   the mode and effort he picks: **bypass permissions, effort high**. High, not xhigh: the effort ADR's amendment of
