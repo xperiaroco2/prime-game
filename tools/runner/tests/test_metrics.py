@@ -1007,6 +1007,7 @@ class QualityTest(unittest.TestCase):
             {"number": 60, "title": "a bug", "body": "Found by: #31's publisher (PR #41).", "createdAt": at(150)},
             {"number": 61, "title": "a note", "body": "see #41 for context", "createdAt": at(151)},
             {"number": 62, "title": "drift", "body": "Found by: night-audit docs (#410)", "createdAt": at(152)},
+            {"number": 63, "title": "filed by the publisher", "body": "Found by: #31's publisher (PR #41).", "createdAt": at(25)},
         ],
     }
 
@@ -1182,7 +1183,8 @@ class QualityTest(unittest.TestCase):
         self.assertEqual((a["merged"], a["ci_runs"], a["ci_red_rounds"], a["ci_red_after_run"]), (True, 5, 2, 1),
                          "sha1 and sha3 red; the cancelled sha1 run adds nothing; the push to main is not the PR's")
         self.assertEqual((a["green_first"], a["ci_last"]), (False, "success"))
-        self.assertEqual(a["followups"], [60])
+        self.assertEqual(a["followups"], [60, 63])
+        self.assertEqual(a["late_followups"], [60], "#63 was filed during the run, by its own agents")
         self.assertEqual(a["fixups"], [50, 54], "the revert names o/r#41; 40, 51, 52, 53, 55, 56, 57 are not fix-ups")
         b = rows["wf_b"]
         self.assertEqual((b["merged"], b["ci_red_rounds"], b["ci_red_after_run"]), (False, 1, 1))
@@ -1191,7 +1193,7 @@ class QualityTest(unittest.TestCase):
         e = rows["wf_e"]
         self.assertEqual((e["ci_red_rounds"], e["green_first"], e["ci_last"]), (0, None, "pending"))
         for wf in ("wf_c", "wf_d"):  # no PR; a PR of another repository
-            for key in ("merged", "ci_red_rounds", "green_first", "followups", "fixups"):
+            for key in ("merged", "ci_red_rounds", "green_first", "followups", "late_followups", "fixups"):
                 with self.subTest(wf=wf, key=key):
                     self.assertIsNone(rows[wf][key])
 

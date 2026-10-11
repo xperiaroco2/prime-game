@@ -77,6 +77,47 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
 
 The base mode has no meetings and no votes.
 
+### The knockdown (#728)
+Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
+[vision revision 1](decisions/2026-10-01-vision-revision-1.md) stays (0 health knocks a player down; another player
+raises it by holding E; otherwise it dies when its time runs out or when it gives up, then spectates and respawns),
+with three changes:
+- **Still:** a knocked-down player cannot move; there is no crawl and no separate "wounded" state.
+- **Mute:** it hears, but cannot speak: nobody hears it, under any rule (as before).
+- **A ragdoll:** the body falls as a rigid body, with no animation. On the House only (below), a hit can send it
+  flying, and it rolls or slides off whatever slope, roof or stairs it lands on. Everyone sees it in the same place:
+  the host's physics moves the body, and each screen draws its own ragdoll there.
+
+His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comments 6097876326 and
+6100602989, the same day, and 6108669765, 6109457234 and 6110171062 on 2026-10-11):
+- Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
+  launch, the knife's too.
+- The body is a real rigid body with normal physics, run by the host: a blow launches it, and it rolls or slides off
+  any slope, roof or stairs by itself. There is no separate slide rule (the ADR's KD10).
+- A body still flying or rolling cannot be raised.
+- A knocked-down player hears the living near its body, as before, and its camera stays above its body, following it.
+- A dead body stays a ragdoll, greyed, with the cross; a raised player gets up at once (crouched where only a
+  crouching player fits, below).
+- A death in mid-flight ends the motion: the body and its items rest where it stopped.
+- **The launch plays on the House only.** On the flat greybox a knocked-down body lies still where it fell, as a
+  ragdoll, with no launch.
+- The numbers (how hard a blow launches, when a moving body counts as resting) are placeholders, "not a decision",
+  until a playtest.
+- The body has a crouching player's collider, so it comes to rest only where a crouching player fits (it does not
+  roll under a low table); a raised player gets up crouched there and stands up by the crouch's rules once there is
+  room (the ADR's KD11).
+- A blow never launches a body where no player can reach it to raise it: the levels keep every surface a launch can
+  reach, tables and the roof included, within a raise's reach of a spot a player can walk to, the same convention as
+  for a thrown item, checked on the House by tests (the ADR's KD12).
+- Tables keep the space under them: a body may rest under a table a crouching player fits under, as long as a raise
+  can reach it, and no level rule closes tables (the ADR's KD14).
+- A player raised from a body launched into the lowered car gets up inside the car on its own screen, and its own
+  game pushes it out, the car's accepted quirk; nothing new is built for it but a test of that push, which brings
+  the question back to him if the host keeps correcting the player into the car (the ADR's KD15).
+- The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
+  not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
+  the ragdoll on screen.
+
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
   is not central.

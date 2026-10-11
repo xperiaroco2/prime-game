@@ -131,7 +131,13 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
 - `--adr-reads` (#793): the ADR files (docs/decisions/) a tool read, by file: the reads split whole (no offset or limit,
   or a `cat`, returning over WHOLE_LINES lines), section (`section`, a Read with an offset or limit, `sed -n`, `head`,
   `tail`, a Grep or a search) and small (a short file in full), their tokens and list $, the top ADR_TOP by $ and the
-  roles that read each; `instructions.adr_reads` in the JSON record always;
+  roles that read each; `instructions.adr_reads` in the JSON record always. With it (#834) docs/ARCHITECTURE.md's
+  tool reads by role: the agents, the reads split the same way, the repeats (every line of the read already read by
+  the same agent since the file last changed (its Edit or Write, a `sed -i` or `>` into it, TREE_CHANGE) or a
+  compaction; a Read's numbered lines, a `cat`'s or `sed -n` range's, each section `section` printed by its
+  `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
+  `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
+  its share of lines read again); `instructions.arch_reads` in the JSON record always;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
@@ -193,6 +199,25 @@ KEEP_FROM (the keep's own time, so the trial's tasks of that day never count), r
 per task pass REVERT_OVER, else keep; fewer tasks: continue. A task with no counted review (a red or unpublished run)
 stays out of the mean, and the advice then says how many were reviewed. The JSON record's "revert" holds those tasks'
 count, the reviewed count, the mean and advice; "advice" stays the trial's own verdict.
+
+The Sonnet publisher trial (#835, docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md, amendment of
+2026-10-11): the finished `issue-task` runs since PUB_TRIAL_FROM whose scorecard row had a blocker or major left open
+(not a design task, not stopped by mutants: issue-task's publish_findings role), grouped per task. A trial task has
+such a run whose last publisher (its transcript) is of TRIAL_FAMILY; the baseline's tasks have only BASELINE_FAMILY
+publishers there. Per task: those runs, the blockers and majors open before the publisher, its not_fixed, the later
+findings (the PR's Found-by follow-ups filed after the run ended plus its fix-up PRs, from GitHub: unknown with
+--no-gh), the publisher's fix rounds, the PR's red CI rounds (both once per PR), the publishers' and the runs' API list
+$; per side the per-task means. The stop rule (pub_trial_advice): from PUB_TRIAL_EARLY_TASKS trial tasks, against a
+baseline of at least PUB_TRIAL_BASELINE_MIN tasks, stop when their not_fixed per task is PUB_TRIAL_NOT_FIXED_OVER or
+more over the baseline's; after PUB_TRIAL_TASKS drop Sonnet when a measure of PUB_TRIAL_NO_WORSE is worse per task or
+the publisher $ per task is not lower, keep it when none is and all are known; no baseline, or a measure no run knows:
+"no verdict". pr-rebase beside it: the finished `pr-rebase` runs since PUB_TRIAL_FROM by their rebase agent's model
+family, per run red (the rebase red or unpublished, or the last publishing agent's ci_green or published false; a
+branch already up to date has nothing to push), the open blockers and majors of every reviewer (minus the skeptics'
+refutations), the fix's not_fixed (0 when no fix ran after a review) and API list $; stop once REBASE_TRIAL_RED Sonnet
+runs were red; after REBASE_TRIAL_RUNS keep Sonnet when the red share, blockers and majors and not fixed per run are no
+worse than the Opus runs' and the $ per run is lower. The verdicts are advice: the engineer decides. The JSON record's
+"publisher_trial" holds the tasks, the baseline, the totals, the advice and "rebase" (its runs, totals and advice).
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -469,7 +494,7 @@ GH_LIST_LIMIT = 1000
 RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
 GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
-                  "green_first", "followups", "fixups")  # fmt: skip
+                  "green_first", "followups", "late_followups", "fixups")  # fmt: skip
 
 # Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
 # docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
@@ -544,6 +569,11 @@ LIMITED_SHELL = re.compile(
 # #793: a read that returns more lines than this, with no offset, limit or range, is a whole-file read.
 WHOLE_LINES = 150
 ADR_TOP = 10
+# #834: docs/ARCHITECTURE.md's tool reads by role with --adr-reads, their repeats counted by line. The runner's
+# `section` heads each section it prints with `--- <path>:<first>-<last> <§ title>`; its outline (no section asked
+# for) starts with `<path>: <n> lines`.
+ARCH_SECTION_HEAD = re.compile(r"^--- \S*ARCHITECTURE\.md:(\d+)-(\d+)(?:\s|$)", re.MULTILINE)
+ARCH_OUTLINE_HEAD = re.compile(r"^\S*ARCHITECTURE\.md: \d+ lines, ", re.MULTILINE)
 # The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
 HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
@@ -933,17 +963,18 @@ def shell_steps(cmd: str) -> list[tuple[str, bool]]:
     return [step for step in steps if step[0]]
 
 
-def _shell_path(word: str) -> str | None:
+def _shell_path(word: str, md: bool = False) -> str | None:
     path = word.strip("'\"").replace("\\", "/")
     rel = repo_path(path) if re.match(r"^(/|[A-Za-z]:)", path) else path.removeprefix("./")
-    if not rel or rel.lower().endswith(".md") or "." not in rel.rsplit("/", 1)[-1]:
+    if not rel or (rel.lower().endswith(".md") and not md) or "." not in rel.rsplit("/", 1)[-1]:
         return None
     return rel
 
 
-def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int]] | None]]:
+def code_read(name: str, inp: dict, md: bool = False) -> list[tuple[str, bool, list[tuple[int, int]] | None]]:
     """The reads of repository code files, anything but a .md, in one tool call (#468): (the path, whether it reads the
-    whole file, the line ranges: None for a Read, whose result numbers its lines; [] for a `cat`, all of them)."""
+    whole file, the line ranges: None for a Read, whose result numbers its lines; [] for a `cat`, all of them). md: a
+    shell step's .md files too (#834's ARCHITECTURE reads)."""
     if name == "Read":
         rel = repo_path(inp.get("file_path"))
         if not rel or rel.lower().endswith(".md"):
@@ -956,7 +987,7 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
         match = CODE_SHELL_READ.fullmatch(REDIRECT.sub("", step))
         if not match:
             continue
-        paths = [_shell_path(w) for w in re.findall(SHELL_WORD, match.group("paths"))]
+        paths = [_shell_path(w, md) for w in re.findall(SHELL_WORD, match.group("paths"))]
         if match.group("how").startswith("cat"):
             if len(paths) == 1 and paths[0] and not piped:  # several files: no line numbers to tell them apart
                 reads.append((paths[0], True, []))
@@ -970,15 +1001,15 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
     return reads
 
 
-def code_edits(cmd: str) -> list[str]:
+def code_edits(cmd: str, md: bool = False) -> list[str]:
     """The repository code files a shell command edits in place (`sed -i`) or writes its output into (`> f`, a heredoc
-    `cat > f <<'EOF'`)."""
+    `cat > f <<'EOF'`); md: its .md files too (#834)."""
     edits = []
     for step, _piped in shell_steps(HEREDOC_BODY.sub(r"\1", cmd)):
         match = SED_EDIT.fullmatch(step)
         targets = [match.group("path")] if match else []
         targets += [m.group("path") for m in WRITE_REDIRECT.finditer(step)]
-        edits += [rel for rel in map(_shell_path, targets) if rel]
+        edits += [rel for rel in (_shell_path(t, md) for t in targets) if rel]
     return edits
 
 
@@ -1118,6 +1149,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     merge_outputs, merge_pairs = 0, []
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
+    arch_seen: set[int] = set()  # ARCHITECTURE's lines read since it last changed or a compaction (#834)
     files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
     left: list[tuple[int, int]] = []  # #559: each <total_tokens> reading, with the context of the API call before it
     with io.open(path, encoding="utf-8", errors="replace") as lines:
@@ -1149,6 +1181,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
                 bounds.append(len(usage))
                 code_seen.clear()
+                arch_seen.clear()
                 continue
             if d.get("type") == "attachment":
                 att = d.get("attachment")
@@ -1203,8 +1236,11 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         changed = [repo_path(inp.get("file_path"))] if b.get("name") in ("Edit", "Write") else []
                         if TREE_CHANGE.search(cmd):
                             code_seen.clear()
+                            arch_seen.clear()
                         for rel in changed + (code_edits(cmd) if cmd else []):
                             code_seen.pop(rel, None)
+                        if ARCHITECTURE in changed + (code_edits(cmd, md=True) if cmd else []):
+                            arch_seen.clear()
                         uses[b["id"]] = {
                             "name": b.get("name"),
                             "mid": mid,
@@ -1214,6 +1250,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "docs": doc_targets(str(b.get("name")), inp),
                             "limited": read_limited(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
+                            "arch": [r for r in code_read(str(b.get("name")), inp, md=True) if r[0] == ARCHITECTURE],
+                            "section_piped": any(piped for step, piped in shell_steps(cmd) if SECTION_CMD.search(step)),
                             **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
                         files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
@@ -1228,6 +1266,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             call["counted"] = True
                             count_code_read(call["code"], text, code_seen, code_reads)
                         found = read_items(call["docs"], text, call["limited"])
+                        count_arch_read(found, arch_lines(call, text), arch_seen)
                         items += found
                         pending += found
                         polled = WAIT_RAN.search(text) if call["kind"] == "wait" else None
@@ -1410,6 +1449,40 @@ def count_code_read(reads: list[tuple], text: str, seen: dict[str, set[int]], co
         counts["repeat_tokens"] += sum(chars[key] for key in again) / CHARS_PER_TOKEN
     for rel, number in chars:
         seen.setdefault(rel, set()).add(number)
+
+
+def arch_lines(call: dict, text: str) -> set[int] | None:
+    """The lines of docs/ARCHITECTURE.md a tool call's result holds (#834), by the file's line numbers when it was
+    read: a Read's numbered lines, a `cat`'s 1 to n or a `sed -n`'s ranges, each section the runner's `section` printed
+    (its `--- <path>:<first>-<last>` head); its outline is line 0. None for a search (a Grep, a `grep`) or a read whose
+    lines cannot be told (`head`, `tail`, a `section` piped on, a doc read beside another)."""
+    modes = {mode for rel, _how, mode in call["docs"] if rel == ARCHITECTURE}
+    if "section" in modes:
+        if call.get("section_piped"):  # `section ... | grep` or `| head`: some of what it printed
+            return None
+        lines = {n for a, b in ARCH_SECTION_HEAD.findall(text) for n in range(int(a), int(b) + 1)}
+        return lines | ({0} if ARCH_OUTLINE_HEAD.search(text) else set()) or None
+    if len(call["docs"]) != 1 or not modes & {"read", "plain"}:
+        return None
+    if call["name"] == "Read":
+        return {int(m.group(1)) for line in text.splitlines() if (m := READ_LINE.match(line))} or None
+    for _rel, _whole, ranges in call["arch"]:  # a shell `cat` or `sed -n` of it (code_read)
+        if not ranges:
+            return set(range(1, len(text.splitlines()) + 1))
+        return {n for a, b in ranges for n in range(a, b + 1)}
+    return None
+
+
+def count_arch_read(items: list[dict], lines: set[int] | None, seen: set[int]) -> None:
+    """Mark a tool call's ARCHITECTURE item with its share of lines the agent read already since the file last changed
+    or its context was compacted (#834): `arch_lines`, `arch_again`."""
+    if not lines:
+        return
+    again = len(lines & seen)
+    for item in items:
+        if item.get("file") == ARCHITECTURE:
+            item |= {"arch_lines": len(lines), "arch_again": again}
+    seen |= lines
 
 
 def role_of(label: str) -> str:
@@ -1914,6 +1987,7 @@ def build(
     quality = quality_record(finished, labels, github)
     md += quality_section(quality)
     md += trial_section(trial := trial_record(finished, tasks, quality["tasks"], github))
+    md += publisher_trial_section(pub_trial := publisher_trial_record(finished, quality["tasks"], counted))
     md += time_section(counted)
     md += cache_section(counted)
     idle = idle_record(idle_agents(counted))
@@ -1958,6 +2032,7 @@ def build(
         "handoffs": handoffs,
         "ab_review": ab,
         "sonnet_trial": trial,
+        "publisher_trial": pub_trial,
         "instructions": instructions,
         "agent_types": types,
         "prompt_sizes": prompts,
@@ -2702,6 +2777,229 @@ def trial_section(record: dict) -> list[str]:
         f"verdict: {record['advice']}.",
         "",
         f"Advice: {record['revert']['advice']}.",
+        "",
+    ]
+
+
+# The Sonnet publisher trial (#835, the module docstring; the model-guard ADR's amendment of 2026-10-11): the full
+# publisher of an issue-task run with a blocker or major left open, and pr-rebase's rebase and fix agents, on Sonnet
+# against the Opus ones of the same window. The stop rule's numbers are proposals the engineer may change.
+PUB_TRIAL_FROM = "2026-10-08T12:25:00Z"  # #835's scouting window: the Opus baseline counts from here
+PUB_TRIAL_TASKS = 10
+PUB_TRIAL_EARLY_TASKS = 4
+PUB_TRIAL_NOT_FIXED_OVER = 1.0
+PUB_TRIAL_BASELINE_MIN = 3  # a baseline of fewer tasks is noise against the early stop's 1.0
+PUB_TRIAL_MEASURES = ("open", "not_fixed", "later", "fix_rounds", "ci_fix_rounds", "pub_usd", "usd")
+PUB_TRIAL_NO_WORSE = {"later": "later findings", "not_fixed": "findings not fixed", "ci_fix_rounds": "CI fix rounds"}
+REBASE_TRIAL_RUNS = 10
+REBASE_TRIAL_RED = 2
+REBASE_MEASURES = ("serious", "not_fixed", "usd")
+
+
+def last_family(r: dict, role: str) -> str | None:
+    """The model family of a run's last agent of a role with a transcript."""
+    d = next((x["data"] for x in reversed(r["agents"]) if x["role"] == role and x["data"] and x["data"].get("model")),
+             None)  # fmt: skip
+    return agents_check.family(str(d["model"])) if d else None
+
+
+def findings_run(q: dict) -> bool:
+    """A scorecard row whose full publisher had a blocker or major left open: issue-task's publish_findings role."""
+    return q["design"] is False and not q["stopped_by_mutants"] and bool(q["open"])
+
+
+def pub_trial_task(key: object, members: list[tuple[dict, dict]]) -> dict:
+    """One task's runs with findings left (run, scorecard row) summed; None where no run knows. A PR's signals count
+    once; its later findings are its Found-by follow-ups plus its fix-up PRs (GitHub's, a lower bound)."""
+
+    def known(values: list) -> int | None:
+        values = [v for v in values if v is not None]
+        return sum(values) if values else None
+
+    prs = {q["pr"]: q for _r, q in members if q["pr"] is not None}
+    first = members[0][0]
+    return {
+        "issue": first["issue"], "wf": first["wf"], "key": key,
+        "models": sorted({str(last_family(r, "publisher")) for r, _q in members}),
+        "start": min((r["start"] for r, _q in members if r.get("start") is not None), default=None),
+        "runs": len(members), "open": sum(q["open"] for _r, q in members),
+        "not_fixed": known([q["not_fixed"] for _r, q in members]),
+        "later": known([None if q.get("late_followups") is None or q.get("fixups") is None
+                        else len(q["late_followups"]) + len(q["fixups"]) for q in prs.values()]),
+        "fix_rounds": known([q["fix_rounds"] for _r, q in members]),
+        "ci_fix_rounds": known([q.get("ci_red_rounds") for q in prs.values()]),
+        "pub_usd": sum(usd(x["data"]["tokens"]) for r, _q in members for x in r["agents"]
+                       if x["role"] == "publisher" and x["data"]),
+        "usd": sum(q["usd"] for _r, q in members),
+    }  # fmt: skip
+
+
+def means(rows: list[dict], measures: tuple[str, ...]) -> dict:
+    """The rows' count and the per-row mean of each measure, over the rows that know it (None when none does)."""
+    out: dict = {"n": len(rows)}
+    for k in measures:
+        values = [x[k] for x in rows if x[k] is not None]
+        out[k] = sum(values) / len(values) if values else None
+    return out
+
+
+def pub_trial_advice(trial: dict, base: dict) -> str:
+    """The publisher's stop rule (the module docstring) over the two sides' means."""
+    what = "Sonnet for the publisher of runs with findings"
+    if not base["n"]:
+        if trial["n"] >= PUB_TRIAL_TASKS:
+            return (f"no verdict: {trial['n']} trial tasks but no baseline in the window (Opus publishers of runs with "
+                    f"findings since {PUB_TRIAL_FROM}); report on #302, the engineer decides")  # fmt: skip
+        return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks; no baseline in the window yet"
+    over = None if trial["not_fixed"] is None or base["not_fixed"] is None else trial["not_fixed"] - base["not_fixed"]
+    if (trial["n"] >= PUB_TRIAL_EARLY_TASKS and base["n"] >= PUB_TRIAL_BASELINE_MIN and over is not None
+            and over >= PUB_TRIAL_NOT_FIXED_OVER):  # fmt: skip
+        return f"stop: drop {what} ({over:.2f} findings not fixed per task over the baseline's)"
+    if trial["n"] < PUB_TRIAL_TASKS:
+        return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks"
+    both = {**PUB_TRIAL_NO_WORSE, "pub_usd": "publisher $ per task"}
+    unknown = [name for k, name in both.items() if trial[k] is None or base[k] is None]
+    worse = [name for k, name in PUB_TRIAL_NO_WORSE.items()
+             if trial[k] is not None and base[k] is not None and trial[k] > base[k]]  # fmt: skip
+    if trial["pub_usd"] is not None and base["pub_usd"] is not None and trial["pub_usd"] >= base["pub_usd"]:
+        worse.append("publisher $ per task not lower")
+    if worse:
+        return f"drop {what} (worse: {', '.join(worse)})"
+    if unknown:  # a run without GitHub knows no later findings or CI rounds: not a result
+        return (f"no verdict: unknown {', '.join(unknown)} (GitHub not read, or no run knows it); report on #302, "
+                f"the engineer decides")  # fmt: skip
+    return f"keep {what} (the engineer decides; a habit only by a further amendment)"
+
+
+def rebase_row(r: dict) -> dict:
+    """A finished pr-rebase run: its rebase agent's model, red (the rebase red or unpublished, or the last publishing
+    agent's CI red or nothing published; a branch already up to date has nothing to push), the reviews' open blockers
+    and majors (every reviewer of SERIOUS_FROM minus the skeptics' refutations, as the scorecard counts), the fix's
+    not_fixed and its API list $."""
+    done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
+    reb, fix = done.get("pr-rebase") or {}, done.get("pr-rebase fix")
+    last = fix if fix is not None else reb
+    idle = fix is None and reb.get("up_to_date") is True  # nothing to push: published false is no failure
+    reviews = [x["result"] for x in r["agents"] if x["role"] in SERIOUS_FROM and x["result"] is not None]
+    serious = sum(isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
+                  for res in reviews for f in (res.get("findings") if isinstance(res.get("findings"), list) else []))  # fmt: skip
+    refuted = sum(x["result"].get("refuted") is True for x in r["agents"] if x["role"] == "skeptic" and x["result"])
+    reviewed = any(role in done for role in REVIEWERS)
+    return {
+        "pr": r["issue"], "wf": r["wf"], "model": str(last_family(r, "pr-rebase")), "start": r.get("start"),
+        "red": (reb.get("verify_green") is False or last.get("ci_green") is False
+                or (not idle and (reb.get("published") is False or last.get("published") is False))),
+        "serious": max(serious - refuted, 0) if reviewed else None, "fixed": fix is not None,
+        "not_fixed": count_of(fix.get("not_fixed")) if fix is not None else (0 if reviewed else None),
+        "usd": run_usd(r),
+    }  # fmt: skip
+
+
+def rebase_advice(trial: dict, base: dict) -> str:
+    """pr-rebase's stop rule (the module docstring): Sonnet against Opus pr-rebase runs of the window."""
+    if trial["red_runs"] >= REBASE_TRIAL_RED:
+        return f"stop: drop Sonnet for pr-rebase ({trial['red_runs']} Sonnet runs red)"
+    if trial["n"] < REBASE_TRIAL_RUNS:
+        return f"continue: {trial['n']} of {REBASE_TRIAL_RUNS} Sonnet pr-rebase runs"
+    if not base["n"]:
+        return "no verdict: no Opus pr-rebase run in the window; report on #302, the engineer decides"
+    worse = [name for k, name in (("red", "red runs"), ("serious", "blockers and majors"), ("not_fixed", "not fixed"))
+             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
+    if trial["usd"] is None or base["usd"] is None or trial["usd"] >= base["usd"]:
+        worse.append("$ per run not lower")
+    if worse:
+        return f"drop Sonnet for pr-rebase (worse or unknown: {', '.join(worse)})"
+    return "keep Sonnet for pr-rebase (the engineer decides; a habit only by a further amendment)"
+
+
+def publisher_trial_record(runs: list[dict], rows: list[dict], counted: list[dict]) -> dict:
+    """The Sonnet publisher trial (#835) from the finished issue-task runs and their scorecard rows (in one order), and
+    the counted runs' finished pr-rebase runs, each since PUB_TRIAL_FROM."""
+    since = parse_time(PUB_TRIAL_FROM)
+    groups: dict[object, list[tuple[dict, dict]]] = {}
+    for r, q in zip(runs, rows):
+        if findings_run(q) and r.get("start") is not None and r["start"] >= since:
+            groups.setdefault(r["issue"] if r["issue"] is not None else r["wf"], []).append((r, q))
+    trial, base = [], []
+    for key, members in groups.items():
+        families = [last_family(r, "publisher") for r, _q in members]
+        if TRIAL_FAMILY in families:
+            trial.append(pub_trial_task(key, members))
+        elif all(f == BASELINE_FAMILY for f in families):
+            base.append(pub_trial_task(key, members))
+    rebases = [rebase_row(r) for r in counted
+               if r["kind"] == "pr-rebase" and r["finished"] and r.get("start") is not None and r["start"] >= since]  # fmt: skip
+    totals = {}
+    for side in (TRIAL_FAMILY, BASELINE_FAMILY):
+        xs = [x for x in rebases if x["model"] == side]
+        totals[side] = {**means(xs, REBASE_MEASURES), "red_runs": sum(x["red"] for x in xs),
+                        "red": sum(x["red"] for x in xs) / len(xs) if xs else None}  # fmt: skip
+    pub = {"trial": means(trial, PUB_TRIAL_MEASURES), "baseline": means(base, PUB_TRIAL_MEASURES)}
+    return {
+        "from": PUB_TRIAL_FROM, "tasks": trial, "baseline": base, "totals": pub,
+        "advice": pub_trial_advice(pub["trial"], pub["baseline"]),
+        "rebase": {"runs": rebases, "totals": totals,
+                   "advice": rebase_advice(totals[TRIAL_FAMILY], totals[BASELINE_FAMILY])},
+    }  # fmt: skip
+
+
+def publisher_trial_section(record: dict) -> list[str]:
+    """The Sonnet publisher trial's tables (#835); nothing before its first Sonnet publisher or pr-rebase run."""
+    if not record["tasks"] and not record["rebase"]["totals"][TRIAL_FAMILY]["n"]:
+        return []
+
+    def n(value: int | float | None, digits: int = 0) -> str:
+        return "?" if value is None else f"{value:.{digits}f}"
+
+    def money(value: float | None) -> str:
+        return "?" if value is None else fmt_usd(value)
+
+    body = [
+        [f"#{x['issue']}" if x["issue"] is not None else x["wf"], ", ".join(x["models"]), x["runs"], x["open"],
+         n(x["not_fixed"]), n(x["later"]), n(x["fix_rounds"]), n(x["ci_fix_rounds"]), fmt_usd(x["pub_usd"]),
+         fmt_usd(x["usd"])]
+        for x in record["tasks"]
+    ]  # fmt: skip
+    head = ["task", "publisher models", "runs", "open blockers+majors", "not fixed", "later findings",
+            "publisher fix rounds", "CI fix rounds", "publisher $", "run $"]  # fmt: skip
+    totals = [[label, t["n"], *(n(t[k], 2) for k in PUB_TRIAL_MEASURES[:-2]), money(t["pub_usd"]), money(t["usd"])]
+              for label, t in (("Sonnet trial", record["totals"]["trial"]),
+                               ("Opus baseline", record["totals"]["baseline"]))]  # fmt: skip
+    total_head = ["side", "tasks", "open blockers+majors", "not fixed", "later findings", "publisher fix rounds",
+                  "CI fix rounds", "publisher $ (mean)", "run $ (mean)"]  # fmt: skip
+    rb = record["rebase"]["totals"]
+    rebase = [[label, t["n"], t["red_runs"], n(t["serious"], 2), n(t["not_fixed"], 2), money(t["usd"])]
+              for label, t in (("Sonnet", rb[TRIAL_FAMILY]), ("Opus", rb[BASELINE_FAMILY]))]  # fmt: skip
+    since = f"{record['from'][:10]} {record['from'][11:16]}Z"
+    return [
+        "## Sonnet publisher trial (#835)",
+        "",
+        "Per trial task (an issue-task run whose full publisher had a blocker or major left open, its publisher on "
+        "Sonnet; the task's other such runs count with it): those runs, the blockers and majors open before the "
+        "publisher, what it left not fixed, the later findings (Found-by follow-ups filed after the run and fix-up "
+        "PRs: a lower bound, from GitHub), its fix rounds, the PR's red CI rounds, the publishers' and the runs' API "
+        "list $.",
+        "",
+        table(head, body),
+        "",
+        f"Per task (means), against the baseline: tasks whose every such run had an Opus publisher, since {since}. "
+        f"From {PUB_TRIAL_EARLY_TASKS} trial tasks (a baseline of {PUB_TRIAL_BASELINE_MIN}+) stop at "
+        f"{PUB_TRIAL_NOT_FIXED_OVER:g} or more findings not fixed per task over the baseline; after "
+        f"{PUB_TRIAL_TASKS} keep Sonnet when the later findings, not fixed and CI fix rounds are no worse and the "
+        f"publisher $ per task is lower (the model-guard ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
+        "",
+        f"Advice (publisher): {record['advice']}.",
+        "",
+        f"pr-rebase since {since}, per model of its rebase agent: runs, red runs (rebase red or unpublished, or CI red "
+        f"or nothing published after the last publishing agent), the review's blockers and majors and the fix's not "
+        f"fixed (means per run), $ per run. Stop after {REBASE_TRIAL_RED} red Sonnet runs; after {REBASE_TRIAL_RUNS} "
+        f"keep Sonnet when the red share, blockers and majors and not fixed are no worse and the $ per run is lower.",
+        "",
+        table(["rebase agent", "runs", "red", "blockers+majors", "not fixed", "$ (mean)"], rebase),
+        "",
+        f"Advice (pr-rebase): {record['rebase']['advice']}.",
         "",
     ]
 
@@ -3454,6 +3752,60 @@ def adr_section(adr: dict) -> list[str]:
         table(["ADR", "reads", "whole", "section", "small", "tokens", "list $", "of it whole reads", "roles by $"], rows), ""]  # fmt: skip
 
 
+ARCH_KEYS = ("agents", "reads", "whole", "section", "small", "repeats", "partial", "tokens", "usd", "whole_usd",
+             "repeat_usd")  # fmt: skip
+
+
+def arch_record(agents: list[tuple[str, dict]]) -> dict:
+    """docs/ARCHITECTURE.md's tool reads by role (#834): the agents that read it, the reads split whole, section and
+    small (read_scope), the repeats (every line of the read read already by the same agent since the file last changed
+    or its context was compacted, count_arch_read) and the partial repeats (some of its lines), tokens and list $, and
+    the $ of the whole reads and of the repeated lines (a read's $ times its share of lines read again)."""
+    roles: dict[str, dict] = {}
+    for role, d in agents:
+        reads = [item for item in d.get("instructions") or []
+                 if item.get("file") == ARCHITECTURE and how_class(item["how"]) == "read"]  # fmt: skip
+        if not reads:
+            continue
+        r = roles.setdefault(role, {"role": role} | {k: 0.0 if k in ("tokens", "usd", "whole_usd", "repeat_usd") else 0
+                                                       for k in ARCH_KEYS})  # fmt: skip
+        r["agents"] += 1
+        for item in reads:
+            scope, cost = read_scope(item), item_usd(item)
+            r["reads"] += 1
+            r[scope] += 1
+            r["tokens"] += item["tokens"]
+            r["usd"] += cost
+            r["whole_usd"] += cost if scope == "whole" else 0.0
+            again, lines = item.get("arch_again", 0), item.get("arch_lines", 0)
+            if again:
+                r["repeats" if again == lines else "partial"] += 1
+                r["repeat_usd"] += cost * again / lines
+    rows = sorted(roles.values(), key=lambda r: -r["usd"])
+    return {"roles": rows, "all": {k: sum(r[k] for r in rows) for k in ARCH_KEYS}}
+
+
+def arch_section(arch: dict) -> list[str]:
+    """The ARCHITECTURE table of `metrics --adr-reads` (#834)."""
+    md = ["### ARCHITECTURE.md reads by role (#834)", ""]
+    a = arch["all"]
+    if not a["reads"]:
+        return md + ["No tool read docs/ARCHITECTURE.md in the window.", ""]
+    rows = [[r["role"], r["agents"], r["reads"], r["whole"], r["section"], r["small"], r["repeats"], r["partial"],
+             fmt_tok(r["tokens"]), fmt_usd(r["usd"]), fmt_usd(r["whole_usd"]), fmt_usd(r["repeat_usd"])]
+            for r in arch["roles"] + [a | {"role": "all roles"}]]  # fmt: skip
+    return md + [
+        f"Tool reads of docs/ARCHITECTURE.md ({fmt_usd(a['usd'])}: {fmt_usd(a['whole_usd'])} whole-file reads, "
+        f"{fmt_usd(a['repeat_usd'])} lines the same agent had read already). whole, section and small as in the ADR "
+        "table. repeats: a read whose lines (a Read's numbered lines, a `cat`'s or a `sed -n` range's, the sections "
+        "`section` printed, its outline as one) the agent had all read since the file last changed (its Edit or Write, "
+        "a `sed -i` or `>` into it, a git rebase, checkout or reset, a runner `publish`, `normalize` or `merge`) or a "
+        "compaction; partly: some of them; a Grep, a search, `head`, `tail` or a `section` piped on is never one. The $ of a repeat is the "
+        "read's times its share of lines read again.", "",
+        table(["role", "agents", "reads", "whole", "section", "small", "repeats", "partly", "tokens", "list $",
+               "of it whole reads", "of it repeats"], rows), ""]  # fmt: skip
+
+
 def instruction_merges(sessions: list[dict]) -> list[dict]:
     """Per manager session (a wave with --since <wave start>): the merge-check outputs among its tool results, and the
     PR pairs whose rows name an ARCHITECTURE conflict (the instruction-diet ADR's N1 (c) trigger)."""
@@ -3527,6 +3879,7 @@ def instruction_record(counted: list[dict], sessions: list[dict], docs_root: Pat
                   for t in sorted(twice.values(), key=lambda t: -t["usd"])],
         "sections": instruction_sections(agents, docs_root or ROOT),
         "adr_reads": adr_record(agents),
+        "arch_reads": arch_record(agents),
         "merge_check": instruction_merges(sessions),
     }  # fmt: skip
 
@@ -3576,6 +3929,7 @@ def instruction_section(rec: dict, adr_reads: bool = False) -> list[str]:
                ""]  # fmt: skip
     if adr_reads:
         md += adr_section(rec["adr_reads"])
+        md += arch_section(rec["arch_reads"])
     return md + merge_check_lines(rec)
 
 
@@ -3739,12 +4093,16 @@ def quality_github(q: dict, github: dict | None) -> dict:
     if runs_from is None or (opened is not None and opened >= runs_from):
         out.update(ci_rounds(github.get("runs") or [], pr.get("headRefName"), opened, q["end"]))
     numbers = [n for n in (q["issue"], q["pr"]) if n is not None]
-    out["followups"] = sorted(
-        i["number"] for i in github.get("issues") or []
+    found = [
+        i for i in github.get("issues") or []
         if i.get("number") not in numbers
         and (q["start"] is None or (stamp(i.get("createdAt")) or 0) >= q["start"])
         and any(mentions(m.group(0), numbers, repo) for m in FOUND_BY.finditer(str(i.get("body") or "")))
-    )  # fmt: skip
+    ]  # fmt: skip
+    out["followups"] = sorted(i["number"] for i in found)
+    # Those filed once the run was over (#835: the publisher's own filings are not "later findings").
+    out["late_followups"] = (None if q["end"] is None
+                             else sorted(i["number"] for i in found if (stamp(i.get("createdAt")) or 0) >= q["end"]))  # fmt: skip
     own = re.compile(rf"^[A-Za-z]+/{q['issue']}-") if q["issue"] is not None else None
     fixups = []
     for p in github["prs"]:

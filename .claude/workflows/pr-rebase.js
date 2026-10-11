@@ -25,7 +25,7 @@ export const meta = {
 // script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line and #816's section reads in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -39,11 +39,13 @@ export const meta = {
 //                 identical tree was just verified green (#471), as in issue-task.js.
 //                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
-//                 netcode, second_review, skeptic, fix (default 'high'). review covers the code reviewer and is the
-//                 fallback of netcode, skeptic and (after netcode) second_review. A reviewer gets an effort only when
-//                 one is set; otherwise its agent file's applies, as before v2. +0 agents
+//                 netcode, second_review, skeptic, fix (default 'high'), publish. review covers the code reviewer and
+//                 is the fallback of netcode, skeptic and (after netcode) second_review; publish (#835) is the
+//                 fallback of rebase and fix, the two agents that publish. A reviewer gets an effort only when one is
+//                 set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 and no default (the model-guard ADR and its amendment A). +0 agents
+//                 and no default (the model-guard ADR and its amendment A). models.publish takes only sonnet: the
+//                 trial of a Sonnet rebase and fix agent (the model-guard ADR, amendment of 2026-10-11). +0 agents
 //   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
 //                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
@@ -96,19 +98,23 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
-const ROLES = ['rebase', 'review', 'netcode', 'second_review', 'skeptic', 'fix']
+const ROLES = ['rebase', 'review', 'netcode', 'second_review', 'skeptic', 'fix', 'publish']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
-  rebase: ['rebase'], review: ['review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'],
-  skeptic: ['skeptic', 'review'], fix: ['fix'],
+  rebase: ['rebase', 'publish'], review: ['review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'],
+  skeptic: ['skeptic', 'review'], fix: ['fix', 'publish'], publish: ['publish'],
 }
+// #835: a trial's role takes only the model its trial names (the model-guard ADR, amendment of 2026-10-11); the roles
+// that fall back to it keep the values they had.
+const TRIAL_MODELS = { publish: ['sonnet'] }
 const perRole = (k, values) => {
   const m = A[k]
   if (m === undefined || m === null) return {}
   if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`pr-rebase: args.${k} must be an object {role: value}; roles: ${ROLES.join(', ')}`)
   for (const [role, v] of Object.entries(m)) {
     if (!ROLES.includes(role)) throw new Error(`pr-rebase: args.${k}.${role}: no such role; roles: ${ROLES.join(', ')}`)
-    if (typeof v !== 'string' || v === '' || (values && !values.includes(v))) throw new Error(`pr-rebase: args.${k}.${role} must be ${values ? values.join(', ') : 'a model name'}`)
+    const allowed = values || (k === 'models' ? TRIAL_MODELS[role] : undefined)
+    if (typeof v !== 'string' || v === '' || (allowed && !allowed.includes(v))) throw new Error(`pr-rebase: args.${k}.${role} must be ${allowed ? allowed.join(', ') : 'a model name'}`)
   }
   return m
 }
@@ -130,8 +136,8 @@ const withModel = (o, role) => {
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
-const REB_EFFORT = EFFORTS.rebase || 'high'
-const FIX_EFFORT = EFFORTS.fix || 'high'
+const REB_EFFORT = set(EFFORTS, 'rebase') || 'high'
+const FIX_EFFORT = set(EFFORTS, 'fix') || 'high'
 
 // #468: the reading rule for code, every agent's (the token audit of 2026-10-06: big code files read whole, the
 // same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
@@ -141,8 +147,8 @@ const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
 // #815, as in issue-task.js (test_workflows.py compares them): the task's ADR, each section once per context;
-// #816: by section, never whole.
-const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
+// #816: by section, never whole. #834: docs/ARCHITECTURE.md too.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const RULES = [

@@ -5,7 +5,8 @@
   publisher on clean runs a standing rule, the weekly budget ADR's N5 (a)); amended 2026-10-07 (#469: the Sonnet
   planner, a manager habit like N5, the engineer's option (a)); amended 2026-10-07 (#535: the A/B of a Sonnet code
   reviewer); amended 2026-10-08 (#560: the Sonnet implementer trial); amended 2026-10-10 (#560: the Sonnet implementer
-  kept, a standing manager habit)
+  kept, a standing manager habit); amended 2026-10-11 (#835: the Sonnet publisher of runs with findings and
+  Sonnet `pr-rebase`, a trial)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -86,6 +87,30 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     2026-10-10 18:06Z; `metrics` reads it). Reverting ends the `models.implement` launches and changes nothing else. Sonnet is in the
     shared list, so it needs no allowance under amendment A; no script, default or agent file names the model, and the
     workflow tests still assert it.
+  - **2026-10-11** (#835, a trial of Sonnet for the publishers that still have work to do). Approved by the engineer:
+    https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6109393197 (item 4). `issue-task` gains the role
+    `publish_findings` (the publisher of a non-design run whose review left blockers or majors open; it falls back to
+    `publish`) and `pr-rebase` the role `publish` (its rebase and fix agents, which both publish); each script's
+    whitelist allows only `sonnet` in the new role, and a launch without it runs as before. The manager passes
+    `models: {publish_findings: "sonnet"}` beside `publish_clean` on every non-design `issue-task` launch and
+    `models: {publish: "sonnet"}` on every `pr-rebase` launch until `metrics`' "Sonnet publisher trial (#835)" table
+    (`publisher_trial` in `metrics.json`, read with `--since 2026-10-08T12:25:00Z`) gives advice other than
+    "continue". **Measure:** the baseline is the Opus publishers of runs with findings since 2026-10-08T12:25Z; per
+    task, the blockers and majors the review left open, the findings the publisher did not fix, the findings found
+    after its fixes (`Found-by` follow-ups filed after the run ended and fix-up PRs, a lower bound), its fix and CI
+    fix rounds, the publisher's $ and the run's $; for `pr-rebase`, per run, red runs (a branch already up to date
+    has nothing to push), the open blockers and majors of every review minus the skeptics' refutations, not fixed
+    and $. **Stop rule** (the numbers are proposals the engineer may change in the PR): from 4 trial tasks, against a
+    baseline of at least 3 tasks, stop when the findings not fixed per task exceed the baseline's by 1.0 or more;
+    after at least 10 trial tasks, keep when the later findings, not fixed and CI fix rounds per task are no worse
+    than the baseline's and the publisher's $ per task is lower, else drop; no baseline in the window, or a measure
+    no run knows (a run without GitHub), gives no verdict, and the engineer decides. `pr-rebase` stops
+    after 2 red Sonnet runs; after 10 Sonnet runs it keeps when its red share, blockers and majors and not fixed per run
+    are no worse than the Opus runs' and its $ per run is lower. **Revert rule:** the manager stops passing
+    `models.publish_findings` and `pr-rebase`'s `models.publish`; nothing else changes. It is a trial, not a habit: a
+    keep becomes a standing habit only by a further amendment, after the engineer's yes on the verdict. Sonnet is in
+    the shared list, so it needs no allowance under amendment A; no script, default or agent file names the model,
+    and the workflow tests still assert it.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.

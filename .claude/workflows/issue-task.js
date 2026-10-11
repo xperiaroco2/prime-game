@@ -47,7 +47,7 @@ export const meta = {
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
 // steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
-// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line and #816's section reads in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -77,13 +77,14 @@ export const meta = {
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, code,
 //                 netcode, second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
-//                 publish_clean (falls back to publish). review is the fallback of code (the diff's code reviewer
-//                 alone, #535), plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer
-//                 gets an effort only when one is set; otherwise its agent file's applies, as before v2. +0 agents
+//                 publish_clean and publish_findings (both fall back to publish). review is the fallback of code (the
+//                 diff's code reviewer alone, #535), plan_review, netcode, skeptic and (after netcode) second_review.
+//                 An agentType reviewer gets an effort only when one is set; otherwise its agent file's applies, as
+//                 before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 (plan falls back to implement, publish_clean to publish, code to review, none to a default). No
-//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
-//                 where the kickoff allows it). +0 agents
+//                 (plan falls back to implement, publish_clean and publish_findings to publish, code to review, none
+//                 to a default). No default names a model (the model-guard ADR and its amendment A: the manager
+//                 passes one per launch where the kickoff allows it). +0 agents
 //                 The role code is the diff's code-reviewer only: models.code changes no other reviewer, where
 //                 models.review also changes the plan critique, the netcode reviews and the skeptics (#535's A/B).
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
@@ -92,6 +93,11 @@ export const meta = {
 //                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
+//                 The role publish_findings (#835) is the full publisher of every other run: one with a blocker or
+//                 major still open, never of a design task or of a run stopped by mutants. It is the trial of a
+//                 Sonnet publisher there (the model-guard ADR, amendment of 2026-10-11), so models.publish_findings
+//                 takes only sonnet; when models or efforts name it, the result's publish_findings says whether it
+//                 applied.
 //   lean          true (the default since #458; a missing or null arg is true): the implementer, the plan agent and
 //                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
 //                 task-publisher: lean tool allowlists, no Skill tool (#332,
@@ -184,21 +190,25 @@ const SCENES = V === true
   : null
 if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
 const VISUAL = SCENES !== null
-const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'code', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean', 'publish_findings']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
   implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
   code: ['code', 'review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
   test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
-  publish_clean: ['publish_clean', 'publish'],
+  publish_clean: ['publish_clean', 'publish'], publish_findings: ['publish_findings', 'publish'],
 }
+// #835: a trial's role takes only the model its trial names (the model-guard ADR, amendment of 2026-10-11); its
+// fallback keeps the values it had.
+const TRIAL_MODELS = { publish_findings: ['sonnet'] }
 const perRole = (k, values) => {
   const m = A[k]
   if (m === undefined || m === null) return {}
   if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`issue-task: args.${k} must be an object {role: value}; roles: ${ROLES.join(', ')}`)
   for (const [role, v] of Object.entries(m)) {
     if (!ROLES.includes(role)) throw new Error(`issue-task: args.${k}.${role}: no such role; roles: ${ROLES.join(', ')}`)
-    if (typeof v !== 'string' || v === '' || (values && !values.includes(v))) throw new Error(`issue-task: args.${k}.${role} must be ${values ? values.join(', ') : 'a model name'}`)
+    const allowed = values || (k === 'models' ? TRIAL_MODELS[role] : undefined)
+    if (typeof v !== 'string' || v === '' || (allowed && !allowed.includes(v))) throw new Error(`issue-task: args.${k}.${role} must be ${allowed ? allowed.join(', ') : 'a model name'}`)
   }
   return m
 }
@@ -248,8 +258,9 @@ const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start
 // them repeats of the same task ADRs by the implementer, the publisher and the two reviewers. Every agent gets it,
 // the publisher too (its PUB_RULES keep it); the same text in issue-task.js and pr-rebase.js, test_workflows.py
 // compares them. #816: the same table counted 39 whole-file reads of the 2026-10-10 task ADRs ($9.32 of $33), so
-// the line also says to read the ADR by section, never whole.
-const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
+// the line also says to read the ADR by section, never whole. #834: docs/ARCHITECTURE.md too, about $20 over
+// 1471 reads since 2026-10-08T12:25Z (51% of it the implementer's), which the ADR line left out.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL
@@ -925,16 +936,19 @@ const stoppedByMutants = testReview && testReview.exit_2 === true
 // schema stays byte-identical.
 const PUB_SCHEMA = testReview && testReview.available ? { ...PUB, properties: { ...PUB.properties, stopped_by_mutants: { type: 'boolean' } } } : PUB
 // publish_clean (#308): the full publisher of a clean run takes its own role, which falls back to publish, so with
-// neither models nor efforts naming it the publisher's options and prompt stay byte-identical.
-const PUB_ROLE = !DESIGN && !stoppedByMutants && openSerious === 0 ? 'publish_clean' : 'publish'
+// neither models nor efforts naming it the publisher's options and prompt stay byte-identical. publish_findings
+// (#835), the full publisher of a non-design run with a blocker or major left open, likewise.
+const PUB_ROLE = DESIGN || stoppedByMutants ? 'publish' : openSerious === 0 ? 'publish_clean' : 'publish_findings'
 const FULL_PUB_EFFORT = set(EFFORTS, PUB_ROLE) || 'high'
 const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== undefined
+const FINDINGS_TRIAL = MODELS.publish_findings !== undefined || EFFORTS.publish_findings !== undefined
 const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
 // #606: the tier in the publisher's prompt, for the PR and for `metrics` (a run's return value is not journaled, so
 // metrics.REVIEW_TIER reads this line from the publisher's transcript); the publisher stopped by mutants gets it too.
 const TIER_FACT = `Review tier (#606): ${TIER} (${TIER_WHY})${LIGHT ? `: the light chain ran, ${labels.join(', ')}, then you` : ''}${TIER_SKIPPED.includes('netcode_review') ? '; the netcode review its paths route (AGENT_WORKFLOW §4.2) did not run: its only client/ paths are under client/ui/' : ''}${TIER_SKIPPED.some(x => x !== 'netcode_review') ? `; dropped although the launch passed them: ${TIER_SKIPPED.filter(x => x !== 'netcode_review').join(', ')}` : ''}.`
 const TIER_LINE = `${TIER_FACT} Say the tier and why in one line of the PR's verification section.`
 if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
+if (FINDINGS_TRIAL) log(`#${N}: publish_findings ${PUB_ROLE === 'publish_findings' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
     PUB_RULES,
@@ -992,4 +1006,7 @@ if (pub.published && !reviews.length) throw new Error(`#${N}: published with no 
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 return brief(stoppedByMutants || pub.stopped_by_mutants === true
   ? `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
-  : null, pub, TRIAL ? { publish_clean: { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {})
+  : null, pub, {
+  ...(TRIAL ? { publish_clean: { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {}),
+  ...(FINDINGS_TRIAL ? { publish_findings: { applied: PUB_ROLE === 'publish_findings', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {}),
+})
