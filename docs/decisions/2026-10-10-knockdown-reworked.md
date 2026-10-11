@@ -287,8 +287,10 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   crawl) and its claims carry its look (KE4); its camera above the body follows its own avatar (KE5, KE8); it may
   give up (G today; F once #211 lands), open
   the task screen and the Esc menu; it sees its own ragdoll from the arm.
-- **Others:** a ragdoll held to the interpolated point (KE7). The raise hint casts as today; its ray may meet a limb,
-  and the reach is measured to the point.
+- **Others:** a ragdoll held to the interpolated point (KE7). The raise hint casts the same ray as today (the world and
+  `downed` layers), but today's cast takes only a `RemotePlayerBody` as its target, so it maps a hit ragdoll part to
+  its peer (the ragdoll's root and parts carry the peer) and measures the reach from the own feet to that peer's
+  interpolated point, never to the part it hit. The item ray stops at a ragdoll as it stops at today's lying capsule.
 - **The revive:** the `Correction` places the player (KE6); the ragdoll ends and the standing avatar returns (KD7 (a)).
 - **The HUD** (#497, #489, both open, not built): its planned down, down-holding and raise states fit as drawn. No
   movement hint exists to remove, its planned "You're down" (`downed.title`) reads as a knockdown, and its mic is to
@@ -387,7 +389,8 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   table is held to the same reach (KD14 (a)).
 - The client, over the loopback: a knocked-down joiner holding the move keys stays where the host has it with 0
   `Correction`s; launched, its camera follows its own avatar and stops under a low ceiling; the ragdoll's root stays
-  within the snap distance of the point every frame; a revived joiner stands at the host's point.
+  within the snap distance of the point every frame; the raise hint aimed at a ragdoll's limb names its peer, and one
+  aimed past it names none; a revived joiner stands at the host's point.
 - `shot`: `life_preview` shows a ragdoll at rest and a dead body in place of the lying capsule.
 - The human playtest, on the House: the launch's feel (KD2, KD9), how bodies roll off the stairs, ledges and balcony
   (KD10 (A)), the rest's numbers, and the camera (KD6); on the greybox, that a knocked-down body lies still where it
@@ -498,8 +501,9 @@ which stops 728e if the host corrects it more than once (the review of his answe
   interpolated point and snapped when far; the own camera and ears from the own avatar; the pivot's two clamps
   (KE8: the eye height above the floor
   below, and the ceiling) for the own camera and for a spectator watching a knocked-down target, with a loopback test
-  of each in mid-flight; dead bodies keep the pose, greyed, with the cross (KD7); the revive returns the standing
-  avatar; `RemotePlayerBody`'s lying pose and `LifeLooks`' lying capsule go; the render checklist's items 1, 3 and 5
+  of each in mid-flight; dead bodies keep the pose, greyed, with the cross (KD7); the raise hint's cast maps a hit
+  ragdoll part to its peer and measures the reach to that peer's interpolated point (§7), with a loopback test (§9);
+  the revive returns the standing avatar; `RemotePlayerBody`'s lying pose and `LifeLooks`' lying capsule go; the render checklist's items 1, 3 and 5
   hold; the tests and the `shot` of §9; ARCHITECTURE §4.7.9. Depends on: 728b; KD6, KD7. Files:
   `client/player/remote_player_body.gd`, `client/player/life_looks.gd`, a new `client/player/ragdoll_view.gd`,
   `client/world/avatar_views.gd`, `client/world/body_views.gd`, `client/life/life_view.gd`,
