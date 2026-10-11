@@ -361,7 +361,7 @@ const PUB = {
   required: ['published', 'handoff_posted'],
 }
 // human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
-// into the chat as is (root CLAUDE.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
+// into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
 const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
 // bounded_waits (#303): one paragraph for each agent that runs verify, publish, mutants or a CI watch, placed after the
 // steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two). `loops` (#574): the

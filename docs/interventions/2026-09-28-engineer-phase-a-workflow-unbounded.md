@@ -36,7 +36,8 @@ Metrics are in `docs/history/2026-09-28-phase-a/agent-metrics.csv`.
 
 **Where the rule lives now.**
 - This entry.
-- Root `CLAUDE.md`, "Stop and ask before" (rules 2 and 3, promoted in M0 stage 3).
+- `docs/HUMAN_SESSIONS.md`, "Launching a workflow" (rules 2 and 3, promoted into root `CLAUDE.md`'s "Stop and ask
+  before" in M0 stage 3, moved in #836; root keeps "anything costing money" and a pointer).
 - `.claude/settings.json`: `workflowSizeGuideline: "small"` (rule 1).
 
 **Update (2026-09-28, decision session).** Rule 1 is applied: `workflowSizeGuideline: "small"` is in the shared

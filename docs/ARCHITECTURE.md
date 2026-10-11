@@ -2495,7 +2495,7 @@ What the client renders follows the ADR's checklist (its §3), which `netcode-se
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
-position, and no name or marker over a player or an item drawn through walls (no `no_depth_test` at all, since the destination marker of D10 (b) went in #829; the name plates of #257 show only past no level
+position, and no name or marker over a player or an item drawn through walls (no `no_depth_test` at all, since the destination marker of D10 (b) went in #829; the teammate marks of #257 and #756 show only past no level
 geometry, within 10 m, §4.7.29; a zone's fill, which tells that a living player stands there, is depth-tested like
 the zone and hidden by the downed camera's sight hiding, with no marker, label or HUD line, §4.7.51); a role named
 only on its own player's screen
@@ -2993,42 +2993,47 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   window's layout; the Toy plates since #497).
 - Since #491 the Controls page is a sub-page of Settings, the same scene in both menus (§4.7.46).
 
-#### 4.7.29 Built in #257 (M6.2), name plates
-Name plates over the other players' heads, in line of sight within about 10 m for now, with a teammate mark on a
-dissident's own client (the engineer as the designer, 2026-10-03, on #257: to revisit after the playtests). The
-tree and the numbers are the UI handoff's (prime-game-ui `docs/handoff/s07-hud.md` `Plates`, `s04-lobby.md` the
-same without the mark); the look is provisional: the Toy round HUD (#489) restyles it.
+#### 4.7.29 Built in #257 (M6.2), name plates; the names removed by #756
+Plates over the other players' heads, in line of sight within about 10 m for now (the engineer as the designer,
+2026-10-03, on #257: to revisit after the playtests). Since #756 no player has a name over the head, in the lobby or the
+round, standing or crouching (the engineer's KD2 answer; names stay in the lobby's player list, the end screen and the
+vote screen), and the plate is the **teammate mark alone**, drawn only on a dissident's own client over a fellow
+dissident (his answer 5 on #516). The classes keep their #257 names. The tree and the numbers were the UI handoff's
+(prime-game-ui `docs/handoff/s07-hud.md` `Plates`); the look is provisional: the Toy round HUD (#489) restyles it. If
+the UI design still draws a name on `Plates`, that is for the UI track (#150).
 - `client/ui/NamePlates` (`Plates`, the first child of `GameUi`, so under every screen, with the shared theme and
-  the large-text swap; shown on the lobby and round screens only) keeps one `NamePlate` per other player whose
+  the large-text swap; shown on the lobby and round screens only) keeps one `NamePlate` per marked fellow dissident whose
   body `AvatarViews` draws. A plate shows only while the body is drawn (`SightHider` hid none of it) and not watched
   from its eyes (`RemotePlayerBody.is_watched()`), its eye (the head standing, the lying capsule's middle downed) is
   within `NamePlates.RANGE_M` (10 m, the engineer's value, the one place to change it) of the viewport's camera, the
   plate's point is in front of the camera, and one ray from the camera to the eye meets no level geometry
-  (`SightHider.sees`, the world layer only, so no name is ever drawn through a wall: §4.7.14). While the downed
+  (`SightHider.sees`, the world layer only, so no mark is ever drawn through a wall: §4.7.14). While the downed
   camera's `SightHider` is active (`NamePlates.hider`, `LifeView.hider()`), the body's eye must see the player's eye
   too, so the arm's camera shows no more than standing at the body would (the M4 ADR's §3 item 3). The rays run in the
   physics frame at priority 11, after the bodies moved (-80) and `SightHider` hid (10); each drawn frame centres the
   shown plates on `Camera3D.unproject_position` of the point `ABOVE_HEAD_M` (0.35 m) over the head (over the lying
   capsule downed). A plate of a player who has no body any more is freed.
-- `NamePlate` is `Plate` ToyNamePlate > `Row` ToyRowEight > `Name` ToyNamePlateText (the roster name, data:
-  `auto_translate_mode` DISABLED, so no #208 key is needed) and `Mark`, a `TeammateMark`. Nothing else is on a plate:
-  no role, no health, no life state. The mark shows only when `NamePlates.marked(model, peer)`: the peer is in the
-  own model's `teammates[role]` (its own Teammates, which the host sends only to a role whose players know each other,
-  so only to dissidents) and is not the own player; an engineer's client has no list for its role and never marks
-  anyone. `TeammateMark` is the handoff's 20 px `TextureRect` of the pack's `teammate-mark.svg` (imported by #520,
-  §4.7.34), tinted with ToyNamePlateText's `font_color` through `self_modulate`.
+- `NamePlate` is `Plate` ToyNamePlate > `Mark`, a `TeammateMark`, and nothing else: no name, no role, no health, no
+  life state. `NamePlates` makes a plate only for a peer with `NamePlates.marked(model, peer)` (and runs the sight rays
+  only for those): the peer is in the own model's `teammates[role]` (its own Teammates, which the host sends only to a
+  role whose players know each other, so only to dissidents) and is not the own player; an engineer's client, the
+  lobby and a dissident's view of a non-teammate have no plate at all, so the per-peer filtering is unchanged: the
+  mark is drawn from what the dissident's own filtered view carries. `TeammateMark` is the handoff's 20 px
+  `TextureRect` of the pack's `teammate-mark.svg` (imported by #520, §4.7.34), tinted with ToyNamePlateText's
+  `font_color` through `self_modulate`.
 - The ray meets only the world layer (1), while a body is hidden by what the level draws: a look a player can hide
   behind (a partition, a tarp, a shelf) needs a layer-1 collider that covers it, or the plate shows through it
   (`levels/CLAUDE.md` keeps looks and colliders apart on purpose). Today's levels have only floors.
 Tests: `tests/integration/client/ui/name_plates_test.gd` (a real `AvatarViews` drawing five players from snapshots in
-a `SubViewport` world: plates in sight within 10 m centred over the head; none behind a wall, beyond 10 m, behind the
-camera, for a body hidden or watched, on a hidden layer or for a player who left; the mark for a dissident's teammate
-only and never on an engineer's client; a plate holding the name and nothing else; a downed player's plate over the
-lying body; a downed camera's plate needing the body's eye to see the player; seen failing without the ray, without
-the hider's ray and with a mark for everyone), `tests/unit/client/ui/name_plate_test.gd` (the
-handoff's tree, the name never translated, the plate shrinking when the theme swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby, the
-layer under every screen on the lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a
-plain plate, a teammate's with the mark, a head over a wall and a player beyond 10 m without one).
+a `SubViewport` world, the own player a dissident: a teammate's mark in sight within 10 m centred over the head; none
+behind a wall, beyond 10 m, behind the camera, for a body hidden or watched, on a hidden layer or for a player who left;
+the mark for a dissident's teammate only, none over a non-teammate, on an engineer's client or in the lobby; no text on
+any plate, a downed player's included; a downed player's mark over the lying body; a downed camera's mark needing the
+body's eye to see the player; seen failing without the ray, without the hider's ray and with a mark for everyone),
+`tests/unit/client/ui/name_plate_test.gd` (the tree `Plate` > `Mark` with no label, the plate shrinking when the theme
+swaps back, the mark's tint, `marked` for a dissident, an engineer and the lobby, the layer under every screen on the
+lobby and round screens only). The `shot`: `client/dev/name_plates_preview.tscn` (a teammate with the mark and no name,
+a head over a wall and a player beyond 10 m without one).
 
 #### 4.7.30 Built in #576 (M6.2), the generated theme covers the base controls
 - The screens build bare `LineEdit` (the menu's code and address), `SpinBox` (the port, the lobby's numbers),
@@ -3407,7 +3412,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
   knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
   swatch and the crosshair's "E: pick up" hint are gone (the destination is no longer shown: the world's marker went in #829, §4.7.10;
-  the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
+  the map the tasks' counters, §4.7.33; a dissident's teammates the plates' mark with no name, §4.7.29).
 - **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
   (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own
   nor, since #497, the watched player's hand and belt (#168 showed them until s9 was settled: the engineer's

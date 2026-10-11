@@ -21,9 +21,8 @@ ROOT_HEADINGS = (
     "Definition of done",
     "Stop and ask before",
     "Talking to the humans",
-    "Memory",
-    "Dictation glossary",
 )
+HUMAN_SESSIONS = common.ROOT / "docs" / "HUMAN_SESSIONS.md"
 # The Shell rules other files cite or that keep an unattended run from a prompt or lost work.
 SHELL_RULES = (
     "`Remove-Item` go in separate commands",
@@ -73,9 +72,51 @@ class RootClaudeMdTest(unittest.TestCase):
         for rule in SHELL_RULES:
             self.assertIn(rule, shell)
 
-    def test_the_command_for_a_human_bullet_stays_in_talking_to_the_humans(self) -> None:
-        talking = next(text for title, text in self.sections.items() if title.startswith("Talking to the humans"))
-        self.assertIn("\n- A command for a human goes in the chat itself", "\n" + talking)
+    def test_talking_to_the_humans_is_a_pointer_to_the_doc_that_holds_the_rules(self) -> None:
+        # #836: no workflow agent acts on these lines, so a human's chat reads them from the doc, found by this pointer.
+        talking = " ".join(next(t for title, t in self.sections.items() if title.startswith("Talking")).split())
+        self.assertIn("`docs/HUMAN_SESSIONS.md`", talking)
+        for word in ("dictation", "a command for a human", "launching a workflow", "memory", "glossary"):
+            self.assertIn(word, talking)
+        self.assertLess(len(talking), 600, "a pointer, not the rules again")
+        self.assertTrue(HUMAN_SESSIONS.is_file())
+
+    def test_the_human_sessions_doc_is_read_again_after_a_compaction(self) -> None:
+        # Review of #836: root is re-injected after a compaction, the doc is not, so each pointer says to read it again.
+        talking = " ".join(next(t for title, t in self.sections.items() if title.startswith("Talking")).split())
+        managers = " ".join((common.ROOT / "docs" / "MANAGERS.md").read_text(encoding="utf-8").split())
+        intro = " ".join(HUMAN_SESSIONS.read_text(encoding="utf-8").split("\n## ")[0].split())
+        for where, text in (("root CLAUDE.md", talking), ("docs/MANAGERS.md", managers), ("the doc's intro", intro)):
+            self.assertIn("again after a compaction", text, where)
+
+    def test_the_moved_rules_load_from_the_human_sessions_doc(self) -> None:
+        doc = sections(HUMAN_SESSIONS.read_text(encoding="utf-8"))
+        self.assertEqual(list(doc), ["Talking to the humans", "Launching a workflow", "Memory", "Dictation glossary"])
+        self.assertIn("\n- A command for a human goes in the chat itself", "\n" + doc["Talking to the humans"])
+        self.assertIn("state the agent count (fewer than 5) and rough cost, wait", " ".join(doc["Launching a workflow"].split()))
+        self.assertIn("log-intervention", doc["Memory"])
+        self.assertIn("Add a row per real misrecognition", doc["Dictation glossary"])
+        self.assertRegex(doc["Dictation glossary"], r"\| Heard \| Meant \|\n\|---\|---\|\n\| ")
+
+    def test_the_moved_rules_are_no_longer_loaded_by_every_agent(self) -> None:
+        root = (common.ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        for gone in ("A command for a human goes in the chat itself", "personal → `~/.claude/CLAUDE.md`", "| Heard | Meant |"):
+            self.assertNotIn(gone, root)
+
+    def test_what_cites_talking_to_the_humans_names_the_doc(self) -> None:
+        for rel in (".claude/skills/finish-task/SKILL.md", ".claude/skills/orchestrate-stage/SKILL.md",
+                    ".claude/workflows/issue-task.js", ".claude/workflows/pr-rebase.js"):
+            text = " ".join((common.ROOT / rel).read_text(encoding="utf-8").split())
+            self.assertNotIn('root `CLAUDE.md`, "Talking to the humans"', text, rel)
+            self.assertNotIn('root CLAUDE.md, "Talking to the humans"', text, rel)
+            self.assertIn('HUMAN_SESSIONS.md', text, rel)
+        managers = (common.ROOT / "docs" / "MANAGERS.md").read_text(encoding="utf-8")
+        self.assertIn("HUMAN_SESSIONS.md", managers)
+
+    def test_log_intervention_promotes_a_talking_rule_into_the_human_sessions_doc(self) -> None:
+        # Review of #836: without it the next correction on how to talk to a human goes back into root.
+        skill = (common.ROOT / ".claude" / "skills" / "log-intervention" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`docs/HUMAN_SESSIONS.md` for how an agent talks to a human", skill)
 
     def test_the_dropped_rows_and_sentences_keep_a_pointer(self) -> None:
         # Review of #561: the Routing table's skill rows and the retarget sentence of the Definition of done had none.

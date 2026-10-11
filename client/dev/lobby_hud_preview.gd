@@ -3,7 +3,8 @@ extends "res://client/dev/hud_preview.gd"
 ## states (prime-game-ui `ui-0.4.0` `docs/handoff/s04-lobby.md`) over the round HUD preview's lit
 ## greybox room, drawn by the game's GameUi from a fake ClientModel, as a host would send it. The
 ## handoff's lobby: Olena hosts (peer 1), Taras (2), the third player (3) and Marko (4); Taras
-## stands in view with his name plate. Seen by a code joiner (peer 3), or with `hosting` by Olena:
+## stands in view with no name over his head. Seen by a code joiner (peer 3), or with `hosting` by
+## Olena:
 ## - `wait`: three of four ready, the own player not; the code K7Q2XR;
 ## - `count`: everyone ready, the countdown at 5;
 ## - `short`: Marko gone and the host saying one more player of four is needed (its players_few,

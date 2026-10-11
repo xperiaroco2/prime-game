@@ -1,8 +1,11 @@
 class_name NamePlates
 extends Control
-## The name plate layer (#257; ARCHITECTURE §4.7.29): under the rest of the Ui, one NamePlate per
-## other player whose body AvatarViews draws, while GameUi shows it (the lobby and the round, the
-## UI handoff's s4 and s7). A plate shows only for a body the viewport's camera sees: the body is
+## The plate layer (#257, #756; ARCHITECTURE §4.7.29): under the rest of the Ui, one NamePlate per
+## fellow dissident whose body AvatarViews draws, while GameUi shows it (the lobby and the round).
+## No player has a name over the head (the engineer's KD2 answer, #756): the plate is the teammate
+## mark alone (his answer 5 on #516), so only a dissident's client has any plate, only for a peer
+## `marked` says, and nobody else's, standing or crouching, in the lobby or the round. A plate
+## shows only for a body the viewport's camera sees: the body is
 ## drawn (SightHider leaves out what the downed body's eye cannot see; a target watched from its
 ## eyes has none), its eye is within RANGE_M of the camera and in front of it, and one ray from the
 ## camera to that eye meets no level geometry (SightHider.sees, the world layer only), so no name
@@ -10,9 +13,9 @@ extends Control
 ## bodies moved and SightHider hid; each drawn frame centres the plates on the camera's projection
 ## of the point ABOVE_HEAD_M over the head.
 ##
-## A plate holds the roster's (public) name and, only on a dissident's own client, the teammate
-## mark: from its own Teammates knowledge, which the host sends only to the players of a role
-## whose players know each other (marked; the per-peer rule). Nothing else: no role, no health.
+## The mark comes from the client's own Teammates knowledge, which the host sends only to the
+## players of a role whose players know each other (marked; the per-peer rule). A plate holds
+## nothing else: no name, no role, no health.
 
 ## How far a plate shows, from the camera to the player's eye, in metres: the engineer's "within
 ## about 10 m, for now" (the engineer as the designer, 2026-10-03, on #257; revisit after the
@@ -100,7 +103,7 @@ func _physics_process(_delta: float) -> void:
 	var space := camera.get_world_3d().direct_space_state
 	for peer: int in _bodies():
 		var body := avatars.body_of(peer)
-		if not in_view(camera, body):
+		if not marked(avatars.model, peer) or not in_view(camera, body):
 			continue
 		var eye := eye_of(body)
 		if not SightHider.sees(space, camera.global_position, eye):
@@ -125,9 +128,8 @@ func refresh() -> void:
 			_plates.erase(peer)
 	for peer: int in bodies:
 		var body := avatars.body_of(peer)
-		var member: ClientModel.Member = model.roster.get(peer)
 		var plate: NamePlate = _plates.get(peer)
-		var showing := member != null and _in_sight.has(peer) and in_view(camera, body)
+		var showing := _in_sight.has(peer) and marked(model, peer) and in_view(camera, body)
 		if plate == null:
 			if not showing:
 				continue
@@ -136,7 +138,6 @@ func refresh() -> void:
 			add_child(plate)
 		plate.visible = showing
 		if showing:
-			plate.show_player(member.name, marked(model, peer))
 			plate.centre_on(camera.unproject_position(plate_point(body)))
 
 
