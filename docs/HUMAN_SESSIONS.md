@@ -2,8 +2,9 @@
 
 Read this before your first reply in a chat with a human (the engineer or the designer): a task session, a manager, the
 secretary, the meta session; read it again after a compaction (root `CLAUDE.md` is re-injected then, this file is
-not). A workflow agent runs unattended and does not need it; root `CLAUDE.md` points here
-instead of carrying it (#836, the instruction-diet ADR's N2: every workflow agent paid for these lines on every call).
+not). A workflow agent runs unattended and does not need it; root `CLAUDE.md` points here instead of carrying it
+(#836; the instruction-diet ADR's Context, "Which sections are used": every workflow agent paid for these lines on
+every call).
 
 ## Talking to the humans
 - Voice dictation: infer the meaning, read the file name back before editing, ask a question only if a misreading
