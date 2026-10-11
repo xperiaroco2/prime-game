@@ -5230,7 +5230,7 @@ there would not follow from the commands.
   the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity (TD10). Prevents: a throw
   farther than the rule, from somewhere else, or through a wall. `Throw` is one of `Intents.PLAYER_ACTIONS`, so the
   dead never throw and the client sends its claim's twin right before it (§7.1.15). **Built in #643:**
-  `Intents.THROW` (wire kind 15); `ThrowItem` (`core/items/throw_item.gd`, §9.4): `speed_mps`, `gravity_mps2`,
+  `Intents.THROW` (wire kind 17); `ThrowItem` (`core/items/throw_item.gd`, §9.4): `speed_mps`, `gravity_mps2`,
   `radius_m` and `longest_flight_s` (seconds, converted once with `Ticks.from_seconds` at the throw), each defaulting
   to 0 so a rule that forgot one fails the mode check; the bounds are placeholders, "not a decision" (the base mode's values: #646,
   below). `ThrowItem.unit_facing` normalizes without pre-scaling; it asks `Items.fallback_rest`, builds the
