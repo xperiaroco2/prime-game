@@ -217,6 +217,17 @@ SNAPSHOT_CASES = {
                 for k in (1, 2, 3)
             ]}},
         ),
+        # #856's update run: the reviewers read the delta since the published head; plan_review, test_review and the
+        # skeptic passed are dropped (a case with an arg that is not v2's: a run without it is pinned by every other).
+        (
+            "update-main",
+            {"branch": "core/7-x", "update": True, "plan_review": True, "test_review": True, "skeptic": True},
+            {"paths": ["core/x.gd"], "findings": [MAJOR], "queues": {"implement": [{
+                "verify_green": True, "complete": True, "summary": "s", "changed_paths": ["core/x.gd", "docs/x.md"],
+                "published_head": "89abcdef0123456789abcdef0123456789abcdef",
+                "delta": [{"path": "core/x.gd", "added": 3, "deleted": 1}, {"path": "docs/x.md", "added": 9, "deleted": 2}],
+            }]}},
+        ),
         (
             "red-main",
             {"branch": "core/7-x"},
@@ -716,8 +727,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-main, publish-findings-main and
-        # publish-sonnet-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
+        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-main, publish-findings-main,
+        # publish-sonnet-main and update-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
         # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
         # and with both false (`unbounded/<case>.txt`, the text and options before #411).
         jobs, files = [], []
@@ -1745,7 +1756,7 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier", "update"),
             ),
             ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
         ):
@@ -2817,6 +2828,164 @@ class ReviewTierTest(unittest.TestCase):
 
         self.assertEqual(rule("issue-task.js", "REVIEWED"), rule("quick-task.js", "NETCODE"))
         self.assertEqual(rule("quick-task.js", "REVIEWED"), r"/^(core|server|net|client|voice|tests\/harness)\//")
+
+
+# #856: an update run of a published PR. The implementer returns the published head and the delta since it.
+HEAD = "89abcdef0123456789abcdef0123456789abcdef"
+UPDATE_LINE = "Update run (update, #856): "
+
+
+def updated(delta: list[tuple[str, int, int]], head: str = HEAD, **extra) -> dict:
+    """An update run's implementer: the whole PR's changed paths and the delta's numstat rows."""
+    rows = [{"path": p, "added": a, "deleted": d} for p, a, d in delta]
+    return implemented(["core/x.gd", "docs/x.md"] + [p for p, _, _ in delta], published_head=head, delta=rows, **extra)
+
+
+def run_update(cases: list[tuple[dict, dict]]) -> list[dict]:
+    """issue-task with update true and each (args, implementer result), a major finding for a skeptic to check."""
+    jobs = [("issue-task.js", dict(ARGS, update=True, **args), {"queues": {"implement": [impl]}, "findings": [MAJOR]}) for args, impl in cases]
+    return run_jobs(jobs)
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class UpdateRunTest(unittest.TestCase):
+    """issue-task.js (#856): a relaunch for a published PR reviews the delta since its published head."""
+
+    def test_update_is_validated_and_absent_by_default(self) -> None:
+        bad = [{"update": "yes"}, {"update": 1}, {"update": "true"}, {"update": []}]
+        for args, result in zip(bad, run_jobs([("issue-task.js", dict(ARGS, **a), {}) for a in bad])):
+            with self.subTest(args=args):
+                self.assertIn("issue-task: args.update must be true or false", result["error"] or "")
+                self.assertFalse(agents(result))
+        # false and null are today's run, byte for byte (the snapshots pin the run without the arg).
+        stub = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        runs = run_jobs([("issue-task.js", dict(ARGS, branch="core/7-x", skeptic=True, **a), stub) for a in ({}, {"update": False}, {"update": None})])
+        self.assertEqual(render(runs[1]), render(runs[0]))
+        self.assertEqual(render(runs[2]), render(runs[0]))
+        self.assertNotIn("update", runs[0]["returned"])
+        self.assertFalse(any("Update run" in e["prompt"] or "published_head" in e["opts"] for e in agents(runs[0])))
+
+    def test_the_update_path_drops_the_planner_the_test_review_and_the_skeptic(self) -> None:
+        (result,) = run_update([(dict(ALL_OPTIONS, branch="core/7-x"), updated([("core/x.gd", 3, 1), ("docs/y.md", 20, 5)]))])
+        self.assertIsNone(result["error"])
+        labels = [e["label"] for e in agents(result)]
+        self.assertEqual(labels, ["implement:#7", "review:code:#7", "review:netcode:#7", "review:godot-api:#7", "review:netcode-second:#7", "publish:#7"])
+        out = result["returned"]
+        self.assertEqual(
+            out["update"],
+            {"path": "update", "head": HEAD, "files": 2, "lines": 29, "netcode_lines": 4, "skipped": ["plan_review", "test_review", "skeptic"]},
+        )
+        self.assertEqual(out["test_review"]["skipped"][:30], "an update run (update, #856): ")
+        self.assertNotIn("skeptic", out)
+        self.assertEqual(out["tier"], "full")
+        logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+        self.assertTrue(any("plan_review skipped: an update run" in m for m in logs), logs)
+        # The implementer records the head first and returns it with the delta.
+        (impl,) = calls(result, "implement")
+        self.assertIn("Update run (update, #856): this run continues the published PR of core/7-x", impl["prompt"])
+        self.assertIn("rev-parse origin/core/7-x`: the PR's published head", impl["prompt"])
+        self.assertIn("diff --numstat <published head>..HEAD`", impl["prompt"])
+        schema = options(impl)["schema"]
+        self.assertEqual(schema["required"][-2:], ["published_head", "delta"])
+        self.assertEqual(schema["properties"]["delta"]["items"]["required"], ["path", "added", "deleted"])
+        # Each reviewer reads the delta and names the published head; the whole PR is context only.
+        for review in calls(result, "review:"):
+            with self.subTest(reviewer=review["label"]):
+                self.assertIn(f"diff {HEAD}..HEAD`, 29 changed lines in 2 files since the PR's published head {HEAD}", review["prompt"])
+                self.assertIn("only as context", review["prompt"])
+                self.assertNotIn(": `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
+        pub = calls(result, "publish")[0]["prompt"]
+        line = next(x for x in pub.split("\n\n") if x.startswith(UPDATE_LINE))
+        self.assertIn(f"the update path: the reviewers read only the delta since the PR's published head {HEAD}, 29 changed lines in 2 files (4 under", line)
+        self.assertIn("skipped although the launch passed them: plan_review, test_review, skeptic", line)
+        self.assertNotIn("Skeptics tried to refute", pub)
+
+    def test_a_delta_over_the_limit_under_a_full_tier_path_takes_the_full_chain(self) -> None:
+        roots = ["core/x.gd", "server/x.gd", "net/x.gd", "client/hud/x.gd", "voice/x.gd", "tests/harness/x.gd"]
+        cases = [({"branch": "core/7-x"}, updated([(p, 20, 11), ("docs/y.md", 500, 0)])) for p in roots]  # 31 lines
+        cases += [({"branch": "core/7-x"}, updated([("core/a.gd", 10, 5), ("net/b.gd", 10, 6)]))]  # 31 lines in two
+        cases += [({"branch": "core/7-x"}, updated([("core/x.png", -1, -1)]))]  # a binary file there: over
+        results = run_update([(dict(ALL_OPTIONS, **a), impl) for a, impl in cases])
+        for (args, impl), result in zip(cases, results):
+            with self.subTest(delta=impl["delta"]):
+                self.assertIsNone(result["error"])
+                out = result["returned"]["update"]
+                self.assertEqual(out["path"], "full")
+                self.assertEqual(out["skipped"], ["plan_review"])
+                labels = [e["label"] for e in agents(result)]
+                for want in ("review:netcode:#7", "test-review:#7", "skeptic:#7"):
+                    self.assertIn(want, labels)
+                self.assertNotIn("plan:#7", labels)
+                for review in calls(result, "review:"):
+                    self.assertIn(": `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
+                    self.assertNotIn(HEAD, review["prompt"])
+                pub = calls(result, "publish")[0]["prompt"]
+                self.assertIn(f"{UPDATE_LINE}the full chain ({out['why']}): the reviewers read the whole PR diff", pub)
+        self.assertEqual(results[0]["returned"]["update"]["why"], "the delta changes 31 lines under the full tier's paths, more than 30")
+        self.assertIn("a binary file under the full tier's paths (core/x.png)", results[-1]["returned"]["update"]["why"])
+        # At the limit, or over it only outside those paths (client/ui/ included): the update path.
+        cases = [
+            ({}, updated([("core/x.gd", 20, 10), ("tools/x.py", 400, 0)])),
+            ({}, updated([("client/ui/x.gd", 300, 40), ("tests/unit/x_test.gd", 90, 0)])),
+            ({}, updated([("docs/x.png", -1, -1)])),
+        ]
+        for (_, impl), result in zip(cases, run_update(cases)):
+            with self.subTest(delta=impl["delta"]):
+                self.assertIsNone(result["error"])
+                self.assertEqual(result["returned"]["update"]["path"], "update")
+
+    def test_no_published_head_takes_the_full_chain_and_says_why(self) -> None:
+        cases = [
+            ({}, updated([("docs/x.md", 1, 0)], head="", update_note="origin/core/7-x is not an ancestor of HEAD: rebased")),
+            ({}, updated([("docs/x.md", 1, 0)], head="")),
+            ({}, updated([("docs/x.md", 1, 0)], head="not a sha")),
+            ({}, implemented(["core/x.gd"])),  # the implementer returned neither key
+            ({}, implemented(["core/x.gd"], published_head=HEAD)),  # a head but no delta
+            ({"tier": "full"}, updated([("docs/x.md", 1, 0)])),
+        ]
+        whys = [
+            "no published head returned: origin/core/7-x is not an ancestor of HEAD: rebased",
+            "no published head returned",
+            "no published head returned",
+            "no published head returned",
+            "no delta returned",
+            "forced by the launch (tier: full)",
+        ]
+        results = run_update([(dict(a, branch="core/7-x", skeptic=True), impl) for a, impl in cases])
+        for why, result in zip(whys, results):
+            with self.subTest(why=why):
+                self.assertIsNone(result["error"])
+                self.assertEqual(result["returned"]["update"], {"path": "full", "why": why})
+                self.assertTrue(calls(result, "skeptic"))
+                self.assertIn(f"{UPDATE_LINE}the full chain ({why})", calls(result, "publish")[0]["prompt"])
+
+    def test_the_delta_routes_the_reviewers(self) -> None:
+        cases = [
+            ({"branch": "core/7-x"}, updated([("docs/x.md", 4, 0)])),  # a core PR, a docs delta: the code reviewer
+            ({"branch": "core/7-x"}, updated([])),  # an empty delta is known: no reviewer for unknown paths
+            ({"branch": "core/7-x"}, updated([("core/x.gd", 4, 0)])),
+            ({"branch": "docs/7-x", "design": True}, updated([("docs/x.md", 4, 0)])),  # a design task keeps its netcode review
+            ({"branch": "client/7-x"}, dict(updated([("client/ui/x.gd", 4, 0)]), changed_paths=["client/ui/x.gd"])),  # light
+        ]
+        want = [
+            ["review:code:#7"],
+            ["review:code:#7"],
+            ["review:code:#7", "review:netcode:#7", "review:godot-api:#7"],
+            ["review:code:#7", "review:netcode:#7"],
+            ["review:code:#7", "review:godot-api:#7"],
+        ]
+        for labels, result in zip(want, run_update(cases)):
+            with self.subTest(labels=labels):
+                self.assertIsNone(result["error"])
+                self.assertEqual([e["label"] for e in calls(result, "review:")], labels)
+                self.assertEqual(result["returned"]["update"]["path"], "update")
+                self.assertNotIn("skipped", result["returned"]["update"])
+
+    def test_a_red_update_run_still_reports_its_path(self) -> None:
+        (result,) = run_update([({}, updated([("docs/x.md", 1, 0)], verify_green=False))])
+        self.assertIsNone(result["error"])
+        self.assertIn("stopped", result["returned"])
+        self.assertEqual(result["returned"]["update"]["path"], "update")
 
 
 def quick(paths: list[str], **extra) -> dict:
