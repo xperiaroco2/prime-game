@@ -39,12 +39,12 @@ func test_a_station_part_in_a_target_action_is_refused() -> void:
 			take.conditions.append(part as Condition)
 		else:
 			take.effects.append(part as RuleEffect)
-		var name := (part.get_script() as Script).get_global_name()
+		var part_name := (part.get_script() as Script).get_global_name()
 		_expect(
 			mode,
 			(
 				"%s: rule Interact holds %s, which finds a station, and an intent naming an item"
-				% [BOX, name]
+				% [BOX, part_name]
 			)
 		)
 
@@ -76,6 +76,61 @@ func test_a_give_item_needs_a_one_handed_capped_kind() -> void:
 	var none := FixtureGiveModes.basic()
 	(_box(none).target_actions[0].effects[0] as GiveItem).kind = null
 	_expect(none, "GiveItem has no kind")
+
+
+func test_a_give_item_needs_a_kind_the_mode_lists() -> void:
+	var mode := FixtureGiveModes.basic()
+	var unlisted := FixtureItemModes.item_kind(&"patty", [])
+	unlisted.max_items = 2
+	(_box(mode).target_actions[0].effects[0] as GiveItem).kind = unlisted
+	_expect(mode, "GiveItem: item kind patty is not an item kind of the mode")
+
+
+func test_a_take_at_an_item_needs_ground_reach_and_sight_in_order() -> void:
+	for missing: Script in [ItemOnGround, InReach, InSight]:
+		var mode := FixtureGiveModes.basic()
+		var take := _box(mode).target_actions[0]
+		var kept: Array[Condition] = []
+		for condition: Condition in take.conditions:
+			if not is_instance_of(condition, missing):
+				kept.append(condition)
+		take.conditions = kept
+		_expect(
+			mode,
+			(
+				"%s: rule Interact gives an item, which requires the condition %s, which it lacks"
+				% [BOX, missing.get_global_name()]
+			)
+		)
+	var negated := FixtureGiveModes.basic()
+	_box(negated).target_actions[0].conditions[1].negate = true
+	_expect(negated, "requires the condition InReach, which it lacks")
+	var swapped := FixtureGiveModes.basic()
+	var held := _box(swapped).target_actions[0].conditions
+	held.reverse()
+	_expect(swapped, "before a condition that must come first")
+
+
+func test_a_take_at_a_station_needs_at_station_and_sight() -> void:
+	for missing: Script in [AtStation, StationInSight]:
+		var mode := FixtureGiveModes.basic()
+		var conditions: Array[Condition] = []
+		if missing != AtStation:
+			conditions.append(AtStation.new())
+		if missing != StationInSight:
+			conditions.append(StationInSight.new())
+		var panel := FixtureStationModes.type_of(mode).panel
+		panel.actions = [FixtureModes.rule(Intents.INTERACT, conditions, [_give(mode)])]
+		_expect(
+			mode,
+			(
+				(
+					"station kind panel.actions: rule Interact gives an item, which requires the"
+					+ " condition %s, which it lacks"
+				)
+				% missing.get_global_name()
+			)
+		)
 
 
 func test_max_items_is_bounded() -> void:

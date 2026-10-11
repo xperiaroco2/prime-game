@@ -69,6 +69,8 @@ var warnings := PackedStringArray()
 
 ## Whether any action of the mode starts a channel (_check_rules).
 var _has_channel := false
+## Whether _check_owner walks an item kind's target_actions (a GiveItem there takes from an item).
+var _item_target_rules := false
 
 
 static func run(mode: GameMode) -> ModeCheck:
@@ -161,8 +163,10 @@ func _check_rules(mode: GameMode) -> void:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
 			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
 			var targets := "item kind %s.target_actions" % kind.id
+			_item_target_rules = true
 			_check_owner(targets, kind.target_actions, station_intents(), false)
-			_check_item_target_rules(targets, kind.target_actions)
+			_item_target_rules = false
+			errors.append_array(ItemTargetCheck.target_rules(targets, kind.target_actions))
 	for kind: StationKind in Stations.kinds_in(mode):
 		var owner := "station kind %s.actions" % kind.id
 		var type := Stations.owner_of(mode, kind)
@@ -300,7 +304,7 @@ func _check_owner(
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
 		_check_station_rule(owner, rule)
-		_check_give_rule(owner, rule)
+		errors.append_array(ItemTargetCheck.give_rule(owner, rule, _item_target_rules))
 		if gated and _has_channel and on_intent:
 			warnings.append(
 				(
@@ -508,50 +512,6 @@ func _check_no_station_rule(owner: String, rules: Array[Rule]) -> void:
 					% [owner, rule.trigger]
 				)
 			)
-
-
-## An item kind's target_actions (the cooking ADR's CE1, #770) run only for an intent naming one of
-## its items, which names no station: a UseStation, AtStation, StationInSight or StationUsable there
-## finds none and always refuses (a dead rule, #379).
-func _check_item_target_rules(owner: String, rules: Array[Rule]) -> void:
-	for rule: Rule in rules:
-		if rule == null:
-			continue
-		# Untyped: a duplicate of the typed conditions would refuse the effects.
-		var parts: Array = []
-		parts.append_array(rule.conditions)
-		parts.append_array(rule.effects)
-		for part: Variant in parts:
-			if (
-				part is UseStation
-				or (part is Condition and _is_station_condition(part as Condition))
-			):
-				errors.append(
-					(
-						(
-							"%s: rule %s holds %s, which finds a station, and an intent naming an"
-							+ " item names none"
-						)
-						% [
-							owner,
-							rule.trigger,
-							((part as Object).get_script() as Script).get_global_name()
-						]
-					)
-				)
-
-
-## A GiveItem gives at the rule's target (the cooking ADR's CE2, #770): only an action on an intent
-## that names a station or an item (Interact) has one; a reaction, a win condition or a row has no
-## actor and no target.
-func _check_give_rule(owner: String, rule: Rule) -> void:
-	if Stations.names_station(rule.trigger):
-		return
-	for effect: RuleEffect in rule.effects:
-		if effect is GiveItem:
-			var text := "%s: rule %s gives an item at the rule's target" % [owner, rule.trigger]
-			text += ", which only an intent naming one (%s) has" % [station_intents()]
-			errors.append(text)
 
 
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.

@@ -35,11 +35,23 @@ func emits() -> Array[Script]:
 	return [ItemVanishedEvent, ItemSpawnedEvent, ItemPlacedEvent, ItemPickedUpEvent]
 
 
-func check(_mode: GameMode) -> PackedStringArray:
+## The condition classes the rule of a take must hold, not negated, in this order (ModeCheck; the
+## refusal order of ADR §2): at an item (an item kind's target_actions) it lies on the ground, in
+## reach and in sight; at a station the actor is at it and has it in sight. The host checks reach
+## and sight, never the content's goodwill.
+static func required_conditions(at_item: bool) -> Array[Script]:
+	if at_item:
+		return [ItemOnGround, InReach, InSight]
+	return [AtStation, StationInSight]
+
+
+func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if kind == null:
 		found.append("GiveItem has no kind")
 		return found
+	if mode.find_item_kind(kind.id) == null:
+		found.append("GiveItem: item kind %s is not an item kind of the mode" % kind.id)
 	if kind.is_two_handed():
 		found.append(
 			"GiveItem gives item kind %s, which is two-handed: Items.give refuses it" % kind.id
