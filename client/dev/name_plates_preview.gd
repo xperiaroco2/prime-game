@@ -1,10 +1,10 @@
 extends Node3D
-## A preview of the name plates for `tools\run.cmd shot` (#257; the M4 ADR's §6): the round seen
-## by Player1, a dissident whose teammate is Євген (peer 3). Player2 stands in front with a plain
-## plate; Євген further back with the teammate mark; Olena's head shows over a wall that hides
-## her eyes, so she has no plate; Far stands in the open about 14 m away, beyond the 10 m range,
-## with none. The bodies are drawn by a real AvatarViews from fake snapshots and the plates by
-## the game's NamePlates, rays and all. Dev only: nothing here reaches the game.
+## A preview of the teammate marks for `tools\run.cmd shot` (#257, #756; the M4 ADR's §6): the round
+## seen by Player1, a dissident whose teammate is Євген (peer 3). Євген, further back, has the mark
+## and no name; Player2 in front, Olena (her head shows over a wall that hides her eyes) and Far
+## (about 14 m away, beyond the 10 m range) have nothing. The bodies are drawn by a real AvatarViews
+## from fake snapshots and the marks by the game's NamePlates, rays and all. Dev only: nothing here
+## reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"

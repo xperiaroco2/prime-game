@@ -3,7 +3,7 @@ extends Control
 ## left and Ukrainian on the right, each with a title, the eight room pictograms (white SVGs tinted
 ## with the map room text's ink, as the s08 handoff tints them) and their names, every icon of
 ## `icons/` at its import scale, the base slider and dropdown with the pack's grabber and arrow,
-## and a name plate with the teammate mark; under them the four Delivery cards (the s08 how-to
+## and a plate with the teammate mark; under them the four Delivery cards (the s08 how-to
 ## frames, 320x240, untinted). Both columns read the copy deck at once (each label's text from its
 ## language's Translation, not the game's locale). Until the Comfortaa TTF lands (#520) the text is
 ## Godot's default font. Dev only: nothing here reaches the game.
@@ -63,7 +63,7 @@ func _ready() -> void:
 	page.add_child(_cards())
 
 
-## One language's panel: the title, the rooms, the icons, the controls and a name plate.
+## One language's panel: the title, the rooms, the icons, the controls and a mark plate.
 func _column(language: String) -> Control:
 	var panel := PanelContainer.new()
 	panel.theme_type_variation = &"ToyPanelMenu"
@@ -104,7 +104,6 @@ func _column(language: String) -> Control:
 	talk.add_item(_text(language, "settings.talk_mode.open"))
 	box.add_child(_row(_text(language, "settings.talk_mode"), talk))
 	var plate := NamePlate.new()
-	plate.show_player(str(PLATE_NAMES[language]), true)
 	var plate_row := HBoxContainer.new()
 	plate_row.add_child(plate)
 	plate_row.add_child(

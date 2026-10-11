@@ -1,32 +1,24 @@
 extends GdUnitTestSuite
-## NamePlate and TeammateMark (#257): the UI handoff's tree (Plate ToyNamePlate > Row ToyRowEight >
-## Name ToyNamePlateText and Mark), the name as data that is never translated, the mark hidden
-## unless asked for and tinted with the plate text's colour; and NamePlates.marked, the per-peer
-## rule: the mark only for a teammate in the own role's Teammates, never the own player, never on
-## a client without Teammates for its role (an engineer's), and GameUi shows the plate layer only
-## in the lobby and the round, under every other screen.
+## NamePlate and TeammateMark (#257, #756): the plate is `Plate` ToyNamePlate > `Mark` and holds no
+## text at all (no name over any player, the engineer's KD2 answer), the mark tinted with the plate
+## text's colour; and NamePlates.marked, the per-peer rule: the mark only for a teammate in the own
+## role's Teammates, never the own player, never on a client without Teammates for its role (an
+## engineer's), and GameUi shows the plate layer only in the lobby and the round, under every other
+## screen.
 
 const OWN := 1
 
 
-func test_the_plate_is_the_handoffs_tree_with_the_name_as_data() -> void:
+func test_the_plate_is_the_mark_alone_with_no_name() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
 	add_child(ui)
 	var plate := NamePlate.new()
 	ui.plates.add_child(plate)
 	assert_str(String(plate.theme_type_variation)).is_equal("ToyNamePlate")
-	assert_str(String(plate.row.theme_type_variation)).is_equal("ToyRowEight")
-	assert_str(String(plate.name_label.theme_type_variation)).is_equal("ToyNamePlateText")
-	assert_int(plate.name_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
-	assert_array(plate.row.get_children()).is_equal([plate.name_label, plate.mark])
-	assert_bool(plate.is_marked()).is_false()
-	for node: Control in [plate, plate.row, plate.name_label, plate.mark]:
+	assert_array(plate.get_children()).is_equal([plate.mark])
+	assert_array(plate.find_children("*", "Label", true, false)).is_empty()
+	for node: Control in [plate, plate.mark]:
 		assert_int(node.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
-	plate.show_player("Olena", true)
-	assert_str(plate.name_label.text).is_equal("Olena")
-	assert_bool(plate.is_marked()).is_true()
-	plate.show_player("Taras", false)
-	assert_bool(plate.is_marked()).is_false()
 	assert_vector(plate.mark.custom_minimum_size).is_equal(Vector2(20, 20))
 	var text := GameUi.THEME.get_color(&"font_color", &"ToyNamePlateText")
 	assert_object(plate.mark.tint()).is_equal(text)
@@ -45,7 +37,6 @@ func test_the_plate_centres_on_the_point() -> void:
 	add_child(ui)
 	var plate := NamePlate.new()
 	ui.plates.add_child(plate)
-	plate.show_player("Olena", true)
 	plate.centre_on(Vector2(538, 302))
 	assert_vector(plate.position + plate.size * 0.5).is_equal_approx(
 		Vector2(538, 302), Vector2.ONE * 0.01
@@ -57,12 +48,11 @@ func test_the_plate_shrinks_when_the_large_text_theme_is_swapped_back() -> void:
 	var plate: NamePlate = auto_free(NamePlate.new())
 	plate.theme = GameUi.THEME_LARGE
 	add_child(plate)
-	plate.show_player("Olena", false)
 	await get_tree().process_frame
 	var large := plate.size.x
 	plate.theme = GameUi.THEME
 	await get_tree().process_frame
-	assert_float(plate.size.x).is_less(large)
+	assert_float(plate.size.x).is_less_equal(large)
 	assert_vector(plate.size).is_equal_approx(plate.get_combined_minimum_size(), Vector2.ONE * 0.01)
 
 

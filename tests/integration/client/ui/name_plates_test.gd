@@ -4,9 +4,9 @@ extends GdUnitTestSuite
 ## stands at the own eye looking along -Z. A plate shows only for a player in line of sight within
 ## 10 m and in front of the camera, centred on the projection of the point 0.35 m over its head;
 ## none behind a wall, beyond 10 m, behind the camera, for a body SightHider hid or one watched
-## from its eyes, or while the layer is hidden. The teammate mark shows only on a dissident's
-## client and only for a teammate; an engineer's client never draws it, and a plate holds the name
-## and nothing else.
+## from its eyes, or while the layer is hidden. A plate is the teammate mark and nothing else: it
+## shows only on a dissident's client and only over a teammate (#756: no name over any player);
+## an engineer's client and the lobby draw none.
 
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 const OWN := 1
@@ -51,6 +51,12 @@ func before_test() -> void:
 	# A wall at x = 3 from z = -8 to 0, 4 m high: the ray to WALLED's eye crosses it at z = -2.
 	_world.add_box(Vector3(3.0, 2.0, -4.0), Vector3(0.2, 4.0, 8.0))
 	_model = _lobby_model()
+	# A dissident whose teammates are all the others, unless a test says otherwise.
+	_model.fold(&"RoleAssigned", {"role": &"dissident"})
+	_model.fold(
+		&"Teammates",
+		{"role": &"dissident", "peers": PackedInt32Array([OWN, NEAR, MATE, BEHIND, WALLED, FAR])}
+	)
 	_avatars = AvatarViews.new()
 	_avatars.model = _model
 	_avatars.buffer = SnapshotBuffer.new()
@@ -70,12 +76,11 @@ func after_test() -> void:
 	_viewport.free()
 
 
-func test_a_player_in_sight_within_range_gets_its_name_centred_over_its_head() -> void:
+func test_a_teammate_in_sight_within_range_gets_its_mark_centred_over_its_head() -> void:
 	await _settle()
 	for peer: int in [NEAR, MATE]:
 		assert_bool(_plates.shows(peer)).override_failure_message(NAMES[peer]).is_true()
 		var plate := _plates.plate_of(peer)
-		assert_str(plate.name_label.text).is_equal(NAMES[peer])
 		var head := _avatars.body_of(peer).head().global_position
 		assert_vector(NamePlates.plate_point(_avatars.body_of(peer))).is_equal_approx(
 			head + Vector3.UP * 0.35, Vector3.ONE * 1e-4
@@ -141,34 +146,36 @@ func test_the_downed_cameras_plate_also_needs_the_bodys_eye_to_see_the_player() 
 
 
 func test_the_mark_shows_on_a_dissidents_client_for_a_teammate_only() -> void:
-	_model.fold(&"RoleAssigned", {"role": &"dissident"})
 	_model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([OWN, MATE])})
 	await _settle()
-	assert_bool(_plates.plate_of(MATE).is_marked()).is_true()
-	assert_bool(_plates.plate_of(NEAR).is_marked()).is_false()
+	assert_bool(_plates.shows(MATE)).is_true()
+	assert_bool(_plates.shows(NEAR)).is_false()
+	assert_object(_plates.plate_of(NEAR)).is_null()
+	assert_int(_plates.shown_count()).is_equal(1)
+	assert_bool(_plates.plate_of(MATE).mark.visible).is_true()
 
 
-func test_an_engineers_client_never_draws_the_mark() -> void:
+func test_an_engineers_client_and_the_lobby_draw_nothing_over_anyone() -> void:
 	_model.fold(&"RoleAssigned", {"role": &"engineer"})
+	await _settle()
+	assert_int(_plates.shown_count()).is_equal(0)
+	for peer: int in [NEAR, MATE]:
+		assert_object(_plates.plate_of(peer)).is_null()
+	# The lobby: no role yet, no Teammates.
+	_model = _lobby_model()
+	_avatars.model = _model
+	await _settle()
+	assert_int(_plates.shown_count()).is_equal(0)
+
+
+func test_no_player_has_a_name_over_the_head_downed_or_not() -> void:
+	_model.fold(&"KnockedDown", {"peer": NEAR, "by": OWN})
 	await _settle()
 	assert_int(_plates.shown_count()).is_equal(2)
 	for peer: int in [NEAR, MATE]:
-		assert_bool(_plates.plate_of(peer).is_marked()).is_false()
-		assert_bool(_plates.plate_of(peer).mark.visible).is_false()
-
-
-func test_a_plate_holds_the_name_and_nothing_else() -> void:
-	_model.fold(&"RoleAssigned", {"role": &"dissident"})
-	_model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([OWN, MATE])})
-	_model.fold(&"KnockedDown", {"peer": NEAR, "by": OWN})
-	await _settle()
-	for peer: int in [NEAR, MATE]:
-		var texts := PackedStringArray()
-		for label: Node in _plates.plate_of(peer).find_children("*", "Label", true, false):
-			texts.append((label as Label).text)
-		assert_array(Array(texts)).is_equal([NAMES[peer]])
-		var name_label := _plates.plate_of(peer).name_label
-		assert_int(name_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
+		var plate := _plates.plate_of(peer)
+		assert_array(plate.get_children()).is_equal([plate.mark])
+		assert_array(plate.find_children("*", "Label", true, false)).is_empty()
 
 
 func test_a_downed_players_plate_sits_over_its_lying_body() -> void:
