@@ -29,5 +29,6 @@
 
 **Where the rule lives now.**
 - This entry.
-- `docs/HUMAN_SESSIONS.md`, "Talking to the humans" (moved there from root `CLAUDE.md` in #836, which now points to it) (the explanation bullet was shortened to keep the budget).
+- `docs/HUMAN_SESSIONS.md`, "Talking to the humans" (moved from root `CLAUDE.md` in #836; root points to it). The
+  explanation bullet was shortened in root to keep the budget.
 - `docs/AGENT_WORKFLOW.md` §13.

@@ -123,9 +123,9 @@ what goes wrong, the options, your recommendation, numbered so they can answer "
 human with one short "For you:" block in their language, numbered, listing only what needs them now (a merge the gate
 refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy every `human_steps` command
 into the chat itself, never only a pointer ("it is in PR #235's body"; fetch what a step only points to): one fenced
-PowerShell block each, run or previewed by you first (`docs/HUMAN_SESSIONS.md`, "Talking to the humans"); the PR and the wave
-comment may carry it too. Each item is `{why, command}`: `command` is one PowerShell line, which you check starts with
-`cd <absolute folder>;` and copy as is under its `why`; an empty `command` is a click or a decision you tell in plain
+PowerShell block each, run or previewed by you first (`docs/HUMAN_SESSIONS.md`, "Talking to the humans"); the PR
+and the wave comment may carry it too. Each item is `{why, command}`: `command` is one PowerShell line, which you
+check starts with `cd <absolute folder>;` and copy as is under its `why`; an empty `command` is a click or a decision you tell in plain
 words; a plain string (a run before #266) likewise. Then fill the free slot.
 <!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 

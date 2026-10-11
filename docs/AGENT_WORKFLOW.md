@@ -105,6 +105,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (engineer-owned, the content area) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
+| `docs/HUMAN_SESSIONS.md` | Read by a chat with a human (task session, manager, secretary, meta) before its first reply and again after a compaction, by root's pointer; no workflow agent reads it (#836) | Talking to the humans, launching a workflow, memory, the dictation glossary | none (not loaded at launch) |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
 - Invariants live in root because nested files drop out after compaction
@@ -2379,8 +2380,8 @@ waits on him; the engineer's sessions do the content work otherwise.
   stage or a list of issues (no "ultracode", `docs/MANAGERS.md` §2) → the orchestrator session (§7.1); "just do it" →
   small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
-  one short question only if a misreading would change what gets built. The glossary in `docs/HUMAN_SESSIONS.md` grows from
-  real misrecognitions.
+  one short question only if a misreading would change what gets built. The glossary in `docs/HUMAN_SESSIONS.md`
+  grows from real misrecognitions.
 - **Two readings are read back:** when a human's answer to a design question could describe different things to build
   (the look or the mechanics), the agent says its reading back in one sentence and records it in an issue, an ADR or
   a design doc only after the human confirms. A wrong guess is otherwise copied into every task built on it.
