@@ -46,11 +46,16 @@ const REVIEWED = /^(core|server|net|client|voice|tests\/harness)\//
 const NETCODE = /^(?:(?:core|server|net|voice|tests\/harness)\/|client\/(?!ui\/))/
 const SERIOUS = /blocker|major/i
 
+// #326 and #818, as in issue-task.js (test_workflows.py compares them): every agent, the reviewers too.
+const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
+const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
 const RULES = [
   `You are an agent of a quick-task run of prime-game, unattended (no human answers: never ask in chat). Root CLAUDE.md's hard rules apply; area CLAUDE.md files load by path. Do not read docs/AGENT_WORKFLOW.md or the finish-task skill: this prompt is the whole procedure.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; \`start\` already ran). Every shell command starts with \`cd ${WTB} && \` (Git Bash); absolute paths under ${WT} for Read, Edit and Write. Never change the main checkout or another worktree.`,
   `- Temporary files (commit message, PR body, logs) only under ${SCRATCH}/ of your scratchpad. No \`git stash\`. Never merge, push to main, force-push, close an issue or edit another PR.`,
   '- No tool call blocks longer than 180 s: a command that may take longer runs in the Bash tool with run_in_background true and output to a new log under the scratchpad folder, then `tools/run.sh wait <log>` in separate calls (exit 124: call it again).',
+  HOOKS_RULE,
+  WAIT_RULE,
   '- Read a log by search, never whole (what you read rides along on every later call): `grep -n -E "FAIL|Error" <log>` or the Grep tool, then only the lines around a hit; `lint` and `check` print a summary and name their whole output under `tools/out/logs/` (#572).',
   '- Commits: Conventional Commits, one logical change each, `git commit -F <file>`, the message ending with the attribution line your system reminder gives for commits; the PR body ends with the line it gives for pull requests.',
 ].join('\n')
@@ -145,6 +150,7 @@ if (paths.length && !touched.length) {
 phase('Review')
 const base = [
   `Issue #${N} (${A.title}), a quick task (one small change). Branch ${A.branch} in the worktree ${WT}; PR ${quick.pr_url}, base origin/${BASE}.`,
+  `${HOOKS_RULE}\n${WAIT_RULE}`,
   `Review read-only: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue (\`gh issue view ${N} --comments\`), the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section (\`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md\` prints its outline). Budget: about 30 tool calls. Edit nothing.`,
   `The agent's summary: ${line(quick.summary, 600)}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against the issue or an invariant, a leak, a broken test. No findings is a valid answer.',

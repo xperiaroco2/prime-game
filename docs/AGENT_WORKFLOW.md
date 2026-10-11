@@ -420,10 +420,12 @@ Rules for every workflow run:
   `NETCODE` rule), and the result says so.
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
-  read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
-  carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
+  read their prompt, not this file, so every agent of both scripts and of `quick-task.js` (since #818 the read-only
+  ones too: reviewers, the plan critique, the A/B judge and the skeptics get them as `REVIEW_RULES`, beside the
+  reading line) has one line each for the two calls that stopped them most (#312, #326): read the hooks path with
   `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
-  foreground `sleep N; cat <log>` (§11.17, "Bounded waits"); the test pins both lines, identical in the two scripts.
+  foreground `sleep N; cat <log>` or PowerShell's `Start-Sleep N` (§11.17, "Bounded waits"); the test pins both
+  lines, identical in the three scripts.
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
   rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
@@ -2097,11 +2099,13 @@ Since #388 every agent, a main or manager session too, runs `verify`, `publish` 
 `wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
 (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
-the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
-`wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
-`run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
-run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
-the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
+the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326, the reviewers' since
+#818), and so is PowerShell's `Start-Sleep -Seconds N` (2 of the 12 workflow-agent refusals from 2026-10-07
+to 11): wait with `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the
+job in the Bash tool with `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers
+the rest), with a new log per run under its scratch folder:
+`cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>`
+(in the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
 `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
 default 120000 would cut a 180 s wait short. `wait` polls every 3 s for at most S seconds (default 180, 1 to 180;
 else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
