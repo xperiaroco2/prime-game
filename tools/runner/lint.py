@@ -12,19 +12,21 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import instructions, pins, refs
-from . import common
+from . import common, instructions, pins, refs
 from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, quiet, rel, run, say
 
 TIMEOUT = 300
 # Keep each command line well under the Windows limit of 32k characters.
 BATCH = 100
-# --changed lints every file when one of these changed: the lint rules, the formatter's settings, the gdtoolkit pin
-# and this file (#859). A problem they bring into a file the change did not touch is found here, not on CI.
-LINT_CONFIG = ("gdlintrc", "gdformatrc", "tools/runner/pins.py", "tools/runner/lint.py")
+# --changed lints every file when one of these changed: the lint rules, the formatter's settings, the gdtoolkit pin,
+# this file and common.py (which folders, which binary) (#859). A problem they bring into a file the change did not
+# touch is found here, not on CI.
+LINT_CONFIG = ("gdlintrc", "gdformatrc", "tools/runner/pins.py", "tools/runner/lint.py", "tools/runner/common.py")
 # The base a task branch is compared with when `start --base` recorded none (publish.base_key: the same git key).
 DEFAULT_BASE = "main"
 GIT_TIMEOUT = 60
+# Without it git quotes and escapes a path with non-ASCII characters, which then matches no file.
+PLAIN_PATHS = ("-c", "core.quotePath=false")
 SHA_RE = re.compile(r"\b[0-9a-f]{40}\b")
 # The scope of the last lint_all in this process (take_scope), for verify's history record (#859).
 _SCOPE: dict[str, object] = {}
@@ -177,8 +179,8 @@ def changed_targets(root: Path, every: list[Path]) -> tuple[list[Path] | None, s
     if found is None:
         return None, f"no merge base with origin/{base} (git fetch?), so the changed files are unknown"
     merge_base = found.group(0)
-    good, diffed = _git(root, "diff", "--name-only", "--no-renames", "--diff-filter=d", merge_base)
-    good_new, untracked = _git(root, "ls-files", "--others", "--exclude-standard")
+    good, diffed = _git(root, *PLAIN_PATHS, "diff", "--name-only", "--no-renames", "--diff-filter=d", merge_base)
+    good_new, untracked = _git(root, *PLAIN_PATHS, "ls-files", "--others", "--exclude-standard")
     if not good or not good_new:
         return None, "git could not list the changed files"
     names = {line.strip().replace("\\", "/") for line in (diffed + untracked).splitlines() if line.strip()}

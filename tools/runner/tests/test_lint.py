@@ -176,6 +176,12 @@ class ChangedTest(unittest.TestCase):
         self.assertEqual(files, ["core/a.gd", "core/b.gd", "net/new.gd"])
         self.assertIn("origin/main", why)
 
+    def test_a_path_with_non_ascii_characters_is_picked(self) -> None:
+        odd = "core/да.gd"
+        self.write(odd, "extends Node\n")  # untracked
+        self.write("net/c.gd", "extends Node2D\n")
+        self.assertEqual(self.picked()[0], [odd, "net/c.gd"])
+
     def test_a_moved_main_adds_nothing_the_branch_did_not_change(self) -> None:
         self.write("core/a.gd", "extends Node2D\n")
         git(self.root, "commit", "-q", "-am", "mine")
