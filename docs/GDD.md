@@ -109,8 +109,10 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
 - A blow never launches a body where no player can reach it to raise it: the levels keep every surface a launch can
   reach, tables and the roof included, within a raise's reach of a spot a player can walk to, the same convention as
   for a thrown item, checked on the House by tests (the ADR's KD12).
-- Open: whether a table's collider closes the space under it, so nothing thrown or launched rests under one (the
-  ADR's KD14); and what a player raised from a body launched into the lowered car gets (the ADR's KD15).
+- Tables keep the space under them: a body may rest under a table a crouching player fits under, as long as a raise
+  can reach it, and no level rule closes tables (the ADR's KD14).
+- A player raised from a body launched into the lowered car gets up inside the car on its own screen, and its own
+  game pushes it out, the car's accepted quirk; nothing new is built for it (the ADR's KD15).
 - The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
   not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
   the ragdoll on screen.
