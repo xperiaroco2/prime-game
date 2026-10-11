@@ -5102,8 +5102,9 @@ nobody can reach it; no issue waits on it.
   velocity), a command it originates
   as it does `PeerConnected`, logged for the replay (§3.3) and never sent by a peer; `core/` sets the knocked-down
   player's position and velocity from it, which every rule and the filtered snapshots read as today (KE14). `core/`
-  decides the rest: reports slower than the rest speed for the rest time, or the longest motion, then the floor below
-  the last point (or the knockdown's own floor, with an error, over no floor), and `StopBody` frees the host's body
+  decides the rest: reports slower than the rest speed for the rest time, or the longest motion, then the standing
+  floor under the capsule at the last point (`stand_floor_below`, so a body on a stair's nosing or a railing rests on
+  it, not on the floor below) (or the knockdown's own floor, with an error, over no floor), and `StopBody` frees the host's body
   (KE15). The state is `PlayerState.motion` (KE3). A body still moving cannot be raised (`TargetDowned` rejects
   `moving`, KD4), and a death ends the motion where it is (KD8). Prevents: a body rolling off a roof on one screen
   and staying on it for the host, where a teammate standing over it could not raise it. The cost the engineer took:
