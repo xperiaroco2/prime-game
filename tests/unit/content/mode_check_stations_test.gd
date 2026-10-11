@@ -79,3 +79,18 @@ func _expect(mode: GameMode, fragment: String) -> void:
 
 func _expect_none(mode: GameMode) -> void:
 	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+func test_the_kinds_of_an_overriding_type_are_checked_like_any_other() -> void:
+	var mode := GameMode.new()
+	mode.task_types = [
+		FixtureKindsType.of(&"one", [FixtureKindsType.kind(&"kind_a", &"shared")]),
+		FixtureKindsType.of(&"two", [FixtureKindsType.kind(&"kind_b", &"shared")]),
+	]
+	_expect(
+		mode,
+		(
+			"mode.task_types[0].station_kinds()[0] and mode.task_types[1].station_kinds()[0]:"
+			+ " station kinds kind_a and kind_b share spawn tag shared"
+		)
+	)

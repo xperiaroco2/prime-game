@@ -572,14 +572,13 @@ func _check_stations(mode: GameMode) -> void:
 		var type := mode.task_types[i]
 		if type == null:
 			continue
-		for property: Dictionary in type.get_property_list():
-			if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
-				continue
-			var name: String = property["name"]
-			var value: Variant = type.get(name)
-			if value is StationKind:
-				paths.append("mode.task_types[%d].%s" % [i, name])
-				kinds.append(value as StationKind)
+		var held := type.station_kinds()
+		var names := Stations.property_names_of(type)
+		for k in held.size():
+			# The default finder is the reflection: its k-th kind is the k-th property's.
+			var name := names[k] if names.size() == held.size() else "station_kinds()[%d]" % k
+			paths.append("mode.task_types[%d].%s" % [i, name])
+			kinds.append(held[k])
 	for i in kinds.size():
 		for j in range(i + 1, kinds.size()):
 			var pair := "%s and %s" % [paths[i], paths[j]]

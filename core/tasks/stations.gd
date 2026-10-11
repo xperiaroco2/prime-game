@@ -25,14 +25,20 @@ static func names_station(intent: StringName) -> bool:
 
 ## The station kinds `type` holds, one per StationKind property, in property order.
 static func kinds_of(type: TaskType) -> Array[StationKind]:
-	var found: Array[StationKind] = []
+	return type.station_kinds()
+
+
+## The names of the StationKind properties of `type`, in property order: what the default
+## TaskType.station_kinds() reflects over (ModeCheck names a kind by its property).
+static func property_names_of(type: TaskType) -> PackedStringArray:
+	var names := PackedStringArray()
 	for property: Dictionary in type.get_property_list():
 		if ((property["usage"] as int) & PROPERTY_USAGE_STORAGE) == 0:
 			continue
-		var value: Variant = type.get(property["name"] as String)
-		if value is StationKind:
-			found.append(value as StationKind)
-	return found
+		var name: String = property["name"]
+		if type.get(name) is StationKind:
+			names.append(name)
+	return names
 
 
 ## Every station kind of `mode`'s task types, each once, in the mode's order.
