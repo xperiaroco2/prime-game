@@ -83,9 +83,8 @@ export const meta = {
 //                 before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 (plan falls back to implement, publish_clean and publish_findings to publish, code to review, none
-//                 to a default). No
-//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
-//                 where the kickoff allows it). +0 agents
+//                 to a default). No default names a model (the model-guard ADR and its amendment A: the manager
+//                 passes one per launch where the kickoff allows it). +0 agents
 //                 The role code is the diff's code-reviewer only: models.code changes no other reviewer, where
 //                 models.review also changes the plan critique, the netcode reviews and the skeptics (#535's A/B).
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the

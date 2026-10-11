@@ -35,8 +35,7 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review`, `publish_clean`,
   `publish_findings`, `plan` or `code` (only with `ab_review`, next row), never `review` or `netcode` (`review` also
-  covers `code`, `plan_review`,
-  `netcode`, `skeptic`, `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset:
+  covers `code`, `plan_review`, `netcode`, `skeptic`, `second_review`; `netcode` covers `second_review`). `plan` follows `implement` when unset:
   every `plan_review` launch sets `models.plan: "sonnet"` (#469). `publish_clean` falls back to `publish` and applies
   only to the full publisher of a run with no blocker or major left open (a refuted one is closed), never a design
   task; leave `efforts.publish_clean` unset, so only the model varies. `publish_findings` (#835) falls back to
