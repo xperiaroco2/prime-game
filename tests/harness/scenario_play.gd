@@ -172,6 +172,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _throw(bot, step as StepThrow)
 	elif step is StepUse:
 		result = _use(bot, step as StepUse)
+	elif step is StepInteract:
+		result = _interact(bot, step as StepInteract)
 	elif step is StepRaise:
 		result = _raise(bot, step as StepRaise, elapsed)
 	elif step is StepStopRaise:
@@ -402,6 +404,27 @@ func _use(bot: ScenarioBot, step: StepUse) -> Result:
 		bot.step_cursor,
 		func(event: WireMessage) -> bool:
 			if event.name != until:
+				return false
+			var by: Variant = bot.field_of(event, "peer")
+			return not by is int or by == bot.peer
+	)
+	return _intent_result(bot, step, done != null)
+
+
+## Sends Interact naming the station the bot knows by the step's kind and index; done when the
+## step's `until` event arrives for this bot (or one that names no peer), as for Use.
+func _interact(bot: ScenarioBot, step: StepInteract) -> Result:
+	if bot.sent_seq < 0:
+		var station := bot.station_of(step.station)
+		if station < 0:
+			return _fail_step(bot, "the bot cannot know which station to use")
+		_send(bot, Intents.INTERACT, {"station": station})
+		return Result.WAITING
+	var until := step.until
+	var done := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			if until.is_empty() or event.name != until:
 				return false
 			var by: Variant = bot.field_of(event, "peer")
 			return not by is int or by == bot.peer

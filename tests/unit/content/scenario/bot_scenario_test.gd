@@ -118,7 +118,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepSwap.new(),
 		StepNextStage.new(),
 		StepTalk.new(),
-		StepThrow.new()
+		StepThrow.new(),
+		StepInteract.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -144,7 +145,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Swap",
 			&"NextStage",
 			&"Talk",
-			&"Throw"
+			&"Throw",
+			&"Interact"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -158,7 +160,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepGiveUp.new(),
 		StepSwap.new(),
 		StepNextStage.new(),
-		StepThrow.new()
+		StepThrow.new(),
+		StepInteract.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
 
@@ -174,6 +177,25 @@ func test_a_raise_step_targets_a_bot() -> void:
 	assert_array(Array(raise.problems())).is_equal(["hold_s -1.0 is outside 0 to 600"])
 	raise.hold_s = 2.0
 	assert_array(Array(raise.problems())).is_empty()
+
+
+func test_an_interact_step_names_a_station_and_the_event_its_use_emits() -> void:
+	var interact := StepInteract.new()
+	assert_array(Array(interact.problems())).is_equal(
+		["no station", "no until: name the event the use emits"]
+	)
+	interact.station = ScenarioTarget.new()
+	interact.until = &"FixtureNote"
+	assert_array(Array(interact.problems())).is_equal(
+		["an Interact names a station: station(kind, i)"]
+	)
+	interact.station.kind = ScenarioTarget.Kind.STATION
+	interact.station.station_kind = &"panel"
+	assert_array(Array(interact.problems())).is_empty()
+	# A step that expects a refusal waits for that Rejected, not for an event.
+	interact.until = &""
+	interact.expect_rejected = &"unavailable"
+	assert_array(Array(interact.problems())).is_empty()
 
 
 func test_a_throw_step_faces_a_target_at_a_pitch_from_minus_90_to_90() -> void:
