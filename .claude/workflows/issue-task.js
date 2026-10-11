@@ -250,7 +250,7 @@ const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start
 // compares them. #816: the same table counted 39 whole-file reads of the 2026-10-10 task ADRs ($9.32 of $33), so
 // the line also says to read the ADR by section, never whole. #834: docs/ARCHITECTURE.md too, about $20 over
 // 1471 reads since 2026-10-08T12:25Z (51% of it the implementer's), which the ADR line left out.
-const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it and ARCHITECTURE (`tools/run.sh section docs/ARCHITECTURE.md`) by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL

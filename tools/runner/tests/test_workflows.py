@@ -376,7 +376,7 @@ class WorkflowTest(unittest.TestCase):
                              labels)  # fmt: skip
         rule = next(iter(lines))
         for part in ("docs/decisions/", "the issue links",
-                     "read it and ARCHITECTURE (`tools/run.sh section docs/ARCHITECTURE.md`) by section, never the whole file",
+                     "read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file",
                      "each section you need once per context", "only after the file changed or your context was compacted"):
             self.assertIn(part, rule)
 
