@@ -102,7 +102,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   `Match` accepts none from them under PLAYER, LIVING or DOWNED (M4-2), so an intent in flight at a death reaches no
   rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby`, the shortcut out of End,
   where whoever died in the round is dead until `ResetMatch`), never for a player's action (`MoveClaim`, `PickUp`,
-  `PutDown`, `Use`: `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
+  `PutDown`, `Use`, `Throw`, `Interact` and the rest of `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
 
 ### 3.2 Base mode: phases and transitions
 A **player** is a peer whose `Hello` was accepted; *everyone* in an audience means every player (§5). A connected
@@ -687,6 +687,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 | `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
+| `Interact(station)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host under `HOST`); a phase whose mode accepts it (no shipped mode does yet: the Generator's mode change, G5, adds it to Round) | `station` an int (`bad_args`). A `station` that names no placed station, which is all a fixed switch is: `nothing_to_do` before any owner is tried (a package carrier hears `nothing_to_do`, not `two_handed`). Then the first `Interact` rule of the station's kind (`StationKind.actions`), the actor's role or the mode, never the hand item (§9.2; none: `nothing_to_do`). A station's rule, as the Generator's switch has it: `HandNotTwoHanded` (`two_handed`), `AtStation` (`out_of_reach`), `StationInSight` (`blocked`), `StationUsable` (`unavailable`, its type's `use_problem`), then `UseStation` (the Generator ADR's GE1 to GE4, #796). Applied, a raise the sender runs stops; refused, nothing stops (§9.2) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -837,6 +838,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
 | 16 | `SetProfile` | RELIABLE | `seq: u32`, `name: name`, `colour: u8` (#551; core refuses a colour past 9, `out_of_bounds`) | 6 to 86; 86 |
 | 17 | `Throw` | RELIABLE | `seq: u32`, `facing: vec3` (#643; kind 15 on `release/m7`, 17 since it reached `main`, #837) | 16; 16 |
+| 18 | `Interact` | RELIABLE | `seq: u32`, `station: station` (#796, the Generator ADR's GE1: a placed station's id from its `StationPlaced`; 0xFFFF, not optional, is `bad_payload`). A player action: the client sends its reliable claim twin first (§4.5.6) | 6; 6 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -930,8 +932,8 @@ The rules of the table:
   `SetProfile` (16), `ProfileChanged` (66) and the body colour of `PlayerJoined` (cap 98) and the `Welcome`
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
-  `main`'s highest in one bump. M4's protocol PRs each set it to their base's plus one at the rebase before the
-  merge (the M4 ADR §4).
+  `main`'s highest in one bump; 16 since #796 added `Interact` (18). M4's protocol PRs each set it to their
+  base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -1784,9 +1786,9 @@ a join lost for good fails at once naming its reason, a join that found no room 
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13, 15, 16, 17 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
+The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
-and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 18, 19, 23, 26, 31,
+and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 20, 23, 26, 31,
 69, 80, 95, 97, 111,
 113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
@@ -1811,6 +1813,10 @@ in the lobby (not in the round: its last frames could meet the lobby after End);
 `SET_PROFILE_BAD_NAME` (not UTF-8) are each under the cap, so the codec refuses them (`BAD_PAYLOAD`). `ChaosRun`
 fails a run that ends with a player named "Hacked" or two players sharing a colour. Seen failing: with
 `Match._accepts` taking `SetProfile` everywhere, seeds 5510 and 5511 failed on the countdown's `SetProfile`.
+Kind 18, `Interact` (#796): no phase of `ACCEPTS` lists it (no shipped mode accepts it before the Generator's mode
+change, G5), so it is in `NEVER_ACCEPTED` and the hostile's `Interact` (a station id from 0 to 9) is refused
+`not_accepted` everywhere; its malformed shapes are `INTERACT_BAD_STATION` (station 0xFFFF, which is not optional:
+the codec's `BAD_PAYLOAD`) and `INTERACT_TRAILING` (over the cap of 6: NetFrame's `PAYLOAD_TOO_LARGE`).
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
@@ -5585,6 +5591,7 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
 | Owner | Holds | Applies |
 |---|---|---|
 | Item kind | `actions`: rules on intents | while a player holds an item of that kind in the hand, never on the belt (the knife's `Use`) |
+| Station kind | `actions`: rules on intents that name a station (`Interact`) | to an intent naming a placed station of that kind (the Generator's switch; #796, the Generator ADR's GE2) |
 | Role | `actions` (abilities) | to the players with that role (none in the MVP) |
 | Game mode | `actions`, and `reactions` (rules on facts) | to every player, and to every fact (no reactions in the MVP) |
 | Task type | its own check of facts, in its class | to its tasks (Delivery on `item_rested`) |
@@ -5596,6 +5603,11 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   none: `Rejected` (`nothing_to_do`). So the item in hand decides what `Use` does, and a new item needs no new
   intent; a role's ability on `Use` fires only when the held item has no `Use` rule. That precedence is a gameplay
   rule, provisional for the designer (#38): a #34 medic holding a knife would stab, not revive.
+  An intent that names a station (`Interact`, any intent with a `station` field: `Stations.names_station`) goes
+  instead to the first rule among the station's kind's actions, the role's and the mode's, never the hand item's
+  (ModeCheck refuses an item kind's rule on it); a `station` that names no placed station is refused
+  `nothing_to_do` before any owner is tried, so a role's or the mode's rule only ever sees a placed station
+  (the Generator ADR's GE2, #796).
 - **Win conditions** (`WinCondition`: a side and its conditions) are checked in the mode's order, in phases whose
   spec says so (Round in the base mode): after every fact, and at the end of every step (a command, a tick, a phase
   entry). The first that holds reports `won(side)`, and once a step has an outcome no win condition is checked again
@@ -5622,7 +5634,8 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   `ActorRole`-gated rule with an effect whose event goes to everyone. v0 has none. A channel adds one more way
   (M4-4): any applied action stops its actor's running channel (a raiser's public `RaiseStopped`) while a refused
   one stops nothing, so a role-owned or role-gated action reveals the role of a raiser who tries it; in a mode
-  with a channel the check warns about every such action.
+  with a channel the check warns about every such action. A `UseStation` emits what its task type's `use_emits()`
+  lists, which the check counts: in a role's or the mode's rule, every task type's (any station may be named).
 - **Determinism.** Rules, conditions and effects run in data order, and players in peer-id order. A part that draws
   randomness names its RNG purpose in its data (§3.3), so a new part never shifts the draws of the others.
 
@@ -5741,7 +5754,7 @@ phase classes come in the task each row names.
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
 | Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
-| Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
+| Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette; `actions`, its rules on `Interact`, §9.2, #796) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)) | | packages and knives on the ground |
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
@@ -5764,7 +5777,11 @@ phase classes come in the task each row names.
   is one new script: the class, with its `TaskState` as an inner class (§9.8). Its interface (#79):
   `deal(ctx)` deals one shared task of the type (nobody owns it) and reads the type's own subtasks setting;
   `add_demands(settings, players, into)` says what that one task needs of the map (per spawn tag and colours) for
-  the fit check of §9.4; `on_fact`, `tick` and `emits` as before.
+  the fit check of §9.4; `on_fact`, `tick` and `emits` as before. A use of one of its stations (`Interact`, #796):
+  `use_problem(ctx, task, station)` says why the type refuses it now, only a reason of `StationUsable.REASONS`
+  (`unavailable` by default: a type whose stations nobody uses takes none); `use_station(ctx, task, station)` applies
+  it (`UseStation`), writing the type's own task state; `use_emits()` lists the event classes it can emit (none by
+  default), which ModeCheck counts for its role-reveal warning (§9.2).
 
 ### 9.4 Parts (v0)
 
@@ -5798,6 +5815,9 @@ names the facts that do.
 | `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | actions only: reads the actor | M4-4 (#140) |
 | `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | actions only: reads the actor | M4-4 (#140, `core/channel/`) |
 | `Channeling` | the actor runs a channel | none | `not_channeling`: its own state | actions only: reads the actor | M4-4 (#140) |
+| `AtStation` | the actor's feet (its last accepted position, §7.1) stand inside the cylinder of the station the intent names (`StationState.contains`: the kind's `radius_m` and `height_m`); one cylinder means "at the station" for every station (the Generator ADR's GE3) | none | `out_of_reach`: its own position and the station's (`StationPlaced` is public) | actions on an intent that names a station (reads the actor; needs a station, which no fact carries): the mode check refuses it in a reaction and a win condition, and requires it in every rule with a `UseStation` | #796 (`core/tasks/at_station.gd`) |
+| `StationInSight` | the line from the actor's eye (`Items.eye_of`) to just above the named station's marker (`Items.lifted`) is clear, as `InSight` for an item: a press through a thin wall is refused where the cylinder reaches through it (GE4) | none | `blocked`: the sender sees the wall too | as `AtStation` | #796 (`core/tasks/station_in_sight.gd`) |
+| `StationUsable` | the task type owning the named station's kind takes a use of it now (`TaskType.use_problem` empty) | none | the type's reason, one of `StationUsable.REASONS`, today only `unavailable`: only that the type takes no use of that station now, public state of a station the actor has in reach and in sight, never a role (a reason outside the list is a match error and refused `unavailable`) | as `AtStation`; the mode check requires it after `AtStation` and `StationInSight` | #796 (`core/tasks/station_usable.gd`) |
 
 #### 9.4.2 Effects in rules
 
@@ -5812,6 +5832,7 @@ names the facts that do.
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports `outcome` in the current phase with `argument` (a button in the level, say; the tutorial's `NextStage` rule reports `next`, `docs/design/tutorial.md` §2.4); the row's actions read the argument as `MatchContext.outcome_argument` (null when empty). The first outcome of a step wins (§3.1). Mode check: an outcome named (the existing check wants a row for it in every phase that accepts the rule's intent). As a row's action it is a row error (`Match.report_outcome`) | `outcome`, `argument` (an id, empty for none; unused by the tutorial) | an outcome (§3.1), which reaches no peer (§9.2); no event of its own | T1 (#599, `core/match/report_outcome.gd`, `tests/unit/match/report_outcome_test.gd`); 2a built the outcome reporting it calls |
+| `UseStation` | hands the named station to the task type owning its kind (`TaskType.use_station`), which alone writes its task state (§9.1) | none | what the type's `use_emits()` lists (none by default; the Generator's `SwitchChanged`, `ButtonPressed` and its progress, G4); the mode check requires `AtStation`, `StationInSight` and `StationUsable` in its rule, allows it only on an intent that names a station, and counts `use_emits()` for the role-reveal warning (§9.2) | #796 (`core/tasks/use_station.gd`) |
 
 #### 9.4.3 Transition actions
 (effects that a transition row runs; the base mode's rows are in §9.5):
@@ -6401,6 +6422,7 @@ told. One format runs in two runners.
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Throw(towards, pitch_deg)` | faces the target flat, tilts that facing up by `pitch_deg` (-90 to 90) and sends `Throw`; standing on the target with a pitch other than ±90 fails the step (a zero facing would throw along the last one) | its `ItemThrown` of the item it held arrives (a `WaitFor` of `ItemPlaced` with cause `thrown` waits for the rest) |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |
+| `Interact(station, until)` | sends `Interact` naming the station a `station(kind, n)` target finds (`ScenarioBot.station_of`); no facing: the host checks reach and sight from the bot's position, so a `WalkTo` to it comes first; a station the bot was told of none of fails the step (#796) | the event `until` names arrives for this bot, or names no peer (no default: a use emits its task type's events); with `expect_rejected` and no `until`, that `Rejected` |
 | `Jump` | claims a jump | the claim is sent |
 | `Expect(event, fields, within)` | checks | it received a matching event since its previous step, or within `within` seconds |
 | `ExpectNone(event, fields, for_s)` | checks | no matching event arrived for `for_s` seconds; the first one fails the step |
@@ -6441,7 +6463,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
   package in item-id order, from 1; tasks are shared, #79), `circle_of_held` (of its hand item), `nearest(kind)` (on
   the ground: not in a hand or on a belt, which the bot follows from `ItemPickedUp`'s `belted` and `Swapped`, M4-5), `bot(i)` (where it last saw
-  that player), `point(x, y, z)`, `station(kind, n)` (the n-th station, from 1, of that `StationKind` id in station-id order, from the bot's own `StationPlaced`s; a `WalkTo` to it takes `stop_m` 0, and the runners' arrival slack of 1 mm ends the walk: M7-Z2, ZE7 (a), for the zone task, whose zone the bot finds only this way). A target the bot cannot know fails the scenario, so a scenario also proves that the
+  that player), `point(x, y, z)`, `station(kind, n)` (the n-th station, from 1, of that `StationKind` id in station-id order, from the bot's own `StationPlaced`s; a `WalkTo` to it takes `stop_m` 0, and the runners' arrival slack of 1 mm ends the walk: M7-Z2, ZE7 (a), for the zone task, whose zone the bot finds only this way; an `Interact` step names its station only this way, #796). A target the bot cannot know fails the scenario, so a scenario also proves that the
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
@@ -6566,7 +6588,10 @@ world by id, and owners for fixed interactables (a marker kind in `levels/`, suc
 bodies. It changes the intent catalogue (§4.1) and the owners once; after it, a new interactable is data plus at
 most one effect. The first mechanic that needs it is the House's Generator (#679): its
 [ADR](decisions/2026-10-10-generator-task.md) (proposed) designs the station half as `Interact(station)`, a station
-kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationUsable`, `UseStation`); bodies wait for
+kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationUsable`, `UseStation`), built in #796
+(G1: the intent, wire kind 18, `StationKind.actions`, `TaskType.use_problem`, `use_station` and `use_emits`, the
+four parts in `core/tasks/`, ModeCheck's station rules and the `Interact` scenario step; tests: `tests/unit/tasks/
+interact_test.gd`, `station_usable_test.gd`, `tests/unit/content/mode_check_interact_test.gd`); bodies wait for
 their own mechanic.
 
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
@@ -6579,7 +6604,9 @@ target, a timed action needed a new
 primitive (the channel) and the raise three public events and three intents. With them in place, a resurrection at
 a body (#34) is two or three part classes and one event class: a body is again a new kind of target, and a
 resurrection a new public fact. The meetings mode is several parts, as a system. Throwing and
-`Interact` each change the engine once, for the reasons given. None of them changes `Match` or the phase loop; the
+`Interact` each change the engine once, for the reasons given. None of them changes the phase loop, and only
+`Interact`'s station half changes `Match`, once: its owner lookup tries the named station's kind before the role and
+the mode, after refusing an id that names no placed station (#796, §9.2), for every later station intent; the
 change to an existing part is a new setting (`PlacePlayers`' `who`). The revive changed two existing rules once,
 for every later timed action: `RuleRunner` stops the actor's channel when another of its actions applies, and the
 movement rule holds a raised player in place.
@@ -6591,7 +6618,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Question | When |
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
-| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations: designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), GE1 to GE4); bodies with their own mechanic |
+| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations: designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), GE1 to GE4) and built in #796 (`Interact(station)`; C1, #770, adds an `item`); bodies with their own mechanic |
 | The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the greybox's zones (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
