@@ -108,6 +108,9 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
   room (the ADR's KD11).
 - Open (the ADR's KD12): a body a launch carries where nobody can reach it (the locked roof's edge), out of reach
   with the package it carries.
+- Open (the ADR's KD13, a read-back): the design reads the crouching collider as one that never turns, so the body
+  the host moves slides and falls but does not roll (only the ragdoll on screen rolls), and slides off only a steep
+  slope. Until he answers, "rolls" above reads "slides or falls".
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
