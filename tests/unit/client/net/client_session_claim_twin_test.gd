@@ -109,6 +109,27 @@ func test_a_throw_resends_the_last_claim_right_before_it() -> void:
 	assert_int(_told.size()).is_equal(told)
 
 
+func test_an_interact_resends_the_last_claim_right_before_it() -> void:
+	# GE3: the host measures reach from the last accepted position, so a lost claim would leave the
+	# player a step short of the station; the twin carries it on the reliable lane just ahead.
+	_harness.welcome(&"round", 1)
+	_harness.session.set_motion(Vector3(3, 0, -1), Vector3.ONE, Vector3.LEFT, true, true, true)
+	_harness.pump(TICK_USEC)
+	var told := _told.size()
+	var seq := _harness.session.send_intent(Intents.INTERACT, {"station": 4})
+	assert_int(seq).is_greater(0)
+	_harness.deliver()
+	var last := _harness.sent.slice(-3)
+	assert_array(_names_of(last)).contains_exactly(
+		[Intents.MOVE_CLAIM, WireSchema.RELIABLE_CLAIM, Intents.INTERACT]
+	)
+	assert_dict(last[1].fields).is_equal(last[0].fields)
+	assert_int(last[2].seq).is_equal(seq)
+	assert_int(last[2].fields["station"]).is_equal(4)
+	assert_array(_harness.resends()).contains_exactly([last[1]])
+	assert_int(_told.size()).is_equal(told)
+
+
 func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 	var controls := {
 		Intents.SET_READY: {"ready": true},
@@ -126,6 +147,7 @@ func test_every_player_action_resends_and_a_session_control_does_not() -> void:
 		Intents.GIVE_UP: {},
 		Intents.SWAP: {},
 		Intents.THROW: {"facing": Vector3.FORWARD},
+		Intents.INTERACT: {"station": 1},
 	}
 	_harness.welcome(&"lobby", 1)
 	for intent: StringName in controls:
