@@ -307,6 +307,15 @@ func _join_host(bot: ScenarioBot) -> String:
 	return ""
 
 
+## The lurker and the refused bot, once made (on the host only).
+func _watchers() -> Array[BotWatcher]:
+	var made: Array[BotWatcher] = []
+	for watcher: BotWatcher in [lurker, refused]:
+		if watcher != null:
+			made.append(watcher)
+	return made
+
+
 func _log_label() -> String:
 	return "BOTS %s" % dir.get_file()
 

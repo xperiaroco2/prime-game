@@ -59,10 +59,12 @@ class LosingRunner:
 
 func test_a_watcher_join_lost_to_the_signalling_cap_or_unanswered_joins_again() -> void:
 	var runner := LosingRunner.new(_scenario())
-	# The lurker's first join ends at the signalling's cap; the refused bot's goes unanswered for
-	# 160 frames (2.7 s, past JoinRetry.UNANSWERED_USEC), as an ENet join the host never admitted.
+	# The lurker's first join ends at the signalling's 5 s cap (300 frames); the refused bot's goes
+	# unanswered for 320 frames (5.3 s, past JoinRetry.UNANSWERED_USEC), as an ENet join the host
+	# never admitted after JOIN_TIMEOUT_MS. The bots ready at once: had they acted, the countdown
+	# (5 s) would have closed joins before either joined again.
 	runner.lost_reason = {2: NetTransport.JOIN_SERVICE_UNREACHABLE, 3: ClientSession.CONNECT_FAILED}
-	runner.lost_after = {2: 1, 3: 160}
+	runner.lost_after = {2: 300, 3: 320}
 	runner.run()
 	runner.close()
 	assert_array(Array(runner.failures)).is_empty()
@@ -112,8 +114,9 @@ func test_a_watcher_join_refused_or_unreachable_does_not_join_again() -> void:
 		assert_int(runner.refused.peer).is_not_zero()
 
 
-## Two bots that wait 4 s in the lobby, so a watcher joined again is in time, then play to the
-## round.
+## Two bots that ready at once and play to the round: a watcher joined again is in time only because
+## no bot acts while a watcher's join is open (NetPlay._watchers_settled); the match's Loading
+## refuses new joins.
 func _scenario() -> BotScenario:
 	var scenario := BotScenario.new()
 	scenario.mode = load(BASE_MODE) as GameMode
@@ -124,12 +127,9 @@ func _scenario() -> BotScenario:
 	var made: Array[BotScript] = []
 	for _bot in scenario.bots:
 		var script := BotScript.new()
-		var wait := StepWait.new()
-		wait.seconds = 4.0
 		var round_started := StepWaitFor.new()
 		round_started.event = &"PhaseChanged"
 		round_started.fields = {"phase": "round"}
-		script.steps.append(wait)
 		script.steps.append(StepReady.new())
 		script.steps.append(round_started)
 		made.append(script)

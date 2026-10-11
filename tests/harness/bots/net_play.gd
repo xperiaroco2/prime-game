@@ -134,8 +134,11 @@ func claim_clients() -> void:
 			client.claim(now_usec)
 
 
-## Every bot acts on what it decoded so far, at tick `at_tick` of the runner's clock, then speaks.
+## Every bot acts on what it decoded so far, at tick `at_tick` of the runner's clock, then speaks;
+## none acts while a watcher's join is still open (_watchers_settled).
 func play_frame(at_tick: int) -> void:
+	if not _watchers_settled():
+		return
 	for bot: ScenarioBot in bots:
 		if bot.gone or not failures.is_empty():
 			continue
@@ -295,14 +298,21 @@ func _lobby_full(bot: ScenarioBot) -> bool:
 	return true
 
 
-## Why `bot` still waits for its lobby, for a run that ran out of time; "" once it was full.
+## Why `bot` still waits for its lobby or the watchers (_watchers_settled), for a run that ran out
+## of time; "" once neither holds it.
 func _lobby_wait(bot: ScenarioBot) -> String:
-	if _lobby_full(bot):
+	if not _lobby_full(bot):
+		return (
+			"bot %d waited for the lobby: peers %s, players seen %s"
+			% [bot.number, peers.to_dict(), bot.seen.keys()]
+		)
+	if _watchers_settled():
 		return ""
-	return (
-		"bot %d waited for the lobby: peers %s, players seen %s"
-		% [bot.number, peers.to_dict(), bot.seen.keys()]
-	)
+	var open := PackedStringArray()
+	for watcher: BotWatcher in _watchers():
+		if not _watcher_settled(watcher):
+			open.append("%s (join %d)" % [watcher.label, watcher.joins.ends.size() + 1])
+	return "bot %d waited for the watchers: %s" % [bot.number, ", ".join(open)]
 
 
 ## A bot that joins at the start joins again when its join went unanswered or found no room, by
@@ -368,6 +378,34 @@ func _join_retry(number: int) -> JoinRetry:
 ## null in a runner that runs no watchers.
 func _joining() -> NetTransport:
 	return null
+
+
+## The watchers this runner runs (the lurker and the refused bot, once made): none here.
+func _watchers() -> Array[BotWatcher]:
+	return []
+
+
+## Whether every watcher's join is settled (_watcher_settled). Until then no bot acts (play_frame):
+## the match must not leave its lobby while a watcher may still join again. Its Loading refuses new
+## joins (RefuseJoinsEvent; over WebRTC the room closes), so a join again that came after the bots
+## readied at once was refused, and the leak test failed the run for a watcher that never connected
+## (#509). Over the loopback the watchers connect in the first frame, before any bot acts.
+func _watchers_settled() -> bool:
+	for watcher: BotWatcher in _watchers():
+		if not _watcher_settled(watcher):
+			return false
+	return true
+
+
+## Whether `watcher` connected, or its join is lost for good: it ended for a reason JoinRetry does
+## not join again, or after its last allowed join. _watcher_join_again records the failure before
+## this is asked (JoinRetry.joins_again needs it).
+func _watcher_settled(watcher: BotWatcher) -> bool:
+	if watcher.peer != 0:
+		return true
+	if watcher.failed_reason.is_empty():
+		return false
+	return not watcher.joins.joins_again(watcher.failed_reason, watcher.transport)
 
 
 ## `watcher` (the lurker or the refused bot, just made on _joining()), its join started now.

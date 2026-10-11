@@ -389,7 +389,7 @@ func play_frame(at_tick: int) -> void:
 	super(at_tick)
 	_watch_freeze()
 	malformed.poll()
-	if chaos_mode == Mode.CHAOS and failures.is_empty():
+	if chaos_mode == Mode.CHAOS and failures.is_empty() and _watchers_settled():
 		var claimed := _hostile_client.last_claim_tick() != _claimed_tick
 		hostile.act(now_usec, claimed)
 		malformed.act(peers.peer_of(2))
@@ -400,9 +400,10 @@ func play_frame(at_tick: int) -> void:
 ## as BotsEnet's bot 1 waits, #318). play_frame fails a join lost for good (NetPlay._lost_join)
 ## before it asks, so the second test only covers a caller that asks first (a unit test, say); a
 ## join that waits for its retry (no room yet) does not start them. Over the loopback they play
-## at once.
+## at once. Neither the bots nor the hostile peers act while a watcher's join is open
+## (NetPlay._watchers_settled, #509).
 func _may_play() -> bool:
-	if not over_network or _lobby_full(bots[0]):
+	if (not over_network or _lobby_full(bots[0])) and _watchers_settled():
 		return true
 	for bot: ScenarioBot in bots:
 		if not _lost_join(bot).is_empty():

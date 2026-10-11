@@ -174,6 +174,15 @@ func _joining() -> NetTransport:
 	return transport
 
 
+## The lurker and the refused bot, once made.
+func _watchers() -> Array[BotWatcher]:
+	var made: Array[BotWatcher] = []
+	for watcher: BotWatcher in [lurker, refused]:
+		if watcher != null:
+			made.append(watcher)
+	return made
+
+
 ## The host's transport, not hosting yet: a loopback on the hub.
 func _make_host_transport() -> NetTransport:
 	return LoopbackTransport.new(schema.kind_table(), hub)
