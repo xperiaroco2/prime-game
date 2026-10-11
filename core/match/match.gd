@@ -216,6 +216,7 @@ func tick(at_tick: int) -> bool:
 		if state.clock_ticks_left == 0 and not state.clock_ended:
 			state.clock_ended = true
 			raise_fact(Fact.new(Facts.CLOCK_ENDED))
+			_settle_kills()
 	_finish_step()
 	# SelfStatus goes out on change, at most once per tick, with the tick's final numbers (§4.2).
 	SelfStatusFeed.flush(_context("self status"))
@@ -454,6 +455,7 @@ func _enter_phase(id: StringName) -> void:
 		end = _next_clock_tick() + state.clock_ticks_left - 1
 	emit_event(PhaseChangedEvent.new(id, end))
 	_phase.enter(_context("phase %s" % id))
+	_settle_kills()
 
 
 ## The first tick whose clock step is still to run: during tick t's own step it has run.

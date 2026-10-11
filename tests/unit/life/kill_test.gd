@@ -262,6 +262,31 @@ func test_a_kill_queued_by_the_phases_own_timers_lands_before_any_tick_system() 
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_kill_queued_on_the_clock_ending_lands_in_that_tick() -> void:
+	var mode := _mode(FixtureKill.new(), null)
+	mode.reactions = [FixtureModes.rule(Facts.CLOCK_ENDED, [], [FixtureKill.of([P2])])]
+	var game := _game(mode, false)
+	game.state.clock_ticks_left = 2
+	FixtureModes.run_ticks(game, 1)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.ALIVE)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DEAD)
+	assert_bool(LifeRules.kills_queued(game.state)).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_kill_queued_by_a_phase_on_entry_lands_in_the_step_of_the_entry() -> void:
+	var mode := _mode(FixtureKill.new(), null)
+	var round_spec := mode.find_phase(&"round")
+	round_spec.phase_class = FixtureKillingRound
+	round_spec.settings = {&"kills": float(P2), &"on_enter": 1.0}
+	var game := _game(mode, false)
+	assert_str(game.phase_id()).is_equal("round")
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DEAD)
+	assert_bool(LifeRules.kills_queued(game.state)).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## FixtureCombatModes.raising() with a one-handed `trap` whose Use runs `trap`, and, when
 ## `channel` is given, the mode's Use (an empty hand) starting it under ChannelFree.
 func _mode(trap: FixtureKill, channel: FixtureKillingChannel) -> GameMode:
