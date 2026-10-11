@@ -11,7 +11,8 @@ extends TickSystem
 ##
 ## A phase that does not list it removes nothing; a later phase that does removes at once what
 ## lay long enough meanwhile. An item of a vanishing kind on the ground without a rest tick (put
-## into MatchState without Items.spawn or Items.lay) is a rule error, logged, and stays.
+## into MatchState without Items.spawn or Items.lay) is a rule error, logged once: its clock starts
+## at that tick, so it neither floods the log nor lies forever.
 ##
 ## Emits: ItemVanished. No demands.
 
@@ -36,6 +37,7 @@ static func due(ctx: MatchContext) -> Array[int]:
 			continue
 		if item.rest_tick < 0:
 			ctx.error("VanishTicks: item %d lies with no rest tick" % id)
+			item.rest_tick = ctx.tick
 			continue
 		if ctx.tick - item.rest_tick >= Ticks.from_seconds(item.kind.vanish_seconds):
 			ids.append(id)

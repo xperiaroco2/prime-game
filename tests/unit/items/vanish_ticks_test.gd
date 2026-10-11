@@ -110,9 +110,16 @@ func test_a_vanishing_kind_lying_without_a_rest_tick_is_a_rule_error() -> void:
 	var game := FixtureItemModes.in_round(FixtureVanishModes.basic(0), [P1, P2])
 	# Straight into the state, past Items.spawn: no rest tick.
 	var stray := FixtureItemModes.lay(game, &"crumb", FixtureVanishModes.SPOTS[0])
-	FixtureModes.run_ticks(game, 1)
+	FixtureModes.run_ticks(game, 3)
 	assert_bool(game.state.items.has(stray.id)).is_true()
 	assert_str("\n".join(game.diagnostics)).contains("lies with no rest tick")
+	# Logged once, not on every tick it lies there: the clock starts at the first.
+	assert_int(stray.rest_tick).is_greater_equal(0)
+	var logged := 0
+	for line: String in game.diagnostics:
+		if line.contains("lies with no rest tick"):
+			logged += 1
+	assert_int(logged).is_equal(1)
 
 
 func test_a_thrown_item_lies_from_its_landing() -> void:
