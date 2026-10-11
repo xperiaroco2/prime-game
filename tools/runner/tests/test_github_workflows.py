@@ -378,6 +378,7 @@ class CiScriptsTest(unittest.TestCase):
                     self.assertIn(f"the parts of verify --full: {result}", done.stdout)
 
 
+@unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
 class NightlyScriptsTest(unittest.TestCase):
     """The bash of nightly.yml's steps, run as GitHub runs a `run:` (bash --noprofile --norc -eo pipefail)."""
 
