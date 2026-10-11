@@ -271,7 +271,9 @@ later station of the same room (a car repair workbench, say), which ZE3 would re
   `ClientModel` fold of DE7 (a station is not done between its `StationPlaced` and its items' `ItemSpawned`, nor after
   the first of its two items is delivered; done on the second's `PackageDelivered`); a round trip of the deal's events
   through the wire codec into `ClientModel` (two items on one drop-off), since no bot carries this type's events over
-  the real wire. Delivery reads no role, so no role-swap check is new.
+  the real wire; and, for the same reason, the host's per-peer filter over a dealt and delivered round of this type
+  with a crew player and a dissident: every peer receives the same task events (§3: nothing in it is secret), which the leak test
+  checks only for the greybox's Delivery. Delivery reads no role, so no role-swap check is new.
 - **Content tests** (D2, DE12; on `content/` and the real maps): on every map this Delivery lists (House), one marker
   per drop-off tag and no marker of its item spawn tags inside a drop-off's cylinder (an item that would spawn
   delivered); each Delivery's `maps` naming one map of the base mode, the two apart, and the tutorial's map on the type DD10 picks; ZE9's spacing
