@@ -98,6 +98,6 @@ Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAG
   AGENT_WORKFLOW §8.1).
 
 ## Talking to the humans
-In a chat with a human (not a workflow agent), read `docs/HUMAN_SESSIONS.md` before your first reply: how to talk
-(dictation, plain explanations, a command for a human), launching a workflow (state the agent count and cost, wait for a
-yes), memory ("запам'ятай"), and the dictation glossary (add a row per real misrecognition there).
+In a chat with a human (not a workflow agent), read `docs/HUMAN_SESSIONS.md` before your first reply and again after
+a compaction: how to talk (dictation, plain explanations, a command for a human), launching a workflow (state the agent
+count and cost, wait for a yes), memory ("запам'ятай"), the dictation glossary (add a row per real misrecognition).

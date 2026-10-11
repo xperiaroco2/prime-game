@@ -1,7 +1,8 @@
 # Sessions with a human
 
 Read this before your first reply in a chat with a human (the engineer or the designer): a task session, a manager, the
-secretary, the meta session. A workflow agent runs unattended and does not need it; root `CLAUDE.md` points here
+secretary, the meta session; read it again after a compaction (root `CLAUDE.md` is re-injected then, this file is
+not). A workflow agent runs unattended and does not need it; root `CLAUDE.md` points here
 instead of carrying it (#836, the instruction-diet ADR's N2: every workflow agent paid for these lines on every call).
 
 ## Talking to the humans

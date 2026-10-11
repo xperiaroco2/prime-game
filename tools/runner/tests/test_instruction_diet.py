@@ -81,6 +81,14 @@ class RootClaudeMdTest(unittest.TestCase):
         self.assertLess(len(talking), 600, "a pointer, not the rules again")
         self.assertTrue(HUMAN_SESSIONS.is_file())
 
+    def test_the_human_sessions_doc_is_read_again_after_a_compaction(self) -> None:
+        # Review of #836: root is re-injected after a compaction, the doc is not, so each pointer says to read it again.
+        talking = " ".join(next(t for title, t in self.sections.items() if title.startswith("Talking")).split())
+        managers = " ".join((common.ROOT / "docs" / "MANAGERS.md").read_text(encoding="utf-8").split())
+        intro = " ".join(HUMAN_SESSIONS.read_text(encoding="utf-8").split("\n## ")[0].split())
+        for where, text in (("root CLAUDE.md", talking), ("docs/MANAGERS.md", managers), ("the doc's intro", intro)):
+            self.assertIn("again after a compaction", text, where)
+
     def test_the_moved_rules_load_from_the_human_sessions_doc(self) -> None:
         doc = sections(HUMAN_SESSIONS.read_text(encoding="utf-8"))
         self.assertEqual(list(doc), ["Talking to the humans", "Launching a workflow", "Memory", "Dictation glossary"])
