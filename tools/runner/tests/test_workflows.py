@@ -2879,6 +2879,7 @@ class CleanRebaseTest(unittest.TestCase):
             ({}, {"why_settled": False}, "the conflict the Why names is not shown settled by verify"),
             ({}, {"why_settled": None}, "no verdict on the Why"),
             ({}, {"ci_green": False}, "CI not green"),
+            ({}, {"up_to_date": False}, "the PR was not brought up to date"),
             ({"review": True}, {}, "review: true"),
         )
         jobs = [("pr-rebase.js", dict(ARGS, **args), self.rebased(**extra)) for args, extra, _ in cases]

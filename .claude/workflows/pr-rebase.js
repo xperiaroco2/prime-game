@@ -59,7 +59,7 @@ export const meta = {
 //                 agents (up to the 2 to 4 of a full review that a clean rebase would skip)
 // The clean path (#858): the rebase agent's last step compares the patches (`git range-diff origin/<base> <old_tip> <new_tip>`: only the PR's own commits) and
 // returns patches_unchanged, range_diff (its counts by mark) and why_settled (the semantic conflict the Why names is
-// shown settled by the green verify). When all of patches_unchanged, why_settled and ci_green are true and conflicts
+// shown settled by the green verify). When all of patches_unchanged, why_settled, ci_green and up_to_date are true and conflicts
 // and fixes are empty, no reviewer, skeptic or fix agent runs: the result says path 'clean' with reviews_skipped (the
 // reviewers the paths routed). Anything else, a missing verdict included, or review true, runs the full review as
 // before: path 'full' with the reason. The rebase is verified (publish) and CI-tested either way.
@@ -288,6 +288,7 @@ if (items(reb.fixes).length) fullBecause.push(`${items(reb.fixes).length} fix(es
 if (reb.patches_unchanged !== true) fullBecause.push(reb.patches_unchanged === false ? 'a patch changed in the range-diff' : 'no range-diff verdict')
 if (reb.why_settled !== true) fullBecause.push(reb.why_settled === false ? 'the conflict the Why names is not shown settled by verify' : 'no verdict on the Why')
 if (reb.ci_green !== true) fullBecause.push('CI not green')
+if (reb.up_to_date !== true) fullBecause.push('the PR was not brought up to date')
 const RANGE = reb.range_diff ? { range_diff: line(reb.range_diff) } : {}
 if (!fullBecause.length) {
   const skipped = ['code-reviewer', ...(netcode ? ['netcode-security-reviewer'] : []), ...(netcode && SECOND_REVIEW ? ['second netcode-security-reviewer'] : [])]
