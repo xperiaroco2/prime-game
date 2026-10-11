@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,30 @@ def git(where: Path, *args: str) -> str:
     return res.stdout.strip()
 
 
+def make_template(owner: type[unittest.TestCase], prefix: str) -> Path:
+    """An empty folder for a class's repo template, removed when the class is done."""
+    template = Path(tempfile.mkdtemp(prefix=prefix))
+    owner.addClassCleanup(force_rmtree, str(template))
+    return template
+
+
+def copy_template(test: unittest.TestCase, template: Path, prefix: str, clones: tuple[str, ...]) -> Path:
+    """A fresh copy of a class's repo template for one test: each test stays isolated, and none pays for the git calls
+    (about 60 ms each on Windows) that built the repos. A clone's config holds its remote's absolute path: it is
+    pointed at the copy, since a path left over would let a test push into the template and so into its neighbours."""
+    tmp = Path(tempfile.mkdtemp(prefix=prefix))
+    test.addCleanup(force_rmtree, str(tmp))
+    shutil.copytree(template, tmp, dirs_exist_ok=True)
+    for name in clones:
+        config = tmp / name / ".git" / "config"
+        text = config.read_text(encoding="utf-8").replace(template.as_posix(), tmp.as_posix())
+        left = {template.as_posix(), str(template), str(template).replace("\\", "\\\\")}  # git escapes a backslash
+        if any(form.lower() in text.lower() for form in left):
+            raise AssertionError(f"{config} still points into the template {template}")
+        config.write_text(text, encoding="utf-8", newline="\n")
+    return tmp
+
+
 class SlugAndAreaTest(unittest.TestCase):
     def test_slug(self) -> None:
         self.assertEqual(start.slug("M0: Vote tally (host)"), "m0-vote-tally-host")
@@ -43,20 +68,43 @@ class SlugAndAreaTest(unittest.TestCase):
             start.area_of([], "docs", 5)
 
 
+class CopyTemplateTest(unittest.TestCase):
+    def test_copy_points_clones_at_the_copy_and_refuses_a_path_left_in_another_form(self) -> None:
+        template = make_template(type(self), "copy-template-")
+        (template / "work" / ".git").mkdir(parents=True)
+        config = template / "work" / ".git" / "config"
+        config.write_text(f"[remote]\n\turl = {template.as_posix()}/remote.git\n", encoding="utf-8", newline="\n")
+        tmp = copy_template(self, template, "copy-", ("work",))
+        text = (tmp / "work" / ".git" / "config").read_text(encoding="utf-8")
+        self.assertIn(tmp.as_posix(), text)
+        self.assertNotIn(template.as_posix(), text)
+        escaped = str(template).replace("\\", "\\\\")  # a Windows path as git stores it in a config value
+        config.write_text(f"[core]\n\thooksPath = {escaped}\n", encoding="utf-8", newline="\n")
+        if escaped != template.as_posix():
+            with self.assertRaises(AssertionError):
+                copy_template(self, template, "copy-", ("work",))
+
+
 class StartTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="start-"))
-        self.addCleanup(force_rmtree, str(self.tmp))
-        git(self.tmp, "init", "-q", "--bare", "-b", "main", "remote.git")
-        git(self.tmp, "clone", "-q", str(self.tmp / "remote.git"), "work")
-        self.work = self.tmp / "work"
+    template: Path  # a bare remote and a clone of it whose main holds c1, built once for the class
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.template = make_template(cls, "start-template-")
+        git(cls.template, "init", "-q", "--bare", "-b", "main", "remote.git")
+        git(cls.template, "clone", "-q", (cls.template / "remote.git").as_posix(), "work")
+        work = cls.template / "work"
         for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
-            git(self.work, "config", key, value)
-        self.write("f.txt", "one\n")
-        self.write(".gitignore", ".claude/worktrees/\n")
-        git(self.work, "add", ".")
-        git(self.work, "commit", "-q", "-m", "c1")
-        git(self.work, "push", "-q", "origin", "main")
+            git(work, "config", key, value)
+        (work / "f.txt").write_text("one\n", encoding="utf-8", newline="\n")
+        (work / ".gitignore").write_text(".claude/worktrees/\n", encoding="utf-8", newline="\n")
+        git(work, "add", ".")
+        git(work, "commit", "-q", "-m", "c1")
+        git(work, "push", "-q", "origin", "main")
+
+    def setUp(self) -> None:
+        self.tmp = copy_template(self, self.template, "start-", ("work",))
+        self.work = self.tmp / "work"
         self.issue = {
             "number": 42,
             "title": "Vote tally",

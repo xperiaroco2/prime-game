@@ -11,7 +11,7 @@ from unittest import mock
 
 from runner import cli, guard, merge, permissions, sessions, slots, train
 from runner.common import Failure, Result
-from runner.tests.test_merge import MAIN, RULES, FakeGitHub, MergeCase, _gh_result, _git
+from runner.tests.test_merge import MAIN, RULES, FakeGitHub, GitCounter, MergeCase, _gh_result, _git
 
 PASS = {"name": "verify", "state": "SUCCESS", "bucket": "pass"}
 PENDING = {"name": "verify", "state": "PENDING", "bucket": "pending"}
@@ -453,6 +453,21 @@ class TrainTest(TrainCase):
         self.assertEqual(rc, 0, text)
         self.assertEqual(self.published, [30])
 
+    def test_a_warning_among_the_git_state_answers_does_not_shift_them(self) -> None:
+        wt = self.pr(30, {"core/a.gd": "extends Node\n"})
+        (Path(_git(wt, "rev-parse", "--absolute-git-dir")) / "BISECT_LOG").write_text("# bad\n", encoding="utf-8")
+        real = train._wt
+
+        def noisy(where: Path, *args: str, **named: object) -> Result:
+            res = real(where, *args, **named)  # type: ignore[arg-type]
+            if args[:1] == ("rev-parse",) and args.count("--git-path") > 1:
+                return Result(res.rc, "warning: something\n" + res.out, res.timed_out, res.seconds)
+            return res
+
+        pr = mock.Mock(oid=_git(wt, "rev-parse", "HEAD"))
+        with mock.patch.object(train, "_wt", noisy):
+            self.assertEqual(train.held(wt, pr, 0), "a bisect is in progress there")
+
     def test_a_branch_with_merges_of_main_takes_main_in_by_a_merge(self) -> None:
         wt = self.pr(30, {"core/a.gd": "extends Node\n"})
         self.main_moves({"core/y.gd": "extends Node\n"})
@@ -528,6 +543,29 @@ class TrainTest(TrainCase):
             train.main([30], base="main")
         self.assertIn("is a task's checkout", str(caught.exception))
         self.assertEqual(self.gh.merges, [])
+
+
+class TrainCallsTest(TrainCase):
+    """The git processes of a 2-PR dry run (#724): 72 (main in both heads) and 86 (main moved, no overlap) before one
+    run cached its git answers; each is now at most half of that. The output lines are checked by TrainTest."""
+
+    def test_a_dry_run_with_both_heads_up_to_date_asks_git_at_most_half_as_often_as_before(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        self.pr(31, {"core/b.gd": "extends Node\n"})
+        with GitCounter(self.gh) as git:
+            rc, text = self.train(30, 31, dry_run=True)
+        self.assertEqual(rc, 0, text)
+        self.assertLessEqual(git.total, 36, dict(git.counts))
+
+    def test_a_dry_run_behind_main_with_no_overlap_asks_git_at_most_half_as_often_as_before(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        self.pr(31, {"core/b.gd": "extends Node\n"}, shared=False)
+        self.main_moves({"core/z.gd": "extends Node\n"}, shared=False)
+        with GitCounter(self.gh) as git:
+            rc, text = self.train(30, 31, dry_run=True)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("behind main, no file it changes is one main changed", text)
+        self.assertLessEqual(git.total, 43, dict(git.counts))
 
 
 class OwnRepo(guard.NoRepo):

@@ -207,7 +207,7 @@ func knock_down(game: Game) -> void:
 
 ## The crew wins at the host's next tick: FixtureBaseMode's win condition, peer 0's counter
 ## `crew_win` at 1, as FixtureBaseMode.in_end has it (#240). The round goes to End; the host's
-## Back to lobby (End -> Lobby's ResetMatch) clears the counter. It reaches into the host's Match
+## ReturnToLobby (End -> Lobby's ResetMatch) clears the counter. It reaches into the host's Match
 ## as knock_down() does.
 func win() -> void:
 	var node := host.get_node("HostNode") as HostNode

@@ -71,7 +71,7 @@ func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -
 	var placed: WireMessage = found[&"StationPlaced"]
 	assert_str(str(placed.fields["kind"])).is_equal(_id(100))
 	var changed: WireMessage = found[&"SettingsChanged"]
-	assert_int((changed.fields["shortfalls"] as PackedStringArray).size()).is_equal(3 + 2 + 2)
+	assert_int((changed.fields["shortfalls"] as Array).size()).is_equal(3 + 2 + 2)
 	assert_int((changed.fields["needed_markers"] as Dictionary).size()).is_equal(3)
 	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
 
@@ -89,10 +89,11 @@ func test_an_id_outside_the_wire_alphabet_is_refused() -> void:
 	assert_str("\n".join(WireBudget.check(mode))).contains("Teammates (kind 45): role")
 
 
-## WireBudget counts every shortfall as one full note: the longest line FitCheck and Demands write
-## (32-character ids, the largest counts, a 255-byte map path) must fit NOTE_MAX, one per tag and
-## station kind plus two, or the encoder would refuse SettingsChanged in a lobby.
-func test_the_longest_shortfall_of_each_kind_fits_a_note() -> void:
+## WireBudget counts every shortfall as the longest host text the wire takes (#548): the longest
+## FitCheck and Demands make (32-character ids, the largest counts, a 255-byte map path) must be
+## a host text the encoder takes, one per tag and station kind plus two, or the encoder would
+## refuse SettingsChanged in a lobby.
+func test_the_longest_shortfall_of_each_kind_is_a_host_text_the_wire_takes() -> void:
 	var mode := _mode(WireSchema.MAX_PLAYERS, 1, 0, 1)
 	mode.min_players = WireSchema.MAX_PLAYERS
 	var no_layouts: Dictionary[String, LevelLayout] = {}
@@ -107,16 +108,24 @@ func test_the_longest_shortfall_of_each_kind_fits_a_note() -> void:
 	ctx.state = game.state
 	ctx.mode = mode
 	var found := FitCheck.shortfalls(ctx, needed)
-	assert_int(found.size()).is_equal(2)
-	assert_str(found[1]).contains(mode.maps[0])
+	(
+		assert_array(found.map(func(text: HostText) -> StringName: return text.id))
+		. is_equal([HostText.PLAYERS_FEW, HostText.NO_LAYOUT])
+	)
 	found.append_array(needed.shortfalls(LevelLayout.new(mode.maps[0])))
 	assert_int(found.size()).is_equal(needed.markers.size() + needed.colours.size() + 2)
-	for line: String in found:
-		(
-			assert_bool(WireField.is_printable(line, WireField.NOTE_MAX))
-			. override_failure_message("%d characters: %s" % [line.length(), line])
-			. is_true()
-		)
+	var schema := WireSchema.game(false)
+	var fields: Dictionary = {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			fields = message.fields
+	for text: HostText in found:
+		var one: Array[Dictionary] = [text.to_dict()]
+		fields["shortfalls"] = one
+		var encoded := schema.write(WireMessage.new(&"SettingsChanged", fields))
+		assert_str(encoded.problem).override_failure_message(str(text)).is_empty()
+		assert_int(text.ids.size()).is_less_equal(WireSchema.MAX_TEXT_IDS)
+		assert_int(text.numbers.size()).is_less_equal(WireSchema.MAX_TEXT_NUMBERS)
 
 
 ## A mode whose every id is 32 characters and whose map path is 255 bytes: `players` at most,

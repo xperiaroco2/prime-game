@@ -1,0 +1,10 @@
+{
+  "hall.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the hall: clock (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "kitchen.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the kitchen: kettle (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "lab.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the lab: flask with two bubbles (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "lounge.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the lounge: sofa (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "office.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the office: desk lamp (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "server.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the server room: plug (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "storage.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the storage room: stacked boxes (48 grid, 6-unit stroke), drawn for room-signs system B"},
+  "workshop.svg": {"licence": "own work", "author": "prime-game-ui", "what": "pictogram for the workshop: hammer (48 grid, 6-unit stroke), drawn for room-signs system B"}
+}

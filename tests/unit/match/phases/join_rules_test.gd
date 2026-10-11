@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## Joining (ARCHITECTURE §3.2, §3.5, §4.1): Hello from a connected newcomer, once; the version, the
-## content hash (§4.3, E1) and the room; the host's Player<n> names by join order, never reused;
-## Welcome with public facts only, PlayerJoined and SettingsChanged; the joiner's lobby spot and
-## epoch; leaves of newcomers and players.
+## content hash (§4.3, E1) and the room; the joiner's own name, cleaned, or the host's Player<n> by
+## join order, never reused, and a suffix for a duplicate (#550); Welcome with public facts only,
+## PlayerJoined and SettingsChanged; the joiner's lobby spot and epoch; leaves of newcomers and
+## players.
 
 const P1 := 1
 const P2 := 2
@@ -17,7 +18,7 @@ func test_a_hello_joins_with_welcome_player_joined_and_settings_changed() -> voi
 	FixtureBaseMode.join(game, P1, "Ann")
 	FixtureBaseMode.join(game, P2, "  Bob ")
 	assert_array(game.state.peers()).is_equal([P1, P2])
-	assert_str(game.state.player(P2).name).is_equal("Player2")
+	assert_str(game.state.player(P2).name).is_equal("Bob")
 	assert_array(game.view_of(P2).event_names()).is_equal(
 		[&"Welcome", &"PlayerJoined", &"SettingsChanged"]
 	)
@@ -26,7 +27,7 @@ func test_a_hello_joins_with_welcome_player_joined_and_settings_changed() -> voi
 	)
 	var joined := game.view_of(P1).events_named(&"PlayerJoined")[1] as PlayerJoinedEvent
 	assert_int(joined.peer).is_equal(P2)
-	assert_str(joined.player_name).is_equal("Player2")
+	assert_str(joined.player_name).is_equal("Bob")
 	assert_vector(joined.spot).is_equal(game.state.player(P2).position)
 	assert_array(game.state.newcomers.keys()).is_empty()
 
@@ -45,11 +46,14 @@ func test_welcome_holds_the_joiner_spot_epoch_and_the_public_lobby() -> void:
 	assert_vector(welcome.spot).is_equal(bob.position)
 	assert_int(welcome.epoch).is_equal(1)
 	assert_int(bob.epoch).is_equal(1)
-	assert_array(welcome.roster).is_equal(
-		[
-			{"peer": P1, "name": "Player1", "ready": true},
-			{"peer": P2, "name": "Player2", "ready": false}
-		]
+	(
+		assert_array(welcome.roster)
+		. is_equal(
+			[
+				{"peer": P1, "name": "Ann", "ready": true, "colour": 0},
+				{"peer": P2, "name": "Bob", "ready": false, "colour": 1},
+			]
+		)
 	)
 	assert_dict(welcome.settings).is_equal({&"knives": 2, &"circles": 1})
 	assert_str(welcome.map).is_equal(FixtureBaseMode.MAP)
@@ -118,7 +122,7 @@ func test_another_content_hash_is_rejected_and_disconnected() -> void:
 	# The host's hash joins.
 	FixtureModes.send(game, Intents.PEER_CONNECTED, P5)
 	FixtureBaseMode.hello(game, P5, "Eve", JoinRules.PROTOCOL_VERSION, 1, CONTENT)
-	assert_str(game.state.player(P5).name).is_equal("Player1")
+	assert_str(game.state.player(P5).name).is_equal("Eve")
 	assert_array(FixtureModes.rejections(game, P5)).is_empty()
 
 
@@ -202,36 +206,46 @@ func test_the_numbering_survives_end_to_lobby() -> void:
 	assert_str(game.state.player(P5).name).is_equal("Player4")
 
 
-func test_welcome_and_player_joined_carry_the_hosts_name_never_the_clients() -> void:
+func test_welcome_and_player_joined_carry_the_hosts_final_names() -> void:
 	var game := FixtureBaseMode.started()
 	FixtureBaseMode.join(game, P1, "Ann")
-	FixtureBaseMode.join(game, P2, "Bob")
-	var welcome := game.view_of(P2).events_named(&"Welcome")[0] as WelcomeEvent
+	FixtureBaseMode.join(game, P2, " ann ")
+	FixtureBaseMode.join(game, P3)
+	var welcome := game.view_of(P3).events_named(&"Welcome")[0] as WelcomeEvent
 	(
 		assert_array(welcome.roster.map(func(entry: Dictionary) -> Variant: return entry["name"]))
-		. is_equal(["Player1", "Player2"])
+		. is_equal(["Ann", "ann 2", "Player3"])
 	)
-	for peer: int in [P1, P2]:
+	for peer: int in [P1, P2, P3]:
 		var joined := game.view_of(peer).events_named(&"PlayerJoined")
-		assert_str((joined[-1] as PlayerJoinedEvent).player_name).is_equal("Player2")
-	var names_seen := ""
-	for peer: int in [P1, P2]:
-		for event: MatchEvent in game.view_of(peer).events:
-			names_seen += str(event.to_dict())
-	assert_str(names_seen).not_contains("Ann")
-	assert_str(names_seen).not_contains("Bob")
+		assert_str((joined[-1] as PlayerJoinedEvent).player_name).is_equal("Player3")
+	var second := game.view_of(P1).events_named(&"PlayerJoined")[1] as PlayerJoinedEvent
+	assert_str(second.player_name).is_equal("ann 2")
+	assert_str(game.state.player(P2).name).is_equal("ann 2")
 
 
-func test_a_clients_odd_name_is_ignored() -> void:
+## The host's own rule, whatever a client sends: a name is never a reason to refuse a Hello;
+## what clean() leaves of it is the name, else Player<n> (n counting every join).
+func test_a_clients_odd_name_is_cleaned_or_falls_back() -> void:
 	var game := FixtureBaseMode.started()
-	var odd: Array[Variant] = ["", "   ", "x".repeat(10000), "a\nb\tc\u0007\u009f", 7, null]
+	var odd: Array = [
+		["", "Player1"],
+		["   ", "Player2"],
+		["x".repeat(10000), "x".repeat(16)],
+		["a\nb\tc\u0007\u009f", "abc"],
+		["\n\t\u0007\u001f", "Player5"],
+		[7, "Player6"],
+		[null, "Player7"],
+		[["Ann"], "Player8"],
+		[&"Cy", "Cy"],
+	]
 	var peer := 10
-	for odd_name: Variant in odd:
+	for each: Array in odd:
 		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
-		var hello := {"name": odd_name, "version": JoinRules.PROTOCOL_VERSION, "content": 0}
+		var hello := {"name": each[0], "version": JoinRules.PROTOCOL_VERSION, "content": 0}
 		FixtureModes.send(game, Intents.HELLO, peer, hello)
 		assert_array(FixtureModes.rejections(game, peer)).is_empty()
-		assert_str(game.state.player(peer).name).is_equal("Player%d" % (peer - 9))
+		assert_str(game.state.player(peer).name).is_equal(each[1])
 		# Leave again: the mode's roster holds at most 4 players.
 		FixtureModes.send(game, Intents.PEER_LEFT, peer)
 		peer += 1
@@ -241,6 +255,45 @@ func test_a_clients_odd_name_is_ignored() -> void:
 		game, Intents.HELLO, peer, {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
 	)
 	assert_str(game.state.player(peer).name).is_equal("Player%d" % (odd.size() + 1))
+	assert_array(game.diagnostics).is_empty()
+
+
+func test_a_duplicate_name_gets_the_first_free_number() -> void:
+	var game := FixtureBaseMode.started()
+	FixtureBaseMode.join(game, P1, "Dima")
+	FixtureBaseMode.join(game, P2, "Dima")
+	FixtureBaseMode.join(game, P3, "dima")
+	FixtureBaseMode.join(game, P5, "DIMA 2")
+	var names: Array[String] = []
+	for peer: int in [P1, P2, P3, P5]:
+		names.append(game.state.player(peer).name)
+	assert_array(names).is_equal(["Dima", "Dima 2", "dima 3", "DIMA 2 2"])
+	# A leaver frees its name: the next Dima takes "Dima 2" again.
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureBaseMode.join(game, 7, "Dima")
+	assert_str(game.state.player(7).name).is_equal("Dima 2")
+	var joined := game.view_of(P1).events_named(&"PlayerJoined")[-1] as PlayerJoinedEvent
+	assert_str(joined.player_name).is_equal("Dima 2")
+
+
+func test_a_long_duplicate_stays_within_16_characters() -> void:
+	var game := FixtureBaseMode.started()
+	FixtureBaseMode.join(game, P1, "abcdefghijklmnopqrst")
+	FixtureBaseMode.join(game, P2, "abcdefghijklmnop")
+	assert_str(game.state.player(P1).name).is_equal("abcdefghijklmnop")
+	assert_str(game.state.player(P2).name).is_equal("abcdefghijklmn 2")
+
+
+func test_the_fallback_never_repeats_a_chosen_name() -> void:
+	var game := FixtureBaseMode.started()
+	FixtureBaseMode.join(game, P1, "player2")
+	# The second join's fallback is Player2, which P1 has (ignoring case).
+	FixtureBaseMode.join(game, P2)
+	assert_int(game.state.joins).is_equal(2)
+	assert_str(game.state.player(P2).name).is_equal("Player2 2")
+	# A chosen name counts as a join too: the next fallback is Player3.
+	FixtureBaseMode.join(game, P3, "")
+	assert_str(game.state.player(P3).name).is_equal("Player3")
 
 
 func test_a_hello_into_a_full_roster_is_rejected_and_disconnected() -> void:

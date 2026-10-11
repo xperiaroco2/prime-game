@@ -285,7 +285,9 @@ def _kill_group(proc: subprocess.Popen[bytes]) -> None:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
-            pass
+            # No group by its pid: the process leads none (started without group_kwargs()) or has ended. Kill it
+            # alone, or kill_tree's wait blocks until it ends by itself (#603: 120 s of every CI selftest).
+            proc.kill()
 
 
 # Every process run() started in this process that has not ended (#574). Each runs in a group of its own

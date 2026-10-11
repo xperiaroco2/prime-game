@@ -2,8 +2,10 @@
 
 import contextlib
 import io
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -164,6 +166,28 @@ class ProcessTest(unittest.TestCase):
         res = common.run([sys.executable, "-c", child], timeout=30)
         self.assertEqual(res.rc, 0)
         self.assertIn("héllo", res.out)
+
+    def test_kill_tree_kills_a_process_that_leads_no_group_of_its_own(self) -> None:
+        # #603: on Linux a child started without group_kwargs() leads no process group, so killpg found no group,
+        # nothing was killed and kill_tree's wait blocked until the child ended by itself (test_slots' StaleTest
+        # waited out its child's 120 s sleep on CI). The process itself is killed then.
+        proc = mock.Mock(pid=4242)
+        with (
+            mock.patch.object(common, "IS_WINDOWS", False),
+            mock.patch.object(common.signal, "SIGKILL", 9, create=True),
+            mock.patch.object(common.os, "killpg", side_effect=ProcessLookupError, create=True) as killpg,
+        ):
+            common.kill_tree(proc)
+        killpg.assert_called_once()
+        proc.kill.assert_called_once_with()
+        proc.wait.assert_called_once_with()
+
+    def test_kill_tree_kills_a_real_child_outside_a_group_of_its_own(self) -> None:
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+        started = time.monotonic()
+        common.kill_tree(child)  # type: ignore[arg-type]
+        self.assertIsNotNone(child.returncode)
+        self.assertLess(time.monotonic() - started, 20)
 
 
 if __name__ == "__main__":

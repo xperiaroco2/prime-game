@@ -29,6 +29,9 @@ var stations: Dictionary[int, StationState] = {}
 var bodies: Dictionary[int, Vector3] = {}
 ## Match-clock ticks left while it runs or is paused; -1 before StartClock (2h).
 var clock_ticks_left := -1
+## The ticks StartClock set the clock to; -1 before it ran (#548: EndMatch gives the round's
+## length as the ticks counted down since).
+var clock_ticks_total := -1
 var clock_ended := false
 ## The winning side once EndMatch ran (2h), else empty.
 var winner: StringName
@@ -37,9 +40,14 @@ var rng: RngStreams
 var player_rules: PlayerRules
 ## Connected peers whose Hello was not accepted yet (2b), peer -> true: only they may join.
 var newcomers: Dictionary[int, bool] = {}
-## The joins accepted in the session (2b): the next joiner is Player<joins + 1>. Session state:
+## The joins accepted in the session (2b): a joiner without a usable name of its own (#550) is
+## Player<n>, n its join's number, counted for every join whatever the name. Session state:
 ## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
 var joins := 0
+## The lobby's name the host set (#214, ChangeSettings's `lobby_name`), as LobbyName cleaned it;
+## "" is the default, which each client shows as `lobby.default_name` with the host's name.
+## Session state: reset_match() keeps it, so the lobby keeps its name from match to match (§3.5).
+var lobby_name := ""
 ## Roles forced per peer (debug builds only, §8, §9.7: a debug command or a scenario), which
 ## DealRoles applies before its draws; a forced role counts toward its quota (the engineer's
 ## answer A on #30). Session state: reset_match() keeps it. core/ cannot tell a debug build, so
@@ -74,8 +82,9 @@ func add_player(peer: int, player_name: String) -> PlayerState:
 	return joined
 
 
-## Counts an accepted join and returns the joiner's name, Player<n> with n the join's number in
-## the session (§3.5, the engineer's decision of 2026-09-30 on #58; own names come with #73).
+## Counts an accepted join and returns its fallback name, Player<n> with n the join's number in
+## the session (§3.5, the engineer's decision of 2026-09-30 on #58), which JoinRules gives a
+## joiner without a usable name of its own (#550).
 func name_next_joiner() -> String:
 	joins += 1
 	return "Player%d" % joins
@@ -196,6 +205,7 @@ func reset_match() -> void:
 	_next_task_id = 1
 	_next_station_id = 1
 	clock_ticks_left = -1
+	clock_ticks_total = -1
 	clock_ended = false
 	winner = &""
 	for peer: int in peers():

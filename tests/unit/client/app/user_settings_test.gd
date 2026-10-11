@@ -1,9 +1,11 @@
 extends GdUnitTestSuite
 ## UserSettings (the M5 ADR §1.7, E43, E47 as amended): the defaults, a round trip through the file
 ## under user://, a damaged or partial file falling back to the defaults, the threshold kept above
-## digital silence, and one file per window by PRIME_INSTANCE.
+## digital silence, one file per window by PRIME_INSTANCE, and the player's own name (#550).
 
 const PATH := "user://user_settings_test.cfg"
+## A control character a name never keeps.
+const BELL := "\u0007"
 
 
 func after_test() -> void:
@@ -18,6 +20,8 @@ func test_the_defaults() -> void:
 	assert_float(settings.threshold).is_equal(VoiceGate.DEFAULT_THRESHOLD)
 	assert_bool(settings.denoise).is_true()
 	assert_str(settings.opening).is_empty()
+	assert_str(settings.language).is_empty()
+	assert_str(settings.player_name).is_empty()
 	# D15's four sliders at 0, 0, -6 and -14 dB (placeholders).
 	var volumes: Array[float] = []
 	for bus: StringName in UserSettings.VOLUMES:
@@ -36,6 +40,7 @@ func test_a_round_trip_keeps_every_setting() -> void:
 	settings.threshold = 0.25
 	settings.denoise = false
 	settings.opening = "Microphone Array"
+	settings.language = "uk"
 	settings.set_volume_db(&"Master", -3.0)
 	settings.set_volume_db(&"Voice", -60.0)
 	settings.set_volume_db(&"Effects", 2.5)
@@ -48,6 +53,7 @@ func test_a_round_trip_keeps_every_setting() -> void:
 	assert_float(back.threshold).is_equal_approx(0.25, 0.0001)
 	assert_bool(back.denoise).is_false()
 	assert_str(back.opening).is_equal("Microphone Array")
+	assert_str(back.language).is_equal("uk")
 	assert_float(back.volume_db(&"Master")).is_equal(-3.0)
 	assert_float(back.volume_db(&"Voice")).is_equal(-60.0)
 	assert_float(back.volume_db(&"Effects")).is_equal(2.5)
@@ -68,15 +74,79 @@ func test_a_damaged_or_partial_file_falls_back_to_the_defaults() -> void:
 	file.set_value("voice", "threshold", "loud")
 	file.set_value("volume", "Music", 40.0)
 	file.set_value("volume", "Voice", "x")
+	file.set_value("interface", "language", "fr")
 	file.save(PATH)
 	var settings := UserSettings.new(PATH)
+	settings.language = "uk"
 	assert_int(settings.read()).is_equal(OK)
+	assert_str(settings.language).is_empty()
 	assert_int(settings.mode).is_equal(UserSettings.Mode.VOICE_ACTIVITY)
 	assert_float(settings.threshold).is_equal(VoiceGate.DEFAULT_THRESHOLD)
 	assert_bool(settings.denoise).is_true()
 	assert_float(settings.volume_db(&"Music")).is_equal(UserSettings.MAX_DB)
 	assert_float(settings.volume_db(&"Voice")).is_equal(0.0)
 	assert_float(settings.volume_db(&"Effects")).is_equal(-6.0)
+
+
+## The name (#550): at most 16 characters, no controls, no blank edges, and once chosen never
+## empty; "" (none chosen yet) until the player picks one.
+func test_the_player_name_is_kept_clean_and_never_empty() -> void:
+	var settings := UserSettings.new(PATH)
+	settings.player_name = "   "
+	assert_str(settings.player_name).is_empty()
+	settings.player_name = "  Діма" + BELL + " "
+	assert_str(settings.player_name).is_equal("Діма")
+	for blank: String in ["", "  ", BELL + " " + BELL]:
+		settings.player_name = blank
+		assert_str(settings.player_name).is_equal("Діма")
+	settings.player_name = "x".repeat(20)
+	assert_str(settings.player_name).is_equal("x".repeat(16))
+	assert_int(settings.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_str(back.player_name).is_equal("x".repeat(16))
+
+
+## A file edited by hand, or one from before #550: what it holds is cleaned on reading, so the
+## name always fits Hello; a file without the section reads as no name.
+func test_a_hand_edited_name_is_cleaned_on_reading_and_fits_hello() -> void:
+	var file := ConfigFile.new()
+	file.set_value("player", "name", BELL + "Д".repeat(40))
+	file.save(PATH)
+	var settings := UserSettings.new(PATH)
+	assert_int(settings.read()).is_equal(OK)
+	assert_str(settings.player_name).is_equal("Д".repeat(16))
+	var hello := {"version": WireSchema.VERSION, "content": 1, "name": settings.player_name}
+	assert_int(WireSchema.game(false).encode(WireMessage.new(&"Hello", hello)).size()).is_greater(0)
+	var old := ConfigFile.new()
+	old.set_value("interface", "language", "uk")
+	old.save(PATH)
+	var fresh := UserSettings.new(PATH)
+	assert_int(fresh.read()).is_equal(OK)
+	assert_str(fresh.player_name).is_empty()
+
+
+func test_the_tutorial_flag_is_absent_until_written_and_round_trips() -> void:
+	# #601 (E70): an absent flag, a missing file or a damaged value read as not seen.
+	var settings := UserSettings.new(PATH)
+	assert_bool(settings.tutorial_seen).is_false()
+	settings.player_name = "Ann"
+	assert_int(settings.write()).is_equal(OK)
+	var unseen := UserSettings.new(PATH)
+	assert_int(unseen.read()).is_equal(OK)
+	assert_bool(unseen.tutorial_seen).is_false()
+	unseen.tutorial_seen = true
+	assert_int(unseen.write()).is_equal(OK)
+	var seen := UserSettings.new(PATH)
+	assert_int(seen.read()).is_equal(OK)
+	assert_bool(seen.tutorial_seen).is_true()
+	assert_str(seen.player_name).is_equal("Ann")
+	var file := ConfigFile.new()
+	file.set_value("player", "tutorial_seen", "yes")
+	assert_int(file.save(PATH)).is_equal(OK)
+	var damaged := UserSettings.new(PATH)
+	assert_int(damaged.read()).is_equal(OK)
+	assert_bool(damaged.tutorial_seen).is_false()
 
 
 func test_settings_with_no_path_stay_in_memory() -> void:
@@ -144,3 +214,25 @@ func test_each_window_has_its_own_file() -> void:
 	var own := UserSettings.for_this_window()
 	var expected := UserSettings.file_name(OS.get_environment(UserSettings.INSTANCE_ENV))
 	assert_str(own.path).is_equal("user://" + expected)
+
+
+func test_large_text_reduced_motion_and_the_window_mode_round_trip() -> void:
+	# Settings > Display and Accessibility (#491): saved per player; unset before a choice.
+	var settings := UserSettings.new(PATH)
+	assert_bool(settings.large_text).is_false()
+	assert_int(settings.reduced_motion).is_equal(-1)
+	assert_str(settings.window_mode).is_empty()
+	settings.large_text = true
+	settings.reduced_motion = 0
+	settings.window_mode = UserSettings.WINDOW_WINDOWED
+	assert_int(settings.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_bool(back.large_text).is_true()
+	assert_int(back.reduced_motion).is_equal(0)
+	assert_str(back.window_mode).is_equal(UserSettings.WINDOW_WINDOWED)
+	# A hand-edited value out of place reads as unset.
+	back.reduced_motion = 7
+	back.window_mode = "borderless"
+	assert_int(back.reduced_motion).is_equal(-1)
+	assert_str(back.window_mode).is_empty()

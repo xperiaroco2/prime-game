@@ -19,7 +19,9 @@ extends RefCounted
 ## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, PutDown,
 ## Use and Throw (its facings: ChaosFrames.THROW_FACINGS) only with the empty hand its bot always
 ## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
-## is `empty_hand`), nothing a race could turn into an action.
+## is `empty_hand`), SetProfile with a new name and colour only while its client is in loading or
+## pregame (the host cannot be back in the lobby then; the round ends in End and then the lobby)
+## and else with its own (unchanged in the lobby, #551), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -28,6 +30,9 @@ const MALFORMED_CAP := 40
 ## The bursts: past the intents bucket (100) and the voice bucket (500) of PeerBudget.
 const BURST_INTENTS := 130
 const BURST_VOICE := 530
+## Voice frames it sends as soon as the silent pregame shows (#213), under the voice bucket so the
+## round's burst still meets a full one: nobody may decode them.
+const PREGAME_VOICE := 20
 ## How far an item it names in a PickUp rests from it at least: past the pick-up's 2 m and past
 ## the over-speed claim's SPEED_M, with a margin; only a carried item moves, and that one is
 ## unavailable.
@@ -36,6 +41,11 @@ const FAR_M := 8.0
 const NEAR_CLAIM_CHANCE := 0.5
 ## Its chaos voice frames count from here (LeakCheck.voice_frame's counter), apart from its bot's.
 const VOICE_COUNTER := 500_000
+## The name of its SetProfiles outside the lobby (#551); ChaosRun fails a player who has it.
+const HACKED_NAME := "Hacked"
+## The client phases in which the host is surely not in the lobby: a changed profile is refused. Not
+## the round: a frame sent in its last moments could meet the host back in the lobby after End.
+const NO_LOBBY_PHASES: Array[StringName] = [&"loading", &"pregame"]
 
 var rng := RandomNumberGenerator.new()
 ## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
@@ -57,6 +67,7 @@ var _voice_counter := VOICE_COUNTER
 var _claims := 0
 var _intent_burst_done := false
 var _voice_burst_done := false
+var _pregame_voice_done := false
 
 
 ## The chaos of `bot`, whose `client` runs on a chaos transport with `send_raw`; `budget` replays
@@ -87,6 +98,11 @@ func act(now_usec: int, claimed: bool) -> void:
 		_intent_burst_done = true
 		for _i in BURST_INTENTS:
 			_send(ChaosFrames.message(_schema, Intents.RETURN_TO_LOBBY, {}, _fresh_seq()))
+		return
+	if phase == &"pregame" and not _pregame_voice_done:
+		_pregame_voice_done = true
+		for _i in PREGAME_VOICE:
+			_voice()
 		return
 	if phase == &"round" and life == ClientModel.Life.ALIVE and not _voice_burst_done:
 		_voice_burst_done = true
@@ -130,13 +146,15 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.STOP_RAISE,
 		Intents.RAISE,
 		Intents.HELLO,
+		Intents.NEXT_STAGE,
+		Intents.SET_PROFILE,
 	]
 	if phase != &"round" or life == ClientModel.Life.DEAD:
 		# Outside the round, or dead, nothing can turn a GiveUp into a death.
 		choices.append(Intents.GIVE_UP)
 	var intent := choices[rng.randi_range(0, choices.size() - 1)]
 	var seq := _seq_for(intent)
-	var args := _args_of(intent)
+	var args := _args_of(intent, phase)
 	var item: int = args.get("item", ChaosOracle.NO_ITEM)
 	# Only a resting item is far (FAR_M): a carried one may be next to it, where a claim is a step.
 	var resting := item != ChaosOracle.NO_ITEM and _client.model.items[item].rests()
@@ -148,13 +166,13 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		_send(packet)
 
 
-func _args_of(intent: StringName) -> Dictionary:
+func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 	var args := {}
 	match intent:
 		Intents.SET_READY:
 			args = {"ready": true}
 		Intents.CHANGE_SETTINGS:
-			args = {"settings": {"packages": 2}}
+			args = {"settings": {"packages": 2}, "lobby_name": "Hacked"}
 		Intents.LOAD_ACK:
 			args = {"match_id": 1000 + rng.randi_range(0, 999)}
 		Intents.PICK_UP:
@@ -167,8 +185,21 @@ func _args_of(intent: StringName) -> Dictionary:
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
-			args = {"version": WireSchema.VERSION, "content": 0}
+			args = {"version": WireSchema.VERSION, "content": 0, "name": ""}
+		Intents.SET_PROFILE:
+			args = _profile_args(phase)
 	return args
+
+
+## SetProfile's args (#551): while its client is in a phase where the host cannot be in the lobby,
+## half the time a new name and the next colour (not_accepted there, whatever the others hold);
+## otherwise its own name and colour as its client knows them (unchanged in the lobby, not_accepted
+## elsewhere), which no race can turn into a change: nobody else renames it.
+func _profile_args(phase: StringName) -> Dictionary:
+	var me: ClientModel.Member = _client.model.roster.get(_bot.peer)
+	if NO_LOBBY_PHASES.has(phase) and rng.randf() < 0.5:
+		return {"name": HACKED_NAME, "colour": (me.colour + 1) % PlayerColours.COUNT}
+	return {"name": me.name, "colour": me.colour}
 
 
 ## A chaos seq: mostly the next one; sometimes one sent before (replayed), or one below the last

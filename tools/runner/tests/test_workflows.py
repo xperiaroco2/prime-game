@@ -32,7 +32,10 @@ and #572's line on reading a log by search, never whole.
 #605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
 tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
 gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
-return value.
+return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
+skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
+#815's ADR line (each section of the task's ADR once per context), which every agent
+carries, the publisher too.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -123,6 +126,8 @@ SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
 # #413's one-line rule: the writes outside the worktree and the scratchpad that a throwaway first command made.
 # #468: how every agent reads code (outline or grep -n first, no re-read of unchanged content, batched reads).
 READ_RULE = "- Reading (the docs-by-section rule of #339, extended to code by #468):"
+# #815: the task's ADR, each section once per context (the repeats of PR #794's `metrics --adr-reads` table).
+ADR_RULE = "- The task's ADR (each docs/decisions/ file the issue links):"
 WRITE_RULE = "- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway"
 # #456's one-line rule: the one way to change or reword an earlier commit, with no editor.
 REBASE_RULE = "- Change an earlier commit only with `git commit --fixup=<sha>`"
@@ -296,20 +301,26 @@ class WorkflowTest(unittest.TestCase):
     def test_every_agent_gets_the_hooks_path_and_no_foreground_sleep_rules(self) -> None:
         # #326, from #312: in the week of 2026-09-29 workflow agents made 9 of the 10 hooks-path reads the deny rule
         # `git config *hooksPath*` refused and 26 of the 28 foreground `sleep N; cat <log>` polls Claude Code blocked.
-        # They read their workflow prompt, not docs/AGENT_WORKFLOW.md, so each rule is one line of the shared RULES,
-        # the same in both scripts.
+        # They read their workflow prompt, not docs/AGENT_WORKFLOW.md, so each rule is one line, the same in every
+        # script. #818: 7 of the 12 refusals from 2026-10-07 to 11 were reviewers', whose prompts lacked both lines,
+        # and 2 a PowerShell `Start-Sleep -Seconds N`; so every agent gets them, the read-only ones too.
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("quick-task.js", ARGS, {"findings": [MAJOR], "queues": {"publish": [quick(["core/x.gd"])], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
         ]
         seen: dict[str, set[str]] = {HOOKS_RULE: set(), SLEEP_RULE: set()}
+        labels: set[str] = set()
         for (name, _, _), result in zip(jobs, run_jobs(jobs)):
             self.assertIsNone(result["error"])
             for event in agents(result):
-                if options(event).get("agentType") in READ_ONLY_TYPES:
-                    continue  # reviewers are read-only
+                labels.add(f"{name}:{event['label'].rsplit(':#', 1)[0]}")
                 for rule, lines in seen.items():
                     with self.subTest(workflow=name, agent=event["label"], rule=rule):
                         found = [line for line in event["prompt"].splitlines() if line.startswith(rule)]
@@ -318,10 +329,82 @@ class WorkflowTest(unittest.TestCase):
         for rule, lines in seen.items():
             with self.subTest(rule=rule):
                 self.assertEqual(len(lines), 1, f"the rule differs between agents or scripts: {sorted(lines)}")
+        # Every read-only role is covered, not only the agents of the shared rules.
+        self.assertLessEqual({f"issue-task.js:{r}" for r in ("review:plan", "review:code", "review:netcode", "review:godot-api",
+                                                             "review:netcode-second", "ab-judge", "skeptic")}
+                             | {f"pr-rebase.js:{r}" for r in ("review:code", "review:netcode", "review:netcode-second", "skeptic")}
+                             | {"quick-task.js:review:code", "quick-task.js:review:netcode", "quick-task.js:publish", "quick-task.js:fix"},
+                             labels)  # fmt: skip
         self.assertIn("`git rev-parse --git-path hooks`", next(iter(seen[HOOKS_RULE])))
         sleep = next(iter(seen[SLEEP_RULE]))
-        for way in ("`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
+        for way in ("`Start-Sleep N`", "blocks both", "`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
             self.assertIn(way, sleep)
+
+    def test_every_agent_reads_each_section_of_the_tasks_adr_once_per_context(self) -> None:
+        # #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960
+        # of them repeats of the same task ADRs, by the implementer, the publisher and the two reviewers. Every role
+        # of both scripts gets one line, the same text everywhere: issue-task's publisher too, whose PUB_RULES drop
+        # the reading line (#696) but keep this one, and the read-only agents in their REVIEW_RULES.
+        jobs = [
+            ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
+            ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+        ]
+        lines: set[str] = set()
+        labels: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                labels.add(f"{name}:{event['label'].rsplit(':#', 1)[0]}")
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(ADR_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    lines.update(found)
+        self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
+        self.assertLessEqual({f"issue-task.js:{r}" for r in ("plan", "review:plan", "implement", "review:code", "review:netcode",
+                                                             "review:godot-api", "review:netcode-second", "test-review",
+                                                             "ab-judge", "skeptic", "publish")}
+                             | {f"pr-rebase.js:{r}" for r in ("rebase", "review:code", "review:netcode", "review:netcode-second",
+                                                              "skeptic", "fix")},
+                             labels)  # fmt: skip
+        rule = next(iter(lines))
+        for part in ("docs/decisions/", "the issue links", "each section you need once per context",
+                     "only after the file changed or your context was compacted"):
+            self.assertIn(part, rule)
+
+    def test_the_tasks_adr_line_names_the_section_reads(self) -> None:
+        # #816: PR #794's `metrics --adr-reads` table (since 2026-10-08T12:25Z) counted 39 whole-file ADR reads of
+        # 1043, $9.32 of $33, all of them the 2026-10-10 task ADRs (300 to 560 lines). The one task-ADR line (#815's)
+        # tells the implementer, the publisher and the reviewers to read it by section: its outline, then
+        # `section <adr> <§>`, never the whole file.
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        roles: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                role = event["label"].rsplit(":#", 1)[0]
+                if role not in ("implement", "publish", "rebase", "review:code", "review:netcode", "review:godot-api"):
+                    continue
+                roles.add(f"{name}:{role}")
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(ADR_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    for part in ("by section, never the whole file", "`tools/run.sh section <adr>`",
+                                 "`tools/run.sh section <adr> <§>`"):
+                        self.assertIn(part, found[0])
+        self.assertLessEqual({f"issue-task.js:{r}" for r in ("implement", "publish", "review:code", "review:netcode",
+                                                             "review:godot-api")}
+                             | {f"pr-rebase.js:{r}" for r in ("rebase", "review:code", "review:netcode")},
+                             roles)  # fmt: skip
 
     def test_every_agent_gets_the_no_write_outside_rule(self) -> None:
         # #413: from 2026-10-01 to 05 workflow agents opened Bash calls with 75 throwaway writes (`cat > <file>
@@ -966,7 +1049,8 @@ class PipelineV2Test(unittest.TestCase):
     def test_every_agent_gets_the_reading_line(self) -> None:
         # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
         # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
-        # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too.
+        # reading line is one constant of both scripts, the same text for every agent, the read-only reviewers too,
+        # but issue-task's publisher (#696: its task-publisher agent type carries the line).
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
@@ -985,6 +1069,9 @@ class PipelineV2Test(unittest.TestCase):
                 labels.add(event["label"].rsplit(":#", 1)[0])
                 with self.subTest(workflow=name, agent=event["label"]):
                     found = [line for line in event["prompt"].splitlines() if line.startswith(READ_RULE)]
+                    if name == "issue-task.js" and event["label"].startswith("publish"):
+                        self.assertEqual(found, [])
+                        continue
                     self.assertEqual(len(found), 1, found)
                     lines.add(found[0])
         self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
@@ -1374,7 +1461,15 @@ class PipelineV2Test(unittest.TestCase):
             self.assertNotIn("playcheck", event["prompt"])
             if "agentType" not in options(event):
                 self.assertIn(GODOT_LINE, event["prompt"])
-        for event in calls(on, "implement") + calls(on, "publish"):
+        for event in calls(on, "implement"):
+            self.assertIn(PLAYCHECK_LINE, event["prompt"])
+            self.assertNotIn(GODOT_LINE, event["prompt"])
+        # #696: the publisher of a run that is not visual has no Godot-windows line (it opens none); a visual run's
+        # publisher keeps the playcheck one, since it may rerun a scenario.
+        for event in calls(off, "publish"):
+            self.assertNotIn(PLAYCHECK_LINE, event["prompt"])
+            self.assertNotIn(GODOT_LINE, event["prompt"])
+        for event in calls(on, "publish"):
             self.assertIn(PLAYCHECK_LINE, event["prompt"])
             self.assertNotIn(GODOT_LINE, event["prompt"])
         implement = calls(on, "implement")[0]
@@ -1904,11 +1999,8 @@ class DigestTest(unittest.TestCase):
         # Lists with nothing in them stay out; the summary, complete and the paths are always there.
         for event in calls(plain, "review:") + calls(plain, "test-review"):
             self.assertEqual(report_of(event["prompt"]), {"summary": "s", "complete": True, "changed_paths": ["core/x.gd"]})
-        # The publisher still gets the whole report: the PR and the handoff carry its rationale, what is left and the
-        # verify tail.
-        publish = calls(result, "publish")[0]["prompt"]
-        self.assertIn(f"The implementer reported: {json.dumps(FULL_IMPL, ensure_ascii=False, separators=(',', ':'))}", publish)
-        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+        # The publisher gets its own copy (PublisherCopyTest), not the reviewers' digest.
+        self.assertNotIn(REPORT, calls(result, "publish")[0]["prompt"])
 
     def test_the_implementers_summary_is_capped(self) -> None:
         jobs = [
@@ -1970,7 +2062,102 @@ class DigestTest(unittest.TestCase):
             self.assertEqual([steps.index(m) for m in marks], sorted(steps.index(m) for m in marks))
 
 
-SHA = "0123456789abcdef0123456789abcdef01234567"
+# #696: the publisher's own copies of the report and the reviews, and the three preamble lines it goes without.
+PUB_REPORT = (
+    "The implementer reported (its commits, changed paths and verify tail left out: `git log`, `git diff --name-only` "
+    "and your `publish` give them): "
+)
+PUB_REVIEWS = "Fresh reviewers found (each finding's fix only on a blocker or major): "
+GAME_RULE = "- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it."
+NIT = {"severity": "nit", "file": "docs/x.md", "problem": "p3", "fix": "f3"}
+
+
+def json_after(prompt: str, marker: str) -> object:
+    """The JSON a prompt carries after marker, up to the paragraph's end, parsed."""
+    start = prompt.index(marker) + len(marker)
+    return json.loads(prompt[start : prompt.index("\n\n", start)])
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class PublisherCopyTest(unittest.TestCase):
+    def test_the_publisher_gets_the_report_without_what_git_and_publish_give(self) -> None:
+        # The implementer's rationale reaches the PR whole (summary, decisions, left, needs_engineer, proposed issues,
+        # provisional content, playcheck); its commits, changed paths and verify tail do not (about 1.7k characters at
+        # the median, #470's table).
+        shots = {"available": True, "pngs": ["D:/x/01.png"]}
+        stub = {"paths": FULL_IMPL["changed_paths"], "queues": {"implement": [dict(FULL_IMPL, playcheck=shots)]}}
+        result = run_one("issue-task.js", {"branch": "client/7-x", "visual": "spectate"}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        drops = ("commits", "changed_paths", "verify_tail")
+        want = {k: v for k, v in dict(FULL_IMPL, playcheck=shots).items() if k not in drops}
+        got = json_after(publish, PUB_REPORT)
+        self.assertEqual(got, want)
+        self.assertEqual(list(got), list(want))  # whole, in the report's order: nothing cut to a line
+        for text in ("step ok", "abc1234 feat(core)", '"verify_tail"', '"changed_paths"'):
+            self.assertNotIn(text, publish)
+        self.assertNotIn("The implementer reported: ", publish)
+        # Where the PR's verify tail comes from now.
+        self.assertIn(
+            'the verification commands and the verify tail (from your `publish`; when it skipped verify on an identical '
+            'tree, the "verify summary" block at the end of tools/out/logs/verify-output.log)',
+            publish,
+        )
+        self.assertIn("the summary and the why, from the implementer's summary and decisions (not rebuilt from `git log`)", publish)
+
+    def test_the_publisher_gets_each_findings_fix_only_on_a_blocker_or_major(self) -> None:
+        # The reviewers' verdicts and the fix text of a minor or nit stay with the reviewers (1.5k to 2k characters).
+        reviews = {
+            "review:code": [{"reviewer": "code-reviewer", "verdict": LONG, "findings": [BLOCKER, MINOR, NIT]}],
+            "review:netcode": [{"reviewer": "netcode-security-reviewer", "verdict": "ok", "findings": [MAJOR]}],
+        }
+        stub = {"paths": ["core/match/vote.gd"], "queues": reviews}
+        result = run_one("issue-task.js", {"branch": "core/7-x", "test_review": True}, stub)
+        publish = calls(result, "publish")[0]["prompt"]
+        bare = lambda f: {k: v for k, v in f.items() if k != "fix"}  # noqa: E731
+        self.assertEqual(
+            json_after(publish, PUB_REVIEWS),
+            [
+                {"reviewer": "code-reviewer", "findings": [BLOCKER, bare(MINOR), bare(NIT)]},
+                {"reviewer": "netcode-security-reviewer", "findings": [MAJOR]},
+                {"reviewer": "r", "findings": []},  # the godot-api-checker, a .gd path
+            ],
+        )
+        self.assertNotIn('"verdict"', publish)
+        self.assertNotIn("Fresh reviewers found: ", publish)
+        # The test reviewer still reads the reviews whole.
+        test_review = calls(result, "test-review")[0]["prompt"]
+        self.assertIn(f"Fresh reviewers found: {json.dumps(reviews['review:code'] + reviews['review:netcode'] + [{'reviewer': 'r', 'verdict': 'ok', 'findings': []}], separators=(',', ':'))}", test_review)
+
+    def test_the_publishers_preamble_leaves_out_its_unused_lines(self) -> None:
+        # The reading rule for code (the task-publisher agent type carries it), the Godot-windows line
+        # (unless the run is visual: its publisher may rerun playcheck) and the game-rule line: every other line of
+        # the shared rules stays, in order, for both publishers (the full one and the one a mutants exit 2 stops).
+        stopped = {"available": True, "exit_2": True, "findings": [], "mutants": []}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="client/7-x", visual="spectate"), {"paths": ["client/hud/hud.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **OFF), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stopped]}}),
+        ]
+        dropped = [
+            (READ_RULE, GODOT_LINE, GAME_RULE),
+            (READ_RULE, GAME_RULE),  # visual: the playcheck line stays
+            (READ_RULE, GODOT_LINE, GAME_RULE),  # lean off: the same prompt as a lean run (#332)
+            (READ_RULE, GODOT_LINE, GAME_RULE),
+        ]
+        for result, gone in zip(run_jobs(jobs), dropped):
+            self.assertIsNone(result["error"])
+            rules = calls(result, "implement")[0]["prompt"].split("\n\n")[0].splitlines()
+            publish = calls(result, "publish")
+            self.assertEqual(len(publish), 1)
+            with self.subTest(publisher=publish[0]["prompt"].split("\n\n")[1][:40], dropped=len(gone)):
+                got = publish[0]["prompt"].split("\n\n")[0].splitlines()
+                self.assertEqual(got, [line for line in rules if not any(line.startswith(d) for d in gone)])
+                self.assertEqual(len(rules) - len(got), len(gone), rules)
+        self.assertIn("Task: report a stopped run of issue #7", calls(result, "publish")[0]["prompt"])
+
+
+SHA ="0123456789abcdef0123456789abcdef01234567"
 SHORT_PLAN = "The plan, in short (the whole plan is the plan agent's comment on the issue,"
 COMMENT = "https://github.com/xperiaroco2/prime-game/issues/7#issuecomment-1"
 MAPPED = {
@@ -2304,7 +2491,9 @@ class CheckpointTest(unittest.TestCase):
         self.assertIn('"needs_engineer":["n1"]', report)
         pub = calls(result, "publish")[0]["prompt"]
         self.assertIn(f'"handoffs":["{NOTE}"]', pub)
-        self.assertIn('"commits":["c1","c2"]', pub)
+        self.assertIn('"decisions":["d1","d2"]', pub)
+        # #696: the joined commits stay in the journal; the publisher reads them from `git log`.
+        self.assertNotIn('"commits":', pub)
         self.assertNotIn('"handoff":', pub)
         out = result["returned"]
         self.assertEqual((out["handoffs"], out["verify_green"], out["summary"]), (1, True, "the whole branch"))

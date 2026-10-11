@@ -82,3 +82,52 @@ func test_it_demands_one_marker_per_player() -> void:
 	var demands := Demands.new(null)
 	FixtureModes.place(&"round_player").add_demands({}, 6, demands)
 	assert_dict(demands.markers).is_equal({&"round_player": 6})
+
+
+func test_ordered_puts_the_players_in_peer_id_order_on_the_markers_in_level_order() -> void:
+	# #599 (the tutorial, design §2.5): the host's player on the first marker, the others after
+	# it, whatever the seed; 4 markers for 3 players, so a draw would differ for some seed (the
+	# test above shows the drawn spots vary over these seeds).
+	var markers := FixtureModes.layouts()[FixtureModes.MAP].positions(&"round_player")
+	for seed_value in range(1, 9):
+		var game := FixtureModes.in_round(_ordered_mode(), [P3, P1, P2], seed_value)
+		var placed := game.view_of(P2).events_named(&"PlayersPlaced")[0] as PlayersPlacedEvent
+		for i in 3:
+			var peer: int = [P1, P2, P3][i]
+			assert_vector(game.state.player(peer).position).is_equal(markers[i])
+			assert_vector(placed.spots[peer]).is_equal(markers[i])
+			var correction := game.view_of(peer).events_named(&"Correction")[0] as CorrectionEvent
+			assert_vector(correction.position).is_equal(markers[i])
+			assert_int(correction.epoch).is_equal(1)
+		# No draw: the `spawns` stream is where a fresh one of the same seed starts.
+		var fresh := RandomNumberGenerator.new()
+		fresh.seed = RngStreams.purpose_seed_of(game.state.rng.match_seed(), &"spawns")
+		assert_int(game.state.rng.stream(&"spawns").state).is_equal(fresh.state)
+
+
+func test_ordered_still_errs_on_too_few_markers_and_needs_no_rng_purpose() -> void:
+	var layouts := FixtureModes.layouts()
+	var map := LevelLayout.new(FixtureModes.MAP)
+	for i in 2:
+		map.add_marker(&"round_player", Vector3(10 + i, 0, 5))
+	layouts[FixtureModes.MAP] = map
+	var game := Match.new(_ordered_mode(), 7, FlatWorldQuery.new(), layouts)
+	game.start(0)
+	for peer: int in [P1, P2, P3]:
+		FixtureModes.send(game, Intents.HELLO, peer)
+	for peer: int in [P1, P2, P3]:
+		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+	assert_str(game.diagnostics[0]).contains("2 round_player marker(s) for 3 players")
+	assert_int(game.state.player(P1).epoch).is_equal(0)
+	var place := FixtureModes.place(&"round_player")
+	place.ordered = true
+	place.rng_purpose = &""
+	assert_array(Array(place.check(GameMode.new()))).is_empty()
+	place.ordered = false
+	assert_array(Array(place.check(GameMode.new()))).contains(["PlacePlayers has no rng_purpose"])
+
+
+func _ordered_mode() -> GameMode:
+	var mode := FixtureModes.basic()
+	(mode.transitions[0].actions[0] as PlacePlayers).ordered = true
+	return mode

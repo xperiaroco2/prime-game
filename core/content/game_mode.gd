@@ -103,6 +103,14 @@ func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if min_players < 1 or min_players > max_players:
 		found.append("players: min_players %d and max_players %d" % [min_players, max_players])
+	if max_players > PlayerColours.COUNT:
+		# A joiner takes the first free body colour (#551): one more player than colours has none.
+		found.append(
+			(
+				"players: max_players %d is more than the %d body colours"
+				% [max_players, PlayerColours.COUNT]
+			)
+		)
 	if player_rules == null:
 		found.append("the mode has no player_rules")
 	if phases.is_empty():

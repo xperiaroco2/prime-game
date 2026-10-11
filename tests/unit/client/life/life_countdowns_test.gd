@@ -61,6 +61,39 @@ func test_a_death_starts_the_respawn_and_the_respawn_the_invulnerability() -> vo
 	assert_float(_countdowns.invulnerable_left_s(800.0)).is_equal_approx(3.0, 1e-4)
 
 
+func test_the_knockdown_fraction_falls_from_one_and_holds_while_raised() -> void:
+	# The downed screen's bleed-out bar (#497): the time left over the mode's 10 s.
+	assert_float(_countdowns.knockdown_fraction(0.0)).is_equal(LifeCountdowns.NONE)
+	_on(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO}, 100.0)
+	assert_float(_countdowns.knockdown_fraction(100.0)).is_equal_approx(1.0, 1e-4)
+	assert_float(_countdowns.knockdown_fraction(160.0)).is_equal_approx(0.7, 1e-4)
+	_on(&"RaiseStarted", {"raiser": OTHER, "target": OWN}, 160.0)
+	assert_float(_countdowns.knockdown_fraction(190.0)).is_equal_approx(0.7, 1e-4)
+	assert_float(_countdowns.knockdown_fraction(1000.0)).is_equal_approx(0.7, 1e-4)
+	_on(&"RaiseStopped", {"raiser": OTHER, "target": OWN}, 200.0)
+	assert_float(_countdowns.knockdown_fraction(5000.0)).is_equal(0.0)
+
+
+func test_the_protection_is_the_respawns_invulnerability_only() -> void:
+	# The downed screen's `back` chip (#497) counts the respawn's 3 s; a revive's shows none.
+	_on(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
+	_on(&"Revived", {"peer": OWN}, 20.0)
+	assert_float(_countdowns.invulnerable_left_s(20.0)).is_equal_approx(3.0, 1e-4)
+	assert_float(_countdowns.protection_left_s(20.0)).is_equal(LifeCountdowns.NONE)
+	_on(&"Died", {"peer": OWN, "position": Vector3.ZERO}, 100.0)
+	_on(&"Respawned", {"peer": OWN, "position": Vector3.ZERO}, 700.0)
+	assert_float(_countdowns.protection_left_s(700.0)).is_equal_approx(3.0, 1e-4)
+	assert_float(_countdowns.protection_left_s(730.0)).is_equal_approx(1.5, 1e-4)
+	assert_float(_countdowns.protection_left_s(800.0)).is_equal(0.0)
+	# A revive after a later knockdown starts no protection, and a new match forgets it.
+	_on(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO}, 900.0)
+	_on(&"Revived", {"peer": OWN}, 920.0)
+	assert_float(_countdowns.protection_left_s(920.0)).is_equal(LifeCountdowns.NONE)
+	_on(&"Respawned", {"peer": OWN, "position": Vector3.ZERO}, 1000.0)
+	_on(&"LoadMatch", {"match_id": 2}, 1001.0)
+	assert_float(_countdowns.protection_left_s(1001.0)).is_equal(LifeCountdowns.NONE)
+
+
 func test_the_raiser_sees_its_raise_progress_until_it_ends() -> void:
 	_on(&"RaiseStarted", {"raiser": OWN, "target": OTHER}, 10.0)
 	assert_int(_countdowns.raising()).is_equal(OTHER)

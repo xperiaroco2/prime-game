@@ -5,6 +5,25 @@
 Third-party assets and code in this repository, with their authors, sources and licenses. Each section comes from
 one file in [docs/credits/](docs/credits/) (docs/AGENT_WORKFLOW.md §10).
 
+## Comfortaa
+
+- **Files:** `assets/ui/comfortaa/**`
+- **Author:** The Comfortaa Project Authors (the source repository google/fonts' `ofl/comfortaa/METADATA.pb` names:
+  https://github.com/alexeiva/comfortaa)
+- **Source:** https://github.com/google/fonts/tree/main/ofl/comfortaa (one variable file, `Comfortaa[wght].ttf`,
+  `wght` 300 to 700, with Cyrillic; proposed on prime-game-ui#44 at google/fonts commit `db64f6b`), downloaded by the
+  engineer on 2026-10-10 and saved as `assets/ui/comfortaa/comfortaa.ttf` (201,756 bytes; SHA-256
+  `0fc3f45dc48b614db9c39181502544b37217ecbf8bee2fb35886992bc96c5bd3`)
+- **License:** SIL Open Font License 1.1 (https://openfontlicense.org/), Reserved Font Name "Comfortaa"; shipped
+  unmodified; the license text is `docs/credits/licenses/comfortaa/OFL.txt` (https://github.com/google/fonts/blob/main/ofl/comfortaa/OFL.txt),
+  which a build carries as `licenses/comfortaa/OFL.txt` (`docs/credits/licenses/README.md`)
+- **AI generated:** false
+- **Public repo OK:** true (OFL 1.1)
+
+The game's UI font (prime-game-ui `docs/ui-decisions.md` § Type; the engineer's yes on prime-game-ui#44, 2026-10-07),
+added by hand (#520, #684). The theme builder (`tools/theme/mapping.json` `font`) makes one `FontVariation` of the file
+per weight the pack's labels use, SemiBold 600 and Bold 700, and the 600 one the theme's default font.
+
 ## GdUnit4
 
 - **Files:** `addons/gdUnit4/**`
@@ -13,6 +32,91 @@ one file in [docs/credits/](docs/credits/) (docs/AGENT_WORKFLOW.md §10).
 - **License:** MIT; the full text is `addons/gdUnit4/LICENSE`
 
 The unit-test framework the runner's `test` command drives. A development tool: it is not part of an exported game.
+
+## Kenney Furniture Kit: chair
+
+- **Files:** `assets/environment/kenney_chair/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/furniture-kit (Furniture Kit 2.0, `kenney_furniture-kit.zip`,
+  `Models/GLTF format/chair.glb`, downloaded 2026-10-08; the GLB's SHA-256
+  `c8a11eec93e89e31250ba91afc1b8d56c3bec7ae86640fd1239f595ff4180883`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the kit's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The dry run of the art handoff (#519): the first art binary in the game repo, committed through Git LFS with its
+`.import` file and checked by the import check (`docs/ARCHITECTURE.md` §11). Renamed to `kenney_chair.glb`; no game
+scene uses it yet. Not from the art repo: it has no approved asset yet.
+
+## Kenney Impact Sounds: footsteps
+
+- **Files:** `assets/audio/kenney_impact_sounds/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/impact-sounds (Impact Sounds 1.0, `kenney_impact-sounds.zip`, downloaded
+  2026-10-09; the zip's SHA-256 `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The footsteps of #525: `Audio/footstep_<surface>_000.ogg` to `_004.ogg` for the surfaces concrete, wood, carpet and
+grass (20 files, Ogg Vorbis, stereo 44.1 kHz), under their own names. Played by `SfxSet` (`client/audio/`), five
+variants a surface; the engineer's verdicts from sfx-check's listening page go to `assets/audio/sfx-verdicts.json`.
+
+## Kenney Interface Sounds: the UI click, the end outro and the role sounds
+
+- **Files:** `assets/audio/kenney_interface_sounds/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/interface-sounds (Interface Sounds 1.0, `kenney_interface-sounds.zip`,
+  downloaded 2026-10-09; the zip's SHA-256 `f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The click of a Toy button press (#525; Ogg Vorbis, mono 44.1 kHz), renamed (the pack's name, then ours):
+`click_001.ogg` `click_1.ogg`, `tick_001.ogg` `click_2.ogg`, `tick_002.ogg` `click_3.ogg`. The one sound of both
+outcomes when End starts (#657; Ogg Vorbis, mono 44.1 kHz), renamed: `bong_001.ogg` `ui_outro.ogg`. The own side's
+sound when the pregame reveals the own role (#716; Ogg Vorbis, mono 44.1 kHz), renamed: `confirmation_002.ogg`
+`ui_role_engineers.ogg`, `error_006.ogg` `ui_role_dissidents.ogg`. Played by `UiSounds` (`client/ui/`) through
+`SfxSet`; the engineer's verdicts go to `assets/audio/sfx-verdicts.json`. The pack's `click_002.ogg` is also the Ogg
+stand-in for LFS pointer files in CI (`tools/runner/lfs.py`, the LFS ADR's amendment of 2026-10-10); it is not a game
+asset.
+
+## Kenney RPG Audio: the item sounds
+
+- **Files:** `assets/audio/kenney_rpg_audio/**`
+- **Author:** Kenney (www.kenney.nl)
+- **Source:** https://kenney.nl/assets/rpg-audio (RPG Audio, `kenney_rpg-audio.zip`, downloaded 2026-10-09; the
+  zip's SHA-256 `6dbeaf8544da958d8f2adcb4a4a4b76c1ade34a05f8ab9edccd327da7375f38b`)
+- **License:** CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/, the pack's `License.txt`)
+- **AI generated:** false
+- **Public repo OK:** true (CC0)
+
+The swing, pick-up and put-down sounds of #525 (Ogg Vorbis, stereo 48 kHz), renamed after the sound they play (the
+pack's name, then ours): `knifeSlice.ogg` `swing_1.ogg`, `knifeSlice2.ogg` `swing_2.ogg`, `handleSmallLeather.ogg`
+`pick_up_1.ogg`, `handleSmallLeather2.ogg` `pick_up_2.ogg`, `cloth3.ogg` `pick_up_3.ogg`, `dropLeather.ogg`
+`put_down_1.ogg`, `bookPlace1.ogg` `put_down_2.ogg`, `bookPlace3.ogg` `put_down_3.ogg`. No door sound: the game has
+no door (#525). Played by `SfxSet` (`client/audio/`); the engineer's verdicts go to `assets/audio/sfx-verdicts.json`.
+
+## prime-game-ui: the UI pack's icons and Delivery cards
+
+- **Files:** `assets/ui/toy_pack/icons/**`, `assets/ui/toy_pack/cards/**`, `client/ui/theme/pack/icons/**`,
+  `client/ui/theme/pack/cards/**` (the art folders only: a font the pack may ship later in a fonts folder is a third
+  party's and needs its own entry)
+- **Author:** prime-game-ui, the project's UI track (https://github.com/xperiaroco2/prime-game-ui)
+- **Source:** https://github.com/xperiaroco2/prime-game-ui/tree/ui-0.4.0/dist/pack (tag `ui-0.4.0`, commit
+  `d7650db6590d925fc509fa1b2d793fc336c3b37d`; each file's SHA-256 in `client/ui/theme/pack.lock.json`, copied by
+  `tools\run.cmd ui-sync`)
+- **License:** own work of the project: every entry of the pack's `icons/LICENCES.json`, `icons/room/LICENCES.json`
+  and `cards/LICENCES.json` reads `"licence": "own work", "author": "prime-game-ui"` (the UI track's answer on
+  xperiaroco2/prime-game-ui#44: nothing in the pack is a third party's)
+- **AI generated:** true (drawn as SVG markup by the UI track's Claude Code sessions, the card PNGs rendered from
+  those SVGs; no image generator; to be confirmed by the engineer, #520)
+- **Public repo OK:** true (own work; prime-game-ui#44, item 3)
+
+The 17 icons of `icons/`, the 8 room pictograms of `icons/room/` (for the map board) and the Delivery how-to cards
+`cards/delivery-1..4.png` (for the how-to card, #254), imported by Godot from `assets/ui/toy_pack/` at the import
+scale the pack's `assets` list gives (#520); the pinned copy under `client/ui/theme/pack/` (#288) is text Godot does
+not import. Each file's "what" is in its folder's `LICENCES.json`.
 
 ## TwoVoIP
 

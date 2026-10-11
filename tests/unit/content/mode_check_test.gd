@@ -265,6 +265,12 @@ func test_numbers_out_of_bounds() -> void:
 	mode = FixtureModes.basic()
 	mode.phases[2].settings[&"typo"] = 1.0
 	_expect(mode, "phase end: unknown setting typo")
+	# #551: every player needs a body colour of its own.
+	mode = FixtureModes.basic()
+	mode.max_players = PlayerColours.COUNT + 1
+	_expect(mode, "max_players 11 is more than the 10 body colours")
+	mode.max_players = PlayerColours.COUNT
+	_expect_none(mode)
 
 
 func test_an_item_kind_takes_one_or_two_hands_which_the_data_sets() -> void:

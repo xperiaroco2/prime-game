@@ -266,6 +266,45 @@ func test_only_the_downed_show_the_lying_mesh_and_the_dead_have_no_body() -> voi
 	assert_bool(player.is_living() or player.is_downed()).is_false()
 
 
+func test_the_own_lying_mesh_wears_the_own_body_colour() -> void:
+	# #551: offline the greybox colour; on a session the own colour from the roster, as the others
+	# see the lying body.
+	var player := _world.add_player(Vector3.ZERO)
+	var lying := player.get_node("Lying") as MeshInstance3D
+	var material := (lying.mesh as CapsuleMesh).material as StandardMaterial3D
+	player.life = ClientModel.Life.DOWNED
+	assert_object(material.albedo_color).is_equal(LifeLooks.PLAYER_COLOUR)
+	player.life = ClientModel.Life.ALIVE
+	var schema := WireSchema.game(OS.is_debug_build())
+	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
+	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
+	session.model.own_peer = 2
+	session.model.fold(
+		&"PlayerJoined", {"peer": 2, "name": "Me", "spot": Vector3.ZERO, "colour": 6}
+	)
+	player.attach(session)
+	player.life = ClientModel.Life.DOWNED
+	assert_object(material.albedo_color).is_equal(BodyColours.of(6))
+
+
+func test_new_rules_keep_the_lying_mesh_in_the_own_body_colour() -> void:
+	# #551 review: _apply_rules builds a new lying mesh, which must not fall back to the greybox.
+	var player := _world.add_player(Vector3.ZERO)
+	var schema := WireSchema.game(OS.is_debug_build())
+	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
+	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
+	session.model.own_peer = 2
+	session.model.fold(
+		&"PlayerJoined", {"peer": 2, "name": "Me", "spot": Vector3.ZERO, "colour": 4}
+	)
+	player.attach(session)
+	player.life = ClientModel.Life.DOWNED
+	player.set_rules(player.rules)
+	var lying := player.get_node("Lying") as MeshInstance3D
+	var material := (lying.mesh as CapsuleMesh).material as StandardMaterial3D
+	assert_object(material.albedo_color).is_equal(BodyColours.of(4))
+
+
 func test_the_dead_never_move_however_they_are_driven() -> void:
 	var player := _world.add_player(Vector3(0.0, 1.0, 0.0))
 	player.life = ClientModel.Life.DEAD

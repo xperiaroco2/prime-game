@@ -38,25 +38,26 @@ func id_set(id: StringName) -> PackedStringArray:
 	return id_sets.get(id, PackedStringArray())
 
 
-## Every shortfall against `layout`, in a stable order; empty when the map fits.
-func shortfalls(layout: LevelLayout) -> PackedStringArray:
-	var found := PackedStringArray()
+## Every shortfall against `layout`, in a stable order (tags by name, then station kinds by name),
+## as HostTexts (#548): `markers` and `colours`, each with its subject and `need` and `have`.
+## Empty when the map fits.
+func shortfalls(layout: LevelLayout) -> Array[HostText]:
+	var found: Array[HostText] = []
 	var tags: Array[StringName] = []
 	tags.assign(markers.keys())
 	tags.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	for tag: StringName in tags:
 		var have := layout.count(tag)
 		if have < markers[tag]:
-			found.append("%d %s marker(s) needed, the map has %d" % [markers[tag], tag, have])
+			found.append(_short(HostText.MARKERS, tag, markers[tag], have))
 	var stations: Array[StringName] = []
 	stations.assign(colours.keys())
 	stations.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	for station: StringName in stations:
 		if palettes[station] < colours[station]:
-			found.append(
-				(
-					"%d %s colour(s) needed, the palette has %d"
-					% [colours[station], station, palettes[station]]
-				)
-			)
+			found.append(_short(HostText.COLOURS, station, colours[station], palettes[station]))
 	return found
+
+
+static func _short(text_id: StringName, subject: StringName, need: int, have: int) -> HostText:
+	return HostText.of(text_id, PackedStringArray([subject]), {&"need": need, &"have": have})

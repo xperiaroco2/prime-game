@@ -143,7 +143,7 @@ class RepeatTest(unittest.TestCase):
                 contextlib.redirect_stdout(out),
                 contextlib.redirect_stderr(out),
             ):
-                rc = gdunit.repeat(count, run_import=False, **kwargs)
+                rc = gdunit.repeat(count, run_import=False, **{"shards": 1, **kwargs})
             kept = sorted(p.relative_to(runs_dir).as_posix() for p in runs_dir.rglob("*") if p.is_file())
             summary = json.loads((runs_dir / "summary.json").read_text(encoding="utf-8"))
             self.assertTrue((runs_dir / "summary.md").is_file())
@@ -210,7 +210,144 @@ class RepeatTest(unittest.TestCase):
             gdunit.repeat(0, run_import=False)
 
 
+class ShardedRepeatTest(unittest.TestCase):
+    """repeat() without paths: each run in shards (run_shards, replaced by a stub that writes what it writes), #817."""
+
+    GREEN = results_xml({"tests/unit/a_test": {"test_x": PASS}})
+    RED = results_xml({"tests/unit/a_test": {"test_x": FAIL}})
+
+    def run_repeat(
+        self, runs: list[tuple[bool | None, str]], env: dict[str, str] | None = None, **kwargs: Any
+    ) -> tuple[int, list[Any], list[str], str]:
+        """`runs`: per run what run_shards returns (True failed, None too few suites) and the merged results.xml;
+        the xml "timeout" marks shard 2 of a failed run as timed out."""
+        shard_calls: list[Any] = []
+        godot_calls: list[str] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tests" / "unit").mkdir(parents=True)
+            report_dir = root / "tools" / "out" / "gdunit"
+            runs_dir = root / "tools" / "out" / "gdunit-runs"
+            logs = root / "tools" / "out" / "logs"
+            logs.mkdir(parents=True)
+
+            def fake_shards(items: list[str], count: int, why: str, *rest: Any) -> bool | None:
+                failed, xml = runs[len(shard_calls)]
+                shard_calls.append((items, count, why, rest))
+                if failed is None:
+                    return None
+                report_dir.mkdir(parents=True, exist_ok=True)
+                results = xml if xml != "timeout" else ""
+                if results:
+                    (report_dir / "results.xml").write_text(results, encoding="utf-8")
+                for shard in (1, 2):
+                    (logs / f"test-shard{shard}.log").write_text(f"shard {shard}", encoding="utf-8")
+                (logs / "test.log").write_text("all", encoding="utf-8")
+                slow = {"timed_out": True} if xml == "timeout" else {}
+                first: dict[str, object] = {"shard": 1, "rc": 0, "seconds": 1.0}
+                rc = 100 if failed and not slow else 0  # a failed run without a timeout: shard 2 had failed tests
+                second: dict[str, object] = {"shard": 2, "rc": rc, "seconds": 1.0, **slow}
+                gdunit._remember([first, second], [])
+                return failed
+
+            def fake_godot(args: list[str], *, timeout: float, log: str, echo: bool = False) -> common.Result:
+                godot_calls.append(log)
+                (report_dir / "report_1").mkdir(parents=True, exist_ok=True)
+                (report_dir / "report_1" / "results.xml").write_text(self.GREEN, encoding="utf-8")
+                return common.Result(0, "", False, 1.0)
+
+            out = io.StringIO()
+            with (
+                mock.patch.object(gdunit, "ROOT", root),
+                mock.patch.object(gdunit, "REPORT_DIR", report_dir),
+                mock.patch.object(gdunit, "RUNS_DIR", runs_dir),
+                mock.patch.object(gdunit, "LOGS", logs),
+                mock.patch.object(gdunit, "ensure_out", return_value=root / "tools" / "out"),
+                mock.patch.object(gdunit, "run_shards", fake_shards),
+                mock.patch.object(gdunit, "godot", fake_godot),
+                mock.patch.object(gdunit, "app_data_var", return_value="XDG_DATA_HOME"),
+                mock.patch.object(gdunit.os, "cpu_count", return_value=4),
+                mock.patch.dict(gdunit.os.environ, env or {}),
+                contextlib.redirect_stdout(out),
+                contextlib.redirect_stderr(out),
+            ):
+                if not env:
+                    gdunit.os.environ.pop(gdunit.SHARDS_VAR, None)
+                rc = gdunit.repeat(len(runs), run_import=False, **kwargs)
+            kept = sorted(p.relative_to(root / "tools" / "out").as_posix() for p in (root / "tools" / "out").rglob("*") if p.is_file())
+            self.summary = json.loads((runs_dir / "summary.json").read_text(encoding="utf-8"))
+        self.godot_calls = godot_calls
+        return rc, shard_calls, kept, out.getvalue()
+
+    def test_each_run_is_sharded_real_time_by_the_cpu_count_as_plain_test_is(self) -> None:
+        rc, calls, _, printed = self.run_repeat([(False, self.GREEN)] * 3)
+        self.assertEqual(rc, 0, printed)
+        self.assertEqual(self.godot_calls, [])
+        self.assertEqual(len(calls), 3)
+        for items, count, why, rest in calls:
+            self.assertEqual((items, count, rest), (["res://tests/unit"], 2, (False, False)), "2 shards, real-time")
+            self.assertIn("4 CPUs", why)
+
+    def test_the_shards_option_and_the_environment_set_the_count_the_option_first(self) -> None:
+        self.assertEqual(self.run_repeat([(False, self.GREEN)], shards=3)[1][0][1], 3)
+        self.assertEqual(self.run_repeat([(False, self.GREEN)], env={gdunit.SHARDS_VAR: "3"})[1][0][1], 3)
+        self.assertEqual(self.run_repeat([(False, self.GREEN)], env={gdunit.SHARDS_VAR: "3"}, shards=4)[1][0][1], 4)
+
+    def test_one_shard_or_named_paths_run_in_one_process_as_before(self) -> None:
+        for kwargs in ({"shards": 1}, {"paths": ["tests/unit"]}):
+            rc, calls, _, printed = self.run_repeat([(False, self.GREEN)] * 2, env={gdunit.SHARDS_VAR: "2"}, **kwargs)
+            self.assertEqual((rc, calls), (0, []), printed)
+            self.assertEqual(self.godot_calls, ["test-run1", "test-run2"])
+
+    def test_a_run_with_fewer_than_two_suites_falls_back_to_one_process(self) -> None:
+        rc, calls, _, printed = self.run_repeat([(None, self.GREEN)])
+        self.assertEqual((rc, len(calls), self.godot_calls), (0, 1, ["test-run1"]), printed)
+
+    def test_every_run_keeps_its_merged_report_and_its_logs(self) -> None:
+        _, _, kept, _ = self.run_repeat([(False, self.GREEN)] * 2)
+        for run in (1, 2):
+            self.assertIn(f"gdunit-runs/run-{run}/results.xml", kept)
+            self.assertIn(f"logs/test-run{run}.log", kept)
+            self.assertIn(f"logs/test-run{run}-shard1.log", kept)
+            self.assertIn(f"logs/test-run{run}-shard2.log", kept)
+        self.assertIn("gdunit-runs/summary.md", kept)
+
+    def test_the_runs_are_still_compared_per_test_across_shards(self) -> None:
+        rc, _, _, printed = self.run_repeat([(False, self.GREEN), (True, self.RED), (False, self.GREEN)])
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.summary["flaky"], [{"test": "tests/unit/a_test::test_x", "failed_in_runs": [2]}])
+        self.assertEqual([r["status"] for r in self.summary["runs"]], ["passed", "FAILED", "passed"])
+        self.assertEqual(self.summary["runs"][0]["note"], "2 processes")
+        self.assertIn("flaky: tests/unit/a_test::test_x failed in run(s) 2 of 3", printed)
+
+    def test_a_shard_that_timed_out_is_named_in_the_runs_note(self) -> None:
+        rc, _, _, _ = self.run_repeat([(False, self.GREEN), (True, "timeout")])
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.summary["runs"][1]["note"], f"2 processes, shard 2 timed out after {gdunit.TIMEOUT}s")
+        self.assertEqual(self.summary["runs"][1]["tests"], 0)
+
+    def test_a_failed_shard_says_why_in_the_runs_note(self) -> None:
+        rc, _, _, _ = self.run_repeat([(False, self.GREEN), (True, self.RED)])
+        self.assertEqual(rc, 1)
+        self.assertEqual(self.summary["runs"][1]["note"], "2 processes; shard 2: exit 100, tests failed")
+
+    def test_named_paths_at_fixed_fps_in_shards_keep_the_fixed_clock(self) -> None:
+        rc, calls, _, printed = self.run_repeat(
+            [(False, self.GREEN)] * 2, paths=["tests/unit"], fixed_fps=True, shards=2
+        )
+        self.assertEqual(rc, 0, printed)
+        for items, count, _why, rest in calls:
+            self.assertEqual((items, count, rest), (["res://tests/unit"], 2, (True, True)), "every named suite fixed")
+        self.assertIn(f"--fixed-fps ({gdunit.FIXED_FPS})", printed)
+        self.assertEqual(self.summary["engine_args"], list(gdunit.FIXED_FPS_ARGS))
+
+
 class CliTest(unittest.TestCase):
+    def test_shards_reach_repeat_when_given(self) -> None:
+        with mock.patch.object(gdunit, "repeat", return_value=0) as rep:
+            self.assertEqual(cli.main(["test", "--repeat", "3", "--shards", "2"]), 0)
+        rep.assert_called_once_with(3, paths=None, shards=2)
+
     def test_test_repeat_goes_to_repeat_and_plain_test_to_main(self) -> None:
         with mock.patch.object(gdunit, "repeat", return_value=0) as rep, mock.patch.object(gdunit, "main", return_value=0) as main:
             self.assertEqual(cli.main(["test", "--repeat", "3", "tests/unit"]), 0)

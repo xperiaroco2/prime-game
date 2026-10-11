@@ -47,7 +47,7 @@ static func lurker(on_transport: NetTransport, schema: WireSchema) -> BotWatcher
 
 ## The refused bot: its Hello names a protocol version the host does not speak.
 static func refused(on_transport: NetTransport, schema: WireSchema, content: int) -> BotWatcher:
-	var hello := {"version": WireSchema.VERSION + 1, "content": content}
+	var hello := {"version": WireSchema.VERSION + 1, "content": content, "name": ""}
 	return BotWatcher.new("refused", on_transport, schema, hello)
 
 

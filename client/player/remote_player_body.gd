@@ -78,6 +78,19 @@ func set_rules(value: PlayerRules) -> void:
 		_apply_rules()
 
 
+## Paints the capsule `value` (the player's body colour, BodyColours, #551), standing or lying. Only
+## a change touches the mesh: AvatarViews calls it every physics frame. Before the body is ready,
+## or before its rules, the colour waits for _apply_rules.
+func set_colour(value: Color) -> void:
+	if value == color:
+		return
+	color = value
+	if not is_node_ready() or not _mesh.mesh is CapsuleMesh:
+		return
+	var material := (_mesh.mesh as CapsuleMesh).material as StandardMaterial3D
+	material.albedo_color = color
+
+
 ## Puts the body on the living layer (`living`) or the downed layer, where no push finds it.
 func set_living(living: bool) -> void:
 	collision_layer = PhysicsLayers.LIVING if living else PhysicsLayers.DOWNED
@@ -113,6 +126,11 @@ func set_watched(watched: bool) -> void:
 	_watched = watched
 	_show_looks()
 	_shell.visible = _shell.visible and not watched
+
+
+## Whether the spectate camera looks out of this player's eyes (set_watched).
+func is_watched() -> bool:
+	return _watched
 
 
 ## The point SightHider casts its ray at: the capsule's middle, or the lying capsule's.

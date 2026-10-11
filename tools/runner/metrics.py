@@ -116,8 +116,8 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
 - the items that enter a context: an `instructions` attachment's files (launch: root CLAUDE.md, the user memory), a
   `nested_memory` attachment's file (by path: a nested CLAUDE.md, a .claude/rules/ file), the `skill_listing` and
   `mcp_instructions_delta` attachments (launch), and the result of a tool call that reads a doc (doc_what): Read,
-  Grep, or a Bash or PowerShell command naming a doc path (never one running the runner or `git diff/show/log`); a
-  result naming several docs is split evenly;
+  Grep, or a Bash or PowerShell command naming a doc path (never one running the runner, but its `section`, or
+  `git diff/show/log`); a result naming several docs is split evenly;
 - an item enters at the next API call; it is written to the cache there (at the agent's 5-minute and 1-hour mix, at
   its most used model's prices), written again by each later call that wrote at least half of its context to the cache
   (a re-write after a lapsed cache), and read by every other later call, until a compaction or the agent's end;
@@ -128,6 +128,10 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   fenced code): each line of a tool's result found in exactly one section starts that section, the lines after it
   follow it, and the item's $ is split by characters; text before the first such line matches nothing today
   (changed since) and is reported apart;
+- `--adr-reads` (#793): the ADR files (docs/decisions/) a tool read, by file: the reads split whole (no offset or limit,
+  or a `cat`, returning over WHOLE_LINES lines), section (`section`, a Read with an offset or limit, `sed -n`, `head`,
+  `tail`, a Grep or a search) and small (a short file in full), their tokens and list $, the top ADR_TOP by $ and the
+  roles that read each; `instructions.adr_reads` in the JSON record always;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
@@ -183,6 +187,12 @@ it when the reds and fix rounds of TRIAL_NO_WORSE are no worse per task and its 
 Without GitHub's issues (--no-gh or a gh error) there is no baseline; with none after TRIAL_TASKS the advice is "no
 verdict". The verdict is advice: the engineer decides. The JSON record's "sonnet_trial" holds the tasks, the baseline's
 tasks, the totals and the advice.
+Since the engineer kept the Sonnet implementer (2026-10-10 18:06Z, the model-guard ADR's amendment) the table's advice
+line is the revert rule (revert_advice): over the first REVERT_TASKS trial tasks whose first run started on or after
+KEEP_FROM (the keep's own time, so the trial's tasks of that day never count), revert when their blockers and majors
+per task pass REVERT_OVER, else keep; fewer tasks: continue. A task with no counted review (a red or unpublished run)
+stays out of the mean, and the advice then says how many were reviewed. The JSON record's "revert" holds those tasks'
+count, the reviewed count, the mean and advice; "advice" stays the trial's own verdict.
 
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
@@ -221,6 +231,13 @@ Tool output per implementer (#572, the quiet runner output): each tool call's te
 counts 0) and the part of RUNNER_OUTPUT_KINDS, per implementer agent that made a tool call, in tokens (characters /
 CHARS_PER_TOKEN); per task "impl_outputs", and their medians at the end of the compact "task medians" line, to compare
 a wave before a change with one after it. `--compact` cuts each summary line at LINE_CAP characters unless verbose.
+
+Launch prompt size per agent role (#470): the prompt the script gave each workflow agent, the last user text message
+before its first API call (the harness may relay the user request in a message of its own before it; that relay is the
+same for every agent of a run and is not counted), in characters and in tokens (characters / CHARS_PER_TOKEN, an estimate), median and max per role over
+the counted runs, in the "Launch prompt size per agent role" table of the non-compact output (`--compact` does not
+carry it) and as "prompt_sizes" in the JSON record. Run it over a window before a change and one after it
+(`--since`, `--until`) to read whether a prompt shrank.
 """
 
 from __future__ import annotations
@@ -389,7 +406,8 @@ NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
 # issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
 DESIGN_TASK = "This is a DESIGN task: documents only"
 # #606: issue-task.js names a run's review tier in its full publisher's prompt (a run's return value is not journaled).
-REVIEW_TIER = re.compile(r"^Review tier \(#606\): (light|full)\b", re.MULTILINE)
+# The harness indents every line of a workflow's computed task text by two spaces (#761), so the line may lead with blanks.
+REVIEW_TIER = re.compile(r"^[ \t]*Review tier \(#606\): (light|full)\b", re.MULTILINE)
 # The tier of a run whose publisher's prompt names none: before #606, stopped before its publisher, or pr-rebase.
 NO_TIER = "unknown"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
@@ -407,6 +425,13 @@ TRIAL_TASKS = 6
 TRIAL_EARLY_TASKS = 4
 TRIAL_RED_TWICE = 2
 TRIAL_SERIOUS_OVER = 1.0
+# The revert rule of the keep (the model-guard ADR, amendment of 2026-10-10): drop Sonnet when the blockers and majors
+# per task pass REVERT_OVER over the first REVERT_TASKS trial tasks started on or after KEEP_FROM, the keep's own time
+# (trial tasks that ran earlier that day were judged by the trial and never count).
+KEEP_FROM = "2026-10-10T18:06:44Z"  # the engineer's keep: #302 comment 6100590082, created_at
+KEEP_SINCE = f"{KEEP_FROM[:10]} {KEEP_FROM[11:16]}Z"
+REVERT_TASKS = 10
+REVERT_OVER = 0.3
 # The per-task means the table compares, and those the keep rule needs no worse than the baseline's.
 TRIAL_MEASURES = ("red_runs", "verify_runs", "verify_red", "serious", "fix_rounds", "ci_fix_rounds", "calls", "usd")
 TRIAL_NO_WORSE = {"red_runs": "red runs", "verify_red": "verify reds", "fix_rounds": "publisher fix rounds",
@@ -508,6 +533,17 @@ MERGE_PAIR = re.compile(r"^\|\s*(#\d+[^|]*\+\s*#\d+[^|]*)\|(.*)\|\s*$")
 # the command is none.
 MERGE_HEADER = re.compile(r"^merge-check(?: --trial)?\s*$", re.MULTILINE)
 ARCHITECTURE = "docs/ARCHITECTURE.md"
+# #793: the runner's `section <doc> [§]` prints a part of a doc, so it is a (section) read of it, not runner noise.
+SECTION_CMD = re.compile(r"\brun\.(?:sh|cmd)\s+section\s")
+# #793: a shell read that returns a part of a file: a `sed -n` range, `head`, `tail`, `Get-Content -TotalCount`. Each
+# alternative is a command word or a parameter, never a part of a path (`2026-10-01-m4-first-person-client.md`).
+LIMITED_SHELL = re.compile(
+    r"(?:^|[\s|;&(])(?:sed\s+-n|head|tail|Select-Object)(?=$|[\s|;&)])|\s-(?:TotalCount|First|Last|Tail)\b",
+    re.IGNORECASE,
+)
+# #793: a read that returns more lines than this, with no offset, limit or range, is a whole-file read.
+WHOLE_LINES = 150
+ADR_TOP = 10
 # The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
 HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
@@ -849,8 +885,22 @@ def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
     if name not in ("Bash", "PowerShell"):
         return []
     cmd = str(inp.get("command", ""))
+    if SECTION_CMD.search(cmd):
+        # Step by step: a `cat` of another doc beside the runner's `section` is a read of that doc in full.
+        found: list[tuple[str, str, str]] = []
+        for step, _ in shell_steps(cmd):
+            if SECTION_CMD.search(step):
+                found += [(rel, "section command", "section") for rel in shell_docs(step) if doc_what(rel)]
+            elif not NOT_A_READ.search(step):
+                found += shell_targets(step)
+        return list(dict.fromkeys(found))
     if NOT_A_READ.search(cmd):
         return []
+    return shell_targets(cmd)
+
+
+def shell_targets(cmd: str) -> list[tuple[str, str, str]]:
+    """The docs a shell command (or one step of it) reads by a plain read or a search."""
     words = CD_PREFIX.sub("", cmd).split()
     search = bool(SHELL_SEARCH.search(cmd)) and (words[0].lower() if words else "") not in ("sed", "cat")
     how, mode = ("shell search", "grep") if search else ("shell read", "plain")
@@ -966,26 +1016,39 @@ def folder_items(folder: str, text: str) -> list[dict]:
             lines.setdefault(current, []).append(line)
     found = []
     for rel, rows in lines.items():
-        item = {"what": doc_what(rel), "how": "Grep", "chars": sum(len(x) + 1 for x in rows), "file": rel}
+        item = {"what": doc_what(rel), "how": "Grep", "chars": sum(len(x) + 1 for x in rows), "file": rel,
+                "limited": True, "lines": len(rows)}  # fmt: skip
         if rel in SECTIONED:
             item |= {"text": "\n".join(rows), "mode": "grep"}
         found.append(item)
     other = doc_what(folder.rstrip("/") + "/x.md") if folder else None
     if not found and other and text.strip():
-        found.append({"what": other, "how": "Grep", "chars": len(text), "file": folder})
+        found.append({"what": other, "how": "Grep", "chars": len(text), "file": folder, "limited": True,
+                      "lines": text.count("\n") + 1})  # fmt: skip
     return found
 
 
-def read_items(targets: list[tuple[str, str, str]], text: str) -> list[dict]:
+def read_limited(name: str, inp: dict) -> bool:
+    """Whether a tool call asks for a part of a file (#793): a Read with an offset or a limit, a shell read with a
+    `sed -n` range, `head` or `tail`. A Grep or a search is a part by its own mode."""
+    if name == "Read":
+        return inp.get("offset") is not None or inp.get("limit") is not None
+    return name in ("Bash", "PowerShell") and bool(LIMITED_SHELL.search(str(inp.get("command", ""))))
+
+
+def read_items(targets: list[tuple[str, str, str]], text: str, limited: bool = False) -> list[dict]:
     """A tool result's doc items: its characters split evenly over the docs it names. A sectioned doc keeps the text
-    for the section tables when it is the only one."""
+    for the section tables when it is the only one. limited: the call asked for a part of the file (read_limited);
+    each item keeps that and its output's lines for the ADR table."""
     found = []
+    lines = (text.count("\n") + 1 if text else 0) // max(1, len(targets))
     for rel, how, mode in targets:
         if mode == "folder":
             found += folder_items(rel, text)
             continue
-        item = {"what": doc_what(rel), "how": how, "chars": len(text) // len(targets), "file": rel}
-        if rel in SECTIONED and len(targets) == 1:
+        item = {"what": doc_what(rel), "how": how, "chars": len(text) // len(targets), "file": rel,
+                "limited": limited or mode in ("grep", "section"), "lines": lines}  # fmt: skip
+        if rel in SECTIONED and len(targets) == 1 and mode != "section":
             item |= {"text": text, "mode": mode}
         found.append(item)
     return found
@@ -1043,6 +1106,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     stamps: list[float] = []
     model, effort, title = None, None, None
     prompt: str | None = None  # the first user message: the agent's prompt
+    launch: str | None = None  # #470: the last user text message before its first API call: the script's prompt
+    called = False
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
@@ -1097,13 +1162,17 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 continue
             if not isinstance(m, dict):
                 continue
-            if prompt is None and d.get("type") == "user":
+            if d.get("type") == "user" and (prompt is None or not called):
                 content = m.get("content")
                 if isinstance(content, str) or (
                     isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "text" for b in content)
                 ):
-                    prompt = text_of(content)
+                    if prompt is None:
+                        prompt = text_of(content)
+                    if not called:
+                        launch = text_of(content)  # the harness may relay the user request first, on its own
             if d.get("type") == "assistant":
+                called = True
                 msg_model = m.get("model")
                 if msg_model == "<synthetic>":
                     continue  # written by Claude Code itself (an interruption, an API error): no API call
@@ -1143,6 +1212,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
                             "docs": doc_targets(str(b.get("name")), inp),
+                            "limited": read_limited(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
                             **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
@@ -1157,7 +1227,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         if call["code"] and not call.get("counted"):
                             call["counted"] = True
                             count_code_read(call["code"], text, code_seen, code_reads)
-                        found = read_items(call["docs"], text)
+                        found = read_items(call["docs"], text, call["limited"])
                         items += found
                         pending += found
                         polled = WAIT_RAN.search(text) if call["kind"] == "wait" else None
@@ -1220,14 +1290,16 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     high = [usage[mid] for (_, ctx), mid in zip(ctx_series, order) if ctx > HIGH_CTX]
     budgets = Counter(n + ctx for n, ctx in left)
     budget = budgets.most_common(1)[0][0] if budgets else None
+    both = (prompt or "") + "\n" + (launch or "")  # the harness may relay the user request first: look in both
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
         "model": model,
         "effort": effort,
         "title": title,
-        "design": DESIGN_TASK in (prompt or ""),
-        "tier": (m.group(1) if (m := REVIEW_TIER.search(prompt or "")) else None),
+        "design": DESIGN_TASK in both,
+        "prompt_chars": len(launch) if launch else None,  # #470: the launch prompt's size
+        "tier": (m.group(1) if (m := REVIEW_TIER.search(both)) else None),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -1798,11 +1870,12 @@ def total_week(counted: list[dict], managers: list[dict]) -> dict:
 
 def build(
     data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None,
-    docs_root: Path | None = None,
+    docs_root: Path | None = None, adr_reads: bool = False,
 ) -> tuple[list[str], dict, list[str]]:
     """(the Markdown report, the JSON record, the compact summary). github: read_github's lists for the quality
     scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown. docs_root: the checkout
-    whose ARCHITECTURE and AGENT_WORKFLOW give the sections of the instruction tables (default this one)."""
+    whose ARCHITECTURE and AGENT_WORKFLOW give the sections of the instruction tables (default this one).
+    adr_reads: also the table of ADR reads by file (#793)."""
     counted = [r for r in data["runs"] if r["counted"]]
     finished = [r for r in counted if r["kind"] == "issue-task" and r["finished"]]
     tasks = [per_task(r) for r in finished]
@@ -1824,6 +1897,8 @@ def build(
     types = type_record(counted)
     md += type_section(types)
     md += code_read_section(counted)
+    prompts = prompt_record(counted)
+    md += prompt_section(prompts)
     plans = plan_rows(counted)
     md += plan_section(plans)
     handoffs = handoff_record(counted)
@@ -1832,7 +1907,7 @@ def build(
     ab = {"rows": judged, "totals": ab_totals(judged)}
     md += ab_section(ab)
     instructions = instruction_record(counted, data["sessions"], docs_root)
-    md += instruction_section(instructions)
+    md += instruction_section(instructions, adr_reads)
     by_row = verify_rows(counted, data["sessions"], history)
     md += verify_section(by_row)
     md += review_section(counted)
@@ -1885,6 +1960,7 @@ def build(
         "sonnet_trial": trial,
         "instructions": instructions,
         "agent_types": types,
+        "prompt_sizes": prompts,
         "compact": compact,
     }
     return md, record, compact
@@ -2105,6 +2181,41 @@ def code_read_section(counted: list[dict]) -> list[str]:
         "partial).",
         "",
         table(head, rows),
+        "",
+    ]
+
+
+def prompt_record(counted: list[dict]) -> list[dict]:
+    """#470: per agent role, the launch prompt's size (read_agent's "prompt_chars") over the counted runs' agents (chars; tokens estimated at
+    CHARS_PER_TOKEN): agents, median and max. A retried agent counts once per attempt. Most characters first."""
+    sizes: dict[str, list[int]] = defaultdict(list)
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if d and d.get("prompt_chars"):
+                sizes[x["role"]].append(d["prompt_chars"])
+    rows = [
+        {"role": role, "agents": len(v), "median_chars": med(v), "max_chars": max(v),
+         "median_tokens": med(v) / CHARS_PER_TOKEN, "max_tokens": max(v) / CHARS_PER_TOKEN}
+        for role, v in sizes.items()
+    ]  # fmt: skip
+    return sorted(rows, key=lambda row: -row["median_chars"])
+
+
+def prompt_section(rows: list[dict]) -> list[str]:
+    """The table of prompt_record's rows; nothing when no agent has a prompt."""
+    if not rows:
+        return []
+    body = [[r["role"], r["agents"], f"{r['median_chars']:,.0f} / {r['max_chars']:,}",
+             f"{r['median_tokens'] / 1e3:.1f}k / {r['max_tokens'] / 1e3:.1f}k"] for r in rows]  # fmt: skip
+    head = ["role", "agents", "chars (median / max)", "est. tokens (median / max)"]
+    return [
+        "## Launch prompt size per agent role (#470)",
+        "",
+        f"The prompt its script gave each workflow agent (the last user text message before its first API call); tokens are characters / "
+        f"{CHARS_PER_TOKEN}, an estimate.",
+        "",
+        table(head, body),
         "",
     ]
 
@@ -2452,6 +2563,7 @@ def trial_task(key: object, members: list[tuple[dict, dict, dict]], size: str | 
         "issue": first["issue"], "wf": first["wf"], "key": key, "size": size,
         "models": sorted({str(implementer_family(r)) for r, _p, _q in members}),
         "design": any(q["design"] for _r, _p, q in members),
+        "start": min((r["start"] for r, _p, _q in members if r.get("start") is not None), default=None),
         "runs": len(members), "red_runs": sum(run_red(r) for r, _p, _q in members),
         "verify_runs": sum(p["summaries"] for _r, p, _q in members),
         "verify_red": sum(p["summaries_failed"] for _r, p, _q in members),
@@ -2499,6 +2611,28 @@ def trial_advice(trial: dict, base: dict) -> str:
     return "keep Sonnet for qualifying tasks (the engineer decides; a habit only by a further amendment)"
 
 
+def revert_advice(rows: list[dict]) -> tuple[dict, str]:
+    """The revert rule (the module docstring) over the trial tasks: the first REVERT_TASKS that started on or after
+    KEEP_FROM, as (their count and mean blockers and majors, the advice)."""
+    keep_from = parse_time(KEEP_FROM)
+    since = sorted((x for x in rows if x.get("start") is not None and x["start"] >= keep_from), key=lambda x: x["start"])
+    judged = since[:REVERT_TASKS]
+    known = [x["serious"] for x in judged if x["serious"] is not None]
+    mean = sum(known) / len(known) if known else None
+    where = f"{len(judged)} of {REVERT_TASKS} Sonnet-implemented tasks since {KEEP_SINCE}"
+    if known and len(known) < len(judged):  # a red or unpublished run has no counted review: say the mean's base
+        where += f", {len(known)} reviewed"
+    if mean is None:
+        advice = f"continue: {where}; no review counted yet"
+    elif len(judged) < REVERT_TASKS:
+        advice = f"continue: {where}; {mean:.2f} blockers and majors a task (revert above {REVERT_OVER:g})"
+    elif mean > REVERT_OVER:
+        advice = f"revert: drop Sonnet for the implementer ({where}; {mean:.2f} blockers and majors a task, over {REVERT_OVER:g})"
+    else:
+        advice = f"keep Sonnet for qualifying tasks ({where}; {mean:.2f} blockers and majors a task, within {REVERT_OVER:g})"
+    return {"tasks": len(judged), "reviewed": len(known), "serious": mean, "advice": advice}, advice
+
+
 def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: dict | None) -> dict:
     """The Sonnet implementer trial (#560) from the finished issue-task runs, their per_task records and their
     scorecard rows (the three in one order), and the issues' sizes from read_github's list."""
@@ -2517,7 +2651,7 @@ def trial_record(runs: list[dict], tasks: list[dict], rows: list[dict], github: 
             base.append(row)
     totals = {"trial": trial_totals(trial), "baseline": trial_totals(base)}
     return {"tasks": trial, "baseline": base, "totals": totals, "sizes_known": isinstance(issues, list),
-            "advice": trial_advice(totals["trial"], totals["baseline"])}  # fmt: skip
+            "advice": trial_advice(totals["trial"], totals["baseline"]), "revert": revert_advice(trial)[0]}  # fmt: skip
 
 
 def trial_section(record: dict) -> list[str]:
@@ -2563,7 +2697,11 @@ def trial_section(record: dict) -> list[str]:
         "",
         table(total_head, totals),
         "",
-        f"Advice: {record['advice']}.",
+        f"Revert rule since {KEEP_SINCE} (the engineer kept Sonnet; the model-guard ADR): drop it when blockers and "
+        f"majors pass {REVERT_OVER:g} a task over the next {REVERT_TASKS} Sonnet-implemented tasks. The trial's own "
+        f"verdict: {record['advice']}.",
+        "",
+        f"Advice: {record['revert']['advice']}.",
         "",
     ]
 
@@ -3260,6 +3398,62 @@ def instruction_sections(agents: list[tuple[str, dict]], docs_root: Path) -> dic
     return found
 
 
+def read_scope(item: dict) -> str:
+    """How a doc read took the file (#793): `section` when it asked for a part (a Grep or a search, the runner's
+    `section`, a Read with an offset or limit, a `sed -n` range, `head`), `whole` when it returned more than
+    WHOLE_LINES lines of the file (a Read with neither, or a `cat`), else `small`: a short file read in full."""
+    if item.get("limited"):
+        return "section"
+    return "whole" if item.get("lines", 0) > WHOLE_LINES else "small"
+
+
+def adr_record(agents: list[tuple[str, dict]], top: int = ADR_TOP) -> dict:
+    """The ADR reads by file (#793): the reads a tool made of each file under docs/decisions/, split whole, section and
+    small (read_scope), their tokens and list $ and the roles (agent types) that read it; the top files by list $, and
+    the sums over every ADR read."""
+    files: dict[str, dict] = {}
+    for role, d in agents:
+        for item in d.get("instructions") or []:
+            if item["what"] != "ADRs" or how_class(item["how"]) != "read":
+                continue
+            f = files.setdefault(item["file"], {"file": item["file"], "reads": 0, "whole": 0, "section": 0, "small": 0,
+                                                "tokens": 0.0, "usd": 0.0, "whole_usd": 0.0, "roles": Counter()})  # fmt: skip
+            scope = read_scope(item)
+            f["reads"] += 1
+            f[scope] += 1
+            f["tokens"] += item["tokens"]
+            f["usd"] += item_usd(item)
+            f["whole_usd"] += item_usd(item) if scope == "whole" else 0.0
+            f["roles"][role] += item_usd(item)
+    rows = sorted(files.values(), key=lambda f: -f["usd"])
+    keys = ("reads", "whole", "section", "small", "tokens", "usd", "whole_usd")
+    return {
+        "files": len(rows), "all": {k: sum(f[k] for f in rows) for k in keys},
+        "top": [f | {"roles": [f"{r} {v / f['usd']:.0%}" if f["usd"] else r for r, v in f["roles"].most_common()]}
+                for f in rows[:top]],  # fmt: skip
+    }
+
+
+def adr_section(adr: dict) -> list[str]:
+    """The table of `metrics --adr-reads` (#793)."""
+    md = ["### ADR reads by file (#793)", ""]
+    a = adr["all"]
+    if not a["reads"]:
+        return md + ["No tool read an ADR in the window.", ""]
+    rows = [[f"`{f['file'].removeprefix('docs/decisions/')}`", f["reads"], f["whole"], f["section"], f["small"],
+             fmt_tok(f["tokens"]), fmt_usd(f["usd"]), fmt_usd(f["whole_usd"]), ", ".join(f["roles"])]
+            for f in adr["top"]]  # fmt: skip
+    rows.append([f"all {adr['files']} files", a["reads"], a["whole"], a["section"], a["small"], fmt_tok(a["tokens"]),
+                 fmt_usd(a["usd"]), fmt_usd(a["whole_usd"]), ""])  # fmt: skip
+    return md + [
+        f"The {len(adr['top'])} ADR files with the most list $ of {adr['files']} read by tools ({fmt_usd(a['whole_usd'])} "
+        f"of the {fmt_usd(a['usd'])} is whole-file reads). whole: a Read with no offset or limit, or a `cat`, that "
+        f"returned over {WHOLE_LINES} lines; section: a `section` command, a Read with an offset or limit, `sed -n`, "
+        f"`head`, `tail`, a Grep or a search; small: a file of {WHOLE_LINES} lines or fewer read in full. Launch-loaded "
+        "ADRs are not in it. Roles: the agent types by their share of the file's $.", "",
+        table(["ADR", "reads", "whole", "section", "small", "tokens", "list $", "of it whole reads", "roles by $"], rows), ""]  # fmt: skip
+
+
 def instruction_merges(sessions: list[dict]) -> list[dict]:
     """Per manager session (a wave with --since <wave start>): the merge-check outputs among its tool results, and the
     PR pairs whose rows name an ARCHITECTURE conflict (the instruction-diet ADR's N1 (c) trigger)."""
@@ -3332,11 +3526,12 @@ def instruction_record(counted: list[dict], sessions: list[dict], docs_root: Pat
         "twice": [t | {"agents": len(t["agents"]), "roles": [r for r, _n in t["roles"].most_common(3)]}
                   for t in sorted(twice.values(), key=lambda t: -t["usd"])],
         "sections": instruction_sections(agents, docs_root or ROOT),
+        "adr_reads": adr_record(agents),
         "merge_check": instruction_merges(sessions),
     }  # fmt: skip
 
 
-def instruction_section(rec: dict) -> list[str]:
+def instruction_section(rec: dict, adr_reads: bool = False) -> list[str]:
     md = ["## Instructions and docs per agent role (#337)", ""]
     if not rec["all"]["usd"]:
         return md + ["No instruction or doc item in the window's transcripts.", ""] + merge_check_lines(rec)
@@ -3379,6 +3574,8 @@ def instruction_section(rec: dict) -> list[str]:
                f"{fmt_usd(sec['unmapped_usd'])} of it is text that matches no line of today's file):", "",
                table(["section", "size today (tokens)", "tokens returned", "agents", "list $", "main roles"], rows),
                ""]  # fmt: skip
+    if adr_reads:
+        md += adr_section(rec["adr_reads"])
     return md + merge_check_lines(rec)
 
 
@@ -4325,11 +4522,14 @@ def main(
     budget: list[float] | None = None,
     run_ids: list[str] | None = None,
     verbose: bool = False,
+    adr_reads: bool = False,
 ) -> int:
     if run_ids:
-        if track or budget or sessions or since or until or ci or compact or out:
+        if track or budget or sessions or since or until or ci or compact or out or adr_reads:
             raise Failure("--run stands alone: it reads each named run whole, in flight or finished")
         return runs_main(run_ids)
+    if track and adr_reads:
+        raise Failure("--adr-reads goes with the report, not --track")
     if track:  # --session labels the tracks' sessions instead of choosing the report's
         return tracks_main(sessions or [], track, budget or [], since, until, out, compact)
     if budget:
@@ -4378,7 +4578,7 @@ def main(
             github = {"error": str(exc)}
             if not compact:  # the compact summary's quality line says it
                 warn(f"metrics: GitHub not read, its quality signals are unknown: {exc}")
-    md, record, summary = build(data, verify_runs, ci_info, t_since, t_until, github=github)
+    md, record, summary = build(data, verify_runs, ci_info, t_since, t_until, github=github, adr_reads=adr_reads)
     folder.mkdir(parents=True, exist_ok=True)
     text = "\n".join(["## Summary", "", "```", *summary, "```", "", *md])
     with io.open(folder / "metrics.md", "w", encoding="utf-8", newline="\n") as f:

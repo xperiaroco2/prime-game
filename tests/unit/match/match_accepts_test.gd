@@ -50,3 +50,17 @@ func test_an_intent_only_the_downed_may_send_is_refused_from_the_living() -> voi
 	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 6)
 	assert_array(FixtureModes.rejections(game, P2)).is_empty()
 	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
+func test_next_stage_is_not_accepted_where_no_phase_lists_it() -> void:
+	# #599: a mode that lists NextStage nowhere refuses it, the host's included (the base mode).
+	var mode := FixtureModes.basic()
+	var game := FixtureModes.started(mode, [P1, P2])
+	FixtureModes.send(game, Intents.NEXT_STAGE, P1, {}, 3)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+	game = FixtureModes.in_round(mode, [P1, P2])
+	FixtureModes.send(game, Intents.NEXT_STAGE, P1, {}, 4)
+	FixtureModes.send(game, Intents.NEXT_STAGE, P2, {}, 5)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_str(game.phase_id()).is_equal("round")

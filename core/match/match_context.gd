@@ -25,6 +25,8 @@ var channel: Channel
 ## The outcome of the row whose actions run, or empty.
 var outcome: StringName
 var outcome_argument: Variant
+## The id of the win condition that reported a `won`, or empty (EndMatch names it, #548).
+var outcome_reason: StringName
 ## The level of the current phase; for a transition action, the level of the phase it enters.
 var layout: LevelLayout
 ## Who runs, for error messages: "rule Use of item kind knife", "row Loading, all_loaded".
@@ -57,6 +59,7 @@ func copy() -> MatchContext:
 	other.channel = channel
 	other.outcome = outcome
 	other.outcome_argument = outcome_argument
+	other.outcome_reason = outcome_reason
 	other.layout = layout
 	other.source = source
 	return other

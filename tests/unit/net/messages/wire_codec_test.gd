@@ -4,6 +4,8 @@ extends GdUnitTestSuite
 
 const Samples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const EngineErrors := preload("res://tests/unit/net/messages/engine_errors.gd")
+## A control character a name never holds.
+const BELL := "\u0007"
 
 var _schema: WireSchema
 var _errors: EngineErrors
@@ -66,6 +68,26 @@ func test_an_intent_decodes_to_its_command_args_and_seq() -> void:
 	assert_int(claim.seq).is_equal(0)
 
 
+func test_next_stage_is_kind_15_with_its_seq_alone() -> void:
+	# The tutorial's stage intent (#599): kind 15, C to H, RELIABLE, cap 4, no argument.
+	assert_int(_schema.kind_of(&"NextStage")).is_equal(15)
+	var row := _schema.row(15)
+	assert_int(row.cap).is_equal(4)
+	assert_int(row.lane).is_equal(NetKindTable.Lane.RELIABLE)
+	assert_int(row.direction).is_equal(NetKindTable.Direction.CLIENT_TO_HOST)
+	var payload := _schema.encode(WireMessage.new(&"NextStage", {}, 7))
+	assert_int(payload.size()).is_equal(4)
+	var decoded := _schema.decode(15, payload)
+	assert_dict(decoded.fields).is_empty()
+	assert_int(decoded.seq).is_equal(7)
+	# A missing seq and a trailing byte are each refused by the codec.
+	_assert_rejected(15, PackedByteArray(), "truncated")
+	_assert_rejected(15, payload.slice(0, 3), "truncated")
+	var trailing := payload.duplicate()
+	trailing.append(0)
+	_assert_rejected(15, trailing, "after the last field")
+
+
 func test_change_settings_holds_a_map_only_when_it_names_one() -> void:
 	var without := _round_trip(WireMessage.new(&"ChangeSettings", {"settings": {&"tasks": 2}}, 1))
 	assert_bool(without.fields.has("map")).is_false()
@@ -125,12 +147,15 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	_assert_refused(WireMessage.new(&"Swung", {"peer": 2, "facing": Vector3(INF, 0, 0)}))
 	_assert_refused(WireMessage.new(&"Damaged", {"amount": 0x80000000, "health": 0}))
 	_assert_refused(WireMessage.new(&"TaskProgress", {"done": 0x10000, "total": 1}))
+	# A name (#550, #214) is UTF-8 of at most 80 bytes, not characters, and holds no control.
+	for bad_name: String in ["x".repeat(WireField.NAME_MAX_BYTES + 1), "é".repeat(41), "a" + BELL]:
+		_assert_refused(
+			WireMessage.new(
+				&"PlayerJoined", {"peer": 2, "name": bad_name, "spot": Vector3.ZERO, "colour": 0}
+			)
+		)
 	_assert_refused(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": "é", "spot": Vector3.ZERO})
-	)
-	var long_name := "x".repeat(WireField.TEXT_MAX + 1)
-	_assert_refused(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
+		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": 7, "spot": Vector3.ZERO, "colour": 0})
 	)
 	_assert_refused(WireMessage.new(&"MoveClaim", _claim_with("sprint", 1)))
 	_assert_refused(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": PackedByteArray()}))
@@ -158,12 +183,14 @@ func test_a_refusal_names_a_byte_array_by_its_size_and_cuts_a_long_value() -> vo
 	assert_str(voice.problem).is_equal("opus: %d bytes is not an opus" % frame.size())
 	var role := _schema.write(WireMessage.new(&"RoleAssigned", {"role": &"Crew"}))
 	assert_str(role.problem).is_equal('role: &"Crew" is not an id')
-	var long_name := "x".repeat(WireField.TEXT_MAX + 1)
+	var long_name := "x".repeat(WireField.NAME_MAX_BYTES + 1)
 	var joined := _schema.write(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
+		WireMessage.new(
+			&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO, "colour": 0}
+		)
 	)
 	assert_int(joined.problem.length()).is_less(100)
-	assert_str(joined.problem).ends_with("... is not a text")
+	assert_str(joined.problem).ends_with("... is not a name")
 
 
 func test_the_encoder_refuses_bad_paths() -> void:
@@ -191,14 +218,52 @@ func test_the_encoder_refuses_counts_over_their_maxima_and_payloads_over_the_cap
 		)
 		. is_equal(2 + 1 + 64)
 	)
-	var notes := PackedStringArray()
+	# The most shortfalls of the longest host text, beside the most settings of 32-character ids.
+	var texts: Array[Dictionary] = []
 	for i: int in WireSchema.MAX_SHORTFALLS:
-		notes.append("n".repeat(WireField.NOTE_MAX))
+		texts.append(_longest_text(i))
+	var settings: Dictionary[StringName, int] = {}
+	for i: int in WireSchema.MAX_ENTRIES:
+		settings[StringName("s%031d" % i)] = WireField.S32_MIN
 	var fields := _settings_changed_fields()
-	fields["shortfalls"] = notes
+	fields["shortfalls"] = texts
+	fields["settings"] = settings
 	var encoded := _schema.write(WireMessage.new(&"SettingsChanged", fields))
 	assert_str(encoded.problem).contains("over its cap of 8192")
 	_assert_refused(WireMessage.new(&"SettingsChanged", fields))
+
+
+## Host text is ids and whole numbers only (#548): a sentence, a third subject or a fifth
+## argument is refused on both ends, and the longest text round-trips in the decoder's types.
+func test_host_text_holds_ids_and_numbers_within_their_maxima() -> void:
+	var fields := _settings_changed_fields()
+	var longest: Array[Dictionary] = [_longest_text(0)]
+	fields["shortfalls"] = longest
+	var decoded := _schema.decode(37, _schema.encode(WireMessage.new(&"SettingsChanged", fields)))
+	assert_object(decoded).is_not_null()
+	assert_bool(Samples.same(decoded.fields["shortfalls"], longest)).is_true()
+	var bad: Array[Dictionary] = [
+		{"id": &"Players few", "ids": PackedStringArray(), "numbers": _no_numbers()},
+		{"id": &"markers", "ids": PackedStringArray(["a", "b", "c"]), "numbers": _no_numbers()},
+		{"id": &"markers", "ids": PackedStringArray(["a"]), "numbers": _numbers(5)},
+		{"id": &"markers", "ids": PackedStringArray(["a"])},
+	]
+	for text: Dictionary in bad:
+		var refused: Array[Dictionary] = [text]
+		fields["shortfalls"] = refused
+		_assert_refused(WireMessage.new(&"SettingsChanged", fields))
+	# The decoder: a fifth argument written by hand.
+	var payload := _schema.encode(
+		WireMessage.new(
+			&"MatchEnded", {"side": &"crew", "reason": &"time_up", "numbers": _numbers(4)}
+		)
+	)
+	assert_int(payload.size()).is_greater(0)
+	# side "crew" (1 + 4), the flag, reason "time_up" (1 + 7), then the count of numbers.
+	var count_at := 5 + 1 + 8
+	assert_int(payload[count_at]).is_equal(4)
+	payload[count_at] = 5
+	assert_object(_schema.decode(57, payload)).is_null()
 
 
 func test_map_keys_are_written_in_ascending_order() -> void:
@@ -227,7 +292,9 @@ func test_the_decoder_rejects_broken_payloads() -> void:
 	claim[44] = 0x08
 	_assert_rejected(5, claim, "unknown flag bits")
 	var joined := _schema.encode(
-		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": "P", "spot": Vector3.ZERO})
+		WireMessage.new(
+			&"PlayerJoined", {"peer": 2, "name": "P", "spot": Vector3.ZERO, "colour": 0}
+		)
 	)
 	joined[5] = 0x7F
 	_assert_rejected(34, joined, "byte")
@@ -272,6 +339,121 @@ func test_a_release_table_neither_encodes_nor_decodes_debug_commands() -> void:
 	assert_object(release.decode(24, _schema.encode(forced))).is_null()
 
 
+## A name (#550) round-trips as UTF-8: empty, ASCII, Cyrillic, four-byte characters, 80 bytes.
+func test_a_name_round_trips_in_utf8() -> void:
+	var emoji := String.chr(0x1F600)
+	for each: String in [
+		"", "Dima", "Діма 2", emoji.repeat(20), "é".repeat(40), "x".repeat(WireField.NAME_MAX_BYTES)
+	]:
+		var hello := {"version": WireSchema.VERSION, "content": 1, "name": each}
+		var decoded := _round_trip(WireMessage.new(&"Hello", hello))
+		if decoded != null:
+			assert_str(decoded.fields["name"]).is_equal(each)
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## The lobby's name (#214) is the `name` type on ChangeSettings (behind its flag, absent when not
+## sent), Welcome and SettingsChanged: 20 four-byte characters fit, one byte more or a control
+## does not.
+func test_the_lobby_name_is_a_name_on_three_rows() -> void:
+	var widest := String.chr(0x1F600).repeat(20)
+	var sent := WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": widest}, 3)
+	assert_str(_round_trip(sent).fields["lobby_name"]).is_equal(widest)
+	var without := _round_trip(WireMessage.new(&"ChangeSettings", {"settings": {}}, 4))
+	assert_bool(without.fields.has("lobby_name")).is_false()
+	var changed := _settings_changed_fields()
+	changed["lobby_name"] = widest
+	var decoded := _round_trip(WireMessage.new(&"SettingsChanged", changed))
+	assert_str(decoded.fields["lobby_name"]).is_equal(widest)
+	for bad: String in ["é".repeat(41), "Den" + BELL, "x".repeat(WireField.NAME_MAX_BYTES + 1)]:
+		_assert_refused(WireMessage.new(&"ChangeSettings", {"settings": {}, "lobby_name": bad}, 5))
+		changed["lobby_name"] = bad
+		_assert_refused(WireMessage.new(&"SettingsChanged", changed))
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## The decoder checks a name's bytes by hand before any decode: malformed UTF-8 is a clean reject,
+## with no engine error a peer could repeat (get_string_from_utf8 prints one), and so are the
+## characters a name never holds.
+func test_a_malformed_name_is_rejected_without_an_engine_error() -> void:
+	var bad: Array[PackedByteArray] = [
+		PackedByteArray([0xC3]),  # a lead byte without its continuation
+		PackedByteArray([0x41, 0xE2, 0x82]),  # cut short
+		PackedByteArray([0x80]),  # a continuation byte alone
+		PackedByteArray([0xC3, 0x41]),  # a lead byte followed by no continuation
+		PackedByteArray([0xC0, 0x80]),  # overlong NUL
+		PackedByteArray([0xE0, 0x80, 0x80]),  # overlong
+		PackedByteArray([0xF0, 0x80, 0x80, 0x80]),  # overlong
+		PackedByteArray([0xED, 0xA0, 0x80]),  # a surrogate
+		PackedByteArray([0xF4, 0x90, 0x80, 0x80]),  # above U+10FFFF
+		PackedByteArray([0xF8, 0x88, 0x80, 0x80, 0x80]),  # five bytes
+		PackedByteArray([0xFF]),
+		PackedByteArray([0xEF, 0xBB, 0xBF, 0x41]),  # a byte-order mark
+		PackedByteArray([0x41, 0x00]),  # NUL
+		PackedByteArray([0x41, 0x0A]),  # a control
+		PackedByteArray([0x7F]),  # DEL
+		PackedByteArray([0xC2, 0x9F]),  # a C1 control
+	]
+	for name_bytes: PackedByteArray in bad:
+		var payload := _hello_with_name_bytes(name_bytes)
+		(
+			assert_object(_schema.decode(WireSchema.HELLO, payload))
+			. override_failure_message(str(Array(name_bytes)))
+			. is_null()
+		)
+	var long := PackedByteArray()
+	long.resize(WireField.NAME_MAX_BYTES + 1)
+	long.fill(0x41)
+	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(long), "a length of 81")
+	_assert_rejected(WireSchema.HELLO, _hello_with_name_bytes(bad[4]), "not UTF-8 at byte 0")
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## Pins net/'s name characters to core/'s (net/ names no core/ class): every name the host makes
+## (PlayerNames) encodes, and the wire takes no character PlayerNames drops.
+func test_the_wire_takes_exactly_the_characters_player_names_keeps() -> void:
+	var differ := PackedInt32Array()
+	for code: int in range(0, 0x11000):
+		if WireField.is_name_char(code) == PlayerNames.is_dropped(code):
+			differ.append(code)
+	for code: int in [0x1F600, 0x10FFFF, 0x110000, 0x7FFFFFFF]:
+		if WireField.is_name_char(code) == PlayerNames.is_dropped(code):
+			differ.append(code)
+	assert_array(Array(differ)).is_empty()
+
+
+## Every character a name may hold (is_name_char: noncharacters, the private-use planes and all)
+## encodes and decodes back to itself, 16 to a name, with no engine error: a character Godot's
+## UTF-8 decoder changes on the way (it drops U+FEFF) would make a good client's Hello fail
+## silently.
+func test_every_name_character_round_trips() -> void:
+	var batch := ""
+	var failed := PackedInt32Array()
+	for code: int in range(0, 0x110000):
+		if WireField.is_name_char(code):
+			batch += String.chr(code)
+		if batch.length() == PlayerNames.MAX_CHARS or (code == 0x10FFFF and not batch.is_empty()):
+			var hello := {"version": WireSchema.VERSION, "content": 1, "name": batch}
+			var message := WireMessage.new(&"Hello", hello)
+			var decoded := _schema.decode(WireSchema.HELLO, _schema.encode(message))
+			if decoded == null or decoded.fields["name"] != batch:
+				failed.append(code)
+			batch = ""
+	assert_array(Array(failed)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## A Hello of this version whose name is `name_bytes`, written by hand.
+func _hello_with_name_bytes(name_bytes: PackedByteArray) -> PackedByteArray:
+	var payload := PackedByteArray()
+	payload.resize(10)
+	payload.encode_u16(0, WireSchema.VERSION)
+	payload.encode_s64(2, 1)
+	payload.append(name_bytes.size())
+	payload.append_array(name_bytes)
+	return payload
+
+
 func _round_trip(message: WireMessage) -> WireMessage:
 	var kind := _schema.kind_of(message.name)
 	var payload := _schema.encode(message)
@@ -304,3 +486,26 @@ func _claim_with(field: String, value: Variant) -> Dictionary:
 
 func _settings_changed_fields() -> Dictionary:
 	return Samples._settings_changed().to_dict()
+
+
+## The longest host text: a 32-character id, the most subject ids and arguments, all 32 characters.
+func _longest_text(index: int) -> Dictionary:
+	var subjects := PackedStringArray()
+	for i: int in WireSchema.MAX_TEXT_IDS:
+		subjects.append("i%031d" % i)
+	return {
+		"id": StringName("t%031d" % index),
+		"ids": subjects,
+		"numbers": _numbers(WireSchema.MAX_TEXT_NUMBERS)
+	}
+
+
+func _numbers(count: int) -> Dictionary[StringName, int]:
+	var found: Dictionary[StringName, int] = {}
+	for i: int in count:
+		found[StringName("n%031d" % i)] = WireField.S32_MIN
+	return found
+
+
+func _no_numbers() -> Dictionary[StringName, int]:
+	return {}

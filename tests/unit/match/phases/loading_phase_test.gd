@@ -26,14 +26,14 @@ func test_entering_loading_refuses_joins_and_names_the_match() -> void:
 	assert_int(changed.end_tick).is_equal(-1)
 
 
-func test_every_ack_moves_on_to_the_round() -> void:
+func test_every_ack_moves_on_to_the_pregame() -> void:
 	var game := FixtureBaseMode.in_loading([P1, P2])
 	FixtureBaseMode.load_ack(game, P2)
 	assert_str(game.phase_id()).is_equal("loading")
 	var loaded := game.view_of(P1).events_named(&"PlayerLoaded")[0] as PlayerLoadedEvent
 	assert_int(loaded.peer).is_equal(P2)
 	FixtureBaseMode.load_ack(game, P1)
-	assert_str(game.phase_id()).is_equal("round")
+	assert_str(game.phase_id()).is_equal("pregame")
 	assert_array(game.view_of(P2).event_names().slice(-5)).is_equal(
 		[&"PlayerLoaded", &"PlayerLoaded", &"PlayersPlaced", &"Correction", &"PhaseChanged"]
 	)
@@ -77,7 +77,7 @@ func test_the_deadline_drops_who_did_not_confirm() -> void:
 		names.append(emitted.event.event_name())
 	assert_int(names.rfind(&"Disconnecting")).is_equal(names.rfind(&"DisconnectPeer") - 1)
 	assert_array(FixtureBaseMode.names_since(game, P1, from).slice(0, 1)).is_equal([&"PlayerLeft"])
-	assert_str(game.phase_id()).is_equal("round")
+	assert_str(game.phase_id()).is_equal("pregame")
 	# Its late PeerLeft changes nothing.
 	FixtureModes.send(game, Intents.PEER_LEFT, P3)
 	assert_array(game.diagnostics).is_empty()
@@ -91,7 +91,7 @@ func test_the_host_is_never_dropped() -> void:
 	assert_array(game.state.peers()).is_equal([P1, P2])
 	assert_array(FixtureBaseMode.directives(game)).not_contains(["DisconnectPeer 1"])
 	FixtureBaseMode.load_ack(game, P1)
-	assert_str(game.phase_id()).is_equal("round")
+	assert_str(game.phase_id()).is_equal("pregame")
 
 
 func test_a_leave_drops_the_player() -> void:
@@ -101,7 +101,7 @@ func test_a_leave_drops_the_player() -> void:
 	assert_array(game.state.peers()).is_equal([P1])
 	var left := game.view_of(P1).events_named(&"PlayerLeft")[0] as PlayerLeftEvent
 	assert_int(left.peer).is_equal(P2)
-	assert_str(game.phase_id()).is_equal("round")
+	assert_str(game.phase_id()).is_equal("pregame")
 
 
 func test_a_connection_while_loading_is_disconnected() -> void:

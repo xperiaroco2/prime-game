@@ -116,6 +116,7 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepStopRaise.new(),
 		StepGiveUp.new(),
 		StepSwap.new(),
+		StepNextStage.new(),
 		StepTalk.new(),
 		StepThrow.new()
 	]:
@@ -141,6 +142,7 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"StopRaise",
 			&"GiveUp",
 			&"Swap",
+			&"NextStage",
 			&"Talk",
 			&"Throw"
 		]
@@ -151,7 +153,12 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
 	for raising: ScenarioStep in [
-		StepRaise.new(), StepStopRaise.new(), StepGiveUp.new(), StepSwap.new(), StepThrow.new()
+		StepRaise.new(),
+		StepStopRaise.new(),
+		StepGiveUp.new(),
+		StepSwap.new(),
+		StepNextStage.new(),
+		StepThrow.new()
 	]:
 		assert_bool(raising.sends_intent()).is_true()
 

@@ -129,7 +129,7 @@ func test_every_throw_facing_encodes_and_decodes_to_the_same_bits() -> void:
 		)
 		assert_object(packet).override_failure_message(str(facing)).is_not_null()
 		assert_str(packet.label).is_equal("intent Throw")
-		assert_int(kind).is_equal(15)
+		assert_int(kind).is_equal(17)
 		assert_int(packet.lane).is_equal(NetKindTable.Lane.RELIABLE)
 		var decoded := _schema.decode(kind, packet.bytes.slice(NetFrame.HEADER_BYTES))
 		(
@@ -138,3 +138,11 @@ func test_every_throw_facing_encodes_and_decodes_to_the_same_bits() -> void:
 			. is_true()
 		)
 		assert_int(decoded.seq).is_equal(ChaosFrames.CHAOS_SEQ)
+
+
+func test_no_unassigned_kind_has_a_row() -> void:
+	# UNKNOWN_KIND and RANDOM_BYTES expect UNKNOWN_KIND only while no row has the kind: a new row
+	# (NextStage took 15, #599) must leave the list.
+	for kind: int in ChaosFrames.UNASSIGNED:
+		assert_object(_schema.row(kind)).override_failure_message(str(kind)).is_null()
+		assert_bool(_schema.kind_table().has(kind)).override_failure_message(str(kind)).is_false()

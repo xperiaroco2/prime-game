@@ -9,9 +9,16 @@ docs/credits/<asset-slug>.md:
     - **Author:** Kenney
     - **Source:** https://kenney.nl/assets/prototype-textures
     - **License:** CC0 1.0
+    - **AI generated:** false
+    - **Public repo OK:** true
 
 `Files` lists repo-relative globs in backticks (`*` stays inside one folder, `**` crosses folders). More
-`- **Field:** value` lines and free text are allowed and copied into CREDITS.md as they are.
+`- **Field:** value` lines and free text are allowed and copied into CREDITS.md as they are. An entry that covers an
+LFS asset also carries the art manifest's provenance (#519): `AI generated` and `Public repo OK`, each `true` or
+`false` first (a note may follow), and a public repo takes only `Public repo OK: true`. An entry with a non-empty
+`- **Pending:** ...` (what lands, and how) may name files that are not in the repo yet: a third-party file the
+engineer adds by hand later, whose entry and settings are written first (#520, the font). `check` names each such
+entry in a warning; once every glob of it matches a file, the Pending line must go (an error until it does).
 """
 
 from __future__ import annotations
@@ -26,6 +33,11 @@ from .common import ROOT, Failure, bad, ok, say
 CREDITS_DIR = "docs/credits"
 OUTPUT = "CREDITS.md"
 REQUIRED = ("Files", "Author", "Source", "License")
+# The art manifest's ai_generated and public_repo_ok (prime-game-art docs/manifest.md), for an entry that covers an LFS
+# asset (#519; addons' entries cover none).
+PROVENANCE = ("AI generated", "Public repo OK")
+# An entry whose files are still to come (#520): its globs may match nothing.
+PENDING = "Pending"
 # Third-party code with its own LICENSE file; its images are kept out of LFS (.gitattributes) so CI can load them.
 EXEMPT_PREFIX = "addons/"
 FIELD_RE = re.compile(r"^- \*\*([A-Za-z][A-Za-z ]*):\*\*\s*(.*)$")
@@ -54,6 +66,7 @@ class Report:
     errors: list[str] = field(default_factory=list)
     entries: int = 0
     assets: int = 0
+    pending: list[str] = field(default_factory=list)  # entries whose files have not all landed yet
 
 
 def glob_regex(pattern: str) -> re.Pattern[str]:
@@ -202,6 +215,31 @@ def lfs_assets(root: Path, files: list[str]) -> list[str]:
     return sorted(assets)
 
 
+def flag(value: str) -> bool | None:
+    """`true` or `false` at the start of a field's value (a note may follow), else None."""
+    words = value.split()
+    first = words[0].strip(".,;:()").lower() if words else ""
+    return {"true": True, "false": False}.get(first)
+
+
+def provenance_problems(entry: Entry, covered: list[str]) -> list[str]:
+    """An entry that covers LFS assets states the art manifest's provenance, and a public repo takes only
+    `public_repo_ok = true`."""
+    problems = []
+    for name in PROVENANCE:
+        if flag(entry.fields.get(name, "")) is None:
+            problems.append(
+                f"{entry.path}: covers the LFS asset {covered[0]} but has no '- **{name}:** true' or 'false' (the art"
+                " manifest's ai_generated and public_repo_ok)"
+            )
+    if flag(entry.fields.get("Public repo OK", "")) is False:
+        problems.append(
+            f"{entry.path}: Public repo OK is false: this public repo takes only assets the art manifest marks"
+            " public_repo_ok = true"
+        )
+    return problems
+
+
 def check(root: Path = ROOT) -> Report:
     """Entries parse, every LFS asset outside addons/ is covered, no glob is stale, CREDITS.md is current."""
     entries, errors = load(root)
@@ -211,7 +249,7 @@ def check(root: Path = ROOT) -> Report:
     report.assets = len(assets)
     patterns = [(entry, glob, glob_regex(glob)) for entry in entries for glob in entry.globs]
     for entry, glob, regex in patterns:
-        if not any(regex.fullmatch(name) for name in files):
+        if not any(regex.fullmatch(name) for name in files) and not entry.fields.get(PENDING):
             folder = glob.rstrip("/") + "/"
             hint = (
                 f"it is a folder: write `{folder}**`"
@@ -219,11 +257,24 @@ def check(root: Path = ROOT) -> Report:
                 else "a typo, or a removed asset"
             )
             report.errors.append(f"{entry.path}: Files: `{glob}` matches no file in the repo ({hint})")
+    for entry in entries:
+        regexes = [regex for owner, _, regex in patterns if owner is entry]
+        if entry.fields.get(PENDING):
+            if regexes and all(any(regex.fullmatch(name) for name in files) for regex in regexes):
+                report.errors.append(
+                    f"{entry.path}: its files are here: drop the Pending line (and record what landed, as its"
+                    " Pending line says)"
+                )
+            else:
+                report.pending.append(entry.path)
+        covered = [asset for asset in assets if any(regex.fullmatch(asset) for regex in regexes)]
+        if covered:
+            report.errors += provenance_problems(entry, covered)
     for asset in assets:
         if not any(regex.fullmatch(asset) for _, _, regex in patterns):
             report.errors.append(
                 f"{asset}: an LFS asset without a credits entry: add {CREDITS_DIR}/<asset-slug>.md "
-                "(Files, Author, Source, License)"
+                "(Files, Author, Source, License, AI generated, Public repo OK)"
             )
     if not errors:
         current = root / OUTPUT

@@ -1,11 +1,15 @@
 extends Node3D
 ## A preview of the life looks for `tools\run.cmd shot` (the M4 ADR's §6 and D8): from the left, a
 ## living player, a downed one lying on its side in its colour, a body (grey with a dark cross) and
-## an invulnerable player in its white shell, on a floor; the life panel of a downed player being
-## raised over them. Dev only: nothing here reaches the game.
+## an invulnerable player in its white shell, on a floor; the LifeScreen (#497) of a downed player
+## being raised over them, or (`raised` off, life_give_up_preview.tscn) of a downed player holding
+## the give-up key, named by the key bound now (#211). Dev only: nothing here reaches the game.
 
 const MODE := "res://content/modes/base_mode.tres"
 const BODY := preload("res://client/player/remote_player_body.tscn")
+
+## The downed player is being raised; off: it holds the give-up key, 0.4 s into the hold.
+@export var raised := true
 
 
 func _ready() -> void:
@@ -33,11 +37,12 @@ func _ready() -> void:
 	var ui := GameUi.new()
 	add_child(ui)
 	ui.show_screen(GameFlow.Screen.ROUND)
-	ui.life.show_hud(_downed_hud(mode))
+	ui.life.show_hud(_downed_hud(mode, raised))
 
 
-## A downed player 4 s into its knockdown, raised by Player1 for a second of three.
-static func _downed_hud(mode: GameMode) -> LifeHud.Shown:
+## A downed player 4 s into its knockdown, raised by Player1 for a second of three, or holding the
+## give-up key.
+static func _downed_hud(mode: GameMode, by_player1: bool) -> LifeHud.Shown:
 	var model := ClientModel.new(mode)
 	model.own_peer = 2
 	for peer: int in [1, 2]:
@@ -48,10 +53,15 @@ static func _downed_hud(mode: GameMode) -> LifeHud.Shown:
 	var knocked := {"peer": 2, "position": Vector3.ZERO}
 	model.fold(&"KnockedDown", knocked)
 	countdowns.on_event(&"KnockedDown", knocked, 2, 0.0)
-	var raise := {"raiser": 1, "target": 2}
-	model.fold(&"RaiseStarted", raise)
-	countdowns.on_event(&"RaiseStarted", raise, 2, 80.0)
-	return LifeHud.of(model, countdowns, 100.0, LifeHud.Local.new())
+	var local := LifeHud.Local.new()
+	local.read_keys()
+	if by_player1:
+		var raise := {"raiser": 1, "target": 2}
+		model.fold(&"RaiseStarted", raise)
+		countdowns.on_event(&"RaiseStarted", raise, 2, 80.0)
+	else:
+		local.give_up_held_s = 0.4
+	return LifeHud.of(model, countdowns, 100.0, local)
 
 
 func _add_player(rules: PlayerRules, at: Vector3) -> RemotePlayerBody:

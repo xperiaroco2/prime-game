@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
-## The buses (AudioBuses; the M5 ADR §1.7, E43 (a), D15): Voice, Effects and Music, made in code,
-## each sending to Master at its default volume, made once however often the game starts; the
-## voices play on Voice, the world sounds on Effects and the lift music on Music.
+## The buses (AudioBuses; the M5 ADR §1.7, E43 (a), D15): Voice, Effects, Music and UI (#525),
+## made in code, each sending to Master at its default volume, made once however often the game
+## starts; the voices play on Voice, the world sounds on Effects, the lift music on Music and the
+## click on UI.
 
 
-func test_the_three_buses_send_to_master_at_their_defaults() -> void:
+func test_the_buses_send_to_master_at_their_defaults() -> void:
 	AudioBuses.ensure()
-	for bus: StringName in [AudioBuses.VOICE, AudioBuses.EFFECTS, AudioBuses.MUSIC]:
+	for bus: StringName in [AudioBuses.VOICE, AudioBuses.EFFECTS, AudioBuses.MUSIC, AudioBuses.UI]:
 		var index := AudioBuses.index_of(bus)
 		assert_int(index).is_greater(0)
 		assert_str(String(AudioServer.get_bus_send(index))).is_equal(String(AudioBuses.MASTER))
@@ -17,6 +18,7 @@ func test_the_three_buses_send_to_master_at_their_defaults() -> void:
 	assert_float(AudioServer.get_bus_volume_db(AudioBuses.index_of(AudioBuses.MUSIC))).is_equal(
 		-14.0
 	)
+	assert_float(AudioServer.get_bus_volume_db(AudioBuses.index_of(AudioBuses.UI))).is_equal(-6.0)
 
 
 func test_ensure_makes_each_bus_once_and_keeps_a_moved_volume() -> void:

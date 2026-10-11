@@ -22,8 +22,8 @@ func test_each_field_is_named_by_a_string_with_a_variant_type() -> void:
 			assert_bool(type is int and type > TYPE_NIL and type < TYPE_MAX).is_true()
 
 
-func test_move_claim_carries_a_jump_count_and_hello_the_content_hash() -> void:
+func test_move_claim_carries_a_jump_count_and_hello_the_content_hash_and_name() -> void:
 	assert_int(Intents.FIELDS[Intents.MOVE_CLAIM]["jumps"]).is_equal(TYPE_INT)
 	assert_bool(Intents.FIELDS[Intents.MOVE_CLAIM].has("jumped")).is_false()
 	assert_int(Intents.FIELDS[Intents.HELLO]["content"]).is_equal(TYPE_INT)
-	assert_bool(Intents.FIELDS[Intents.HELLO].has("name")).is_false()
+	assert_int(Intents.FIELDS[Intents.HELLO]["name"]).is_equal(TYPE_STRING)

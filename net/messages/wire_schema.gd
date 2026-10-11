@@ -12,12 +12,18 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it:
-## 9 since #429 added MoveClaimReliable (kind 14).
-## 11 since #647 added ZoneProgress (kind 66); 12 since #643 added Throw (kind 15) and ItemThrown
-## (kind 67). release/m6.2 has its own 10 (#550, Hello's `name`) and 11 (#214, the lobby's name),
-## not on this line yet, so 11 already names two tables: whichever release reaches main second
-## renumbers its own bumps above the other's highest.
-const VERSION := 12
+## 9 since #429 added MoveClaimReliable (kind 14); 10 since #550 added Hello's `name` and made
+## PlayerJoined's and the Welcome roster's names the `name` type (UTF-8); 11 since #214 added
+## the lobby's name to ChangeSettings, Welcome and SettingsChanged and widened `name` to 80 bytes;
+## 12 since #599 added NextStage (kind 15);
+## 13 since #548 turned SettingsChanged's shortfalls into host text (ids plus arguments) and gave
+## MatchEnded its reason;
+## 14 since #551 added SetProfile (kind 16), ProfileChanged (kind 66) and the body colour of
+## PlayerJoined and the Welcome roster;
+## 15 since release/m7 reached main (#837): #647 added ZoneProgress (kind 67) and #643 added Throw
+## (kind 17) and ItemThrown (kind 68). On release/m7 they were its own 11 and 12 (kinds 66, 15, 67),
+## renumbered above main's highest as one bump when it merged second.
+const VERSION := 15
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -44,6 +50,9 @@ const MAX_AVATARS := MAX_PLAYERS - 1
 const MAX_ENTRIES := 32
 const MAX_TASK_TYPES := 16
 const MAX_SHORTFALLS := 32
+## Host text (#548): the most subject ids and whole-number arguments of one text.
+const MAX_TEXT_IDS := 2
+const MAX_TEXT_NUMBERS := 4
 ## One 20 ms Opus frame.
 const MAX_OPUS := 500
 ## A VoiceBatch's frames: as many 1-byte frames as fit its 1024-byte cap behind its tick and
@@ -195,8 +204,11 @@ static func _intents() -> Array[WireRow]:
 		"settings", _id(""), WireField.setting("", MAX_TASK_TYPES), MAX_ENTRIES, false
 	)
 	var has_map := WireField.when("has_map", [_of("map", WireField.Type.PATH)])
-	var hello := _up(HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64)])
-	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map])
+	var hello := _up(
+		HELLO, &"Hello", 8192, [_u16("version"), _of("content", WireField.Type.S64), _name("name")]
+	)
+	var has_lobby_name := WireField.when("has_lobby_name", [_name("lobby_name")])
+	var change := _up(3, &"ChangeSettings", 2048, [_seq(), settings, has_map, has_lobby_name])
 	change.content_sized = true
 	# No seq: it is a claim, so a failed check gets a Correction, never a Rejected (§4.3).
 	var twin := _up(14, RELIABLE_CLAIM, 55, _claim_fields())
@@ -223,7 +235,10 @@ static func _intents() -> Array[WireRow]:
 		_up(12, &"GiveUp", 4, [_seq()]),
 		_up(13, &"Swap", 4, [_seq()]),
 		twin,
-		_up(15, &"Throw", 16, [_seq(), _vec3("facing")]),
+		_up(15, &"NextStage", 4, [_seq()]),
+		# seq 4, name 81 (its length byte and 80 bytes), colour 1.
+		_up(16, &"SetProfile", 86, [_seq(), _name("name"), _of("colour", WireField.Type.U8)]),
+		_up(17, &"Throw", 16, [_seq(), _vec3("facing")]),
 	]
 
 
@@ -255,7 +270,9 @@ static func _debug_commands() -> Array[WireRow]:
 
 
 static func _events() -> Array[WireRow]:
-	var roster_entry := WireField.record("", [_peer("peer"), _text("name"), _bool("ready")])
+	var roster_entry := WireField.record(
+		"", [_peer("peer"), _name("name"), _bool("ready"), _of("colour", WireField.Type.U8)]
+	)
 	var numbers := _numbers("settings")
 	var welcome := _down(
 		33,
@@ -270,6 +287,7 @@ static func _events() -> Array[WireRow]:
 			_path("map"),
 			_id("phase"),
 			WireField.map("positions", _peer(""), _vec3(""), MAX_PLAYERS),
+			_name("lobby_name"),
 		]
 	)
 	var id_sets := WireField.map(
@@ -291,9 +309,8 @@ static func _events() -> Array[WireRow]:
 			_numbers("map_markers"),
 			_numbers("needed_colours"),
 			_numbers("palettes"),
-			WireField.list(
-				"shortfalls", _of("", WireField.Type.NOTE), MAX_SHORTFALLS, TYPE_PACKED_STRING_ARRAY
-			),
+			WireField.list("shortfalls", WireField.record("", _host_text()), MAX_SHORTFALLS),
+			_name("lobby_name"),
 		]
 	)
 	var spots := WireField.map("spots", _peer(""), _vec3(""), MAX_PLAYERS)
@@ -326,7 +343,12 @@ static func _events() -> Array[WireRow]:
 	return [
 		_down(REJECTED, &"Rejected", 37, [_u32("seq"), _id("reason")]),
 		welcome,
-		_down(34, &"PlayerJoined", 81, [_peer("peer"), _text("name"), _vec3("spot")]),
+		_down(
+			34,
+			&"PlayerJoined",
+			98,
+			[_peer("peer"), _name("name"), _vec3("spot"), _of("colour", WireField.Type.U8)]
+		),
 		_down(35, &"PlayerLeft", 4, [_peer("peer")]),
 		_down(36, &"ReadyChanged", 5, [_peer("peer"), _bool("ready")]),
 		settings_changed,
@@ -364,7 +386,15 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
 		_down(56, &"Correction", 28, [_u32("epoch"), _vec3("position"), _vec3("velocity")]),
-		_down(57, &"MatchEnded", 33, [_id("side")]),
+		_down(
+			57,
+			&"MatchEnded",
+			216,
+			[
+				_id("side"),
+				WireField.when("has_reason", [_id("reason"), _text_numbers("numbers")]),
+			]
+		),
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
 		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
@@ -380,6 +410,12 @@ static func _events() -> Array[WireRow]:
 		),
 		_down(
 			66,
+			&"ProfileChanged",
+			86,
+			[_peer("peer"), _name("name"), _of("colour", WireField.Type.U8)]
+		),
+		_down(
+			67,
 			&"ZoneProgress",
 			11,
 			[
@@ -391,7 +427,7 @@ static func _events() -> Array[WireRow]:
 			]
 		),
 		_down(
-			67,
+			68,
 			&"ItemThrown",
 			46,
 			[
@@ -549,10 +585,26 @@ static func _path(field_name: String) -> WireField:
 	return _of(field_name, WireField.Type.PATH)
 
 
-static func _text(field_name: String) -> WireField:
-	return _of(field_name, WireField.Type.TEXT)
+## A player's or the lobby's name (#550, #214): UTF-8, at most WireField.NAME_MAX_BYTES bytes.
+static func _name(field_name: String) -> WireField:
+	return _of(field_name, WireField.Type.NAME)
 
 
 ## A map<id, s32>: whole-number settings, markers or colours per id.
 static func _numbers(field_name: String) -> WireField:
 	return WireField.map(field_name, _id(""), _s32(""), MAX_ENTRIES)
+
+
+## Host text (#548): an id, its subject ids and its whole-number arguments, never a sentence; the
+## client words it in its own language. Core's HostText.to_dict().
+static func _host_text() -> Array[WireField]:
+	return [
+		_id("id"),
+		WireField.list("ids", _id(""), MAX_TEXT_IDS, TYPE_PACKED_STRING_ARRAY),
+		_text_numbers("numbers"),
+	]
+
+
+## A host text's arguments: a map<id, s32> of at most MAX_TEXT_NUMBERS.
+static func _text_numbers(field_name: String) -> WireField:
+	return WireField.map(field_name, _id(""), _s32(""), MAX_TEXT_NUMBERS)

@@ -18,6 +18,13 @@
 gdlintrc text eol=lf
 gdformatrc text eol=lf
 
+# The pinned UI pack is stored as ui-sync wrote it, byte for byte under its sha256 lock (#288): no EOL conversion.
+client/ui/theme/pack/** -text
+# Its imported copy's SVGs too (#520: ui-sync checks each against the same lock); its PNGs stay in LFS below.
+assets/ui/toy_pack/**/*.svg -text
+# The OFL text is the primary source's file byte for byte (CRLF), under its hash in docs/credits/licenses/README.md (#684).
+docs/credits/licenses/comfortaa/OFL.txt -text
+
 # Windows batch files need CRLF.
 *.cmd text eol=crlf
 *.bat text eol=crlf

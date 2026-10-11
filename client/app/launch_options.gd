@@ -13,7 +13,9 @@ extends RefCounted
 ##   --alive-file=<path> stop once this file is gone or ALIVE_SECONDS old: the runner touches it
 ##                       every second, so a killed runner leaves no session running
 ##   --no-replay         the host writes no replay (the runner's selftest)
+##   --tutorial          the game window starts the solo tutorial, with no invite (playcheck, #601)
 ## With neither --host nor --join the game shows its main menu; the headless session refuses that.
+## Any argument at all (`given`) keeps the game from starting the tutorial by itself (E70).
 
 ## A placeholder, "not a decision".
 const DEFAULT_PORT := 24600
@@ -27,6 +29,7 @@ const NO_REPLAY_ARG := "--no-replay"
 const CODE_ARG := "--code"
 const SIGNAL_ARG := "--signal="
 const ROOM_ARG := "--room="
+const TUTORIAL_ARG := "--tutorial"
 ## --signal=lan: the host serves the signalling itself (LanSignalling).
 const LAN_SIGNAL := "lan"
 const LOCALHOST := "127.0.0.1"
@@ -53,6 +56,10 @@ var signal_url := JoinTarget.SERVICE_URL
 var room := ""
 ## What --join= names, parsed; null without --join=.
 var target: JoinTarget = null
+## The solo tutorial without its invite (--tutorial, #601).
+var tutorial := false
+## Any argument was given, a wrong one too: then the game never starts the tutorial by itself.
+var given := false
 ## What is wrong with the arguments; empty when nothing is.
 var problem := ""
 
@@ -60,6 +67,7 @@ var problem := ""
 ## The options in `args`; with `menu_allowed` off, one of --host and --join is required.
 static func parse(args: PackedStringArray, menu_allowed := false) -> LaunchOptions:
 	var options := LaunchOptions.new()
+	options.given = not args.is_empty()
 	options.problem = options._read(args, menu_allowed)
 	return options
 
@@ -107,10 +115,22 @@ func _read(args: PackedStringArray, menu_allowed: bool) -> String:
 			signal_url = arg.trim_prefix(SIGNAL_ARG)
 		elif arg.begins_with(ROOM_ARG):
 			room = arg.trim_prefix(ROOM_ARG).to_upper()
+		elif arg == TUTORIAL_ARG:
+			tutorial = true
 		else:
 			return "unknown argument '%s'" % arg
 	bind = LOCALHOST if local else EVERY_INTERFACE
-	return _check(menu_allowed, local)
+	var wrong_tutorial := _check_tutorial(menu_allowed)
+	return wrong_tutorial if not wrong_tutorial.is_empty() else _check(menu_allowed, local)
+
+
+## --tutorial is a start of its own, the game window's alone (#601).
+func _check_tutorial(menu_allowed: bool) -> String:
+	if tutorial and (hosting or joining):
+		return "give either %s or %s / %s<address>, not both" % [TUTORIAL_ARG, HOST_ARG, JOIN_ARG]
+	if tutorial and not menu_allowed:
+		return "%s is for the game window, not the headless session" % TUTORIAL_ARG
+	return ""
 
 
 func _check(menu_allowed: bool, local: bool) -> String:

@@ -699,15 +699,20 @@ def run_lanes(
 # Since #556 a machine with at least BIG_MACHINE logical CPUs gives them half (8 on the PC; over 10 runs on 10-08:
 # selftest 144 s, the lane 212 s, which ends it near the first network run, and `test` beside it no slower, 123 s
 # against 130 s); a smaller one keeps a quarter (1 on CI's 4-vCPU runner, where the Python lane ends about 230 s
-# before the Godot lane anyway).
+# before the Godot lane anyway). A `selftest` outside a verify lane (CI's minimum-Python job, a 4-vCPU runner with
+# nothing beside it) takes every logical CPU of a small machine (#603); a big one keeps half for the other sessions,
+# but never fewer workers than a smaller machine gets alone (8 CPUs: 7).
 WORKER_SHARE = 2
 SMALL_WORKER_SHARE = 4
 BIG_MACHINE = 8
 
 
-def selftest_workers(cpus: int | None = None) -> int:
+def selftest_workers(cpus: int | None = None, alone: bool = False) -> int:
     count = cpus if cpus is not None else os.cpu_count() or 1
-    return max(1, count // (WORKER_SHARE if count >= BIG_MACHINE else SMALL_WORKER_SHARE))
+    if count >= BIG_MACHINE:
+        # Alone, never fewer than a smaller machine gets (7 of 8, 7 of 14), while 16 still give 8.
+        return max(count // WORKER_SHARE, min(count, BIG_MACHINE - 1)) if alone else count // WORKER_SHARE
+    return count if alone else max(1, count // SMALL_WORKER_SHARE)
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
@@ -760,33 +765,85 @@ def _import_failure(test: unittest.TestCase) -> bool:
 
 
 def run_case(test: unittest.TestCase, test_id: str | None = None) -> dict[str, object]:
-    """One test's outcome: passed, failed or skipped, its seconds, whether a decorator skipped it, and why."""
-    started = time.monotonic()
-    static = statically_skipped(test)
-    result = unittest.TestResult()
-    unittest.TestSuite([test]).run(result)  # with the class fixtures, as a serial run has them
-    problems = [trace for _case, trace in result.errors + result.failures]
-    problems += ["unexpected success"] * len(result.unexpectedSuccesses)
-    if problems:
-        outcome, detail = "failed", "\n".join(problems)
-    elif result.skipped:
-        outcome, detail = "skipped", result.skipped[0][1]
-    elif result.testsRun == 0:
-        outcome, detail = "failed", "the test never ran"
-    else:
-        outcome, detail = "passed", ""
-    return {
-        "id": test_id or test.id(),
-        "outcome": outcome,
-        "static": static,
-        "seconds": round(time.monotonic() - started, 3),
-        "detail": detail,
-    }
+    """One test's outcome, run alone with its class fixtures (for discovery's stand-in for a module that failed to
+    import)."""
+    return run_batch([test], [test_id or test.id()])[0]
+
+
+class _PerTest(unittest.TestResult):
+    """A batch's result, test by test: each test's seconds are the time since the one before it ended (so they hold
+    the class and module fixtures it started), so a batch's tests sum to the batch."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.mark = time.monotonic()
+        self.seconds: dict[str, float] = {}
+
+    def stopTest(self, test: unittest.TestCase) -> None:  # noqa: N802 - unittest's name
+        super().stopTest(test)
+        now = time.monotonic()
+        self.seconds[test.id()] = self.seconds.get(test.id(), 0.0) + now - self.mark
+        self.mark = now
+
+
+def _fixture_scope(case: object) -> str | None:
+    """The class or module a fixture's error belongs to ("setUpClass (pkg.mod.Cls)" -> "pkg.mod.Cls"; "" when its
+    description names none), or None for a test's own (a test, or a subtest of one)."""
+    if not isinstance(case, unittest.suite._ErrorHolder):  # type: ignore[attr-defined]
+        return None
+    match = re.search(r"\(([^()]*)\)\s*$", str(case.description))
+    return match.group(1) if match else ""
+
+
+def run_batch(tests: list[unittest.TestCase], ids: list[str]) -> list[dict[str, object]]:
+    """Run tests in one suite, as a serial run does (the fixtures of a class or a module once for its tests that
+    follow each other), and give each test its outcome: passed, failed or skipped, its seconds, whether a decorator
+    skipped it, and why. A fixture's error or skip goes to the batch's tests of its class or module."""
+    static = [statically_skipped(t) for t in tests]
+    result = _PerTest()
+    unittest.TestSuite(tests).run(result)
+    problems: dict[str, list[str]] = {}
+    skips: dict[str, str] = {}
+    fixtures: list[tuple[str, str, bool]] = []  # (scope, text, whether it is a skip)
+    pairs = [(c, t, False) for c, t in result.errors + result.failures] + [(c, t, True) for c, t in result.skipped]
+    pairs += [(c, "unexpected success", False) for c in result.unexpectedSuccesses]
+    for case, text, skip in pairs:
+        scope = _fixture_scope(case)
+        if scope is not None:
+            fixtures.append((scope, text, skip))
+            continue
+        owner = getattr(case, "test_case", case).id()  # a subtest's failure is its test's
+        if skip:
+            skips.setdefault(owner, text)
+        else:
+            problems.setdefault(owner, []).append(text)
+    entries: list[dict[str, object]] = []
+    for test, test_id, is_static in zip(tests, ids, static, strict=True):
+        key = test.id()
+        ran = key in result.seconds
+        own = [(text, skip) for scope, text, skip in fixtures if not scope or key.startswith(scope + ".")]
+        failed = problems.get(key, []) + [text for text, skip in own if not skip]
+        if failed:
+            outcome, detail = "failed", "\n".join(failed)
+        elif key in skips:
+            outcome, detail = "skipped", skips[key]
+        elif not ran and own:
+            outcome, detail = "skipped", own[0][0]  # a fixture's skipTest() skips its tests, as in a serial run
+        elif not ran:
+            outcome, detail = "failed", "the test never ran"
+        else:
+            outcome, detail = "passed", ""
+        entries.append({"id": test_id, "outcome": outcome, "static": is_static,
+                        "seconds": round(result.seconds.get(key, 0.0), 3), "detail": detail})  # fmt: skip
+    if entries:  # the end of the last fixtures (a tearDownClass, a tearDownModule) is the last test's
+        entries[-1]["seconds"] = round(float(str(entries[-1]["seconds"])) + time.monotonic() - result.mark, 3)
+    return entries
 
 
 def run_ids(ids: list[str]) -> list[dict[str, object]]:
-    """A worker process's task: load each test by its id and run it."""
+    """A worker process's task: load each test of a batch by its id and run them in one suite (run_batch)."""
     entries: list[dict[str, object]] = []
+    loaded: list[tuple[str, unittest.TestCase]] = []
     for test_id in ids:
         try:
             tests = list(_flatten(unittest.defaultTestLoader.loadTestsFromName(test_id)))
@@ -798,24 +855,29 @@ def run_ids(ids: list[str]) -> list[dict[str, object]]:
             entries.append({"id": test_id, "outcome": "failed", "static": False, "seconds": 0.0,
                             "detail": f"{len(tests)} tests by this id, not one"})  # fmt: skip
             continue
-        entries.append(run_case(tests[0], test_id))
+        loaded.append((test_id, tests[0]))
+    if loaded:
+        entries += run_batch([test for _id, test in loaded], [test_id for test_id, _test in loaded])
     return entries
 
 
-def run_in_workers(ids: list[str], workers: int) -> list[dict[str, object]]:
-    """Each test in one of `workers` processes (spawned: no fork of a process with threads), as they free up."""
-    if not ids:
+def run_in_workers(batches: list[list[str]], workers: int) -> list[dict[str, object]]:
+    """Each batch in one of `workers` processes (spawned: no fork of a process with threads), started in the given
+    order as the workers free up."""
+    batches = [batch for batch in batches if batch]
+    if not batches:
         return []
     entries: list[dict[str, object]] = []
     context = multiprocessing.get_context("spawn")
-    with concurrent.futures.ProcessPoolExecutor(max_workers=min(workers, len(ids)), mp_context=context) as pool:
-        futures = {pool.submit(run_ids, [test_id]): test_id for test_id in ids}
+    with concurrent.futures.ProcessPoolExecutor(max_workers=min(workers, len(batches)), mp_context=context) as pool:
+        futures = {pool.submit(run_ids, batch): batch for batch in batches}
         for future in concurrent.futures.as_completed(futures):
             try:
                 entries.extend(future.result())
-            except Exception:  # noqa: BLE001 - a worker that died fails its test, never the whole run
-                entries.append({"id": futures[future], "outcome": "failed", "static": False, "seconds": 0.0,
-                                "detail": traceback.format_exc()})  # fmt: skip
+            except Exception:  # noqa: BLE001 - a worker that died fails its batch's tests, never the whole run
+                detail = traceback.format_exc()
+                entries += [{"id": test_id, "outcome": "failed", "static": False, "seconds": 0.0, "detail": detail}
+                            for test_id in futures[future]]  # fmt: skip
     return entries
 
 
@@ -831,26 +893,59 @@ def read_results(group: str) -> dict[str, object] | None:
     return data if isinstance(data, dict) else None
 
 
-def _slowest_first(group: str, ids: list[str]) -> list[str]:
-    """The last run's slowest tests start first, so no long test starts last; new tests count as slow."""
-    previous = read_results(group) or {}
-    tests = previous.get("tests")
+def last_seconds(group: str) -> dict[str, float]:
+    """Each test's seconds in the group's last run (with the fixtures it started); empty before a first run."""
+    tests = (read_results(group) or {}).get("tests")
     seconds: dict[str, float] = {}
     for entry in tests if isinstance(tests, list) else []:
         if isinstance(entry, dict):
-            seconds[str(entry.get("id"))] = float(entry.get("seconds", 0.0))
-    return sorted(ids, key=lambda test_id: -seconds.get(test_id, float("inf")))
+            with contextlib.suppress(TypeError, ValueError):
+                seconds[str(entry.get("id"))] = float(entry.get("seconds", 0.0))
+    return seconds
+
+
+# Batches (#603). Until then each test ran in a suite of its own, so its class's fixtures ran once per test: the git
+# repositories that test_merge's Repo builds once per class and copies for each test (about 60 ms a git call on
+# Windows) were built for every test, and each test was a task of its own for a worker. Now a class's tests run in
+# a few batches, in their serial order, each batch with the class fixtures once, as a serial run has them. A class is
+# cut so no batch holds more than the group's last-run seconds over workers * BATCHES_PER_WORKER (balance: no long
+# batch is left to start last), and the batches start longest first. A test with no last run counts
+# UNKNOWN_SECONDS, and a batch holding one starts before the others, as new tests did before.
+BATCHES_PER_WORKER = 4
+UNKNOWN_SECONDS = 1.0
+
+
+def plan_batches(ids: list[str], seconds: dict[str, float], workers: int) -> list[list[str]]:
+    """The batches of `ids` (discovery order: a class's tests next to each other), in the order they start."""
+    if not ids:
+        return []
+    cost = {test_id: seconds.get(test_id, UNKNOWN_SECONDS) for test_id in ids}
+    cap = sum(cost.values()) / (max(1, workers) * BATCHES_PER_WORKER)
+    batches: list[list[str]] = []
+    held = 0.0
+    for test_id in ids:
+        same_class = bool(batches) and batches[-1][-1].rsplit(".", 1)[0] == test_id.rsplit(".", 1)[0]
+        if same_class and held + cost[test_id] <= cap:
+            batches[-1].append(test_id)
+            held += cost[test_id]
+        else:
+            batches.append([test_id])
+            held = cost[test_id]
+    return sorted(batches, key=lambda batch: (all(t in seconds for t in batch), -sum(cost[t] for t in batch)))
 
 
 def _run_group(group: str, tests: list[unittest.TestCase], workers: int) -> tuple[list[dict[str, object]], float]:
-    """Run a group's tests and write their results (for verify's count check and the next run's order); return them
-    and the group's seconds."""
+    """Run a group's tests and write their results (for verify's count check and the next run's batches); return
+    them and the group's seconds."""
     started = time.monotonic()
     inline = [t for t in tests if _import_failure(t)]
-    ids = _slowest_first(group, [t.id() for t in tests if not _import_failure(t)])
-    entries = [run_case(t) for t in inline] + run_in_workers(ids, workers)
+    batches = plan_batches([t.id() for t in tests if not _import_failure(t)], last_seconds(group), workers)
+    entries = [run_case(t) for t in inline] + run_in_workers(batches, workers)
     ensure_out()
-    record = {"group": group, "run": os.environ.get(RUN_ID_VAR), "workers": workers, "tests": entries}
+    record = {
+        "group": group, "run": os.environ.get(RUN_ID_VAR), "workers": workers, "batches": len(batches),
+        "tests": entries,
+    }  # fmt: skip
     _results_path(group).write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8", newline="\n")
     return entries, time.monotonic() - started
 
@@ -890,17 +985,20 @@ def _report(group: str, entries: list[dict[str, object]], workers: int, seconds:
 
 
 def selftest(group: str = "all") -> int:
-    """Unit tests of the runner itself (stdlib unittest, tools/runner/tests), each in a worker process.
+    """Unit tests of the runner itself (stdlib unittest, tools/runner/tests), in batches on worker processes.
 
-    `python`: the tests that start no Godot, on selftest_workers() processes. `godot`: the tests marked
+    `python`: the tests that start no Godot, on selftest_workers() processes (plan_batches). `godot`: the tests marked
     @starts_godot, serially in one process. `all` (the `selftest` command): both at once, then the count check.
     """
     say("selftest-godot" if group == "godot" else "selftest")
+    # Alone: the Python group by itself outside a verify lane (CI's minimum-Python job), with no Godot lane and no
+    # selftest-godot group beside it (`all` runs that group at the same time, #603 review).
+    alone = group == "python" and not os.environ.get(INSIDE_VAR)
     os.environ["PYTHONDONTWRITEBYTECODE"] = "1"  # the spawned workers import the runner afresh
     os.environ[INSIDE_VAR] = "1"  # and inherit this: a test that reaches the real lanes fails (run_lane_process)
     tests = discover()
     groups = ("python", "godot") if group == "all" else (group,)
-    workers = {name: 1 if name == "godot" else selftest_workers() for name in groups}
+    workers = {name: 1 if name == "godot" else selftest_workers(alone=alone) for name in groups}
     # Every worker inherits a stand-in app-data folder: a test that writes to the app-data folder outside a
     # @starts_godot class (which has its own) would have written to the real one, and fails the run (#233).
     with temp_app_data(prefix="prime-selftest-app-data-") as stand_in:

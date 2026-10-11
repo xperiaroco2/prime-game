@@ -158,6 +158,36 @@ class LeanReadingTest(unittest.TestCase):
                     self.assertIn(phrase, item)
 
 
+class PrintCapTest(unittest.TestCase):
+    """#760, #766: what a command prints stays in the context to the end, so the four agent files that read diffs, logs
+    and issues carry one bullet that caps a read, worded for the role."""
+
+    PHRASE = "What a command prints stays in your context to the end"
+
+    def test_the_implementer_the_publisher_and_the_reviewers_carry_the_cap(self) -> None:
+        for name in ("task-implementer", "task-publisher", *REVIEWERS):
+            with self.subTest(agent=name):
+                body = " ".join(" ".join(instructions.parse(text(name)).body).split())
+                self.assertEqual(body.count(self.PHRASE), 1)
+                item = next(part for part in body.split(" - ") if self.PHRASE in part)
+                self.assertIn("--stat", item)
+                self.assertIn("section", item)
+
+    def test_a_reviewer_reads_the_diff_stat_first_then_file_by_file(self) -> None:
+        for name in REVIEWERS:
+            with self.subTest(agent=name):
+                body = " ".join(" ".join(instructions.parse(text(name)).body).split())
+                item = next(part for part in body.split(" - ") if self.PHRASE in part)
+                for phrase in ("`git diff --stat` first", "file by file or by range", "never a whole large doc"):
+                    self.assertIn(phrase, item)
+
+    def test_the_publisher_reads_a_log_by_search(self) -> None:
+        body = " ".join(" ".join(instructions.parse(text("task-publisher")).body).split())
+        item = next(part for part in body.split(" - ") if self.PHRASE in part)
+        for phrase in ("a log by search", "never whole", "| head -c 6000", "grep -n -i -E", "exit="):
+            self.assertIn(phrase, item)
+
+
 NOTES = ROOT / "docs" / "workflow-scripts.md"
 
 

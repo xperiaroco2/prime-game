@@ -129,8 +129,14 @@ func test_a_respawn_demands_a_respawn_marker_on_every_map_and_the_fit_check_show
 			)
 		]
 	)
-	assert_array(Array(demands.shortfalls(bare))).is_equal(
-		["1 respawn marker(s) needed, the map has 0"]
+	assert_array(HostText.to_dicts(demands.shortfalls(bare))).is_equal(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["respawn"]),
+				"numbers": {&"need": 1, &"have": 0}
+			}
+		]
 	)
 	# Without a Respawn, LifeTicks demands nothing.
 	assert_array(Array(LayoutCheck.run(FixtureCombatModes.basic(), layouts))).is_empty()

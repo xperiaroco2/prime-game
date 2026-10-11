@@ -5,8 +5,18 @@
 - **Amended 2026-10-02 (issue #155):** E24's "set to each `SelfStatus` as it arrives" holds off the network only. On
   the network the client predicts stamina claim by claim and follows each `SelfStatus` from the claim it names
   (`ARCHITECTURE.md` §4.7 and §7.1 Speed); the E24 row below keeps the original decision
+- **Amended 2026-10-09 (issue #253):** the "Task screen | hold Tab" row and §3 item 4 are revised: the map and tasks
+  screen opens and closes on M (the action `map`; Tab has no action), shows each task's name and counter with no
+  description, and a map of the level's rooms with the own place only and the rooms where a task type's items may
+  lie (zones, from level data); never a player's, an item's, a circle's or a spawn point's position
+  (`ARCHITECTURE.md` §4.7.33). The row and item 4 below keep their text, with a note
 - **Amended by** [the M5 voice design](2026-10-02-m5-voice-integrated-with-the-rules.md)'s E40 (2026-10-02, confirmed
   by the engineer): E33's hearing range is measured from the ears, not the listener's camera; built in M5-5 (#219)
+- **Amended by** [Delivery by meaning](2026-10-10-delivery-by-meaning.md)'s DD4 (a) (2026-10-10, the engineer, [PR
+  #713, comment 6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718)): no marker is
+  to be drawn through walls. D10 (b)'s marker and item 5's one exception go when its D3a removes the marker; until
+  then the client still draws that one marker (`client/world/circle_views.gd`), the exception covers it alone, and no
+  new marker may cite it. The D10 row and item 5 below keep the original text, each with a note
 - **Date:** 2026-10-01
 - **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134). The engineer, in
   chat with the M4 manager session on 2026-10-01: E31 to E33, and the designer's D4 to D10 by relay
@@ -87,7 +97,7 @@ The input actions (D6 (a); every existing action keeps its key in `project.godot
 | Use the hand item | left mouse button (`use`); the click that captures the mouse is not a use | `Use(facing)` |
 | Swap hand and belt | X (`swap`) | `Swap()` |
 | Give up, while downed | hold G for 1 s (`give_up`, a placeholder) | `GiveUp()` |
-| Task screen | hold Tab (`task_screen`) | nothing |
+| Task screen (revised by #253: the map and tasks screen, M toggles it, the action `map`) | hold Tab (`task_screen`) | nothing |
 | Next and previous spectate target, while dead | left and right mouse buttons | nothing: the target never leaves the client |
 | Menu (tabs: Resume, Lobby, Leave, Quit); frees the mouse, Esc again captures it (#169) | Esc | `ClientSession.leave()` on Leave |
 | Ready, in the lobby with no menu (#169) | F (`ready`, a placeholder) | `SetReady(not ready)`, as the Lobby tab's toggle |
@@ -112,12 +122,19 @@ design routes it for M4's client PRs, and since #158 the root routing and the sa
    body's eye): one ray per object per physics frame against the world layer. The level itself is public and stays
    drawn.
 4. The task screen shows each task's type, description and shared progress: no position of an item, a player or a
-   spawn point, and no map (answer 2).
+   spawn point, and no map (answer 2). Revised by #253 (the header's amendment): a map of rooms, the zones lit per
+   room from level data, never a marker or a point, and the own place only; still no position of an item, another
+   player or a spawn point.
 5. No screen lists items or players with a position or a distance: an item is seen only where it lies in the 3D
    world, so a hidden package is hidden by sight (vision revision 1, Hidden information). A name or a marker over a
    player or an item is drawn in the world and hidden by the level like what it marks (no `no_depth_test`
    overlays), or it would show through walls what the eye could not; only the fixed, public circles may be marked
-   through walls (D10).
+   through walls (D10). (Changed by the engineer on 2026-10-10, DD4 (a) of [Delivery by
+   meaning](2026-10-10-delivery-by-meaning.md): the exception goes when its D3a removes today's marker, and then
+   nothing is marked through walls; until then it covers that one marker and no new one.)
+   *Amended 2026-10-09 (#257, the engineer's "line of sight within about 10 m" on 2026-10-03):* a name plate may
+   be a screen-space overlay, if it shows only for a player in range and a world-layer ray from the camera to the
+   player's eye meets no level geometry (ARCHITECTURE §4.7.29); it then meets this item like a depth-tested one.
 6. A dissident's own HUD may name its teammates (`Teammates`, its own knowledge); no other screen names a role.
 7. The attacker gets no hit confirmation beyond the accepted exceptions (a knockdown; a raise stopping in the tick of
    a swing): the client has no `Damaged` of another player and plays no hit sound or effect on the attacker's side.
@@ -368,7 +385,7 @@ manager session under the engineer's delegation of technical choices (#134). Not
 | E26 | How a body's removal is told | (a) `Respawned` removes the respawned player's body and `PlayerLeft` a leaver's: no event of its own; (b) a `BodyRemoved(peer)` event besides them | (a): one fact, one event, and no order between two events of one respawn to get wrong. Nothing else removes a body in a round; `ResetMatch` clears them all, which clients mirror on entering the lobby |
 | E27 | Where the life numbers live | (a) `PlayerRules` gains the knockdown time, the respawn time, the invulnerability time, the crawl speed and a respawn marker's free radius, beside health and stamina, which `LifeRules` already reads; the raise's time and reach and the revive health are the raise rule's part settings; (b) everything in part settings (a life tick system's, a respawn effect's) | (a): the client's countdowns and its crawl read `PlayerRules`, which it already loads. Under (b) the client digs through Round's tick systems for a number, and a part reads another part's settings (§9.1 forbids it) |
 | E28 | The raise's intents | (a) `Raise(target)` on pressing E and `StopRaise()` on release, RELIABLE; the host checks the conditions at the start and every tick; (b) a `raising` target in `MoveClaim`; (c) one intent `Raise(target, on)` | (a): a start and a stop are one-off facts, which go RELIABLE (§4). Under (b) the LATEST merge swallows a stop and a new start in one poll |
-| E29 | The two slots on the wire | (a) `ItemPickedUp` gains `belted` (the hand item this pickup moved to the belt, or none), a new `Swapped(peer)`, the avatar's `belt_item`; (b) a state event `HandsChanged(peer, hand, belt)` after every slot change, besides `ItemPickedUp` and `ItemPlaced` | (a): each fact once. Under (b) one pickup sends two events that a client folding both can see disagree |
+| E29 | The two slots on the wire | (a) `ItemPickedUp` gains `belted` (the hand item this pickup moved to the belt, or none), a new `Swapped(peer)`, the avatar's `belt_item`; (b) a state event `HandsChanged(peer, hand, belt)` after every slot change, besides `ItemPickedUp` and `ItemPlaced` | (a): each fact once. Under (b) one pickup sends two events that a client folding both can see disagree. (Widened 2026-10-10 by [the cooking ADR](2026-10-10-cooking-task.md)'s CE20, built in its C2: `belted` names the item the pickup put on the belt, the picked item itself when it went straight onto the belt beside a two-handed hand item.) |
 | E30 | The task screen's data (rework item 8) | (a) a public `TaskState(task, type, done, total)` per task, after the deal and after each subtask done; `TaskProgress` stays for the HUD; (b) `TaskProgress` grows a per-task list (a changed row); (c) `TasksDealt(types)` once, with the client counting deliveries | (a): additive, and generic for #36's zone task; (c) works for Delivery only |
 | E31 | M4's size | (a) as split (§7): nine issues and #76, with #118 running and #119 folded: 11 workflow tasks against about 8 in the stage's budget; (b) M4-2 and M4-3 as one PR, rework item 4 whole (about 2000 lines): 10 tasks; (c) as (a), with #76 moved to M5 (its placeholders stay until then): 10 tasks | (a): every PR stays near 1500 lines or under, which a fresh reviewer can check. If the budget runs short, (c) is what to drop first, then M4-9's lift music and M4-8's placeholder sounds |
 | E32 | The Open knowledge pillar after answer 2 (found by the review of PR #133's last commit) | (a) keep it: "known to everyone" means not secret and learnable in play (items start on their markers, in view), while a later map draws only zones; (b) reword its "the item spawn points" to "the zones where items may appear" (the vision revision ADR and `docs/GDD.md` §1, relayed to the designer); (c) a later map shows spawn points after all | (b): answer 2's "never points" is the newer and more specific word, and newer answers win. Under (a) a later agent reads the pillar as licence for a spawn-point list or overlay that the engineer ruled out. It changes no code: `ItemSpawned` still reaches everyone (#32) |
@@ -386,7 +403,7 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
 | D7 | How items, circles and bodies are drawn | (a) greybox views in `client/` chosen by the kind's id, with a labelled box for an unknown kind; (b) a view scene on `ItemKind` and `StationKind` (a content-API change) that the designer's art fills | (a) for M4: no content-API change before the art pass, and a new item kind still shows up. (b) when the art pass (M7+) has the designer own the looks |
 | D8 | How a downed player, a body and invulnerability read (GDD §14) | (a) greybox stand-ins: a downed player is their capsule lying on its side in their colour; a body the same in grey with a dark cross; invulnerability a translucent white shell that pulses for the 3 s; (b) the designer's own | (a), as placeholders distinct at a glance in a `shot` |
 | D9 | Lift music and placeholder world sounds | (a) CC0 placeholders the engineer's agent picks, each with its `docs/credits/` entry (a lift-music loop; a swing, a pick-up and a put-down sound); (b) silence until the designer picks them | (a): the dead hear something the first time the feature is played, and `check` keeps each licence on record |
-| D10 | A package's destination on the HUD (MVP rules, HUD) | (a) a swatch of its circle's colour; (b) the swatch and a marker on screen over the destination circle, through walls too (circles are fixed, public places) | (b): "shows its destination" reads as where to go, and the marker reveals nothing that is not public; a new player otherwise searches the map for a colour |
+| D10 | A package's destination on the HUD (MVP rules, HUD) | (a) a swatch of its circle's colour; (b) the swatch and a marker on screen over the destination circle, through walls too (circles are fixed, public places) | (b): "shows its destination" reads as where to go, and the marker reveals nothing that is not public; a new player otherwise searches the map for a colour. (Changed by the engineer on 2026-10-10, DD4 (a) of [Delivery by meaning](2026-10-10-delivery-by-meaning.md): on the House, Delivery goes by what an item is, with no swatch and no marker through walls; its D3a removes the marker on every map, the M6.2 HUD (#489, in main since #758) shows no swatch, and the greybox, a test bench only (#767), keeps its colours, its DD9 (c).) |
 
 ## Alternatives
 - **`change_scene_to_packed` per level** with an autoload holding the sessions (E19 (b)), or a scene change with the

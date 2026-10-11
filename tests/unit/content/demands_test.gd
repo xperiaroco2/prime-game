@@ -41,11 +41,19 @@ func test_demands_add_up_and_name_every_shortfall() -> void:
 		layout.add_marker(&"package", Vector3(i, 0, 0))
 	layout.add_marker(&"knife", Vector3.ZERO)
 	(
-		assert_array(Array(demands.shortfalls(layout)))
+		assert_array(HostText.to_dicts(demands.shortfalls(layout)))
 		. is_equal(
 			[
-				"4 package marker(s) needed, the map has 2",
-				"3 circle colour(s) needed, the palette has 2",
+				{
+					"id": &"markers",
+					"ids": PackedStringArray(["package"]),
+					"numbers": {&"need": 4, &"have": 2}
+				},
+				{
+					"id": &"colours",
+					"ids": PackedStringArray(["circle"]),
+					"numbers": {&"need": 3, &"have": 2}
+				},
 			]
 		)
 	)

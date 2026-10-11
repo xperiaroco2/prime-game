@@ -1,6 +1,6 @@
 class_name SoundChooser
 extends RefCounted
-## Which placeholder world sound an event plays, and where (ARCHITECTURE §4.7, a hearing range;
+## Which world sound an event plays, and where (ARCHITECTURE §4.7, a hearing range;
 ## the M4 ADR's §3 item 10, E33 (a), D9; M4-8), pure. `Swung`, `ItemPickedUp` and `ItemPlaced`
 ## reach everyone with a position: a sound with no cut-off would tell every client, through the
 ## walls, where a package was just put down or a fight goes on. So a sound plays only within
@@ -17,7 +17,8 @@ extends RefCounted
 ## - ItemThrown: at the launch's origin, the thrower's eye (37e: ItemViews hands it over when the
 ##   drawn item launches, and a thrown item's ItemPlaced when it lands at its rest). ItemThrown
 ##   reaches everyone with its origin: uncut, the launch would tell every client where a package
-##   was just thrown to hide it.
+##   was just thrown to hide it;
+## - a footstep (step(), #525, no event): at the feet of a walking player as this client draws it.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -35,6 +36,11 @@ const SWING := &"swing"
 const PICK_UP := &"pick_up"
 const PUT_DOWN := &"put_down"
 const THROW := &"throw"
+## A footstep (#525): WorldSounds plays one on the cadence of a walking player (FootstepCadence).
+const FOOTSTEP := &"footstep"
+## A step plays at the feet and aims like an item, a hand above the floor it is on: a ray to the
+## feet would end in that floor. A placeholder, "not a decision".
+const STEP_AIM_M := ITEM_AIM_M
 
 
 ## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
@@ -84,6 +90,14 @@ static func source(
 		&"ItemThrown":
 			return Sound.new(THROW, fields["origin"] as Vector3, THROW_AIM_M)
 	return null
+
+
+## The footstep of feet at `at` within `hearing_m` of `listener`, or null when too far (#525): the
+## same cut-off as every world sound, before any ray.
+static func step(at: Vector3, listener: Vector3, hearing_m := HEARING_RANGE_M) -> Sound:
+	if not audible(at, listener, hearing_m):
+		return null
+	return Sound.new(FOOTSTEP, at, STEP_AIM_M)
 
 
 ## Whether a sound at `at` is within `hearing_m` of `listener`.

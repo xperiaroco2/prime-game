@@ -51,6 +51,13 @@ func test_a_wrong_address_says_why() -> void:
 	assert_str(JoinTarget.of_direct("[::1", 1).problem).contains("closing ]")
 	assert_str(JoinTarget.of_direct("[::1]x", 1).problem).contains(":port")
 	assert_str(JoinTarget.of_direct("bad host!", 1).problem).contains("neither an address")
+	# Which of them are the port part's (the main menu's Host is off only for those).
+	for typed: String in ["host:0", "host:70000", "host:abc", ":99999", "[::1]x"]:
+		var bad := JoinTarget.of_direct(typed, 1)
+		assert_bool(bad.port_problem).override_failure_message(typed).is_true()
+	for typed: String in ["", "[::1", "bad host!", "bad host!:7000", ":7000", "host:7000"]:
+		var other := JoinTarget.of_direct(typed, 1)
+		assert_bool(other.port_problem).override_failure_message(typed).is_false()
 
 
 func test_the_command_line_reads_a_code_or_an_address() -> void:

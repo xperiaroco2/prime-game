@@ -1,0 +1,61 @@
+{
+  "_about": "What the import check (tools/assets/asset_check.gd, tests/unit/tools/asset_import_test.gd) asks of every committed art asset under assets/. docs/ARCHITECTURE.md §11 explains each field; the art repo's docs/contract.md and docs/godot.md are the source.",
+  "folders": {
+    "characters": "res://assets/characters/",
+    "environment": "res://assets/environment/",
+    "audio": "res://assets/audio/",
+    "ui": "res://assets/ui/"
+  },
+  "glb_params": {
+    "nodes/root_type": "",
+    "nodes/root_scale": 1.0,
+    "nodes/apply_root_scale": true,
+    "animation/import": true
+  },
+  "texture_compress_mode": {
+    "_about": "compress/mode of a texture's .import per folder: 2 VRAM Compressed (3D), 0 Lossless (UI).",
+    "res://assets/characters/": 2,
+    "res://assets/environment/": 2,
+    "res://assets/ui/": 0
+  },
+  "character": {
+    "_about": "A GLB under assets/characters/. The bones are the art export's rig as measured (art docs/animations.md: CharacterArmature, 62 Ultimate Modular bones plus Toe.L and Toe.R); the contract v2 may replace them. The clips are the art MVP set's names (art tools/blender/anim_sets/mvp.toml) as Godot 4.7.2 imports them (a _Loop suffix dropped, the clip looping): the slice's list from prime-game-art#42, provisional, not a decision: #522 settles the clips it maps.",
+    "params": {
+      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A GLB of the pack's own 24 fps clips needs this changed first.",
+      "animation/fps": 30
+    },
+    "player_options": {
+      "_about": "The importer's options on the AnimationPlayer node (_subresources nodes PATH:AnimationPlayer).",
+      "node": "AnimationPlayer",
+      "optimizer/enabled": false
+    },
+    "bones": [
+      "Root", "Body", "Hips", "Abdomen", "Torso", "Chest", "Neck", "Head",
+      "Shoulder.L", "UpperArm.L", "LowerArm.L", "Wrist.L",
+      "Thumb1.L", "Thumb2.L", "Thumb3.L",
+      "Index1.L", "Index2.L", "Index3.L", "Index4.L",
+      "Middle1.L", "Middle2.L", "Middle3.L", "Middle4.L",
+      "Ring1.L", "Ring2.L", "Ring3.L", "Ring4.L",
+      "Pinky1.L", "Pinky2.L", "Pinky3.L", "Pinky4.L",
+      "UpperLeg.L", "LowerLeg.L", "Foot.L", "Toe.L", "PT.L",
+      "Shoulder.R", "UpperArm.R", "LowerArm.R", "Wrist.R",
+      "Thumb1.R", "Thumb2.R", "Thumb3.R",
+      "Index1.R", "Index2.R", "Index3.R", "Index4.R",
+      "Middle1.R", "Middle2.R", "Middle3.R", "Middle4.R",
+      "Ring1.R", "Ring2.R", "Ring3.R", "Ring4.R",
+      "Pinky1.R", "Pinky2.R", "Pinky3.R", "Pinky4.R",
+      "UpperLeg.R", "LowerLeg.R", "Foot.R", "Toe.R", "PT.R"
+    ],
+    "clips": [
+      {"name": "Idle", "loop": true},
+      {"name": "Jog_Fwd", "loop": true},
+      {"name": "Sprint_Fwd", "loop": true},
+      {"name": "Carry_Upper", "loop": true},
+      {"name": "Pickup_Package", "loop": false},
+      {"name": "Putdown_Package", "loop": false},
+      {"name": "Knockdown", "loop": false},
+      {"name": "Crawl", "loop": true},
+      {"name": "Getup_Fours", "loop": false}
+    ]
+  }
+}

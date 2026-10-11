@@ -31,6 +31,7 @@ event = &"PhaseChanged"
 fields = {
 "phase": "round"
 }
+within_s = 5.0
 
 [sub_resource type="Resource" id="Resource_gv3th"]
 script = ExtResource("4_t7k64")
@@ -52,6 +53,7 @@ event = &"PhaseChanged"
 fields = {
 "phase": "round"
 }
+within_s = 5.0
 
 [sub_resource type="Resource" id="Resource_na6if"]
 script = ExtResource("4_t7k64")

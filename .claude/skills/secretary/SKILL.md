@@ -69,6 +69,10 @@ you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the engi
 4. **Approvals (a heuristic; §7.2's probe):** a session with `isRunning` true whose last event is a call with no
    result (`[assistant] (called Bash)`) and whose `lastActivityAt` is over 5 minutes old probably waits on a
    permission card (agents block no call over 180 s). Name the session, its link and the tool; never claim more.
+   Then `tools\run.cmd wave --stalled` (read-only; exit 3 means it flagged a session, not a failure): it names each
+   other session whose finished runs or queued notifications wait behind a card or a stop. List each `stalled:` line
+   in the inbox as one approval, quoted: the checkout, what it waits on, since when, and what the engineer clicks (the
+   card to answer, or the session to open). Nothing flagged: no line.
 5. **Merge into one list.** One item per thing: a PR named by a session, its wave comment and `inbox` is one item,
    with the best link. Drop what a later comment or event answered (the engineer's words, an "Answered:" link, a
    merge). Order: approvals waiting, merges only he makes, decisions, commands, then things to look at.

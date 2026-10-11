@@ -11,7 +11,7 @@ const EVENTS_FOLDER := "res://core/events/"
 ## The wire's own fields (§4.4): the payload never holds them, so no intent declares them. A debug
 ## row's `peer` (ForceRole's, ForceClock's) becomes MatchCommand.peer and is allowed on those rows
 ## only.
-const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_station", "has_role"]
+const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_lobby_name", "has_station", "has_role"]
 const CONTENT := Samples.CONTENT_HASH
 ## A map path the wire accepts (a `res://` path): the fixture maps' `fixture://` paths do not.
 const WIRE_MAP := "res://levels/maps/fixture_wire_map.tscn"
@@ -238,10 +238,16 @@ func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
 	for peer: int in [1, 2]:
 		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
 	var host_hash := _decoded(
-		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT})
+		schema,
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT, "name": "Діма"}
+		)
 	)
 	var other_hash := _decoded(
-		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1})
+		schema,
+		WireMessage.new(
+			&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1, "name": ""}
+		)
 	)
 	if host_hash == null or other_hash == null:
 		return

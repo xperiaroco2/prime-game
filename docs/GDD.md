@@ -57,14 +57,16 @@ them ([ADR](decisions/2026-09-29-game-modes-define-the-phases.md), `docs/ARCHITE
 phases without engine changes to the loop.
 
 ### Base mode (the MVP)
-Lobby → Countdown → Loading → Round → End → Lobby. Adopted by the designer in #38 from the provisional
+Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted by the designer in #38 from the provisional
 [MVP rules](decisions/2026-09-29-mvp-rules.md), with their numbers as starting values to tune after the first playtest.
 - **Lobby:** players join, walk and talk by proximity; the host changes the match settings; each player presses
   Ready.
 - **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
   locked.
 - **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
-  are scattered, players are placed and the match clock starts.
+  are scattered and players are placed.
+- **Pregame:** 3 s of a dark screen with the player's own role; nobody hears anybody, nobody moves. Then the
+  match clock starts (the engineer, #213).
 - **Round:** everyone works on the shared tasks (Delivery); the dissidents sabotage by hiding packages and run out
   the clock. A player at 0 health is knocked down, can be raised, and otherwise dies, spectates and respawns
   ([vision revision 1](decisions/2026-10-01-vision-revision-1.md)). The first win condition met ends it: every task
@@ -82,6 +84,33 @@ The base mode has no meetings and no votes.
 
 Open questions:
 - Without meetings, what makes the crew suspect someone during a Round, and what can they do about it?
+
+### Movement: the crouch (#727)
+Decided by the engineer (#727, 2026-10-10): every player can crouch by holding Ctrl, and Shift while crouched moves
+a bit faster. A crouched player is lower, so it passes under things a standing one does not: the raised car in the
+garage, under which the fitter works crouched (car repair, #688). The art has or will have a crouch animation. A
+knocked-down player cannot crouch (today it crawls lying down; once #728's rework is built it cannot move at all).
+
+His answers to the crouch design (PR #752, comments 6097878317 and 6098097098; the options and the reasons are in the
+[crouch ADR](decisions/2026-10-10-crouch.md)):
+- The crouch plays on the House only. The flat greybox has no crouch. (The lobby, a level of its own, has none
+  either: the design's reading of "the House only" (KE10), not a separate answer.)
+- A crouching player's steps are quieter and slower (KD1).
+- No name plates over any player, standing or crouching (KD2); their removal is #756.
+- The raised car's height alone asks for the crouch, and no rule checks it (KD3; car repair's RD1 too).
+- Letting go of Ctrl under a low ceiling keeps the player crouched; it stands by itself once there is room (KD4).
+- Shift while crouched spends stamina as the sprint does (KD5).
+- A jump while crouched stands the player up, then jumps (KD6).
+- A crouched player is a smaller target for the knife and for a thrown item (KD7).
+- A crouched player can do everything a standing one can (KD8).
+
+The numbers are placeholders, "not a decision": crouched 1.2 m tall with the eyes at 1.0 m (standing: 1.8 m and
+1.6 m), 2.0 m/s, and 2.8 m/s with Shift (the walk: 4.5 m/s); a crouch walk's step 6 dB quieter and heard within 6 m
+(a walk's: 12 m).
+
+Open question:
+- After a jump from the crouch with Ctrl still held, does the player crouch again on landing (recommended), or only
+  at a fresh press of Ctrl?
 
 ## 4. Roles
 
@@ -117,6 +146,148 @@ Open questions:
 - Are tasks a win condition, an information source, or both?
 - How does a task look in first-person 3D?
 
+### Delivery (#683)
+The base mode's first task type ([MVP rules](decisions/2026-09-29-mvp-rules.md), Tasks; `docs/ARCHITECTURE.md`
+§9.5.4), reworked by the engineer on 2026-10-10 (#683 and its comments; his answers on PR #713, comments
+[6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718) and
+[6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677), where he approved the
+design): on the House it no longer goes by colours. The engine parts are in
+[the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md). Nothing of it is built yet, and nothing
+will be until the engineer says so.
+
+**Intent.** Carrying things around the house to where they belong. Storage holds different items, and each kind has
+its own place that fits what it is. Players tell the items and their places apart by meaning, not by colour.
+
+**Rules** (the engineer's; DD1 to DD8 of the ADR):
+- Storage holds different items; each kind is carried to its own place, chosen by what it is; nothing goes by colour.
+- Four kinds, one per drop-off of the [House map](design/house-map.md)'s §6: the wine to the dining table, the motor
+  oil to the garage's workbench, the garden gnome to the garden, the parasol to the terrace table. The gnome, the
+  parasol and the name "Motor oil" were drafted by the agents and approved by the engineer as drafted (comment
+  6100696677; the ADR's §5.1).
+- How many: the host's `packages` setting. The round's items are spread over the places, so every place gets one
+  before any gets a second; with fewer items than places, which places get one is drawn each round.
+- An item counts when it rests inside its place: a cylinder standing on the floor at the table, the bench or the
+  garden spot, so on the floor around it or on its top.
+- A player tells where an item goes by meaning alone: its look, and its name in the hand slot. Nothing points to the
+  place: no marker through walls (the one over a package's circle goes too), no line on the HUD, no sign.
+- An item at a wrong place: nothing happens, and anyone may pick it up again.
+- Every item takes both hands. A carrier who takes a one-handed item (a knife from the floor, say) puts it onto the
+  belt and keeps the carried item in the hands (the engineer's rule for every take, PR #701); picking up a second
+  Delivery item swaps the two, as today.
+- Any kind starts on any storage spot.
+- The task screen shows Delivery's row with its own count of delivered items, struck through once every item is
+  delivered; no shared total of all tasks, on the HUD or the task screen (#738).
+- Unchanged ([MVP rules](decisions/2026-09-29-mvp-rules.md), #79): one shared task that nobody owns; one item is one
+  subtask; any living player carries and delivers any item; an item counts when it rests at its place, however it got
+  there (put down, swapped, dropped at a death or a leave, thrown); a delivered item is locked; the dissidents
+  sabotage by hiding items.
+- On House, storage is the hub ([House map](design/house-map.md) §2, decision 5).
+
+**Hidden information.** None: everyone may know which kind goes where, where each item started and every delivery.
+Where a moved item lies now is not shown: players find it by looking.
+
+**Edge cases.** A knocked-out player and a dead player deliver nothing; an item dropped at a body counts if it rests at
+its place. The host's own player follows the same rules as everyone.
+
+**Numbers:** the host's `packages` setting, 1 to 10, default 6; a place's radius 1 m (a circle's, the engineer's in
+#79) and height 2 m (a placeholder, "not a decision").
+
+**Name and description.** The name "Delivery" and the lobby label "Packages (Delivery)" stay. The description,
+drafted by the agents and approved by the engineer as drafted (comment 6100696677): "Carry each item from storage to
+the place where it belongs. Every item takes both hands."
+
+**Where it plays.** On the House only (the engineer's DD9 (c), comment 6100696677, through
+[#767](https://github.com/xperiaroco2/prime-game/issues/767): the flat greybox becomes a test bench only, and players
+always play the House). The greybox keeps today's colour-matched Delivery (a package to the circle of its colour) as
+far as its bot scenarios and the information-leak test need it, and gets no drop-offs. Bots do not play the House
+([ARCHITECTURE](ARCHITECTURE.md) §9.7), so Delivery by meaning is tested without bots: unit tests, integration tests
+on the House and a test over the wire codec.
+
+**Engine parts** ([the Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md) §1, §8): a second
+Delivery task type beside today's, each listing the one map it plays on; one item kind per kind of item; one station
+kind per place, on its own marker on the House; a list in its data saying which kind goes to which place; no colours
+in its rules or on the screen; House gets one marker per place and loses its circles. The issues follow from the ADR's
+split, for M7.
+
+Open questions: none. The engineer answered every one on 2026-10-10 and 2026-10-11 (the ADR's §5 and §10).
+
+### Photo (#687)
+The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
+are the engineer's (#687, chat of 2026-10-10, and his answers of 2026-10-10 to the design's questions,
+[PR #704, comments 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907) and
+[6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994)); the engine parts are in
+[the photo task ADR](decisions/2026-10-10-photo-task.md).
+
+**Intent.** "For now the simplest possible thing": one player stands at the photo spot, another takes the shot with a
+flash; the photo travels to be printed and is hung in the darkroom, and it counts only if a person is really in it.
+Closer to a real photography process where it helps. Later, not now: special poses or gestures the photo must show.
+
+**Rules.**
+- The photo is a task type, like the others. One hung photo with a person in it is one subtask; the host sets how
+  many in the lobby settings (every task type has such a setting, #256).
+- The camera stands on a tripod in the photo zone (the gazebo, north-west), facing the photo spot; it never turns. It
+  takes two: one player stands on the spot, another uses the camera. Using the camera enters a viewfinder view: the
+  player looks through it and sees the frame; a press takes the shot, with a flash.
+- The camera takes a film loaded into it; the film is not carried by the shooter while shooting. A film has 5 frames,
+  and the frames left are shown on the camera. The players shoot the frames, then take the film out by holding E over
+  the camera (for now); it may be taken out before every frame is used, and then only the frames shot are printed. A
+  film is one-way: once a frame on it is shot, it never goes back into the camera, and the printer uses it up.
+- New films come from a box in storage, without limit. At the round's start one film lies at the photo zone.
+- The path: the film is carried to the computer and printer in the study (the second floor), where one use prints
+  every frame shot on it, at once; a printed photo is carried to the darkroom (the basement) and hung on its board.
+- A printed photo is an item held in the hand that shows exactly what the camera saw at the moment of the shot. A
+  film and a photo each take one hand: a player can hold one in the hand and one on the belt.
+- Who counts as a person in the photo: any living player whose head is in the frame and in the camera's sight,
+  anywhere in the frame, whatever the role. Nobody standing within the camera's reach (where it can be used) is in
+  the photo, neither counted nor drawn, so another player is always needed (the engineer: "you cannot photograph
+  yourself: you look through the frame, and the frame must hold a player"). A knocked-down player does not count. One
+  player may be in several photos, and several players in one.
+- A hung photo counts only if a person is really in it, and then it stays on the board for good. One without a person
+  counts nothing and can be taken down and carried away.
+- Once the task is done, the camera, the printer and the board no longer work; the box still gives films.
+- Tasks are shared, and only living players do subtasks (#79); a dissident plays the same character under the same
+  rules (#679).
+- Busy hands, as for the Generator, but every take still works, as in the burger chain (#682). A player holding a
+  two-handed item (a package) can take a film from the box, the film out of the camera, a photo off the printer's tray
+  or the board, or a film or a photo from the floor: the new item goes onto the belt; if the belt is full, its item
+  drops at the player's feet; the two-handed item stays in the hands. What is not a take is refused while the hands
+  are busy: loading the camera, a shot, a print, a hang. Taking a film from the box with full hands (an item in the
+  hand and one on the belt) puts the hand item down at the player's feet, and the film goes into the hand.
+
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
+Generator. The flat greybox, the bots' test map, gets no photo task and none of the House's chains: it keeps what it
+deals today (the engineer's read-back answer on the Generator,
+[PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). All the
+new mechanics come with M7 on the House, and bots playing them comes later, with the map.
+
+**Hidden information.** Whether a person is in a photo is decided by the host from where everyone stood at the moment
+of the shot, never from a player's picture. A photo shows its picture to whoever sees it; whether it counted
+everyone learns once it is hung, from the photo task's row on the map screen (M): the photos counted of N, struck
+through once every photo is counted. There is no shared total of every task's subtasks, in the HUD or on the map
+screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)). Nobody is told who took a shot: players see it
+only by looking at the gazebo. Nothing shows through a wall.
+
+**Numbers** (the engineer's starting values, to tune): 5 frames a film. Placeholders until he sets them: 1 to 5 photos,
+3 by default; the camera's view 50° high, 4:3, counting people up to 10 m; a player uses a station from within 2 m;
+one take from the box per player every 0.25 s, as the burger chain's sources.
+
+**Name and description** (drafts the engineer took as written, PR #704's comment 6096344994; the ADR's §6.1; the
+content files stay provisional until he approves their PR): the task "Photography"; the lobby setting "Photos
+(Photography)"; on the task screen, "Load a film into the camera, photograph a player on the spot, print the film,
+and hang the photos on the board: each one with a person in it counts."; the items "Film" and "Photo".
+
+**Engine parts** ([the photo task ADR](decisions/2026-10-10-photo-task.md) §1, §9): a photo task type with five
+station kinds (the camera, the photo spot, the box of films, the printer, the board), all but the photo spot used
+through the Generator's `Interact(station)` (the spot is only where the subject stands), listing House as the one map
+it plays on; the film taken out of the camera by an ordinary pick-up; the host's check of who is in the frame (the
+camera's view and a sight line from its lens); each client draws a shot's picture from where the host says everyone
+stood; film and photo items, the box giving films as the burger chain's sources give their items; station scenes in
+`levels/stations/` in place of the House's markers; the client's viewfinder, the frames counter on the camera, the
+flash and the photos. Tested without bots: unit tests, integration tests on the House and a test over the real wire.
+The issues follow from the ADR's split.
+
+Open questions: none. The engineer answered every one on 2026-10-10 (the ADR's §6).
+
 ### Zone task (#36)
 A second task type from #36: stand in a zone for N seconds. Tasks are shared and only living players do subtasks
 (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md), V4), so the downed never count, and the dead
@@ -138,6 +309,281 @@ ADR](decisions/2026-10-09-m7-zone-task.md) (#302, comment 6085059719) and gave i
   (the base mode deals 1 zone: a placeholder, "not a decision", #649), yellow; the task's name and the players'
   word "Hold the zone" (Ukrainian UI: «Утримати зону»), described "Stand in the zone until it fills."
 - Where zones stand (ZD10 (a)): placeholders on the greybox (#649); on the House map, three provisional points (#651) until the engineer moves them.
+
+### Cooking (#682)
+The House map's burger chain ([House map](design/house-map.md) §2, decision 6; its stations in §6). The rules below
+are the engineer's (#682, chat of 2026-10-10, his answers on #682, and his answers to the design's questions on
+[PR #701](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6095326743), the last four in
+[comments 6096108400](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096108400),
+[6096140448](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096140448) and
+[6096157421](https://github.com/xperiaroco2/prime-game/pull/701#issuecomment-6096157421)); the engine parts are in
+[the cooking ADR](decisions/2026-10-10-cooking-task.md). Nothing is built yet.
+
+**Intent.** More in the spirit of Overcooked than of LOCKDOWN Protocol's containers. Orders hang on a board in the
+kitchen; buns and patties come from storage in the basement; the patties are fried on the grill in the chill zone at
+the far south-west corner of the yard and carried back (the long meat run is intended); the herb is picked in the
+greenhouse, where a board decodes the order's herb icon.
+
+**Rules.**
+- Cooking is a task type, like Delivery and the Generator. One burger (one order) is one subtask; the host sets the
+  count in the lobby settings (every task type has its own subtask count, #256). Default: 1; at most 3, tuned in the
+  playtest.
+- Every order hangs on the kitchen's order board from the round's start. It shows the bun and the patty as pictures,
+  and the herb as an icon that only the greenhouse's herb board decodes; the icon-to-herb mapping is new each round.
+  Each place in the kitchen carries a number, and the board lists the orders by place number. Two orders may ask for
+  the same kind. The orders show only on the board; the task screen's Cooking row shows the burgers done of N, struck
+  through once every burger is done (there is no shared total of all tasks, #738).
+- Kinds: 3 buns (white, sesame, and dark, rye-like), 3 patties (light, a bit redder, and redder still) and 5 herbs.
+  The patties are not named after animals: they are told apart by look, so a player may read them as vegetarian.
+- Each ingredient is a separate item in the hand: a bun, a patty or a herb takes one hand, and the belt holds one,
+  like any one-handed item.
+- Boxes: one per kind, 3 bun boxes and 3 patty boxes, starting in storage. A box is a two-handed item that gives its
+  ingredient wherever it stands, storage included: one per tap of E, without limit, to anyone; holding E picks the box
+  up. A player may take a patty straight from storage, or carry the box to the kitchen so nobody steals it (worth it
+  when several orders need the same kind). (A future idea, not a rule: the engineer may later move another action to
+  F.)
+- The herb beds: a player presses E at a bed and gets one herb in the hand, without limit, and may then do anything
+  with it. The herbs are shuffled among the beds each round.
+- Busy hands, as for the Generator, but every take still works. A player holding a two-handed item (a box, a
+  package) can take: an ingredient from a box, a herb from a bed, the patty off the grill, an item from the floor. The
+  new item goes onto the belt; if the belt is full, its item drops at the player's feet; the two-handed item stays in
+  the hands. What is not a take is refused while the hands are busy: putting something onto a plate or the grill,
+  using a station that gives no item, a hit. (The engineer's reason: the rule does for the player the routine of
+  putting the box down, swapping and picking it up again.) Picking up a second two-handed item still swaps it with
+  the one in the hands, since the belt holds only a one-handed item.
+- Taking with full hands (an item in the hand and one on the belt) puts the hand item down at the player's feet, and
+  the new one goes into the hand. This holds at the boxes, the beds and the grill.
+- An ingredient left lying vanishes after a while. Spamming takes is fine: nothing in the rules stops players covering
+  the map in buns. (A short technical wait between one player's takes only guards the host against a flooding client;
+  it is not a game rule.)
+- The grill takes one patty at a time. A patty put on it fries for 10 s; then there are 5 s to take it off; left
+  longer it burns: black and unusable. A fried patty stays fried. Only a raw patty goes on; one taken off early is
+  still raw and starts again from 0; E at a busy grill takes the patty off; a burnt patty stays until someone takes it
+  off.
+- Assembly on a plate: each order has its own place in the kitchen with a plate already standing on it, not carried.
+  A player with an ingredient in the hand presses E on the plate and the ingredient goes on it (a patty on a bun goes
+  into the bun). The order of the layers does not matter. Only E puts an ingredient on: one put down or dropped near
+  the plate lies on the floor.
+- Each ingredient is checked against that place's order at once. A raw or burnt patty is refused outright and stays
+  in the hand; any other wrong one shows a red outline and can be taken back; a right one shows a green outline and
+  can no longer be taken.
+- A burger is done on the spot, once its bun, patty and herb are all green on its place.
+- Sabotage: a dissident may take a box and hide it; the others must search for it (the same play as hiding a
+  package). Beyond that, the rules above already let anyone take items, burn a patty or put a wrong ingredient on a
+  plate.
+- A dissident plays the same character as an engineer (role `crew`), under the same rules, and only living players
+  do subtasks (#79; vision revision 1, V4).
+- Sounds: a click on each take and put, a sizzle while a patty fries, a ding when it is fried, a hiss when it burns, a
+  chime for green and a buzz for red, a sound when a burger is done. A ring over the grill fills to fried and then to
+  burnt.
+
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match, as the
+Generator. The flat greybox, the bots' test map, gets no cooking and none of the House's chains: it keeps what it
+deals today (the engineer's read-back answer on the Generator,
+[PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)). All the
+new mechanics come with M7 on the House, and bots playing them comes later, with the map.
+
+**Description** (a draft the engineer accepted, to be approved in the content PR): "Make every order on the kitchen
+board: put its bun, a fried patty and the herb from the greenhouse board on its plate."
+
+**Words and looks** (he gave the buns and the patties, asked for the rest "so it all looks nice", and took the drafts
+as drafted on 2026-10-10; the whole table is the ADR's §5.1): the name "Cooking" and the lobby label "Burgers
+(Cooking)"; the five icons a sun, a moon, a star, a drop and a heart, told apart by shape alone; the bun boxes open
+wooden bakery crates and the patty boxes white cool boxes with a lid in their patty's colour, each showing what it
+gives; the fried patties keeping their hue under a brown crust, so an order's picture matches its box; the herbs
+basil, dill, rosemary, chives and mint.
+
+**Hidden information.** The orders hang on the kitchen's board and the herb code on the greenhouse's, for anyone who
+goes and looks (the open-knowledge pillar, §1); which herb grows on which bed is seen at the beds. The code is shown
+only on the herb board, but a green herb on a plate also tells anyone looking which herb that order's icon means.
+What lies on a plate, red or green, is seen at the plate; the burgers done show on the task screen's Cooking row.
+
+**Numbers** (to tune): 1 burger by default, at most 3; 3 buns, 3 patties, 5 herbs; fry 10 s, then 5 s before it
+burns. Placeholders: an ingredient vanishes after lying 60 s; a player uses a station from within 2 m.
+
+**Engine parts** ([the cooking ADR](decisions/2026-10-10-cooking-task.md) §1, §8): a Cooking task type whose deal
+hangs the orders, draws the round's herb code and shuffles the herbs over the beds, with its places, grill, beds and
+boards as stations; the Generator's station-use intent (`Interact`) also naming an item, for the boxes; an item source
+that makes a new ingredient on every take, making room in the hands as the rules say; ingredients that vanish when
+left lying; a patty whose kind changes on the grill; items held by the grill and the plates; a task type
+that plays only on the maps its data lists (the Generator's part; Cooking: the House); station scenes in `levels/stations/` in place
+of the House's markers; the client's boards, beds, plates with their outlines, grill and sounds. The issues follow
+from the ADR's split, for the M7 backlog: for now the track only designs.
+
+Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
+in the playtest.
+
+### Generator (#679)
+The House map's generator chain ([House map](design/house-map.md) §2, decision 8; its stations in §6). The rules below
+are the engineer's (#679, chat of 2026-10-09, and his answers of 2026-10-10 to the design's questions, in PR #695's
+comments, from [6095326452](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6095326452) on, each
+linked from the ADR's §5); the engine parts are in [the Generator ADR](decisions/2026-10-10-generator-task.md).
+
+**Intent.** A team-coordination task. Up to four switches stand in four basement rooms out of each other's earshot, and
+the generator charges only while all of them are on and someone has pressed its button. The players split up and
+coordinate without hearing each other. Someone may say they switched theirs on and not have done it, say they were
+attacked on the way, or switch theirs on and leave, and someone switches it off behind them; then someone has to go
+back, switch it on, and return to press the button again.
+
+**Rules.**
+- The Generator is a task type, like Delivery. Its subtasks are its switches: the subtask count is how many switches
+  are active, 2 to 4, the task's difficulty, set by the host in the lobby settings. Every task type will have such a
+  setting (Delivery: its packages; #256). Its subtasks are all done together, at full charge: the task is done then,
+  and the win condition "every task done" waits for it as for any task.
+- The generator and its button stand in the generator hall; switches A to D in storage, the boiler room, the pump room
+  and the switch room. Where players stand to use any two switches is at least 12 m apart, the range of the sounds,
+  and so beyond voice: the switches stand at least 16 m apart with the 2 m reach (20 to 39 m on the House).
+- The active switches can be switched on and off; the others are on and cannot be switched off. At the round's start
+  every active switch is off. Which switches are active is drawn at random each round.
+- An always-on switch is not interactive at all: there is nothing to aim at and nothing to press. It looks different
+  from an active switch.
+- A switch is a plain press: each press toggles it, as often as anyone likes, with no cooldown. It stays as it was left.
+- Anyone presses the button. While every switch is on, a press starts the charge, and a second press stops it. While a
+  switch is off, the press plays its animation and nothing happens.
+- A switch going off stops the charge. To resume, someone switches it back on and then presses the button again.
+- The charge is cumulative: a stop pauses it, and the charge gained never drops. One charge per match; fully charged is
+  done for good, and the switches and the button can no longer be used.
+- The panel at the generator shows a battery of 4 bars, one lit per switch that is on (the always-on switches' bars
+  from the start), filled from one end like a battery's level: it says how many switches are on, not which. When every
+  bar is lit it glows blue: the button can start the charge.
+- Every action has a sound: a switch's click, the button's click, and a hum at the generator while it charges. There
+  is no sound when the charge is done.
+- Busy hands: a player holding a two-handed item (a package) cannot use a switch or the button: they put it down, use
+  it, and pick it up again.
+- A dissident plays the same character as an engineer (role `crew`), under the same rules; only the win condition
+  differs. Either side may switch any active switch on or off and press the button, and play the other's
+  part.
+
+**Where it plays.** On the House only, the map being built for the chains, in the base mode, in every match. The flat
+greybox is a test bench only, for the bot scenarios and the information-leak test, and players always play the House
+([#767](https://github.com/xperiaroco2/prime-game/issues/767)), so no new mechanic goes on the greybox: it gets no
+generator and none of the House's chains, and the zone task leaves it too, its zones and their three bot scenarios
+gone (the engineer, 2026-10-10, the ADR's GD13 (b):
+[PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117) and
+[6100663476](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100663476)). All the new mechanics
+come with M7 on the House, and bots playing them comes later, with the map.
+
+**Hidden information.** Everyone sees the charge percentage. On the map screen (M) the Generator's row is a bar of its
+charge, a percentage that grows while someone charges it, where every other task's row shows its own count of done
+subtasks ("2 / 5"); a task whose subtasks are all done is struck through. So a player sees the Generator at 20 % and
+growing (someone is on it), at 0 (nobody is), or stuck at 30 % (something happened there). There is no shared total of
+every task's subtasks, in the HUD or on the map screen ([#738](https://github.com/xperiaroco2/prime-game/issues/738)).
+The battery is seen only at the generator's panel, not on any screen. Nobody is told who switched a switch: players
+learn it only by seeing it or guessing (hearing a click nearby follows from "every action has a sound"). The switches
+are hidden by sight: a player's game shows a switch only where that player can see or hear it.
+
+**Edge cases.** A knocked-out player and a dead player can do nothing. The host's own player follows the same rules as
+everyone.
+
+**Numbers** (the engineer's starting values, to tune): 3 active switches by default (2 to 4, a host setting); the charge
+takes 60 s in all, fixed in the game data (not a lobby setting); sounds carry 12 m; every two switches at least 12 m
+apart, measured between where players stand to use them (at least 16 m between the switches with the 2 m reach).
+Placeholders until he sets them: a player uses a switch or the button from within 2 m of it, and the lobby label of the
+switch count.
+
+**Name and description** (the engineer, 2026-10-10, #679's comments): "Charge the generator"; on the map screen,
+"Switch on every active switch, then press the generator's button to charge it." (a draft he accepted, to be approved in
+the content PR).
+
+**Engine parts** ([the Generator ADR](decisions/2026-10-10-generator-task.md) §1, §8): a Generator task type with two
+station kinds (a switch, the generator's button) and its charge on the host's clock; `Interact(station)`, the first
+use of a fixed station, with busy hands, reach and sight as each station kind's rule; an always-on switch is no
+station at all; two public events (a switch, the button) and the zone task's progress event for the charge; a task
+type that plays only on the maps its data lists (the Generator: the House); station scenes in `levels/stations/` in
+place of the House's markers; the client's panel, sounds, the always-on switches' look and the charge's bar on the task
+screen. The issues follow from the ADR's split, for the M7 backlog: for now the track only designs.
+
+Open questions: none; the engineer answered the ADR's GD1 to GD13 on 2026-10-10 and approved this design with the
+last two (ADR §9). The numbers above are tuned in the playtest.
+
+### Car repair (#688)
+The House map's garage chain ([House map](design/house-map.md) §2, decisions 5, 9 and 10; its stations in §6). The
+rules below are the engineer's: #688 (chat of 2026-10-10) and his answers to the design's questions (PR #709,
+[comment 6095445261](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6095445261),
+[comment 6097878738](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6097878738) and
+[comment 6100556321](https://github.com/xperiaroco2/prime-game/pull/709#issuecomment-6100556321)); the engine parts
+are in [the car repair ADR](decisions/2026-10-10-car-repair-task.md).
+
+**For the MVP only.** The engineer approved this design for the MVP: a much more interesting mechanic will replace
+it later (comment 6100556321).
+
+**Intent.** A two-player chain with the game's one rare one-shot kill. One player holds the lift, another goes under
+the car to fit a part brought from storage, and a dropped car kills at once. It runs on trust: the one at the lift
+cannot see who is under the car.
+
+**Rules.**
+- Car repair is a task type, like the others, and the host's per-task-type subtask count applies (#256, #679). One
+  subtask is one part fitted; a repair may need several parts, one after another.
+- The car stands on a lift in the garage, the lift panel in the garage too, the parts shelf in storage. The panel
+  stands near enough to the car for the holder and the fitter to talk (within the voice range), out of reach of the
+  car.
+- The car stays up only while someone holds E at the lift panel. It rises over a few seconds once the hold starts, and
+  a part can be fitted only when it is fully up. Let go, or be knocked down, and the car drops at once and kills
+  whoever is under it (decision 9): every player whose feet are under the car, living or knocked down, invulnerable
+  or not. The player respawns as usual (decision 10). A hit that does not knock the holder down does not drop the
+  car. The holder leaving the match or losing the connection drops it too, with the kill; the round's end lowers it
+  without one.
+- A picture on the garage wall shows which part the car needs, one of several kinds, never the same kind twice in a
+  row. (Later, ideally, something nicer: a player crawls under the car to see what it needs; not now.)
+- The part is taken from the parts shelf in storage, one place per part kind with the same picture, as many as the
+  players like, and carried to the garage in one hand.
+- Taking a part works as at the kitchen's boxes (the belt rule): with an item in the hand and the belt empty, the
+  hand item goes onto the belt; with full hands (an item in the hand and one on the belt), the hand item drops at the
+  player's feet; then the part goes into the hand. A player holding a two-handed item, such as a package, can still
+  take a part: it goes onto the belt (a full belt's item drops at the player's feet), and the two-handed item stays
+  in the hands.
+- A part put down lies until someone takes it; it does not vanish.
+- Fitting a part: under the car, crouched, with the right part in hand, the player holds E for some seconds. Every
+  player can crouch: hold Ctrl; Shift while crouched moves a bit faster (its own mechanic, #727). The raised car is
+  too low to stand under, so a player crouches to get under it and comes out crouched; nothing else checks the crouch
+  (height alone). A wrong part is
+  refused and stays in the hand. A hit on the fitter stops the fit, which then starts again from zero.
+- After the last part the lift cannot be raised again; a hold that still runs drops and kills as always.
+- The lift panel has no view of who is under the car: the one holding the lift relies on trust and voice.
+- As for the Generator (#679): a dissident plays the same character under the same rules, so either side may hold the
+  lift, let it go or fit a part; busy hands: a player holding a two-handed item, such as a package, cannot use the
+  lift panel or the car (a take at the shelf still works, above).
+- The drop kills a knocked-down player under the car too. The knockdown is being reworked in #728 (its design in PR
+  #754): once it lands, a knocked-down player cannot move or talk (hears, but cannot speak) and falls as a ragdoll;
+  until then it crawls slowly, as the accepted vision revision 1 says.
+
+**Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
+they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the
+garage's walls hide the space under the car from the panel; no sound plays while a fit runs. The end of a fit is
+not hidden: the part-fitted sound and the task screen tell everyone, the holder too, the moment a part is fitted,
+while the fitter is still under the car. Tasks are shared and
+every player sees the same task progress (#79): the task screen's Car repair row shows the parts fitted of N, struck
+through once every part is fitted (there is no shared total of all tasks, #738).
+
+**Edge cases.** Only living players do subtasks (#79; [vision revision 1](decisions/2026-10-01-vision-revision-1.md),
+V4): a knocked-out player and a dead player can do nothing. The host's own player follows the same rules as everyone.
+
+**Sounds.** The lift's motor, the drop's crash, a part taken and a part fitted; none while a fit runs.
+
+**Where it plays.** On the House only, in the base mode: the one map its data lists. Never on the flat greybox, which
+is a test bench only (#767: players always play the House). Bots do not play the House, so car repair is tested by
+integration tests on the House and over the real wire, not by bot scenarios. Every House match deals it.
+
+**Name and description** (drafted by the agents, approved by the engineer as drafted): "Repair the car"; "Take the
+part shown on the garage wall from the shelf in storage, then fit it under the car while someone holds the lift.";
+the lobby label of its part count: "Parts to fit".
+
+**Numbers** (placeholders, approved as proposed and still "not a decision": the engineer tunes them after a
+playtest): a 5 s fit; a 2 s rise; 3 part kinds; 1 to 3 parts per repair, 2 by default; the raised car's underside at
+1.4 m, above a crouched player (1.2 m, the crouch's placeholder) and below a standing one (1.8 m); the panel 5 m from
+the car; at most one take from the shelf per 0.25 s, a flood guard.
+
+**Engine parts** ([the car repair ADR](decisions/2026-10-10-car-repair-task.md) §1, §8): a car repair task type with
+four station kinds (the car, the lift panel, one bin per part kind on the shelf, the picture on the wall); the lift's
+hold and the fit as holds of E on a station (the raise's channel, extended to stations and to a hold with no end);
+the drop as an instant kill of every player under the car, decided by the host; the parts as items from the shelf (the
+cooking design's item source, #682); the Generator's `Interact(station)` (#679); station scenes in
+`levels/stations/` in place of the House's markers; the client's car, picture, fitter and sounds. The crouch (#727, its
+own ADR) and the knockdown rework (#728) are designs of their own. The issues follow from the ADR's split, as M7
+backlog: nothing is built until the engineer says so.
+
+Open questions: none; the engineer answered the last ones on 2026-10-10 (the ADR's §9). The numbers above are tuned
+in the playtest.
 
 ## 9. Meetings and voting
 
@@ -189,3 +635,8 @@ The brief sets stylized low-poly, readable and cheap to produce; CSG greyboxing 
   [vision revision 1](decisions/2026-10-01-vision-revision-1.md) everyone sees a downed player, a body (it stays until
   its player respawns), the item in a player's hand and the one on their belt, and a player's few seconds of
   invulnerability, so each must read at a glance; how they look is open.
+
+## 15. Tutorial
+
+[`docs/design/tutorial.md`](design/tutorial.md) (#552, proposed): an offline solo session in a room of its own,
+the UI track's nine lessons, and its open points (D25 to D36) for the engineer.

@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c2kwkfvkpdp8e"]
+
+[ext_resource type="Script" uid="uid://o0jw5o2vp6hd" path="res://client/dev/name_plates_preview.gd" id="1_preview"]
+
+[node name="NamePlatesPreview" type="Node3D" unique_id=2080667448]
+script = ExtResource("1_preview")

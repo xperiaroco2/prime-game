@@ -145,12 +145,12 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 
 | Chain | Point | Level | x, y | Room |
 |---|---|---|---|---|
-| Delivery | Wine rack (source) | -1 | 16, 26 | Storage |
-| Delivery | Boxes (source) | -1 | 21, 29 | Storage |
+| Delivery | Wine rack (a source: any Delivery item starts on any storage spot, decided in #683) | -1 | 16, 26 | Storage |
+| Delivery | Boxes (a source, as the wine rack) | -1 | 21, 29 | Storage |
 | Delivery | Dining table (drop-off, the wine) | 0 | 36, 27 | Dining room |
-| Delivery | Terrace table (drop-off) | 0 | 29, 20 | Terrace |
-| Delivery | Garden drop-off | 0 | 62, 24 | Garden |
-| Delivery | Workbench (drop-off) | 0 | 70, 37 | Garage |
+| Delivery | Terrace table (drop-off, the parasol, approved by the engineer in #683) | 0 | 29, 20 | Terrace |
+| Delivery | Garden drop-off (the garden gnome, approved by the engineer in #683) | 0 | 62, 24 | Garden |
+| Delivery | Workbench (drop-off, the motor oil) | 0 | 70, 37 | Garage |
 | Generator | Generator | -1 | 49, 32 | Generator hall |
 | Generator | Switch A | -1 | 16, 32 | Storage |
 | Generator | Switch B | -1 | 32, 44 | Boiler room |
@@ -163,11 +163,15 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Burgers | Herb board (icon -> herb, new each round) | 0 | 62, 15.5 | Greenhouse |
 | Burgers | Herb beds | 0 | 67, 11 | Greenhouse |
 | Photo | Photo spot | 0 | 9, 11 | Photo zone |
+| Photo | Camera on its tripod, facing the photo spot; it takes a film, the frames left shown on it (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
+| Photo | A film at the round's start, beside the camera (#687) | 0 | not placed yet: the level task proposes a point | Photo zone |
 | Photo | Computer and printer | 1 | 40, 29 | Study |
 | Photo | Board for the printed photos | -1 | 22, 40 | Darkroom |
+| Photo | Box of new films (#687) | -1 | not placed yet: the level task proposes a point | Storage |
 | Car repair | Car parts shelf | -1 | 27, 32 | Storage |
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
-| Car repair | Lift control (proposal: no view of who is under the car) | 0 | 57, 46 | Garage |
+| Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
+| Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
 | Zone task | A zone (placeholder until the engineer moves it, #651; up from the generator hall, #681) | 0 | 48, 37 | Yard, between the kitchen and the garage |
 | Zone task | A zone (placeholder, #651) | 0 | 52, 20 | Garden |
 | Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |
@@ -182,7 +186,35 @@ generator hall, 4 m east of its old point (44, 37): 6 m from the house and from 
 delivery circle on its floor (the kitchen's).
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
-A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m.
+A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the
+switches' spacing test is 12 m (the engineer, 2026-10-10, the
+[Generator ADR](../decisions/2026-10-10-generator-task.md)'s GD12), stricter than decision 8's 8 m, so a switch's click
+is out of earshot too. The test measures between the use cylinders, since a player uses a switch from anywhere in its
+cylinder: at least 12 m between the cylinders, so the switch markers stand at least 16 m apart at the 2 m placeholder
+(the engineer,
+[PR #695, comment 6100556117](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6100556117)); the
+nearest pair here is 20 m.
+
+The car repair (the engineer, 2026-10-10, #688; the rules in [GDD](../GDD.md) §8): the lift panel has no view of who
+is under the car; a dissident plays by the same rules (#679's shared rule), so anyone holding the lift may let it go.
+The panel's proposed point stands 8.6 m from the car (a straight line), beyond a station's reach, so one player cannot
+hold the lift and fit a part; but that is beyond the voice range (8 m) from parts of the panel's reach, and the holder
+relies on voice. So the panel moves nearer: every point of its reach within the voice range less a margin of the car's
+use spot, and still out of reach of the car (the [car repair ADR](../decisions/2026-10-10-car-repair-task.md)'s RD2:
+5 m, a placeholder; its issue R5 places it and R8 checks it). The garage's level gives the panel its blind side
+(issue R5). His answers of 2026-10-10 (PR #709): a picture on a garage wall shows the part the car needs, for now
+(later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
+player having a crouch (#727). He approved the car repair for the MVP only (PR #709, comment 6100556321): a much
+more interesting mechanic will replace it later. It plays on the House only, never on the greybox (#767).
+
+Delivery (the engineer, 2026-10-10, #683; the rules in [GDD](../GDD.md) §8): each item goes to its own drop-off by
+what it is, with no colours and nothing pointing to the place; the garden gnome, the parasol and the name "Motor oil"
+are his, approved as drafted
+([PR #713, comment 6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677)). This
+Delivery plays on the House only: the greybox, a test bench only (#767), keeps today's colour-matched Delivery as far
+as its bot scenarios and the information-leak test need it, and gets no drop-offs (DD9 (c) of the
+[Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), the same comment). The House's circle
+markers go once the House plays this Delivery (the ADR's D4).
 
 ## 7. Routes and travel times
 
@@ -236,12 +268,13 @@ the roof. Decision 10 adds a possible single-shot weapon that is very hard to ge
 - **Rooms in the level data.** The room record (#306) gives each room its id, names and sign; this file's names are
   working names until then.
 - **Ideas from the sketch, not decided.** The sketch described these, but the engineer has not decided them; they stay
-  out of the rules until he does:
-  - the generator charges only while all active switches are on at the same time;
+  out of the rules until he does (the generator's two he decided on 2026-10-09, in #679 and [GDD](../GDD.md) §8: it
+  charges only while every switch is on, and anyone may switch any active switch on or off):
   - photo: a screen in the photo zone shows a pose silhouette, one player poses with gestures and another takes the
     shot;
-  - the lift control has no view of who is under the car;
-  - how dissidents interfere with each chain (a wrong herb or part, letting the lift go, a wrong pose or a spoiled
-    shot, switching the generator's switches off);
+  - how dissidents interfere with each chain (a wrong herb, a wrong pose or a spoiled shot; a wrong part is no longer
+    one: the car refuses it, decided in #688; for the burgers he decided it in #682: a dissident may hide a box, and
+    the rules let anyone burn a patty or put a wrong ingredient on a plate, [GDD](../GDD.md) §8);
   - the street as a spawn point at the start of a round;
-  - the counts: 3 kinds of buns, 4 to 5 herbs in the greenhouse; whether the loot on the roof is a weapon.
+  - whether the loot on the roof is a weapon (the burgers' counts he decided on 2026-10-10, in #682 and
+    [GDD](../GDD.md) §8: 3 buns, 3 patties and 5 herbs).

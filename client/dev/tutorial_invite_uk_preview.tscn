@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://client/dev/tutorial_preview.gd" id="1_preview"]
+
+[node name="TutorialPreview" type="Node3D"]
+script = ExtResource("1_preview")
+state = "invite"
+language = "uk"

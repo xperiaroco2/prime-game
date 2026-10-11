@@ -5,7 +5,8 @@ extends SceneTree
 ## this window's steps from the runner's plan (tools/playcheck/playcheck_steps.gd).
 ##   godot --position -30000,-30000 --resolution 1280x720 --audio-driver Dummy
 ##       -s res://tools/playcheck/playcheck_window.gd
-##       -- --plan=<plan.json> --window=<n> <LaunchOptions' arguments: --host --local or --join=...>
+##       -- --plan=<plan.json> --window=<n> <--host --local, --join=... or --tutorial>
+## (LaunchOptions' arguments; --tutorial: the solo tutorial's one window, #601).
 ##
 ## It reads the game only through its own client (Game.client(): the ClientSession and its
 ## ClientModel), its screen, Esc menu and pointer, and what its Ui and current camera draw (the
@@ -113,53 +114,91 @@ class GameView:
 		var shown: bool = _field(field)[1]
 		return shown
 
-	## [text, shown] of a field, read from this window's Ui and current camera only; the keys here
-	## and in _labels() are tools/runner/playcheck.py's FIELDS (its test holds them equal).
+	## [text, shown] of a field (a Label's text as drawn: a key translated), read from this
+	## window's Ui and current camera only; the keys here and in _labels() are
+	## tools/runner/playcheck.py's FIELDS (its test holds them equal).
 	func _field(field: String) -> Array:
 		var ui := game.ui
 		var labels := _labels()
 		var found: Array = ["", false]
 		if labels.has(field):
-			found = [labels[field].text, labels[field].is_visible_in_tree()]
+			var label := labels[field]
+			found = [label.atr(label.text), label.is_visible_in_tree()]
+		var hud := ui.hud
 		match field:
-			"life.bar":
-				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
-			"end.back":
-				found = [ui.end.back_button.text, ui.end.back_button.is_visible_in_tree()]
+			"hud.health":
+				found = ["%.2f" % hud.health.fill.value, hud.health_box.is_visible_in_tree()]
+			"hud.stamina":
+				found = ["%.2f" % hud.stamina.fill.value, hud.stamina_box.is_visible_in_tree()]
+			"hud.mic":
+				found = ["on" if hud.shows_mic_on() else "off", hud.mic.is_visible_in_tree()]
+			"hud.hand":
+				found = _slot(hud.hand)
+			"hud.belt":
+				found = _slot(hud.belt)
+			"hud.raising":
+				var bar := hud.raising_bar
+				found = ["%.2f" % bar.value, bar.is_visible_in_tree()]
+			"hud.crosshair":
+				found = ["", hud.cross.is_visible_in_tree()]
+			"life.bleed":
+				var bleed := ui.life.bleed
+				found = ["%.2f" % bleed.fill.value, bleed.is_visible_in_tree()]
+			"life.raise":
+				found = ["%.2f" % ui.life.raise_bar.value, ui.life.raise_bar.is_visible_in_tree()]
+			"life.hold":
+				found = ["%.2f" % ui.life.hold_bar.value, ui.life.hold_bar.is_visible_in_tree()]
+			"life.give_up":
+				found = [ui.life.give_up_text(), ui.life.give_up.is_visible_in_tree()]
 			"esc.tabs":
 				var names := PackedStringArray()
 				for button: Button in ui.esc.tab_buttons.values():
 					if button.is_visible_in_tree():
 						names.append(button.text)
 				found = [", ".join(names), ui.esc.is_visible_in_tree()]
+			"lobby.roster":
+				found = [_roster(ui.lobby_hud), ui.lobby_hud.rows.is_visible_in_tree()]
+			"tutorial.how":
+				found = [ui.tutorial.how_text(), ui.tutorial.step.is_visible_in_tree()]
 			"hand.item":
 				var hand := _hand()
 				var kind := hand.shown_kind() if hand != null else &""
 				found = [kind, hand != null and hand.is_visible_in_tree() and not kind.is_empty()]
 		return found
 
+	## The lobby HUD's rows, one line each: the name as drawn ("You" for the own row, "<name> ·
+	## host" for the host's), then "ready" where the row shows its check, else "not ready".
+	func _roster(lobby: LobbyHud) -> String:
+		var lines := PackedStringArray()
+		var texts := lobby.row_texts()
+		var checks := lobby.row_checks()
+		for index in texts.size():
+			lines.append("%s %s" % [texts[index], "ready" if checks[index] else "not ready"])
+		return "\n".join(lines)
+
+	## [the item's name as drawn, shown while the slot is shown and holds an item] of a HUD slot.
+	func _slot(slot: HudSlot) -> Array:
+		var item := slot.shown_item()
+		return [slot.atr(item), slot.is_visible_in_tree() and not item.is_empty()]
+
 	## The fields that are one Label each: its text, shown while it is visible in the tree.
 	func _labels() -> Dictionary[String, Label]:
 		var ui := game.ui
 		return {
 			"hud.role": ui.hud.role_label,
-			"hud.teammates": ui.hud.teammates_label,
-			"hud.clock": ui.hud.clock_label,
-			"hud.progress": ui.hud.progress_label,
-			"hud.health": ui.hud.health_label,
-			"hud.stamina": ui.hud.stamina_label,
-			"hud.hand": ui.hud.hand_label,
-			"hud.belt": ui.hud.belt_label,
-			"hud.spectating": ui.hud.spectating_label,
-			"hud.destination": ui.hud.destination_label,
-			"hud.hint": ui.hud.hint_label,
-			"hud.crosshair": ui.hud.crosshair,
+			"hud.clock": ui.hud.time_label,
+			"hud.aim": ui.hud.aim_label,
+			"life.watching": ui.life.watching_label,
 			"life.title": ui.life.title_label,
-			"life.lines": ui.life.lines_label,
-			"lobby.hint": ui.lobby_hud.hint_label,
-			"lobby.roster": ui.lobby_hud.roster_label,
-			"lobby.countdown": ui.lobby_hud.countdown_label,
-			"end.winner": ui.end.winner_label,
+			"life.left": ui.life.left_label,
+			"life.respawn": ui.life.respawn_label,
+			"life.protected": ui.life.protect_label,
+			"lobby.status": ui.lobby_hud.status_label,
+			"lobby.ready": ui.lobby_hud.ready_label,
+			"pregame.role": ui.pregame.role_label,
+			"end.winner": ui.end.winner_shown(),
+			"end.countdown": ui.end.countdown_label,
+			"tutorial.step": ui.tutorial.progress_label,
 		}
 
 	## The FirstPersonHand under the current camera: the own player's, or the spectated target's

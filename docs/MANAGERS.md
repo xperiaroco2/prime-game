@@ -59,6 +59,23 @@ skill and its `handover.md`.
   (`until: "session_idle"`), and your For-you asks him to leave the lid open and the machine on mains power, sleep
   "never" on mains (a closed lid or a manual sleep still sleeps). A run the machine slept through stops red at the
   resume ("the machine slept or was suspended"): relaunch it fresh.
+- **A permission card stops the whole session** (#731). While a call waits on one, Claude Code holds every
+  notification, from finished runs and from the timer. On 2026-10-09 one guarded cleanup command at 22:06Z kept the
+  meta manager silent until 07:29Z. So while a run is in flight, or before he leaves, run no command the guard asks
+  about (a worktree removal or branch delete outside a task's worktree, AGENT_WORKFLOW §8.2). Put it in "For you:"
+  instead. At each wake, run `tools\run.cmd wave --stalled` (from `D:\prime-game`, read-only, about a second). It
+  names another session that has taken no turn for 30 minutes after a run of its own finished or a notification
+  queued, and the card it waits on. Put that line in your "For you:". Send a PushNotification only for a stalled
+  session you have not reported at an earlier wake (the line names the session and its last turn), so one night-long
+  stall pushes once, not at every wake.
+- **The "nobody is watching" sign** (#750). Before a night, and before you leave a run alone with the engineer away,
+  run `tools\run.cmd unattended --until <HH:MM>` (or `--hours <n>`, at most 16) in your own session: the guard then
+  denies, with its reason and the line "unattended: put this command in the For-you block for the engineer", what it
+  would ask about, for you and your workflow agents. It does not remove every card: the `ask` rules of
+  `.claude/settings.json` (`gh pr review *`, `Edit(**/.claude/settings.json)`), Claude Code's own checks and, in
+  acceptEdits, its prompt for a write outside the working directory still show one, so run none of those either. Put
+  such a command in "For you:". Clear it with `tools\run.cmd unattended --off` at his first message, before anything
+  else; it also ends at its time. Without the sign nothing changes (AGENT_WORKFLOW §8.2.11).
 
 ## 5. When to hand over
 - **The thresholds stay mandatory**, day and night: the context over **500k** tokens (to be checked with `metrics`

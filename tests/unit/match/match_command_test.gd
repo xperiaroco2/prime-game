@@ -26,10 +26,10 @@ func test_an_undeclared_field_reads_as_absent_even_when_sent() -> void:
 	assert_object(command.field("jumped")).is_null()
 	assert_bool(command.get_bool("jumped")).is_false()
 	assert_array(Array(command.undeclared_reads)).is_equal(["jumped"])
-	var hello := MatchCommand.new(Intents.HELLO, 2, 5, {"name": "Ann", "version": 1})
-	assert_str(hello.get_string("name", "none")).is_equal("none")
+	var hello := MatchCommand.new(Intents.HELLO, 2, 5, {"nick": "Ann", "version": 1})
+	assert_str(hello.get_string("nick", "none")).is_equal("none")
 	assert_int(hello.get_int("version")).is_equal(1)
-	assert_array(Array(hello.undeclared_reads)).is_equal(["name"])
+	assert_array(Array(hello.undeclared_reads)).is_equal(["nick"])
 
 
 func test_force_role_reads_its_role() -> void:
