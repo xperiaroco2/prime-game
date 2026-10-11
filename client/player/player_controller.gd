@@ -200,9 +200,9 @@ func look_level() -> void:
 
 ## Switches the body to `value`'s: the living and the downed collide with the level only (the
 ## living push each other apart in `_push_apart`, not through collisions); the downed are on the
-## downed layer, which no push looks at (Q6), and keep the capsule, gravity, floor and steps of
-## the living, with the lying mesh shown. The dead are on no layer and show nothing. Any change
-## stops the body.
+## downed layer, which no push looks at (Q6), and keep the standing capsule of the living (they
+## hold still, KE4), with the lying mesh shown. The dead are on no layer and show nothing. Any
+## change stops the body.
 func set_life(value: ClientModel.Life) -> void:
 	life = value
 	collision_mask = PhysicsLayers.WORLD
