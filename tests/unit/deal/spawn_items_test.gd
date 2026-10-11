@@ -153,6 +153,18 @@ func test_the_mode_check_refuses_an_incomplete_spawn() -> void:
 	assert_str("\n".join(ModeCheck.run(mode).errors)).contains("SpawnItems has no kind")
 
 
+func test_the_mode_check_refuses_a_spawn_of_a_kind_without_a_spawn_tag() -> void:
+	# The cooking ADR's CE18 (a), C11: an item kind may have no tag (one only given), so the
+	# placer refuses it where the tag is used, not the kind (mode_check_test.gd).
+	var mode := FixtureDealModes.deal_mode()
+	var spawn := mode.transitions[0].actions[2] as SpawnItems
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+	spawn.kind.spawn_tag = &""
+	var errors := ModeCheck.run(mode).errors
+	assert_array(Array(errors)).has_size(1)
+	assert_str(errors[0]).contains("SpawnItems: item kind knife has no spawn_tag to place it on")
+
+
 ## The notes the fixture task type emitted for item_rested: one per spawned item, cause spawn.
 func _rested_notes(game: Match) -> Array[String]:
 	var found: Array[String] = []

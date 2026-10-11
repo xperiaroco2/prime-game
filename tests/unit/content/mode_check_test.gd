@@ -320,6 +320,17 @@ func test_a_vanishing_item_kind_is_bounded_and_needs_a_phase_listing_vanish_tick
 	_expect_none(unticked)
 
 
+func test_an_item_kind_no_deal_places_needs_no_spawn_tag() -> void:
+	# The cooking ADR's CE18 (a), C11: a kind that is only given or changed into names no marker,
+	# so ItemKind.check takes an empty tag; each part that places a kind on markers refuses one
+	# without a tag in its own check (spawn_items_test.gd, delivery_deal_test.gd).
+	var mode := FixtureItemModes.basic()
+	mode.find_item_kind(&"tool").spawn_tag = &""
+	_expect_none(mode)
+	assert_array(Array(mode.find_item_kind(&"tool").check(mode))).is_empty()
+	assert_str(ItemKind.new().spawn_tag).is_empty()
+
+
 func test_a_task_type_needs_a_description() -> void:
 	# The task screen shows it (vision revision 1, the Tab task screen).
 	for empty: String in ["", "  \n"]:
