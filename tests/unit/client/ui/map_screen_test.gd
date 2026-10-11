@@ -67,6 +67,19 @@ func test_a_counter_changes_in_place_and_keeps_the_focus() -> void:
 	assert_object(get_viewport().gui_get_focus_owner()).is_same(help)
 
 
+func test_a_task_with_every_subtask_done_is_struck_through() -> void:
+	# The fake round's Delivery row is 3 of 5 (placeholder look until #150: a line over the name).
+	var screen := _screen(_round_model())
+	assert_bool(_struck(screen, 0)).is_false()
+	var model := _round_model()
+	model.fold(&"TaskState", {"task": 0, "type": &"delivery", "done": 3, "total": 3})
+	screen.refresh(model, _mode, NOW, _local())
+	assert_array(_row_texts(screen)).contains_exactly(["Delivery|5 of 5|?"])
+	assert_bool(_struck(screen, 0)).is_true()
+	screen.refresh(_round_model(), _mode, NOW, _local())
+	assert_bool(_struck(screen, 0)).is_false()
+
+
 func test_an_unchanged_refresh_does_not_lay_the_zone_tag_out_again() -> void:
 	var screen := _screen(_round_model())
 	screen.light(&"delivery")
@@ -491,6 +504,11 @@ func _row_texts(screen: MapScreen) -> Array[String]:
 		var help := row.find_child("Help", true, false) as Button
 		made.append("%s|%s|%s" % [name_label.text, count.text, help.text])
 	return made
+
+
+func _struck(screen: MapScreen, index: int) -> bool:
+	var name_label := screen.rows_box.get_child(index).find_child("Name", true, false) as Label
+	return name_label.get_meta(&"struck", false)
 
 
 func _room_label(screen: MapScreen, id: StringName) -> Label:

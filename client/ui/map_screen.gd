@@ -30,6 +30,8 @@ const ROOMS_SIZE := Vector2(1088, 896)
 ## at large text, where the glyph makes it 42 tall).
 const ROW_HEIGHT := 64.0
 const HELP_SIZE := Vector2(42, 42)
+## The strike-through line of a done task, in pixels (layout).
+const STRIKE_WIDTH := 3.0
 ## A room's pictogram and its name's least width.
 const ROOM_ICON_SIZE := Vector2(48, 48)
 const ROOM_NAME_WIDTH := 120.0
@@ -305,6 +307,11 @@ static func name_of(row: Row) -> String:
 	return ContentNames.text(row.name)
 
 
+## Whether every subtask of the row is done (a row with no subtasks is not).
+static func is_done(row: Row) -> bool:
+	return row.total > 0 and row.done >= row.total
+
+
 ## "3 of 6" in the language now.
 static func counter_text(row: Row) -> String:
 	return TranslationServer.translate("map.progress").format(
@@ -432,7 +439,9 @@ func _retext() -> void:
 func _retext_rows() -> void:
 	var plates := rows_box.get_children()
 	for i in mini(plates.size(), _shown.size()):
-		(plates[i].find_child("Name", true, false) as Label).text = name_of(_shown[i])
+		var shown_name := plates[i].find_child("Name", true, false) as Label
+		shown_name.text = name_of(_shown[i])
+		_set_struck(shown_name, is_done(_shown[i]))
 		(plates[i].find_child("Count", true, false) as Label).text = counter_text(_shown[i])
 
 
@@ -462,6 +471,8 @@ func _task_row(row: Row) -> Control:
 	task_name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	task_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	task_name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	task_name.draw.connect(_draw_strike.bind(task_name))
+	_set_struck(task_name, is_done(row))
 	line.add_child(task_name)
 	var count := UiParts.styled_label(counter_text(row), &"ToySettingRowText")
 	count.name = "Count"
@@ -482,6 +493,25 @@ func _task_row(row: Row) -> Control:
 	ToyPress.attach(help)
 	line.add_child(help)
 	return plate
+
+
+## A done task's name is struck through: a placeholder line until the UI milestone (#150);
+## a Label has no strikethrough (only RichTextLabel does), so the line is drawn over the text.
+func _set_struck(label: Label, struck: bool) -> void:
+	label.set_meta(&"struck", struck)
+	label.queue_redraw()
+
+
+func _draw_strike(label: Label) -> void:
+	if not label.get_meta(&"struck", false):
+		return
+	var font := label.get_theme_font(&"font")
+	var font_size := label.get_theme_font_size(&"font_size")
+	var text_width := font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var width := minf(text_width, label.size.x)
+	var y := label.size.y * 0.5
+	var color := label.get_theme_color(&"font_color")
+	label.draw_line(Vector2(0, y), Vector2(width, y), color, STRIKE_WIDTH)
 
 
 func _on_help(help: Button, type: StringName) -> void:
