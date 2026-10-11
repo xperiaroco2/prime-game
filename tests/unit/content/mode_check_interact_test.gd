@@ -78,6 +78,35 @@ func test_station_usable_comes_after_reach_and_sight() -> void:
 	assert_str(" ".join(errors)).contains("holds StationUsable without StationInSight before it")
 
 
+func test_a_negated_station_usable_comes_after_reach_and_sight_too() -> void:
+	# `not StationUsable` answers not_allowed by the same use_problem, from anywhere on the map.
+	var mode := FixtureStationModes.basic()
+	var negated := StationUsable.new()
+	negated.negate = true
+	_panel(mode).actions[0].conditions = [
+		negated, AtStation.new(), StationInSight.new(), StationUsable.new()
+	]
+	var errors := Array(ModeCheck.run(mode).errors)
+	assert_array(errors).has_size(2)
+	assert_str(" ".join(errors)).contains("holds StationUsable without AtStation before it")
+	assert_str(" ".join(errors)).contains("holds StationUsable without StationInSight before it")
+
+
+func test_a_station_condition_on_an_intent_naming_no_station_is_refused() -> void:
+	# On Use there is no station: the condition would always refuse, a dead rule (#379).
+	for condition: Condition in [AtStation.new(), StationInSight.new(), StationUsable.new()]:
+		var mode := FixtureStationModes.basic()
+		mode.actions.append(FixtureModes.rule(Intents.USE, [condition], [FixtureNote.of("dead")]))
+		# StationUsable alone also lacks AtStation and StationInSight before it: more errors.
+		var errors := Array(ModeCheck.run(mode).errors)
+		assert_str(" ".join(errors)).contains(
+			(
+				"mode.actions: rule Use holds %s, which finds a station only on an intent naming"
+				% (condition.get_script() as Script).get_global_name()
+			)
+		)
+
+
 func test_a_role_gated_station_rule_whose_use_reaches_everyone_warns_with_no_channel() -> void:
 	# plain() has no channel, so only the use's public event can reveal the role.
 	var mode := FixtureStationModes.plain()

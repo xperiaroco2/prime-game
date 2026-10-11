@@ -28,8 +28,9 @@ extends RefCounted
 ## two rules on one trigger in one owner; a station kind's rule on an intent that names no station,
 ## and an item kind's on one that does (the hand item never owns Interact, the Generator ADR's
 ## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
-## StationUsable, and a StationUsable without AtStation and StationInSight before it; two
-## station kinds among the task types with one id or one spawn tag, one kind held twice included
+## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
+## an AtStation, StationInSight or StationUsable on an intent that names no station (a dead rule);
+## two station kinds among the task types with one id or one spawn tag, one kind held twice included
 ## (stations take markers without asking whether one stands there, and Demands keys palettes by
 ## the kind's id); a task type that ticks (#36's zone task) in a mode where no phase lists
 ## TaskTicks, so it would never count; a number outside its
@@ -370,6 +371,28 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 ## a StationUsable only after AtStation and StationInSight, so its reason only ever tells about a
 ## station the actor has in reach and in sight (§9.4.1).
 func _check_station_rule(owner: String, rule: Rule) -> void:
+	var uses_station := false
+	for effect: RuleEffect in rule.effects:
+		uses_station = uses_station or effect is UseStation
+	if not uses_station and not Stations.names_station(rule.trigger):
+		# A dead rule (#379): on an intent with no station they find none and always refuse.
+		for condition: Condition in rule.conditions:
+			if _is_station_condition(condition):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s holds %s, which finds a station only on an intent naming one (%s)"
+							% [
+								owner,
+								rule.trigger,
+								(condition.get_script() as Script).get_global_name(),
+								station_intents()
+							]
+						)
+					)
+				)
+				break
 	for effect: RuleEffect in rule.effects:
 		if not effect is UseStation:
 			continue
@@ -391,7 +414,8 @@ func _check_station_rule(owner: String, rule: Rule) -> void:
 						)
 					)
 				)
-	var usable := _index_of(rule, StationUsable)
+	# A negated StationUsable too: its not_allowed answers by the same use_problem.
+	var usable := _index_of(rule, StationUsable, true)
 	if usable < 0:
 		return
 	for before: Script in [AtStation, StationInSight]:
@@ -445,17 +469,23 @@ static func _all_intents(triggers: Array[StringName]) -> bool:
 	return not triggers.is_empty()
 
 
-## The index of the first condition of `condition_class` in `rule` that is not negated, or -1.
-static func _index_of(rule: Rule, condition_class: Script) -> int:
+## The index of the first condition of `condition_class` in `rule` that is not negated (or, with
+## `negated_too`, any), or -1.
+static func _index_of(rule: Rule, condition_class: Script, negated_too := false) -> int:
 	for i in rule.conditions.size():
 		var condition := rule.conditions[i]
 		if (
 			condition != null
-			and not condition.negate
+			and (negated_too or not condition.negate)
 			and is_instance_of(condition, condition_class)
 		):
 			return i
 	return -1
+
+
+## Whether `condition` is one of the three that look for the station an intent names.
+static func _is_station_condition(condition: Condition) -> bool:
+	return condition is AtStation or condition is StationInSight or condition is StationUsable
 
 
 ## Whether `rule` holds a condition of `condition_class` that is not negated: a negated one

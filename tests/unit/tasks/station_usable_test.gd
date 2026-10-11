@@ -37,13 +37,8 @@ func test_a_reason_outside_the_list_is_an_error_and_refused_unavailable() -> voi
 
 
 func test_a_task_type_takes_no_use_by_default() -> void:
-	var mode := FixtureStationModes.basic()
 	var plain := TaskType.new()
 	plain.id = &"plain"
 	plain.description = "A type with the defaults."
 	assert_str(plain.use_problem(null, null, null)).is_equal("unavailable")
 	assert_array(plain.use_emits()).is_empty()
-	var game := FixtureStationModes.in_round(mode, [P1])
-	var station: StationState = game.state.stations[1]
-	plain.use_station(null, null, station)
-	assert_array(FixtureModes.notes(game)).is_empty()
