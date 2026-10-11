@@ -1,12 +1,15 @@
 extends GdUnitTestSuite
-## Every bot scenario in content/scenarios/ (ARCHITECTURE §9.7), played by the core runner
-## (tests/harness/, stage 2j) on the mode's real levels: each reaches its expected ends with every
-## step done, no bot corrected outside a placement, no match error, the §5 invariants on every
-## bot's stream, and each bot holding exactly its peer's view_of. Then the match is replayed from
-## its command log (§3.3), which must give the same events to the same recipients. One of the two
-## places that load content/ (§9.6), so a change there can break a scenario.
+## Every bot scenario in content/scenarios/ and tests/fixtures/scenarios/ (the zone task's, on a
+## fixture mode since the engineer took it out of the base mode, #842; ARCHITECTURE §9.7), played
+## by the core runner (tests/harness/, stage 2j) on the mode's real levels: each reaches its
+## expected ends with every step done, no bot corrected outside a placement, no match error, the §5
+## invariants on every bot's stream, and each bot holding exactly its peer's view_of. Then the
+## match is replayed from its command log (§3.3), which must give the same events to the same
+## recipients. One of the two places that load content/ (§9.6), so a change there can break a
+## scenario.
 
 const SCENARIOS_DIR := "res://content/scenarios/"
+const FIXTURE_SCENARIOS_DIR := "res://tests/fixtures/scenarios/"
 
 
 func test_every_scenario_plays_to_its_expected_ends_and_replays() -> void:
@@ -71,11 +74,12 @@ func _assert_replays(path: String, game: Match) -> void:
 
 func _scenario_paths() -> Array[String]:
 	var found: Array[String] = []
-	var dir := DirAccess.open(SCENARIOS_DIR)
-	if dir == null:
-		return found
-	for file: String in dir.get_files():
-		if file.ends_with(".tres"):
-			found.append(SCENARIOS_DIR.path_join(file))
+	for folder: String in [SCENARIOS_DIR, FIXTURE_SCENARIOS_DIR]:
+		var dir := DirAccess.open(folder)
+		if dir == null:
+			continue
+		for file: String in dir.get_files():
+			if file.ends_with(".tres"):
+				found.append(folder.path_join(file))
 	found.sort()
 	return found
