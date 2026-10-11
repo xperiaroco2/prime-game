@@ -1,10 +1,10 @@
 export const meta = {
   name: 'pr-rebase',
   description: 'Bring one open prime-game PR up to date with its base after a semantic conflict: rebase and reconcile, verify, publish; fresh review; fix only if blocker or major',
-  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?, lean_reason?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?, lean_reason?, review?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major), only the rebase on a clean rebase (#858: no conflict, no fix, every patch unchanged, CI green; review: true forces the reviewers); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
-    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major)' },
+    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major); skipped on a clean rebase (#858)' },
     { title: 'Fix', detail: 'only if a review found a blocker or major' },
   ],
 }
@@ -25,7 +25,7 @@ export const meta = {
 // script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads, #834's docs/ARCHITECTURE.md in it and #858's range-diff step of the rebase agent). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -53,10 +53,21 @@ export const meta = {
 //   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
 //                 run launched before #458, as in issue-task.js. It changes no prompt or option; the result carries
 //                 it. Ignored with lean on (a log line says so). +0 agents
+//   review        true: the reviewers (and on a blocker or major the skeptics and the fix agent) run even on a clean
+//                 rebase, for a manager that suspects a semantic clash the textual rebase cannot show; it adds one
+//                 sentence to the rebase agent's range-diff step. Missing, null or false: the clean path below. +0
+//                 agents (up to the 2 to 4 of a full review that a clean rebase would skip)
+// The clean path (#858): the rebase agent's last step compares the patches (`git range-diff <old_tip>...<new_tip>`) and
+// returns patches_unchanged, range_diff (its counts by mark) and why_settled (the semantic conflict the Why names is
+// shown settled by the green verify). When all of patches_unchanged, why_settled and ci_green are true and conflicts
+// and fixes are empty, no reviewer, skeptic or fix agent runs: the result says path 'clean' with reviews_skipped (the
+// reviewers the paths routed). Anything else, a missing verdict included, or review true, runs the full review as
+// before: path 'full' with the reason. The rebase is verified (publish) and CI-tested either way.
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
 // problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
-// fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full),
+// fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full), path
+// ('clean' with reviews_skipped, or 'full' with reason; #858) and range_diff,
 // lean_off under lean false as in issue-task.js, and `full`, a pointer to the run's journal.jsonl with every agent's
 // whole result.
 // Resume: relaunch with resumeFromRunId and the SAME args.
@@ -78,11 +89,14 @@ const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 // The pipeline v2 args, checked as in issue-task.js: a wrong value throws before any agent runs; an unknown arg logs.
-const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason']
+const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'review']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${PR}: unknown args ignored: ${unknown.join(', ')}`)
 if (A.second_review !== undefined && A.second_review !== null && typeof A.second_review !== 'boolean') throw new Error('pr-rebase: args.second_review must be true or false')
 const SECOND_REVIEW = A.second_review === true
+if (A.review !== undefined && A.review !== null && typeof A.review !== 'boolean') throw new Error('pr-rebase: args.review must be true or false')
+// #858: true keeps the full review on a clean rebase too.
+const FORCE_REVIEW = A.review === true
 if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounded_waits !== 'boolean') throw new Error('pr-rebase: args.bounded_waits must be true or false')
 // On unless a launch passes false (#411): a missing or null arg is the default.
 const BOUNDED = A.bounded_waits !== false
@@ -243,13 +257,15 @@ const reb = await agent([
     A.steps ? `2. Reconcile:\n${A.steps}` : '2. Fix what the new base breaks in this PR\'s code and tests, each fix in its own commit.',
     `3. Run the tests the rebase and the fixes touch and \`tools\\run.cmd check\`, then \`${PUBLISH}\` with no standalone \`verify\` before it: it verifies the rebased tree, and a red verify inside it pushes nothing (fix, then publish again until green; it can fail right after a rebase that changed tools/runner: run it again).`,
     `4. Update PR #${PR}'s body (\`gh pr edit ${PR} --body-file\`): a "Rebased on ${BASE}" section with the conflicts, how each was resolved and the fixes; keep the rest. \`gh pr checks ${PR} --watch\`, at most two fix rounds. A short comment on #${N}.`,
+    // #858: the clean path's verdict. Only this step (and its last sentence under review: true) is new in the default prompt.
+    `5. After CI, compare the patches (#858): \`git range-diff <old_tip>...<new_tip>\`, new_tip the tip you published last, old_tip the tip of step 1 if it was PR #${PR}'s head on origin before your first publish (\`git reflog show origin/${A.branch}\`: the entry before your push); if it was not (the worktree was rebased before you started), patches_unchanged is false. patches_unchanged: true only when every line of the range-diff is \`=\` (the same commits, none changed, added or dropped); range_diff: its counts by mark, e.g. \`4 =, 0 !, 0 <, 0 >\`. conflicts and fixes list only the conflicts you resolved and the fix commits you made (not the PR body or the comment), so a clean rebase leaves both empty. why_settled: true only when the semantic conflict the Why names (a changed interface, duplicate classes) is shown settled by the green verify: the Why names none, or \`check\` or a test that ran in it exercises each changed call and class it names on the rebased tree; else false. ${FORCE_REVIEW ? 'The manager forces the review (review: true): add the counts to the "Rebased on" section with "Review: full (forced by the manager)".' : 'Add the counts to the "Rebased on" section with "Review: skipped, a clean rebase (#858)" when patches_unchanged and why_settled are true, conflicts and fixes are empty and CI is green; else "Review: full" and why.'}`,
   ].join('\n'),
   ...(BOUNDED ? [waits(true)] : []),
   HUMAN_STEPS,
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`.`,
 ].join('\n\n'), withModel({
   label: `rebase:#${PR}`, phase: 'Rebase', effort: REB_EFFORT,
-  schema: { type: 'object', properties: { up_to_date: { type: 'boolean' }, verify_green: { type: 'boolean' }, ci_green: { type: 'boolean' }, published: { type: 'boolean' }, old_tip: { type: 'string' }, new_tip: { type: 'string' }, changed_paths: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } }, problems: { type: 'array', items: { type: 'string' } }, human_steps: HUMAN_STEPS_SCHEMA }, required: ['up_to_date', 'verify_green', 'published'] },
+  schema: { type: 'object', properties: { up_to_date: { type: 'boolean' }, verify_green: { type: 'boolean' }, ci_green: { type: 'boolean' }, published: { type: 'boolean' }, old_tip: { type: 'string' }, new_tip: { type: 'string' }, changed_paths: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } }, problems: { type: 'array', items: { type: 'string' } }, human_steps: HUMAN_STEPS_SCHEMA, patches_unchanged: { type: 'boolean' }, range_diff: { type: 'string' }, why_settled: { type: 'boolean' } }, required: ['up_to_date', 'verify_green', 'published'] },
 }, 'rebase'))
 if (!reb) throw new Error(`#${PR}: the rebase agent returned nothing; resume this run with the same args`)
 // A red or unpublished rebase is not reviewed: the reviewer would read a local state that is not the PR.
@@ -258,8 +274,29 @@ if (!reb.verify_green || !reb.published) {
   return brief('rebase red or unpublished: nothing reviewed; read problems, then relaunch (not a resume) with them in steps', [], null, {})
 }
 
-phase('Review')
 const paths = reb.changed_paths || []
+// tests/harness/ holds the information-leak test, and client/ renders public data (a rendering leak is an
+// information leak, #158), as in issue-task.js.
+const netcode = !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
+// #858: a clean rebase (no conflict resolved, no fix commit, every patch unchanged in the range-diff, the Why's
+// semantic conflict shown settled by verify, CI green) skips the reviewers, the skeptics and the fix agent. Anything
+// else, a missing verdict included, or review: true, keeps the full review. publish verified the tree either way.
+const fullBecause = []
+if (FORCE_REVIEW) fullBecause.push('review: true')
+if (items(reb.conflicts).length) fullBecause.push(`${items(reb.conflicts).length} conflict(s) resolved`)
+if (items(reb.fixes).length) fullBecause.push(`${items(reb.fixes).length} fix(es)`)
+if (reb.patches_unchanged !== true) fullBecause.push(reb.patches_unchanged === false ? 'a patch changed in the range-diff' : 'no range-diff verdict')
+if (reb.why_settled !== true) fullBecause.push(reb.why_settled === false ? 'the conflict the Why names is not shown settled by verify' : 'no verdict on the Why')
+if (reb.ci_green !== true) fullBecause.push('CI not green')
+const RANGE = reb.range_diff ? { range_diff: line(reb.range_diff) } : {}
+if (!fullBecause.length) {
+  const skipped = ['code-reviewer', ...(netcode ? ['netcode-security-reviewer'] : []), ...(netcode && SECOND_REVIEW ? ['second netcode-security-reviewer'] : [])]
+  log(`#${PR}: a clean rebase (${RANGE.range_diff || 'every patch unchanged'}): ${skipped.join(', ')} skipped`)
+  return brief(null, [], null, { path: 'clean', reviews_skipped: skipped, ...RANGE })
+}
+const PATH = { path: 'full', reason: fullBecause.join('; '), ...RANGE }
+
+phase('Review')
 const base = [
   `Fresh read-only review of PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; D:/prime-game is main). Budget: at most about 60 tool calls; do not edit anything; you may run \`tools\\run.cmd test <path>\` in the worktree.`,
   REVIEW_RULES,
@@ -273,9 +310,6 @@ const base = [
 const NETCODE_SECTIONS = `Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: \`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6\` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.`
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
-// tests/harness/ holds the information-leak test, and client/ renders public data (a rendering leak is an
-// information leak, #158), as in issue-task.js.
-const netcode = !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
 if (netcode) {
   labels.push('netcode-security-reviewer')
   thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
@@ -332,8 +366,8 @@ if (toFix.length) {
   }, 'fix'))
   if (!fix) throw new Error(`#${PR}: the fix agent returned nothing, so ${toFix.length} blocker/major finding(s) may be unfixed; resume this run with the same args`)
 }
-if (!SKEPTICS) return brief(null, reviews, fix, {})
-const extra = { skeptic: { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length } }
+if (!SKEPTICS) return brief(null, reviews, fix, PATH)
+const extra = { ...PATH, skeptic: { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length } }
 if (serious.length && !toFix.length) {
   extra.note = `every blocker and major finding was refuted, so no fix agent ran: add refuted, each with its reason, to PR #${PR}'s body`
   // In full: the manager copies them into the PR body.

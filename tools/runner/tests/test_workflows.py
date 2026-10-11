@@ -36,7 +36,8 @@ gate, no local `verify --full`); so did #606's review tier line in the full publ
 return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
 skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
 #815's ADR line (each section of the task's ADR once per context), which every agent
-carries, the publisher too, and #834's words in it for docs/ARCHITECTURE.md.
+carries, the publisher too, and #834's words in it for docs/ARCHITECTURE.md. #858 rewrote both pr-rebase folders:
+the rebase agent's range-diff step and the three verdicts it adds to its schema, and the return value's path.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -137,6 +138,13 @@ REWORD_COMMIT = ("git", "commit", "--allow-empty", "-F")
 # The agent types of the read-only reviewers, which get no RULES.
 READ_ONLY_TYPES = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 MAJOR = {"severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "fix": "f1"}
+# #858: a rebase agent's result on a clean rebase: no conflict, no fix ("None" says nothing), every patch unchanged, the
+# Why's conflict settled by verify, CI green.
+CLEAN_REBASE = {
+    "up_to_date": True, "verify_green": True, "published": True, "ci_green": True, "old_tip": "a" * 40, "new_tip": "b" * 40,
+    "changed_paths": ["core/x.gd"], "conflicts": [], "fixes": ["None"], "problems": [],
+    "patches_unchanged": True, "range_diff": "3 =, 0 !, 0 <, 0 >", "why_settled": True,
+}
 MINOR = {"severity": "minor", "file": "core/match/vote.gd", "line": 30, "problem": "p2", "fix": "f2"}
 # What every agent that publishes returns for the engineer's own steps (#266), and how its prompt asks for it.
 HUMAN_STEPS_SCHEMA = {
@@ -240,6 +248,8 @@ SNAPSHOT_CASES = {
         ),
         # #835's trial: the rebase and fix agents on the model of models.publish (a case with a v2 arg).
         ("publish-sonnet-main", {"models": {"publish": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        # #858: a clean rebase, where no reviewer runs (the stub's findings would send a review's major to a fix).
+        ("clean-main", {}, {"paths": ["core/x.gd"], "findings": [MAJOR], "queues": {"rebase": [CLEAN_REBASE]}}),
     ],
 }
 
@@ -1033,6 +1043,7 @@ class PipelineV2Test(unittest.TestCase):
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"checkpoint": "yes"}, {"checkpoint": 1})]  # #559
+        jobs += [("pr-rebase.js", dict(ARGS, **args), {}) for args in ({"review": "yes"}, {"review": 1})]  # #858
         # ab_review (#535): an A/B needs a model on trial for the code reviewer, other than the control's.
         jobs += [
             ("issue-task.js", dict(ARGS, **args), {})
@@ -1745,7 +1756,7 @@ class PipelineV2Test(unittest.TestCase):
                 "issue-task.js",
                 ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier"),
             ),
-            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
+            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason", "review")),
         ):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             when = next(line for line in text.splitlines() if line.strip().startswith("whenToUse:"))
@@ -2821,6 +2832,93 @@ def quick(paths: list[str], **extra) -> dict:
     """The quick agent's result (#608): a PR with CI green unless extra says otherwise."""
     pr = {"pr_url": "https://github.com/o/r/pull/9", "pr_number": 9, "ci_green": True, "changed_paths": paths, "summary": "s"}
     return dict(pr, **extra)
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class CleanRebaseTest(unittest.TestCase):
+    """pr-rebase.js's clean path (#858): a clean rebase skips the reviewers, the skeptics and the fix agent."""
+
+    CORE = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+    STEP = "5. After CI, compare the patches (#858): "
+
+    def rebased(self, **extra) -> dict:
+        return dict(self.CORE, queues={"rebase": [dict(CLEAN_REBASE, **extra)]})
+
+    def test_a_clean_rebase_runs_no_reviewer_and_no_fix(self) -> None:
+        jobs = [
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), self.rebased()),
+            ("pr-rebase.js", ARGS, dict(self.rebased(changed_paths=["tools/runner/x.py"]), paths=["tools/runner/x.py"])),
+            ("pr-rebase.js", ARGS, self.rebased(conflicts=["none."], fixes=[])),
+        ]
+        want_skipped = (
+            ["code-reviewer", "netcode-security-reviewer", "second netcode-security-reviewer"],
+            ["code-reviewer"],
+            ["code-reviewer", "netcode-security-reviewer"],
+        )
+        for (_, args, _), result, skipped in zip(jobs, run_jobs(jobs), want_skipped):
+            with self.subTest(args={k: v for k, v in args.items() if k not in ARGS}, skipped=skipped):
+                self.assertIsNone(result["error"])
+                self.assertEqual([e["label"] for e in agents(result)], ["rebase:#8"])
+                self.assertNotIn("Review", [e["title"] for e in result["events"] if e["kind"] == "phase"])
+                out = result["returned"]
+                self.assertEqual((out["path"], out["reviews_skipped"]), ("clean", skipped))
+                self.assertEqual((out["reviews"], out["fix"], out["range_diff"]), ([], None, "3 =, 0 !, 0 <, 0 >"))
+                self.assertEqual((out["conflicts"], out["fixes"], out["ci_green"]), (0, 0, True))
+                self.assertNotIn("reason", out)
+                self.assertNotIn("stopped", out)
+                self.assertLessEqual(size(out), 1500)
+                logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+                self.assertTrue(any("a clean rebase" in m and "skipped" in m for m in logs), logs)
+
+    def test_anything_but_a_clean_rebase_keeps_the_full_review(self) -> None:
+        cases = (
+            ({}, {"conflicts": ["core/x.gd: kept both sides"]}, "1 conflict(s) resolved"),
+            ({}, {"fixes": ["abc1234 fix(core): adapt to the new call"]}, "1 fix(es)"),
+            ({}, {"patches_unchanged": False, "range_diff": "2 =, 1 !, 0 <, 0 >"}, "a patch changed in the range-diff"),
+            ({}, {"patches_unchanged": None}, "no range-diff verdict"),
+            ({}, {"why_settled": False}, "the conflict the Why names is not shown settled by verify"),
+            ({}, {"why_settled": None}, "no verdict on the Why"),
+            ({}, {"ci_green": False}, "CI not green"),
+            ({"review": True}, {}, "review: true"),
+        )
+        jobs = [("pr-rebase.js", dict(ARGS, **args), self.rebased(**extra)) for args, extra, _ in cases]
+        # The stub's own rebase result carries no verdict at all.
+        jobs.append(("pr-rebase.js", ARGS, self.CORE))
+        for (args, extra, reason), result in zip(cases + (({}, {}, "no range-diff verdict"),), run_jobs(jobs)):
+            with self.subTest(args=args, extra=extra):
+                self.assertIsNone(result["error"])
+                labels = [e["label"] for e in agents(result)]
+                self.assertEqual(labels, ["rebase:#8", "review:code:#8", "review:netcode:#8", "fix:#8"])
+                out = result["returned"]
+                self.assertEqual(out["path"], "full")
+                self.assertIn(reason, out["reason"])
+                self.assertNotIn("reviews_skipped", out)
+                self.assertEqual(len(out["reviews"]), 2)
+                self.assertEqual(out["fix"], {"fixed": 0})
+        # The skeptics' extra result keeps the path too.
+        result = run_one("pr-rebase.js", {"skeptic": True}, self.rebased(fixes=["abc1234 fix"]))
+        self.assertEqual((result["returned"]["path"], result["returned"]["reason"]), ("full", "1 fix(es)"))
+        self.assertEqual(result["returned"]["skeptic"], {"refuted": 0, "stood": 2, "unchecked": 0})
+
+    def test_the_rebase_agent_returns_the_verdict_from_one_new_step(self) -> None:
+        # The default prompt changes only by step 5; review: true changes only that step's last sentence.
+        default, forced = run_jobs([("pr-rebase.js", ARGS, self.CORE), ("pr-rebase.js", dict(ARGS, review=True), self.CORE)])
+        prompts = [calls(r, "rebase")[0]["prompt"] for r in (default, forced)]
+        steps = [[ln for ln in p.split("\n") if ln.startswith(self.STEP)] for p in prompts]
+        self.assertEqual([len(s) for s in steps], [1, 1])
+        self.assertEqual(prompts[0].replace(steps[0][0], ""), prompts[1].replace(steps[1][0], ""))
+        self.assertGreater(prompts[0].index(self.STEP), prompts[0].index("4. Update PR #8's body"))
+        for want in ("git range-diff <old_tip>...<new_tip>", "patches_unchanged", "range_diff", "why_settled",
+                     "git reflog show origin/tooling/7-x", "conflicts and fixes list only"):
+            self.assertIn(want, steps[0][0])
+        self.assertIn('"Review: skipped, a clean rebase (#858)"', steps[0][0])
+        self.assertNotIn("forced", steps[0][0])
+        self.assertIn('"Review: full (forced by the manager)"', steps[1][0])
+        self.assertNotIn("Review: skipped", steps[1][0])
+        schema = options(calls(default, "rebase")[0])["schema"]
+        self.assertEqual({k: schema["properties"][k]["type"] for k in ("patches_unchanged", "range_diff", "why_settled")},
+                         {"patches_unchanged": "boolean", "range_diff": "string", "why_settled": "boolean"})
+        self.assertNotIn("patches_unchanged", schema["required"], "a missing verdict keeps the full review")
 
 
 QUICK_FIELDS = {"n", "pr_url", "ci_green", "reviewed", "ready_to_merge", "needs_engineer", "summary"}
