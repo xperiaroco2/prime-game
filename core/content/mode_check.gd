@@ -25,12 +25,17 @@ extends RefCounted
 ## TargetDowned, ItemOnGround) where nothing supplies one: a win condition has no intent, channel
 ## or fact, and a reaction only its fact, which may carry it (Condition.target_facts: item_rested
 ## carries an item), else the condition finds no target and its answer never changes (#379);
-## two rules on one trigger in one owner; two station kinds among the task types with one id or
-## one spawn tag, one kind held twice included (stations take markers without asking whether one
-## stands there, and Demands keys palettes by the kind's id); a task type that ticks (#36's zone
-## task) in a mode where no phase lists TaskTicks, so it would never count; a number outside its
+## two rules on one trigger in one owner; a station kind's rule on an intent that names no station,
+## and an item kind's on one that does (the hand item never owns Interact, the Generator ADR's
+## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
+## StationUsable, and a StationUsable without AtStation and StationInSight before it; two
+## station kinds among the task types with one id or one spawn tag, one kind held twice included
+## (stations take markers without asking whether one stands there, and Demands keys palettes by
+## the kind's id); a task type that ticks (#36's zone task) in a mode where no phase lists
+## TaskTicks, so it would never count; a number outside its
 ## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
-## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2); in a
+## rule with an effect whose event goes to everyone (for a UseStation, an event its station's task
+## type's use_emits() lists), which reveals the actor's role (§9.2); in a
 ## mode with a channel, any role-owned or role-gated action, since applying it stops its actor's
 ## channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose
 ## KnockDown without then_die enters a phase with no LifeTicks, whose downed stays downed for good
@@ -132,14 +137,21 @@ static func _holds_set(resource: Resource, property: String) -> bool:
 ## warning about public events of role-owned or role-gated rules.
 func _check_rules(mode: GameMode) -> void:
 	_has_channel = _any_channel(mode)
-	_check_owner("mode.actions", mode.actions, Intents.ALL, false)
+	# A UseStation in a role's or the mode's rule may use any station, so any type's use_emits().
+	var types := mode.task_types
+	_check_owner("mode.actions", mode.actions, Intents.ALL, false, types)
 	_check_owner("mode.reactions", mode.reactions, Facts.ALL, false)
 	for role: GameRole in mode.roles:
 		if role != null:
-			_check_owner("role %s.actions" % role.id, role.actions, Intents.ALL, true)
+			_check_owner("role %s.actions" % role.id, role.actions, Intents.ALL, true, types)
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
-			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false)
+			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
+			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
+	for kind: StationKind in Stations.kinds_in(mode):
+		var owner := "station kind %s.actions" % kind.id
+		var type := Stations.owner_of(mode, kind)
+		_check_owner(owner, kind.actions, station_intents(), false, [type])
 	_check_actor_conditions(mode)
 
 
@@ -244,9 +256,16 @@ static func _class_of(condition: Condition) -> String:
 	return "a %s with no class_name" % base
 
 
+## The rules of one owner. `uses`: the task types whose use_emits() a UseStation in them can
+## emit (a station kind's own type; any type for a role's or the mode's rule).
 func _check_owner(
-	owner: String, rules: Array[Rule], triggers: Array[StringName], role_owned: bool
+	owner: String,
+	rules: Array[Rule],
+	triggers: Array[StringName],
+	role_owned: bool,
+	uses: Array[TaskType] = []
 ) -> void:
+	var on_intent := _all_intents(triggers)
 	var seen_triggers: Array[StringName] = []
 	for rule: Rule in rules:
 		if rule == null:
@@ -263,9 +282,10 @@ func _check_owner(
 			if condition is Cost and condition.negate:
 				errors.append("%s: rule %s negates a cost" % [owner, rule.trigger])
 			gated = gated or condition.gates_on_role()
-		_check_channel_rule(owner, rule, Array(triggers) == Array(Intents.ALL))
-		_check_throw_rule(owner, rule, Array(triggers) == Array(Intents.ALL))
-		if gated and _has_channel and Array(triggers) == Array(Intents.ALL):
+		_check_channel_rule(owner, rule, on_intent)
+		_check_throw_rule(owner, rule, on_intent)
+		_check_station_rule(owner, rule)
+		if gated and _has_channel and on_intent:
 			warnings.append(
 				(
 					(
@@ -277,7 +297,7 @@ func _check_owner(
 				)
 			)
 		for effect: RuleEffect in rule.effects:
-			if effect != null and gated and _emits_to_everyone(effect):
+			if effect != null and gated and _reaches_everyone(effect, uses):
 				(
 					warnings
 					. append(
@@ -343,6 +363,99 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 						)
 					)
 				)
+
+
+## A station's rule (the Generator ADR's GE2, #796): a UseStation only on an intent that names a
+## station, with AtStation, StationInSight and StationUsable (UseStation.required_conditions); and
+## a StationUsable only after AtStation and StationInSight, so its reason only ever tells about a
+## station the actor has in reach and in sight (§9.4.1).
+func _check_station_rule(owner: String, rule: Rule) -> void:
+	for effect: RuleEffect in rule.effects:
+		if not effect is UseStation:
+			continue
+		if not Stations.names_station(rule.trigger):
+			errors.append(
+				(
+					"%s: rule %s uses a station, which only an intent naming one (%s) can"
+					% [owner, rule.trigger, station_intents()]
+				)
+			)
+		for required: Script in (effect as UseStation).required_conditions():
+			if not _has_condition(rule, required):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s uses a station, which requires the condition %s, which it lacks"
+							% [owner, rule.trigger, required.get_global_name()]
+						)
+					)
+				)
+	var usable := _index_of(rule, StationUsable)
+	if usable < 0:
+		return
+	for before: Script in [AtStation, StationInSight]:
+		var at := _index_of(rule, before)
+		if at < 0 or at > usable:
+			(
+				errors
+				. append(
+					(
+						(
+							"%s: rule %s holds StationUsable without %s before it: its reason would tell"
+							+ " about a station out of reach or out of sight"
+						)
+						% [owner, rule.trigger, before.get_global_name()]
+					)
+				)
+			)
+
+
+## The hand item never owns an intent that names a station (GE2): the station's kind, the role
+## and the mode do, so §9.2's order (the hand item's, the role's, the mode's) holds for every other
+## intent, and a later item cannot silently override or lose to a station.
+func _check_no_station_rule(owner: String, rules: Array[Rule]) -> void:
+	for rule: Rule in rules:
+		if rule != null and Stations.names_station(rule.trigger):
+			errors.append(
+				(
+					(
+						"%s: rule %s names a station, which a hand item never owns: the station's"
+						+ " kind, the role or the mode does (§9.2)"
+					)
+					% [owner, rule.trigger]
+				)
+			)
+
+
+## The intents that name a station (Interact): a station kind's rules may trigger on these only.
+static func station_intents() -> Array[StringName]:
+	var found: Array[StringName] = []
+	for intent: StringName in Intents.ALL:
+		if Stations.names_station(intent):
+			found.append(intent)
+	return found
+
+
+## Whether every one of `triggers` is an intent (an action's owner, not a reaction's).
+static func _all_intents(triggers: Array[StringName]) -> bool:
+	for trigger: StringName in triggers:
+		if not Intents.ALL.has(trigger):
+			return false
+	return not triggers.is_empty()
+
+
+## The index of the first condition of `condition_class` in `rule` that is not negated, or -1.
+static func _index_of(rule: Rule, condition_class: Script) -> int:
+	for i in rule.conditions.size():
+		var condition := rule.conditions[i]
+		if (
+			condition != null
+			and not condition.negate
+			and is_instance_of(condition, condition_class)
+		):
+			return i
+	return -1
 
 
 ## Whether `rule` holds a condition of `condition_class` that is not negated: a negated one
@@ -663,7 +776,8 @@ static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:
 	)
 
 
-## Every rule on `intent` among the mode's, the roles' and the item kinds' actions.
+## Every rule on `intent` among the mode's, the roles', the item kinds' and the station kinds'
+## actions (a station kind's handle Interact, GE2).
 static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	var found: Array[Rule] = []
 	var lists: Array[Array] = [mode.actions]
@@ -673,6 +787,8 @@ static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
 			lists.append(kind.actions)
+	for station_kind: StationKind in Stations.kinds_in(mode):
+		lists.append(station_kind.actions)
 	for rules: Array in lists:
 		for rule: Variant in rules:
 			if rule is Rule and (rule as Rule).trigger == intent:
@@ -681,7 +797,25 @@ static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 
 
 static func _emits_to_everyone(effect: RuleEffect) -> bool:
-	for script: Script in effect.emits():
+	return _any_to_everyone(effect.emits())
+
+
+## Whether `effect` emits an event to everyone: its own emits(), or for a UseStation the
+## use_emits() of `uses`, the task types whose station it may use (GE2: UseStation.emits() alone
+## cannot name what its station's type emits).
+static func _reaches_everyone(effect: RuleEffect, uses: Array[TaskType]) -> bool:
+	if _emits_to_everyone(effect):
+		return true
+	if not effect is UseStation:
+		return false
+	for type: TaskType in uses:
+		if type != null and _any_to_everyone(type.use_emits()):
+			return true
+	return false
+
+
+static func _any_to_everyone(scripts: Array[Script]) -> bool:
+	for script: Script in scripts:
 		var kind: Variant = script.get_script_constant_map().get("AUDIENCE_KIND")
 		if kind is int and kind == Audience.Kind.EVERYONE:
 			return true
