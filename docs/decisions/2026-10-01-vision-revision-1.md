@@ -115,7 +115,10 @@ Replaces "Death and ghosts". There are no ghosts.
 6100602989; designed in the [knockdown ADR](2026-10-10-knockdown-reworked.md), not built): a knocked-down player no
 longer crawls. It cannot move, and, as before, cannot talk; its body falls as a ragdoll, which, on the House only, a
 hit can send flying, and which rolls or slides off any slope, roof or stairs by itself, a rigid body in the host's
-physics (the flat greybox gets no launch). The rest of this section stands; where it says the downed crawl, they will
+physics (the flat greybox gets no launch). By his answer of 2026-10-11 (PR #754, comment 6108669765, KD11) that body
+has a crouching player's collider, so it rests only where a crouching player fits, and a raised player gets up
+crouched there (whether the host's body then rolls, or only slides and falls, is the ADR's KD13, open). The rest of
+this section stands; where it says the downed crawl, they will
 lie still once #728's issues are built.
 
 | State | Moves | May do | Struck | Heard by | Hears | Sees |
