@@ -205,14 +205,16 @@ The Sonnet publisher trial (#835, docs/decisions/2026-09-28-model-guard-no-fable
 (not a design task, not stopped by mutants: issue-task's publish_findings role), grouped per task. A trial task has
 such a run whose last publisher (its transcript) is of TRIAL_FAMILY; the baseline's tasks have only BASELINE_FAMILY
 publishers there. Per task: those runs, the blockers and majors open before the publisher, its not_fixed, the later
-findings (the PR's Found-by follow-ups plus fix-up PRs, from GitHub: unknown with --no-gh), the publisher's fix rounds,
-the PR's red CI rounds (both once per PR), the publishers' and the runs' API list $; per side the per-task means. The
-stop rule (pub_trial_advice): from PUB_TRIAL_EARLY_TASKS trial tasks stop when their not_fixed per task is
-PUB_TRIAL_NOT_FIXED_OVER or more over the baseline's; after PUB_TRIAL_TASKS keep Sonnet when PUB_TRIAL_NO_WORSE's
-measures are no worse per task and the publisher $ per task is lower, else drop it; no baseline then: "no verdict".
-pr-rebase beside it: the finished `pr-rebase` runs since PUB_TRIAL_FROM by their rebase agent's model family, per run
-red (the rebase red or unpublished, or the last publishing agent's ci_green or published false), the review's blockers
-and majors, the fix's not_fixed (0 when no fix ran after a review) and API list $; stop once REBASE_TRIAL_RED Sonnet
+findings (the PR's Found-by follow-ups filed after the run ended plus its fix-up PRs, from GitHub: unknown with
+--no-gh), the publisher's fix rounds, the PR's red CI rounds (both once per PR), the publishers' and the runs' API list
+$; per side the per-task means. The stop rule (pub_trial_advice): from PUB_TRIAL_EARLY_TASKS trial tasks, against a
+baseline of at least PUB_TRIAL_BASELINE_MIN tasks, stop when their not_fixed per task is PUB_TRIAL_NOT_FIXED_OVER or
+more over the baseline's; after PUB_TRIAL_TASKS drop Sonnet when a measure of PUB_TRIAL_NO_WORSE is worse per task or
+the publisher $ per task is not lower, keep it when none is and all are known; no baseline, or a measure no run knows:
+"no verdict". pr-rebase beside it: the finished `pr-rebase` runs since PUB_TRIAL_FROM by their rebase agent's model
+family, per run red (the rebase red or unpublished, or the last publishing agent's ci_green or published false; a
+branch already up to date has nothing to push), the open blockers and majors of every reviewer (minus the skeptics'
+refutations), the fix's not_fixed (0 when no fix ran after a review) and API list $; stop once REBASE_TRIAL_RED Sonnet
 runs were red; after REBASE_TRIAL_RUNS keep Sonnet when the red share, blockers and majors and not fixed per run are no
 worse than the Opus runs' and the $ per run is lower. The verdicts are advice: the engineer decides. The JSON record's
 "publisher_trial" holds the tasks, the baseline, the totals, the advice and "rebase" (its runs, totals and advice).
@@ -2786,6 +2788,7 @@ PUB_TRIAL_FROM = "2026-10-08T12:25:00Z"  # #835's scouting window: the Opus base
 PUB_TRIAL_TASKS = 10
 PUB_TRIAL_EARLY_TASKS = 4
 PUB_TRIAL_NOT_FIXED_OVER = 1.0
+PUB_TRIAL_BASELINE_MIN = 3  # a baseline of fewer tasks is noise against the early stop's 1.0
 PUB_TRIAL_MEASURES = ("open", "not_fixed", "later", "fix_rounds", "ci_fix_rounds", "pub_usd", "usd")
 PUB_TRIAL_NO_WORSE = {"later": "later findings", "not_fixed": "findings not fixed", "ci_fix_rounds": "CI fix rounds"}
 REBASE_TRIAL_RUNS = 10
@@ -2849,16 +2852,22 @@ def pub_trial_advice(trial: dict, base: dict) -> str:
                     f"findings since {PUB_TRIAL_FROM}); report on #302, the engineer decides")  # fmt: skip
         return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks; no baseline in the window yet"
     over = None if trial["not_fixed"] is None or base["not_fixed"] is None else trial["not_fixed"] - base["not_fixed"]
-    if trial["n"] >= PUB_TRIAL_EARLY_TASKS and over is not None and over >= PUB_TRIAL_NOT_FIXED_OVER:
+    if (trial["n"] >= PUB_TRIAL_EARLY_TASKS and base["n"] >= PUB_TRIAL_BASELINE_MIN and over is not None
+            and over >= PUB_TRIAL_NOT_FIXED_OVER):  # fmt: skip
         return f"stop: drop {what} ({over:.2f} findings not fixed per task over the baseline's)"
     if trial["n"] < PUB_TRIAL_TASKS:
         return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks"
+    both = {**PUB_TRIAL_NO_WORSE, "pub_usd": "publisher $ per task"}
+    unknown = [name for k, name in both.items() if trial[k] is None or base[k] is None]
     worse = [name for k, name in PUB_TRIAL_NO_WORSE.items()
-             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
-    if trial["pub_usd"] is None or base["pub_usd"] is None or trial["pub_usd"] >= base["pub_usd"]:
+             if trial[k] is not None and base[k] is not None and trial[k] > base[k]]  # fmt: skip
+    if trial["pub_usd"] is not None and base["pub_usd"] is not None and trial["pub_usd"] >= base["pub_usd"]:
         worse.append("publisher $ per task not lower")
     if worse:
-        return f"drop {what} (worse or unknown: {', '.join(worse)})"
+        return f"drop {what} (worse: {', '.join(worse)})"
+    if unknown:  # a run without GitHub knows no later findings or CI rounds: not a result
+        return (f"no verdict: unknown {', '.join(unknown)} (GitHub not read, or no run knows it); report on #302, "
+                f"the engineer decides")  # fmt: skip
     return f"keep {what} (the engineer decides; a habit only by a further amendment)"
 
 
@@ -2969,9 +2978,10 @@ def publisher_trial_section(record: dict) -> list[str]:
         table(head, body),
         "",
         f"Per task (means), against the baseline: tasks whose every such run had an Opus publisher, since {since}. "
-        f"From {PUB_TRIAL_EARLY_TASKS} trial tasks stop at {PUB_TRIAL_NOT_FIXED_OVER:g} or more findings not fixed "
-        f"per task over the baseline; after {PUB_TRIAL_TASKS} keep Sonnet when the later findings, not fixed and CI "
-        f"fix rounds are no worse and the publisher $ per task is lower (the model-guard ADR; the engineer decides).",
+        f"From {PUB_TRIAL_EARLY_TASKS} trial tasks (a baseline of {PUB_TRIAL_BASELINE_MIN}+) stop at "
+        f"{PUB_TRIAL_NOT_FIXED_OVER:g} or more findings not fixed per task over the baseline; after "
+        f"{PUB_TRIAL_TASKS} keep Sonnet when the later findings, not fixed and CI fix rounds are no worse and the "
+        f"publisher $ per task is lower (the model-guard ADR; the engineer decides).",
         "",
         table(total_head, totals),
         "",

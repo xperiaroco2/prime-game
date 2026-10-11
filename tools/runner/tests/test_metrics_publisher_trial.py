@@ -128,9 +128,24 @@ class PublisherAdviceTest(unittest.TestCase):
         base = means(8, later=0.2, not_fixed=0.5, ci_fix_rounds=0.5, pub_usd=3.0)
         keep = metrics.pub_trial_advice(means(10, later=0.2, not_fixed=0.4, ci_fix_rounds=0.5, pub_usd=1.5), base)
         self.assertTrue(keep.startswith("keep Sonnet for the publisher of runs with findings"), keep)
-        drop = metrics.pub_trial_advice(means(10, later=0.3, not_fixed=None, ci_fix_rounds=0.5, pub_usd=3.0), base)
-        self.assertEqual(drop, "drop Sonnet for the publisher of runs with findings (worse or unknown: later findings, "
-                               "findings not fixed, publisher $ per task not lower)")  # fmt: skip
+        drop = metrics.pub_trial_advice(means(10, later=0.3, not_fixed=0.4, ci_fix_rounds=0.5, pub_usd=3.0), base)
+        self.assertEqual(drop, "drop Sonnet for the publisher of runs with findings (worse: later findings, "
+                               "publisher $ per task not lower)")  # fmt: skip
+
+    def test_a_small_baseline_does_not_stop_the_trial_early(self) -> None:
+        for size in (1, 2):
+            self.assertEqual(metrics.pub_trial_advice(means(4, not_fixed=3.0), means(size, not_fixed=0.0)),
+                             "continue: 4 of 10 trial tasks")  # fmt: skip
+        self.assertTrue(metrics.pub_trial_advice(means(4, not_fixed=3.0), means(3, not_fixed=0.0)).startswith("stop:"))
+
+    def test_a_measure_nobody_knows_is_no_verdict_not_worse(self) -> None:
+        """A run without GitHub knows no later findings and CI rounds: it must not end the trial as a loss."""
+        base = means(8, later=0.2, not_fixed=0.5, ci_fix_rounds=0.5, pub_usd=3.0)
+        got = metrics.pub_trial_advice(means(10, later=None, not_fixed=0.4, ci_fix_rounds=None, pub_usd=1.5), base)
+        self.assertEqual(got, "no verdict: unknown later findings, CI fix rounds (GitHub not read, or no run knows "
+                              "it); report on #302, the engineer decides")  # fmt: skip
+        worse = metrics.pub_trial_advice(means(10, later=None, not_fixed=0.9, ci_fix_rounds=0.5, pub_usd=1.5), base)
+        self.assertEqual(worse, "drop Sonnet for the publisher of runs with findings (worse: findings not fixed)")
 
 
 class RebaseTrialTest(unittest.TestCase):
