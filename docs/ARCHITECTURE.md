@@ -166,7 +166,8 @@ countdown changes no scene and places nobody.
 - **The deal** (the actions of the `all_loaded` row, §9.4), in this order: roles (`DealRoles`: dissidents = max(0,
   min(setting, N−1)), drawn from the roster in peer-id order with the `roles` stream; each player learns its own role,
   and each dissident the dissidents); then `DealTasks` (the engineer's decision of 2026-09-30, #79): it draws *tasks*
-  different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
+  different task types from the mode's task types that play on the match's map (`TaskType.maps`, #803) minus the host's
+  bans (`task_types`), the map's whole pool when *tasks* asks for more, and runs each drawn type's deal
   once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
   bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.18): one task
@@ -3832,8 +3833,9 @@ client words it in its own language, so two players of one lobby read the same s
 Protocol 13 (§4.3.4).
 - **On the host.** `core/`'s `HostText` (`core/events/host_text.gd`): an id, its subject ids and its whole-number
   arguments by name, never a sentence. `FitCheck.shortfalls` makes `players_few` and `players_many` (`count`: how many
-  players short or over, `min`, `max`) and `no_layout` (no arguments: a map path is no wire id, and `SettingsChanged`
-  names the map); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`) and `colours` (the station kind;
+  players short or over, `min`, `max`), `no_layout` (no arguments: a map path is no wire id, and `SettingsChanged`
+  names the map) and, since #803, `no_task_types` (no arguments: no task type plays on the map after the bans,
+  §9.4.4); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`) and `colours` (the station kind;
   `need`, `have`). `MatchEnded`'s reason is the id of the win condition that reported the `won` (`Match` keeps it with
   the step's outcome and hands it to the row as `MatchContext.outcome_reason`), with `time`, the seconds the round's
   clock ran (`StartClock` records `MatchState.clock_ticks_total`; no time when it never started); a `won` that no win
@@ -3844,7 +3846,7 @@ Protocol 13 (§4.3.4).
   argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
-  only. `players_many`, `markers`, `colours` and `no_layout` have none, so `HostTextView.plain` shows the id, its
+  only. `players_many`, `markers`, `colours`, `no_layout` and `no_task_types` (#803) have none, so `HostTextView.plain` shows the id, its
   subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
   base mode only `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
   lacks markers, colours or a layout); `no_crew_present` hides the reason line. No key is invented: the UI track's
@@ -5509,9 +5511,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
     every mode in `content/modes/` and runs this part (`ModeCheck`).
-  - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
-    marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players; a level
-    without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
+  - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks (a task
+    type only on the maps it plays on, `TaskType.maps`, #803); a marker with two tags; a lobby with fewer
+    `lobby_player` markers than the mode's maximum of players; a level without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
     demand at the default settings and the maximum of players (§9.4). The content test runs it with the layouts of
     the mode's levels, read by the marker reader (2j, `server/levels/marker_reader.gd`), and checks that the
     greybox fits 10 players at the default settings and at the most packages
@@ -5738,7 +5740,7 @@ phase classes come in the task each row names.
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` (M4-5; the mode check refuses an empty one; the task screen showed it until #253; nothing shows it since, the how-to card of #254 being wordless, §4.7.36); the spawn tags of the markers its items may lie at, `item_spawn_tags()` (none by default), whose rooms the map screen lights (#253, §4.7.33); the maps it plays on, `maps` (the paths of the mode's maps; empty, the default, every map; the mode check refuses a path the mode does not list; `DealTasks` and the demands leave a type out on a map it does not list, §9.4.4; the Generator ADR's GE15, #803) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8; stations first, for the Generator: its [ADR](decisions/2026-10-10-generator-task.md)) | | packages and knives on the ground |
@@ -5817,7 +5819,7 @@ names the facts that do.
 | Part | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|
 | `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) come as data, because `core/` cannot tell a debug build: the command `ForceRole` (peer, role id; an empty id clears it), which only `server/`'s debug path (from M3 also built from peer 1's debug-kind message, §4.3 E17) or the scenario runner sends, in any phase and after the peer connected, since ENet names a peer only then; it sets `MatchState.forced_roles`, which `ResetMatch` keeps, for the deals that follow, and is in the command log like every command; a role the mode lacks is a match error and ignored. Each present peer with a forced role gets it before the draws, and a forced role counts toward its quota (the engineer's answer A on #30: `dissidents` 1 with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus the players forced to its role, never below 0; a forced role the mode lacks is a match error and ignored (2j) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role); a forced role is told like a drawn one | 2c (#59); forced roles 2j (#66, `tests/unit/deal/deal_roles_test.gd`) |
-| `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then each task's `TaskState` in id order (M4-5, E30: `Tasks.announce`) and `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskState` per task and `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
+| `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types that play on the match's map (`TaskType.maps`, #803: `pool_of` takes the map) minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then each task's `TaskState` in id order (M4-5, E30: `Tasks.announce`) and `TaskProgress`. More tasks than the map's types left deals that map's whole pool, with no error (a map may play fewer types than another, GE15); more than the types left after the bans on every map (a check that did not run) is an error, and it deals the map's pool. Its demand is for its `Demands`' map (§9.4.4), and with `tasks` above 0 and no type left on that map it sets `Demands.no_task_types`, which the fit check refuses (`no_task_types`). Refuses in `ChangeSettings` (`settings_problem`, whatever the map, #79): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskState` per task and `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62); per map in #803 (`tests/unit/deal/deal_tasks_maps_test.gd` on `FixtureMapTaskModes`, the fit check in `lobby_phase_bans_test.gd`, the path check in `mode_check_test.gd`) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2); with `ordered` the players in peer-id order onto the markers in level order, with no draw (the host's player, peer 1, on the first: the tutorial's deal, `docs/design/tutorial.md` §2.5). Too few markers, or no layout, is a rule error and places nobody | `tag`, RNG purpose (`spawns`; not required when `ordered`), `ordered` (false: the draw) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49); `ordered` T1 (#599). The new setting changes `ContentHash.of` of every mode that places players, so a command log recorded before #599 refuses to replay |
 | `KnockDown` | knocks down one present living player where it stands (`LifeRules.knock_down`); with `then_die`, `LifeRules.die` at once (the body, the drop of both slots at it). `pick` 0 is the host's player (peer 1), n the n-th present player other than peer 1 in peer-id order. A pick that names nobody present, or a player who is not alive, is a rule error during the row (`Match.row_error_count`, so `HostSession` ends the session, §4.5.11), exactly one, and nothing happens: `then_die` only kills a player this action downed (so `die`'s own error cannot follow a successful knockdown). Without `then_die` only a `LifeTicks` of the phase entered runs the knockdown out; mode check: a **warning** on a row whose `KnockDown` without `then_die` enters a phase with no `LifeTicks`, where the downed stays downed for good. The tutorial's `raise_stage` is the intended case (`docs/design/tutorial.md` §2.3: lesson 6 waits however long the player takes to raise the stand-in). Mode check: `pick` 0 to the mode's maximum players minus 1; an **error** on a row whose `KnockDown` changes the level (`Match` switches the world to the entered phase's level before a row's actions run, so the floor asked would be a level the player is not in): only on a row that stays on one level | `pick` (whole, class default 0), `then_die` (class default false) | `RaiseStopped` (everyone, for a channel involving the player: none in a row, which stops every channel first), `KnockedDown` (everyone), `Correction` (the downed); with `then_die` `Died` (everyone) and per dropped item `ItemPlaced` (death, everyone); facts `player_died`, then `item_rested` per item. No new event or audience | T1 (#599, `core/life/knock_down.gd`, `tests/unit/life/knock_down_test.gd`, `tests/unit/content/mode_check_stage_test.gd`) |
@@ -5837,7 +5839,13 @@ banned for the demand of its one task; it reads the mode's task types from `Dema
 the fit check must hold for any draw (#79): per spawn tag `DealTasks` demands the sum of the *tasks* largest demands
 of that tag among the types left, and per station kind the same over colours. Any draw of *tasks* types sums, per
 tag, at most that, so a map that fits it fits every draw; with one type in the pool it is exactly that type's demand.
-The price is a stricter check than a given draw needs when the types' demands differ. `all_ready` (2b,
+The price is a stricter check than a given draw needs when the types' demands differ. A map is asked only for the
+types that play on it (`TaskType.maps`, the Generator ADR's GE15, #803): a `Demands` carries the map it is for
+(`Demands.new(mode, map)`; `LayoutCheck.demands_of`'s `map`), and `DealTasks` draws its pool from the types that play
+there; an empty map (`WireBudget`'s worst case) asks every type. So the fit check asks the lobby's chosen map, and
+`LayoutCheck`'s load check each map at the defaults, only for its own types' markers; when *tasks* asks for tasks
+and no type is left on the map after the bans, `DealTasks` sets `Demands.no_task_types` and the fit check refuses
+the map with `no_task_types` (no arguments: `SettingsChanged` names the map, as `no_layout`). `all_ready` (2b,
 `FitCheck`) sums the demands per tag over every row into a phase on the map and the tick systems of the phases
 played on it (per tag, the most that any one of those phases needs; `LayoutCheck.demands_of`), compares
 each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
@@ -5982,6 +5990,7 @@ test (the ADR's DD9 (c)); the ADR's D2 adds the new type's entry beside it.
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
 when its package rests inside its own circle, however it got there (§7.1.14). Nobody owns the task: any living player
 delivers any package.
+Maps (`TaskType.maps`, #803, every task type's): none listed, so every map of the mode.
 Settings: `package`: the Package item kind; `circle`: a station kind (spawn tag `circle`, radius 1 m (0.2 to 10;
 game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeholder, "not a decision"), a colour
 palette: 10 distinct colours, provisional, one per package at the most `packages` allows); `subtasks_setting`:
@@ -6218,6 +6227,7 @@ second task type, beside Delivery (§9.5.4). Dealt by the base mode from #649 un
 (only from the mode; it may come back with a name and a how-to card), and by `FixtureBaseModeWithZones` (§9.5.1): `content/tasks/hold_the_zone.tres`, id
 `hold_the_zone`, "Hold the zone" (the players' word; the Ukrainian UI's «Утримати зону» once the client is
 translated), described "Stand in the zone until it fills."
+Maps (`TaskType.maps`, #803, every task type's): none listed in its data, so every map of a mode that deals it.
 Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
 the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
 must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302
