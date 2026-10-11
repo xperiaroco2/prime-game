@@ -18,6 +18,8 @@ extends ScenarioPlay
 ## the start then); a LoadAck at once for every LoadMatch that no LoadAck step answers; RefuseJoins
 ## and AllowJoins; DisconnectPeer ends that bot, and its PeerLeft follows on the next tick.
 
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
+
 var game: Match
 var ticks_run := 0
 
@@ -45,7 +47,9 @@ func run() -> void:
 	if not problems.is_empty():
 		return
 	var world := FlatWorldQuery.new()
-	var levels := MarkerReader.read_levels(scenario.mode, world)
+	var levels := MarkerReader.read_levels(
+		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
+	)
 	for error: String in levels.errors:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():

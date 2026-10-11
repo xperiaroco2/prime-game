@@ -69,17 +69,23 @@ static func read_scene(
 	return result
 
 
-## The lobby and every map of `mode` (level_paths_of), read with `world` for the floor. `world`
+## The lobby and every map of `mode` (level_paths_of), read with `world` for the floor. The maps
+## in `unsnapped` are read where the scene puts their markers, none snapped to a floor (the bot
+## runners' maps that no scenario plays, whose flat fake finds no floor below y = 0; ARCHITECTURE
+## §9.7); the host snaps every map (the default). `world`
 ## is pointed at each level (WorldQuery.use_level) before that level is read, so the host's
 ## WorldQuery snaps each level's markers to that level's own floor (§4.5 Starting; option (b) of
 ## §10's reader question); a fake with one world ignores it. It is left at the last level read:
 ## Match.start names the level it plays first.
-static func read_levels(mode: GameMode, world: WorldQuery) -> Levels:
+static func read_levels(
+	mode: GameMode, world: WorldQuery, unsnapped: PackedStringArray = PackedStringArray()
+) -> Levels:
 	var levels := Levels.new()
 	var tags := floor_tags_of(mode)
 	for path: String in level_paths_of(mode):
 		world.use_level(path)
-		var result := read_scene(path, world, tags)
+		var no_tags: Array[StringName] = []
+		var result := read_scene(path, world, no_tags if unsnapped.has(path) else tags)
 		levels.layouts[path] = result.layout
 		levels.errors.append_array(result.errors)
 	return levels

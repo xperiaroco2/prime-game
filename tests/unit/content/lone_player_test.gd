@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const LONE := 1
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## Seeds the deal runs with: the quota's count does not depend on the draw, so these stand for
 ## every seed.
 const SEEDS := 32
@@ -107,7 +108,9 @@ func _lone_in_pregame(
 
 
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
-	var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	var levels := MarkerReader.read_levels(
+		mode, FlatWorldQuery.new(), ScenarioLevels.unsnapped(mode)
+	)
 	assert_array(Array(levels.errors)).is_empty()
 	return levels.layouts
 

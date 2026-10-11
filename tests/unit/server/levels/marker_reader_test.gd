@@ -157,6 +157,34 @@ func test_read_levels_points_the_world_at_each_level_before_reading_it() -> void
 	)
 
 
+func test_read_levels_leaves_the_unsnapped_maps_markers_where_the_scene_puts_them() -> void:
+	# GE12: the bot runners read a map no scenario plays (a station marker in a basement, y = -3.2)
+	# through the flat fake, which finds no floor there: snapped it is an error, unsnapped it is read
+	# as placed. A level not listed is still snapped.
+	var basement := "res://tests/fixtures/levels/basement_station.tscn"
+	var room := "res://tests/fixtures/levels/platform_room.tscn"
+	var mode := GameMode.new()
+	var delivery := Delivery.new()
+	delivery.circle = StationKind.new()
+	delivery.circle.spawn_tag = &"circle"
+	mode.task_types = [delivery]
+	mode.lobby_level = room
+	mode.maps = PackedStringArray([basement])
+	var as_snapped := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	assert_int(as_snapped.errors.size()).is_equal(1)
+	assert_str(as_snapped.errors[0]).contains("Basement").contains("not on a floor")
+	var unsnapped := MarkerReader.read_levels(
+		mode, FlatWorldQuery.new(), PackedStringArray([basement])
+	)
+	assert_array(Array(unsnapped.errors)).is_empty()
+	assert_array(Array(unsnapped.layouts[basement].positions(&"circle"))).is_equal(
+		[Vector3(2, -3.2, 2)]
+	)
+	assert_array(Array(unsnapped.layouts[basement].positions(&"package"))).is_equal(
+		[Vector3(0, 0, 0)]
+	)
+
+
 func test_a_missing_scene_is_a_load_error() -> void:
 	var result := MarkerReader.read_scene(
 		"res://tests/scratch/no_such_level.tscn", FlatWorldQuery.new()

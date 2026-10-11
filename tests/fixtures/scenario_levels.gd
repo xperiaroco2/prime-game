@@ -31,3 +31,18 @@ static func of(mode: GameMode) -> PackedStringArray:
 			if not paths.has(scenario.map):
 				paths.append(scenario.map)
 	return paths
+
+
+## The mode's levels that no scenario plays (the House, #626), which the runners read without
+## floor snapping (GE12): their station markers stay where the scene puts them, since the flat
+## fake finds no floor below y = 0. The scenario's own `map` counts as played, even when no
+## scenario file names it.
+static func unsnapped(mode: GameMode, map: String = "") -> PackedStringArray:
+	var played := of(mode)
+	if not map.is_empty() and not played.has(map):
+		played.append(map)
+	var rest := PackedStringArray()
+	for path: String in MarkerReader.level_paths_of(mode):
+		if not played.has(path):
+			rest.append(path)
+	return rest
