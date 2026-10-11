@@ -524,7 +524,7 @@ which stops 728e if the host corrects it more than once (the review of his answe
   (KE1 (b)). No bot scenario: the scenarios, the chaos run and the perf run play the greybox, where nothing moves,
   and stay as they are. The playtest's list, on the House (KD2, KD6, KD10 (A), KD11 and KD14 (a): a body launched
   under a table and raised there; KD15 (a): a body launched into the lowered car and raised there). ARCHITECTURE §9.5.6 (the knife's launch). Depends on: 728b, 728d (the first
-  non-zero launch in the base mode needs the own avatar's camera and ears to follow the body), #646, and 727b
+  non-zero launch in the base mode needs the own avatar's camera and ears to follow the body) and 727b
   (#791: a launch can rest a body where only a crouching player fits, and the raised player's crouched get-up is its
   controller's, KE6). Files: `content/items/knife.tres`, `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
 - **728f content: a body launched out of everyone's reach (KD12 (a))** (size S). Goal: the engineer's KD12 (a), a
@@ -537,15 +537,15 @@ which stops 728e if the host corrects it more than once (the review of his answe
   from the spawn on foot (the yard, the rooms, the terrace, the balcony, the stairs; never a furniture top or the
   locked roof), where a crouching player's capsule stands clear of the level (`stand_floor_below` and the crouched
   capsule, KD11); the list lives in the test, beside the House's scene, and a floor added to the House is added to
-  it. The House's check, beside #646's roof check in 728e's House tests: from a sample of points on those floors, a
-  launch in each direction by every strike whose launch the base mode gives on the House (its numbers read from the
+  it. The House's check, in `tests/integration/levels/` beside #646's roof check if it has landed: from a sample of
+  points on those floors, a launch in each direction by every strike whose launch the base mode gives on the House (its numbers read from the
   mode's data, never copied into the test, so a retuned or new weapon is checked as it is) rests no body on the
   locked roof, and every rest point lies within the raise's reach (`TargetInReach` from the feet, and
   `TargetInSight` from the crouched eye) of a point on one of the named floors. A rest point on a table top or the
   locked roof passes only through that reach, never as a spot of its own; a rest point under a table is held to the
   same reach as any other, since tables keep the space under them (KD14 (a)). If a launch does rest a body out of
   reach, the issue stops and reports it: the House's layout is the humans' (a scene change), never a rule in
-  `core/`. Depends on: 728e, #646 (its line, if it lands first). Files: `levels/CLAUDE.md`,
+  `core/`. Depends on: 728e; not on #646 (728f uses its line if it lands first). Files: `levels/CLAUDE.md`,
   `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
