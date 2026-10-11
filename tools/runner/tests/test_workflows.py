@@ -2884,7 +2884,7 @@ class UpdateRunTest(unittest.TestCase):
         (impl,) = calls(result, "implement")
         self.assertIn("Update run (update, #856): this run continues the published PR of core/7-x", impl["prompt"])
         self.assertIn("rev-parse origin/core/7-x`: the PR's published head", impl["prompt"])
-        self.assertIn("diff --numstat <published head>..HEAD`", impl["prompt"])
+        self.assertIn("diff --numstat --no-renames <published head>..HEAD`", impl["prompt"])
         schema = options(impl)["schema"]
         self.assertEqual(schema["required"][-2:], ["published_head", "delta"])
         self.assertEqual(schema["properties"]["delta"]["items"]["required"], ["path", "added", "deleted"])
@@ -2980,6 +2980,27 @@ class UpdateRunTest(unittest.TestCase):
                 self.assertEqual([e["label"] for e in calls(result, "review:")], labels)
                 self.assertEqual(result["returned"]["update"]["path"], "update")
                 self.assertNotIn("skipped", result["returned"]["update"])
+
+    def test_a_light_update_run_names_each_dropped_agent_once(self) -> None:
+        # The light tier already dropped test_review and skeptic: the update does not list them a second time.
+        light = dict(updated([("docs/x.md", 4, 0)]), changed_paths=["docs/x.md"])
+        (result,) = run_update([(dict(ALL_OPTIONS, branch="docs/7-x"), light)])
+        self.assertIsNone(result["error"])
+        out = result["returned"]
+        self.assertEqual(out["tier"], "light")
+        self.assertEqual(out["update"]["skipped"], ["plan_review"])  # test_review and skeptic are tier_skipped
+        self.assertNotIn("update run", out.get("test_review", {}).get("skipped", ""))
+        pub = calls(result, "publish")[0]["prompt"]
+        line = next(x for x in pub.split("\n\n") if x.startswith(UPDATE_LINE))
+        self.assertIn("skipped although the launch passed them: plan_review. Say", line)
+
+    def test_the_publisher_gets_no_delta_rows(self) -> None:
+        # The line of the update path carries the head, the file count and the line count; the rows would only add tokens.
+        (result,) = run_update([({"branch": "core/7-x"}, dict(updated([("core/rows_marker.gd", 3, 1)]), changed_paths=["core/x.gd"]))])
+        pub = calls(result, "publish")[0]["prompt"]
+        self.assertIn(f"published head {HEAD}", pub)
+        self.assertNotIn("rows_marker", pub)
+        self.assertNotIn('"published_head"', pub)
 
     def test_a_red_update_run_still_reports_its_path(self) -> None:
         (result,) = run_update([({}, updated([("docs/x.md", 1, 0)], verify_green=False))])

@@ -581,7 +581,7 @@ const REPORT = 'The implementer\'s report, as a digest (its summary, whether it 
 // log`, `git diff --name-only` and the publisher's own publish (about 1.7k at the median). Each review finding keeps
 // its severity, file, line and problem, and its fix only on a blocker or major (the findings it must fix); the
 // reviewers' verdicts stay with them (1.5k to 2k).
-const PUB_REPORT_DROPS = ['commits', 'changed_paths', 'verify_tail']
+const PUB_REPORT_DROPS = ['commits', 'changed_paths', 'verify_tail', 'published_head', 'delta']
 const pubReport = r => Object.fromEntries(Object.entries(r).filter(([k]) => !PUB_REPORT_DROPS.includes(k)))
 const pubReviews = rs => rs.map(r => ({
   reviewer: r.reviewer,
@@ -689,7 +689,7 @@ const handoffRule = k => `Checkpoint (checkpoint, #559): keep your context under
 const continuation = (k, note) => `Continuation ${k} of ${HANDOFF_MAX} (checkpoint, #559): an earlier implementer of this task reached its context limit and handed over. Its note is ${note}: read it first, then \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from them; do not redo or re-read what the note lists as done. A missing or unreadable note: say so under left and continue from git. Your result covers the whole branch since origin/${BASE}, not only your part: summary, changed_paths, complete, left and the verify state (the note and git log say what came before); decisions, needs_engineer, proposed_issues, provisional_content and commits only your own (the script keeps the earlier ones).${k === HANDOFF_MAX ? ' You are the last one: do not hand over; if the budget runs out, stop at a green, committed state and list what is left.' : ''}`
 // update (#856): the implementer records the PR's published head first (nothing is pushed before the publisher, so a
 // continuation reads the same head) and returns the delta since it.
-const UPDATE_RULE = `Update run (update, #856): this run continues the published PR of ${A.branch}; the change it asks for is in the task notes. Your first step, before any edit or commit: \`git -C ${WTB} fetch origin ${A.branch}\`, then \`git -C ${WTB} rev-parse origin/${A.branch}\`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of \`git -C ${WTB} diff --numstat <published head>..HEAD\` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or \`git -C ${WTB} merge-base --is-ancestor <published head> HEAD\` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it changes more than ${UPDATE_LINES} lines under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.`
+const UPDATE_RULE = `Update run (update, #856): this run continues the published PR of ${A.branch}; the change it asks for is in the task notes. Your first step, before any edit or commit: \`git -C ${WTB} fetch origin ${A.branch}\`, then \`git -C ${WTB} rev-parse origin/${A.branch}\`: the PR's published head. At the end return it as published_head (the full sha), and as delta one entry per line of \`git -C ${WTB} diff --numstat --no-renames <published head>..HEAD\` ({path, added, deleted}; a binary file's "-" as -1). No such ref, or \`git -C ${WTB} merge-base --is-ancestor <published head> HEAD\` failing at the end (a rebase or a reset since; rebase only where the notes ask): published_head "", delta [] and why in update_note. The reviewers read only that delta (the rest of the PR as context), unless it changes more than ${UPDATE_LINES} lines under core/ server/ net/ client/ (but client/ui/) voice/ tests/harness/: then the whole PR diff is reviewed again.`
 const implement = (k, note) => agent([
   RULES,
   `Task: GitHub issue #${N} (${A.title}). Effort: ${IMPL_EFFORT}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
@@ -765,7 +765,7 @@ const updatePath = () => {
   const netcode = reviewed.reduce((s, e) => s + (count(e) || 0), 0)
   if (reviewed.some(e => count(e) === null)) return full(`the delta changes a binary file under the full tier's paths (${reviewed.find(e => count(e) === null).path})`)
   if (netcode > UPDATE_LINES) return full(`the delta changes ${netcode} lines under the full tier's paths, more than ${UPDATE_LINES}`)
-  return { path: 'update', head, files: delta.length, lines: total, netcode_lines: netcode, skipped: [...passed, TEST_REVIEW && 'test_review', SKEPTICS > 0 && 'skeptic'].filter(Boolean) }
+  return { path: 'update', head, files: delta.length, lines: total, netcode_lines: netcode, skipped: [...passed, TEST_REVIEW && !LIGHT && 'test_review', SKEPTICS > 0 && !LIGHT && 'skeptic'].filter(Boolean) }
 }
 const UPD = UPDATE ? updatePath() : null
 // The update path's delta, or null: every reviewer and the routing below read it.
@@ -866,7 +866,7 @@ if (impl.verify_green) {
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
   // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
   // The light tier (#606) has no test review either: a light diff with production code has it only under client/ui/.
-  if (TEST_REVIEW && DELTA) {
+  if (TEST_REVIEW && DELTA && !LIGHT) {
     testReviewSkipped = `an update run (update, #856): the delta since the published head ${DELTA.head} changes at most ${UPDATE_LINES} lines under the full tier's paths`
     log(`#${N}: test_review skipped: ${testReviewSkipped}`)
   } else if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
