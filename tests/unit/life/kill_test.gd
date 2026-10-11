@@ -236,6 +236,30 @@ func test_a_kill_queued_by_a_transition_row_is_dropped() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_kill_queued_by_a_tick_system_lands_before_the_next_tick_system_runs() -> void:
+	var mode := _mode(FixtureKill.new(), null)
+	mode.find_phase(&"round").tick_systems.append_array(
+		[FixtureKillTick.queuing([P2]), FixtureKillTick.reporting(P2)]
+	)
+	var game := _game(mode, false)
+	FixtureModes.run_ticks(game, 1)
+	assert_array(FixtureModes.notes(game)).is_equal(["task player_died", "P2 DEAD"])
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DEAD)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_kill_queued_by_the_phases_own_timers_lands_before_any_tick_system() -> void:
+	var mode := _mode(FixtureKill.new(), null)
+	var round_spec := mode.find_phase(&"round")
+	round_spec.phase_class = FixtureKillingRound
+	round_spec.settings = {&"kills": float(P2)}
+	round_spec.tick_systems.push_front(FixtureKillTick.reporting(P2))
+	var game := _game(mode, false)
+	FixtureModes.run_ticks(game, 1)
+	assert_array(FixtureModes.notes(game)).is_equal(["task player_died", "P2 DEAD"])
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## FixtureCombatModes.raising() with a one-handed `trap` whose Use runs `trap`, and, when
 ## `channel` is given, the mode's Use (an empty hand) starting it under ChannelFree.
 func _mode(trap: FixtureKill, channel: FixtureKillingChannel) -> GameMode:
