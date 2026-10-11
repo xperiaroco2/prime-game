@@ -186,7 +186,7 @@ Delivery on the greybox (DD9 (c)); this type emits the same event classes (`Stat
 | Two items of one kind, one place | each counts when it rests there; the place dims after the second | DE7 |
 | N below the number of routes | the routes drawn first get an item; the other places get no station and show nothing this round | DD2 (a), DE3 |
 | N above the number of routes | some places take two or more items | DD2 (a) |
-| A carrier is knocked down holding the item, inside or near its place | the item drops at the body: delivered if it rests inside; a carrier knocked down outside cannot crawl in (a knocked-down player cannot move, #728's answer A, [comment 6095620279](https://github.com/xperiaroco2/prime-game/issues/728#issuecomment-6095620279)) | "however it got there" (#32); vision revision 1 notes it |
+| A carrier is knocked down holding the item, inside or near its place | it keeps the item: nothing drops at a knockdown (ARCHITECTURE §7.1.13), and a held item never counts, so nothing is delivered while it is down, even with its body inside its place. Today it crawls with the item. Once #728 lands it cannot move on its own (#728's answer A, [comment 6095620279](https://github.com/xperiaroco2/prime-game/issues/728#issuecomment-6095620279)), but on the House a launch, or the host's physics rolling the body, may carry it and the item into or out of its place (#728's KD10 (A), PR #754). A raise leaves the item in its hands, wherever the body lies. At its death, or when it leaves the match, the item drops at the body and is delivered if it rests inside (with #728, the body and the item rest where the motion stopped, its KD8 (a)) | "however it got there" (#32); vision revision 1 ("nothing at a knockdown", both slots drop at death); #728's design (PR #754, its row for this Delivery) |
 | A package marker inside a drop-off's cylinder | an item of that place's kind spawning there is delivered in the deal | as today; the content test of DE12 keeps it off every map this Delivery lists |
 | A drop-off's cylinder reaches through a wall | an item resting behind the wall, inside the radius, counts | as a circle today; a level convention and D5's wall test (§7) |
 | E at a drop-off | `nothing_to_do`: a drop-off holds no `Interact` rule | the Generator ADR's §2 item 2 says so for a delivery circle; Delivery needs no use |
@@ -270,9 +270,11 @@ later station of the same room (a car repair workbench, say), which ZE3 would re
   tag then level order, subtask i the i-th item id; only the drop-offs in use placed; each item's `ItemSpawned` naming
   its drop-off with white; the exact drop-off markers and the per-tag item demands; a short map logging a match
   error); the check (its own drop-off delivers; another route's drop-off and a knife do nothing; a place with two items
-  done only after both; a held item never counts; an item thrown into its own drop-off is delivered, a case beside
-  `release/m7`'s `delivery_throw_test.gd`, which stays on today's Delivery); DE13's checks; `TaskType.maps` keeping
-  each Delivery to its map (the deal and the demands, on a fixture mode with two maps); `station_kinds()` (the default
+  done only after both; a held item never counts, nor one held by a carrier knocked down inside its drop-off, which is
+  delivered at that carrier's death there and stays held after a raise (§4); an item thrown into its own drop-off is
+  delivered, a case beside `release/m7`'s `delivery_throw_test.gd`, which stays on today's Delivery); DE13's checks;
+  `TaskType.maps` keeping each Delivery to its map (the deal and the demands, on a fixture mode with two maps);
+  `station_kinds()` (the default
   equals today's reflection on a fixture type, `DeliveryByMeaning`'s lists its drop-offs, `MarkerReader` snaps their
   markers, ZE3 sees them, `WireBudget` sizes `StationPlaced` by the longest station id of a kind with no palette); the
   `ClientModel` fold of DE7 (a station is not done between its `StationPlaced` and its items' `ItemSpawned`, nor after
