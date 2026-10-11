@@ -30,6 +30,13 @@ const SET_PROFILE := &"SetProfile"
 ## A living player throws its hand item along `facing` (#37, the throwing ADR's TE4): the host
 ## takes only the facing; the origin, the speed and the arc are its own (ThrowItem).
 const THROW := &"Throw"
+## A living player uses the placed station `station` (StationPlaced's id), sent on E over it (the
+## Generator ADR's GE1, #796). The station's kind owns the rule (StationKind.actions, tried before
+## the role's and the mode's, never the hand item's; §9.2), and an id that names no placed station
+## is refused `nothing_to_do` before any owner is tried (Match._target_problem). The host checks
+## reach and sight itself (AtStation, StationInSight). C1 (#770) makes `station` optional and adds
+## `item`, exactly one of the two, in Match._target_problem.
+const INTERACT := &"Interact"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -49,12 +56,13 @@ const ALL: Array[StringName] = [
 	NEXT_STAGE,
 	SET_PROFILE,
 	THROW,
+	INTERACT,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
 ## none of them, not even the host under HOST (Match._accepts, vision revision 1).
 const PLAYER_ACTIONS: Array[StringName] = [
-	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW
+	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP, SWAP, THROW, INTERACT
 ]
 
 ## Commands server/ originates from what the transport reports; not intents, never rejected.
@@ -109,6 +117,7 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	NEXT_STAGE: {},
 	SET_PROFILE: {"name": TYPE_STRING, "colour": TYPE_INT},
 	THROW: {"facing": TYPE_VECTOR3},
+	INTERACT: {"station": TYPE_INT},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 }

@@ -144,6 +144,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"SetProfile", {"name": "", "colour": 0}, 20),
 		WireMessage.new(&"Throw", {"facing": Vector3(0, 0.6, -0.8)}, 21),
 		WireMessage.new(&"Throw", {"facing": Vector3(1e-30, 0, 0)}, 0xFFFFFFFF),
+		WireMessage.new(&"Interact", {"station": 0}, 22),
+		WireMessage.new(&"Interact", {"station": 0xFFFE}, 0xFFFFFFFF),
 	]
 
 

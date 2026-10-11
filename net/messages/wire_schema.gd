@@ -22,8 +22,9 @@ extends RefCounted
 ## PlayerJoined and the Welcome roster;
 ## 15 since release/m7 reached main (#837): #647 added ZoneProgress (kind 67) and #643 added Throw
 ## (kind 17) and ItemThrown (kind 68). On release/m7 they were its own 11 and 12 (kinds 66, 15, 67),
-## renumbered above main's highest as one bump when it merged second.
-const VERSION := 15
+## renumbered above main's highest as one bump when it merged second;
+## 16 since #796 added Interact (kind 18).
+const VERSION := 16
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -239,6 +240,7 @@ static func _intents() -> Array[WireRow]:
 		# seq 4, name 81 (its length byte and 80 bytes), colour 1.
 		_up(16, &"SetProfile", 86, [_seq(), _name("name"), _of("colour", WireField.Type.U8)]),
 		_up(17, &"Throw", 16, [_seq(), _vec3("facing")]),
+		_up(18, &"Interact", 6, [_seq(), _station("station")]),
 	]
 
 
