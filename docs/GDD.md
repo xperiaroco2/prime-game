@@ -102,6 +102,8 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
   ragdoll, with no launch.
 - The numbers (how hard a blow launches, when a moving body counts as resting) are placeholders, "not a decision",
   until a playtest.
+- Open (the ADR's KD11): where a body may come to rest, when it lands where a standing player does not fit (under a
+  table) or where no player can walk (the locked roof), out of reach with the package it carries.
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction

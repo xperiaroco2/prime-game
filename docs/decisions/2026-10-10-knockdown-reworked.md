@@ -17,7 +17,8 @@
   body is a real rigid body simulated by the host's physics engine in `server/`, which rolls or slides it off any
   slope, roof or stairs by itself. There is no slide rule (KD3 (a) and 728c go), and **KE1 changes from (a) to (b)**.
   The other KE items are technical, and each recommendation stands until he says otherwise. No number here is his:
-  each is a placeholder marked "not a decision" (KD9 (b)). No question is open.
+  each is a placeholder marked "not a decision" (KD9 (b)). One question is open: KD11, where a body may come to rest
+  (§2), raised in the review of the KD10 (A) update.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the decided rules; his answers to KD1 to KD9, KE1 and KE5, and the House only, in PR
   #754's comment 6097876326; KD10 (A) and KE1 (b) in its comment 6100602989); designed by the agent of #728 in the
@@ -33,8 +34,8 @@
   speed, and its "Needs the engineer" 8, the hold while raised), and ARCHITECTURE §7.1.7 and §7.1.8. A dated note in
   vision revision 1 points here.
 - **Words:** "knocked down" is the players' word and this ADR's; `DOWNED` stays the code's name for it (KE11).
-- **Numbering:** KD1 to KD10 (the engineer's), KE1 to KE15 (technical, KE1 and KE5 the engineer's; KE2 withdrawn by
-  KD10 (A)), and the proposed issues 728a, 728b, 728d and 728e (728c withdrawn by KD10 (A)).
+- **Numbering:** KD1 to KD11 (the engineer's; KD11 open), KE1 to KE15 (technical, KE1 and KE5 the engineer's; KE2
+  withdrawn by KD10 (A)), and the proposed issues 728a, 728b, 728d and 728e (728c withdrawn by KD10 (A)).
 
 ## Context
 
@@ -111,7 +112,7 @@ Every "Decided" is the engineer's answer of 2026-10-10
 recommendation. By the same answer the launch (KD1, KD2) plays on the House only (KE12). KD10 came up after his
 answers, in the review of that update; he answered it the same day
 ([PR #754, comment 6100602989](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6100602989)) with (A),
-which supersedes KD3 (a) and changes KE1 to (b).
+which supersedes KD3 (a) and changes KE1 to (b). KD11 came up in the review of that update and is open.
 
 | Item | Question | Options | Recommendation, and the failure it prevents | Decided |
 |---|---|---|---|---|
@@ -125,6 +126,7 @@ which supersedes KD3 (a) and changes KE1 to (b).
 | **KD8** | A death during the motion (the time running out, a give-up, the car's drop) | (a) the motion ends: the body lies on the floor below its point at that tick, and both slots drop there, as a death does today; (b) the body moves on to where its motion ends, and its items drop below where it died | **(a)**: a body and its items stay together, and the dead body never becomes a second moving thing. Such a death is rare (a flight lasts about a second; a give-up takes a 1 s hold). Its cost: a body that stops short on a roof | **(a), the engineer**: the motion ends; the body and its items rest where it stopped |
 | **KD9** | The numbers: each strike's launch speeds (the knife's), the body's gravity, the slide's angle and speed, the longest motion | (a) the engineer gives them; (b) the agents pick placeholders to taste, "not a decision", as he chose for the car (RD2) | **(b)**, so that no build waits for them. Each number gets bounds that refuse a forgotten value where 0 is not a valid one, as `PlayerRules` does (its class defaults are 0 on purpose); a launch of 0 is valid and launches nothing | **(b), the engineer**: the agents set placeholders marked "not a decision". Under KD10 (A) they are the launch speeds, the rest's speed and time, and the longest motion (KE15); the gravity, mass, friction and bounce are the physics engine's ("normal physics"), and the slide's numbers go |
 | **KD10** | The slide on the House, which has no floor to slide on (Context: every collider under `levels/house/` is an untilted box, and the roof is flat, behind a locked door). His "a body knocked down on the sloped roof can roll off the roof" and "the House only" assume a slope the House does not have | (a) 728c waits until a level has a floor steeper than the slide angle, laid by hand by the engineer or the designer (a scene change, theirs), and is built then with an integration test on that level; 728e launches only; (b) 728c is built now, checked on a fixture level only: on the House it slides nothing until a slope exists; 728e launches only; (c) the engineer or the designer lays a sloped roof or ramp on the House (the content area), and 728c and 728e slide there as first planned | **(a)**: (b) ships code and a `WorldQuery` answer that no map exercises, so a break in it stays unseen until the first slope arrives, and its only tests run against a fixture nobody plays. (c) changes the House's layout for a body that would slide on a roof locked in the MVP, his call on his map | **(A), the engineer** ([PR #754, comment 6100602989](https://github.com/xperiaroco2/prime-game/pull/754#issuecomment-6100602989)), none of (a) to (c): the body is a real rigid body simulated by the host's physics engine (`server/`); a blow launches it, and it rolls or slides off any slope, roof or stairs by itself. No slide rule: 728c goes, KD3 (a) and KE2 with it, and KE1 becomes (b). The launch stays on the House only |
+| **KD11** | Where a body may come to rest (raised by the review of the KD10 (A) update). The host's capsule stops wherever the level's colliders hold it: under a table, wedged behind furniture, on a railing, where no standing player fits; or on a top no player can walk to, the locked roof. A raise there stands its player inside the table (KE6). And a dissident chooses the launch's direction by where it stands (KE9), so it can knock a package carrier towards the roof's edge: nobody can reach the body to raise it, it dies when its time runs out, and the package drops there (KD8) for the rest of the match, which can block the crew's delivery | (a) as the engineer's TD5 (a) for a thrown item (#646: "an item may rest wherever the flight ends, with a level convention"): wherever the physics holds it, and the levels' convention covers bodies too (every surface a launch can reach is within a raise's reach of a spot where a player can stand), checked on the House by 728e's tests beside #646's; a revive where a standing player does not fit stands it there all the same (crouched by #727's rule where that fits; else the client's solver pushes it out); (b) as (a), and the rest counts only where a standing player fits: `core/` asks a new logged `WorldQuery` answer (the mode's standing capsule at the rest point, clear of the world), and where it does not fit the body rests at the fallback, the floor below where it was knocked down, on every screen (the ragdolls snap there, KE7); (c) wherever the physics holds it, with no convention and no fit: a body out of reach dies there with its items | **(b)**: the reach is his own TD5 (a) answer, applied to bodies, so a package carried by a launch stays where a player can pick it up, and a raised player always stands where a player fits. Its cost: a body that rolled under a table snaps back to where it fell, and one more `WorldQuery` answer. (a) leaves a raised player inside furniture to the client's solver, which can push it through the level. (c) lets a launch hide a package for the match | **Open** (the engineer's: a game rule and its look); 728b depends on it |
 
 ### 3. The technical choices (KE)
 
@@ -211,7 +213,8 @@ and assert where a body may rest.
 Where a body may come to rest: wherever the level's colliders hold the host's capsule, the top of the parapet, a
 stair or a railing included, which a throw's arc cannot reach (an item rests at `floor_below`, the throwing design's
 TD5). A body that rests where no player can stand keeps its items there once it dies. House's check that no throw
-reaches the locked roof (#646) gets a launched body beside it (728e).
+reaches the locked roof (#646) gets a launched body beside it (728e). Whether every such rest stands, and where a
+raised player stands when a standing player does not fit there, is KD11, open (§2).
 
 ### 5. Voice and the mic
 
@@ -269,6 +272,7 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 | Launched off the balcony or a ledge | it lands below and can be raised there | a body resting in the air over the yard |
 | Launched over no floor | the longest motion ends it at the fallback; the match logs an error | a body nobody can reach, and its items with it |
 | It comes to rest on the parapet or a railing | it rests on top, where the physics holds it, and can be raised there from within reach | a body snapped to a floor it never reached |
+| It comes to rest where a standing player does not fit (under a table) or no player can walk (the locked roof) | open: KD11 (§2); recommended (b), the rest at the fallback where a standing player does not fit, and the levels' reach convention | a raised player stood inside furniture, and a package launched out of everyone's reach for the match |
 | Two bodies land on one spot | both lie there; the host's bodies and the ragdolls pass through each other | a pile that differs on each screen |
 | A `Raise` while the body moves | `Rejected(moving)` (KD4 (a)) | a raise of a body that leaves reach a tick later |
 | A give-up or the time running out during the motion | the body lies on the floor below where it is (KD8 (a)); `StopBody` frees the host's body | items dropped away from their body |
@@ -346,7 +350,7 @@ Proposals for the M7 backlog, each `base: release/m7`; the manager opens them no
 [MVP content ADR](2026-09-29-mvp-content-built-by-the-engineer.md), for his approval in its PR, and every number in
 one is a placeholder marked "not a decision" (KD9 (b)). 728a and 728d apply on every map, the greybox included (the
 rework "applies wherever today's knockdown does"); the motion of 728b and 728e moves bodies on the House only (KE12).
-No question is open.
+One question is open: KD11 (§2), on which 728b depends.
 
 - **728a core and client: a knocked-down player holds still and looks** (size M). Goal: a knocked-down player cannot
   move; its claims carry its look only. Acceptance: `MovementRule` takes a knocked-down claim's facing only (KE4),
@@ -415,8 +419,9 @@ No question is open.
   §4.7.8 ("since the own avatar never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and
   their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the longest motion and the no-floor error);
   §9.5.1's `PlayerRules` (the rest's numbers, the longest motion, `motion_maps`: the House); §7.1.18. Depends on:
-  728a; KE1 (b), KE5, KD1, KD2, KD4, KD8, KD10 (all answered). Not on the throwing issues: the host's physics needs
-  neither their sweep nor their arc. Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
+  728a; KE1 (b), KE5, KD1, KD2, KD4, KD8, KD10 (answered) and KD11 (open). Not on the throwing issues: the host's
+  physics needs neither their sweep nor their arc. Files: `core/life/`,
+  `core/combat/strike.gd`, `core/content/player_rules.gd`,
   `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
   `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `core/match/intents.gd`, `core/match/match_command.gd`,
   `core/match/phase.gd`, `core/match/match.gd`, a new `server/host_bodies.gd`, `server/host_session.gd`,
