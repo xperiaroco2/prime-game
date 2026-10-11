@@ -1,5 +1,7 @@
 # CI runs the whole suite, `tools/run.sh verify --full` (the definition of done's test gate), on Linux; a local
 # `verify` runs only doctor, lint and check (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md).
+# Since #857 it runs in parts at once, a job each (`verify --full --part <name>`, the parts in tools/runner/verify.py
+# PARTS), and the job named `verify`, the check the ruleset main-2 requires, is green only when every part was.
 # Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
 # docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
@@ -16,10 +18,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify:
-    name: verify
+  # One job per part of verify --full; the list is verify.PARTS' names (test_github_workflows checks it), and each
+  # part's steps come from the runner, so no step is listed here. Every part runs to its end when another is red, as
+  # every step of one verify does.
+  part:
+    name: verify ${{ matrix.part }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [test, network, runner]
     steps:
       # No LFS content: addons/ is outside LFS, and in CI `check` imports a stand-in in place of each LFS pointer
       # file (the LFS ADR's amendment of 2026-10-07, #515).
@@ -32,7 +41,9 @@ jobs:
 
       # The last run's per-suite GdUnit4 seconds, by which `test` balances its shards (tools/runner/gdunit.py, #182).
       # A new key every run, saved after a green job: a run restores the newest one of its branch, else of main's.
+      # Only the part that runs `test` reads and writes them, so no other part saves a stale copy under the key.
       - name: Restore the GdUnit4 suite times
+        if: matrix.part == 'test'
         uses: actions/cache@v6
         with:
           path: tools/out/logs/gdunit-times.json
@@ -51,21 +62,40 @@ jobs:
       # Its test step runs the frame-bound client suites (gdunit.FIXED_FPS_SUITES) at --fixed-fps 60 in shards of
       # their own and the rest in real time (#341); nightly.yml's flaky job keeps all of them real-time.
       - name: verify
-        run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full
+        env:
+          PART: ${{ matrix.part }}
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full --part "$PART"
 
       - name: Upload test reports and logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: verify-reports
+          name: verify-reports-${{ matrix.part }}
           path: |
             tools/out/gdunit
             tools/out/logs
           if-no-files-found: ignore
           retention-days: 14
 
+  # The required check `verify` (#857): green only when every part's job ended green. `always()` makes it run, and
+  # so report, when a part failed, was cancelled or was skipped; its step then fails (needs.part.result is success
+  # only when every job of the matrix succeeded).
+  verify:
+    name: verify
+    needs: part
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check every part
+        env:
+          RESULT: ${{ needs.part.result }}
+        run: |
+          echo "the parts of verify --full: $RESULT"
+          test "$RESULT" = success
+
   # The runner on its stated minimum Python (tools/runner/pins.py PYTHON_MIN; the python-task-runner ADR), which the
-  # verify job's 3.12 never runs: 3.12-only code broke verify in a cloud session on 3.11 (#345, #349). Every runner
+  # verify parts' 3.12 never runs: 3.12-only code broke verify in a cloud session on 3.11 (#345, #349). Every runner
   # file must compile there, and the runner tests that start no Godot (verify's Python lane) must pass; no Godot here.
   python-min:
     name: runner on the minimum Python
