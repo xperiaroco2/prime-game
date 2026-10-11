@@ -172,10 +172,18 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Car repair | Car on the lift | 0 | 64, 41 | Garage |
 | Car repair | Lift control (no view of who is under the car, decided in #688; 57, 46 is the first proposal, 8.6 m from the car: R5 moves it to about 5 m, RD2's placeholder, see below) | 0 | 57, 46 | Garage |
 | Car repair | Picture of the needed part (on a garage wall, decided in #688; its point R5's proposal) | 0 | (R5) | Garage |
+| Zone task | A zone (placeholder until the engineer moves it, #651; up from the generator hall, #681) | 0 | 48, 37 | Yard, between the kitchen and the garage |
+| Zone task | A zone (placeholder, #651) | 0 | 52, 20 | Garden |
+| Zone task | A zone (placeholder, #651) | 1 | 30, 41 | Landing |
 | Other | Music speaker | 0 | 12, 55 | Chill zone |
 | Other | Hiding spots among old things | 2 | 24, 36 | Attic |
 | Other | Lookout over the yard | 2 | 30, 42.5 | Roof |
 | Other | Loot | 2 | 41.5, 25 | Roof |
+
+No zone stands in the basement: the bot scenarios read every map of the base mode through a flat fake whose one floor
+is at y = 0, where a station marker below it finds no floor (`levels/CLAUDE.md`, #681). The yard's zone stands above the
+generator hall, 4 m east of its old point (44, 37): 6 m from the house and from the garage, 12 m from the nearest
+delivery circle on its floor (the kitchen's).
 
 The generator's switches, straight-line distances: A-B 20.0 m, B-C 20.4 m, C-D 28.7 m, B-D 29.5 m, A-D 34.8 m,
 A-C 39.4 m. Every pair is farther apart than the voice range (8 m), and than the world sounds' 12 m: the bound of the

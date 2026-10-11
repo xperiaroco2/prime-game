@@ -1,8 +1,8 @@
 class_name StationKind
 extends ContentPart
-## A place where a task is done, placed by its task type (ARCHITECTURE §9.3): the MVP's delivery
-## circle, an invisible cylinder standing on the floor at its marker (#79). Colours never repeat
-## within a station kind, so the palette's size is a demand (§9.4).
+## A place where a task is done, placed by its task type (ARCHITECTURE §9.3): Delivery's circle or
+## ZoneTask's zone, an invisible cylinder standing on the floor at its marker (#79). Colours never
+## repeat within a station kind, so the palette's size is a demand (§9.4).
 
 @export var id: StringName
 @export var spawn_tag: StringName

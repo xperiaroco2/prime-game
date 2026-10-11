@@ -115,7 +115,7 @@ hello deadline.
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -156,7 +156,7 @@ countdown changes no scene and places nobody.
   re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `knives`, `spawns`), named in the data of the part that
+  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `knives`, `spawns`), named in the data of the part that
   draws (§9.4), gets its own `RandomNumberGenerator`, seeded by a fixed mixing function of the match seed and the
   purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the name; not `String.hash()`, whose
   algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
@@ -169,7 +169,9 @@ countdown changes no scene and places nobody.
   different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
   once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
-  bound to a random circle of its own, whose colour it takes (`tasks`). Then each task's `TaskState` (its id, type and
+  bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.18): one task
+  of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
+  *i* is subtask *i* in station-id order. Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
   every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
@@ -683,6 +685,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `SetProfile(name, colour)` | a player; Lobby only (#551; the base mode's accept row, the tutorial lists it nowhere): elsewhere `not_accepted` | `name` text and `colour` an int (`bad_args`); `colour` one of the 10 (`out_of_bounds`); the name cleaned and made unique against the other players (§3.5; nothing usable left keeps the current name), a colour another player has replaced by the first free one; both as they are: `unchanged`. Applied: `ProfileChanged` to everyone; the ready flag stays. A session control, not in `Intents.PLAYER_ACTIONS` |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 | `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
+| `Throw(facing)` | a living player (`PLAYER_ACTIONS`: the dead get `not_accepted`, even the host); a phase whose mode accepts it (the base mode's Round, #646) | the first `Throw` rule of the hand item's kind, the actor's role or the mode (§9.2; none: `nothing_to_do`). The base mode's rule: `HoldsItem` (`empty_hand`: a belt item is never thrown), `OverFloor` (`no_floor`: a floor below the host's position of the sender), then `ThrowItem` (§7.1.16, #643). Nothing from the client but the facing, and a facing that does not normalize to a unit vector takes the last accepted claim's. Applied, the item flies and a raise the sender runs stops; refused, nothing stops (§9.2) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -714,10 +717,12 @@ wire schemas of the events and the snapshot are §4.3.
 | `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order |
 | `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29) | everyone | `PickUp` |
 | `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is never sent to it) |
-| `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's) | everyone | an item comes to rest |
+| `ItemThrown` | item, peer (the thrower), origin, velocity, gravity, launch tick: exactly the flight's vectors, so a client computes the host's arc bit for bit (`ItemFlight.point`, §7.1.16) | everyone: the item was in a hand everyone sees, and the velocity shows only the facing the snapshot already shows (a role-owned `Throw` rule would put the role into it: ModeCheck warns, §9.2) | a `Throw` (#643), before the flight's first tick |
+| `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's), thrown (a flight's rest, §7.1.16) | everyone | an item comes to rest |
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
+| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress` |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
@@ -741,7 +746,7 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
-in `PlayerJoined` and the `Welcome` roster.
+in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -830,6 +835,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 14 | `MoveClaimReliable` | RELIABLE | the fields of `MoveClaim` (5), in its order; no `seq`. `MoveClaim`'s RELIABLE twin (#429): the client sends every epoch's first claim on it, and its last sent claim again, exactly as sent, right before a player action (§7.1.15 Lost claims). The host hands it to `core/` as the `MoveClaim` command (`WireRow.command`), so it passes the same checks and gets no `Rejected` (E15's silent drop kept) | 55; 55 |
 | 15 | `NextStage` | RELIABLE | `seq: u32` (#599, the tutorial's stages, E65) | 4; 4 |
 | 16 | `SetProfile` | RELIABLE | `seq: u32`, `name: name`, `colour: u8` (#551; core refuses a colour past 9, `out_of_bounds`) | 6 to 86; 86 |
+| 17 | `Throw` | RELIABLE | `seq: u32`, `facing: vec3` (#643; kind 15 on `release/m7`, 17 since it reached `main`, #837) | 16; 16 |
 
 #### 4.3.3 Debug commands (C→H, E17)
 Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
@@ -884,6 +890,8 @@ directive has no row, because it reaches no peer.
 | 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
 | 66 | `ProfileChanged` | `peer: peer`, `name: name`, `colour: u8` (audience *everyone*, #551) | 6 to 86; 86 |
+| 67 | `ZoneProgress` | `station: station`, `ticks: u16`, `needed: u16`, `counting: bool`, `tick: tick` (audience *everyone*, #647; ZE4 and ZE6 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); `needed` is at most 12,000, 600 s; kind 66 on `release/m7`, 67 since #837) | 11; 11 |
+| 68 | `ItemThrown` | `item: item`, `peer: peer`, `origin: vec3`, `velocity: vec3`, `gravity: vec3`, `tick: tick` (audience *everyone*, #643; the vec3s are exactly the flight's, so a decoded event rebuilds the host's points bit for bit, `wire_throw_test`; kind 67 on `release/m7`, 68 since #837) | 46; 46 |
 
 #### 4.3.5 State and voice
 
@@ -917,9 +925,12 @@ The rules of the table:
   11 when #214 added the lobby's name (`ChangeSettings`'s `has_lobby_name` and `lobby_name`, `Welcome`'s
   and `SettingsChanged`'s `lobby_name`), widened the `name` type to 80 bytes and raised `PlayerJoined`'s cap to
   97, 12 since T1 (#599, E65) added the tutorial's `NextStage` (15), 13 since #548 turned
-  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason, and is 14 since #551 added
+  `SettingsChanged`'s shortfalls into host text and gave `MatchEnded` its reason, 14 since #551 added
   `SetProfile` (16), `ProfileChanged` (66) and the body colour of `PlayerJoined` (cap 98) and the `Welcome`
-  roster. M4's protocol PRs each set it to their base's plus one at the rebase before the merge (the M4 ADR §4).
+  roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
+  (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
+  `main`'s highest in one bump. M4's protocol PRs each set it to their base's plus one at the rebase before the
+  merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -944,7 +955,7 @@ The rules of the table:
   checked by the mode check (3e): role ids, side ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
   reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
   `RejectReasons`, `CountdownCancelledEvent`'s reasons, the `Items` causes (`put_down`, `swap`, `death`, `leave`,
-  `spawn`). An id that neither covers is a bug that the encoder refuses and logs.
+  `spawn`, `thrown`). An id that neither covers is a bug that the encoder refuses and logs.
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
@@ -1214,7 +1225,14 @@ round).
   ledge's edge stands on the ledge (§7.1.5's note). Prevents: a package put down within a capsule radius of a low ledge
   resting at the ledge's height beside it, which the delivery check reads (§7.1.14), so the same drop counts or not by the
   ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
-  the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
+  the first hit, then `floor_below`. `sweep(a, b, r)` (37a, #641; TE2 of the throwing ADR): a sphere of radius r,
+  first `intersect_shape` at a (a `PhysicsShapeQueryParameters3D` holding a `SphereShape3D`, mask of layer 1), which
+  answers a when it finds anything, since `cast_motion` ignores a shape the sphere starts in; then a plus the segment
+  times `cast_motion`'s safe fraction (b when nothing is in the way; an r of 0 or less is the ray's hit). Jolt finds a
+  sphere touching a box clear and one 1 mm into it overlapping (`host_world_query_sweep_test.gd`), so
+  `WorldQuery.THROW_RADIUS_MARGIN_M` is 0.01 m: a throw radius at most `min(capsule_radius_m, capsule_height_m -
+  eye_height_m)` less it leaves the sphere at a pressed capsule's eye clear of the wall or ceiling (a technical
+  constant, not a game number). `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
   gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
   query misses, the host waits one physics step after building the worlds, before `MarkerReader` asks them for the
@@ -1367,10 +1385,16 @@ names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd`
 ##### 4.6.1.2 The slots and the tasks (E25 for M4-5, #141)
 Each `ClientModel.Item` holds its holder and whether it is
 `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
-(the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
+(the swapper's two items change places), `ItemThrown` (in flight: no holder, not belted, `position` at its origin and
+the flight's fields `thrower`, `flight_origin`, `flight_velocity`, `flight_gravity` and `flight_tick`, #644) and
+`ItemPlaced` or `PackageDelivered` (resting, which ends a flight); `Item.rests()` (no holder, not flying) is what
+`ItemViews`, `TargetChoice` and `PlaycheckSteps` draw and aim at, so a flying item is neither drawn nor picked where
+it lay; a phase change does not end a flight (the host only pauses it). `hand_item(peer)` and
 `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
-Tests: `client_model_test.gd`.
+`ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
+(the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
+else changes them (no prediction). Tests: `client_model_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
 A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
@@ -1597,6 +1621,16 @@ stood erased its last move tick, so a `WalkTo` after a step answered within the 
 two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
 now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
 `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+**#647 (M7-Z1)** added `ZoneProgress` to both `TASK_EVENTS` lists; its plant (declared to the zone's first player
+inside only) waited for a scenario that plays zones (M7-Z3, the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
+§7). **#649 (M7-Z3)** planted it (`ZoneProgressEvent.audience()` as `Audience.only` of the first living player
+`ZoneTask` counted in the zone): `bots crew_works_every_zone zone_paused_by_a_knockdown dissident_works_a_zone_alone`
+and the core runner's `scenarios_test.gd` failed on `ScenarioInvariants` alone (`invariant at tick 118: ZoneProgress
+reached [2], not every present player [1, 2, 3]`; every MVP scenario, which bans the zone task, passed); with
+`ZoneProgress` out of `ScenarioInvariants.TASK_EVENTS` and `crew_works_every_zone`'s dissident waiting for
+`TaskProgress` instead (so every script ends and the leak test runs), `LeakCheck` failed on its own (`bot 1 and bot 2
+decoded different task events in match 0`, besides `decoded ZoneProgress, an event for one peer with no int
+peer`). Reverted.
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
@@ -1613,8 +1647,9 @@ fails that sweep).
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
-`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
-package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, the
+default draw of one package and one zone since #649, on `FixtureBaseModeWithZones` since #842; bot 4 walks into the zone and freezes, bot 1 then knocks it
+down, bot 2 delivers and bot 3 holds the zone) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -1645,7 +1680,34 @@ sections named:
    `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
    the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
    position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
-   a new baseline, checked as one tick and corrected: either answer passes;
+   a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
+   ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 190 ticks while
+   it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
+   then one claim spends the stored credit to walk about 39 m away. The freeze is `ChaosScenario.FREEZE_TICKS`,
+   `MovementRule.MAX_TICK_CREDIT` less `PUSH_TICKS`: that claim also covers a tick when the freeze starts between
+   two client ticks and the claims a network lost before it. At 200 it covered 201 over WebRTC (#674, seed 7, 4 of
+   6 runs), was corrected, and bot 4 stood in the zone on the host all round while its script, which adopts no
+   `Correction` outside a placement (each is taken for a chaos claim's), claimed from 39 m off and was corrected
+   every tick; `chaos_test.gd` pins the margin. Since #693 the host's answer to each of bot 4's own claims (no
+   chaos tag: `ChaosFrames.claim_shape` is -1) is checked on the host over every transport
+   (`ChaosHonestClaims`): a `Correction` of one fails the run, naming the seed (`chaos seed 7: the host corrected
+   an honest claim of bot 4 ... (and N more)`: one line, the first correction and the count of the rest), and so
+   does a run in which the movement rule accepted none (the summary line counts those); a placement's `Correction`
+   comes with another call. `ChaosRun` checks on the host's state that the
+   zone gained at most `ZoneTask.STALE_TICKS` (10) after its last accepted claim, in frames where no other living
+   player stood in a zone (planted "stale claims count", it gained 168 and failed in all three runs; reverted).
+   The hostile sends no claim in the round until that walk away, nor while its host position or a nonzero
+   velocity has not caught up with its bot's, nor near a zone: a `Correction` or a `LATEST` claim superseding its
+   walk would move it, and change what every honest bot sees, from the baseline's (seed 3 caught the last).
+   Over every transport (#674), `ChaosRun` fails a run in which no hostile claim went out while its client knew it
+   alive in the round (`ChaosHostile.round_alive_claims`, in each passed run's summary line; 12 to 24 over seeds
+   188001 to 188010; a plant that kept the hostile quiet all round failed), so a quiet rule gone wrong cannot
+   silence class 5 unseen; the failure names the claims each quiet rule held back (`ChaosRun.quiet_held`: the
+   200-tick freeze's WebRTC seed 7 read "before its walk away" 44, its host position behind its bot's 17).
+   The run does not play the freeze with refused claims (a far claim, a past-credit tick or another epoch sent
+   during the freeze, hoping each `Correction` keeps the claim young): `MovementRule.claim_age` reads only an
+   accepted claim, covered by `movement_rule_claim_age_test.gd` (a refused claim does not renew it), not end to
+   end;
 6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
    answer echoing the seq it carried (4 checks each copy);
 7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading,
@@ -1691,8 +1753,18 @@ the encoder refuses with an error line).
 baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
 step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 900 frames (the 3 s pregame, #213) in
 about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
-`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
-`--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. With the zone and bot 4's freeze (#649,
+2026-10-09) a seed's three runs are 1830 frames (30.5 s simulated, about 11 s); `--seed 1 --runs 10`, `--seed
+188001`, `--long --seed 5`, `--enet --seed 7` and `--transport webrtc --seed 188001` passed. With the 190-tick
+freeze and the claim coverage check over every transport (#674, 2026-10-10) a seed's runs are 1800 frames (30.0 s
+simulated); `--seed 188001 --runs 10`, `--seed 1 --runs 10` and `--long --seed 5 --runs 2` passed (12 to 24 hostile
+claims alive in the round), `--enet` seeds 7, 188001 and 3 (12 to 19) and `--transport webrtc` seed 7 three times
+(18, 19, 18; with the 200-tick freeze it sent none in 4 of 6 runs) and seeds 188001, 1, 2 and 3 (12 to 19). With
+the honest-claim check (#693, 2026-10-10) `--seed 188001 --runs 10`, `--seed 1 --runs 10`, `--long --seed 5 --runs
+2`, `--enet --seed 7` and `--transport webrtc` seeds 188001, 7, 1, 2 and 3 passed (222 to 478 honest claims of bot 4
+each accepted without a `Correction`); a plant holding bot 4's claims 2 s past its freeze (its walk away past the
+credit) failed on that check alone (`chaos seed 188001: the host corrected an honest claim of bot 4`; reverted). The
+night job `chaos` runs ten seeds of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
 
 ##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
 `HostSession` taking no budget failed on the
@@ -1700,26 +1772,32 @@ replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on
 (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
 malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
 forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
-class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
+class 4 (the hostile picked up a knife resting far away); `Throw` taken in Round from the living by
+`ChaosOracle.ACCEPTS` failed class 4 naming Throw (seed 188001, #644). Tests: `tests/unit/net/transport/
 chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
 `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, no
+claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption, a
+corrected honest claim of bot 4 (#693), no
 `ForceRole` for a bot 2 without a peer id), `tests/scenarios/chaos_enet_start_test.gd` (the start over the network:
 a join lost for good fails at once naming its reason, a join that found no room joins again without starting play,
 `MAX_JOINS`).
 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
-The C→H kinds 1 to 13, 15, 16 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
+The C→H kinds 1 to 13, 15, 16, 17 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
-and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 17, 19, 23, 26, 31,
-67, 80, 95, 97, 111,
+and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 18, 19, 23, 26, 31,
+69, 80, 95, 97, 111,
 113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
 that every intent is in a phase of `ACCEPTS` or in that list;
 its malformed shapes are `NEXT_STAGE_NO_SEQ` (0 to 3 bytes: NetFrame takes it, the codec does not, `BAD_PAYLOAD`)
 and `NEXT_STAGE_TRAILING` (its seq and 1 to 4 bytes more: over the cap of 4, so NetFrame's `PAYLOAD_TOO_LARGE`
-before the codec could see a trailing byte). A new intent gets its refusals in
+before the codec could see a trailing byte). Kind 17, `Throw`: its facing from `ChaosFrames.THROW_FACINGS` (a unit
+vector, zero, a 1e-30 vector and a 1e38 vector); since the base mode's rule (#646) Round takes it from the living, so
+the hostile's `Throw` there, with the empty hand its bot always has, is refused `empty_hand` (`HoldsItem` comes before
+`OverFloor`), and `not_accepted` in every other phase and from the downed and the dead; non-finite facings are the
+codec's, class 1, #644. A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
 in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it. Since #214 the hostile's
 `ChangeSettings` also carries a `lobby_name`: a non-host rename is caught by the oracle's `not_accepted` check of
@@ -2172,8 +2250,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the same margin short of the raise's `TargetInReach`, which the host also measures from that claim's feet (#352:
   `LifeView.raise_hint_reach_of`, through `TargetChoice.hint_reach`). The host's `InReach` and `TargetInReach` are
   unchanged. The keys send `PickUp(item)`,
-  `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
-  again (§7.1), and the client predicts nothing of an action's outcome.
+  `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()` (and, since #645,
+  `Throw(facing)` on G); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
+  but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
+  `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
   display names, the shared progress (`TaskProgress`), the match
   clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), and
@@ -2222,7 +2302,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
 - `project.godot`: `give_up` (G; F since #211, §4.7.28), `spectate_next` and `spectate_previous` (the left and right
-  mouse buttons).
+  mouse buttons). G is `throw` since #645 (§4.7.52), and the give-up hold counts only from a press made while downed
+  (`LifeView.hold_give_up`): a key held for a throw through the own knockdown, should a rebind share it, gives nothing
+  up until it is let go.
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
   human picks a CC0 track with its `docs/credits/` entry.
 - Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
@@ -2251,12 +2333,14 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
-  drawn and when the own living player holds it. Each view joins `SightHider.GROUP` and gives `sight_point()`; the
-  root's `visible` is left to the sight hiding, `ItemViews` toggles the look under it. `ItemViews` places in the
-  physics step at priority 1, after the avatars and the player moved and before `SightHider` (10) casts, so a view
-  out of the body's eye's sight is never drawn for a frame. `CircleViews` finds a station kind's size in the task types'
+  drawn and when the own living player holds it; in flight, on its arc (§4.7.52). Each view joins
+  `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
+  toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
+  player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
+  frame. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the circles in their colours; nothing of the client draws through walls since the destination
   marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by what it is.
+  It leaves out a zone, which `ZoneViews` (§4.7.51) draws.
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
   the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
@@ -2412,7 +2496,9 @@ M4 client PR: only the own model, the interpolated poses and the own mode; spect
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (no `no_depth_test` at all, since the destination marker of D10 (b) went in #829; the teammate marks of #257 and #756 show only past no level
-geometry, within 10 m, §4.7.29); a role named only on its own player's screen
+geometry, within 10 m, §4.7.29; a zone's fill, which tells that a living player stands there, is depth-tested like
+the zone and hidden by the downed camera's sight hiding, with no marker, label or HUD line, §4.7.51); a role named
+only on its own player's screen
 (a dissident's teammates on theirs, the plates' teammate mark too); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
@@ -2663,8 +2749,8 @@ translation; #498), and `end.winner` the winner line shown (`EndScreen.winner_sh
 
 #### 4.7.23 Tests
 The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
-`SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
-`tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
+`SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts, a zone's fill),
+unit-tested headless in `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
 sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
 level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall,
 and an item visible from the arm's end but not from the pivot is hidden;
@@ -2672,7 +2758,9 @@ the two-client push runs over the loopback with the interpolation delay. Key eve
 `Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
-ADR's §6 check the rest.
+ADR's §6 check the rest. A thrown item's arc, stop and fall are pure (`ItemArc`, `ItemFlights`, unit-tested against
+core's `ItemFlight.point()` and a fixture match's real throw); the arcs in a physics world, the own arc's sweep
+against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/integration/client/world/` (§4.7.52).
 
 #### 4.7.24 Built in #287 (M6.2), the UI's base resolution
 - `project.godot`: the UI is laid out on a 1920x1080 canvas (`display/window/size/viewport_width` and `_height`),
@@ -2856,7 +2944,10 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
-  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
+  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
+  act on their `project.godot` key but have no Settings row yet, with their phases: `throw` (G, #645, alive), until the
+  copy deck names it (`control.throw`, #851). `bind()` refuses a binding that would put an action of such a phase on
+  that key (`unlisted_on()`; Use on G would swing and throw on one press), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
   reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. Each window keeps
@@ -3991,6 +4082,125 @@ colour: its handoff (s04) draws none, the swatches are only on s05's Character p
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
 material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
 
+#### 4.7.51 Built in M7-Z4 (#650), the zones, their fill and the done look
+The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
+ZD11 (b) and ZE8, as the engineer answered them on #302).
+- **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
+  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out and draws every other station kind as before.
+- **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
+  `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
+  start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
+  not heard of never shows a fill that runs and then jumps back.
+- **The fill** is pure (`ZoneViews.ticks_at(station, now)` and `fill(station, now)`): the event's `ticks`, plus the
+  host ticks since its `tick` while it counts, capped at `needed`; a host tick behind the event or unknown (-1) adds
+  nothing; a done zone is full; a zone with no `ZoneProgress` yet is empty. `now` is `AvatarViews.host_tick()`, the
+  estimate the match clock reads; between two events the fill errs by at most the host's window (5 ticks), and the
+  next event's `tick` sets it right.
+- **The look** (ZD11 (b), greybox placeholders until the art pass): `ZoneViews` (`client/world/`, under `ItemWorld`
+  beside `CircleViews`) draws each zone at its station's position as a faint flat disc of the zone's radius, a ring
+  (`TorusMesh` squashed to a band about 1 cm tall, resting on the fill) at that radius and a fill: a second flat disc
+  scaled from the centre, its radius the share of the time counted, hidden while empty. All three are unshaded,
+  translucent, in `StationPlaced`'s colour (the palette is the data's: yellow, provisional, #302) and ordered disc,
+  fill, ring among themselves by a small `sorting_offset` each (2 cm apart), with `render_priority` left at 0 so they
+  sort by camera distance against every other translucent object, the delivery circles' cylinders included. A done
+  zone is full and dimmed (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery
+  circle's cylinder.
+- **The render checklist** (the M4 ADR's §3): every material is depth-tested (no `no_depth_test`; items 5 and 10), so
+  the fill never shows through walls; there is no through-walls marker, label or HUD line for zones and no zone
+  sound (ZD11; sounds come later, within the hearing range). Item 3: the fill tells that a living player stands in the
+  zone, as an avatar does, so it sits under a `FillSight` holder in `SightHider.GROUP` (its sight point the zone's
+  centre 10 cm up): while the downed camera is in use it shows only where the body's eye could see that point. The
+  holder's `visible` is `SightHider`'s; the fill inside keeps its own (empty or not). The disc and the ring are the
+  zone's fixed, public place, like the level, and stay drawn. The task screen is unchanged: its rows are `TaskState`s.
+- Tests: `tests/unit/client/net/client_model_test.gd` (the fold), `tests/unit/client/world/zone_views_test.gd` (which
+  kinds are zones; the fill extrapolated, still, capped, done, never running backwards),
+  `tests/integration/client/world/zone_views_test.gd` (the parts' sizes and colour, no circle for a zone, the fill
+  following `ZoneProgress` and the host tick, the done look, every part depth-tested: seen failing with a planted
+  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted; the flat ring and the parts' sort order;
+  the fill hidden behind a wall by `SightHider` while the disc and the ring stay: seen failing without the group,
+  reverted). The `shot`s:
+  `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
+  `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
+  `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
+
+#### 4.7.52 Built in #645 (37e), the throw key, the predicted arc and the remote arcs
+The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
+TE5 (a)). The wire is unchanged.
+- **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
+  6085904317), "not a decision"; Q stays an exact put-down. G was also `give_up` (F since #211, §4.7.28),
+  which acts only while downed and
+  counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
+  (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
+  client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
+  the role's, then the mode's, the first rule triggered by `Throw`, its first `ThrowItem`, as core finds it), the
+  phase takes `Throw` from the living, and no earlier throw waits for its answer. With no such rule G sends
+  nothing (the base mode until 37f). `ClientSession` sends the last claim's reliable twin right before it (#644).
+- **The prediction** (`ItemFlights`, `ItemArc`, pure, in `client/world/`). `throw_sent` hands the seq, the camera
+  and the look to `ItemViews.predict_throw`: the arc starts at the camera with the velocity and gravity built as
+  `ThrowItem` builds them from the rule's numbers (bit for bit the host's for the same facing), drawn on the
+  thrower's own clock from the press, and the first-person hand shows nothing. Until the arc's `ItemPlaced`, each
+  physics frame sweeps the drawn item's step through the own scene (a sphere of the rule's radius against the world
+  layer: `intersect_shape` at the start, then `cast_motion`'s safe fraction, as `HostWorldQuery.sweep`) and holds
+  it where the sweep stops it: presentation only. The own `ItemThrown` swaps in the host's vectors and launch tick,
+  and an offset that keeps the drawn item where it was fades out over `ItemArc.EASE_S` (0.2 s, not a decision); the
+  drawn time stays on the thrower's clock. The Throw's `Rejected` (by seq), or no answer within
+  `ItemFlights.PREDICTION_TIMEOUT_S` (2 s, not a decision; the reliable lane always answers), drops the arc and the
+  hand shows the item again.
+- **The remote arcs.** Every other `ItemThrown` gets an arc drawn at `AvatarViews.drawn_at()` less the launch tick,
+  the host-tick timeline the avatars are drawn on (behind by the interpolation delay). Between two whole ticks the
+  item is on the straight segment from point(k) to point(k + 1), the segment `FlightTicks` sweeps; at a whole tick it
+  is `ItemFlight.point()` exactly, no second copy of the formula. Before the drawn tick reaches the launch the item
+  stays at the thrower body's hand point (`carry_point()` for a two-handed kind), so it leaves the hand as the body
+  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed. A spectator
+  watching the thrower from its eyes sees no such item there: `LifeView` hides the views that
+  `ItemFlights.awaiting_launch_of(peer)` names, with the watched peer's hand and belt items (#168).
+- **The stop and the fall.** `ItemPlaced` with the cause `thrown` ends an arc: the host drops a stopped item straight
+  down, so the stop is the arc's point whose x and z are the rest's (`ItemArc.stop_of`; within
+  `REST_TOLERANCE_M`, 5 cm, not a decision), and a throw with no horizontal speed falls back to the rest's height;
+  the stop can lie no later than the estimated host tick at the event's arrival (`AvatarViews.host_tick()`; the
+  thrower's own clock for its own arc) plus `STOP_SLACK_TICKS` (3, not a decision). The drawn item flies on to the
+  stop, then falls straight down with the arc's gravity (sqrt(2h/g)); the own arc held at a wall falls from there.
+  A rest not below the arc (off its line, behind the launch, the no-floor fallback at the thrower's feet, TD11 (a)),
+  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest. The exception
+  is the own arc past a stop: its clock runs ahead of the host's flight by the round trip, and its sweep sees the
+  level only, not a living player the host stopped the item on, so it glides back to the rest over
+  `ItemArc.GLIDE_S` (0.15 s, not a decision) instead of jumping.
+- **A phase change.** `PhaseChanged` and `LoadMatch` drop every arc and the prediction; the model keeps `flying`, so
+  `ItemViews` hides the item until its `ItemPlaced`, if one comes, and no later phase draws it again (after a phase
+  without `FlightTicks` the host's flown ticks are no longer the host tick less the launch tick). An item picked up,
+  or gone from the model, loses its arc.
+- **The view** (the M4 ADR's §3 items 3, 5 and 10): the item in flight is its ordinary depth-tested `ItemView`, with
+  no trail, outline, label or `no_depth_test` overlay, already in `SightHider.GROUP` (its `sight_point()` follows
+  the arc), placed in `ItemViews`' physics step (priority 1, after the avatars and before `SightHider`).
+- **The sounds.** `SoundChooser` plays `ItemThrown` at its origin, the thrower's eye (`THROW`, aim at the origin),
+  cut beyond `HEARING_RANGE_M` of the ears and muffled behind the level by `WorldSounds`' ray: uncut, it would tell
+  every client where a package was just thrown to hide it. `ItemWorld` forwards every event to `ItemViews` and
+  plays neither `ItemThrown` nor a thrown item's `ItemPlaced` on arrival: `ItemViews.sound_due` hands them to
+  `WorldSounds.on_event` when the drawn item launches (the own throw at the press, from the predicted origin; the
+  host's own `ItemThrown` repeats nothing) and when it reaches its rest; an `ItemPlaced` with no arc lands at once.
+  The launch sound is a generated placeholder blip like the others (`WorldSounds.blip`); the asset is the
+  engineer's to pick.
+- Tests: `tests/unit/client/world/item_arc_test.gd` (the points against `ItemFlight.point()`, the fraction on the
+  segment; the prediction against a fixture match's real `ItemThrown`, bit for bit; `rule_of` in core's order
+  against a match's launch speed; the stop against a fixture match's wall stop, the longest flight, a vertical
+  throw, a rest off the arc and the no-floor fallback: seen failing without the past-the-stop rule, reverted; the
+  fall; the easing), `tests/unit/client/world/item_flights_test.gd` (the hidden hand, `Rejected` by seq, the
+  timeout, the own adoption with no second launch sound, the remote timeline and its launch sound, the stop, fall
+  and landing sound, no arc for a landing, the own sweep held at the wall: seen failing without the hold, reverted;
+  no sweep of a remote arc; a phase change, a new match, a pick-up),
+  `tests/integration/client/world/item_views_flight_test.gd` (a remote throw in the body's hand, then on the arc at
+  the drawn tick, to its stop and rest; the view in `SightHider`'s group with nothing drawn through walls; hidden at
+  a phase change until its rest; the own throw's empty hand and `Rejected`; the own drawn item held before a
+  fixture wall: seen failing without the sweep, reverted), `item_interactions_test.gd` (G after the claim's twin,
+  one at a time, Q still `PutDown`; nothing without a rule, in a phase that takes none, for a belt item, downed),
+  `item_world_throw_test.gd` (the launch sound at the press, none for the host's own `ItemThrown`, the landing sound
+  only once the drawn item lands, a put-down's at once), `sound_chooser_test.gd` (a launch beyond the hearing range
+  plays nothing), `world_sounds_test.gd` (a launch behind a wall muffled, none beyond the range),
+  `tests/unit/client/life/life_view_give_up_test.gd` (the give_up key held through the knockdown: seen failing without the guard,
+  reverted) and `input_actions_test.gd`. The `shot`: `client/dev/throw_preview.tscn`, on a `Throw` rule of its own
+  built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
+  a wall, and the own predicted knife held at a wall a step ahead.
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -4222,7 +4432,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
-  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`); no
+  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
+  and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -4662,8 +4873,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 
 #### 7.1.1 Geometry through a port
 `WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric
-questions of the rules: line of sight between two points, the floor below a point, and where an item placed from A
-towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
+questions of the rules: line of sight between two points, the floor below a point (one ray), the floor a player
+stands on (its capsule's footprint), where an item placed from A towards B comes to rest, and how far a sphere swept
+from A towards B gets (`sweep`, a thrown item's flight, §7.1.16). `server/` implements it over its own `World3D` holding the level's static colliders, never
 the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
 is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
 when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
@@ -4822,6 +5034,27 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   An accepted claim stores a unit facing (`MovementRule.stored_facing`): a claim with no direction keeps the last
   one, one straight up or down keeps the last yaw, and the pitch is clamped to ±89° (`MAX_PITCH_DEG`). Tests:
   `tests/unit/movement/movement_rule_test.gd`.
+- The claim's age (#647; ZE10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)):
+  `MovementRule.claim_age(state, peer, now)` is how many host ticks old the player's last accepted claim is at host
+  tick `now` (0 in its own tick), from the record's `claimed_tick`, or -1 when the position is no claim of the
+  current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn), until the epoch's first
+  accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
+  record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
+  keeps the last one's age, and a revive keeps the epoch. The zone task counts a player only while it is at most
+  `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a client that stops claiming (a
+  freeze, or a modified client that goes on polling) stops counting 10 ticks after its last claim. Its companion
+  `MovementRule.credit_gain(state, peer, now)` is how many ticks of credit the player stores at `now` above the
+  least an accepted claim of its epoch left it (the credit not yet topped up counted in, the cap not; -1 as
+  `claim_age`); the record keeps that least as `least_credit`, reset by a placement. An honest client claims one
+  tick of its own clock per host tick, so it stays near 0 (lost claims raise it until the next claim covers them; a
+  frozen host's backlog is spent in the tick it arrives). A modified client that claims one client tick every 10
+  host ticks keeps `claim_age` under 10 but stores 9 ticks a claim (the netcode review of #647): the zone task
+  counts a player only while `credit_gain` is at most `PUSH_TICKS` too, so the credit stored while standing in a
+  zone, whether silent or claiming slowly, cannot buy more than 10 ticks of zone time and travel at once. Spending
+  credit lowers the least, so credit spent and stored again counts as well. A respawn inside a
+  zone therefore counts from its first claim after the respawn, about a round trip later, not from the respawn
+  tick (a deviation from the ADR's §4 row, which the zone task ADR records). Tests:
+  `tests/unit/movement/movement_rule_claim_age_test.gd`.
 
 #### 7.1.6 Pushing apart (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions")
 Living
@@ -4955,15 +5188,16 @@ fallback, and at the death the items then drop at the body (`Items.place_carried
 
 #### 7.1.14 Delivery
 The rule is "the package rests inside its circle, however it got there". So one check runs whenever
-an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
-`core/` finds at the end of its flight (§7.1.16, proposed in #37; whether a thrown package counts is the engineer's
-TD4 there). A package resting inside its own circle is delivered: it
+an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and a throw, whose rest
+`core/` finds at the end of its flight (§7.1.16; the flight built in #642, the cause `thrown`; a thrown package
+counts, the engineer's TD4 (a): `tests/unit/tasks/delivery_throw_test.gd`). A package resting inside its own circle is delivered: it
 stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
 never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
 (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
 placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
 included, and from the marker's height up to that plus the height, both included (1 mm below the marker
-still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
+still counts: float noise between a physics floor and a hand-placed marker): `StationState.contains`, the one
+cylinder test of a station, which the zone task asks with a player's feet (§9.5.18, #647). The rest position is the one
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (a
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
@@ -4986,20 +5220,38 @@ have the player in the air), and §7.1.5's notes on the stamina prediction. Test
 (a lossy link end to end), `tests/unit/movement/movement_rule_claim_loss_test.gd`,
 `tests/unit/net/messages/wire_schema_test.gd`.
 
-#### 7.1.16 Throws (designed in #37; proposed, not built)
-The [throwing ADR](decisions/2026-10-09-throwing-held-items.md) is proposed: the engineer's answers to its TD1 to TD12
-and TE1 are pending, and this section follows each recommendation. The flight runs in `core/` (TE1 (a)), not in
+#### 7.1.16 Throws (designed in #37; the flight built in #642, the intent and the effect in #643)
+The [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD1 to TD12 and TE1 are answered: the engineer took
+every recommendation ([#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719); TD1's
+speed and the provisional gravity, radius and longest flight in the next two comments there), and this section follows
+them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
+and their wire rows (37c, #643, below).
+The client's model, the chaos shapes and the bots' step (37d, #644, below);
+the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e, #645) are in §4.7.52.
+The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
 there would not follow from the commands.
 - **The intent.** `Throw(facing)`, from the living in Round, goes to the first `Throw` rule of the hand item, the
-  role or the mode (§9.2): `HoldsItem`, then the effect `ThrowItem` (speed, gravity, radius, longest flight: the
-  engineer's numbers). The client sends only its facing; a facing that does not normalize to a unit vector (non-finite,
+  role or the mode (§9.2): `HoldsItem`, `OverFloor`, then the effect `ThrowItem` (speed, gravity, radius, longest
+  flight: the engineer's numbers). The client sends only its facing; a facing that does not normalize to a unit vector (non-finite,
   zero, or one whose squared length underflows or overflows) takes the last accepted claim's, as `Strike` does
   (§7.1.10). The host launches from `Items.eye_of` (the floor below the last accepted position plus
   the eye height, as a put-down, §7.1.12) at the rule's speed, without the thrower's velocity (TD10). Prevents: a throw
   farther than the rule, from somewhere else, or through a wall. `Throw` is one of `Intents.PLAYER_ACTIONS`, so the
-  dead never throw and the client sends its claim's twin right before it (§7.1.15).
+  dead never throw and the client sends its claim's twin right before it (§7.1.15). **Built in #643:**
+  `Intents.THROW` (wire kind 17); `ThrowItem` (`core/items/throw_item.gd`, §9.4): `speed_mps`, `gravity_mps2`,
+  `radius_m` and `longest_flight_s` (seconds, converted once with `Ticks.from_seconds` at the throw), each defaulting
+  to 0 so a rule that forgot one fails the mode check; the bounds are placeholders, "not a decision" (the base mode's values: #646,
+  below). `ThrowItem.unit_facing` normalizes without pre-scaling; it asks `Items.fallback_rest`, builds the
+  `ItemFlight`, `Items.launch`es it and emits `ItemThrown` from the flight's own vectors. `OverFloor`
+  (`core/items/over_floor.gd`) is the `no_floor` refusal, a condition rather than a check inside the effect, so a
+  refused throw stops no raise (`RuleRunner` interrupts a channel before the effects run). ModeCheck (§9.1) refuses a
+  `ThrowItem` outside an intent (a reaction or a row's actions), a rule with a `ThrowItem` that lacks a non-negated
+  `HoldsItem` or `OverFloor`, a `radius_m` above `ThrowItem.largest_radius` (min(capsule radius, capsule height less
+  eye height) less `WorldQuery.THROW_RADIUS_MARGIN_M`), and a phase that accepts an intent whose rule (of the mode, a
+  role or an item kind) throws but lists no `FlightTicks`. Tests: `tests/unit/items/throw_item_test.gd`,
+  `tests/unit/content/mode_check_throw_test.gd`, `tests/unit/net/messages/wire_throw_test.gd`.
 - **The flight.** The item is `FLYING`. Each later tick, `FlightTicks` sweeps the arc's segment between two ticks'
   points, each computed from the launch (origin, velocity, gravity, the flight's own count of ticks flown, so a phase
   without `FlightTicks` pauses it rather than making it jump), through a new
@@ -5008,14 +5260,36 @@ there would not follow from the commands.
   in. The mode check keeps the throw's sphere inside the player's capsule at the eye, with a margin, so a thrower pressed against a
   wall can still throw away from it. A living player other than the thrower stops it too (their capsule at the last
   accepted position, as hits read it); the downed are flown over (TD12). Prevents: an item through a crack or a ceiling, and
-  a landing that differs between two runs of the same commands.
+  a landing that differs between two runs of the same commands. **Built in #642:** `ItemState.Where.FLYING` (after
+  `BELT`) keeps an `ItemFlight` (`core/items/item_flight.gd`): o, v, g, the ticks flown n, the fallback f, and what the
+  throw's rule sets at the launch: the thrower's id, the radius, the longest flight in ticks and the launch tick L
+  (`Items.launch` stamps it). The item's `position` is o while it flies. `ItemFlight.point(o, v, g, n)` is the one arc
+  function. `FlightTicks` (`core/items/flight_ticks.gd`, §9.4) skips the launch tick, since a command at L runs before
+  L's tick systems: after tick L + k of a phase that lists it, n is k, the point a client computes as p(t − L). A
+  segment the world's sweep cuts short (any answer other than its end) is a contact. The players are tested on the part
+  of the segment the world leaves, so the earlier of a wall and a player ends it (`FlightTicks.contact_fraction`: the
+  capsule's side, then the balls at its axis' ends). An invulnerable living player stops an item too: a stop is not
+  damage. The thrower is flown through for the whole flight, wherever it stands. Points are never stored: n and the
+  three vectors are the whole state.
 - **The rest.** At the first contact the item drops to `floor_below` of the stop point and rests through
   `Items.place` with the cause `thrown`: `ItemPlaced`, then `item_rested`, so the delivery check (§7.1.14) runs as
   for any rest. That rest is the base point on the floor (the engineer's answer on PR #82, recorded on #37). A flight
   past the longest flight stops at its last point. With no floor below the stop, the item rests where the thrower stood (TD11):
   on `floor_below` of the thrower's feet, asked once at the throw and logged, and the match logs an error, as for a drop
   (§7.1.13): a level with a hole. A thrower over no floor is refused (`no_floor`), and the item stays in the hand.
-  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach.
+  Prevents: a package thrown off the map's edge hanging in the air out of everyone's reach. **Built in #642:**
+  `FlightTicks` rests the item through `Items.place` with `Items.THROWN` (`place` clears the flight), at
+  `floor_below(Items.lifted(stop))`, else at the flight's fallback with an error logged. `Items.fallback_rest(ctx,
+  feet)` is the fallback's question, which `ThrowItem` asks at the launch. A fallback that is itself no floor rests
+  the item at the stop, with its own error; since #643 no throw reaches it (`OverFloor` refuses one, ModeCheck
+  requires it, and `ThrowItem` itself logs an error and throws nothing over no floor). Readers of `where`: `ItemOnGround`
+  rejects an item in flight as `unavailable`, `Items.take` and Delivery act only on the ground, the snapshot's items
+  in `core/` show `FLYING` at o, and `Items.free_markers` counts no flying item. Tests: `tests/unit/items/item_flight_test.gd`,
+  `flight_ticks_test.gd`, `items_test.gd` (the launch and the readers), `tests/unit/tasks/delivery_throw_test.gd`,
+  and the cause in both lists of `tests/unit/net/messages/wire_core_test.gd`. #642's flight tests put an item in
+  flight with a test's `Use` (`FixtureThrow`), kept on purpose: their numbers and rule lie outside `ThrowItem`'s
+  bounds and required conditions. The test that the points decoded from `ItemThrown` equal `FlightTicks`' sweeps, exactly,
+  is `tests/unit/net/messages/wire_throw_test.gd` (#643).
 - **Who sees it.** `ItemThrown` (item, thrower, origin, velocity, gravity as a `vec3` so that it round-trips
   exactly, launch tick) goes to everyone; nothing in it is hidden (§5) while the rule
   belongs to the item kind or the mode (a role-owned one reveals the role, §9.2). The snapshot stays avatars only (§4.3): the
@@ -5023,11 +5297,34 @@ there would not follow from the commands.
   avatars' timeline (§7), until `ItemPlaced`; its view joins `SightHider`'s group as every item view (§4.7.10), depth-tested with no trail, and its launch
   sound goes through `SoundChooser`, cut beyond the hearing range like every world sound. The
   flight's geometry reaches the command log as `WorldQuery` answers (§3.3); `server/` originates no command for it.
-- **Open for the engineer:** strength and range (TD1), which items (TD2), what a thrown item does to a player (TD3),
-  whether a thrown package counts in its circle (TD4, recommended: yes, by the rule), where an item may come to rest
-  (TD5), a cost (TD6), the key (TD7), catching (TD8), stop and drop or bounces (TD9), whether a running throw goes
-  farther (TD10, recommended: no), where an item with no floor below rests (TD11) and whether the downed stop an item
-  (TD12). The proposed issues 37a to 37f are in the ADR.
+  **Built in #644:** `ClientModel` folds `ItemThrown` (§4.6.1.2; `client_model_test.gd`), and `ItemViews`,
+  `TargetChoice` and `PlaycheckSteps` skip a flying item (`item_views_test.gd`, `target_choice_test.gd`,
+  `playcheck_steps_test.gd`); `ScenarioBot` folds it into `Where.FLYING`, whose place it cannot know, and the
+  `Throw` step (§9.7) sends it (`scenario_runner_test.gd`); `throw_scenarios_test.gd` throws a package end to end
+  (with the base mode's own rule since #646), through the core runner and the network, where the leak
+  check compares each `ItemThrown` exactly; chaos sends its facing extremes (§4.6.5.3; `chaos_frames_test.gd`,
+  `chaos_test.gd`).
+- **The base mode throws (37f, #646).** Its one `Throw` rule (`HoldsItem`, `OverFloor`, `ThrowItem`) takes every
+  item, and Round accepts `Throw` from the living and lists `FlightTicks` after `ChannelTicks`, before `TaskTicks`
+  (§3.2). Provisional numbers (#302 comments 6085904317, 6096074314): 5 m/s, the project's physics gravity (9.8
+  m/s²), a 0.15 m radius, a 3 s longest flight. **House's roof:** walkable, but its door may be locked, so instead of
+  TD5 (b)'s "no rest" volume the speed is kept below what reaches it: the highest speed, in 0.5 m/s steps, at which
+  no throw from a standable spot near the roof rests on it (5.5 m/s; the tops of the balcony's 1 m railings decide
+  it, since a 1 m jump may reach them and the eye then stands 1 m higher), less one step. At 5 m/s the highest arc
+  from there tops out at 7.08 m, below the 7.35 m a 0.15 m item needs to clear the roof's parapet.
+  **Tests:** `tests/integration/levels/house_roof_throw_test.gd` flies 648 throws from each spot of
+  `house_throws.gd` at the rule's own numbers against House's host collision world and fails on any rest on the
+  roof (a later speed, gravity, radius, eye height or level change that reaches it turns it red; seen red at 6 m/s);
+  `tests/unit/content/base_mode_throw_test.gd` (the rule and its numbers), `delivery_content_test.gd` (Round's tick
+  order), `tests/unit/items/throw_replay_test.gd` (a throw replayed from its command log), `chaos_test.gd`
+  (§4.6.5.3), and the scenario `crew_throws_a_package_into_its_circle` (§9.7). The level convention: `levels/CLAUDE.md`.
+- **The engineer's answers** (all as recommended, #302): strength and range (TD1 (a); 5 m/s since #646,
+  provisional, above), which
+  items (TD2), what a thrown item does to a player (TD3 (b): stops and drops at its feet, no damage), a thrown package
+  counts in its circle (TD4 (a)), where an item may come to rest (TD5 (a); House's roof by the speed, #302 comment
+  6096074314), a cost (TD6), the key (TD7), no catching
+  (TD8 (a)), stop and drop, no bounces (TD9 (a)), no running throw (TD10 (a)), the rest with no floor below the
+  thrower's feet (TD11 (a)), the downed flown over (TD12 (a)). The issues 37a to 37f follow the ADR's split.
 
 #### 7.1.17 The crouch (designed in #727; answered by the engineer, not built)
 The engineer decided a crouch for every player (#727: hold Ctrl; Shift while crouched moves a bit faster); the
@@ -5177,7 +5474,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
   a stateless definition, and what changes has one of three homes:
   - **`MatchState`** (§3.1), for what outlives a phase: players (with their hand and belt items, M4-5); items (kind,
     where: on the ground, in a hand, on a belt or locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
-    and alone reads and writes (Delivery: which subtasks are done; #36: the time in the zone per subtask); stations;
+    and alone reads and writes (Delivery: which subtasks are done; the zone task, #647: the ticks counted per zone); stations;
     **bodies** (peer → rest position, written by `LifeRules.die` before `player_died`, from the death until the
     respawn (`LifeRules.respawn`, M4-3) or the leave; M4-2); two tables keyed by names from the data,
     **cooldowns** (the tick at which a player last paid a key, such as `hit`) and **counters** (an integer per player
@@ -5200,7 +5497,10 @@ part is usable in data once its row or entry names the PR that built it. Every n
     lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`) but
     lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a phase that accepts an intent whose
+    rule throws (a `ThrowItem`) but lists no `FlightTicks` (#643); a `ThrowItem` outside an action or in a rule that
+    lacks `HoldsItem` or `OverFloor` (`ThrowItem.required_conditions`); a required condition counts only when it is
+    not negated (#643); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
     (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
     condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
@@ -5266,7 +5566,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; later thrown, at the end of its flight (§7.1.16, proposed in #37). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`; later `thrown`), the rest position |
+| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; thrown, at the end of its flight (§7.1.16, `FlightTicks`, #642). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`, `thrown`), the rest position |
 | `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), before its hand and belt items drop | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before its hand and belt items drop | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
@@ -5348,7 +5648,7 @@ phase classes come in the task each row names.
   (§3.5; own names since #550, `PlayerNames`); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the
   checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT, and `life_deadline`, M4-2), settings and
-  `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5), tasks (`MatchTask`: its task type and `TaskState`,
+  `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5; flying with its `ItemFlight`, #642), tasks (`MatchTask`: its task type and `TaskState`,
   no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and
   `reset_match` for `ResetMatch`.
 - server/ and the tests drive `Match`: `Match.new(mode, seed, world, layouts, content_hash)` (the host's content
@@ -5372,14 +5672,18 @@ phase classes come in the task each row names.
   `player_died`), `drop_carried` (a leaving player's items to the floor below its last accepted
   position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
-  `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
+  `Items.SPAWN`), plus, for a throw (#642, §7.1.16), `launch` (the item leaves the hand or belt into its flight) and
+  `fallback_rest` (the floor below the thrower's feet); `FlightTicks` rests it through `place` with `Items.THROWN`.
+  `free_markers` counts no item in flight. The causes are constants there. Each condition names its own rejection
+  reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62; shared since #79): a task type marks a subtask done in its own task state, then
   calls `Tasks.subtask_done(ctx, task, detail)`, which emits that task's `TaskState` event (`TaskStateEvent`, not
   the task type's `TaskState` class; M4-5, E30: `Tasks.state_of`)
   and `TaskProgress` (everyone; `Tasks.progress` counts the subtasks done and in total over every task), then raises
   `subtask_done`. `Tasks.announce` emits every task's `TaskState` in id order; `DealTasks` calls it after the deal. `Tasks.all_done` is "every task done"
   for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
-  `Delivery.State`) is the example for #36. `StationKind.radius_m` and `height_m` have a neutral default of 0,
+  `Delivery.State`) and the zone task (`core/tasks/zone_task.gd`, `ZoneTask.State`, #647) are the two task types.
+  `StationState.contains` is the one cylinder test of a station, which both ask. `StationKind.radius_m` and `height_m` have a neutral default of 0,
   which the mode check refuses: the data sets them.
 - **Win** (`core/win/`, 2h #64): the win conditions' parts `AllSubtasksDone`, `NoneAlive` and `ClockEnded`, and the
   transition actions `StartClock` and `EndMatch`. `Match` itself counts the clock and raises `clock_ended` (2a);
@@ -5406,9 +5710,9 @@ phase classes come in the task each row names.
   was left in `PlayerState.knockdown_left` (M4-4), so `LifeTicks` sees no deadline then. A later weapon
   or a trap calls `damage`; the class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
 - **Channels** (`core/channel/`, M4-4 #140): an action that takes time, the generic primitive the raise uses and
-  any later timed action reuses (#36's zone task may not: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)
-  recommends counting presence in its own tick, standing being no action, ZD1 (a), open; with ZD1 (b) it is a
-  `ChannelEffect`). A `ChannelEffect` (an effect, abstract)
+  any later timed action reuses (the zone task does not: it counts presence in its own tick, standing being no
+  action, ZD1 (a) of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), the engineer's answer on #302; built
+  in #647). A `ChannelEffect` (an effect, abstract)
   starts a `Channel` (state: its effect, the rule it came from, actor, target, start tick, ticks done and needed) for
   its actor on the intent's `target`
   (`Channels.target_of`: the channel's target while it runs, else the intent's, when the intent declares one);
@@ -5430,7 +5734,7 @@ phase classes come in the task each row names.
 | Rule | trigger → conditions → effects; an **action** is a rule on an intent, a **reaction** a rule on a fact | `Rule` | inside its owner | PickUp, PutDown, the knife's Use, Raise, StopRaise, GiveUp |
 | Condition, cost | *only if*; a cost is also paid | `Condition`, `Cost` subclasses | inside a rule or a win condition | §9.4 |
 | Effect, transition action | *what happens*; a transition action is an effect that a transition row runs, with no actor | `RuleEffect` subclasses | inside a rule or a row | §9.4 |
-| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, TaskTicks |
+| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, FlightTicks, TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
@@ -5478,6 +5782,7 @@ names the facts that do.
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | actions only: reads the actor | 2e (#61) |
 | `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | 2e (#61) |
+| `OverFloor` | there is a floor below the actor's last accepted position (`WorldQuery.floor_below` of it lifted, the point `Items.fallback_rest` asks): the base mode's `Throw`; ModeCheck requires it, not negated, in every rule with a `ThrowItem` (§7.1.16) | none | `no_floor`: only the sender's own position | actions only: reads the actor | 37c (#643, `core/items/over_floor.gd`) |
 | `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | actions only: reads the actor | M4-5 (#141, `core/items/carries_item.gd`) |
 | `HandNotTwoHanded` | the actor's hand item, if any, is not two-handed (`ItemKind.hands` 2): a package carrier cannot draw a belted knife (V13) | none | `two_handed`: what it holds is public | actions only: reads the actor | M4-5 (#141, `core/items/hand_not_two_handed.gd`) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | actions only: reads the actor | with the first mechanic that needs it (#34) |
@@ -5499,6 +5804,7 @@ names the facts that do.
 | `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1.11; the belt M4-5). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61); the belt M4-5 (#141) |
 | `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
+| `ThrowItem` | the hand item leaves the actor's eye (`Items.eye_of`) into a flight (§7.1.16): the claimed facing normalized, else the last accepted claim's, times `speed_mps`, without the actor's velocity; the fallback rest below its feet is asked once (`Items.fallback_rest`). Only in an intent's rule, after `HoldsItem` and `OverFloor` (ModeCheck requires both); over no floor anyway it logs an error and throws nothing. A phase that accepts such an intent lists `FlightTicks` | `speed_mps` (1 to 40), `gravity_mps2` (1 to 40), `radius_m` (0.02 to 0.5 and at most `ThrowItem.largest_radius` of the mode's `PlayerRules`), `longest_flight_s` (0.5 to 30); each defaults to 0, so the data sets it; the bounds are placeholders, "not a decision" | `ItemThrown` (everyone); the flight's rest: `ItemPlaced` (thrown) through `FlightTicks` | 37c (#643, `core/items/throw_item.gd`) |
 | `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
@@ -5543,7 +5849,8 @@ each sum with the chosen map's markers of that tag and each colour count with it
 |---|---|---|---|---|---|
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
-| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36's zone task, designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)) | none | the task types' events | 2f (#62) |
+| `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight; a phase that accepts an intent whose rule throws (a `ThrowItem`) lists it, or the mode check refuses the phase (#643) | none | `ItemPlaced`, and what the rules on `item_rested` emit | 37b (#642, `core/items/flight_ticks.gd`) |
+| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.18, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`, `SetProfile` (#551: name and body colour, §3.5; `out_of_bounds` also for a colour past the ten); leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged`, `ProfileChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58); #551 (`SetProfile`) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
@@ -5586,10 +5893,10 @@ Settings:
   a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
-  of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks` 1 (1 to 1, the
-  number of the mode's task types; #79); `banned_task_types` (a set of task types, empty; with one type nothing can
-  be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision"); `dissidents` 1 (0 to
-  9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
+  of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 10 min (1 to 60);
+  `tasks` 1 (1 to 1, the number of the mode's task types; #79); `banned_task_types` (a set of task types, empty;
+  with one type nothing can be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a
+  decision"); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
   maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed crawl at 1 m/s (`crawl_speed_mps`, 0.1 to the
@@ -5605,8 +5912,8 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
-  present, time up.
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery, Hold
+  the zone (§9.5.18). Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
@@ -5629,7 +5936,11 @@ accepted intent that no rule handles. 2f (#62) added Delivery to the task types 
 LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
 between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
-shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. Tests: the mode check of 2a,
+shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
+the task types, the `zones` setting and `tasks` 2 (1 to 2); the engineer took them out again on #842 ("only from the
+mode, now": the zone task's code, its tests and the House's zones stay; [his answer](https://github.com/xperiaroco2/prime-game/pull/842#issuecomment-6110558513)).
+`FixtureBaseModeWithZones` (`tests/fixtures/tasks/base_mode_with_zones.tres`) is the base mode as #649 made it, read
+from the shipped one when it loads, for the zone task's tests, scenarios, chaos and perf runs. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
@@ -5694,21 +6005,22 @@ map screen lights the rooms that hold a `package` marker, never a circle's.
   colour is what players see. The mode check refuses a circle station kind and a package item kind with the same
   spawn tag.
 - Check, on `item_rested`: a package of an undone subtask that rests on the ground inside its circle's cylinder
-  (`Delivery.rests_in`, §7.1.14: its rest position within the radius horizontally, and from the marker's height up to
+  (`StationState.contains`, §7.1.14, since #647; `Delivery.rests_in` before: its rest position within the radius horizontally, and from the marker's height up to
   that plus the height, edges included) is delivered: locked (no longer interactive), its circle done, its subtask
   done; then `PackageDelivered`, `TaskState` (M4-5), `TaskProgress` and `subtask_done` (detail: the subtask's index
   and its package), in that order. Any other item in a circle, or a package in another package's circle, does nothing.
 
 Produces: `StationPlaced` and `ItemSpawned` (with the circle and colour) in id order, `PackageDelivered`, `TaskState`
 (its task's subtasks done and in total), `TaskProgress` (the subtasks done and in total, over every task); `item_rested` (spawn), `subtask_done`. Its task
-state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick.
+state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick; the zone task
+(§9.5.18, #647) is the task type that ticks.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
 shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
-private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder; a done subtask is never delivered
-again), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
+private task event), `tests/unit/tasks/delivery_test.gd` (the check; a done subtask is never delivered again; the cylinder's
+edges moved with the test to `tests/unit/match/station_state_test.gd` in #647), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
 `tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
 `TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's mode
 check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
@@ -5899,6 +6211,68 @@ Tests: the mode check and the layout check (`tests/unit/content/content_modes_te
 `NextStage`, waits past the 10 s knockdown while bot 2 stays down, raises it, sends `NextStage` again, dies at once
 and respawns; nobody else dies; expects `none`) in the core runner and in `tools\run.cmd bots`.
 
+#### 9.5.18 Zone task (task type)
+What it does: one shared task of `zones` zones (#36); a zone is done once living players have stood in it for
+`seconds` in all, and a subtask is a zone. Nobody owns the task: any living player of any role works any zone. The
+second task type, beside Delivery (§9.5.4). Dealt by the base mode from #649 until the engineer took it out on #842
+(only from the mode; it may come back with a name and a how-to card), and by `FixtureBaseModeWithZones` (§9.5.1): `content/tasks/hold_the_zone.tres`, id
+`hold_the_zone`, "Hold the zone" (the players' word; the Ukrainian UI's «Утримати зону» once the client is
+translated), described "Stand in the zone until it fills."
+Settings: `zone` (a `StationKind`: spawn tag, radius, height, palette), `subtasks_setting` (a whole-number setting of
+the mode), `seconds` (0.05 to 600, `ChannelEffect.seconds`' bounds; the neutral default 0 is refused, so the data
+must set it; data, not a lobby setting, ZD7), `zones_rng` (`zones`). The engineer's provisional values (#302
+comment 6085251071), in its data since #649: 10 s (200 ticks), a `zone` station kind of radius 1.5 m and
+height 2.5 m (a jump of 1 m plus the host's slack stays inside) with one yellow colour, spawn tag `zone`, one zone
+per subtask; the fixture mode's `zones` setting is 1 (1 to 1, §9.5.1). The greybox's four `zone` markers along z = 7 are
+placeholders, "not a decision" (§9.6). House has three (#651, M7-Z5, placeholders on the engineer's delegation until
+he moves them, #302 comment 6085904317): the yard (48, 0, 37), the garden (52, 0, 20) and the landing (30, 3.2, 41).
+None in the attic, whose sloped roof leaves no clear spot, and none in the basement, where the scenarios' flat fake
+finds no floor (§9.7; #681 moved the generator hall's (44, −3.2, 37) up to the yard).
+- Deal: N zones, N the setting, whatever the player count, on distinct random `zone.spawn_tag` markers, each in a
+  distinct random palette colour (both from `zones`); station ids follow spawn-point order and zone *i* is subtask *i*.
+  `StationPlaced` in id order. A map short of markers or a palette short of colours deals nothing and logs a match
+  error, as Delivery's deal; the fit check refuses such a lobby first. N = 0: a task with no subtasks, done.
+- Demands: N `zone` markers and N palette colours.
+- Tick (`TaskTicks`, Round in the base mode; `ModeCheck` refuses a ticking task type that no phase lists it in): for
+  each undone zone in station-id order, it counts when a player, in peer-id order, is living (life ALIVE, any role,
+  ZD3), stands in its cylinder (`StationState.contains` with the feet of its last accepted claim) and that claim is at
+  most 10 host ticks old with at most 10 ticks of credit stored since (`MovementRule.claim_age` and `credit_gain`
+  at most `PUSH_TICKS`, ZE10, §7.1.5). A counting zone gains one
+  tick, however many stand in it (ZD4); leaving pauses it and it keeps its ticks (ZD2). At `seconds` converted once
+  (`Ticks.from_seconds`, at least 1 tick) it is done: `ZoneProgress` first, then `Tasks.subtask_done` (ZE5).
+  Nothing else stops or resets it (ZD9): carrying, using, swapping, a raise, a hit that does not knock down. A
+  knockdown stops it in its own tick (the hit and `LifeTicks` run before `TaskTicks`); a respawn inside counts from
+  its first claim after the respawn (the placement's epoch).
+- Mode checks (ZE3, `ModeCheck`): two station kinds of the mode's task types with one id or one spawn tag, or one kind
+  held by two task types, are refused (stations take markers without asking whether one stands there).
+
+Produces: `StationPlaced` (everyone) in the deal; `ZoneProgress` (everyone, §4.2) when a zone's counting changed
+since its last one, at most once per zone per `ZoneTask.WINDOW_TICKS` (5, "not a decision"; a change inside the
+window goes out at its end with that tick's state, even when counting is back where it was), and on a done zone, in
+its own tick, before its task's `TaskState` and `TaskProgress`; `subtask_done` (detail: the subtask's index and its
+station). Its task state (`ZoneTask.State`): per subtask its station, its ticks, whether it counts, whether it is
+done, and its last `ZoneProgress` tick with whether its counting changed since. The state lives in `MatchState`
+(the phase object dies with Round), so Round's end stops the count and `ResetMatch` clears it.
+Visible to: everyone, all of it, as Delivery. `ZoneProgress` names no player, and counting reads no role: a public
+event that depended on a role would reveal it (§9.2, ZD3).
+Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
+(M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
+`MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
+provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.51).
+Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
+every map of the base mode, each read in the host's collision world since #681, and the flat fake shown hiding a spawn
+point beside an upstairs zone), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
+`dissident_works_a_zone_alone` (§9.7), `tests/unit/tasks/zone_deal_test.gd`
+(the deal, the demands, the check), `zone_rules_test.gd` (every row of the ADR's interruption table, the freeze row
+and a slow claimer's, the clock's
+last tick, `ResetMatch`), `zone_progress_events_test.gd` (the window, 100 edge crossings, ZE5's order, the wire round
+trip), `zone_role_swap_test.gd` (two roles swapped emit the same task events; planted "counts the crew only", it
+failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movement/movement_rule_claim_age_test.gd`,
+`tests/unit/content/mode_check_stations_test.gd`; fixtures `tests/fixtures/tasks/fixture_zone_modes.gd`. House's zones
+(#651): `tests/integration/levels/house_markers_test.gd` (ZE9's spacing through the shared
+`tests/fixtures/tasks/fixture_zone_spacing.gd`, the fit at the most zones, each cylinder on flat floor clear of walls and
+ceilings in the host's collision world, and a zone by a wall or over the stairs refused).
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
@@ -5907,6 +6281,7 @@ content/
   roles/crew.tres, roles/dissident.tres
   items/package.tres, items/knife.tres        the knife's Use rule inside it
   tasks/delivery.tres              with its circle station inside it
+  tasks/hold_the_zone.tres         the zone task, with its zone station inside it (#649)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up.tres
   scenarios/                       bot scenarios (§9.7), one per file
   howto/tasks/delivery.tres        a task type's how-to card, one per task type (#254, §4.7.36; client data, not the mode's)
@@ -5914,7 +6289,7 @@ content/
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
-  greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle and respawn markers
+  greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with the stations' markers
 ```
@@ -5948,8 +6323,10 @@ levels/
   markers along z = −12 and 10 `circle` markers along z = 12 (4 m apart, so no package spawns in a circle), and
   4 `knife` markers along z = −5: every tag for 10 players at the default settings and at the most packages. M4-3
   (#139) adds 4 `respawn` markers at (±14, 0, ±5), each with 1 m free (placeholders, under the MVP content ADR, for
-  the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. The
-  content test checks that fit and that both levels are flat, which the scenarios' fake world assumes.
+  the engineer's approval; L-1 keeps or replaces them), which the layout check demands from M4-3 on. #649 adds 4
+  `zone` markers at (−9, 0, 7), (−3, 0, 7), (3, 0, 7) and (9, 0, 7) (placeholders, "not a decision", ZD10 (a)),
+  which keep ZE9's distances. The content test checks that fit and that both levels are flat, which the scenarios'
+  fake world assumes; `zone_content_test.gd` the fit at the most zones and ZE9's spacing.
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
@@ -5962,7 +6339,7 @@ levels/
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
   scene-tree order, the level order of §3.3 (`MarkerReader`, 2j): each where the scene puts it, through its
   `Node3D` parents; a marker in two `spawn_` groups, a `spawn_` group on a node that is not a `Marker3D` and a
-  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`) are snapped
+  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`, `zone`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
   the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
   This convention is provisional until 4e settles it with the designer (§10).
@@ -5980,7 +6357,7 @@ told. One format runs in two runners.
   steps and targets) are data only and live in `core/content/scenario/` (§9.3), so `content/` still uses only the
   content API; the runners live in `tests/harness/`. It holds:
   - the setup: the mode; the map, one of the mode's maps; the seed; the number of bots (bot 1 is the host's own
-    client); the match settings that differ from the defaults; roles forced per bot (debug builds only, invariant 8;
+    client); the match settings that differ from the defaults, numbers (`settings`) and sets of task type ids (`id_sets`: the host's bans, #79; M7-Z2), which `problems()` checks as the lobby would: a set the mode does not declare, an id that is none of its task types, and bans that leave fewer types than `tasks` are refused, so a ban of one of two types also lowers `tasks` in the same setup (`DealTasks.settings_problem`); roles forced per bot (debug builds only, invariant 8;
     otherwise the deal draws them from the seed); the match clock's length in seconds, forced with the debug command
     `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every
     bot joins (sends `Hello`) at the start and acknowledges every `LoadMatch` at once; the steps `Join` and `LoadAck`
@@ -6012,6 +6389,7 @@ told. One format runs in two runners.
 | `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (at the crawl speed with no sprint while downed, M4-2; a dead bot cannot walk and fails the step), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
+| `Throw(towards, pitch_deg)` | faces the target flat, tilts that facing up by `pitch_deg` (-90 to 90) and sends `Throw`; standing on the target with a pitch other than ±90 fails the step (a zero facing would throw along the last one) | its `ItemThrown` of the item it held arrives (a `WaitFor` of `ItemPlaced` with cause `thrown` waits for the rest) |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |
 | `Jump` | claims a jump | the claim is sent |
 | `Expect(event, fields, within)` | checks | it received a matching event since its previous step, or within `within` seconds |
@@ -6026,9 +6404,10 @@ told. One format runs in two runners.
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
 one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
-- `Join` also takes `expect_rejected` (it sends `Hello`). `Ready`, `Setting`, `ReturnToLobby`, `PickUp`, `PutDown`
-  and `Use` are done by their own answer: the bot's `ReadyChanged`, a `SettingsChanged` holding the value, the
-  `PhaseChanged` to `lobby`, its `ItemPickedUp` of that item, `ItemPlaced` (put down) of the item it held, and
+- `Join` also takes `expect_rejected` (it sends `Hello`). `Ready`, `Setting`, `ReturnToLobby`, `PickUp`, `PutDown`,
+  `Throw` and `Use` are done by their own answer: the bot's `ReadyChanged`, a `SettingsChanged` holding the value, the
+  `PhaseChanged` to `lobby`, its `ItemPickedUp` of that item, `ItemPlaced` (put down) and `ItemThrown` of the item it
+  held, and
   `until` naming this bot when the event has a `peer`.
 - `WaitFor` and `ExpectNone` look at the events from their own start; `Expect` also at those since the previous
   step started, so it sees what arrived with the previous step's answer (a `PackageDelivered` after a
@@ -6043,7 +6422,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `stop_m` short. A dead bot claims nothing at all, standing or walking (M4-2).
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
-  right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
+  right after the joins at the start, and its settings and sets in one `ChangeSettings` from bot 1 after them (`BotScenario.setup_change()`, in both runners).
 - `fields` match a subset of the event's payload, as the bot received it (name and fields): text as text, numbers
   and vectors approximately, and `peer` (and the raise events' `raiser` and `target`, M4-4) holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
   for one peer whose payload names none (`SelfStatus`) matches `peer` as the bot that received it (3h). `never` names an event, fields and a
@@ -6052,7 +6431,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
   package in item-id order, from 1; tasks are shared, #79), `circle_of_held` (of its hand item), `nearest(kind)` (on
   the ground: not in a hand or on a belt, which the bot follows from `ItemPickedUp`'s `belted` and `Swapped`, M4-5), `bot(i)` (where it last saw
-  that player), `point(x, y, z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the
+  that player), `point(x, y, z)`, `station(kind, n)` (the n-th station, from 1, of that `StationKind` id in station-id order, from the bot's own `StationPlaced`s; a `WalkTo` to it takes `stop_m` 0, and the runners' arrival slack of 1 mm ends the walk: M7-Z2, ZE7 (a), for the zone task, whose zone the bot finds only this way). A target the bot cannot know fails the scenario, so a scenario also proves that the
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
@@ -6085,8 +6464,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
     four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
     still read every map's markers through the flat fake, so those maps must read there without an error: no
-    delivery circle below y = 0 (it would find no floor) and no two markers of different tags at one (x, z) (the
-    fake puts every circle at y = 0). `content_modes_test.gd` reads them so. One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
+    station marker (a delivery circle or a zone, #681) below y = 0 (it would find no floor) and no two markers of
+    different tags at one (x, z) (the fake puts every station marker at y = 0). `content_modes_test.gd` reads them
+    so; ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.
@@ -6097,7 +6478,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6.1).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
   - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
-    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10).
+    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11.10). Its match
+    (`PerfScenario`, on `FixtureBaseModeWithZones` since #842) keeps the default draw, both task types since #649: with 10 bots each of the greybox's four
+    zone markers lies on one of spokes 1 to 4 (within 0.7 m), so whichever zone is dealt, one spoke crosses it and the
+    run meters `ZoneProgress` too.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -6125,7 +6509,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
   package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
   `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
-  network runner's travel after a respawn). The first
+  network runner's travel after a respawn). #646: `crew_throws_a_package_into_its_circle` (a crew bot picks up the
+  only package, walks to 3.6 m short of its circle and throws it 45 degrees up with the base mode's `Throw` rule; it
+  rests in the circle and is delivered, TD4 (a), and the crew wins). The first
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
   `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
   `none`. None of M4-5's runs in `bots-enet`.
@@ -6137,6 +6523,18 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
   with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6.5.8 The wire has its
   numbers); in one process it took 84 s.
+  M7-Z3 (#649; the zone task ADR's §7): three scenarios play the zone, each expecting `crew`; since #842 they live in
+  `tests/fixtures/scenarios/` on `FixtureBaseModeWithZones` (the base mode no longer deals the zone task, so the
+  scenarios above no longer ban it), and `bots` and `scenarios_test` play that folder too:
+  `crew_works_every_zone` (the default draw with one package: a crew bot delivers it, another walks to `station(zone,
+  1)` and holds it until its `ZoneProgress` at 200 ticks, and the crew wins on the second subtask),
+  `zone_paused_by_a_knockdown` (Delivery banned: the crew bot holds the zone from 1.2 m short of its centre, on its
+  approach side; the dissident strikes it from 1 m further out, outside the zone and inside the knife's reach, and
+  knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
+  the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
+  it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
+  inside the raise's 2 m reach; the zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
+  a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
@@ -6144,13 +6542,13 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), proposed: its game rules wait for the engineer's ZD1 to ZD11) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
+| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.18; the client's look in #650, M7-Z4, §4.7.51; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
 | Delivery by meaning (#683): items of several kinds, each to its own place, no colours, on the House only (designed in its [ADR](decisions/2026-10-10-delivery-by-meaning.md), proposed, not built; the engineer answered every question and approved the design on PR #713, DD9 (c) included: the greybox, a test bench only (#767), keeps today's colour Delivery for its bot scenarios and the leak test) | a second Delivery `.tres`, listing the House alone in `TaskType.maps` (the Generator's G8; today's lists the greybox alone): routes, each an item kind and its drop-off station kind; one item kind per kind of item; one drop-off station kind per place, with its own spawn tag and no palette; one marker per drop-off tag on the House | a second task type, `DeliveryByMeaning`, and one data class, `DeliveryRoute` (a sub-resource, no behaviour); today's `Delivery` unchanged; `TaskType.station_kinds()` replaces the four finders of a type's station kinds (`MarkerReader`, ModeCheck, `WireBudget`, the client) | none: `StationPlaced`, `ItemSpawned` (its colour white for these items), `PackageDelivered`, `TaskState` and `TaskProgress` stay | none in `Match` or the loop, and no wire change. Outside `core/`: the House gains drop-off markers and loses its circles; the client draws drop-offs and items by kind, and no marker through walls on any map (the engineer's DD4 (a)); the bots and the leak test keep today's Delivery on the greybox, and the House's is tested without bots (unit, House and wire-codec tests) |
 | Photo task (#687): load a film, shoot, print and hang on the House map (designed in the [photo task ADR](decisions/2026-10-10-photo-task.md), proposed, not built; the engineer answered all its questions on 2026-10-10, the drafted words included) | a task type `.tres` (five station kinds, the camera, the photo spot, the box of films, the printer and the board, all but the photo spot with an `Interact` rule, the spot a display kind; `frames_per_film`; the frame's numbers; its own subtasks setting), two item kinds (the film, the photo, each with a cap), the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays the photo task; unit, House and wire tests stand in, the ADR's PE18), the mode's task types | on top of the Generator's `Interact` parts (#679, G1): one task type, `PhotoTask`, whose deal places a station on every marker of its five kinds and whose `use_station` loads a film or takes a shot by the camera's state, gives a film, prints and hangs; `PhotoFrame`, pure frustum math the host and the client share; the cooking design's parts by name (#682: `GiveItem.give_new` with its cap, tiered by a `TaskType.cap_tier` the photo task adds so a spammed box never vanishes the film in a camera, and the existing `Cooldown` cost for the box, as its herb beds; `Items.give`, a take beside a two-handed item going onto the belt, the engineer's rule for every take; the moves that lay or lock an item at a station for the camera's film and the board; `Items.vanish` for a printed film; a move serial per item, bumped by the cooking design's one move helper, from which the camera's film is derived; `TaskType.use_reasons()`) | four, all everyone: `FilmLoaded`, `ShotTaken` (with the record of the avatars near the lens at that tick, from which each client renders the picture), `PhotoPrinted`, `PhotoHung`; `ItemSpawned`, `ItemPickedUp`, `ItemVanished`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: the film is taken out by the existing `PickUp`. The host decides who is in the shot from its own world (the frame and `WorldQuery.line_of_sight`, invariant 1), never from a client's image; the picture is each client's render from public data, so no image crosses the wire and every player receives the same task events (§5). Outside `core/`: four wire rows and protocol bumps, the viewfinder, the camera's frames counter and the render on the client; no scenario on the greybox |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Car repair (#688): hold the lift, fit the part, on the House map (designed in the [car repair ADR](decisions/2026-10-10-car-repair-task.md), proposed, not built; the engineer answered all its questions on 2026-10-10, the drafted words included, and approved it for the MVP only: a more interesting mechanic will replace it later) | a task type `.tres` (four station kinds, the car, the lift panel and one bin per part kind, each with its `Interact` rule, and the needed part's picture on a garage wall, a display kind; the list of part item kinds; the fit's and the rise's seconds; the car footprint's half-width and clearance; its own subtasks setting), one item kind per part kind, the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays car repair; unit, House and wire tests stand in, the ADR's §7), the mode's task types | on top of the Generator's `Interact` parts (#679, G1) and the cooking design's `GiveItem` and `Items.give` (#682, C1, C2; a take beside a two-handed item goes onto the belt, the engineer's rule for every take): one task type, `CarRepair`, whose deal draws the needed parts and whose hold hooks raise and drop the car and fit a part; one effect, `HoldStation`, a channel on a station (timed for the fit, with no end for the lift). The channel primitive gains a station as its subject, a channel with no end and a mark for a stop at the phase's end; `LifeRules` gains `kill`, a death with no knockdown, for the drop, with a queue of kills (`kill_later`, `settle_kills`) that `Match` drains after each command's dispatch and each tick system and `Channels.advance` after each channel's step (a change to `Match`'s step, ADR RE17); `FitCheck.shortfalls` appends a new `TaskType.layout_problems` (RE14); the mode check gains the `kills()` and `LifeTicks` rule (RE6); `LifeRules.damage` stops a channel only when its effect's `hit_stops` is set | four, all to everyone: `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`; a drop's deaths are `Died`, as every death | no new intent: `Interact` starts a hold, `StopRaise` (already "stop my channel") ends it. Outside `core/`: the wire rows and two protocol bumps; a client-only collision layer for the moving car, since the host's world reads layer 1 only (§4.5.9) and the host does not check movement through walls (§7.1.9); a House integration test of a drop that kills only the players under the car (bots do not play House, §9.7). It depends on two mechanics designed elsewhere: a crouch for every player (#727, the [crouch ADR](decisions/2026-10-10-crouch.md); the fitter works crouched, the raised car too low to stand under) and the reworked knockdown (#728) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
-| Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), proposed, §7.1.16) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2); its numbers are the engineer's (TD1) | two: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, and the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
+| Physics throwing (#37; designed in its [ADR](decisions/2026-10-09-throwing-held-items.md), its answers given on #302, §7.1.16; the flying state, the arc and `FlightTicks` built in #642; the intent, `ThrowItem`, `OverFloor` and `ItemThrown` in #643; the base mode's rule in #646) | a `Throw` rule on the mode, for any held item (or one per item kind: the engineer's TD2): `HoldsItem`, `OverFloor`, `ThrowItem`; its numbers are the engineer's (TD1) | three: the `ThrowItem` effect, which takes the item out of the hand into a *flying* state, the `FlightTicks` tick system, which sweeps the arc each tick and lays the item down at its first contact, and the `OverFloor` condition (`no_floor`), so no throw leaves its item in the air | a public `ItemThrown` | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; one `WorldQuery` question, `sweep`; the cause `thrown`, whose `item_rested` lets delivery work unchanged. The design first sketched here had `server/` simulate the flight and report `ItemRested`; #37 proposes the flight in `core/` instead (TE1, the engineer's), so the clients draw the arc from `ItemThrown` until `ItemPlaced` and `server/` adds no command. Damage on impact would need an impact fact, `item_struck`; #37 recommends none for now (TD3) |
 | Cooking (#682): the House's burgers (designed in its [ADR](decisions/2026-10-10-cooking-task.md), proposed, not built; the engineer answered all its questions on 2026-10-10, the drafted words and looks included) | a task type `.tres` with five station kinds (the order board, a place, the grill, the herb board, a herb bed), its seconds (10 and 5) and its subtasks setting; 21 item kinds (3 buns, 3 raw and 3 fried patties, a burnt one, 5 herbs, 6 boxes, each box with its `Interact` rule), the 15 ingredients vanishing after lying 60 s; markers on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays Cooking; unit, House and wire tests stand in, the ADR's CE22) | four: `Cooking` (one task type: its deal hangs the orders, draws the round's herb code and shuffles the herbs over the beds; its station uses and its tick run the grill, the beds and the plates), `GiveItem` (an effect: a new item to the actor, capped per kind), `Items.give` (an item comes to a player, the hand item going to the belt or down at the taker's feet; beside a two-handed hand item the new item goes onto the belt, a full belt's item at the feet, the engineer's rule for every take) and `VanishTicks` (a tick system: an item of a vanishing kind left lying goes); every take from a box or a bed pays the existing `Cooldown`, a flood guard (not the grill's take-off nor `PickUp`, CE17); it uses the Generator's four station parts (G1 of its [ADR](decisions/2026-10-10-generator-task.md)) | six, everyone: `OrderPosted`, `HerbsDealt`, `IngredientPlaced`, `GrillLoaded` and the generic `ItemChanged` and `ItemVanished`; a given item reuses `ItemSpawned` and `ItemPickedUp` | `Interact` gains an item target and the item kind a second set of rules (`target_actions`, for a targeted item on the ground); `Items` gains a kind change, the give, the vanish and the moves onto a station, and the pick-up belts a one-handed item beside a two-handed hand item (§7.1.11); `ItemKind` gains `vanish_seconds` and `max_items`, and its `spawn_tag` becomes optional for kinds only given; `MatchState` reuses a vanished item's id once the `u16` ids run out; one rejection reason and `TaskType.use_reasons()`; `StationKind` gains `display` (the boards, refused before any rule); nothing in `Match` beyond `Interact`'s routing, nothing in the loop. Outside `core/`: six wire rows and protocol bumps, `WireBudget`'s new kinds, the client's boards, beds, plates and grill. It does not pass the letter of the test (a target kind and an owner slot), as `Interact` itself does not |
 
 **`Interact(target)`** (v1, with the first mechanic that needs it, #34 or #35): one intent that names a thing in the
@@ -6162,10 +6560,11 @@ kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationU
 their own mechanic.
 
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
-progress and a public "zone done" share `ZoneProgress`); with ZD1 (a), its recommendation and still open, its time
-runs in its task state, not on the channel primitive (§9.3), since standing is no action (with ZD1 (b) it runs on
-the channel). Delivery's cylinder test moves to `StationState` unchanged, so both
-types share one. The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
+progress and a public "zone done" share `ZoneProgress`), and as built in #647; with ZD1 (a), the engineer's answer,
+its time runs in its task state, not on the channel primitive (§9.3), since standing is no action. Delivery's
+cylinder test moved to `StationState` unchanged, so both types share one. Beyond the paper test it needed two
+helpers outside the parts: `MovementRule.claim_age` and `credit_gain` (§7.1.5), so a stale claim, or credit stored
+while standing, stops counting (ZE10). The revive, as built in M4-4, did not pass the letter of the test: a player is a new kind of
 target, a timed action needed a new
 primitive (the channel) and the raise three public events and three intents. With them in place, a resurrection at
 a body (#34) is two or three part classes and one event class: a body is again a new kind of target, and a
@@ -6183,14 +6582,14 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | Stations: designed for the Generator (#679, [ADR](decisions/2026-10-10-generator-task.md), GE1 to GE4); bodies with their own mechanic |
-| The zone task's game rules, numbers, names, maps and look (ZD1 to ZD11 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8): how its time is earned, pause or reset on leaving, who counts, shared zones, live progress | #36, the engineer; M7-Z1 needs ZD1 to ZD6, ZD9 and ZD7's "data or lobby setting" for the time |
+| The zone task's numbers, names and maps (ZD7, ZD10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), §9.8) | the engineer answered ZD1 to ZD6 and ZD8 to ZD11 on #302 and gave ZD7's provisional numbers there; M7-Z1 is built (#647), the data and the greybox's zones (M7-Z3, #649) and House's three provisional points (M7-Z5, #651) are placeholders until the engineer moves them |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | The crouch (#727, §7.1.17): footsteps, the name plate, things only a crouch passes (the raised car), standing up under a low ceiling, what Shift costs, a jump while crouched, a smaller target, what a crouched player may do, where it plays (KD1 to KD8 and KE10 of the [crouch ADR](decisions/2026-10-10-crouch.md)) | Settled by the engineer on 2026-10-10 (PR #752, comments 6097878317 and 6098097098): KD1 (b), the steps quieter and slower; KD2, no name plates over any player (#756); KD5 and KD6 (b); the rest (a); the numbers placeholders marked "not a decision"; the crouch on the House only (KE10). Then the issues 727a to 727c (M7 backlog), none built until he says so. Open: KD6's landing (crouched again on landing while Ctrl is held, recommended, or only at a fresh press) |
 | Lag compensation for hits (§7.1.10) | after the MVP playtest |
-| Throwing held items (§7.1.16): where the flight runs (TE1: `core/`, recommended, or `server/`'s physics), strength and range, which items, what a thrown item does to a player, whether a thrown package counts in its circle, where an item may come to rest, a cost, the key, catching, bounces, a running throw, the rest with no floor, the downed in the way (TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md), each with options and a recommendation) | the engineer, on #37's design PR; then the issues 37a to 37f |
+| Throwing held items (§7.1.16): the numbers only. The engineer answered TE1 and TD1 to TD12 of the [throwing ADR](decisions/2026-10-09-throwing-held-items.md) on #302 (every recommendation); the throw speed (5 m/s since #646: the highest speed at which no throw rests on House's roof, less 0.5 m/s, #302 comment 6096074314), the item's radius (0.15 m) and the longest flight (3 s) are provisional, for the first playtest | the engineer, at the playtest; 37a to 37f (#641 to #646) are built |
 | The knockdown reworked (§7.1.18): which hits launch a body and how hard, which floors make it roll, raising a moving body, whom a knocked-down player hears, its camera, how a dead body and a revive look, a death during the motion, the numbers, where the body's motion runs, the own avatar in a knocked-down player's snapshot, the slide while no House floor slopes, where a body may come to rest, a body launched out of everyone's reach, whether the host's body may turn, whether a table closes the space under it, a body raised in the lowered car (KD1 to KD15, KE1 and KE5 of the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md)) | Settled by the engineer on 2026-10-10 and 2026-10-11 (PR #754, comments 6097876326, 6100602989, 6108669765, 6109457234 and 6110171062): every recommendation but KD14's (he chose (a) over the recommended (b)), KD9's numbers placeholders marked "not a decision", and the launch on the House only (KE12); KD10 (A): the body is a real rigid body in the host's physics (`server/`), which rolls or slides it off any slope, roof or stairs by itself, with no slide rule, so KE1 is (b): `core/` keeps where the body is from the host's logged reports; KD11: the body's collider is a crouching player's, so it rests only where a crouching player fits, and a raised player gets up crouched there; KD12 (a): the levels keep every surface a launch can reach within a raise's reach of a spot a player can walk to, tables and the roof included (#646's reach convention applied to bodies, checked on the House by tests, no rule in `core/`); KD13 (a): the host's capsule never turns, so it slides and falls but never rolls (only each screen's ragdoll rolls) and slides off only a slope steeper than its friction angle. Then the issues 728a, 728b, 728d, 728e and 728f (M7 backlog; 728f the levels' convention for bodies and the House's check), none built until he says so. KD14 (a): the confirmed read-back stands, tables keep the space under them, and a body may rest under a table a crouching player fits under as long as a raise can reach it, with no level rule that closes tables; KD15 (a): a body launched into the lowered car, which only the clients collide with, and raised there is pushed out by the raised player's own client, the car's accepted quirk (RE8, RD6 (a)), with nothing new in code |
 | Delivery by meaning (§9.8; DD1 to DD10 of the [Delivery by meaning ADR](decisions/2026-10-10-delivery-by-meaning.md)): the item kinds and their places, how many, what counts as at a place, what points to it, a wrong place, hands, the words, where each kind starts, what the flat greybox plays, and the tutorial | Settled by the engineer on 2026-10-10 and 2026-10-11: DD1 to DD8 ([PR #713, comment 6095445718](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6095445718): every recommendation but DD4, which he answered by meaning alone, with no marker through walls); DD9 (c), the drafted words and the design approved ([comment 6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677): it plays on the House only, and the greybox, a test bench only (#767), keeps today's colour Delivery as far as its bot scenarios and the leak test need it); DD10 on 2026-10-11 ([comment 6108665402](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6108665402): the tutorial deals no task, its rework #825, which comes before D2). Then the issues D1, D2a, D2, D3a, D3, D4 and D5 (M7 backlog), none built until he says so |
 | The photo task's game rules, numbers, names and look (the [photo task ADR](decisions/2026-10-10-photo-task.md), §9.8) | Settled by the engineer on 2026-10-10: PD1 to PD15 ([PR #704, comment 6095444907](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6095444907): a film loaded into the camera; any living player counts, whatever the role; a photo with a person fixed on the board), then PD16 to PD18 and the drafted words ([comment 6096344994](https://github.com/xperiaroco2/prime-game/pull/704#issuecomment-6096344994): a one-way film used up at the printer; a hold of E over the camera takes it out; nobody within the camera's 2 m reach is in the photo, so another player is always needed; the words as drafted). It plays on House alone (PD14, his read-back answer on the Generator's GD7, [PR #695, comment 6096108206](https://github.com/xperiaroco2/prime-game/pull/695#issuecomment-6096108206)): no photo scene, marker or scenario on the flat greybox. Nothing is open but his approval of the design; nothing is built |

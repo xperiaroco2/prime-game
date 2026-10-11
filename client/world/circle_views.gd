@@ -3,7 +3,8 @@ extends Node3D
 ## The stations of the own ClientModel in 3D (ARCHITECTURE §4.7, M4-8; the M4 ADR's D7 (a), D10
 ## (b)): each delivery circle a translucent cylinder of its station kind's radius and height (the
 ## client's own copy of the mode) in StationPlaced's colour, dimmed once PackageDelivered names it.
-## A station kind the mode does not name gets a cylinder of the fallback size.
+## A station kind the mode does not name gets a cylinder of the fallback size. A zone (a ZoneTask's
+## station kind) is ZoneViews', not drawn here.
 ##
 ## Nothing here draws through walls (the M4 ADR's §3 item 5): no marker over a circle, since a
 ## carried item says where it goes by what it is (Delivery by meaning, DD4 (a), D3a).
@@ -58,6 +59,8 @@ func _process(_delta: float) -> void:
 			_done.erase(id)
 	for id: int in model.stations:
 		var station := model.stations[id]
+		if ZoneViews.zone_task(mode, station.kind) != null:
+			continue  # ZoneViews draws the zones.
 		var view: MeshInstance3D = _views.get(id)
 		if view == null:
 			view = _make(id, station)

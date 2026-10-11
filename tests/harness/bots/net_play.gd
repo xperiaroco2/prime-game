@@ -261,14 +261,9 @@ func _send_setup(host: ScenarioBot) -> void:
 	_settings_sent = true
 	if scenario.clock_s > 0 and client.force_clock(host.peer, scenario.clock_s) < 0:
 		_fail_step(host, "could not send ForceClock")
-	if scenario.settings.is_empty() and scenario.map.is_empty():
+	var args := scenario.setup_change()
+	if args.is_empty():
 		return
-	var values := {}
-	for id: StringName in scenario.settings:
-		values[String(id)] = scenario.settings[id]
-	var args := {"settings": values}
-	if not scenario.map.is_empty():
-		args["map"] = scenario.map
 	if client.send_intent(Intents.CHANGE_SETTINGS, args) < 0:
 		_fail_step(host, "could not send the setup's ChangeSettings")
 

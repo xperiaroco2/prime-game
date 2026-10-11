@@ -19,8 +19,11 @@ extends RefCounted
 ## 13 since #548 turned SettingsChanged's shortfalls into host text (ids plus arguments) and gave
 ## MatchEnded its reason;
 ## 14 since #551 added SetProfile (kind 16), ProfileChanged (kind 66) and the body colour of
-## PlayerJoined and the Welcome roster.
-const VERSION := 14
+## PlayerJoined and the Welcome roster;
+## 15 since release/m7 reached main (#837): #647 added ZoneProgress (kind 67) and #643 added Throw
+## (kind 17) and ItemThrown (kind 68). On release/m7 they were its own 11 and 12 (kinds 66, 15, 67),
+## renumbered above main's highest as one bump when it merged second.
+const VERSION := 15
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -235,6 +238,7 @@ static func _intents() -> Array[WireRow]:
 		_up(15, &"NextStage", 4, [_seq()]),
 		# seq 4, name 81 (its length byte and 80 bytes), colour 1.
 		_up(16, &"SetProfile", 86, [_seq(), _name("name"), _of("colour", WireField.Type.U8)]),
+		_up(17, &"Throw", 16, [_seq(), _vec3("facing")]),
 	]
 
 
@@ -409,6 +413,31 @@ static func _events() -> Array[WireRow]:
 			&"ProfileChanged",
 			86,
 			[_peer("peer"), _name("name"), _of("colour", WireField.Type.U8)]
+		),
+		_down(
+			67,
+			&"ZoneProgress",
+			11,
+			[
+				_station("station"),
+				_u16("ticks"),
+				_u16("needed"),
+				_bool("counting"),
+				_of("tick", _tick())
+			]
+		),
+		_down(
+			68,
+			&"ItemThrown",
+			46,
+			[
+				_item("item"),
+				_peer("peer"),
+				_vec3("origin"),
+				_vec3("velocity"),
+				_vec3("gravity"),
+				_of("tick", _tick())
+			]
 		),
 	]
 

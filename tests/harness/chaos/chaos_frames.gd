@@ -68,8 +68,18 @@ const FUTURE_TICKS := 5000
 const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## Kinds no row of the table has (0 is the transport's ADMIT, never a client's). 15 left it when
 ## NextStage took it (#599), 16 took its place; 16 and 66 left it when SetProfile and
-## ProfileChanged took them (#551), 17 and 67 took theirs.
-const UNASSIGNED: Array[int] = [0, 17, 19, 23, 26, 31, 67, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## ProfileChanged took them (#551), 17 and 67 took theirs; 17 and 67 left it when release/m7's
+## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs.
+const UNASSIGNED: Array[int] = [0, 18, 19, 23, 26, 31, 69, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
+## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
+## zero, and two whose squared length underflows (1e-30) or overflows (1e38) in single precision.
+## Finite on purpose: a NaN or infinite float is class 1, which the codec refuses before any rule.
+## Round takes Throw from the living (#646): with the hostile's empty hand each is refused
+## `empty_hand` there, `not_accepted` elsewhere.
+const THROW_FACINGS: Array[Vector3] = [
+	Vector3.FORWARD, Vector3.ZERO, Vector3(1e-30, 0, 0), Vector3(1e38, 0, 0)
+]
 ## MoveClaim's layout (§4.3), its RELIABLE twin's too: the first float of position, velocity and
 ## facing, and the flags (jumps, sprint_ticks and moved_ticks follow them).
 const CLAIM_FLOATS_AT := 8

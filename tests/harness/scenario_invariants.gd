@@ -10,7 +10,7 @@ extends RefCounted
 ##   a snapshot holds a field outside the public ones (AVATAR_FIELDS).
 ## - A Rejected reaches exactly the peer whose command was just applied.
 ## - Every present player receives the same task events (StationPlaced, ItemSpawned,
-##   PackageDelivered, TaskState, TaskProgress).
+##   PackageDelivered, TaskState, TaskProgress, ZoneProgress).
 ## - No event and no snapshot holds the session seed or a match seed.
 ## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
 ##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
@@ -28,7 +28,12 @@ extends RefCounted
 ## - The scenario's `never` events reach nobody they name.
 
 const TASK_EVENTS: Array[StringName] = [
-	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskState", &"TaskProgress"
+	&"StationPlaced",
+	&"ItemSpawned",
+	&"PackageDelivered",
+	&"TaskState",
+	&"TaskProgress",
+	&"ZoneProgress",
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.

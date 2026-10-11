@@ -6,7 +6,9 @@ extends RefCounted
 ## target the bot cannot know from them fails the scenario, so a scenario also proves that its
 ## mechanic is playable with what a player is told.
 
-enum Where { GROUND, HAND, LOCKED, BELT }
+## A copy of ItemState.Where, in the same order (a test pins it): a FLYING item's place is unknown
+## until its flight ends.
+enum Where { GROUND, HAND, LOCKED, BELT, FLYING }
 
 ## The events for one peer whose fields name no peer (§4.6): whoever receives one is its subject,
 ## so a step's `peer` field matches the receiving bot.
@@ -68,8 +70,9 @@ var unanswered_load := -1
 ## PackageDelivered. `where` tells GROUND from carried only: a Swapped leaves HAND and BELT as they
 ## were (the bot's own slots are `held` and `belted`).
 var items: Dictionary[int, Dictionary] = {}
-## Station id -> position, from StationPlaced.
+## Station id -> position, and station id -> its StationKind id, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
+var station_kinds: Dictionary[int, StringName] = {}
 ## Peer -> where the bot last saw that player: PlayerJoined, Welcome, PlayersPlaced, snapshots.
 var seen: Dictionary[int, Vector3] = {}
 
@@ -244,9 +247,18 @@ func where_is(target: ScenarioTarget) -> Vector3:
 			if held >= 0 and items.has(held):
 				var station: int = items[held]["station"]
 				found = stations.get(station, Vector3.INF)
+		ScenarioTarget.Kind.STATION:
+			var ids: Array[int] = []
+			for id: int in station_kinds:
+				if station_kinds[id] == target.station_kind:
+					ids.append(id)
+			ids.sort()
+			if target.index >= 1 and target.index <= ids.size():
+				found = stations[ids[target.index - 1]]
 		_:
 			var item := item_of(target)
-			if item >= 0:
+			# An item in flight is somewhere along its arc: its last known place would mislead a step.
+			if item >= 0 and items[item]["where"] != Where.FLYING:
 				found = items[item]["position"]
 	return found
 
@@ -287,6 +299,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			match_id = fields["match_id"] as int
 			items.clear()
 			stations.clear()
+			station_kinds.clear()
 			held = -1
 			belted = -1
 			downed = false
@@ -299,6 +312,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			phase = StringName(str(fields["phase"]))
 		&"StationPlaced":
 			stations[fields["station"] as int] = fields["position"] as Vector3
+			station_kinds[fields["station"] as int] = StringName(str(fields["kind"]))
 		&"ItemSpawned":
 			items[fields["item"] as int] = {
 				"kind": StringName(str(fields["kind"])),
@@ -322,6 +336,16 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				var was_held := held
 				held = belted
 				belted = was_held
+		&"ItemThrown":
+			var item := fields["item"] as int
+			if items.has(item):
+				items[item]["where"] = Where.FLYING
+				items[item]["position"] = fields["origin"] as Vector3
+			if held == item:
+				held = -1
+			if belted == item:
+				belted = -1
+		# Also the end of a flight (cause `thrown`): the item rests at `position` again.
 		&"ItemPlaced":
 			var item := fields["item"] as int
 			if items.has(item):

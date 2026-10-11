@@ -49,6 +49,18 @@ func test_the_dealable_types_leave_out_the_banned_ones() -> void:
 	assert_array(HowtoCards.dealable(_mode, null)).is_equal([&"delivery"])
 
 
+func test_the_dealable_types_of_a_mode_with_zones_leave_out_the_banned_ones() -> void:
+	# The base mode with the zone task (#649's, now a fixture since #842) deals both types.
+	var mode := FixtureBaseModeWithZones.mode()
+	var model := Preview.fake_model(mode, true)
+	assert_array(HowtoCards.dealable(mode, model)).is_equal([&"delivery", &"hold_the_zone"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
+	assert_array(HowtoCards.dealable(mode, model)).is_equal([&"hold_the_zone"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery", "hold_the_zone"])
+	assert_array(HowtoCards.dealable(mode, model)).is_empty()
+	assert_array(HowtoCards.dealable(mode, null)).is_equal([&"delivery", &"hold_the_zone"])
+
+
 func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
 	# Another set setting (say a later "banned roles") that happens to name a task type.

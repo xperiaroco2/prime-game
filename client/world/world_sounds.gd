@@ -4,10 +4,10 @@ extends Node3D
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
 ## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
-## As it starts, one ray from the ears to the sound's aim (SoundChooser.SWING_AIM_M or ITEM_AIM_M
-## above it) against the world layer of the client's own level (the M5 ADR §1.6, E42 (a), D13 (a);
-## M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the muffled Effects bus's
-## low-pass), and stays so to its end.
+## As it starts, one ray from the ears to the sound's aim (SoundChooser's SWING_AIM_M, ITEM_AIM_M
+## or THROW_AIM_M above it) against the world layer of the client's own level (the M5 ADR §1.6,
+## E42 (a), D13 (a); M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the
+## muffled Effects bus's low-pass), and stays so to its end.
 ##
 ## Footsteps (#525), each physics frame: of the local player while it is living,
 ## from how far it moved (is_on_floor() flickers on stairs: only FootstepSurface's ray decides the
@@ -17,7 +17,11 @@ extends Node3D
 ## range before any ray; FootstepSurface's ray down finds the floor's surface, and no floor (a
 ## jump) plays none. Another player's step casts the muffle ray to SoundChooser.STEP_AIM_M above
 ## its feet; the own steps cast none (nothing stands between the ears and the own feet).
-## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer.
+## The streams are SfxSet's: Kenney's CC0 files, each id a randomizer. A throw's launch (#645) has
+## no file yet: it plays release/m7's generated placeholder (throw_blip()) until one is picked.
+
+## Samples per second of the generated throw blip.
+const MIX_RATE := 22050
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -39,6 +43,8 @@ var _steps := 0
 ## under 0 (no peer is 0).
 var _feet: Dictionary[int, Vector3] = {}
 var _cadences: Dictionary[int, FootstepCadence] = {}
+## The throw's placeholder (throw_blip()), made once.
+var _throw_blip: AudioStreamWAV = null
 
 
 ## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
@@ -58,7 +64,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	var sound := SoundChooser.choose(event_name, fields, model, position_of, heard_from as Vector3)
 	if sound == null:
 		return
-	_start(sound, sfx.stream_for(sound.id), heard_from as Vector3, true)
+	_start(sound, _stream_of(sound.id), heard_from as Vector3, true)
 
 
 ## How many sounds were started, steps included (tests).
@@ -79,6 +85,25 @@ func muffled() -> int:
 ## How many footsteps were started (tests).
 func steps() -> int:
 	return _steps
+
+
+## The placeholder sound of a throw's launch (#645): a short 16-bit mono burst of noise that swells
+## then fades.
+static func throw_blip() -> AudioStreamWAV:
+	var seconds := 0.15
+	var data := PackedByteArray()
+	var count := int(MIX_RATE * seconds)
+	data.resize(count * 2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for i: int in count:
+		var value := rng.randf_range(-1.0, 1.0) * sin(PI * float(i) / count) * 0.8
+		data.encode_s16(i * 2, int(value * 0.5 * 32767.0))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = MIX_RATE
+	stream.data = data
+	return stream
 
 
 ## Where `peer` is as this client draws it: the local player, or another player's body; null when
@@ -148,6 +173,17 @@ func _step(at: Vector3, heard_from: Vector3, occlude: bool) -> void:
 		return
 	if _start(sound, sfx.stream_for(SfxSet.footstep(surface as StringName)), heard_from, occlude):
 		_steps += 1
+
+
+## The stream of an event's sound `id`: SfxSet's, else, for a throw's launch, which has no file
+## yet, its placeholder (throw_blip()); null for none.
+func _stream_of(id: StringName) -> AudioStream:
+	var stream: AudioStream = sfx.stream_for(id)
+	if stream == null and id == SoundChooser.THROW:
+		if _throw_blip == null:
+			_throw_blip = throw_blip()
+		stream = _throw_blip
+	return stream
 
 
 ## Starts `sound` with `stream`, muffled if `occlude` and the level is in the way; false (and

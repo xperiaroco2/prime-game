@@ -99,6 +99,51 @@ func test_a_correction_outside_a_placement_fails() -> void:
 	assert_str(theirs).contains("Correction outside a placement")
 
 
+func test_the_bot_s_where_is_a_copy_of_item_state_s() -> void:
+	# The bot folds the core's places by name; a reorder or a new place must show up here.
+	assert_dict(ScenarioBot.Where).is_equal(ItemState.Where)
+
+
+func test_a_thrown_item_flies_unknown_until_its_flight_ends() -> void:
+	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
+	var package := _target(ScenarioTarget.Kind.PACKAGE)
+	package.index = 1
+	var lay := Vector3(1, 0, 1)
+	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", lay))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7))).is_empty()
+	assert_int(bot.held).is_equal(7)
+	var origin := Vector3(1, 1.4, 1)
+	var thrown := ItemThrownEvent.new(
+		7, bot.peer, origin, Vector3(0, 2, -5), Vector3(0, -9.8, 0), 40
+	)
+	assert_str(_receive(bot, thrown)).is_empty()
+	assert_int(bot.held).is_equal(-1)
+	assert_int(bot.items[7]["where"]).is_equal(ScenarioBot.Where.FLYING)
+	# Neither its old place nor where it left the hand: a step aimed at it cannot know.
+	assert_vector(bot.where_is(package)).is_equal(Vector3.INF)
+	var rest := Vector3(1, 0, -3)
+	assert_str(_receive(bot, ItemPlacedEvent.new(7, rest, Items.THROWN))).is_empty()
+	assert_int(bot.items[7]["where"]).is_equal(ScenarioBot.Where.GROUND)
+	assert_vector(bot.where_is(package)).is_equal(rest)
+
+
+func test_another_player_s_throw_leaves_the_bot_s_hands_alone() -> void:
+	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
+	assert_str(_receive(bot, ItemSpawnedEvent.new(7, &"package", Vector3.ZERO))).is_empty()
+	assert_str(_receive(bot, ItemSpawnedEvent.new(8, &"package", Vector3.ONE))).is_empty()
+	assert_str(_receive(bot, ItemPickedUpEvent.new(bot.peer, 7, 8))).is_empty()
+	var other := bot.peer + 1
+	var flight := ItemThrownEvent.new(9, other, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 3)
+	assert_str(_receive(bot, flight)).is_empty()
+	assert_int(bot.held).is_equal(7)
+	assert_int(bot.belted).is_equal(8)
+	# Its own belted item thrown (a belt never throws today; the fold still lets it go).
+	var belted := ItemThrownEvent.new(8, bot.peer, Vector3.ONE, Vector3.FORWARD, Vector3.DOWN, 4)
+	assert_str(_receive(bot, belted)).is_empty()
+	assert_int(bot.belted).is_equal(-1)
+	assert_int(bot.held).is_equal(7)
+
+
 func test_the_invariants_catch_a_leak() -> void:
 	# A wrong audience (§5): Teammates to a crew member, another player's SelfStatus.
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new(), _round()]]))
@@ -301,6 +346,78 @@ func test_an_expect_that_times_out_or_an_expect_none_that_sees_its_event_fails()
 	assert_str(_text(runner)).contains("step 1 (ExpectNone)")
 
 
+func test_a_station_target_is_the_n_th_station_of_its_kind_the_bot_was_told_of() -> void:
+	var walk := StepWalkTo.new()
+	walk.target = _station(&"circle", 2)
+	walk.stop_m = 0.0
+	var scenario := _scenario([[StepReady.new(), _round(), walk]])
+	scenario.time_limit_s = 60.0
+	var runner := ScenarioRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var bot: ScenarioBot = runner.bots[0]
+	var circles: Array[int] = []
+	for id: int in bot.station_kinds:
+		if bot.station_kinds[id] == &"circle":
+			circles.append(id)
+	circles.sort()
+	assert_int(circles.size()).is_greater_equal(2)
+	var at: Vector3 = bot.stations[circles[1]]
+	assert_float(Vector2(bot.position.x - at.x, bot.position.z - at.z).length()).is_less(0.01)
+	# A kind it was told of no station of (the base mode deals zones too since #649), or an index
+	# past its stations: it cannot know.
+	for target: ScenarioTarget in [_station(&"no_such_kind", 1), _station(&"circle", 99)]:
+		var lost := StepWalkTo.new()
+		lost.target = target
+		lost.stop_m = 0.0
+		runner = ScenarioRunner.play(_scenario([[StepReady.new(), _round(), lost]]))
+		assert_str(_text(runner)).contains("step 3 (WalkTo)").contains("cannot know")
+	# Its own problems: no kind, an index below 1.
+	var bad := _station(&"", 0)
+	assert_str("\n".join(bad.problems())).contains("no station kind").contains("index 0")
+
+
+func test_the_setup_sends_the_bans_and_refuses_unknown_ones_or_too_few_types_left() -> void:
+	var scenario := _scenario([[]])
+	scenario.id_sets = {&"banned_task_types": PackedStringArray()}
+	assert_dict(scenario.setup_change()).is_equal({"settings": {"banned_task_types": []}})
+	# Two task types, `tasks` 1 by default, 0 to 2.
+	var token := FixtureDealModes.item_kind(&"token")
+	scenario.mode = FixtureDealModes.deal_mode(
+		[FixtureDealtTaskType.new(&"one", token, 1), FixtureDealtTaskType.new(&"two", token, 1)]
+	)
+	scenario.id_sets = {&"banned_task_types": PackedStringArray(["two"])}
+	assert_array(Array(scenario.problems())).is_empty()
+	scenario.settings = {&"tasks": 1}
+	assert_array(Array(scenario.problems())).is_empty()
+	assert_dict(scenario.setup_change()).is_equal(
+		{"settings": {"tasks": 1, "banned_task_types": ["two"]}}
+	)
+	# Both types with a ban of one (ZD8 (a)'s case: a ban alone is refused; the lower `tasks` in
+	# the same setup is not, as above).
+	scenario.settings = {&"tasks": 2}
+	assert_str("\n".join(scenario.problems())).contains(
+		"the lobby refuses the setup's settings and sets (out_of_bounds)"
+	)
+	# Every type banned.
+	scenario.settings = {}
+	scenario.id_sets = {&"banned_task_types": PackedStringArray(["one", "two"])}
+	assert_str("\n".join(scenario.problems())).contains("the lobby refuses")
+	# An id that is no task type of the mode, and a set the mode does not declare.
+	scenario.id_sets = {&"banned_task_types": PackedStringArray(["three"])}
+	assert_str("\n".join(scenario.problems())).contains(
+		"set setting banned_task_types names three, not a task type of the mode"
+	)
+	scenario.id_sets = {&"tasks": PackedStringArray(), &"bans": PackedStringArray()}
+	(
+		assert_str("\n".join(scenario.problems()))
+		. contains("set setting tasks is not one of the mode's sets of task types")
+		. contains("set setting bans is not one of the mode's sets of task types")
+	)
+	# The runner plays none of it.
+	scenario.id_sets = {&"banned_task_types": PackedStringArray(["three"])}
+	assert_str(_text(ScenarioRunner.play(scenario))).contains("scenario: set setting")
+
+
 func test_fields_name_players_by_bot_number() -> void:
 	var peers := ScenarioPeers.core(3)
 	var event := ReadyChangedEvent.new(peers.peer_of(3), true)
@@ -398,6 +515,13 @@ func _round() -> StepWaitFor:
 func _target(kind: ScenarioTarget.Kind) -> ScenarioTarget:
 	var target := ScenarioTarget.new()
 	target.kind = kind
+	return target
+
+
+func _station(kind_id: StringName, index: int) -> ScenarioTarget:
+	var target := _target(ScenarioTarget.Kind.STATION)
+	target.station_kind = kind_id
+	target.index = index
 	return target
 
 

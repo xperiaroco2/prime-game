@@ -9,7 +9,8 @@ extends Node3D
 ##   StopRaise() (D6); the host checks everything again.
 ## - Downed: the DownedCamera over the own body with the own look, and SightHider hiding what the
 ##   body's eye could not see. The give_up key (F, #211) held for GIVE_UP_HOLD_S sends GiveUp()
-##   once (D6).
+##   once (D6), counted only from a press made while downed (G, the give_up key's old default,
+##   is the throw key, #645; the guard stays for a rebind that shares a key).
 ## - Dead: spectating. The first target is drawn by SpectateTargets with the client's own
 ##   generator; the left and right mouse buttons cycle; a target that goes down, dies or leaves is
 ##   replaced by a new first target. A living target is watched from its eyes (its interpolated
@@ -72,6 +73,11 @@ var _target_life := ClientModel.Life.ALIVE
 ## The body hidden while watched from its eyes; null when none.
 var _watched: RemotePlayerBody
 var _give_up_held_s := 0.0
+## The give_up key was up at least once since the own knockdown: only then does holding it count.
+## It came when G was both give_up and the throw key (#645); since #211 give_up is on F, and the
+## guard stays for a rebind that puts both on one key: holding it as the player goes down gives
+## nothing up for it.
+var _give_up_armed := false
 var _gave_up := false
 ## E is held for a raise (sent, or waiting for its RaiseStarted).
 var _raise_wanted := false
@@ -235,6 +241,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 		&"KnockedDown":
 			if fields["peer"] as int == own:
 				_give_up_held_s = 0.0
+				_give_up_armed = false
 				_gave_up = false
 		&"RaiseStarted":
 			# E was let go before the raise started: stop it at once.
@@ -248,6 +255,20 @@ func give_up() -> void:
 		return
 	_gave_up = true
 	session.send_intent(Intents.GIVE_UP)
+
+
+## The give_up key's state this frame while downed (`pressed`), `delta` seconds after the last:
+## held for GIVE_UP_HOLD_S, counted only from a press made while downed, it gives up (give_up()).
+func hold_give_up(pressed: bool, delta: float) -> void:
+	if not pressed:
+		_give_up_held_s = 0.0
+		_give_up_armed = true
+		return
+	if not _give_up_armed:
+		return
+	_give_up_held_s += delta
+	if _give_up_held_s >= GIVE_UP_HOLD_S:
+		give_up()
 
 
 ## E pressed: Raise(target) for the downed player under the crosshair in reach, if any.
@@ -326,12 +347,7 @@ func _process(delta: float) -> void:
 			elif _raise_wanted and not Input.is_action_pressed(&"interact"):
 				release_raise()
 		ClientModel.Life.DOWNED:
-			if Input.is_action_pressed(&"give_up"):
-				_give_up_held_s += delta
-				if _give_up_held_s >= GIVE_UP_HOLD_S:
-					give_up()
-			else:
-				_give_up_held_s = 0.0
+			hold_give_up(Input.is_action_pressed(&"give_up"), delta)
 		ClientModel.Life.DEAD:
 			if captured and was_captured:
 				if Input.is_action_just_pressed(&"spectate_next"):
@@ -465,7 +481,10 @@ func _hold_as_seen(peer: int) -> void:
 		_spectate_hand.show_item(hand.kind, hand.colour, kind != null and kind.is_two_handed())
 	if items == null:
 		return
-	for item_id: int in [model.hand_item(peer), model.belt_item(peer)]:
+	# A throw is hung at the body's hand until its launch is drawn: the hand is empty already.
+	var hidden: Array[int] = [model.hand_item(peer), model.belt_item(peer)]
+	hidden.append_array(items.flights.awaiting_launch_of(peer))
+	for item_id: int in hidden:
 		var view := items.view_of(item_id)
 		if view != null:
 			view.show_look(false)

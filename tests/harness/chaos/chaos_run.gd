@@ -13,7 +13,8 @@ extends BotsRunner
 ## 4. an intent the phase or the rules refuse: exactly Rejected(seq, reason) to its sender, the
 ##    reason ChaosOracle's, nothing else emitted (no state change), no reject counted;
 ## 5. a hostile MoveClaim: a Correction (new epoch, the old position) or a silent drop by §7.1 and
-##    E15, the position unchanged, never Rejected;
+##    E15, the position unchanged, never Rejected; and bot 4's own claims never corrected
+##    (ChaosHonestClaims, #693);
 ## 6. repeated, replayed and out-of-order seqs: each copy answered by the rule, echoing its seq
 ##    (4 and 5 check every copy);
 ## 7. no honest bot decodes a frame of the malformed peer, nor of the hostile while it is downed or
@@ -53,6 +54,11 @@ const SHIM_SEED_STRIDE := 16
 const MAX_JOINS := 3
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const WebRtcWarmUp := preload("res://tests/integration/net/webrtc_warm_up.gd")
+## Why _hostile_quiet held a hostile claim back (quiet_held's keys).
+const QUIET_BEFORE_AWAY := "before its walk away"
+const QUIET_MOVING := "moving on the host"
+const QUIET_BEHIND := "host position behind its bot"
+const QUIET_NEAR_ZONE := "near a zone"
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
@@ -68,6 +74,14 @@ var chaos_log := ChaosLog.new()
 var checked: Dictionary[int, int] = {}
 ## The hostile's Rejected answers as it decoded them, "seq reason", in order.
 var hostile_rejected := PackedStringArray()
+## The host ticks the zone gained from bot 4's freeze, after its last accepted claim (-1 before
+## the freeze ended): at most ZoneTask.STALE_TICKS (the zone task ADR's freeze row, ZE10).
+var freeze_gained := -1
+## The hostile claims _hostile_quiet held back in the round while the host had bot 4 alive, by
+## reason (the QUIET_ constants): the claim coverage check's failure names them.
+var quiet_held: Dictionary[String, int] = {}
+## The host's answers to bot 4's honest claims (#693).
+var honest_claims := ChaosHonestClaims.new()
 
 var _hostile_client: BotClient
 var _hostile_budget := ChaosBudget.new()
@@ -96,6 +110,12 @@ var _host_rtc: BotWebRtc
 var _transports_made := 0
 var _real_start_usec := -1
 var _warm_up: WebRtcWarmUp
+## During bot 4's freeze: the host tick of its last accepted claim, the zone's ticks a frame ago,
+## and what it gained since that claim in frames with no other living player inside.
+var _freeze_claim_tick := -2
+var _freeze_prev := 0
+var _freeze_gain := 0
+var _freezing := false
 
 
 func _init(
@@ -283,6 +303,7 @@ func _join_host(bot: ScenarioBot) -> String:
 		hostile = ChaosHostile.new(
 			bot, _hostile_client, schema, joined["send_raw"] as Callable, budget, chaos_seed
 		)
+		hostile.quiet = _hostile_quiet
 	return ""
 
 
@@ -366,6 +387,7 @@ func play_frame(at_tick: int) -> void:
 			malformed.poll()
 			return
 	super(at_tick)
+	_watch_freeze()
 	malformed.poll()
 	if chaos_mode == Mode.CHAOS and failures.is_empty():
 		var claimed := _hostile_client.last_claim_tick() != _claimed_tick
@@ -439,10 +461,18 @@ func _is_chaos_answer(event_name: StringName, fields: Dictionary, bot: ScenarioB
 			hostile_rejected.append("%d %s" % [seq, fields["reason"]])
 			return true
 	elif event_name == &"Correction" and _hostile_client.corrections > _corrections_seen:
-		# Not a placement's (ClientSession counts those apart): a chaos claim's.
+		# Not a placement's (ClientSession counts those apart): a chaos claim's, as the host never
+		# corrects an honest one (ChaosHonestClaims fails the run if it does, #693).
 		_corrections_seen = _hostile_client.corrections
 		return true
 	return false
+
+
+## Bot 4's honest claim and the host's answer to it (ChaosHonestClaims, #693); other commands pass.
+func _note_honest_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
+	var peer := hostile_peer()
+	var player := game.state.player(peer) if peer != 0 else null
+	honest_claims.check(command, slice, player, peer, chaos_seed)
 
 
 func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -> void:
@@ -453,6 +483,8 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 			_check_claim(command, slice)
 		else:
 			_check_intent(command, slice)
+	elif command != null:
+		_note_honest_claim(command, slice)
 	for emitted: EmittedEvent in slice:
 		var welcome := emitted.event as WelcomeEvent
 		if welcome != null:
@@ -582,6 +614,11 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 
 func _check_after() -> void:
 	super()
+	if freeze_gained < 0:
+		failures.append("bot 4 never ended its freeze in the zone")
+	failures.append_array(honest_claims.failures())
+	if honest_claims.accepted == 0:
+		failures.append("chaos: the host accepted no honest MoveClaim of bot 4")
 	var label := "malformed peer"
 	failures.append_array(leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(
@@ -765,6 +802,10 @@ func _check_chaos_counts() -> void:
 		failures.append("chaos: the hostile's session ended (%s)" % _hostile_client.end_reason)
 	if hostile_rejected.is_empty():
 		failures.append("chaos: the hostile decoded no Rejected")
+	# Over every transport (#674): the claims held back say which quiet rule silenced class 5.
+	if hostile != null and hostile.round_alive_claims == 0:
+		var none := "chaos: no hostile MoveClaim went out while it was alive in the round"
+		failures.append("%s (held back: %s)" % [none, quiet_held])
 
 
 ## Over ENet: under each reason a malformed packet names, the host counted at most the chaos
@@ -872,3 +913,85 @@ static func _describe(slice: Array[EmittedEvent]) -> String:
 			)
 		)
 	return ", ".join(parts)
+
+
+## With claims_after_moves the clients claim after the bots moved; bot 4 sends none while it is
+## frozen (ChaosScenario.FREEZE), in both runs, and keeps polling.
+func claim_clients() -> void:
+	if not _frozen():
+		super()
+		return
+	_claims_due = false
+	for bot: ScenarioBot in bots:
+		var client: BotClient = clients.get(bot.number)
+		if bot.number != HOSTILE and client != null and not client.is_ended():
+			client.claim(now_usec)
+
+
+## Whether bot 4's current step is its freeze.
+func _frozen() -> bool:
+	return bots.size() >= HOSTILE and ChaosScenario.is_freeze(bots[HOSTILE - 1].current_step())
+
+
+## No hostile claim in the round until bot 4 has walked away from its freeze, nor near a zone: a
+## Correction puts it back where it last stood, which its walks (one in flight as a walk starts
+## too) or the zone's count would show every honest bot, unlike the baseline's. Standing still
+## afterwards, downed or dead, it claims as before.
+func _hostile_quiet() -> bool:
+	var reason := _quiet_reason()
+	if reason.is_empty():
+		return false
+	var player := game.state.player(peers.peer_of(HOSTILE))
+	if game.phase_id() == &"round" and player != null and player.is_alive():
+		quiet_held[reason] = quiet_held.get(reason, 0) + 1
+	return true
+
+
+## Why _hostile_quiet holds a claim back now; empty when it does not.
+func _quiet_reason() -> String:
+	if game == null or bots.size() < HOSTILE:
+		return ""
+	var bot := bots[HOSTILE - 1]
+	if game.phase_id() == &"round" and bot.step_index <= ChaosScenario.away_index(bot.steps):
+		return QUIET_BEFORE_AWAY
+	var player := game.state.player(peers.peer_of(HOSTILE))
+	if player == null:
+		return ""
+	# Its last move, or the standing claim after it, not yet accepted (the bot's claim goes out
+	# after this frame's chaos): a hostile LATEST claim now would supersede it.
+	if not player.velocity.is_zero_approx():
+		return QUIET_MOVING
+	var behind := Vector2(player.position.x - bot.position.x, player.position.z - bot.position.z)
+	if behind.length() > 0.01:
+		return QUIET_BEHIND
+	return QUIET_NEAR_ZONE if ChaosZones.near(game.state, player.position) else ""
+
+
+## While bot 4 is frozen, the zone's ticks since its last accepted claim; when the freeze ends,
+## the check of the freeze row: at most ZoneTask.STALE_TICKS.
+func _watch_freeze() -> void:
+	if game == null or freeze_gained >= 0:
+		return
+	var ticks := ChaosZones.ticks(game.state)
+	if _frozen():
+		var tick := game.ticked_through()
+		var age := MovementRule.claim_age(game.state, peers.peer_of(HOSTILE), tick)
+		var claimed := tick - age if age >= 0 else -1
+		if claimed != _freeze_claim_tick:
+			_freeze_claim_tick = claimed
+			_freeze_gain = 0
+		elif _freezing and not ChaosZones.other_inside(game.state, peers.peer_of(HOSTILE)):
+			_freeze_gain += ticks - _freeze_prev
+		_freeze_prev = ticks
+		_freezing = true
+		return
+	if not _freezing:
+		return
+	freeze_gained = _freeze_gain
+	if freeze_gained > ZoneTask.STALE_TICKS:
+		failures.append(
+			(
+				"the zone gained %d ticks from bot 4's freeze, at most %d"
+				% [freeze_gained, ZoneTask.STALE_TICKS]
+			)
+		)

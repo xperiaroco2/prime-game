@@ -16,10 +16,12 @@ extends RefCounted
 ##   teleports it next to the item, which the host corrects: reach is measured from the host's
 ##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
-## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, SetProfile
-## with a new name and colour only while its client is in loading or pregame (the host cannot be
-## back in the lobby then; the round ends in End and then the lobby) and else with its own
-## (unchanged in the lobby, #551), nothing a race could turn into an action.
+## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, PutDown,
+## Use and Throw (its facings: ChaosFrames.THROW_FACINGS) only with the empty hand its bot always
+## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
+## is `empty_hand`), SetProfile with a new name and colour only while its client is in loading or
+## pregame (the host cannot be back in the lobby then; the round ends in End and then the lobby)
+## and else with its own (unchanged in the lobby, #551), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -46,8 +48,13 @@ const HACKED_NAME := "Hacked"
 const NO_LOBBY_PHASES: Array[StringName] = [&"loading", &"pregame"]
 
 var rng := RandomNumberGenerator.new()
+## Returns true while it must send no claim (ChaosRun: its bot is frozen or near a zone).
+var quiet := Callable()
 ## Intent name -> how many it sent; the malformed shapes and claim shapes sent; for the report.
 var sent: Dictionary[String, int] = {}
+## The hostile MoveClaims that went out while its client knew it was alive in the round: ChaosRun
+## fails a run with none, so a quiet rule (ChaosRun._hostile_quiet) cannot silence class 5 unseen.
+var round_alive_claims := 0
 
 var _client: BotClient
 var _bot: ScenarioBot
@@ -134,6 +141,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.PICK_UP,
 		Intents.PUT_DOWN,
 		Intents.USE,
+		Intents.THROW,
 		Intents.SWAP,
 		Intents.STOP_RAISE,
 		Intents.RAISE,
@@ -149,10 +157,8 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var args := _args_of(intent, phase)
 	var item: int = args.get("item", ChaosOracle.NO_ITEM)
 	# Only a resting item is far (FAR_M): a carried one may be next to it, where a claim is a step.
-	var resting := (
-		item != ChaosOracle.NO_ITEM and _client.model.items[item].holder == ClientModel.NO_HOLDER
-	)
-	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
+	var resting := item != ChaosOracle.NO_ITEM and _client.model.items[item].rests()
+	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE and not _quiet():
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
 	_send(packet)
@@ -173,6 +179,9 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 			args = {"item": _item_to_pick()}
 		Intents.PUT_DOWN, Intents.USE:
 			args = {"facing": Vector3.FORWARD}
+		Intents.THROW:
+			var facings := ChaosFrames.THROW_FACINGS
+			args = {"facing": facings[rng.randi_range(0, facings.size() - 1)]}
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
@@ -224,7 +233,7 @@ func _item_to_pick() -> int:
 		var item: ClientModel.Item = _client.model.items[id]
 		if item.holder != ClientModel.NO_HOLDER and item.holder != _bot.peer:
 			carried.append(id)
-		elif item.holder == ClientModel.NO_HOLDER and not item.delivered:
+		elif item.rests() and not item.delivered:
 			if item.position.distance_to(_bot.position) > FAR_M:
 				far.append(id)
 	var roll := rng.randf()
@@ -253,7 +262,12 @@ func _raise_target() -> int:
 
 func _claim() -> void:
 	var shape := rng.randi_range(0, ChaosFrames.RANDOM_CLAIMS - 1) as ChaosFrames.Claim
-	_claim_at(shape, _bot.position)
+	if not _quiet():
+		_claim_at(shape, _bot.position)
+
+
+func _quiet() -> bool:
+	return quiet.is_valid() and quiet.call()
 
 
 func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
@@ -261,7 +275,9 @@ func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
 		shape, _schema, _client.model.epoch, maxi(_client.last_claim_tick(), 0), at, _claims
 	)
 	_claims += 1
-	_send(packet)
+	var alive := _client.model.life_of(_bot.peer) == ClientModel.Life.ALIVE
+	if _send(packet) and alive and _client.model.phase == &"round":
+		round_alive_claims += 1
 
 
 ## A malformed frame, while the host's window holds fewer than MALFORMED_CAP of its own; never a
@@ -295,9 +311,12 @@ func _count_of_malformed() -> int:
 	return count
 
 
-func _send(packet: ChaosFrames.Packet) -> void:
+## Whether the packet went out.
+func _send(packet: ChaosFrames.Packet) -> bool:
 	if packet == null:
 		push_error("chaos: the encoder refused a chaos message")
-		return
-	if _send_raw.call(packet) as bool:
-		sent[packet.label] = sent.get(packet.label, 0) + 1
+		return false
+	if not (_send_raw.call(packet) as bool):
+		return false
+	sent[packet.label] = sent.get(packet.label, 0) + 1
+	return true

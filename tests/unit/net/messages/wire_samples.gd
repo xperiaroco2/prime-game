@@ -84,6 +84,23 @@ static func events() -> Dictionary[String, Array]:
 	found["TaskStateEvent"] = [
 		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
 	]
+	found["ZoneProgressEvent"] = [
+		ZoneProgressEvent.new(0, 0, 1, false, 0),
+		ZoneProgressEvent.new(0xFFFE, 0xFFFF, 0xFFFF, true, 0xFFFFFFFE),
+	]
+	found["ItemThrownEvent"] = [
+		ItemThrownEvent.new(
+			3, 2, Vector3(1.5, 1.6, -2.25), Vector3(0, 6, -8), Vector3(0, -9.8, 0), 4096
+		),
+		ItemThrownEvent.new(
+			0xFFFE,
+			0x7FFFFFFF,
+			Vector3(-1e6, 1e-30, 1e30),
+			Vector3(-40, 0.1, -0.0),
+			Vector3(0, -40, 0),
+			0xFFFFFFFE
+		),
+	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),
@@ -125,6 +142,8 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"SetProfile", {"name": "Діма", "colour": 9}, 19),
 		WireMessage.new(&"SetProfile", {"name": "P".repeat(80), "colour": 255}, 0xFFFFFFFF),
 		WireMessage.new(&"SetProfile", {"name": "", "colour": 0}, 20),
+		WireMessage.new(&"Throw", {"facing": Vector3(0, 0.6, -0.8)}, 21),
+		WireMessage.new(&"Throw", {"facing": Vector3(1e-30, 0, 0)}, 0xFFFFFFFF),
 	]
 
 

@@ -28,6 +28,9 @@ const OUT_OF_REACH := &"out_of_reach"
 ## rest position), checked after ItemOnGround and before InSight.
 const PICK_UP_REACH_M := 2.0
 ## The base mode's allowlist (§3.2): phase -> intent -> who may send it (From bits).
+## Round takes Throw from the living (the base mode's Throw rule, 37f, #646): with an empty hand
+## HoldsItem refuses it as `empty_hand` before OverFloor's `no_floor` is asked; the hostile's own
+## bot never holds an item, so a hostile Throw is never thrown.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{
@@ -50,6 +53,7 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 		&"Raise": From.LIVING,
 		&"StopRaise": From.LIVING,
 		&"Swap": From.LIVING,
+		&"Throw": From.LIVING,
 		&"GiveUp": From.DOWNED,
 	},
 	&"end": {&"ReturnToLobby": From.HOST},
@@ -123,7 +127,7 @@ static func _rule(
 			answer_now = SILENT if args.get("match_id") != match_id else RejectReasons.UNCHANGED
 		Intents.PICK_UP:
 			answer_now = _pick_up(args.get("item", -1) as int, player, state)
-		Intents.PUT_DOWN:
+		Intents.PUT_DOWN, Intents.THROW:
 			answer_now = EMPTY_HAND if player.held_item < 0 else &"?"
 		Intents.USE:
 			answer_now = RejectReasons.NOTHING_TO_DO if player.held_item < 0 else &"?"

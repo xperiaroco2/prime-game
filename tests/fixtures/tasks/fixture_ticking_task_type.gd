@@ -1,6 +1,6 @@
 class_name FixtureTickingTaskType
 extends TaskType
-## A task type that ticks (the kind #36's zone task will be), for TaskTicks' tests: each tick
+## A task type that ticks (as ZoneTask does), for TaskTicks' tests: each tick
 ## emits a note "tick <id> <host tick> <source>". Its check of facts does nothing.
 
 

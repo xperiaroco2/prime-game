@@ -154,6 +154,11 @@ class Motion:
 	## The host tick of the last accepted claim or placement: how stale the position is that
 	## another player's push allowance measures from (_near_living_player).
 	var accepted_tick := -1
+	## The host tick of the last accepted claim in this epoch, -1 before the first: what claim_age
+	## measures from. A placement is no claim, and neither is a refused claim that follows it.
+	var claimed_tick := -1
+	## The least credit an accepted claim of this epoch left: what credit_gain measures from.
+	var least_credit := 0
 
 
 ## One MoveClaim's fields, read and checked for type and finiteness.
@@ -320,6 +325,9 @@ static func _accept(
 	motion.credit -= checked.covered
 	motion.rebase = false
 	motion.accepted_tick = ctx.tick
+	if motion.claimed_tick < 0 or motion.credit < motion.least_credit:
+		motion.least_credit = motion.credit
+	motion.claimed_tick = ctx.tick
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.facing = stored_facing(claim.facing, player.facing)
@@ -433,6 +441,51 @@ static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
 	return player.claim_tick
 
 
+## How many host ticks old `peer`'s last accepted claim is at host tick `now` (0 in the tick the
+## claim was accepted), or -1 when its position is not a claim of its current epoch: no player, no
+## record, or a placement since (PlacePlayers, a knockdown, a respawn: the position is the host's
+## until the epoch's first claim is accepted, and a refused or malformed first claim does not end
+## that). A refused claim's Correction keeps the age of the last accepted one. The zone task counts
+## a player only while this and credit_gain are at most PUSH_TICKS (ZE10 of the zone task ADR): a
+## client that stops claiming stops counting.
+static func claim_age(state: MatchState, peer: int, now: int) -> int:
+	var motion := _claimed(state, peer)
+	if motion == null:
+		return -1
+	return maxi(0, now - motion.claimed_tick)
+
+
+## How many ticks of credit `peer` has stored at host tick `now` above the least an accepted claim
+## of its current epoch left it (the credit not yet topped up counted in, the MAX_TICK_CREDIT cap
+## not), or -1 as claim_age. An honest client claims one client tick of its own clock per host tick,
+## so its credit after each claim stays where its first claim left it, give or take the network's
+## jitter (a frozen host's backlog arrives in one tick and is spent there): this stays near 0. A
+## client that claims fewer client ticks than the host's ticks pass stores the difference, even
+## while it claims often enough to keep claim_age low: a claim every 10 host ticks that covers 1
+## stores 9. The zone task counts a player only while this is at most PUSH_TICKS too, so standing
+## in a zone cannot store credit for travel beyond the 10 ticks claim_age already tolerates (ZE10).
+## Spending credit lowers the least, so credit spent and stored again counts as well.
+static func credit_gain(state: MatchState, peer: int, now: int) -> int:
+	var motion := _claimed(state, peer)
+	if motion == null:
+		return -1
+	return maxi(0, motion.credit + now - motion.credit_tick - motion.least_credit)
+
+
+## `peer`'s record when an accepted claim of the player's current epoch set its position, else null.
+static func _claimed(state: MatchState, peer: int) -> Motion:
+	var player := state.player(peer)
+	if player == null:
+		return null
+	var table := (
+		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
+	)
+	var motion: Motion = table.by_peer.get(peer)
+	if motion == null or motion.epoch != player.epoch or motion.claimed_tick < 0:
+		return null
+	return motion
+
+
 ## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
 ## move it: farther than HOLD_SLACK_M, in any direction, from where the raise started
 ## (Channel.held_at; the engineer's answer 8 on PR #133). Such a claim is corrected.
@@ -522,6 +575,8 @@ static func _after_placement(
 	motion.rebase = false
 	motion.jumps = 0
 	motion.accepted_tick = now
+	motion.claimed_tick = -1
+	motion.least_credit = 0
 	player.on_floor = true
 	player.claim_tick = -1
 	player.sprint_held = false

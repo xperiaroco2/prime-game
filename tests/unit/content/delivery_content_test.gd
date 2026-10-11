@@ -40,20 +40,24 @@ func test_the_circle_and_a_palette_for_the_most_packages() -> void:
 	assert_int(demands.palettes[&"circle"]).is_greater_equal(most)
 
 
-func test_round_runs_life_channel_then_task_ticks_and_the_mode_deals_delivery() -> void:
+func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_delivery() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var round_spec := mode.find_phase(&"round")
-	assert_int(round_spec.tick_systems.size()).is_equal(3)
+	assert_int(round_spec.tick_systems.size()).is_equal(4)
 	assert_bool(round_spec.tick_systems[0] is LifeTicks).is_true()
 	# The raise's channel (M4-4).
 	assert_bool(round_spec.tick_systems[1] is ChannelTicks).is_true()
-	assert_bool(round_spec.tick_systems[2] is TaskTicks).is_true()
+	# The thrown items (#646; the throwing ADR: after ChannelTicks, before TaskTicks).
+	assert_bool(round_spec.tick_systems[2] is FlightTicks).is_true()
+	assert_bool(round_spec.tick_systems[3] is TaskTicks).is_true()
 	# LifeTicks holds the Round's Respawn (M4-3): a Respawn is optional to the mode check.
 	var respawn := (round_spec.tick_systems[0] as LifeTicks).respawn
 	assert_object(respawn).is_not_null()
 	if respawn != null:
 		assert_str(String(respawn.tag)).is_equal("respawn")
 		assert_str(String(respawn.rng_purpose)).is_equal("respawn")
+	# Delivery alone: the zone task (#649) left the base mode on #842; zone_base_mode_test.gd
+	# checks the fixture mode that still deals it.
 	assert_int(mode.task_types.size()).is_equal(1)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 

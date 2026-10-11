@@ -44,7 +44,8 @@ func start(now: int) -> bool:
 		failures.append(
 			"the bots are players %d to %d: none after the windows" % [first, scenario.bots]
 		)
-	if not scenario.forced_roles.is_empty() or not scenario.settings.is_empty():
+	var settings_set := not scenario.settings.is_empty() or not scenario.id_sets.is_empty()
+	if not scenario.forced_roles.is_empty() or settings_set:
 		failures.append("its roles and settings go in the playcheck file (window 1 sends them)")
 	if scenario.clock_s != 0 or not scenario.map.is_empty():
 		failures.append("its clock and map go in the playcheck file, or stay the mode's")

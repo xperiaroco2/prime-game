@@ -8,9 +8,9 @@ extends Node3D
 ## only; the level itself is public and stays drawn. Inactive, every view shows.
 ##
 ## A view joins GROUP: the remote avatars (AvatarViews), the bodies (BodyViews) and the items
-## (M4-8's views). It may give `sight_point()` (a Vector3) for where to look at it; else its
-## origin. It runs after the avatars (-80) and the local player (0) have moved, so a view is
-## hidden in the physics frame it appeared in.
+## (M4-8's views) and the fill of each zone (ZoneViews, #650). It may give `sight_point()` (a
+## Vector3) for where to look at it; else its origin. It runs after the avatars (-80) and the
+## local player (0) have moved, so a view is hidden in the physics frame it appeared in.
 
 const GROUP := &"hidden_out_of_sight"
 const PHYSICS_PRIORITY := 10

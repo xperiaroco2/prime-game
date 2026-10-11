@@ -206,6 +206,82 @@ func test_the_eye_stands_on_the_footprint_and_a_drop_asks_one_ray() -> void:
 	assert_array(Array(world.calls)).is_equal(["floor_below"])
 
 
+func test_a_launch_takes_the_item_out_of_the_hand_into_its_flight() -> void:
+	var game := FixtureItemModes.in_round(FixtureFlightModes.basic(), [P1, P2])
+	var item := FixtureFlightModes.holding(game, P1, Vector3(2, 0, 3))
+	var seen := game.view_of(P2).events.size()
+	var launch_tick := game.ticked_through() + 1
+	FixtureFlightModes.throw(game, P1, Vector3(0, 0, -4))
+	assert_int(item.where).is_equal(ItemState.Where.FLYING)
+	assert_int(item.holder).is_equal(0)
+	assert_int(game.state.player(P1).held_item).is_equal(-1)
+	var flight := item.flight
+	assert_object(flight).is_not_null()
+	assert_vector(flight.origin).is_equal(Vector3(2, 1.6, 3))
+	assert_vector(item.position).is_equal(flight.origin)
+	assert_vector(flight.velocity).is_equal(Vector3(0, 0, -10))
+	assert_vector(flight.gravity).is_equal(Vector3(0, -9.8, 0))
+	assert_vector(flight.fallback).is_equal(Vector3(2, 0, 3))
+	assert_int(flight.thrower).is_equal(P1)
+	assert_int(flight.ticks).is_equal(0)
+	assert_int(flight.launch_tick).is_equal(launch_tick)
+	# The launch announces nothing: the throw's own effect does (37c).
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_empty()
+
+
+func test_the_fallback_rest_is_the_floor_below_the_feet() -> void:
+	var world := FixtureTerrainWorld.new().add_platform(-1, -1, 1, 1, 0.5)
+	var game := FixtureItemModes.in_round(FixtureFlightModes.basic(), [P1], world)
+	# Feet a hair under the platform's top still find it (lifted, as for a drop).
+	var item := FixtureFlightModes.holding(game, P1, Vector3(0.5, 0.49, 0))
+	FixtureFlightModes.throw(game, P1, Vector3.RIGHT)
+	assert_vector(item.flight.fallback).is_equal(Vector3(0.5, 0.5, 0))
+
+
+func test_an_item_in_flight_rests_on_no_marker() -> void:
+	var mode := FixtureFlightModes.basic()
+	# Each throw then notes the markers a deal would count as free.
+	mode.actions[-1].effects.append(FixtureFreeMarkers.of(&"round_player"))
+	var game := FixtureItemModes.in_round(mode, [P1])
+	var item := FixtureFlightModes.holding(game, P1, Vector3(-3, 0, 0))
+	FixtureFlightModes.throw(game, P1, Vector3.FORWARD)
+	assert_int(item.where).is_equal(ItemState.Where.FLYING)
+	# A flight launched right over a marker: its position is the origin, not a rest.
+	item.flight.origin = Vector3(10, 0, 5)
+	item.position = item.flight.origin
+	FixtureFlightModes.holding(game, P1, Vector3(-3, 0, 0))
+	FixtureFlightModes.throw(game, P1, Vector3.FORWARD)
+	var markers := game.layout(FixtureModes.MAP).positions(&"round_player")
+	assert_bool(markers.has(item.position)).is_true()
+	assert_str(FixtureModes.notes(game)[-1]).is_equal(
+		FixtureFreeMarkers.text(&"round_player", markers)
+	)
+
+
+func test_an_item_in_flight_cannot_be_picked_up() -> void:
+	var game := FixtureItemModes.in_round(FixtureFlightModes.basic(), [P1, P2])
+	var item := FixtureFlightModes.holding(game, P1, Vector3.ZERO)
+	FixtureFlightModes.throw(game, P1, Vector3.RIGHT)
+	FixtureItemModes.stand(game, P2, Vector3(0.5, 0, 0))
+	FixtureItemModes.pick_up(game, P2, item)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"unavailable"])
+	assert_int(item.where).is_equal(ItemState.Where.FLYING)
+	assert_int(game.state.player(P2).held_item).is_equal(-1)
+
+
+func test_the_snapshot_shows_an_item_in_flight_at_its_origin_to_everyone() -> void:
+	var game := FixtureItemModes.in_round(FixtureFlightModes.basic(), [P1, P2])
+	var item := FixtureFlightModes.holding(game, P1, Vector3(1, 0, 1))
+	FixtureFlightModes.throw(game, P1, Vector3.RIGHT)
+	for viewer: int in [P1, P2]:
+		var items: Dictionary = (
+			Snapshots.for_peer(game.state, viewer, game.ticked_through())["items"]
+		)
+		assert_dict(items[item.id]).is_equal(
+			{"where": ItemState.Where.FLYING, "holder": 0, "position": Vector3(1, 1.6, 1)}
+		)
+
+
 ## The fixture item mode whose `Use` drops the actor's items for `cause`.
 func _with_drop(cause: StringName) -> GameMode:
 	var mode := FixtureItemModes.basic()

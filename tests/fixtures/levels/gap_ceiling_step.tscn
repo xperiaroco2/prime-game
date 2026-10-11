@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://dq3w8k5n2xr7m"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gap_wall"]
+size = Vector3(0.2, 3, 4.9)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ceiling"]
+size = Vector3(6, 0.2, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_step"]
+size = Vector3(2, 0.3, 6)
+
+[node name="GapCeilingStep" type="Node3D" unique_id=1418230561]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=2003114717]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=873290154]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="GapWallLeft" type="StaticBody3D" parent="." unique_id=1650372948]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1.5, -2.55)
+
+[node name="Shape" type="CollisionShape3D" parent="GapWallLeft" unique_id=391846205]
+shape = SubResource("BoxShape3D_gap_wall")
+
+[node name="GapWallRight" type="StaticBody3D" parent="." unique_id=1129475836]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1.5, 2.55)
+
+[node name="Shape" type="CollisionShape3D" parent="GapWallRight" unique_id=1784520391]
+shape = SubResource("BoxShape3D_gap_wall")
+
+[node name="LowCeiling" type="StaticBody3D" parent="." unique_id=564719283]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 2.05, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="LowCeiling" unique_id=1937501846]
+shape = SubResource("BoxShape3D_ceiling")
+
+[node name="Step" type="StaticBody3D" parent="." unique_id=208364715]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.15, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Step" unique_id=1466029573]
+shape = SubResource("BoxShape3D_step")

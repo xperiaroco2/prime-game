@@ -220,6 +220,93 @@ func test_two_rejected_streams_that_differ_are_reported() -> void:
 	assert_array(ChaosRun.compare_rejected(ChaosRun.new(), ChaosRun.new())).has_size(1)
 
 
+## #674: bot 4's claim after the freeze covers the silence, a tick more when the freeze starts
+## between two client ticks, and the claims a network lost just before it; past the credit the host
+## corrects it and bot 4 stands corrected in the zone all round, which held back every hostile claim
+## over WebRTC (a 200-tick freeze, 201 covered).
+func test_the_claim_after_the_freeze_fits_its_credit_with_lost_claims() -> void:
+	var silent := Ticks.from_seconds(ChaosScenario.FREEZE_S)
+	assert_int(silent).is_equal(ChaosScenario.FREEZE_TICKS)
+	assert_int(silent).is_greater(ZoneTask.STALE_TICKS)
+	var lost := MovementRule.PUSH_TICKS - 1
+	assert_int(silent + 1 + lost).is_less_equal(MovementRule.MAX_TICK_CREDIT)
+
+
+## #693: bot 4's script adopts no Correction outside a placement (each is taken for a chaos
+## claim's), so the run checks the host's answer to each of its honest claims instead: a Correction
+## of one fails the run, naming the seed; another peer's Correction or no answer passes, and a
+## chaos claim or another peer's claim is not checked here.
+func test_a_correction_of_the_hostile_bots_honest_claim_fails_naming_the_seed() -> void:
+	var claims := ChaosHonestClaims.new()
+	var fields := _claim_fields(372)
+	var honest := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, fields)
+	assert_int(ChaosFrames.claim_shape(honest.args)).is_equal(-1)
+	var player := PlayerState.new(4, "bot 4")
+	var corrected: Array[EmittedEvent] = [_correction_to(4, 3)]
+	claims.check(honest, corrected, player, 4, 7)
+	assert_int(claims.corrected).is_equal(1)
+	assert_str(claims.failures()[0]).contains("chaos seed 7: the host corrected an honest claim")
+	assert_str(claims.failures()[0]).contains("client tick 372")
+	assert_str(claims.failures()[0]).ends_with("(and 0 more)")
+	# A Correction to another peer, or none, is no failure.
+	var none: Array[EmittedEvent] = []
+	var to_another: Array[EmittedEvent] = [_correction_to(5, 3)]
+	claims.check(honest, to_another, player, 4, 7)
+	claims.check(honest, none, player, 4, 7)
+	assert_int(claims.corrected).is_equal(1)
+	# Only a claim the movement rule accepted (the player's claim_tick is the claim's) is counted.
+	assert_int(claims.accepted).is_equal(0)
+	player.claim_tick = 372
+	claims.check(honest, none, player, 4, 7)
+	assert_int(claims.accepted).is_equal(1)
+	# Later corrections are counted, not reported again: the first one stays the failure.
+	claims.check(honest, corrected, player, 4, 8)
+	claims.check(honest, corrected, player, 4, 8)
+	assert_int(claims.corrected).is_equal(3)
+	assert_int(claims.failures().size()).is_equal(1)
+	assert_str(claims.failures()[0]).contains("chaos seed 7").ends_with("(and 2 more)")
+	var tagged := fields.duplicate()
+	tagged["velocity"] = Vector3(0, ChaosFrames.CLAIM_TAG + ChaosFrames.Claim.TELEPORT, 0)
+	var chaos := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, tagged)
+	assert_int(ChaosFrames.claim_shape(chaos.args)).is_equal(ChaosFrames.Claim.TELEPORT)
+	claims.check(chaos, corrected, player, 4, 7)
+	var from_bot_1 := MatchCommand.new(Intents.MOVE_CLAIM, 1, 300, fields)
+	claims.check(from_bot_1, [_correction_to(1, 3)], player, 4, 7)
+	# Before bot 4 has a peer id (hostile_peer 0), nothing is bot 4's.
+	claims.check(honest, corrected, player, 0, 7)
+	assert_int(claims.corrected).is_equal(3)
+	assert_int(claims.accepted).is_equal(1)
+
+
+## The wiring (#693): ChaosRun hands bot 4's honest claim and the host's answer to the check, which
+## the run reports in its failures; a chaos claim, and an honest claim of another peer, it does not.
+func test_the_run_reports_a_corrected_honest_claim_of_bot_4_and_counts_the_accepted() -> void:
+	var run := ChaosRun.new(false, ChaosRun.Mode.CHAOS, 188001)
+	run.peers.set_peer(ChaosScenario.HOSTILE, 4)
+	run.game = Match.new(GameMode.new(), 1, WorldQuery.new(), {})
+	var player := run.game.state.add_player(4, "bot 4")
+	player.claim_tick = 372
+	var honest := MatchCommand.new(Intents.MOVE_CLAIM, 4, 300, _claim_fields(372))
+	var none: Array[EmittedEvent] = []
+	run._note_honest_claim(honest, none)
+	assert_int(run.honest_claims.accepted).is_equal(1)
+	assert_array(run.honest_claims.failures()).is_empty()
+	var corrected: Array[EmittedEvent] = [_correction_to(4, 3)]
+	run._note_honest_claim(honest, corrected)
+	var found := run.honest_claims.failures()
+	assert_int(found.size()).is_equal(1)
+	assert_str(found[0]).contains("chaos seed 188001: the host corrected an honest claim of bot 4")
+
+
+func _claim_fields(tick: int) -> Dictionary:
+	return {
+		"epoch": 2,
+		"client_tick": tick,
+		"position": Vector3(20, 0, -20),
+		"velocity": Vector3(1, 0, 0)
+	}
+
+
 func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> void:
 	var schema := WireSchema.game(true)
 	# Bot 2 lost its join (#483): its peer id is 0, which no ForceRole may name.
@@ -236,6 +323,12 @@ func test_the_malformed_peer_sends_no_force_role_while_bot_2_has_no_peer() -> vo
 	assert_int(force_role.expect if force_role != null else -1).is_equal(
 		NetRejects.Reason.BAD_PAYLOAD
 	)
+
+
+## The host's Correction to `peer` (MovementRule._correct's answer to a refused claim).
+func _correction_to(peer: int, epoch: int) -> EmittedEvent:
+	var correction := CorrectionEvent.new(peer, epoch, Vector3(-9, 0, 7), Vector3.ZERO)
+	return EmittedEvent.new(300, correction, PackedInt32Array([peer]), false)
 
 
 ## What a connected malformed peer sends in its first START_AFTER_FRAMES frames, bot 2's peer being
@@ -256,3 +349,56 @@ func _first_words(schema: WireSchema, crew_peer: int) -> Dictionary:
 	chaos_log.stop()
 	var labels: Array = packets.map(func(packet: ChaosFrames.Packet) -> String: return packet.label)
 	return {"packets": packets, "labels": labels, "errors": chaos_log.errors()}
+
+
+func test_the_oracle_refuses_throw_in_every_phase_and_life_state_whatever_the_facing() -> void:
+	# §3.2, §4.6.5.3: Round takes Throw from the living only (the base mode's Throw rule, #646),
+	# whose empty hand HoldsItem refuses as empty_hand; elsewhere, and from the downed, the dead
+	# and a newcomer, not_accepted. A refused Throw is answered, never dropped in silence.
+	var living := PlayerState.new(4, "Player4")
+	var downed := PlayerState.new(4, "Player4")
+	downed.life = PlayerState.Life.DOWNED
+	var dead := PlayerState.new(4, "Player4")
+	dead.life = PlayerState.Life.DEAD
+	var host := PlayerState.new(1, "Player1")
+	for phase: StringName in ChaosOracle.ACCEPTS:
+		var in_round := phase == &"round"
+		assert_bool(ChaosOracle.ACCEPTS[phase].has(Intents.THROW)).is_equal(in_round)
+		for player: PlayerState in [living, downed, dead, host, null]:
+			var peer := 1 if player == host else 4
+			var expected := "not_accepted"
+			if in_round and (player == living or player == host):
+				expected = "empty_hand"
+			for facing: Vector3 in ChaosFrames.THROW_FACINGS:
+				var answer := ChaosOracle.answer(
+					Intents.THROW, {"facing": facing}, peer, phase, player, 0
+				)
+				(
+					assert_str(str(answer))
+					. override_failure_message("%s %s %s" % [phase, peer, facing])
+					. is_equal(expected)
+				)
+
+
+func test_the_oracle_leaves_a_throw_with_a_held_item_to_the_check() -> void:
+	# A living player holding an item could throw it: the hostile never sends that ("?").
+	var holder := PlayerState.new(4, "Player4")
+	holder.held_item = 0
+	var answer := ChaosOracle.answer(
+		Intents.THROW, {"facing": Vector3.FORWARD}, 4, &"round", holder, 0
+	)
+	assert_str(str(answer)).is_equal("?")
+
+
+func test_the_hostile_throws_with_each_facing_and_only_those() -> void:
+	var hostile := ChaosHostile.new(null, null, WireSchema.game(true), Callable(), null, 188001)
+	var seen: Dictionary[Vector3, int] = {}
+	for _i in 64:
+		var facing: Vector3 = hostile._args_of(Intents.THROW, &"round")["facing"]
+		(
+			assert_bool(ChaosFrames.THROW_FACINGS.has(facing))
+			. override_failure_message(str(facing))
+			. is_true()
+		)
+		seen[facing] = seen.get(facing, 0) + 1
+	assert_int(seen.size()).is_equal(ChaosFrames.THROW_FACINGS.size())

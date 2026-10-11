@@ -40,6 +40,11 @@ func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	return answer if answer is Vector3 else super.rest_position(from, towards)
 
 
+func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	var answer: Variant = _take(TYPE_VECTOR3)
+	return answer if answer is Vector3 else super.sweep(from, to, radius)
+
+
 func _take(type: Variant.Type) -> Variant:
 	if _next >= _answers.size() or typeof(_answers[_next]) != type:
 		if not diverged:

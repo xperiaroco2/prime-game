@@ -143,6 +143,34 @@ func test_the_targets_own_meshes_are_drawn_by_no_camera_the_spectator_uses() -> 
 	await _pair.stop()
 
 
+func test_an_item_the_target_threw_is_not_hung_in_front_of_the_spectate_camera() -> void:
+	assert_bool(await _dead_joiner()).is_true()
+	var life := _pair.client.life()
+	var target := _pair.peer_of(_pair.host)
+	var model := _pair.client.client().model
+	model.fold(&"ItemSpawned", {"item": HAND_ITEM, "kind": &"knife", "position": Vector3.ZERO})
+	model.fold(&"ItemPickedUp", {"peer": target, "item": HAND_ITEM})
+	# The host's ItemThrown reaches the spectator before the avatars' drawn time reaches the
+	# launch: the model's hand is empty, the item still hangs at the target's body (ItemViews).
+	var thrown := {
+		"item": HAND_ITEM,
+		"peer": target,
+		"origin": Vector3(0, 1.6, 0),
+		"velocity": Vector3(0, 0, -10),
+		"gravity": Vector3(0, -9.8, 0),
+		"tick": 1000000,
+	}
+	model.fold(&"ItemThrown", thrown)
+	var world := _pair.client.items()
+	world.on_event(&"ItemThrown", thrown)
+	await _pair.frames(2)
+	var views := world.items
+	assert_array(views.flights.awaiting_launch_of(target)).contains_exactly([HAND_ITEM])
+	assert_str(String(life.spectate_hand().shown_kind())).is_empty()
+	assert_bool(views.view_of(HAND_ITEM).is_look_shown()).is_false()
+	await _pair.stop()
+
+
 func test_a_respawned_spectator_sees_the_target_it_watched_again() -> void:
 	_pair.mode.player_rules.respawn_s = SHORT_RESPAWN_S
 	assert_bool(await _dead_joiner()).is_true()

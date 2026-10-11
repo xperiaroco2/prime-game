@@ -114,15 +114,10 @@ func _join_at_start() -> void:
 	# And a ForceClock from the host's own player for a scenario with its own clock.
 	if scenario.clock_s > 0:
 		_queue(Intents.FORCE_CLOCK, bots[0].peer, {"seconds": scenario.clock_s})
-	if scenario.settings.is_empty() and scenario.map.is_empty():
+	var args := scenario.setup_change()
+	if args.is_empty():
 		return
 	var host := bots[0]
-	var values := {}
-	for id: StringName in scenario.settings:
-		values[String(id)] = scenario.settings[id]
-	var args := {"settings": values}
-	if not scenario.map.is_empty():
-		args["map"] = scenario.map
 	_queue(Intents.CHANGE_SETTINGS, host.peer, args, host.next_seq())
 
 

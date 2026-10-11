@@ -2,7 +2,7 @@ class_name TaskState
 extends RefCounted
 ## The state of one task in a match (ARCHITECTURE §9.1): created by its task type in its deal,
 ## kept in MatchState, read and written only by that task type (Delivery: which subtasks are
-## done; #36: the time in the zone per subtask). A task type subclasses it as an inner class.
+## done; ZoneTask: the ticks counted per zone). A task type subclasses it as an inner class.
 
 
 ## Subtasks done.

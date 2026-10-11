@@ -2,8 +2,9 @@ class_name TaskTicks
 extends TickSystem
 ## The tick system of the task types (ARCHITECTURE §3.3, §9.4): every tick of the phase that lists
 ## it, runs the tick of each of the mode's task types that has one (TaskType.has_tick), in the
-## mode's order. None ticks in the MVP: Delivery is checked when an item comes to rest. The first
-## that will is #36's zone task. Emits: the task types' events.
+## mode's order: the zone task's (ZoneTask, #647); Delivery has none, it is checked when an item
+## comes to rest. ModeCheck refuses a ticking task type that no phase lists this in. Emits: the
+## task types' events.
 
 
 func run(ctx: MatchContext) -> void:

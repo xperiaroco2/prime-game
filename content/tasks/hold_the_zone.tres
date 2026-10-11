@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ZoneTask" format=3 uid="uid://bmjt7j51i3kgr"]
+
+[ext_resource type="Script" uid="uid://d15mxdydvs4ei" path="res://core/tasks/zone_task.gd" id="1_zone_task"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+
+[sub_resource type="Resource" id="StationKind_zone"]
+script = ExtResource("2_station")
+id = &"zone"
+spawn_tag = &"zone"
+radius_m = 1.5
+height_m = 2.5
+palette = PackedColorArray(1, 0.9, 0, 1)
+
+[resource]
+script = ExtResource("1_zone_task")
+zone = SubResource("StationKind_zone")
+subtasks_setting = &"zones"
+seconds = 10.0
+id = &"hold_the_zone"
+display_name = "Hold the zone"
+description = "Stand in the zone until it fills."

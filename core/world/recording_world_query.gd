@@ -39,3 +39,9 @@ func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	var answer := _inner.rest_position(from, towards)
 	_log.world_answers.append(answer)
 	return answer
+
+
+func sweep(from: Vector3, to: Vector3, radius: float) -> Vector3:
+	var answer := _inner.sweep(from, to, radius)
+	_log.world_answers.append(answer)
+	return answer

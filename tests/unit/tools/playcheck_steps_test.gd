@@ -493,6 +493,9 @@ func test_the_aim_picks_the_nearest_resting_item_of_its_kind() -> void:
 	model.items[4].holder = 7
 	assert_int(Steps.nearest_resting(model, &"knife", Vector3.ZERO)).is_equal(-1)
 	assert_int(Steps.nearest_resting(model, &"crowbar", Vector3.ZERO)).is_equal(-1)
+	# In flight (§7.1.16): its position is only the launch's origin.
+	model.items[3].flying = true
+	assert_int(Steps.nearest_resting(model, &"package", Vector3.ZERO)).is_equal(-1)
 
 
 func test_the_aim_turn_makes_the_player_look_at_the_target() -> void:

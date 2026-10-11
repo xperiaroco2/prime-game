@@ -30,16 +30,43 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   covering it, or name plates show through it (`docs/ARCHITECTURE.md` §4.7.29, #257).
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
-  `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order. A
-  `circle` marker is snapped down to the floor below it when read (its cylinder starts there); one with no floor
-  below is a load error. The bot scenarios read every map through a flat fake (floor at y = 0, ARCHITECTURE §9.7):
-  on a map with several levels no `circle` below y = 0 and no two markers of different tags at one (x, z).
+  `spawn_circle`, `spawn_zone`). A marker in two such groups is a load error. The host reads them in scene-tree
+  order. The bot scenarios read every map through a flat fake (floor at y = 0, ARCHITECTURE §9.7): on a map with
+  several levels no station marker (`circle` or `zone`, #681) below y = 0, where it finds no floor, and no two
+  markers of different tags at one (x, z).
+- **Task stations** (every station kind's marker: Delivery's `circle`, the zone task's `zone`, #649; the [zone task
+  ADR](../docs/decisions/2026-10-09-m7-zone-task.md) ZD10, ZE2, ZE9): the host snaps the marker down to the floor
+  below it when read, and the station's cylinder (the zone: 1.5 m radius, 2.5 m high; the circle: 1 m, 2 m) stands
+  on that floor; one with no floor below is a load error. So every station marker:
+  - sits on **flat floor**: a player counts only with its feet inside the cylinder, so a zone on a slope or a step
+    never counts the player whose feet stand below the snapped marker;
+  - keeps its whole cylinder **clear of walls and ceilings**: the host tests positions only, with no line of
+    sight, so a cylinder through a thin wall counts a player behind it, and one taller than its storey counts a
+    player upstairs. A `shot` of the station's room in the PR checks it; on House, `house_markers_test.gd` also
+    tests each zone's cylinder against the host's collision world (no wall, ceiling or furniture inside, flat floor
+    under it, #651);
+  - keeps **ZE9's distances**, which `tests/unit/content/zone_content_test.gd` checks on every map of the base
+    mode, read in the host's collision world (#681): any two `zone` markers at least twice the zone's radius apart (3 m); each `zone` marker at least
+    its radius plus 1 m (2.5 m) from every `round_player` and `respawn` marker, and at least its radius plus the
+    circle's (2.5 m) from every `circle` marker. Markers more than a zone's height apart in y (another storey)
+    are not compared (the check is `tests/fixtures/tasks/fixture_zone_spacing.gd`, which House's marker test runs too).
+- Every map of the base mode needs `zone` markers (as many as the `zones` setting's maximum), or its lobby cannot
+  start until the host bans the zone type and sets `tasks` to 1. The greybox's four along z = 7 are placeholders,
+  "not a decision" (#649); House's three (the yard, the garden, the landing) are #651's placeholders until
+  the engineer moves them (#681 moved the generator hall's up to the yard).
 - **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
   `spawn_respawn`, at least one per round map: the layout check and the lobby's fit check demand them (M4-3), and
   each needs 1 m free around it (a marker with a player that near is drawn only when none is free).
 - **Hiding spots** (the same revision): a dissident may hide a package anywhere a put-down allows, so every floor a
   put-down can reach must also be reachable for a pickup (the pick-up reach and line of sight, from somewhere a
   player can stand). No gap, ledge or thin wall may keep a package for good; a playtest checks it.
+- **Thrown items** ([throwing ADR](../docs/decisions/2026-10-09-throwing-held-items.md) TD5 (a), #646): a thrown
+  item rests wherever its flight ends, so the levels keep every surface a throw can reach within reach of a spot
+  where a player can stand (the pick-up's 2 m from the feet, with line of sight): no shelf, ledge, canopy or roof
+  that a throw lands on and no player reaches. The throw speed is kept below what reaches a lockable roof;
+  `tests/integration/levels/house_roof_throw_test.gd` guards House's. It throws from every floor of sampled columns
+  near the roof (every metre on the balcony and its railings, every 2 m elsewhere; `house_throws.gd`), so a higher
+  floor or a perch placed there turns it red; a new standable area near the roof gets its columns there too.
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 

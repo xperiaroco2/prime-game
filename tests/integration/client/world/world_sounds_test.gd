@@ -115,6 +115,32 @@ func test_a_sound_out_of_range_casts_no_ray() -> void:
 	assert_int(_sounds.rays()).is_equal(0)
 
 
+func test_a_launch_behind_a_wall_plays_muffled_and_none_plays_beyond_the_range() -> void:
+	# #645: ItemThrown's launch sound, at the thrower's eye, is cut and muffled like the others.
+	_box(WALL_AT, WALL_SIZE)
+	await _physics(2)
+	var launch := {
+		"item": 5,
+		"peer": 2,
+		"origin": Vector3(0, 1.6, -3),
+		"velocity": Vector3(0, 4, -8),
+		"gravity": Vector3(0, -9.8, 0),
+		"tick": 30,
+	}
+	_sounds.on_event(&"ItemThrown", launch)
+	assert_int(_sounds.played()).is_equal(1)
+	assert_int(_sounds.rays()).is_equal(1)
+	assert_int(_sounds.muffled()).is_equal(1)
+	var sound := _sounds.get_child(_sounds.get_child_count() - 1) as AudioStreamPlayer3D
+	assert_str(String(sound.bus)).is_equal(String(AudioBuses.EFFECTS_MUFFLED))
+	assert_float(sound.max_distance).is_equal(SoundChooser.HEARING_RANGE_M)
+	assert_object(sound.stream).is_not_null()
+	launch["origin"] = Vector3(0, 1.6, -SoundChooser.HEARING_RANGE_M - 2)
+	_sounds.on_event(&"ItemThrown", launch)
+	assert_int(_sounds.played()).is_equal(1)
+	assert_int(_sounds.rays()).is_equal(1)
+
+
 ## An ItemPlaced at `at`; returns the player it started.
 func _put_down(at: Vector3) -> AudioStreamPlayer3D:
 	var before := _sounds.played()

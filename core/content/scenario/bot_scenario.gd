@@ -26,6 +26,8 @@ const NONE := &"none"
 ## The smallest session seed: the runner's seed check (§5) looks for the seed's number in every
 ## event, so a small seed would be mistaken for a peer id, an item id or a count.
 const MIN_SEED := 1_000_000
+## Said with a setup the lobby would refuse: its usual cause.
+const HINT := ": bans that leave fewer task types than tasks need the lower tasks too"
 
 @export var mode: GameMode
 ## One of the mode's maps; empty means its first.
@@ -35,6 +37,11 @@ const MIN_SEED := 1_000_000
 @export var bots := 1
 ## Match settings (whole numbers) that differ from the mode's defaults.
 @export var settings: Dictionary[StringName, int] = {}
+## The set settings (a set of the mode's task type ids: the base mode's `banned_task_types`, the
+## host's bans, #79) that differ from the empty default, sent with `settings` in the setup's one
+## ChangeSettings. A ban that leaves fewer task types than `tasks` needs the lower `tasks` in
+## `settings` too: the lobby checks the numbers and the sets together (DealTasks.settings_problem).
+@export var id_sets: Dictionary[StringName, PackedStringArray] = {}
 ## Bot number -> role id, forced before the deal (debug builds only).
 @export var forced_roles: Dictionary[int, StringName] = {}
 ## scripts[i] is bot i + 1's; a bot without one only joins and loads.
@@ -62,6 +69,22 @@ func steps_of(bot: int) -> Array[ScenarioStep]:
 	return scripts[bot - 1].steps
 
 
+## The setup's ChangeSettings arguments, as the host's bot sends them: `settings` (the numbers and
+## the sets, by id) and `map` when one is named; empty when the setup changes nothing.
+func setup_change() -> Dictionary:
+	if settings.is_empty() and id_sets.is_empty() and map.is_empty():
+		return {}
+	var values := {}
+	for id: StringName in settings:
+		values[String(id)] = settings[id]
+	for id: StringName in id_sets:
+		values[String(id)] = Array(id_sets[id])
+	var args := {"settings": values}
+	if not map.is_empty():
+		args["map"] = map
+	return args
+
+
 ## What makes this scenario unplayable, each once; empty when it is fine.
 func problems() -> PackedStringArray:
 	var found := PackedStringArray()
@@ -72,7 +95,7 @@ func problems() -> PackedStringArray:
 		found.append("bots is %d, outside 1 to %d" % [bots, mode.max_players])
 	if not map.is_empty() and not mode.maps.has(map):
 		found.append("map %s is not one of the mode's maps" % map)
-	if (not settings.is_empty() or not map.is_empty()) and not steps_of(1).is_empty():
+	if not setup_change().is_empty() and not steps_of(1).is_empty():
 		for step: ScenarioStep in steps_of(1):
 			if step is StepJoin:
 				found.append("bot 1 sends the setup's settings and map, so it joins at the start")
@@ -88,6 +111,7 @@ func problems() -> PackedStringArray:
 	for id: StringName in settings:
 		if mode.find_setting(id) == null:
 			found.append("setting %s is not the mode's" % id)
+	found.append_array(_set_problems())
 	if expected_ends.is_empty():
 		found.append("no expected end")
 	for end: StringName in expected_ends:
@@ -122,4 +146,40 @@ func problems() -> PackedStringArray:
 				continue
 			for problem: String in step.problems():
 				found.append("bot %d, %s: %s" % [bot, step.step_name(), problem])
+	return found
+
+
+## The set settings' problems: a set the mode does not declare, an id that is none of its task
+## types, and then, as the lobby would refuse the setup's ChangeSettings, the numbers and the sets
+## together by every row's actions (DealTasks: bans that leave fewer task types than `tasks`).
+func _set_problems() -> PackedStringArray:
+	var found := PackedStringArray()
+	for id: StringName in id_sets:
+		var spec := mode.find_setting(id)
+		if spec == null or spec.is_number():
+			found.append("set setting %s is not one of the mode's sets of task types" % id)
+			continue
+		for type_id: String in id_sets[id]:
+			if mode.find_task_type(StringName(type_id)) == null:
+				found.append("set setting %s names %s, not a task type of the mode" % [id, type_id])
+	if not found.is_empty():
+		return found
+	var numbers := mode.default_settings()
+	for id: StringName in settings:
+		if numbers.has(id):
+			numbers[id] = settings[id]
+	var sets := mode.default_id_sets()
+	sets.merge(id_sets, true)
+	for row: Transition in mode.transitions:
+		if row == null:
+			continue
+		for action: RuleEffect in row.actions:
+			if action == null:
+				continue
+			var reason := action.settings_problem(numbers, sets, mode)
+			if not reason.is_empty():
+				found.append(
+					"the lobby refuses the setup's settings and sets (%s)%s" % [reason, HINT]
+				)
+				return found
 	return found

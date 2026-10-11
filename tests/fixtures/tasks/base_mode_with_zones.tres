@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="FixtureBaseModeWithZones" format=3]
+
+[ext_resource type="Script" uid="uid://d1c83oe8nue6u" path="res://tests/fixtures/tasks/base_mode_with_zones.gd" id="1_mode"]
+
+[resource]
+script = ExtResource("1_mode")

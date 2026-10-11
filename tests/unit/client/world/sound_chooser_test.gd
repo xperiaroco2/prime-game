@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The sound chooser (client/world/sound_chooser.gd; ARCHITECTURE §4.7, a hearing range; the M4
-## ADR's §3 item 10, E33 (a)): Swung, ItemPickedUp and ItemPlaced play at their places only within
-## the hearing range of the listener's camera, and nothing at all for an event from farther away;
-## every other event is silent; a footstep (#525) is cut at the same range. WorldSounds sets each
-## player's max_distance to the same range and plays each event's own files (SfxSet).
+## ADR's §3 item 10, E33 (a)): Swung, ItemPickedUp, ItemPlaced and ItemThrown (#645) play at their
+## places only within the hearing range of the listener's camera, and nothing at all for an event
+## from farther away; every other event is silent; a footstep (#525) is cut at the same range.
+## WorldSounds sets each player's max_distance to the same range and plays each event's own files
+## (SfxSet), and a throw's launch, which has none yet, its placeholder blip.
 
 const RANGE := SoundChooser.HEARING_RANGE_M
 
@@ -61,6 +62,27 @@ func test_nothing_plays_beyond_the_hearing_range() -> void:
 	assert_object(_choose(&"Swung", {"peer": 2, "facing": Vector3.FORWARD}, Vector3.ZERO)).is_null()
 	assert_bool(SoundChooser.audible(Vector3(RANGE, 0, 0), Vector3.ZERO)).is_true()
 	assert_bool(SoundChooser.audible(Vector3(RANGE + 0.01, 0, 0), Vector3.ZERO)).is_false()
+
+
+func test_a_launch_plays_at_its_origin_and_none_beyond_the_hearing_range() -> void:
+	# The plant E33 guards against for throws (#645): ItemThrown reaches everyone with its origin,
+	# so an uncut launch would tell every client where a package was just thrown to hide it.
+	var launch := {
+		"item": 5,
+		"peer": 2,
+		"origin": Vector3(0, 1.6, 3),
+		"velocity": Vector3(0, 4, -8),
+		"gravity": Vector3(0, -9.8, 0),
+		"tick": 30,
+	}
+	var sound := _choose(&"ItemThrown", launch, Vector3.ZERO)
+	assert_str(String(sound.id)).is_equal(String(SoundChooser.THROW))
+	assert_that(sound.position).is_equal(Vector3(0, 1.6, 3))
+	assert_that(sound.aim).is_equal(Vector3(0, 1.6, 3))
+	launch["origin"] = Vector3(0, 0, RANGE + 0.5)
+	assert_object(_choose(&"ItemThrown", launch, Vector3.ZERO)).is_null()
+	launch["origin"] = Vector3(0, 0, RANGE)
+	assert_object(_choose(&"ItemThrown", launch, Vector3.ZERO)).is_not_null()
 
 
 func test_other_events_are_silent() -> void:
@@ -140,6 +162,30 @@ func test_each_former_stub_event_plays_its_own_files() -> void:
 	assert_object((started[1] as AudioStreamPlayer3D).stream).is_same(
 		sounds.sfx.stream_for(SoundChooser.PUT_DOWN)
 	)
+
+
+func test_the_throw_placeholder_blip_is_a_short_sound_and_plays_for_a_launch() -> void:
+	# #645's blip outlived #525's files for the throw alone: SfxSet has none for it yet.
+	var blip := WorldSounds.throw_blip()
+	assert_float(blip.get_length()).is_between(0.05, 0.5)
+	assert_int(blip.data.size()).is_greater(1000)
+	assert_int(SfxSet.paths_for(SoundChooser.THROW).size()).is_equal(0)
+	var sounds: WorldSounds = auto_free(WorldSounds.new())
+	add_child(sounds)
+	sounds.model = _model
+	sounds.listener = func() -> Variant: return Vector3.ZERO
+	var thrown := {
+		"item": 5,
+		"peer": 2,
+		"origin": Vector3(0, 1.5, 2),
+		"velocity": Vector3(0, 2, -6),
+		"gravity": Vector3(0, -9.8, 0),
+		"tick": 10,
+	}
+	sounds.on_event(&"ItemThrown", thrown)
+	assert_int(sounds.played()).is_equal(1)
+	var started := sounds.find_children("*", "AudioStreamPlayer3D", false, false)
+	assert_object((started[0] as AudioStreamPlayer3D).stream).is_instanceof(AudioStreamWAV)
 
 
 func _choose(event_name: StringName, fields: Dictionary, listener: Vector3) -> SoundChooser.Sound:
