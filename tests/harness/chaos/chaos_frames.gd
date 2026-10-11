@@ -75,8 +75,18 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## ProfileChanged took them (#551), 17 and 67 took theirs; 17 and 67 left it when release/m7's
 ## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs; 18 left it
 ## when Interact took it (#796), 20 took its place; 69 left it when ItemVanished took it (#779), 70
-## took its place.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 70, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## took its place; 70 left it when SwitchChanged took it (#797, ButtonPressed took 71), 72 took its
+## place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 72, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
+## `wrong_direction`), one drawn per packet: Rejected, and the Generator's events (#797), each
+## with valid fields.
+const WRONG_DIRECTION: Array[StringName] = [&"Rejected", &"SwitchChanged", &"ButtonPressed"]
+const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
+	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
+	&"SwitchChanged": {"station": 1, "on": true},
+	&"ButtonPressed": {"station": 1},
+}
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
 ## zero, and two whose squared length underflows (1e-30) or overflows (1e38) in single precision.
@@ -235,9 +245,9 @@ static func _bad_frame(shape: Shape, rng: RandomNumberGenerator, schema: WireSch
 			packet.bytes = noise
 			packet.expect = NetRejects.Reason.UNKNOWN_KIND
 		Shape.WRONG_DIRECTION:
-			var rejected := {"seq": CHAOS_SEQ, "reason": &"not_accepted"}
-			var payload := schema.encode(WireMessage.new(&"Rejected", rejected))
-			packet.bytes = NetFrame.encode(schema.kind_of(&"Rejected"), payload)
+			var wrong: StringName = WRONG_DIRECTION[rng.randi_range(0, WRONG_DIRECTION.size() - 1)]
+			var payload := schema.encode(WireMessage.new(wrong, WRONG_DIRECTION_FIELDS[wrong]))
+			packet.bytes = NetFrame.encode(schema.kind_of(wrong), payload)
 			packet.expect = NetRejects.Reason.WRONG_DIRECTION
 		Shape.WRONG_LANE:
 			# A reliable intent on the voice channel, unreliable.

@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## HostTextView (#548): a shortfall's id worded by the deck's key in the current language, the
 ## plural by its count; an id the deck has no key for (ui-0.4.0: players_many, markers, colours,
-## no_layout) or an unknown one as plain(), the id and its arguments with no words of a language.
+## no_layout, markers_exact) or an unknown one as plain(), the id and its arguments with no words
+## of a language.
 
 var _locale := ""
 
@@ -27,6 +28,10 @@ func test_players_few_is_the_decks_need_more_by_its_count() -> void:
 func test_an_id_without_a_key_is_its_plain_line() -> void:
 	var markers := _text(&"markers", ["package"], {&"need": 4, &"have": 2})
 	assert_str(HostTextView.shortfall(markers)).is_equal("markers package have=2 need=4")
+	# #797: an exact demand met by another count; the deck has no key for it yet.
+	var exact := _text(&"markers_exact", ["switch"], {&"need": 4, &"have": 5})
+	assert_str(HostTextView.shortfall(exact)).is_equal("markers_exact switch have=5 need=4")
+	assert_bool(HostTextView.SHORTFALL_KEYS.has(HostText.MARKERS_EXACT)).is_false()
 	var many := _text(&"players_many", [], {&"count": 2, &"min": 1, &"max": 10})
 	assert_str(HostTextView.shortfall(many)).is_equal("players_many count=2 max=10 min=1")
 	assert_str(HostTextView.shortfall(_text(&"no_layout", [], {}))).is_equal("no_layout")

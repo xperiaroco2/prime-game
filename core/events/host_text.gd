@@ -12,6 +12,9 @@ const PLAYERS_MANY := &"players_many"
 ## A spawn tag with fewer markers on the map than the match needs. ids: [the tag]; numbers: need,
 ## have.
 const MARKERS := &"markers"
+## A spawn tag whose markers the match needs exactly (Demands.exact: the Generator's, GE10, #797),
+## and the map holds another count, more or fewer. ids: [the tag]; numbers: need, have.
+const MARKERS_EXACT := &"markers_exact"
 ## A station kind whose palette has fewer colours than the match needs. ids: [the station kind];
 ## numbers: need, have.
 const COLOURS := &"colours"

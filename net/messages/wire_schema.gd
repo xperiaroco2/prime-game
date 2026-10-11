@@ -24,8 +24,9 @@ extends RefCounted
 ## (kind 17) and ItemThrown (kind 68). On release/m7 they were its own 11 and 12 (kinds 66, 15, 67),
 ## renumbered above main's highest as one bump when it merged second;
 ## 16 since #796 added Interact (kind 18);
-## 17 since #779 added ItemVanished (kind 69).
-const VERSION := 17
+## 17 since #779 added ItemVanished (kind 69);
+## 18 since #797 added the Generator's SwitchChanged (kind 70) and ButtonPressed (kind 71).
+const VERSION := 18
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -443,6 +444,8 @@ static func _events() -> Array[WireRow]:
 			]
 		),
 		_down(69, &"ItemVanished", 2, [_item("item")]),
+		_down(70, &"SwitchChanged", 3, [_station("station"), _bool("on")]),
+		_down(71, &"ButtonPressed", 2, [_station("station")]),
 	]
 
 

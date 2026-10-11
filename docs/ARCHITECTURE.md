@@ -156,7 +156,7 @@ countdown changes no scene and places nobody.
   re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `knives`, `spawns`), named in the data of the part that
+  (`roles`, `task_types`, `circles`, `tasks`, `packages`, `zones`, `switches`, `knives`, `spawns`), named in the data of the part that
   draws (§9.4), gets its own `RandomNumberGenerator`, seeded by a fixed mixing function of the match seed and the
   purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the name; not `String.hash()`, whose
   algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
@@ -172,7 +172,9 @@ countdown changes no scene and places nobody.
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
   bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.18): one task
   of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
-  *i* is subtask *i* in station-id order. Then each task's `TaskState` (its id, type and
+  *i* is subtask *i* in station-id order. The Generator's deal (#797, §9.5.19): its generator on the one
+  `generator` marker, then a switch on as many of the `switch` markers as its subtasks setting asks, drawn with `switches`, in level
+  order; switch *i* is subtask *i*. Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
   every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
@@ -725,7 +727,9 @@ wire schemas of the events and the snapshot are §4.3.
 | `ItemVanished` | item | everyone: items on the ground are public, and it names no player | an item of a kind with `vanish_seconds` lay on the ground that long (`VanishTicks`, §9.4.5; the cooking ADR, CD6 (c), #779); its id may later name a new item (§9.3) |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
-| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress` |
+| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress`. The Generator's charge shares it (#797, the Generator ADR's GE7 and GE8; §9.5.19): its station is the generator's; at 0 in the deal, after the `StationPlaced`s; a start or stop by a use, after its `SwitchChanged` or `ButtonPressed`, with `tick` the tick before (the charge counted through it), or held to its window's end; the full charge in its own tick, before the `TaskState`s and `TaskProgress` |
+| `SwitchChanged` | the switch's station, whether it is on now (#797, the Generator ADR's GE9) | everyone: it names no player (the ADR's row 18), and any living player of any role may use a switch | an accepted `Interact` on an active switch of the Generator (it toggles); before the charge's `ZoneProgress` when the toggle stopped it |
+| `ButtonPressed` | the generator's station (#797, GE9) | everyone, as `SwitchChanged` | an accepted `Interact` on the generator, whether or not it changed the charge (a press with a switch off changes nothing else); before the charge's `ZoneProgress` on a start or stop |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
@@ -749,7 +753,8 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`, on the row into the round; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
-in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`.
+in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`. #797 (Generator G2): `SwitchChanged` and
+`ButtonPressed`, and the Generator's `ZoneProgress`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -897,6 +902,8 @@ directive has no row, because it reaches no peer.
 | 67 | `ZoneProgress` | `station: station`, `ticks: u16`, `needed: u16`, `counting: bool`, `tick: tick` (audience *everyone*, #647; ZE4 and ZE6 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); `needed` is at most 12,000, 600 s; kind 66 on `release/m7`, 67 since #837) | 11; 11 |
 | 68 | `ItemThrown` | `item: item`, `peer: peer`, `origin: vec3`, `velocity: vec3`, `gravity: vec3`, `tick: tick` (audience *everyone*, #643; the vec3s are exactly the flight's, so a decoded event rebuilds the host's points bit for bit, `wire_throw_test`; kind 67 on `release/m7`, 68 since #837) | 46; 46 |
 | 69 | `ItemVanished` | `item: item` (audience *everyone*, #779; the cooking ADR, CD6 (c)) | 2; 2 |
+| 70 | `SwitchChanged` | `station: station`, `on: bool` (audience *everyone*, #797; GE9 of the [Generator ADR](decisions/2026-10-10-generator-task.md)) | 3; 3 |
+| 71 | `ButtonPressed` | `station: station` (audience *everyone*, #797, GE9) | 2; 2 |
 
 #### 4.3.5 State and voice
 
@@ -934,7 +941,8 @@ The rules of the table:
   `SetProfile` (16), `ProfileChanged` (66) and the body colour of `PlayerJoined` (cap 98) and the `Welcome`
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
-  `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69). M4's protocol PRs each set it to their
+  `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
+  `SwitchChanged` (70) and `ButtonPressed` (71). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -1399,7 +1407,9 @@ it lay; a phase change does not end a flight (the host only pauses it). `hand_it
 fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
 `ZoneProgress` (#650, the zone task ADR's ZE8) sets its station's `ticks`, `needed`, `counting` and `progress_tick`
 (the event's host tick), and `done` once `ticks` reaches `needed`, as `PackageDelivered` sets a circle's; nothing
-else changes them (no prediction). `ItemVanished` (#779) removes its item from `items`, so its id may name a new item's `ItemSpawned` later. Tests: `client_model_test.gd`.
+else changes them (no prediction). `ItemVanished` (#779) removes its item from `items`, so its id may name a new item's `ItemSpawned` later. `SwitchChanged` (#797) sets its station's `on` (a switch is off until its first
+one) and `ButtonPressed` counts its station's `presses`; neither keeps a peer (they name none). Tests:
+`client_model_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
 A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
@@ -1653,6 +1663,12 @@ reached [2], not every present player [1, 2, 3]`; every MVP scenario, which bans
 decoded different task events in match 0`, besides `decoded ZoneProgress, an event for one peer with no int
 peer`). Reverted.
 **#779 (cooking C10)** added `ItemVanished` to both lists; no scenario plays a vanishing item kind yet (the base mode has none), so its plant waits for the first that does.
+**#797 (Generator G2)** added `SwitchChanged` and `ButtonPressed` to both `TASK_EVENTS` lists; no bot plays the
+Generator (the House is not played by bots, §9.7), so no leak plant was made for it: that plant is G7's (#802, on the
+House). What stands in until then is not a plant that the leak test caught: `generator_check_test` (both lists name
+every event the Generator emits), `generator_rules_test` (every present player, downed and dead included, receives the
+same `SwitchChanged`, `ButtonPressed` and `ZoneProgress`, so an audience-narrowing change fails there) and the wire test
+`host_session_generator_test` (each client's decoded events equal `view_of`).
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
@@ -1807,8 +1823,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 ##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
 The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
-and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 19, 20, 23, 26, 31,
-69, 80, 95, 97, 111,
+and 25 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
+`ButtonPressed`) sent the wrong way, one drawn
+per packet, and unassigned kinds (0, 19, 20, 23, 26, 31,
+72, 80, 95, 97, 111,
 113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
@@ -3861,7 +3879,8 @@ Protocol 13 (§4.3.4).
   arguments by name, never a sentence. `FitCheck.shortfalls` makes `players_few` and `players_many` (`count`: how many
   players short or over, `min`, `max`), `no_layout` (no arguments: a map path is no wire id, and `SettingsChanged`
   names the map) and, since #803, `no_task_types` (no arguments: no task type plays on the map after the bans,
-  §9.4.4); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`) and `colours` (the station kind;
+  §9.4.4); `Demands.shortfalls` makes `markers` (the spawn tag; `need`, `have`), `markers_exact` (#797: the spawn tag of an
+  exact demand, §9.4.4, whose markers differ in number from the demand; `need`, `have`) and `colours` (the station kind;
   `need`, `have`). `MatchEnded`'s reason is the id of the win condition that reported the `won` (`Match` keeps it with
   the step's outcome and hands it to the row as `MatchContext.outcome_reason`), with `time`, the seconds the round's
   clock ran (`StartClock` records `MatchState.clock_ticks_total`; no time when it never started); a `won` that no win
@@ -3872,7 +3891,7 @@ Protocol 13 (§4.3.4).
   argument the key counts (`players_few` is `lobby.need_more`, by `count`); `LobbyPanel` (the Esc menu's Toy Lobby page, §4.7.46) and the lobby HUD's status (§4.7.42) show
   its lines, refreshed each frame, so a language switch rewords them. `EndScreen.REASON_KEYS` maps the reason ids (§4.7.31).
 - **The deck's gaps (ui-0.4.0).** The deck has keys for `players_few` and the reasons `every_task_done` and `time_up`
-  only. `players_many`, `markers`, `colours`, `no_layout` and `no_task_types` (#803) have none, so `HostTextView.plain` shows the id, its
+  only. `players_many`, `markers`, `markers_exact` (#797), `colours`, `no_layout` and `no_task_types` (#803) have none, so `HostTextView.plain` shows the id, its
   subjects and `name=value` arguments, no words of any language, rather than hide why the start is held back (in the
   base mode only `players_few` occurs: the join limit stops `players_many`, `LayoutCheck` refuses a mode whose map
   lacks markers, colours or a layout); `no_crew_present` hides the reason line. No key is invented: the UI track's
@@ -4461,7 +4480,8 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
-  the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647, and `ItemVanished`, an item left lying too long, #779); no
+  and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647; `ItemVanished`, an item left lying too long, #779; the Generator's
+  `SwitchChanged`, `ButtonPressed` and charge `ZoneProgress`, which name no player, and whose uses read no role, #797); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -5892,6 +5912,14 @@ played on it (per tag, the most that any one of those phases needs; `LayoutCheck
 each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
 §3.2, §9.6), checks the player count against the mode's bounds, and `SettingsChanged` shows them.
 
+An exact demand (#797, the Generator ADR's GE10): a demand of a spawn tag may be exact (`Demands.add_markers(tag,
+count, true)`, kept in `Demands.exact`), which asks for that many markers of the tag, no more and no fewer, whatever
+the settings and the players: the Generator asks for exactly one `generator` and exactly `switches` `switch` markers,
+because every switch device of the map is either an active switch's station or a fixed switch. The exact set survives
+`DealTasks`' sum over its pool and `LayoutCheck.demands_of`'s merge of the tick systems' demands; `Demands.shortfalls`
+gives `markers_exact` (`need`, `have`; §4.7.47) for any other count of an exact tag, and `LayoutCheck`'s load check
+refuses such a map at the defaults (`_check_exact`), so a mode with one never starts on it.
+
 #### 9.4.5 Tick systems, phase classes and voice rules
 
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
@@ -5900,7 +5928,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight; a phase that accepts an intent whose rule throws (a `ThrowItem`) lists it, or the mode check refuses the phase (#643) | none | `ItemPlaced`, and what the rules on `item_rested` emit | 37b (#642, `core/items/flight_ticks.gd`) |
 | `VanishTicks` | tick system | each item of a kind with `vanish_seconds` that lies on the ground and has lain that long since `Items.lay` set its `rest_tick` vanishes through `Items.vanish`, in ascending item id (never the item table's order, which a reused id breaks): an item lying since tick r of a kind of s seconds goes in the first tick t of a listing phase with t - r at least `Ticks.from_seconds(s)`. A pick-up and a put-down start it over; an item in a hand, on a belt, in flight or locked never vanishes. A phase that does not list it removes nothing, and a later one that does removes at once what lay long enough meanwhile; a vanishing item on the ground with no rest tick is a rule error, logged once, and its clock starts at that tick. A mode with a vanishing item kind lists it in some phase, or the mode check refuses it | none | `ItemVanished` (everyone) | C10 (#779, `core/items/vanish_ticks.gd`; `tests/unit/items/vanish_ticks_test.gd`, `vanish_replay_test.gd`, id reuse in `tests/unit/match/match_state_item_ids_test.gd`; no player in `ItemVanished`'s keys or wire row: `tests/unit/events/cooking_events_name_no_player_test.gd`, the list C2 to C4 extend) |
-| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.18, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
+| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.18, #647) and the Generator's (§9.5.19, #797: a held progress event, then the charge; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647; the Generator, #797 |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`, `SetProfile` (#551: name and body colour, §3.5; `out_of_bounds` also for a colour past the ten); leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged`, `ProfileChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58); #551 (`SetProfile`) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
@@ -6325,6 +6353,54 @@ failed, reverted), `tests/unit/match/station_state_test.gd`, `tests/unit/movemen
 `tests/fixtures/tasks/fixture_zone_spacing.gd`, the fit at the most zones, each cylinder on flat floor clear of walls and
 ceilings in the host's collision world, and a zone by a wall or over the stairs refused).
 
+#### 9.5.19 Generator (task type)
+What it does: one shared task (#679) whose subtasks are its N active switches, N the subtasks setting (0 to
+`switches`): the players turn every active switch on, then press the generator's button, and its charge runs for
+`seconds`; at full charge every subtask is done at once (GE13 (a)). Nobody owns it: any living player of any role
+uses a switch or the button (`Interact(station)`, through each station kind's rule, §9.4.2 `UseStation`; GE1, GE2).
+Designed in the [Generator ADR](decisions/2026-10-10-generator-task.md); its data, its station scenes and the House's
+markers are later issues (no shipped mode deals it yet).
+Settings: `generator` and `switch` (two `StationKind`s with different spawn tags, each with an `Interact` rule whose
+effect is `UseStation`), `subtasks_setting` (a whole-number setting of the mode from at least 0 to at most
+`switches`), `switches` (the switch devices on a map it plays, at least 1), `seconds` (`ZoneTask`'s bounds, 0.05 to
+600), `switches_rng` (`switches`); `TaskType.maps` as every type's (GE15).
+- Deal: the generator's station on the map's one `generator` marker, then a switch station on N of the `switch`
+  markers, drawn with `switches`, in level order; station ids the generator first, then the switches; every switch
+  starts off. The other markers get no station: their devices are fixed switches, on for good (GE14), so an
+  `Interact` naming one names an unknown station (`nothing_to_do`, `Match._target_problem`). `StationPlaced` in id
+  order, then the charge's `ZoneProgress` at 0. N = 0: the generator is placed and the task done at the deal, its
+  progress full. A map short of markers deals nothing and logs a match error, as Delivery's.
+- Demands: exactly one `generator` and exactly `switches` `switch` markers, whatever the settings (§9.4.4's exact
+  demands): the fit check gives `markers_exact` and `LayoutCheck` refuses any other count.
+- A use (`use_problem`, `use_station`; reads no role): a done task refuses every use `unavailable`; a switch toggles
+  (`SwitchChanged`), and one turned off stops a running charge; the button (`ButtonPressed`) stops a running charge,
+  starts one when every active switch is on, and otherwise changes nothing. Nothing else stops or resets the charge
+  (the ADR's rule 2.6): not a knockdown, a leave or a role.
+- Tick (`TaskTicks`): first a held progress event whose window has passed goes out, even when the charge stopped
+  since (GE8); then a running charge gains one tick, and at `seconds` (`Ticks.from_seconds`) it is done: every station
+  of the task done, `ZoneProgress` at its full value, then `Tasks.subtask_done` per active switch in station order
+  (detail: the subtask's index and its station), so each `TaskState` reads N of N.
+- Mode checks (GE10, `Generator.check`): both kinds present with different spawn tags and the use rule, `switches`
+  at least 1, the subtasks setting's bounds within 0 and `switches`, `seconds` in bounds, a non-empty RNG purpose.
+
+Produces: `StationPlaced` and `ZoneProgress` (everyone) in the deal; `SwitchChanged`, `ButtonPressed` and
+`ZoneProgress` (everyone) on a use (`use_emits`); `ZoneProgress`, `TaskState` and `TaskProgress` (everyone) on a held
+event and at full charge. A start or stop in a command sends its `ZoneProgress` with `tick` the tick before (the
+command runs before that tick's gain); one inside `WINDOW_TICKS` (`ZoneTask`'s 5) of the last waits for the window's
+end. Its task state (`Generator.State`): the generator's station, per active switch its station and whether it is
+on, the charge's ticks, whether it runs, done, and the window's bookkeeping, in `MatchState` (`ResetMatch` clears it).
+Visible to: everyone, all of it. No event names a player (the ADR's row 18), and nothing reads a role (§9.2).
+Status: `core/` built in #797 (Generator G2): `core/tasks/generator.gd`, `core/events/switch_changed_event.gd`,
+`core/events/button_pressed_event.gd`, the exact demands (`Demands.exact`, `markers_exact`), wire kinds 70 and 71
+(protocol 18), `ClientModel.Station`'s `on` and `presses`.
+Tests: `tests/unit/tasks/generator_deal_test.gd`, `generator_rules_test.gd` (every row of the ADR's edge-case
+table), `generator_progress_events_test.gd` (the window, the order, the ticks), `generator_check_test.gd` (GE10,
+`use_emits`, the leak lists, no event naming a player), `generator_role_swap_test.gd` (planted "the button refuses
+dissidents", both failed, reverted), `generator_demands_test.gd` (the exact demands through `LayoutCheck` and the
+fit check), `tests/unit/content/demands_test.gd`, `tests/unit/client/net/client_model_test.gd`,
+`tests/unit/client/ui/host_text_view_test.gd`, and over the wire `tests/integration/server/host_session_generator_test.gd`
+(each client's decoded events equal `view_of`); fixtures `tests/fixtures/tasks/fixture_generator_modes.gd`.
+
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```
 content/
@@ -6613,7 +6689,7 @@ kind owning its rules, with four parts (`AtStation`, `StationInSight`, `StationU
 (G1: the intent, wire kind 18, `StationKind.actions`, `TaskType.use_problem`, `use_station` and `use_emits`, the
 four parts in `core/tasks/`, ModeCheck's station rules and the `Interact` scenario step; tests: `tests/unit/tasks/
 interact_test.gd`, `station_usable_test.gd`, `tests/unit/content/mode_check_interact_test.gd`); bodies wait for
-their own mechanic.
+their own mechanic. The Generator task type itself is built in #797 (G2, §9.5.19).
 
 **Verdict.** Inside `core/`: the zone task passes, with one class and one event class, as #36's design has it (live
 progress and a public "zone done" share `ZoneProgress`), and as built in #647; with ZD1 (a), the engineer's answer,

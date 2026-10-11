@@ -8,6 +8,8 @@ extends RefCounted
 ##   and the mode's maximum of players, §9.4), or that a tick system of a phase played on the
 ##   level places on (LifeTicks' Respawn: `respawn` markers on every map, M4-3); a map is asked
 ##   only for the markers of the task types that play on it (TaskType.maps, GE15, #803);
+## - a spawn tag demanded exactly (Demands.exact: the Generator's, GE10, #797) whose markers on the
+##   level number anything else, more or fewer, at the default settings;
 ## - a marker with two tags (the same position under two tags; §9.6: a marker carries one tag);
 ## - a lobby with fewer `lobby_player` markers than the mode's maximum of players, since a joiner
 ##   and `End -> Lobby` each put a player on a marker of its own.
@@ -76,6 +78,7 @@ static func demands_of(
 		for system: TickSystem in spec.tick_systems:
 			if system != null:
 				system.add_demands(settings, players, one)
+		ticking.exact.merge(one.exact)
 		for tag: StringName in one.markers:
 			ticking.markers[tag] = maxi(ticking.markers.get(tag, 0) as int, one.markers[tag])
 		for station: StringName in one.colours:
@@ -84,7 +87,7 @@ static func demands_of(
 			)
 			ticking.palettes[station] = one.palettes[station]
 	for tag: StringName in ticking.markers:
-		demands.add_markers(tag, ticking.markers[tag])
+		demands.add_markers(tag, ticking.markers[tag], ticking.exact.has(tag))
 	for station: StringName in ticking.colours:
 		demands.colours[station] = demands.colours.get(station, 0) + ticking.colours[station]
 		demands.palettes[station] = ticking.palettes[station]
@@ -110,20 +113,21 @@ static func _check_level(
 		tags.assign(demands.markers.keys())
 		tags.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 		for tag: StringName in tags:
-			if layout.count(tag) == 0:
-				found.append(
-					(
-						"%s has no %s marker, which the row %s, %s places on"
-						% [path, tag, row.from, row.outcome]
-					)
-				)
+			var where := "the row %s, %s" % [row.from, row.outcome]
+			if demands.exact.has(tag):
+				_check_exact(path, layout, tag, demands.markers[tag], where, found)
+			elif layout.count(tag) == 0:
+				found.append("%s has no %s marker, which %s places on" % [path, tag, where])
 	for spec: PhaseSpec in _phases_on(mode, level):
 		var demands := Demands.new(mode, map)
 		for system: TickSystem in spec.tick_systems:
 			if system != null:
 				system.add_demands(defaults, mode.max_players, demands)
 		for tag: StringName in demands.markers:
-			if demands.markers[tag] > 0 and layout.count(tag) == 0:
+			if demands.exact.has(tag):
+				var where := "a tick system of phase %s" % spec.id
+				_check_exact(path, layout, tag, demands.markers[tag], where, found)
+			elif demands.markers[tag] > 0 and layout.count(tag) == 0:
 				found.append(
 					(
 						"%s has no %s marker, which a tick system of phase %s places on"
@@ -142,6 +146,22 @@ static func _check_level(
 				)
 			else:
 				tag_at[position] = tag
+
+
+## An exact demand (GE10): `layout` must hold exactly `need` markers of `tag`.
+static func _check_exact(
+	path: String,
+	layout: LevelLayout,
+	tag: StringName,
+	need: int,
+	where: String,
+	found: PackedStringArray
+) -> void:
+	var have := layout.count(tag)
+	if have != need:
+		found.append(
+			"%s has %d %s marker(s), and %s needs exactly %d" % [path, have, tag, where, need]
+		)
 
 
 ## The phases played on `level`, in the mode's order.
