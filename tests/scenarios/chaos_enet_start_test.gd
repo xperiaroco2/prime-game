@@ -181,7 +181,7 @@ func test_a_join_that_found_no_room_joins_again_without_starting_play() -> void:
 		assert_bool(run.bots[1].gone).override_failure_message(String(reason)).is_false()
 		assert_bool(run._may_play()).override_failure_message("it waits to join again").is_false()
 		assert_int(run.bots[0].step_index).override_failure_message("bot 1 acted").is_equal(0)
-		run.clock_usec += NetPlay.ROOM_RETRY_USEC
+		run.clock_usec += JoinRetry.ROOM_RETRY_USEC
 		run.play_frame(1)
 		assert_object(run.clients[2]).override_failure_message("joined again").is_not_same(first)
 		assert_array(run.failures).is_empty()
@@ -200,7 +200,7 @@ func test_a_join_retried_max_joins_times_fails_naming_every_reason() -> void:
 	for i in ChaosRun.MAX_JOINS - 1:
 		run.clients[2].end_reason = NetTransport.JOIN_SERVICE_UNREACHABLE
 		run.play_frame(2 * i)
-		run.clock_usec += NetPlay.ROOM_RETRY_USEC
+		run.clock_usec += JoinRetry.ROOM_RETRY_USEC
 		run.play_frame(2 * i + 1)
 	assert_array(run.failures).is_empty()
 	var last: BotClient = run.clients[2]
@@ -211,7 +211,7 @@ func test_a_join_retried_max_joins_times_fails_naming_every_reason() -> void:
 	assert_str(line).contains(
 		"(service_unreachable); earlier joins ended service_unreachable, service_unreachable"
 	)
-	run.clock_usec += NetPlay.ROOM_RETRY_USEC
+	run.clock_usec += JoinRetry.ROOM_RETRY_USEC
 	run.play_frame(11)
 	assert_object(run.clients[2]).override_failure_message("joined a 4th time").is_same(last)
 	run.close()

@@ -326,9 +326,9 @@ func _peer_known(bot: ScenarioBot) -> void:
 	if not is_host():
 		# How long the join took, printed for every transport: the WebRTC library's setup was once
 		# part of it (#510). add_client stamps the start; with no stamp nothing is printed.
-		if _join_started.has(bot.number):
+		if _joins.has(bot.number):
 			@warning_ignore("integer_division")
-			var took_ms := (Time.get_ticks_usec() - _join_started[bot.number]) / 1000
+			var took_ms := (Time.get_ticks_usec() - _joins[bot.number].started_usec) / 1000
 			print(
 				(
 					"%s: bot %d connected as peer %d; its join took %d ms"
