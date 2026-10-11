@@ -747,10 +747,17 @@ def run_shards(
         return None
     count = min(count, len(suites))
     times, source = read_times()
+    at_fixed, fixed_source = read_times(FIXED_KEY)
+    # A suite with a time at fixed fps alone (CI runs FIXED_FPS_SUITES so, and the nightly `test --repeat` restores
+    # CI's times) is planned at that time x FIXED_FPS_SPEEDUP, not at the mean: those frame-bound suites are the
+    # longest in real time, and several of them in one shard push it toward TIMEOUT (#817).
+    inferred = {res: at_fixed[res] * FIXED_FPS_SPEEDUP for res in suites if res not in times and res in at_fixed}
+    if inferred:
+        times = {**times, **inferred}
+        source += f"; {len(inferred)} real-time by their --fixed-fps seconds x {FIXED_FPS_SPEEDUP:g}"
     costs = estimates(files, suites, times)
     fixed = fixed_set(suites, items if named else None) if fixed_fps else set()
     if fixed:
-        at_fixed, fixed_source = read_times(FIXED_KEY)
         costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
         by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
         source += f"; the {len(fixed)} at --fixed-fps {FIXED_FPS} by {by}"
