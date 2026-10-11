@@ -1,10 +1,10 @@
 class_name TeammateMark
 extends TextureRect
-## The teammate mark next to a teammate's name on a name plate (#257): shown only on a dissident's
-## own client, from its own Teammates knowledge (NamePlates.marked). The UI handoff (prime-game-ui
-## `docs/handoff/s07-hud.md`, state `mate`) draws the pack's white `teammate-mark.svg` (imported
-## at its scale 0.84, #520) in a 20x20 TextureRect tinted with ToyNamePlateText's `font_color`
-## through self_modulate, set again whenever the theme changes.
+## The teammate mark over a fellow dissident, on a plate with no name (#257, #756): shown only on a
+## dissident's own client, from its own Teammates knowledge (NamePlates.marked). The UI handoff
+## (prime-game-ui `docs/handoff/s07-hud.md`, state `mate`) draws the pack's white
+## `teammate-mark.svg` (imported at its scale 0.84, #520) in a 20x20 TextureRect tinted with
+## ToyNamePlateText's `font_color` through self_modulate, set again whenever the theme changes.
 
 ## The pack's mark, from ui-sync's imported copy (#520).
 const ART := preload("res://assets/ui/toy_pack/icons/teammate-mark.svg")

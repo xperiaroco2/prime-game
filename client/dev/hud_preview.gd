@@ -5,7 +5,7 @@ extends Node3D
 ## - `empty`: an Engineer, nothing carried, the crosshair on a package within reach;
 ## - `pack`: carrying a package with both hands (the hand slot widens);
 ## - `tired`: stamina at 0.18; `hurt`: health at 0.22;
-## - `mate`: a dissident with a knife on the belt looking at a teammate (the name plate's mark);
+## - `mate`: a dissident with a knife on the belt looking at a teammate (the plate's mark);
 ## - `raising`: holding Interact on a downed teammate (the raise bar in place of Aim);
 ## - `cue`: the crosshair on a downed teammate lying ahead (the raise cue in Aim, #497, PR #721);
 ## and the handoff s09's (`docs/handoff/s09-downed.md`, #497), drawn by the game's LifeScreen from
