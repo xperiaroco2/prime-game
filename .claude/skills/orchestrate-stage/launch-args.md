@@ -16,6 +16,7 @@ Part of the orchestrate-stage skill ([SKILL.md](SKILL.md)); read it when you com
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 | `tier` | `"full"` only (#606), and rarely: forces the full review chain on a change the diff would rate light (see "Review tier" below); `light` cannot be forced |
+| `update` | `true` (#856) on every relaunch of an issue whose PR is published (an engineer's answer, a plan change, a finding to fix), with every engineer answer since its last update in `notes` (below); never on a first launch or a resume (a resume takes its launch's args). The implementer records the PR's published head and returns the delta since it; the reviewers, routed by the delta's paths, review only the delta (the rest of the PR as context), and `plan_review`, `test_review` and `skeptic` are dropped even when passed: 3 to 5 agents (implementer, 1 to 3 reviewers, publisher), `second_review` and `ab_review` as usual. The full chain (`plan_review` still dropped) when no published head comes back (a rebase or reset since), with `tier: "full"`, or when the delta changes more than 30 lines under `core/ server/ net/ client/` (but `client/ui/`) `voice/ tests/harness/`. The result's `update` says which: `path` `update` (with `head`, `files`, `lines`, `netcode_lines`) or `full` (with `why`), and `skipped` |
 
 **Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count toward the number per workflow the kickoff approved:
 
@@ -71,9 +72,13 @@ Notes that worked: say which PR a needed file comes from if it is unmerged ("bui
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
 in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
-An update run of a published design PR: before launching, collect every engineer answer posted since its last
-update, also those on sibling design PRs that apply to it (#695's GD7 greybox answer covered four chains), and put them
-all in `notes`: a second update minutes after the first costs a whole review chain and publisher (#682: $9.6, #833).
+An update run of a published PR (`update: true`, #856; a design PR too): before launching, collect every engineer
+answer posted since its last update, also those on sibling design PRs that apply to it (#695's GD7 greybox answer
+covered four chains), and put them all in `notes`: a second update minutes after the first costs its reviewers and
+publisher again (#682: $9.6, #833). Runs after an issue's first launch were 28% of the spend (`metrics --since
+2026-10-08T12:25:00Z`, "Issues launched 2 or more times": $279 of $992 by 2026-10-11T16:19Z), each update $7.6 to
+$14, about half of it reviewers, skeptic and publisher; `update` cuts the planner, the test reviewer and the
+skeptics and shrinks the reviews to the delta (an estimate until `metrics` measures the first update runs).
 
 ## quick-task (#608)
 A task whose issue says `Size: XS` or `S`, one logical change and no design (a rename, a text or value change, a docs

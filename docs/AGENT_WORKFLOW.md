@@ -421,6 +421,11 @@ Rules for every workflow run:
   (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher), which drops `skeptic` even when
   passed, `plan_review` on a `content`, `level` or `tooling` branch, and on a `client/ui/` diff the netcode review and
   `test_review` (no other light diff ever routed them).
+  A relaunch for an issue whose PR is published passes `update: true` (#856): the implementer records the PR's
+  published head, the reviewers review only the delta since it (routed by its paths), and `plan_review`,
+  `test_review` and `skeptic` are dropped; the full chain runs instead when no published head comes back, `tier` is
+  `full`, or the delta changes more than 30 lines under the full tier's paths, and the result's `update` says which
+  (orchestrate-stage `launch-args.md`).
   A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158); a diff whose only
