@@ -3574,8 +3574,9 @@ def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[
     with its PR's number: it is put under the issue whose publisher (in `known`, every run read, else `counted`)
     returned that PR, else under "PR #N" (`pr` set, `issue` None). Per row: its runs, the $ of all of them and of
     those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
-    continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds of the
-    previous one's end (one run's update that could have been in the previous launch)."""
+    continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds after the
+    previous one's end (one run's update that could have been in the previous launch; a run that started before the
+    previous one ended, such as a pr-rebase beside a running task, is not)."""
     pr_issue = pr_issues(known if known is not None else counted)
     by_key: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for r in counted:
@@ -3612,7 +3613,7 @@ def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[
                 "handoffs": len(hand),
                 "handoff_usd": sum(hand),
                 "back_to_back": sum(
-                    b["start"] - a["end"] < RELAUNCH_BACK_TO_BACK for a, b in zip(runs, runs[1:])
+                    0 <= b["start"] - a["end"] < RELAUNCH_BACK_TO_BACK for a, b in zip(runs, runs[1:])
                 ),
                 "wfs": [r["wf"] for r in runs],
                 "span_s": runs[-1]["end"] - runs[0]["start"],

@@ -57,6 +57,10 @@ class RelaunchRowsTest(unittest.TestCase):
                 run("a3", 5, 2_000 + metrics.RELAUNCH_BACK_TO_BACK, 3_000)]  # fmt: skip
         self.assertEqual(metrics.relaunch_rows(runs)[0]["back_to_back"], 1, "the gap of exactly the limit is not")
 
+    def test_a_run_that_overlaps_the_previous_one_is_not_back_to_back(self) -> None:
+        runs = [run("a1", 5, 0, 1_000), run("a2", 5, 500, 2_000, kind="issue-task (resumed)")]
+        self.assertEqual(metrics.relaunch_rows(runs)[0]["back_to_back"], 0)
+
     def test_handoff_continuations_are_counted_apart(self) -> None:
         runs = [
             run("a1", 6, 0, 100, agents=[agent("implementer", 4.0, "implement:#6"),
