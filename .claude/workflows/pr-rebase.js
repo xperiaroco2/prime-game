@@ -25,7 +25,7 @@ export const meta = {
 // script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line and #816's section reads in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -141,8 +141,8 @@ const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
 // #815, as in issue-task.js (test_workflows.py compares them): the task's ADR, each section once per context;
-// #816: by section, never whole.
-const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
+// #816: by section, never whole. #834: docs/ARCHITECTURE.md too.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const RULES = [

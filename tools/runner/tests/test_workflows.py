@@ -35,7 +35,7 @@ gate, no local `verify --full`); so did #606's review tier line in the full publ
 return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
 skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
 #815's ADR line (each section of the task's ADR once per context), which every agent
-carries, the publisher too.
+carries, the publisher too, and #834's words in it for docs/ARCHITECTURE.md.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -344,7 +344,9 @@ class WorkflowTest(unittest.TestCase):
         # #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960
         # of them repeats of the same task ADRs, by the implementer, the publisher and the two reviewers. Every role
         # of both scripts gets one line, the same text everywhere: issue-task's publisher too, whose PUB_RULES drop
-        # the reading line (#696) but keep this one, and the read-only agents in their REVIEW_RULES.
+        # the reading line (#696) but keep this one, and the read-only agents in their REVIEW_RULES. #834: the same
+        # line covers docs/ARCHITECTURE.md (about $20 over 1471 reads since 2026-10-08T12:25Z, 51% the implementer's):
+        # by section, each section once per context, again only after the file changed or a compaction.
         jobs = [
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
@@ -373,8 +375,9 @@ class WorkflowTest(unittest.TestCase):
                                                               "skeptic", "fix")},
                              labels)  # fmt: skip
         rule = next(iter(lines))
-        for part in ("docs/decisions/", "the issue links", "each section you need once per context",
-                     "only after the file changed or your context was compacted"):
+        for part in ("docs/decisions/", "the issue links",
+                     "read it, and ARCHITECTURE (`cd <your worktree> && tools/run.sh section docs/ARCHITECTURE.md`), each by section, never the whole file",
+                     "each section you need once per context", "only after the file changed or your context was compacted"):
             self.assertIn(part, rule)
 
     def test_the_tasks_adr_line_names_the_section_reads(self) -> None:

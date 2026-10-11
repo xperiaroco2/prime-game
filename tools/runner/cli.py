@@ -668,7 +668,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--adr-reads",
         action="store_true",
         help="also a table of the ADR reads by file: whole-file, section and small reads, tokens, list $, the top 10 "
-        "by $ and the agent types that read each (#793)",
+        "by $ and the agent types that read each (#793); and one of docs/ARCHITECTURE.md's reads by agent type, with "
+        "the repeats of lines the same agent had read already (#834)",
     )
     p.add_argument(
         "--track",

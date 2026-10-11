@@ -180,7 +180,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
   after the file changed or a compaction (PR #794's `metrics --adr-reads` table: about 960 of 976 section reads of ADRs in
   three days were repeats of the same task ADRs). Since #816 the same line says to read it by section, never whole
   (`section <adr>`, then `section <adr> <§>`): the table's 39 whole-file reads of the 2026-10-10 task ADRs cost $9.32
-  of $33.
+  of $33. Since #834 the line covers ARCHITECTURE too, named through its `section` call (about $20 over 1471 tool
+  reads since 2026-10-08T12:25Z, 51% the implementer's, had been left out); `metrics --adr-reads` counts its repeats.
 - **Auto memory stays on.** It is personal and machine-local, and never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -1769,7 +1770,14 @@ file of 150 lines or fewer read in full), the tokens, the list $, the top 10 by 
 their share of its $. A `section <doc>` call is a (section) read of the doc in the by-file table too, but it carries
 no text to the by-§ tables of ARCHITECTURE and AGENT_WORKFLOW, so a doc's by-file $ can exceed its by-§ total; in a
 command with more steps, each other step's docs keep their own kind (a `cat` beside it is a plain read). Tests:
-`tools/runner/tests/test_metrics_adr_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
+`tools/runner/tests/test_metrics_adr_reads.py`. With it (#834) comes a table of `docs/ARCHITECTURE.md`'s tool reads by
+agent type (`instructions.arch_reads` without the flag): agents, reads split the same way, repeats (every line of the
+read already read by the same agent since the file last changed by its own Edit, Write, `sed -i` or `>`, a git
+rebase, checkout or reset, a runner `publish`, `normalize` or `merge`, or since a compaction) and partial repeats
+(some lines), tokens, list $, and the $ of whole reads and of repeated lines. Lines are a `Read`'s numbered lines, a
+`cat`'s or a `sed -n` range's, and each section `section` printed (its `--- <path>:<first>-<last>` head; the outline
+counts as one more line); a Grep, a search, `head`, `tail` or a `section` piped on is never a repeat. Tests:
+`tools/runner/tests/test_metrics_arch_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
 session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
 name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's

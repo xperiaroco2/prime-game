@@ -131,7 +131,13 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
 - `--adr-reads` (#793): the ADR files (docs/decisions/) a tool read, by file: the reads split whole (no offset or limit,
   or a `cat`, returning over WHOLE_LINES lines), section (`section`, a Read with an offset or limit, `sed -n`, `head`,
   `tail`, a Grep or a search) and small (a short file in full), their tokens and list $, the top ADR_TOP by $ and the
-  roles that read each; `instructions.adr_reads` in the JSON record always;
+  roles that read each; `instructions.adr_reads` in the JSON record always. With it (#834) docs/ARCHITECTURE.md's
+  tool reads by role: the agents, the reads split the same way, the repeats (every line of the read already read by
+  the same agent since the file last changed (its Edit or Write, a `sed -i` or `>` into it, TREE_CHANGE) or a
+  compaction; a Read's numbered lines, a `cat`'s or `sed -n` range's, each section `section` printed by its
+  `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
+  `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
+  its share of lines read again); `instructions.arch_reads` in the JSON record always;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
@@ -544,6 +550,11 @@ LIMITED_SHELL = re.compile(
 # #793: a read that returns more lines than this, with no offset, limit or range, is a whole-file read.
 WHOLE_LINES = 150
 ADR_TOP = 10
+# #834: docs/ARCHITECTURE.md's tool reads by role with --adr-reads, their repeats counted by line. The runner's
+# `section` heads each section it prints with `--- <path>:<first>-<last> <§ title>`; its outline (no section asked
+# for) starts with `<path>: <n> lines`.
+ARCH_SECTION_HEAD = re.compile(r"^--- \S*ARCHITECTURE\.md:(\d+)-(\d+)(?:\s|$)", re.MULTILINE)
+ARCH_OUTLINE_HEAD = re.compile(r"^\S*ARCHITECTURE\.md: \d+ lines, ", re.MULTILINE)
 # The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
 HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
@@ -933,17 +944,18 @@ def shell_steps(cmd: str) -> list[tuple[str, bool]]:
     return [step for step in steps if step[0]]
 
 
-def _shell_path(word: str) -> str | None:
+def _shell_path(word: str, md: bool = False) -> str | None:
     path = word.strip("'\"").replace("\\", "/")
     rel = repo_path(path) if re.match(r"^(/|[A-Za-z]:)", path) else path.removeprefix("./")
-    if not rel or rel.lower().endswith(".md") or "." not in rel.rsplit("/", 1)[-1]:
+    if not rel or (rel.lower().endswith(".md") and not md) or "." not in rel.rsplit("/", 1)[-1]:
         return None
     return rel
 
 
-def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int]] | None]]:
+def code_read(name: str, inp: dict, md: bool = False) -> list[tuple[str, bool, list[tuple[int, int]] | None]]:
     """The reads of repository code files, anything but a .md, in one tool call (#468): (the path, whether it reads the
-    whole file, the line ranges: None for a Read, whose result numbers its lines; [] for a `cat`, all of them)."""
+    whole file, the line ranges: None for a Read, whose result numbers its lines; [] for a `cat`, all of them). md: a
+    shell step's .md files too (#834's ARCHITECTURE reads)."""
     if name == "Read":
         rel = repo_path(inp.get("file_path"))
         if not rel or rel.lower().endswith(".md"):
@@ -956,7 +968,7 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
         match = CODE_SHELL_READ.fullmatch(REDIRECT.sub("", step))
         if not match:
             continue
-        paths = [_shell_path(w) for w in re.findall(SHELL_WORD, match.group("paths"))]
+        paths = [_shell_path(w, md) for w in re.findall(SHELL_WORD, match.group("paths"))]
         if match.group("how").startswith("cat"):
             if len(paths) == 1 and paths[0] and not piped:  # several files: no line numbers to tell them apart
                 reads.append((paths[0], True, []))
@@ -970,15 +982,15 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
     return reads
 
 
-def code_edits(cmd: str) -> list[str]:
+def code_edits(cmd: str, md: bool = False) -> list[str]:
     """The repository code files a shell command edits in place (`sed -i`) or writes its output into (`> f`, a heredoc
-    `cat > f <<'EOF'`)."""
+    `cat > f <<'EOF'`); md: its .md files too (#834)."""
     edits = []
     for step, _piped in shell_steps(HEREDOC_BODY.sub(r"\1", cmd)):
         match = SED_EDIT.fullmatch(step)
         targets = [match.group("path")] if match else []
         targets += [m.group("path") for m in WRITE_REDIRECT.finditer(step)]
-        edits += [rel for rel in map(_shell_path, targets) if rel]
+        edits += [rel for rel in (_shell_path(t, md) for t in targets) if rel]
     return edits
 
 
@@ -1118,6 +1130,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     merge_outputs, merge_pairs = 0, []
     code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
     code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
+    arch_seen: set[int] = set()  # ARCHITECTURE's lines read since it last changed or a compaction (#834)
     files_read: set[str] = set()  # every repository file the agent read (#469's planner files)
     left: list[tuple[int, int]] = []  # #559: each <total_tokens> reading, with the context of the API call before it
     with io.open(path, encoding="utf-8", errors="replace") as lines:
@@ -1149,6 +1162,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
                 bounds.append(len(usage))
                 code_seen.clear()
+                arch_seen.clear()
                 continue
             if d.get("type") == "attachment":
                 att = d.get("attachment")
@@ -1203,8 +1217,11 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         changed = [repo_path(inp.get("file_path"))] if b.get("name") in ("Edit", "Write") else []
                         if TREE_CHANGE.search(cmd):
                             code_seen.clear()
+                            arch_seen.clear()
                         for rel in changed + (code_edits(cmd) if cmd else []):
                             code_seen.pop(rel, None)
+                        if ARCHITECTURE in changed + (code_edits(cmd, md=True) if cmd else []):
+                            arch_seen.clear()
                         uses[b["id"]] = {
                             "name": b.get("name"),
                             "mid": mid,
@@ -1214,6 +1231,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "docs": doc_targets(str(b.get("name")), inp),
                             "limited": read_limited(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
+                            "arch": [r for r in code_read(str(b.get("name")), inp, md=True) if r[0] == ARCHITECTURE],
+                            "section_piped": any(piped for step, piped in shell_steps(cmd) if SECTION_CMD.search(step)),
                             **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
                         files_read.update(files_of(str(b.get("name")), inp, uses[b["id"]]))
@@ -1228,6 +1247,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             call["counted"] = True
                             count_code_read(call["code"], text, code_seen, code_reads)
                         found = read_items(call["docs"], text, call["limited"])
+                        count_arch_read(found, arch_lines(call, text), arch_seen)
                         items += found
                         pending += found
                         polled = WAIT_RAN.search(text) if call["kind"] == "wait" else None
@@ -1410,6 +1430,40 @@ def count_code_read(reads: list[tuple], text: str, seen: dict[str, set[int]], co
         counts["repeat_tokens"] += sum(chars[key] for key in again) / CHARS_PER_TOKEN
     for rel, number in chars:
         seen.setdefault(rel, set()).add(number)
+
+
+def arch_lines(call: dict, text: str) -> set[int] | None:
+    """The lines of docs/ARCHITECTURE.md a tool call's result holds (#834), by the file's line numbers when it was
+    read: a Read's numbered lines, a `cat`'s 1 to n or a `sed -n`'s ranges, each section the runner's `section` printed
+    (its `--- <path>:<first>-<last>` head); its outline is line 0. None for a search (a Grep, a `grep`) or a read whose
+    lines cannot be told (`head`, `tail`, a `section` piped on, a doc read beside another)."""
+    modes = {mode for rel, _how, mode in call["docs"] if rel == ARCHITECTURE}
+    if "section" in modes:
+        if call.get("section_piped"):  # `section ... | grep` or `| head`: some of what it printed
+            return None
+        lines = {n for a, b in ARCH_SECTION_HEAD.findall(text) for n in range(int(a), int(b) + 1)}
+        return lines | ({0} if ARCH_OUTLINE_HEAD.search(text) else set()) or None
+    if len(call["docs"]) != 1 or not modes & {"read", "plain"}:
+        return None
+    if call["name"] == "Read":
+        return {int(m.group(1)) for line in text.splitlines() if (m := READ_LINE.match(line))} or None
+    for _rel, _whole, ranges in call["arch"]:  # a shell `cat` or `sed -n` of it (code_read)
+        if not ranges:
+            return set(range(1, len(text.splitlines()) + 1))
+        return {n for a, b in ranges for n in range(a, b + 1)}
+    return None
+
+
+def count_arch_read(items: list[dict], lines: set[int] | None, seen: set[int]) -> None:
+    """Mark a tool call's ARCHITECTURE item with its share of lines the agent read already since the file last changed
+    or its context was compacted (#834): `arch_lines`, `arch_again`."""
+    if not lines:
+        return
+    again = len(lines & seen)
+    for item in items:
+        if item.get("file") == ARCHITECTURE:
+            item |= {"arch_lines": len(lines), "arch_again": again}
+    seen |= lines
 
 
 def role_of(label: str) -> str:
@@ -3454,6 +3508,60 @@ def adr_section(adr: dict) -> list[str]:
         table(["ADR", "reads", "whole", "section", "small", "tokens", "list $", "of it whole reads", "roles by $"], rows), ""]  # fmt: skip
 
 
+ARCH_KEYS = ("agents", "reads", "whole", "section", "small", "repeats", "partial", "tokens", "usd", "whole_usd",
+             "repeat_usd")  # fmt: skip
+
+
+def arch_record(agents: list[tuple[str, dict]]) -> dict:
+    """docs/ARCHITECTURE.md's tool reads by role (#834): the agents that read it, the reads split whole, section and
+    small (read_scope), the repeats (every line of the read read already by the same agent since the file last changed
+    or its context was compacted, count_arch_read) and the partial repeats (some of its lines), tokens and list $, and
+    the $ of the whole reads and of the repeated lines (a read's $ times its share of lines read again)."""
+    roles: dict[str, dict] = {}
+    for role, d in agents:
+        reads = [item for item in d.get("instructions") or []
+                 if item.get("file") == ARCHITECTURE and how_class(item["how"]) == "read"]  # fmt: skip
+        if not reads:
+            continue
+        r = roles.setdefault(role, {"role": role} | {k: 0.0 if k in ("tokens", "usd", "whole_usd", "repeat_usd") else 0
+                                                       for k in ARCH_KEYS})  # fmt: skip
+        r["agents"] += 1
+        for item in reads:
+            scope, cost = read_scope(item), item_usd(item)
+            r["reads"] += 1
+            r[scope] += 1
+            r["tokens"] += item["tokens"]
+            r["usd"] += cost
+            r["whole_usd"] += cost if scope == "whole" else 0.0
+            again, lines = item.get("arch_again", 0), item.get("arch_lines", 0)
+            if again:
+                r["repeats" if again == lines else "partial"] += 1
+                r["repeat_usd"] += cost * again / lines
+    rows = sorted(roles.values(), key=lambda r: -r["usd"])
+    return {"roles": rows, "all": {k: sum(r[k] for r in rows) for k in ARCH_KEYS}}
+
+
+def arch_section(arch: dict) -> list[str]:
+    """The ARCHITECTURE table of `metrics --adr-reads` (#834)."""
+    md = ["### ARCHITECTURE.md reads by role (#834)", ""]
+    a = arch["all"]
+    if not a["reads"]:
+        return md + ["No tool read docs/ARCHITECTURE.md in the window.", ""]
+    rows = [[r["role"], r["agents"], r["reads"], r["whole"], r["section"], r["small"], r["repeats"], r["partial"],
+             fmt_tok(r["tokens"]), fmt_usd(r["usd"]), fmt_usd(r["whole_usd"]), fmt_usd(r["repeat_usd"])]
+            for r in arch["roles"] + [a | {"role": "all roles"}]]  # fmt: skip
+    return md + [
+        f"Tool reads of docs/ARCHITECTURE.md ({fmt_usd(a['usd'])}: {fmt_usd(a['whole_usd'])} whole-file reads, "
+        f"{fmt_usd(a['repeat_usd'])} lines the same agent had read already). whole, section and small as in the ADR "
+        "table. repeats: a read whose lines (a Read's numbered lines, a `cat`'s or a `sed -n` range's, the sections "
+        "`section` printed, its outline as one) the agent had all read since the file last changed (its Edit or Write, "
+        "a `sed -i` or `>` into it, a git rebase, checkout or reset, a runner `publish`, `normalize` or `merge`) or a "
+        "compaction; partly: some of them; a Grep, a search, `head`, `tail` or a `section` piped on is never one. The $ of a repeat is the "
+        "read's times its share of lines read again.", "",
+        table(["role", "agents", "reads", "whole", "section", "small", "repeats", "partly", "tokens", "list $",
+               "of it whole reads", "of it repeats"], rows), ""]  # fmt: skip
+
+
 def instruction_merges(sessions: list[dict]) -> list[dict]:
     """Per manager session (a wave with --since <wave start>): the merge-check outputs among its tool results, and the
     PR pairs whose rows name an ARCHITECTURE conflict (the instruction-diet ADR's N1 (c) trigger)."""
@@ -3527,6 +3635,7 @@ def instruction_record(counted: list[dict], sessions: list[dict], docs_root: Pat
                   for t in sorted(twice.values(), key=lambda t: -t["usd"])],
         "sections": instruction_sections(agents, docs_root or ROOT),
         "adr_reads": adr_record(agents),
+        "arch_reads": arch_record(agents),
         "merge_check": instruction_merges(sessions),
     }  # fmt: skip
 
@@ -3576,6 +3685,7 @@ def instruction_section(rec: dict, adr_reads: bool = False) -> list[str]:
                ""]  # fmt: skip
     if adr_reads:
         md += adr_section(rec["adr_reads"])
+        md += arch_section(rec["arch_reads"])
     return md + merge_check_lines(rec)
 
 
