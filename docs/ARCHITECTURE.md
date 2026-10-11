@@ -1664,8 +1664,11 @@ decoded different task events in match 0`, besides `decoded ZoneProgress, an eve
 peer`). Reverted.
 **#779 (cooking C10)** added `ItemVanished` to both lists; no scenario plays a vanishing item kind yet (the base mode has none), so its plant waits for the first that does.
 **#797 (Generator G2)** added `SwitchChanged` and `ButtonPressed` to both `TASK_EVENTS` lists; no bot plays the
-Generator (the House is not played by bots, §9.7), so its unit tests (`generator_check_test`, `generator_role_swap_test`)
-and the wire test `host_session_generator_test` stand for the plant.
+Generator (the House is not played by bots, §9.7), so no leak plant was made for it: that plant is G7's (#802, on the
+House). What stands in until then is not a plant that the leak test caught: `generator_check_test` (both lists name
+every event the Generator emits), `generator_rules_test` (every present player, downed and dead included, receives the
+same `SwitchChanged`, `ButtonPressed` and `ZoneProgress`, so an audience-narrowing change fails there) and the wire test
+`host_session_generator_test` (each client's decoded events equal `view_of`).
 **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
 distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
 (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
