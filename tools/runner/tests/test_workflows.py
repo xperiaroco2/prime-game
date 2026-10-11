@@ -2908,10 +2908,11 @@ class CleanRebaseTest(unittest.TestCase):
         self.assertEqual([len(s) for s in steps], [1, 1])
         self.assertEqual(prompts[0].replace(steps[0][0], ""), prompts[1].replace(steps[1][0], ""))
         self.assertGreater(prompts[0].index(self.STEP), prompts[0].index("4. Update PR #8's body"))
-        for want in ("git range-diff <old_tip>...<new_tip>", "patches_unchanged", "range_diff", "why_settled",
+        for want in ("git range-diff origin/main <old_tip> <new_tip>", "patches_unchanged", "range_diff", "why_settled",
                      "git reflog show origin/tooling/7-x", "conflicts and fixes list only"):
             self.assertIn(want, steps[0][0])
         self.assertIn('"Review: skipped, a clean rebase (#858)"', steps[0][0])
+        self.assertNotIn("<old_tip>...<new_tip>", steps[0][0], "the three-dot form lists the base's new commits as >")
         self.assertNotIn("forced", steps[0][0])
         self.assertIn('"Review: full (forced by the manager)"', steps[1][0])
         self.assertNotIn("Review: skipped", steps[1][0])
