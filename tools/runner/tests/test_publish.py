@@ -172,6 +172,19 @@ class RealGitTest(unittest.TestCase):
         self.assertEqual(publish.main(verbose=True), 0)
         self.assertEqual([c.kwargs["verbose"] for c in self.verify.call_args_list], [False, True])
 
+    def test_its_verify_lints_the_changed_files_only_in_an_agents_shell(self) -> None:
+        # #859: in a Claude Code shell (CLAUDECODE set) publish runs `verify --changed`; in a human's terminal the
+        # plain verify, which lints every file.
+        self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
+        self.commit(self.work, "g.txt", "mine\n", "mine")
+        with mock.patch.dict(os.environ, {publish.AGENT_ENV: "1"}):
+            self.assertEqual(publish.main(), 0)
+        self.commit(self.work, "g.txt", "more\n", "more")
+        with mock.patch.dict(os.environ):
+            os.environ.pop(publish.AGENT_ENV, None)
+            self.assertEqual(publish.main(), 0)
+        self.assertEqual([c.kwargs["changed"] for c in self.verify.call_args_list], [True, False])
+
     def test_each_unmet_condition_verifies(self) -> None:
         self.git(self.work, "switch", "-q", "-c", "tooling/1-x")
         self.commit(self.work, "g.txt", "mine\n", "mine")

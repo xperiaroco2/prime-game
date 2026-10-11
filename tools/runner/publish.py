@@ -9,6 +9,9 @@ The only way the agent updates a pushed branch after a rebase (docs/decisions/20
 branches.md). The pre-push hook lets this one non-fast-forward push through because the runner marks it with
 PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker and is blocked.
 
+In an agent's shell (AGENT_ENV set, as for hostjoin's windows) its verify is `verify --changed` (#859): the lint
+step lints the changed GDScript only; a human's publish lints every file, and CI's `verify --full` always does.
+
 Its verify is quiet unless `--verbose` (#572): its red steps' failure lines and its summary; the whole output in
 tools/out/logs/verify-output.log. Publish's own lines are few and print as before.
 """
@@ -16,6 +19,7 @@ tools/out/logs/verify-output.log. Publish's own lines are few and print as befor
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 
@@ -28,6 +32,8 @@ REPO = ROOT
 TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 MARKER = {"PRIME_GAME_PUBLISH": "force-with-lease"}
 TIMEOUT = 300
+# Set in every Claude Code shell, never in a human's terminal or on CI: an agent's publish narrows its lint (#859).
+AGENT_ENV = "CLAUDECODE"
 
 
 def _git(*args: str, env: dict[str, str] | None = None) -> Result:
@@ -210,7 +216,7 @@ def main(base: str | None = None, verbose: bool = False) -> int:
     else:
         say(f"publish: verify runs: {why}")
         say()
-        if verify.main(verbose=verbose) != 0:
+        if verify.main(verbose=verbose, changed=bool(os.environ.get(AGENT_ENV))) != 0:
             raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 
