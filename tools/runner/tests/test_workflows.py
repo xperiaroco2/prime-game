@@ -377,6 +377,35 @@ class WorkflowTest(unittest.TestCase):
                      "only after the file changed or your context was compacted"):
             self.assertIn(part, rule)
 
+    def test_the_tasks_adr_line_names_the_section_reads(self) -> None:
+        # #816: PR #794's `metrics --adr-reads` table (since 2026-10-08T12:25Z) counted 39 whole-file ADR reads of
+        # 1043, $9.32 of $33, all of them the 2026-10-10 task ADRs (300 to 560 lines). The one task-ADR line (#815's)
+        # tells the implementer, the publisher and the reviewers to read it by section: its outline, then
+        # `section <adr> <§>`, never the whole file.
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        roles: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                role = event["label"].rsplit(":#", 1)[0]
+                if role not in ("implement", "publish", "rebase", "review:code", "review:netcode", "review:godot-api"):
+                    continue
+                roles.add(f"{name}:{role}")
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(ADR_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    for part in ("by section, never the whole file", "`tools/run.sh section <adr>`",
+                                 "`tools/run.sh section <adr> <§>`"):
+                        self.assertIn(part, found[0])
+        self.assertLessEqual({f"issue-task.js:{r}" for r in ("implement", "publish", "review:code", "review:netcode",
+                                                             "review:godot-api")}
+                             | {f"pr-rebase.js:{r}" for r in ("rebase", "review:code", "review:netcode")},
+                             roles)  # fmt: skip
+
     def test_every_agent_gets_the_no_write_outside_rule(self) -> None:
         # #413: from 2026-10-01 to 05 workflow agents opened Bash calls with 75 throwaway writes (`cat > <file>
         # 2>/dev/null;`), 64 of them into the system Temp folder ($TMP, $TEMP, $TMPDIR, /tmp), not the scratchpad.
