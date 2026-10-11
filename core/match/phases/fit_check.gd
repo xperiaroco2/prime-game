@@ -14,13 +14,16 @@ static func demands(ctx: MatchContext) -> Demands:
 		PhaseSpec.Level.MAP,
 		ctx.state.settings,
 		ctx.state.present_peers().size(),
-		ctx.state.id_sets
+		ctx.state.id_sets,
+		ctx.state.map
 	)
 
 
 ## Every reason the settings do not fit, as HostTexts (#548): the player count first
 ## (`players_few` or `players_many`, with `count` off the bound, `min` and `max`), then `no_layout`
-## or the map's shortfalls (Demands.shortfalls). Empty when they fit.
+## or the map's shortfalls (Demands.shortfalls), then `no_task_types` when the match asks for tasks
+## and no task type plays on the map after the bans (GE15, #803; no arguments: SettingsChanged
+## names the map). Empty when they fit.
 static func shortfalls(ctx: MatchContext, needed: Demands) -> Array[HostText]:
 	var found: Array[HostText] = []
 	var players := ctx.state.present_peers().size()
@@ -39,6 +42,8 @@ static func shortfalls(ctx: MatchContext, needed: Demands) -> Array[HostText]:
 		found.append(HostText.of(HostText.NO_LAYOUT))
 	else:
 		found.append_array(needed.shortfalls(layout))
+	if needed.no_task_types:
+		found.append(HostText.of(HostText.NO_TASK_TYPES))
 	return found
 
 

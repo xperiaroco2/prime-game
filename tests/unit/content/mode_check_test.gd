@@ -19,6 +19,20 @@ func test_an_undeclared_setting() -> void:
 	_expect_none(mode)
 
 
+## TaskType.maps (#803, GE15): each listed path must be one of the mode's maps.
+func test_a_task_type_listing_a_map_the_mode_does_not_have() -> void:
+	var mode := FixtureMapTaskModes.mode()
+	_expect_none(mode)
+	var map_only := mode.task_types[1]
+	map_only.maps = PackedStringArray([FixtureBaseMode.MAP, "fixture://elsewhere"])
+	_expect(
+		mode,
+		"task type map_only lists the map fixture://elsewhere, which is not one of the mode's maps"
+	)
+	map_only.maps = PackedStringArray([FixtureBaseMode.SMALL_MAP])
+	_expect_none(mode)
+
+
 func test_a_number_read_from_a_set_setting() -> void:
 	var mode := FixtureDeliveryModes.basic()
 	_expect_none(mode)

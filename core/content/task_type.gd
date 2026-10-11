@@ -17,6 +17,11 @@ extends ContentPart
 ## (vision revision 1, the Tab task screen) with the task's shared progress (TaskState). Every
 ## client reads it from its own copy of the mode, so it never travels. Empty fails the mode check.
 @export_multiline var description: String
+## The paths of the mode's maps this type plays on (the Generator ADR's GE15, #803); empty, the
+## default, means every map. DealTasks draws only the types that play on the match's map, and the
+## demands (the fit check, LayoutCheck) ask a map only for the markers of its own types. The mode
+## check refuses a path that is not one of the mode's maps.
+@export var maps: PackedStringArray = PackedStringArray()
 
 
 ## A fresh state for one task of this type.
@@ -67,10 +72,21 @@ func reported_outcomes() -> Array[StringName]:
 	return []
 
 
-func check(_mode: GameMode) -> PackedStringArray:
+func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():
 		found.append("a task type has no id")
 	if description.strip_edges().is_empty():
 		found.append("task type %s has no description" % id)
+	for map: String in maps:
+		if mode != null and not mode.maps.has(map):
+			found.append(
+				"task type %s lists the map %s, which is not one of the mode's maps" % [id, map]
+			)
 	return found
+
+
+## Whether this type plays on `map` (`maps` empty: every map). An empty `map` is no map at all:
+## every type (DealTasks.pool_of without a map, for the lobby's bounds, #79).
+func plays_on(map: String) -> bool:
+	return map.is_empty() or maps.is_empty() or maps.has(map)

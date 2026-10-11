@@ -17,6 +17,9 @@ const MARKERS := &"markers"
 const COLOURS := &"colours"
 ## The chosen map has no layout. No arguments: SettingsChanged names the map.
 const NO_LAYOUT := &"no_layout"
+## The match asks for tasks, and no task type plays on the chosen map after the bans
+## (TaskType.maps, #803). No arguments: SettingsChanged names the map.
+const NO_TASK_TYPES := &"no_task_types"
 
 ## What the text says (a wire id).
 var id: StringName

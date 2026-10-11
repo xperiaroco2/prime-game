@@ -2,8 +2,10 @@ class_name DealTasks
 extends RuleEffect
 ## Deals the match's shared tasks (ARCHITECTURE §3.3, §9.4; the engineer's decision of 2026-09-30,
 ## #79): draws `tasks_setting` different task types at random (`rng_purpose`) from the pool, the
-## mode's task types minus the ones in `banned_setting` (the host's bans in the lobby), and runs
-## each drawn type's TaskType.deal() once, in the mode's order. Nobody owns a task. Then each
+## mode's task types that play on the match's map (TaskType.maps, GE15, #803) minus the ones in
+## `banned_setting` (the host's bans in the lobby), and runs each drawn type's TaskType.deal()
+## once, in the mode's order; with `tasks` above the map's pool it deals the whole pool (a map may
+## hold fewer types than another). Nobody owns a task. Then each
 ## task's TaskState in id order (Tasks.announce: the task screen's data, E30) and TaskProgress
 ## (everyone) with the subtasks done and in total, so every client knows each task and the shared
 ## progress from the start (the HUD shows only the sum); with no task drawn it is 0 of 0.
@@ -11,9 +13,10 @@ extends RuleEffect
 ## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned; §9.5), then TaskState per
 ## task, then TaskProgress.
 ## Demands: for any draw, per spawn tag the sum of the `tasks` largest demands among the types
-## not banned, and per station kind the same over colours (see add_demands).
-## Refuses in ChangeSettings (settings_problem): `tasks` above the types not banned, or every
-## type banned (`out_of_bounds`).
+## that play on the demands' map and are not banned, and per station kind the same over colours
+## (see add_demands); `no_task_types` when `tasks` is above 0 and none is left there.
+## Refuses in ChangeSettings (settings_problem, whatever the map): `tasks` above the types not
+## banned, or every type banned (`out_of_bounds`).
 
 ## The match setting that holds how many tasks a match has (`tasks`), a whole number.
 @export var tasks_setting: StringName
@@ -25,12 +28,15 @@ extends RuleEffect
 
 
 func run(ctx: MatchContext) -> void:
-	var pool := pool_of(ctx.mode, ctx.id_set(banned_setting))
+	var banned := ctx.id_set(banned_setting)
 	var wanted := ctx.setting(tasks_setting)
-	if wanted > pool.size():
+	var left := pool_of(ctx.mode, banned).size()
+	if wanted > left:
 		# settings_problem keeps the lobby from getting here.
-		ctx.error("DealTasks: %d tasks, %d task types left after the bans" % [wanted, pool.size()])
-		wanted = pool.size()
+		ctx.error("DealTasks: %d tasks, %d task types left after the bans" % [wanted, left])
+	# The map's pool may hold fewer types than `tasks` (GE15): it is dealt whole, no error.
+	var pool := pool_of(ctx.mode, banned, ctx.state.map)
+	wanted = mini(wanted, pool.size())
 	var drawn := RngStreams.shuffled_indices(pool.size(), ctx.rng(rng_purpose)).slice(0, wanted)
 	drawn.sort()
 	for index: int in drawn:
@@ -42,11 +48,12 @@ func run(ctx: MatchContext) -> void:
 	ctx.emit(TaskProgressEvent.new(counted.x, counted.y))
 
 
-## The mode's task types minus `banned` (ids), in the mode's order.
-static func pool_of(mode: GameMode, banned: PackedStringArray) -> Array[TaskType]:
+## The mode's task types that play on `map` (TaskType.plays_on) minus `banned` (ids), in the
+## mode's order. `map` empty: every type, whatever maps it lists (the lobby's bounds, #79).
+static func pool_of(mode: GameMode, banned: PackedStringArray, map: String = "") -> Array[TaskType]:
 	var found: Array[TaskType] = []
 	for type: TaskType in mode.task_types:
-		if type != null and not banned.has(String(type.id)):
+		if type != null and not banned.has(String(type.id)) and type.plays_on(map):
 			found.append(type)
 	return found
 
@@ -55,18 +62,23 @@ static func pool_of(mode: GameMode, banned: PackedStringArray) -> Array[TaskType
 ## demand is the sum of the `tasks` largest demands of that tag among the pool's types, and per
 ## station kind the same over colours. For any draw of `tasks` types, the sum over the drawn
 ## types is at most that, per tag and per kind, so a map that passes the fit check fits every
-## draw. With one type in the pool it is exactly that type's demand.
+## draw. With one type in the pool it is exactly that type's demand. The pool is the types that
+## play on `into.map` (GE15), so a map is asked only for its own types' markers; when `tasks`
+## asks for some and none is left there, `into.no_task_types` (the fit check refuses the map).
 func add_demands(settings: Dictionary[StringName, int], players: int, into: Demands) -> void:
 	if into.mode == null:
 		return
-	var pool := pool_of(into.mode, into.id_set(banned_setting))
-	var wanted := mini(settings.get(tasks_setting, 0) as int, pool.size())
+	var pool := pool_of(into.mode, into.id_set(banned_setting), into.map)
+	var asked := settings.get(tasks_setting, 0) as int
+	if asked > 0 and pool.is_empty():
+		into.no_task_types = true
+	var wanted := mini(asked, pool.size())
 	if wanted <= 0:
 		return
 	var markers: Dictionary[StringName, Array] = {}
 	var colours: Dictionary[StringName, Array] = {}
 	for type: TaskType in pool:
-		var own := Demands.new(into.mode)
+		var own := Demands.new(into.mode, into.map)
 		own.id_sets = into.id_sets
 		type.add_demands(settings, players, own)
 		for tag: StringName in own.markers:

@@ -30,8 +30,12 @@ func test_an_id_without_a_key_is_its_plain_line() -> void:
 	var many := _text(&"players_many", [], {&"count": 2, &"min": 1, &"max": 10})
 	assert_str(HostTextView.shortfall(many)).is_equal("players_many count=2 max=10 min=1")
 	assert_str(HostTextView.shortfall(_text(&"no_layout", [], {}))).is_equal("no_layout")
+	# #803: no task type plays on the map after the bans; the deck has no key for it yet.
+	assert_str(HostTextView.shortfall(_text(HostText.NO_TASK_TYPES, [], {}))).is_equal(
+		"no_task_types"
+	)
 	assert_str(HostTextView.shortfall(_text(&"what_now", ["a", "b"], {}))).is_equal("what_now a b")
-	for id: StringName in [&"players_many", &"markers", &"colours", &"no_layout"]:
+	for id: StringName in [&"players_many", &"markers", &"colours", &"no_layout", &"no_task_types"]:
 		assert_bool(HostTextView.SHORTFALL_KEYS.has(id)).override_failure_message(id).is_false()
 
 

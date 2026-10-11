@@ -6,7 +6,8 @@ extends RefCounted
 ## - a spawn tag that a row's action places on and a level lacks: the lobby for rows into a lobby
 ##   phase, every map for rows into a map phase (the tags an action names at the default settings
 ##   and the mode's maximum of players, §9.4), or that a tick system of a phase played on the
-##   level places on (LifeTicks' Respawn: `respawn` markers on every map, M4-3);
+##   level places on (LifeTicks' Respawn: `respawn` markers on every map, M4-3); a map is asked
+##   only for the markers of the task types that play on it (TaskType.maps, GE15, #803);
 ## - a marker with two tags (the same position under two tags; §9.6: a marker carries one tag);
 ## - a lobby with fewer `lobby_player` markers than the mode's maximum of players, since a joiner
 ##   and `End -> Lobby` each put a player on a marker of its own.
@@ -50,15 +51,17 @@ static func run(mode: GameMode, layouts: Dictionary[String, LevelLayout]) -> Pac
 ## What the actions of every row into a phase played on `level`, and the tick systems of those
 ## phases, demand, summed (§9.4): the fit check of `all_ready` compares this for the map with the
 ## chosen map's markers. `id_sets` are the set settings (the host's bans of task types); empty
-## means every set is empty.
+## means every set is empty. `map` is the map they are for (Demands.map: DealTasks asks only the
+## task types that play on it, GE15); empty, every type (the worst case over the mode's maps).
 static func demands_of(
 	mode: GameMode,
 	level: PhaseSpec.Level,
 	settings: Dictionary[StringName, int],
 	players: int,
-	id_sets: Dictionary[StringName, PackedStringArray] = {}
+	id_sets: Dictionary[StringName, PackedStringArray] = {},
+	map: String = ""
 ) -> Demands:
-	var demands := Demands.new(mode)
+	var demands := Demands.new(mode, map)
 	demands.id_sets = id_sets.duplicate()
 	for row: Transition in _rows_into(mode, level):
 		for action: RuleEffect in row.actions:
@@ -66,9 +69,9 @@ static func demands_of(
 				action.add_demands(settings, players, demands)
 	# A tick system's markers serve every phase it runs in (a Respawn's marker is not used up), so
 	# the phases' tick-system demands take the most of any one phase per tag, not their sum.
-	var ticking := Demands.new(mode)
+	var ticking := Demands.new(mode, map)
 	for spec: PhaseSpec in _phases_on(mode, level):
-		var one := Demands.new(mode)
+		var one := Demands.new(mode, map)
 		one.id_sets = demands.id_sets
 		for system: TickSystem in spec.tick_systems:
 			if system != null:
@@ -96,8 +99,10 @@ static func _check_level(
 	found: PackedStringArray
 ) -> void:
 	var defaults := mode.default_settings()
+	# A map is asked only for the markers of the task types that play on it (GE15).
+	var map := path if level == PhaseSpec.Level.MAP else ""
 	for row: Transition in _rows_into(mode, level):
-		var demands := Demands.new(mode)
+		var demands := Demands.new(mode, map)
 		for action: RuleEffect in row.actions:
 			if action != null:
 				action.add_demands(defaults, mode.max_players, demands)
@@ -113,7 +118,7 @@ static func _check_level(
 					)
 				)
 	for spec: PhaseSpec in _phases_on(mode, level):
-		var demands := Demands.new(mode)
+		var demands := Demands.new(mode, map)
 		for system: TickSystem in spec.tick_systems:
 			if system != null:
 				system.add_demands(defaults, mode.max_players, demands)
