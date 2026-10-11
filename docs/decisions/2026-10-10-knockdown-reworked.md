@@ -366,7 +366,8 @@ Proposals for the M7 backlog, each `base: release/m7`; the manager opens them no
 [MVP content ADR](2026-09-29-mvp-content-built-by-the-engineer.md), for his approval in its PR, and every number in
 one is a placeholder marked "not a decision" (KD9 (b)). 728a and 728d apply on every map, the greybox included (the
 rework "applies wherever today's knockdown does"); the motion of 728b and 728e moves bodies on the House only (KE12).
-One question is open: KD11 (§2), on which 728b depends.
+One question is open: KD12 (§2). No issue waits on it: 728b needs nothing from it, and 728e builds its recommended
+(a), which a later answer can revert.
 
 - **728a core and client: a knocked-down player holds still and looks** (size M). Goal: a knocked-down player cannot
   move; its claims carry its look only. Acceptance: `MovementRule` takes a knocked-down claim's facing only (KE4),
@@ -397,7 +398,9 @@ One question is open: KD11 (§2), on which 728b depends.
   L). Goal: on the House a knockdown blow can launch the body, the host's physics moves it, and `core/` knows where it
   is and where it rests, where everyone sees it. Acceptance: `BodyMotion` in `PlayerState.motion` (KE3); `Strike`'s
   `launch_mps` and `launch_up_mps` with their bounds; `damage` and `knock_down` take the launch (KE9); the directives
-  `LaunchBody` and `StopBody` (audience *server*); `HostBodies` in `server/` (KE13), with the probe of §9 first; the
+  `LaunchBody` and `StopBody` (audience *server*); `HostBodies` in `server/` (KE13: the crouching player's collider,
+  `capsule_radius_m` and `crouch_height_m`, as a `BODY_MODE_RIGID_LINEAR` body that never turns, KD11), with the
+  probe of §9 first; the
   command `BodyMoved` that `server/` originates and logs (KE14), never decodable from the network, named beside
   `PEER_CONNECTED` under `Intents`' "Commands server/ originates", documented in `MatchCommand`, and taken in every
   phase (never rejected, as `PeerConnected` is; it acts only on a body in motion, which Round and End can hold:
@@ -411,16 +414,17 @@ One question is open: KD11 (§2), on which 728b depends.
   protocol number, and the client's `AvatarViews` and the bots' fold skipping it until 728d draws it, so no client
   draws itself as a stranger in between; `ChaosOracle`'s reason table gains `moving`; on a map `motion_maps` leaves
   out a knockdown is today's, step for step (§4, step 2). Where bodies move (KE12): `PlayerRules.motion_maps`,
-  compared with `MatchState.map` in `knock_down`, the mode check refusing a path that is not one of the mode's maps,
-  and the base mode listing the House alone from this issue on, so no later change can give the greybox a launch by
-  leaving the list out; the rest speed, the rest time, the longest motion and the topple (KE13) in `PlayerRules`
+  compared with `MatchState.map` in `knock_down`, the mode check refusing a path that is not one of the mode's maps
+  and a map where a body moves but the crouch does not play (`crouch_maps`, KE12, KD11), and the base mode listing
+  the House alone from this issue on, so no later change can give the greybox a launch by leaving the list out; the
+  rest speed, the rest time and the longest motion in `PlayerRules`
   with their bounds, set in the base mode and the fixture modes as placeholders marked "not a decision" (KD9 (b));
   §9's unit tests and the
   host's-body integration tests on a fixture level. 728b ships with every launch at 0 (the knife sets none) until
   728d draws the motion: before it, a launched player's camera and ears would stay where the knockdown started while
   every other screen showed the body fly, and its client's voice cutoff (E41) would measure from the wrong place.
-  With no launch the host's capsule topples where its player stood (KE13) and rests, unless the floor there sends it
-  on (the stairs), so on the House a knockdown then holds a raise back about the rest time. ARCHITECTURE: §1's
+  With no launch the host's capsule rests where its player stood (KE13), unless the floor there sends it on (a
+  stair's edge), so on the House a knockdown then holds a raise back about the rest time. ARCHITECTURE: §1's
   `server/` row (it simulates knocked-down bodies on the maps `motion_maps` lists); §3.3's replay (`BodyMoved` among
   the commands `server/` originates); §4.1's note after its table ("A connection and a leave are not intents": the
   reports are not either); §4.2's directives (`LaunchBody`, `StopBody`); §4.5.3 (the reports at the head of step
@@ -434,9 +438,11 @@ One question is open: KD11 (§2), on which 728b depends.
   §4.4's "the snapshot's 15 avatars take 680 bytes"; §4.6.1.1 and §4.6.1.2 ("the own player's never arrives");
   §4.7.8 ("since the own avatar never arrives"); §9.4's `Strike` row (its launch fields, 0 launching nothing, and
   their bounds), its `TargetDowned` row and §9.4.5's `LifeTicks` row (the longest motion and the no-floor error);
-  §9.5.1's `PlayerRules` (the rest's numbers, the longest motion, `motion_maps`: the House); §7.1.18. Depends on:
-  728a; KE1 (b), KE5, KD1, KD2, KD4, KD8, KD10 (answered) and KD11 (open). Not on the throwing issues: the host's
-  physics needs neither their sweep nor their arc. Files: `core/life/`,
+  §9.5.1's `PlayerRules` (the rest's numbers, the longest motion, `motion_maps`: the House, and its check against
+  `crouch_maps`); §7.1.18. Depends on: 728a; 727a (#790: `crouch_height_m` and `crouch_maps`, which the host's
+  capsule and the mode check read); KE1 (b), KE5, KD1, KD2, KD4, KD8, KD10 and KD11 (answered); not on KD12, open
+  (§2): its (a) and (c) add nothing here, and its (b) would come as an issue of its own. Not on the throwing issues:
+  the host's physics needs neither their sweep nor their arc. Files: `core/life/`,
   `core/combat/strike.gd`, `core/content/player_rules.gd`,
   `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
   `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `core/match/intents.gd`, `core/match/match_command.gd`,
@@ -469,14 +475,19 @@ One question is open: KD11 (§2), on which 728b depends.
   PR; `motion_maps` still the House alone (KE12, from 728b). Integration tests on the House in the host's world
   (`LevelWorld`, `HostWorldQuery` and `HostBodies`, as `house_markers_test.gd` builds the first two), since bots do
   not play the House (ARCHITECTURE §9.7): a knife launch in each direction from a sample of places players stand (the
-  yard, the terrace, the balcony, the top of the stairs) rests the body on a floor within the longest motion; beside
-  #646's roof check, no knife launch from where players stand rests a body on the locked roof; and the base mode on
-  the greybox starts no host body with these numbers (a knife knockdown there is today's, step for step). Each test
-  asserts where a body may rest, never an exact point (KE1 (b)). No bot scenario: the scenarios, the chaos run and
-  the perf run play the greybox, where nothing moves, and stay as they are. The playtest's list, on the House (KD2,
-  KD6, KD10 (A)). ARCHITECTURE §9.5.6 (the knife's launch). Depends on: 728b, 728d (the first non-zero launch in the
-  base mode needs the own avatar's camera and ears to follow the body), #646. Files: `content/items/knife.tres`,
-  `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
+  yard, the terrace, the balcony, the top of the stairs) rests the body on a floor within the longest motion, with a
+  crouching player's capsule at the rest point clear of the level (KD11); and the base mode on the greybox starts no
+  host body with these numbers (a knife knockdown there is today's, step for step). KD12 (a), the recommendation,
+  revertible while KD12 is open: #646's convention line in `levels/CLAUDE.md` names launched bodies beside thrown
+  items (every surface a launch can reach lies within a raise's reach of a spot where a crouching player can stand),
+  and beside #646's roof check no knife launch from where players stand rests a body on the locked roof; under KD12
+  (b) or (c) the line and the check change or go. Each test asserts where a body may rest, never an exact point
+  (KE1 (b)). No bot scenario: the scenarios, the chaos run and the perf run play the greybox, where nothing moves,
+  and stay as they are. The playtest's list, on the House (KD2, KD6, KD10 (A), KD11: a body launched under a table
+  and raised there). ARCHITECTURE §9.5.6 (the knife's launch). Depends on: 728b, 728d (the first non-zero launch in
+  the base mode needs the own avatar's camera and ears to follow the body), #646, and 727b (#791: a launch can rest
+  a body where only a crouching player fits, and the raised player's crouched get-up is its controller's, KE6).
+  Files: `content/items/knife.tres`, `levels/CLAUDE.md`, `tests/integration/levels/`, `docs/ARCHITECTURE.md`.
 - **#522 (not a new issue):** its mapping's "knockdown, then lying downed" becomes 728d's ragdoll on the skeleton's
   `PhysicalBone3D`s under a `PhysicalBoneSimulator3D` (`physical_bones_start_simulation`), and its "get up when
   revived" follows KD7; the manager adds this to #522.
