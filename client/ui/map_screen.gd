@@ -505,10 +505,7 @@ func _set_struck(label: Label, struck: bool) -> void:
 func _draw_strike(label: Label) -> void:
 	if not label.get_meta(&"struck", false):
 		return
-	var font := label.get_theme_font(&"font")
-	var font_size := label.get_theme_font_size(&"font_size")
-	var text_width := font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	var width := minf(text_width, label.size.x)
+	var width := minf(label.get_minimum_size().x, label.size.x)
 	var y := label.size.y * 0.5
 	var color := label.get_theme_color(&"font_color")
 	label.draw_line(Vector2(0, y), Vector2(width, y), color, STRIKE_WIDTH)
