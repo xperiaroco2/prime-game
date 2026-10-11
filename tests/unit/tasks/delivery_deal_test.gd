@@ -360,6 +360,17 @@ func test_the_mode_check_refuses_a_package_kind_that_vanishes() -> void:
 	assert_str(errors).contains("Delivery delivery: the package kind package must not vanish")
 
 
+func test_a_package_kind_without_a_tag_that_also_vanishes_gets_both_errors() -> void:
+	# Both problems at once, not one per load.
+	var mode := FixtureDeliveryModes.basic()
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	delivery.package.spawn_tag = &""
+	delivery.package.vanish_seconds = 30
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("the package kind package has no spawn_tag to place it on")
+	assert_str(errors).contains("the package kind package must not vanish")
+
+
 func test_a_circle_that_forgot_its_radius_or_height_is_refused() -> void:
 	var mode := FixtureDeliveryModes.basic()
 	var circle := StationKind.new()
