@@ -378,7 +378,11 @@ No question is open.
   is and where it rests, where everyone sees it. Acceptance: `BodyMotion` in `PlayerState.motion` (KE3); `Strike`'s
   `launch_mps` and `launch_up_mps` with their bounds; `damage` and `knock_down` take the launch (KE9); the directives
   `LaunchBody` and `StopBody` (audience *server*); `HostBodies` in `server/` (KE13), with the probe of §9 first; the
-  command `BodyMoved` that `server/` originates and logs (KE14), never decodable from the network; the rest, the no
+  command `BodyMoved` that `server/` originates and logs (KE14), never decodable from the network, named beside
+  `PEER_CONNECTED` under `Intents`' "Commands server/ originates", documented in `MatchCommand`, and taken in every
+  phase (never rejected, as `PeerConnected` is; it acts only on a body in motion, which Round and End can hold:
+  at the round's end the body moves on), with `HostWorldQuery` giving `HostBodies` the current level's world and
+  telling it of a level change, which frees every body; the rest, the no
   floor and the longest motion in `core/` (KE15, §4's steps 5 to 7); `TargetDowned` rejects `moving`; KD8 in `die`;
   `leave` and `ResetMatch` clear the motion; the own avatar in a knocked-down viewer's snapshot
   (KE5), with `WireSchema.MAX_AVATARS` raised to `MAX_PLAYERS` and a test that a full match's knocked-down viewer
@@ -390,15 +394,18 @@ No question is open.
   compared with `MatchState.map` in `knock_down`, the mode check refusing a path that is not one of the mode's maps,
   and the base mode listing the House alone from this issue on, so no later change can give the greybox a launch by
   leaving the list out; the rest speed, the rest time, the longest motion and the topple (KE13) in `PlayerRules`
-  with their bounds, set
-  in the base mode and the fixture modes as placeholders marked "not a decision" (KD9 (b)); §9's unit tests and the
+  with their bounds, set in the base mode and the fixture modes as placeholders marked "not a decision" (KD9 (b));
+  §9's unit tests and the
   host's-body integration tests on a fixture level. 728b ships with every launch at 0 (the knife sets none) until
   728d draws the motion: before it, a launched player's camera and ears would stay where the knockdown started while
   every other screen showed the body fly, and its client's voice cutoff (E41) would measure from the wrong place.
   With no launch the host's capsule topples where its player stood (KE13) and rests, unless the floor there sends it
-  on (the stairs), so on the House a knockdown then holds a raise back about the rest time. ARCHITECTURE: §1's `server/` row (it simulates knocked-down bodies on the maps
-  `motion_maps` lists); §3.3's replay (`BodyMoved` among the commands `server/` originates); §4.2's directives
-  (`LaunchBody`, `StopBody`); §4.5.3 (the reports at the head of step 4's batch, stamped t, none in step 1's catch-up); §4.5.9 (the level's world holds the bodies); §5
+  on (the stairs), so on the House a knockdown then holds a raise back about the rest time. ARCHITECTURE: §1's
+  `server/` row (it simulates knocked-down bodies on the maps `motion_maps` lists); §3.3's replay (`BodyMoved` among
+  the commands `server/` originates); §4.1's note after its table ("A connection and a leave are not intents": the
+  reports are not either); §4.2's directives (`LaunchBody`, `StopBody`); §4.5.3 (the reports at the head of step
+  4's batch, stamped t, none in step 1's catch-up); §4.5.9 (the level's world holds the bodies, and a level change
+  frees them); §5
   (the per-peer rule, and its "Widening" bullet: a knockdown now widens its own player's snapshot by its avatar);
   §4.6.2 (the bots' fold skips the own avatar); §4.6.4 (the leak test's list of invariants: the own-avatar check)
   and §4.6.4.1 (its two plants, seen failing); §4.1's `Raise` row and §9.5.13's rejection list (`moving`); §4.2's
@@ -411,8 +418,9 @@ No question is open.
   728a; KE1 (b), KE5, KD1, KD2, KD4, KD8, KD10 (all answered). Not on the throwing issues: the host's physics needs
   neither their sweep nor their arc. Files: `core/life/`, `core/combat/strike.gd`, `core/content/player_rules.gd`,
   `core/match/player_state.gd`, `core/match/snapshots.gd`, `core/match/reset_match.gd`,
-  `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), a new `server/host_bodies.gd`, `server/host_session.gd`,
-  `server/level_world.gd`, `net/messages/wire_schema.gd` (`MAX_AVATARS`),
+  `core/match/phases/join_rules.gd` (`PROTOCOL_VERSION`), `core/match/intents.gd`, `core/match/match_command.gd`,
+  `core/match/phase.gd`, `core/match/match.gd`, a new `server/host_bodies.gd`, `server/host_session.gd`,
+  `server/host_world_query.gd`, `server/level_world.gd`, `net/messages/wire_schema.gd` (`MAX_AVATARS`),
   `tests/unit/net/messages/wire_schema_test.gd` (680 becomes 725), `client/world/avatar_views.gd`,
   `client/net/client_model.gd` (its docs say the own avatar is never sent; `avatars` holds it while knocked down),
   `tests/harness/scenario_bot.gd`, `tests/harness/chaos/chaos_oracle.gd`, `tests/unit/life/`, `tests/unit/combat/`,
