@@ -88,7 +88,8 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   earlier effect of the same command already ended the phase; then its sender gets `Rejected` with the reason
   `outcome_dropped`, so the loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal
   (§9.2), the rule's costs were paid and its effects ran. The kills a step queues (`LifeRules.kill_later`, #806)
-  land before its win check, once the command's dispatch, the phase's own timers, each tick system, the clock ending or a phase's entry has finished,
+  land before its win check, once the command's dispatch, the phase's own timers, each tick system, the clock ending
+  or a phase's entry has finished,
   and never once the step has an outcome (§9.3 "Life").
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
   and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
