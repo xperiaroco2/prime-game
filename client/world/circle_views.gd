@@ -5,10 +5,8 @@ extends Node3D
 ## client's own copy of the mode) in StationPlaced's colour, dimmed once PackageDelivered names it.
 ## A station kind the mode does not name gets a cylinder of the fallback size.
 ##
-## The destination marker: while the own player carries a package (ItemViews.destination_item), a
-## marker floats over its circle and is drawn through walls (`no_depth_test`). It is the one
-## exception to the M4 ADR's §3 item 5, since circles are fixed, public places (D10 (b)); no
-## other marker or label of the client may use it.
+## Nothing here draws through walls (the M4 ADR's §3 item 5): no marker over a circle, since a
+## carried item says where it goes by what it is (Delivery by meaning, DD4 (a), D3a).
 
 ## Greybox looks, placeholders until the art pass.
 const ALPHA := 0.35
@@ -16,9 +14,6 @@ const DONE_ALPHA := 0.1
 const DONE_DIM := 0.4
 const FALLBACK_RADIUS := 1.0
 const FALLBACK_HEIGHT := 0.2
-## How far over the circle's top the marker floats, and its size, in metres.
-const MARKER_ABOVE := 2.0
-const MARKER_SIZE := 0.35
 
 var model: ClientModel
 ## The client's own copy of the mode: the station kinds' sizes.
@@ -26,19 +21,6 @@ var mode: GameMode
 
 var _views: Dictionary[int, MeshInstance3D] = {}
 var _done: Dictionary[int, bool] = {}
-var _marker := MeshInstance3D.new()
-var _marked := -1
-
-
-func _init() -> void:
-	_marker.name = "DestinationMarker"
-	var mesh := PrismMesh.new()
-	mesh.size = Vector3.ONE * MARKER_SIZE
-	_marker.mesh = mesh
-	# Upside down: it points at the circle.
-	_marker.rotation = Vector3(PI, 0.0, 0.0)
-	_marker.visible = false
-	add_child(_marker)
 
 
 ## The cylinder of station `id`, or null.
@@ -46,22 +28,11 @@ func view_of(id: int) -> MeshInstance3D:
 	return _views.get(id)
 
 
-## The destination marker; hidden when the own player carries no package.
-func marker() -> MeshInstance3D:
-	return _marker
-
-
-## The station the marker is over, or -1.
-func marked() -> int:
-	return _marked if _marker.visible else -1
-
-
 func clear() -> void:
 	for view: MeshInstance3D in _views.values():
 		view.queue_free()
 	_views.clear()
 	_done.clear()
-	_marker.visible = false
 
 
 ## The station kind of `kind_id` in the client's own mode: a StationKind some task type holds
@@ -95,7 +66,6 @@ func _process(_delta: float) -> void:
 		if _done.get(id, false) != station.done:
 			_done[id] = station.done
 			_paint(view, station)
-	_mark()
 
 
 func _make(id: int, station: ClientModel.Station) -> MeshInstance3D:
@@ -122,27 +92,3 @@ func _paint(view: MeshInstance3D, station: ClientModel.Station) -> void:
 	colour.a = DONE_ALPHA if station.done else ALPHA
 	material.albedo_color = colour
 	view.material_override = material
-
-
-## The marker over the own package's circle, in its colour, through walls.
-func _mark() -> void:
-	var package: ClientModel.Item = model.items.get(ItemViews.destination_item(model))
-	var station: ClientModel.Station = (
-		model.stations.get(package.station) if package != null else null
-	)
-	if station == null:
-		_marker.visible = false
-		return
-	var top := station.position.y
-	var view: MeshInstance3D = _views.get(package.station)
-	if view != null:
-		top = view.position.y + (view.mesh as CylinderMesh).height * 0.5
-	_marker.position = Vector3(station.position.x, top + MARKER_ABOVE, station.position.z)
-	if _marked != package.station or not _marker.visible:
-		_marked = package.station
-		var material := StandardMaterial3D.new()
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.no_depth_test = true
-		material.albedo_color = station.colour
-		_marker.material_override = material
-	_marker.visible = true

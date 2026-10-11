@@ -35,8 +35,8 @@ func _init() -> void:
 	process_physics_priority = PHYSICS_PRIORITY
 
 
-## The item whose destination the HUD and the marker show (D10 (b)): the own hand's package, else
-## the belt's; -1 for none.
+## The item whose destination the own player carries (D10 (b); nothing draws it since D3a): the
+## own hand's package, else the belt's; -1 for none.
 static func destination_item(known: ClientModel) -> int:
 	for item_id: int in [known.hand_item(known.own_peer), known.belt_item(known.own_peer)]:
 		var item: ClientModel.Item = known.items.get(item_id)
