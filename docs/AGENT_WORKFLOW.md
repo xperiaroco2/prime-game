@@ -1832,6 +1832,8 @@ three costliest agents), and last each agent's average and peak context per API 
 several runs end with their total. It writes no file; an ID that names no run fails, naming the checkouts read (one
 with no folder here: not on this machine, #586); next to an ID that does, it gets a line `<id>: no run here (...)` first. On art's `wf_45e2297a` it gives the 2026-10-07 audit's $693 and 27%.
 
+The report's section "Issues launched 2 or more times" (#833; `relaunches` in `metrics.json`) lists, per issue that 2 or more runs of the window worked on (any kind), the runs, their API list $ and the $ after the first run, the unfinished runs and their $, the implementer continuations after a checkpoint handoff, and the runs that started within 10 minutes of the previous one's end (an update that could have gone into that launch). The cause of a relaunch (the engineer's answer, a sibling PR merged, a crash) is not in the transcripts: it is in the run's notes and the issue's comments (#833's classification). Tests: `tools/runner/tests/test_metrics_relaunch.py`.
+
 ### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
 The real game in off-screen
 windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
