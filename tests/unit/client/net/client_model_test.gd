@@ -285,6 +285,25 @@ func test_a_thrown_package_delivered_or_another_players_throw_or_an_unknown_item
 	_assert_no_match_facts()
 
 
+func test_an_item_vanished_is_forgotten_and_its_id_may_name_a_new_one() -> void:
+	# The cooking ADR, CE3: an item left lying vanishes; ItemVanished removes its view. Past the
+	# wire's id limit the host may reuse its id for a new item, which arrives as ItemSpawned.
+	_to_round()
+	_fold(ItemSpawnedEvent.new(4, &"crumb", Vector3(4, 0, 0)))
+	_fold(ItemSpawnedEvent.new(5, &"crumb", Vector3(5, 0, 0)))
+	_fold(ItemVanishedEvent.new(4))
+	assert_bool(_model.items.has(4)).is_false()
+	assert_bool(_model.items.has(5)).is_true()
+	# An item the client never heard of, or one already gone, changes nothing.
+	_fold(ItemVanishedEvent.new(4))
+	_fold(ItemVanishedEvent.new(40))
+	assert_array(_model.items.keys()).is_equal([7, 5])
+	_fold(ItemSpawnedEvent.new(4, &"knife", Vector3(0, 0, 4)))
+	assert_str(String(_model.items[4].kind)).is_equal("knife")
+	assert_vector(_model.items[4].position).is_equal(Vector3(0, 0, 4))
+	assert_int(_model.items[4].holder).is_equal(ClientModel.NO_HOLDER)
+
+
 func test_task_state_gives_each_tasks_row_for_the_task_screen() -> void:
 	_to_round()
 	assert_int(_model.tasks.size()).is_equal(1)
