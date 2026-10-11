@@ -55,8 +55,10 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	var steppers := panel.settings_box.find_children("Stepper", "HBoxContainer", true, false)
 	# match_duration, tasks, packages, zones (#649), dissidents, knives.
 	assert_int(steppers.size()).is_equal(6)
-	# The task count is fixed (1 to 1): its row hides, nothing to choose.
-	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_false()
+	# A fixed setting's row hides, nothing to choose: the zone count (1 to 1, #649). The task count
+	# was the fixed one until #649 dealt both task types (1 to 2): its row shows.
+	assert_bool((panel.settings_box.get_node(^"Zones") as Control).visible).is_false()
+	assert_bool((panel.settings_box.get_node(^"TaskCount") as Control).visible).is_true()
 	var duration := steppers[0] as SettingStepper
 	var spec := mode.find_setting(&"match_duration")
 	duration.less.pressed.emit()
