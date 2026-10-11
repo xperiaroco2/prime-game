@@ -9,8 +9,10 @@ extends RefCounted
 ##   empty Opus frame), and the debug kinds (ForceRole, kind 24; ForceClock, kind 25, one second)
 ##   from a peer other than 1, which the host counts as bad payloads (E17); and NextStage's (kind
 ##   15, #599): 0 to 3 bytes where its seq goes (the codec's bad payload), and its seq with 1 to 4
-##   bytes after it (over the row's cap of 4, NetFrame's payload too large). Each Packet names the
-##   NetRejects reason it must be counted under (`expect`);
+##   bytes after it (over the row's cap of 4, NetFrame's payload too large); and Interact's (kind
+##   18, #796): a station 0xFFFF (the codec's), and its seq and station with 1 to 4 bytes after
+##   them (over the cap of 6). Each Packet names the NetRejects reason it must be counted under
+##   (`expect`);
 ## - well-formed intents (message()), whose answer the rules give (ChaosOracle);
 ## - hostile MoveClaims (Claim), tagged in their velocity so the host's observer can tell them from
 ##   the bot's own claims: a teleport, a speed over the cap, a client tick far past the credit, an
@@ -44,6 +46,8 @@ enum Shape {
 	SET_PROFILE_NO_COLOUR,
 	SET_PROFILE_TRAILING,
 	SET_PROFILE_BAD_NAME,
+	INTERACT_BAD_STATION,
+	INTERACT_TRAILING,
 }
 
 ## The hostile MoveClaims. STALE_TICK repeats a client tick the host already has: dropped, or, as
@@ -69,8 +73,9 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## Kinds no row of the table has (0 is the transport's ADMIT, never a client's). 15 left it when
 ## NextStage took it (#599), 16 took its place; 16 and 66 left it when SetProfile and
 ## ProfileChanged took them (#551), 17 and 67 took theirs; 17 and 67 left it when release/m7's
-## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs.
-const UNASSIGNED: Array[int] = [0, 18, 19, 23, 26, 31, 69, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs; 18 left it
+## when Interact took it (#796), 20 took its place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 69, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
 ## zero, and two whose squared length underflows (1e-30) or overflows (1e38) in single precision.
@@ -145,7 +150,7 @@ static func malformed(
 	shape: Shape, rng: RandomNumberGenerator, schema: WireSchema, own: int
 ) -> Packet:
 	var packet: Packet
-	if shape <= Shape.TRAILING or shape == Shape.NEXT_STAGE_TRAILING:
+	if shape <= Shape.TRAILING or shape in [Shape.NEXT_STAGE_TRAILING, Shape.INTERACT_TRAILING]:
 		packet = _bad_frame(shape, rng, schema)
 	else:
 		packet = _bad_payload(shape, rng, schema, own)
@@ -258,6 +263,13 @@ static func _bad_frame(shape: Shape, rng: RandomNumberGenerator, schema: WireSch
 			next_stage.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
 			packet.bytes = NetFrame.encode(schema.kind_of(&"NextStage"), next_stage)
 			packet.expect = NetRejects.Reason.PAYLOAD_TOO_LARGE
+		Shape.INTERACT_TRAILING:
+			# Interact (seq, station) with bytes after it: at the row's cap, as NEXT_STAGE_TRAILING.
+			var fields := {"station": rng.randi_range(0, 9)}
+			var interact := schema.encode(WireMessage.new(&"Interact", fields, CHAOS_SEQ))
+			interact.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
+			packet.bytes = NetFrame.encode(schema.kind_of(&"Interact"), interact)
+			packet.expect = NetRejects.Reason.PAYLOAD_TOO_LARGE
 	return packet
 
 
@@ -274,6 +286,11 @@ static func _bad_payload(
 			bytes[at + 4] = rng.randi_range(2, 255)
 		Shape.BAD_ITEM:
 			packet = message(schema, &"PickUp", {"item": 1}, CHAOS_SEQ)
+			bytes = packet.bytes.duplicate()
+			bytes.encode_u16(at + 4, 0xFFFF)
+		Shape.INTERACT_BAD_STATION:
+			# All ones is "no station", which Interact's station may not be (#796).
+			packet = message(schema, &"Interact", {"station": 1}, CHAOS_SEQ)
 			bytes = packet.bytes.duplicate()
 			bytes.encode_u16(at + 4, 0xFFFF)
 		Shape.BAD_PEER:

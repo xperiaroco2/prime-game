@@ -62,7 +62,8 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 ## ACCEPTS that has no row above (accepts() reads an absent intent as refused). NextStage (#599,
 ## E65) is a scripted mode's control: the tutorial's phases list it, the base mode's none. A test
 ## pins that every intent is in a phase of ACCEPTS or here, so a new intent needs a decision.
-const NEVER_ACCEPTED: Array[StringName] = [&"NextStage"]
+## Interact (#796): the base mode has no station rule yet; the Generator (G5, #800) adds its row.
+const NEVER_ACCEPTED: Array[StringName] = [&"NextStage", &"Interact"]
 
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
