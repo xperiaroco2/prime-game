@@ -11,7 +11,7 @@ from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from runner import cli, metrics
+from runner import cli, metrics, verify
 from runner.common import Failure
 
 T0 = datetime(2026, 10, 2, 8, 0, tzinfo=timezone.utc)
@@ -381,6 +381,25 @@ class MetricsTest(unittest.TestCase):
         line = next(line for line in compact if line.startswith("local verify (history file)"))
         self.assertIn("2 runs, 0 red, median 250 s (max 250)", line)
 
+    def test_a_part_run_is_never_a_full_runs_total(self) -> None:
+        # #857: CI runs verify --full in parts; a part's total (verify.PART_LINE) is no full run's.
+        line = verify.PART_LINE.format(part="test", names="check, test")
+        part = SUMMARY.replace("verify: FAILED", f"  {line}\nverify: FAILED")
+        self.assertEqual(metrics.parse_verify(part)["part"], "test")
+        self.assertNotIn("part", metrics.parse_verify(SUMMARY))
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 250, "mode": "full", "part": None,
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "b", "seconds": 60, "mode": "full", "part": "runner",
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v.get("part") for v in found], [None, "runner"])
+        _md, _record, compact = self.build(history=found)
+        line = next(line for line in compact if line.startswith("local verify (history file)"))
+        self.assertIn("2 runs, 0 red, median 250 s (max 250)", line)
+
     def test_the_verify_history_file(self) -> None:
         path = self.root / "verify-history.jsonl"
         write_lines(path, [
@@ -598,6 +617,40 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(ci["job_s"], [360.0])
         self.assertEqual(ci["steps"]["test"], [100.0])
         self.assertEqual(ci["steps"]["verify total"], [271.0])
+
+    def test_ci_reads_every_part_of_a_run_split_into_jobs(self) -> None:
+        # #857: one job per part, each with its summary in the run's log; the run's total is its longest part.
+        listed = [{"databaseId": 1, "event": "push", "conclusion": "success", "createdAt": "2026-10-02T09:00:00Z",
+                   "startedAt": "2026-10-02T09:00:05Z", "attempt": 1}]  # fmt: skip
+        parts = {"test": (("check", 25.0), ("test", 400.0), 430.0), "runner": (("check", 20.0), ("lint", 100.0), 210.0)}
+        lines = []
+        for part, (first, second, total) in parts.items():
+            prefix = f"verify part ({part})\tverify\t2026-10-02T09:05:00.1234567Z "
+            names = f"{first[0]}, {second[0]}"
+            block = ["verify summary", "  passed  doctor          0.4s"]
+            block += [f"  passed  {name:<14} {sec:6.1f}s" for name, sec in (first, second)]
+            block += [f"  {verify.PART_LINE.format(part=part, names=names)}", f"verify: passed in {total:.1f}s"]
+            lines += [prefix + line for line in block]
+        lines.append("verify\tCheck every part\t2026-10-02T09:12:00.1234567Z every part passed")
+        log = "\n".join(lines)
+
+        def gh(args: list[str]) -> str:
+            if args[:2] == ["run", "list"]:
+                return json.dumps(listed)
+            if "--log" in args:
+                return log
+            return json.dumps({"jobs": [{"startedAt": "2026-10-02T09:00:05Z", "completedAt": "2026-10-02T09:08:05Z"},
+                                        {"startedAt": "2026-10-02T09:08:10Z", "completedAt": "2026-10-02T09:08:20Z"}]})
+
+        ci = metrics.ci_data(None, metrics.parse_time(UNTIL), 12, gh)
+        self.assertEqual(ci["job_s"], [495.0])
+        self.assertEqual(ci["steps"]["check"], [25.0, 20.0])  # check runs in both parts: two samples
+        self.assertEqual((ci["steps"]["test"], ci["steps"]["lint"]), ([400.0], [100.0]))
+        self.assertEqual(ci["steps"]["doctor"], [0.4, 0.4])
+        self.assertEqual(ci["steps"]["verify total"], [430.0])
+        self.assertEqual((ci["steps"]["verify part test"], ci["steps"]["verify part runner"]), ([430.0], [210.0]))
+        plain = "\n".join(line.split("Z ", 1)[1] for line in lines)  # as ci_data reads it: no job, step and time
+        self.assertEqual([v.get("part") for v in metrics.parse_verifies(plain)], ["test", "runner"])
 
     def test_main_writes_the_report_and_names_the_session(self) -> None:
         out = self.root / "out"
