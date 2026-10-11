@@ -52,7 +52,7 @@ func deal(ctx: MatchContext) -> void:
 	var task := ctx.state.add_task(self)
 	var placed: Array[ItemState] = []
 	for index: int in draw:
-		var item := ctx.state.add_item(token, free[index])
+		var item := Items.spawn(ctx, token, free[index])
 		placed.append(item)
 		(task.state as FixtureDealtState).targets.append(item.id)
 	var stations: Array[StationState] = []

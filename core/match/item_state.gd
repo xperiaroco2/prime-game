@@ -19,6 +19,11 @@ var holder := 0
 var position := Vector3.ZERO
 ## The flight while `where` is FLYING (Items.launch), else null.
 var flight: ItemFlight = null
+## The tick it last came to rest on the ground, while it lies there, else -1 (the cooking ADR, CE3;
+## VanishTicks counts from it). Only Items writes it: Items.lay, the one writer of the ground
+## state, sets it; a move into a hand, onto a belt, into flight or into the locked state clears
+## it. An item put straight into MatchState (MatchState.add_item without Items.spawn) has -1.
+var rest_tick := -1
 
 
 func _init(item_id: int, item_kind: ItemKind, at: Vector3) -> void:

@@ -19,6 +19,19 @@ extends RefCounted
 ##   launch.
 ## - raise_rested(): item_rested for an item that is already at rest and announced by its own
 ##   event (the spawn: SpawnItems 2c and Delivery's deal 2f emit ItemSpawned, then call this).
+## - lay(): the one writer of an item's ground state (the cooking ADR, CE3, C10): the item lies at
+##   a spot, out of any hand, belt or flight, its rest tick this tick. Every move that leaves an
+##   item lying goes through it: place() (a put-down, a swap's rest, a death's or a leave's drop,
+##   a throw's landing) and spawn() (a deal's spawn); a later part's lay (C2's `on_station` lay at
+##   a place, Items.give's put-down) calls it or place(). Emits nothing.
+## - spawn(): a new item of a kind lying at a spot (MatchState.add_item, then lay()); the deals
+##   emit ItemSpawned and raise item_rested themselves.
+## - lock(): an item at rest becomes locked where it is (a delivered package): not interactive,
+##   not lying, so it never vanishes.
+## - vanish(): an item leaves the match for good (VanishTicks; C1's cap): ItemVanished to everyone,
+##   its id freed for reuse (MatchState.remove_item).
+##
+## A move into a hand, onto a belt or into flight (take(), swap(), launch()) clears the rest tick.
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
 ##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
@@ -95,6 +108,7 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 		else:
 			rests = before
 	item.where = ItemState.Where.HAND
+	item.rest_tick = -1
 	item.holder = peer
 	player.held_item = item.id
 	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1))
@@ -131,13 +145,51 @@ static func swap(ctx: MatchContext, peer: int) -> void:
 ## `item` comes to rest at `at` for `cause`: on the ground, out of any hand, belt or flight.
 ## Emits ItemPlaced to everyone, then raises item_rested (Delivery's check runs on it, §7.1).
 static func place(ctx: MatchContext, item: ItemState, at: Vector3, cause: StringName) -> void:
+	lay(ctx, item, at)
+	ctx.emit(ItemPlacedEvent.new(item.id, at, cause))
+	raise_rested(ctx, item, cause)
+
+
+## `item` lies on the ground at `at` from this tick: out of any hand, belt or flight, its rest tick
+## ctx.tick, so VanishTicks counts its time from now. The one writer of an item's ground state
+## (the cooking ADR, CE3): every move that leaves an item lying comes through here. Emits nothing;
+## the caller announces the move (place(): ItemPlaced and item_rested; a deal: ItemSpawned).
+static func lay(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 	_release(ctx, item)
 	item.where = ItemState.Where.GROUND
 	item.holder = 0
 	item.position = at
 	item.flight = null
-	ctx.emit(ItemPlacedEvent.new(item.id, at, cause))
-	raise_rested(ctx, item, cause)
+	item.rest_tick = ctx.tick
+
+
+## A new item of `kind` lying at `at` from this tick (MatchState.add_item, then lay()), or null,
+## with the error logged, when every item id is in use. Emits nothing: a deal emits ItemSpawned and
+## raises item_rested (raise_rested) itself.
+static func spawn(ctx: MatchContext, kind: ItemKind, at: Vector3) -> ItemState:
+	var item := ctx.state.add_item(kind, at)
+	if item == null:
+		ctx.error("spawn: every item id is in use; no %s at %s" % [kind.id, at])
+		return null
+	lay(ctx, item, at)
+	return item
+
+
+## `item`, at rest, becomes locked where it lies (a delivered package, Delivery 2f): not
+## interactive (no PickUp takes it) and not lying, so it never vanishes. Emits nothing: the part
+## that locks it announces it (PackageDelivered).
+static func lock(item: ItemState) -> void:
+	item.where = ItemState.Where.LOCKED
+	item.rest_tick = -1
+
+
+## `item` leaves the match for good (VanishTicks; C1's cap of a given kind): out of any hand or
+## belt that held it, removed from MatchState, its id queued for reuse (MatchState.remove_item,
+## CE3); ItemVanished to everyone. Raises no fact.
+static func vanish(ctx: MatchContext, item: ItemState) -> void:
+	_release(ctx, item)
+	ctx.state.remove_item(item.id)
+	ctx.emit(ItemVanishedEvent.new(item.id))
 
 
 ## `item` leaves the hand or belt that holds it into `flight` (§7.1.16): FLYING, held by nobody,
@@ -147,6 +199,7 @@ static func launch(ctx: MatchContext, item: ItemState, flight: ItemFlight) -> vo
 	_release(ctx, item)
 	flight.launch_tick = ctx.tick
 	item.where = ItemState.Where.FLYING
+	item.rest_tick = -1
 	item.holder = 0
 	item.position = flight.origin
 	item.flight = flight

@@ -8,6 +8,10 @@ extends RefCounted
 ## A new part class that needs state of its own takes a per-part state object (part_state()), so
 ## a new mechanic adds state without a new field here.
 
+## The highest item id: the wire's `item` type is a u16 whose all-ones value means none (§4.3.1,
+## a test pins the two), so ids run from 1 to 0xFFFE.
+const MAX_ITEM_ID := 0xFFFE
+
 ## Peer id -> player; iterate with peers() for peer-id order.
 var players: Dictionary[int, PlayerState] = {}
 ## The match settings' values (§9.1), from the mode's defaults.
@@ -18,7 +22,8 @@ var settings: Dictionary[StringName, int] = {}
 var id_sets: Dictionary[StringName, PackedStringArray] = {}
 ## The map this match plays on: one of the mode's maps.
 var map: String
-## Id -> item, in id order.
+## Id -> item, in the order they were added: id order until an id is reused (past MAX_ITEM_ID,
+## add_item), so a part that needs §3.3's stable order sorts the ids (FlightTicks, VanishTicks).
 var items: Dictionary[int, ItemState] = {}
 ## Id -> task, in id order.
 var tasks: Dictionary[int, MatchTask] = {}
@@ -59,6 +64,9 @@ var forced_roles: Dictionary[int, StringName] = {}
 var forced_clock_s := 0
 
 var _next_item_id := 1
+## The ids remove_item freed, the one freed longest ago first (the cooking ADR, CE3): add_item
+## takes from it only once the counter is past MAX_ITEM_ID.
+var _freed_item_ids: Array[int] = []
 var _next_task_id := 1
 var _next_station_id := 1
 ## Peer -> {key: tick}: the tick at which a player last paid a cooldown key.
@@ -125,11 +133,38 @@ func is_present(peer: int) -> bool:
 	return players.has(peer) and players[peer].is_present()
 
 
+## A new item of `kind` at `at`, on the ground. Its id is the counter's next while the counter has
+## not passed MAX_ITEM_ID, else the id remove_item freed longest ago (CE3: so the gap between a free
+## and its reuse is as long as it can be, and no normal match ever reuses one); null when every id
+## is in use. Its rest tick is not set: a part that leaves it lying spawns it with Items.spawn.
 func add_item(kind: ItemKind, at: Vector3) -> ItemState:
-	var item := ItemState.new(_next_item_id, kind, at)
-	items[item.id] = item
-	_next_item_id += 1
+	var id := -1
+	if _next_item_id <= MAX_ITEM_ID:
+		id = _next_item_id
+		_next_item_id += 1
+	elif not _freed_item_ids.is_empty():
+		id = _freed_item_ids.pop_front()
+	else:
+		return null
+	var item := ItemState.new(id, kind, at)
+	items[id] = item
 	return item
+
+
+## Moves the item counter on to `next` (never back, never past MAX_ITEM_ID + 1), as if the ids
+## before it had been handed out: the unit tests of id reuse (the cooking ADR §7, CE3) start a
+## short match near the limit through a fixture action. No rule calls it.
+func skip_item_ids_to(next: int) -> void:
+	_next_item_id = clampi(next, _next_item_id, MAX_ITEM_ID + 1)
+
+
+## Removes item `id` from the match (Items.vanish) and queues its id for reuse; nothing for an id
+## that is not an item. The caller has emptied any hand or belt slot that held it.
+func remove_item(id: int) -> void:
+	if not items.has(id):
+		return
+	items.erase(id)
+	_freed_item_ids.append(id)
 
 
 func add_task(type: TaskType) -> MatchTask:
@@ -202,6 +237,7 @@ func reset_match() -> void:
 	_counters.clear()
 	_part_state.clear()
 	_next_item_id = 1
+	_freed_item_ids.clear()
 	_next_task_id = 1
 	_next_station_id = 1
 	clock_ticks_left = -1
