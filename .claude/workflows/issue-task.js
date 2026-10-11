@@ -47,7 +47,7 @@ export const meta = {
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
 // steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
-// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line and #816's section reads in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -248,8 +248,9 @@ const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start
 // them repeats of the same task ADRs by the implementer, the publisher and the two reviewers. Every agent gets it,
 // the publisher too (its PUB_RULES keep it); the same text in issue-task.js and pr-rebase.js, test_workflows.py
 // compares them. #816: the same table counted 39 whole-file reads of the 2026-10-10 task ADRs ($9.32 of $33), so
-// the line also says to read the ADR by section, never whole.
-const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
+// the line also says to read the ADR by section, never whole. #834: docs/ARCHITECTURE.md too, about $20 over
+// 1471 reads since 2026-10-08T12:25Z (51% of it the implementer's), which the ADR line left out.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read it and ARCHITECTURE (`tools/run.sh section docs/ARCHITECTURE.md`) by section, never the whole file: `tools/run.sh section <adr>` prints its outline, `tools/run.sh section <adr> <§>` one section (a § number, or the title words of a heading without one); read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
 const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL
