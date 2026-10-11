@@ -26,8 +26,9 @@ extends RefCounted
 ## 16 since #796 added Interact (kind 18);
 ## 17 since #779 added ItemVanished (kind 69);
 ## 18 since #797 added the Generator's SwitchChanged (kind 70) and ButtonPressed (kind 71);
-## 19 since #771 added ItemChanged (kind 72).
-const VERSION := 19
+## 19 since #771 added ItemChanged (kind 72);
+## 20 since #770 made Interact's `station` optional and added its optional `item`.
+const VERSION := 20
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -243,7 +244,17 @@ static func _intents() -> Array[WireRow]:
 		# seq 4, name 81 (its length byte and 80 bytes), colour 1.
 		_up(16, &"SetProfile", 86, [_seq(), _name("name"), _of("colour", WireField.Type.U8)]),
 		_up(17, &"Throw", 16, [_seq(), _vec3("facing")]),
-		_up(18, &"Interact", 6, [_seq(), _station("station")]),
+		# seq 4, station 2, item 2: exactly one names something, the other 0xFFFF, none (#770).
+		_up(
+			18,
+			&"Interact",
+			8,
+			[
+				_seq(),
+				WireField.maybe("station", WireField.Type.STATION),
+				WireField.maybe("item", WireField.Type.ITEM),
+			]
+		),
 	]
 
 

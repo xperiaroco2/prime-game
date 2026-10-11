@@ -156,6 +156,9 @@ func _check_rules(mode: GameMode) -> void:
 		if kind != null:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false, types)
 			_check_no_station_rule("item kind %s.actions" % kind.id, kind.actions)
+			var targets := "item kind %s.target_actions" % kind.id
+			_check_owner(targets, kind.target_actions, station_intents(), false)
+			_check_item_target_rules(targets, kind.target_actions)
 	for kind: StationKind in Stations.kinds_in(mode):
 		var owner := "station kind %s.actions" % kind.id
 		var type := Stations.owner_of(mode, kind)
@@ -293,6 +296,7 @@ func _check_owner(
 		_check_channel_rule(owner, rule, on_intent)
 		_check_throw_rule(owner, rule, on_intent)
 		_check_station_rule(owner, rule)
+		_check_give_rule(owner, rule)
 		if gated and _has_channel and on_intent:
 			warnings.append(
 				(
@@ -502,6 +506,56 @@ func _check_no_station_rule(owner: String, rules: Array[Rule]) -> void:
 			)
 
 
+## An item kind's target_actions (the cooking ADR's CE1, #770) run only for an intent naming one of
+## its items, which names no station: a UseStation, AtStation, StationInSight or StationUsable there
+## finds none and always refuses (a dead rule, #379).
+func _check_item_target_rules(owner: String, rules: Array[Rule]) -> void:
+	for rule: Rule in rules:
+		if rule == null:
+			continue
+		# Untyped: a duplicate of the typed conditions would refuse the effects.
+		var parts: Array = []
+		parts.append_array(rule.conditions)
+		parts.append_array(rule.effects)
+		for part: Variant in parts:
+			if (
+				part is UseStation
+				or (part is Condition and _is_station_condition(part as Condition))
+			):
+				errors.append(
+					(
+						(
+							"%s: rule %s holds %s, which finds a station, and an intent naming an"
+							+ " item names none"
+						)
+						% [
+							owner,
+							rule.trigger,
+							((part as Object).get_script() as Script).get_global_name()
+						]
+					)
+				)
+
+
+## A GiveItem gives at the rule's target (the cooking ADR's CE2, #770): only an action on an intent
+## that names a station or an item (Interact) has one; a reaction, a win condition or a row has no
+## actor and no target.
+func _check_give_rule(owner: String, rule: Rule) -> void:
+	if Stations.names_station(rule.trigger):
+		return
+	for effect: RuleEffect in rule.effects:
+		if effect is GiveItem:
+			(
+				errors
+				. append(
+					(
+						"%s: rule %s gives an item at the rule's target, which only an intent naming one (%s) has"
+						% [owner, rule.trigger, station_intents()]
+					)
+				)
+			)
+
+
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.
 static func station_intents() -> Array[StringName]:
 	var found: Array[StringName] = []
@@ -639,6 +693,13 @@ func _check_rows(mode: GameMode) -> void:
 				errors.append(
 					(
 						"row %s, %s starts a channel, which only a player's intent can start"
+						% [row.from, row.outcome]
+					)
+				)
+			if action is GiveItem:
+				errors.append(
+					(
+						"row %s, %s gives an item, which only a player's intent naming a target can"
 						% [row.from, row.outcome]
 					)
 				)
@@ -868,8 +929,9 @@ static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:
 	)
 
 
-## Every rule on `intent` among the mode's, the roles', the item kinds' and the station kinds'
-## actions (a station kind's handle Interact, GE2).
+## Every rule on `intent` among the mode's, the roles', the item kinds' (their actions and their
+## target_actions) and the station kinds' actions (a station kind's and an item kind's target
+## actions handle Interact: GE2, CE1).
 static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	var found: Array[Rule] = []
 	var lists: Array[Array] = [mode.actions]
@@ -879,6 +941,7 @@ static func _actions_on(mode: GameMode, intent: StringName) -> Array[Rule]:
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
 			lists.append(kind.actions)
+			lists.append(kind.target_actions)
 	for station_kind: StationKind in Stations.kinds_in(mode):
 		lists.append(station_kind.actions)
 	for rules: Array in lists:

@@ -11,6 +11,14 @@ func run(_ctx: MatchContext) -> void:
 	pass
 
 
+## Why this effect cannot run now, or empty: RuleRunner asks every effect after the rule's
+## conditions passed and before anything is paid or stopped, so a refused intent still pays
+## nothing (GiveItem: a kind at its cap with no loose item, `unavailable`; the cooking ADR, CE3).
+## Ask nothing of the state an earlier effect of the same rule changes. Nothing by default.
+func refusal(_ctx: MatchContext) -> StringName:
+	return &""
+
+
 ## The event classes this effect can emit, so a review of the part shows what it reveals, and
 ## ModeCheck can warn when a role-owned rule emits to everyone (§9.2).
 func emits() -> Array[Script]:
