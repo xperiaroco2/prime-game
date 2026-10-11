@@ -65,6 +65,8 @@ static func pool_of(mode: GameMode, banned: PackedStringArray, map: String = "")
 ## draw. With one type in the pool it is exactly that type's demand. The pool is the types that
 ## play on `into.map` (GE15), so a map is asked only for its own types' markers; when `tasks`
 ## asks for some and none is left there, `into.no_task_types` (the fit check refuses the map).
+## A tag a type demands exactly (the Generator's, GE10, #797) stays exact in the sum: ZE3 keeps a
+## station kind's tag one type's alone, so its sum is that type's own demand.
 func add_demands(settings: Dictionary[StringName, int], players: int, into: Demands) -> void:
 	if into.mode == null:
 		return
@@ -77,10 +79,12 @@ func add_demands(settings: Dictionary[StringName, int], players: int, into: Dema
 		return
 	var markers: Dictionary[StringName, Array] = {}
 	var colours: Dictionary[StringName, Array] = {}
+	var exact: Dictionary[StringName, bool] = {}
 	for type: TaskType in pool:
 		var own := Demands.new(into.mode, into.map)
 		own.id_sets = into.id_sets
 		type.add_demands(settings, players, own)
+		exact.merge(own.exact)
 		for tag: StringName in own.markers:
 			if not markers.has(tag):
 				markers[tag] = []
@@ -91,7 +95,7 @@ func add_demands(settings: Dictionary[StringName, int], players: int, into: Dema
 			colours[station].append(own.colours[station])
 			into.palettes[station] = own.palettes[station]
 	for tag: StringName in markers:
-		into.add_markers(tag, _largest_sum(markers[tag], wanted))
+		into.add_markers(tag, _largest_sum(markers[tag], wanted), exact.has(tag))
 	for station: StringName in colours:
 		into.colours[station] = (
 			into.colours.get(station, 0) + _largest_sum(colours[station], wanted)

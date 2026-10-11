@@ -2,10 +2,16 @@ class_name Demands
 extends RefCounted
 ## What a match needs of a map (ARCHITECTURE §9.4): markers per spawn tag, and colours per station
 ## kind. Every placing action and every task type adds its own; the lobby's `all_ready` (2b)
-## compares the sums with the chosen map's LevelLayout, and SettingsChanged shows them.
+## compares the sums with the chosen map's LevelLayout, and SettingsChanged shows them. A marker
+## demand is a minimum, or exact for a tag in `exact` (§9.4.4; the Generator ADR's GE10, #797):
+## the map must hold that many, no more and no fewer.
 
 ## Spawn tag -> markers needed.
 var markers: Dictionary[StringName, int] = {}
+## The spawn tags whose markers the map must hold exactly `markers[tag]` of, a set (tag -> true):
+## markers that are the level's devices (the Generator's switches), where one more would be a
+## device nobody uses. Every sum of demands keeps it (DealTasks.add_demands, LayoutCheck).
+var exact: Dictionary[StringName, bool] = {}
 ## Station kind id -> colours needed (colours never repeat within a station kind).
 var colours: Dictionary[StringName, int] = {}
 ## Station kind id -> colours its palette has.
@@ -32,8 +38,12 @@ func _init(for_mode: GameMode, for_map: String = "") -> void:
 	map = for_map
 
 
-func add_markers(tag: StringName, count: int) -> void:
+## Adds `count` markers of `tag`; `is_exact` puts the tag in `exact`, so the map must hold exactly
+## the sum.
+func add_markers(tag: StringName, count: int, is_exact := false) -> void:
 	markers[tag] = markers.get(tag, 0) + count
+	if is_exact:
+		exact[tag] = true
 
 
 func add_colours(station: StationKind, count: int) -> void:
@@ -47,7 +57,8 @@ func id_set(id: StringName) -> PackedStringArray:
 
 
 ## Every shortfall against `layout`, in a stable order (tags by name, then station kinds by name),
-## as HostTexts (#548): `markers` and `colours`, each with its subject and `need` and `have`.
+## as HostTexts (#548): `markers` (fewer than needed), `markers_exact` (another count of a tag in
+## `exact`) and `colours`, each with its subject and `need` and `have`.
 ## Empty when the map fits.
 func shortfalls(layout: LevelLayout) -> Array[HostText]:
 	var found: Array[HostText] = []
@@ -56,7 +67,10 @@ func shortfalls(layout: LevelLayout) -> Array[HostText]:
 	tags.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	for tag: StringName in tags:
 		var have := layout.count(tag)
-		if have < markers[tag]:
+		if exact.has(tag):
+			if have != markers[tag]:
+				found.append(_short(HostText.MARKERS_EXACT, tag, markers[tag], have))
+		elif have < markers[tag]:
 			found.append(_short(HostText.MARKERS, tag, markers[tag], have))
 	var stations: Array[StringName] = []
 	stations.assign(colours.keys())
