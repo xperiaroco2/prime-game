@@ -284,7 +284,7 @@ class ShardedRepeatTest(unittest.TestCase):
         self.assertEqual(self.godot_calls, [])
         self.assertEqual(len(calls), 3)
         for items, count, why, rest in calls:
-            self.assertEqual((items, count, rest), (["res://tests/unit"], 2, ()), "2 shards on 4 CPUs, no fixed fps")
+            self.assertEqual((items, count, rest), (["res://tests/unit"], 2, (False, False)), "2 shards, real-time")
             self.assertIn("4 CPUs", why)
 
     def test_the_shards_option_and_the_environment_set_the_count_the_option_first(self) -> None:
@@ -324,6 +324,16 @@ class ShardedRepeatTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertEqual(self.summary["runs"][1]["note"], f"2 processes, shard 2 timed out after {gdunit.TIMEOUT}s")
         self.assertEqual(self.summary["runs"][1]["tests"], 0)
+
+    def test_named_paths_at_fixed_fps_in_shards_keep_the_fixed_clock(self) -> None:
+        rc, calls, _, printed = self.run_repeat(
+            [(False, self.GREEN)] * 2, paths=["tests/unit"], fixed_fps=True, shards=2
+        )
+        self.assertEqual(rc, 0, printed)
+        for items, count, _why, rest in calls:
+            self.assertEqual((items, count, rest), (["res://tests/unit"], 2, (True, True)), "every named suite fixed")
+        self.assertIn(f"--fixed-fps ({gdunit.FIXED_FPS})", printed)
+        self.assertEqual(self.summary["engine_args"], list(gdunit.FIXED_FPS_ARGS))
 
 
 class CliTest(unittest.TestCase):
