@@ -5,3 +5,4 @@
 [node name="ScreenPreview" type="Node" unique_id=475262087]
 script = ExtResource("1_preview")
 preview = 3
+hosting = false

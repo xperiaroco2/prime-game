@@ -53,13 +53,16 @@ func target() -> int:
 	return _target
 
 
-## What the crosshair would do, for the HUD; empty for nothing.
+## What the crosshair would do, with the interact key bound now (E by default, KeyLabel, #211);
+## empty for nothing. The HUD reads `target()` since #489 (it shows no keys); this is kept for
+## its tests and a later tutorial (#492).
 func hint() -> String:
 	var item: ClientModel.Item = model.items.get(_target) if model != null else null
 	if item == null:
 		return ""
 	var kind := mode.find_item_kind(item.kind)
-	return "E: pick up %s" % (kind.display_name if kind != null else String(item.kind))
+	var what := kind.display_name if kind != null else String(item.kind)
+	return "%s: pick up %s" % [KeyLabel.of_action(&"interact"), what]
 
 
 ## E: PickUp(item) for the target; the sequence number sent, or -1 when nothing was sent.

@@ -4,11 +4,13 @@ extends GdUnitTestSuite
 ## with layouts and fit 10 players at the default settings and at every setting's maximum that the
 ## map can hold. Also the base mode's data that 2b settles: its numbers, and ResetMatch
 ## before PlacePlayers on `End -> Lobby`; the deal that 2c adds: the actions of the
-## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
+## `Loading, all_loaded -> Pregame` row in order, the Crew, Dissident and Knife entries, and that
 ## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
-## rules (2i); its win conditions in order, StartClock ending the deal's row, EndMatch on
-## `Round, won -> End`, and a whole match from the lobby to the end and back, twice (2h). One of
-## the two tests that load `content/` (§9.6).
+## rules (2i); its win conditions in order, StartClock alone on `Pregame, pregame_done -> Round`,
+## EndMatch on `Round, won -> End`, and a whole match from the lobby to the end and back, twice
+## (2h), the second time with no intent: the End's 3 s in silence (#212). The pregame (#213):
+## silent and frozen for its 3 s, the clock and RoundStarted only at Round. One of the two tests
+## that load `content/` (§9.6).
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -81,8 +83,14 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 			stripped.add_marker(tag, at)
 	var settings := mode.default_settings()
 	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
-	assert_array(Array(demands.shortfalls(stripped))).contains_exactly(
-		["1 respawn marker(s) needed, the map has 0"]
+	assert_array(HostText.to_dicts(demands.shortfalls(stripped))).contains_exactly(
+		[
+			{
+				"id": &"markers",
+				"ids": PackedStringArray(["respawn"]),
+				"numbers": {&"need": 1, &"have": 0}
+			}
+		]
 	)
 
 
@@ -136,6 +144,8 @@ func test_the_base_mode_writes_its_numbers() -> void:
 	assert_int(mode.min_players).is_equal(1)
 	assert_int(mode.max_players).is_equal(10)
 	assert_float(mode.find_phase(&"countdown").settings[&"seconds"]).is_equal(5.0)
+	assert_float(mode.find_phase(&"end").settings[&"seconds"]).is_equal(3.0)
+	assert_float(mode.find_phase(&"pregame").settings[&"seconds"]).is_equal(3.0)
 	assert_float(mode.find_phase(&"loading").settings[&"deadline_seconds"]).is_equal(60.0)
 	var defaults := GameMode.new()
 	assert_int(defaults.min_players).is_equal(0)
@@ -156,9 +166,9 @@ func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	var mode := _base_mode()
 	var row := mode.find_transition(&"loading", &"all_loaded")
-	assert_str(row.to).is_equal("round")
-	# StartClock (2h) comes last, after PlacePlayers.
-	assert_int(row.actions.size()).is_equal(5)
+	# The deal runs before the pregame, so its screen has the role (#213); the clock waits for it.
+	assert_str(row.to).is_equal("pregame")
+	assert_int(row.actions.size()).is_equal(4)
 	var roles := row.actions[0] as DealRoles
 	assert_object(roles).is_not_null()
 	assert_int(roles.quotas.size()).is_equal(1)
@@ -180,7 +190,31 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	var place := row.actions[3] as PlacePlayers
 	assert_object(place).is_not_null()
 	assert_str(place.tag).is_equal("round_player")
-	var clock := row.actions[4] as StartClock
+
+
+func test_the_pregame_is_silent_frozen_for_3_s_then_starts_the_clock() -> void:
+	# #213, the engineer's answer of 2026-10-08: its own phase between Loading and Round, silent,
+	# no input and no movement, the clock not yet running, 3 s.
+	var mode := _base_mode()
+	var ids: Array[StringName] = []
+	for phase: PhaseSpec in mode.phases:
+		ids.append(phase.id)
+	assert_array(ids).is_equal([&"lobby", &"countdown", &"loading", &"pregame", &"round", &"end"])
+	var pregame := mode.find_phase(&"pregame")
+	assert_object(pregame.phase_class).is_equal(PregamePhase)
+	assert_dict(pregame.settings).is_equal({&"seconds": 3.0})
+	assert_array(pregame.accepts).is_empty()
+	assert_array(pregame.tick_systems).is_empty()
+	assert_object(pregame.voice_rule).is_instanceof(SilentVoice)
+	assert_bool(pregame.clock_runs).is_false()
+	assert_bool(pregame.checks_wins).is_false()
+	assert_bool(pregame.snapshots).is_false()
+	assert_int(pregame.level).is_equal(PhaseSpec.Level.MAP)
+	# StartClock (2h) runs alone on the row into the round.
+	var row := mode.find_transition(&"pregame", PregamePhase.PREGAME_DONE)
+	assert_str(row.to).is_equal("round")
+	assert_int(row.actions.size()).is_equal(1)
+	var clock := row.actions[0] as StartClock
 	assert_object(clock).is_not_null()
 	assert_str(clock.minutes_setting).is_equal("match_duration")
 
@@ -266,6 +300,29 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
 
 
+func test_the_base_mode_accepts_next_stage_in_no_phase() -> void:
+	# #599, E65: NextStage is a scripted mode's control; the base mode's host cannot skip a phase.
+	# The chaos oracle (ChaosOracle.NEVER_ACCEPTED) relies on this.
+	for spec: PhaseSpec in _base_mode().phases:
+		(
+			assert_int(spec.senders_of(Intents.NEXT_STAGE))
+			. override_failure_message(str(spec.id))
+			. is_equal(0)
+		)
+
+
+func test_the_base_mode_accepts_set_profile_in_the_lobby_from_a_player_only() -> void:
+	# #551: a profile changes in the lobby only, never under a countdown, in a round or at the end.
+	# The chaos oracle (ChaosOracle.ACCEPTS) relies on this.
+	for spec: PhaseSpec in _base_mode().phases:
+		var expected: int = AcceptSpec.From.PLAYER if spec.id == &"lobby" else 0
+		(
+			assert_int(spec.senders_of(Intents.SET_PROFILE))
+			. override_failure_message(str(spec.id))
+			. is_equal(expected)
+		)
+
+
 func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
 	# M4-4, E27: the raise rule's numbers (3 s, the pick-up's 2 m, 50 health), Round's accepts
 	# (Raise and StopRaise from the living, GiveUp from the downed) and ChannelTicks after LifeTicks.
@@ -337,7 +394,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		FixtureModes.run_ticks(game, 1)
 	for peer: int in peers:
 		FixtureBaseMode.load_ack(game, peer)
-	assert_str(game.phase_id()).is_equal("round")
+	_pregame_in_silence_then_round(game, peers)
 	assert_array(Array(game.diagnostics)).is_empty()
 	# Roles: one dissident, who alone learns the dissidents; everyone learns only its own role.
 	var dissidents: Array[int] = []
@@ -411,16 +468,17 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 
 
 func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
-	# §6 and §9.5: proximity 8 m in the lobby and the countdown, silence while loading and on the
-	# end screen, the round's radius 8 m (the ghost radii are gone: vision revision 1). The classes'
-	# defaults stay 0 (#58), which the voice rules' own bounds tests show.
+	# §6 and §9.5: proximity 8 m in the lobby and the countdown, silence while loading, in the
+	# pregame (#213) and on the end screen, the round's radius 8 m (the ghost radii are gone:
+	# vision revision 1). The classes' defaults stay 0 (#58), which the voice rules' own bounds
+	# tests show.
 	var mode := _base_mode()
 	for id: StringName in [&"lobby", &"countdown"]:
 		var rule := mode.find_phase(id).voice_rule
 		assert_object(rule).override_failure_message("phase %s" % id).is_instanceof(ProximityVoice)
 		if rule is ProximityVoice:
 			assert_float((rule as ProximityVoice).radius_m).is_equal(8.0)
-	for id: StringName in [&"loading", &"end"]:
+	for id: StringName in [&"loading", &"pregame", &"end"]:
 		assert_object(mode.find_phase(id).voice_rule).is_instanceof(SilentVoice)
 	var in_round := mode.find_phase(&"round").voice_rule
 	assert_object(in_round).is_instanceof(RoundVoice)
@@ -432,10 +490,15 @@ func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 
 func test_the_base_mode_s_hearing_radius_per_phase() -> void:
 	# E41: VoiceRule.radius_of each phase's rule, the client's cutoff and the distance the leak
-	# test checks: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End.
+	# test checks: 8 m in the Lobby, the Countdown and the Round, 0 in Loading, Pregame and End.
 	var mode := _base_mode()
 	var want: Dictionary[StringName, float] = {
-		&"lobby": 8.0, &"countdown": 8.0, &"loading": 0.0, &"round": 8.0, &"end": 0.0
+		&"lobby": 8.0,
+		&"countdown": 8.0,
+		&"loading": 0.0,
+		&"pregame": 0.0,
+		&"round": 8.0,
+		&"end": 0.0,
 	}
 	var got: Dictionary[StringName, float] = {}
 	for phase: PhaseSpec in mode.phases:
@@ -512,7 +575,8 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	var mode := _base_mode()
 	var peers: Array[int] = [1, 2, 3, 4]
 	var game := _base_round(mode, peers)
-	var start := game.ticked_through() + 1
+	# The pregame's end tick: the step that entered the round.
+	var start := game.ticked_through()
 	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
 	var crew := FixtureDealModes.players_of(game, &"crew")
 	assert_int(crew.size()).is_equal(3)
@@ -523,13 +587,19 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 		FixtureDeliveryModes.carry_to(game, crew[index % crew.size()], package, circle.position)
 	assert_str(game.phase_id()).is_equal("end")
 	assert_str(game.state.winner).is_equal("crew")
+	# The round's play time, in whole seconds (#548).
+	var played := floori(
+		(game.state.clock_ticks_total - game.state.clock_ticks_left) / float(Ticks.RATE)
+	)
 	for peer: int in peers:
 		var view := game.view_of(peer)
 		assert_dict(view.events_named(&"RoundStarted")[0].to_dict()).is_equal({"start_tick": start})
 		assert_int(view.events_named(&"PackageDelivered").size()).is_equal(6)
 		var ended := view.events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_dict(ended[0].to_dict()).is_equal({"side": &"crew"})
+		assert_dict(ended[0].to_dict()).is_equal(
+			{"side": &"crew", "reason": &"every_task_done", "numbers": {&"time": played}}
+		)
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
 	assert_str(game.phase_id()).is_equal("lobby")
 	assert_str(game.state.winner).is_empty()
@@ -543,9 +613,10 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	for peer: int in peers:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(2)
-		assert_dict(ended[1].to_dict()).is_equal({"side": &"dissidents"})
-	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
-	assert_str(game.phase_id()).is_equal("lobby")
+		assert_dict(ended[1].to_dict()).is_equal(
+			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+		)
+	_end_in_silence_then_lobby(game, peers)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
@@ -571,8 +642,34 @@ func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() ->
 	for peer: int in peers:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
+		assert_dict(ended[0].to_dict()).is_equal(
+			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+		)
 	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## With no intent the End's 3 s pass, nobody heard on any of its ticks (#213 relies on it), and on
+## its announced end tick everyone is back in the lobby (#212).
+func _end_in_silence_then_lobby(game: Match, peers: Array[int]) -> void:
+	assert_str(game.phase_id()).is_equal("end")
+	var ends_on := game.current_phase().entered_tick + 3 * Ticks.RATE
+	for peer: int in peers:
+		var changed := game.view_of(peer).events_named(&"PhaseChanged")[-1] as PhaseChangedEvent
+		assert_dict(changed.to_dict()).is_equal({"phase": &"end", "end_tick": ends_on})
+	while game.phase_id() == &"end":
+		FixtureModes.run_ticks(game, 1)
+		if game.phase_id() != &"end":
+			break
+		for peer: int in peers:
+			var heard := Array(game.view_of(peer).speakers[game.ticked_through()])
+			(
+				assert_array(heard)
+				. override_failure_message("tick %d" % game.ticked_through())
+				. is_empty()
+			)
+	assert_int(game.ticked_through()).is_equal(ends_on)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_str(game.state.winner).is_empty()
 
 
 ## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.
@@ -586,7 +683,8 @@ func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	return game
 
 
-## `peers` in the lobby get ready, the countdown runs out, and they load: the round.
+## `peers` in the lobby get ready, the countdown runs out, they load and the pregame runs out:
+## the round.
 func _ready_and_load(game: Match, peers: Array[int]) -> void:
 	for peer: int in peers:
 		FixtureBaseMode.ready(game, peer)
@@ -596,7 +694,41 @@ func _ready_and_load(game: Match, peers: Array[int]) -> void:
 		FixtureModes.run_ticks(game, 1)
 	for peer: int in peers:
 		FixtureBaseMode.load_ack(game, peer)
+	_pregame_in_silence_then_round(game, peers)
+
+
+## The pregame of #213 from its entry: everyone placed and dealt a role; for its 3 s nobody is
+## heard on any tick (on the round's spots; voice_by_phase_test puts everyone within the radius)
+## and the clock does not run (no RoundStarted); on its announced end tick the round begins, its
+## clock started by StartClock.
+func _pregame_in_silence_then_round(game: Match, peers: Array[int]) -> void:
+	assert_str(game.phase_id()).is_equal("pregame")
+	var ends_on := game.current_phase().entered_tick + 3 * Ticks.RATE
+	var started := game.view_of(peers[0]).events_named(&"RoundStarted").size()
+	for peer: int in peers:
+		var changed := game.view_of(peer).events_named(&"PhaseChanged")[-1] as PhaseChangedEvent
+		assert_dict(changed.to_dict()).is_equal({"phase": &"pregame", "end_tick": ends_on})
+		assert_str(game.state.player(peer).role).is_not_empty()
+	var clock := game.state.clock_ticks_left
+	while game.phase_id() == &"pregame":
+		FixtureModes.run_ticks(game, 1)
+		if game.phase_id() != &"pregame":
+			break
+		assert_int(game.state.clock_ticks_left).is_equal(clock)
+		for peer: int in peers:
+			var heard := Array(game.view_of(peer).speakers[game.ticked_through()])
+			(
+				assert_array(heard)
+				. override_failure_message("tick %d" % game.ticked_through())
+				. is_empty()
+			)
+		assert_int(game.view_of(peers[0]).events_named(&"RoundStarted").size()).is_equal(started)
+	assert_int(game.ticked_through()).is_equal(ends_on)
 	assert_str(game.phase_id()).is_equal("round")
+	for peer: int in peers:
+		var round_started := game.view_of(peer).events_named(&"RoundStarted")
+		assert_int(round_started.size()).is_equal(started + 1)
+		assert_dict(round_started[-1].to_dict()).is_equal({"start_tick": ends_on})
 
 
 func _mode_paths(dir_path: String) -> Array[String]:

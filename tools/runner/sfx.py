@@ -1,10 +1,12 @@
 """`sfx-check` (#524): check sound files with the Python standard library only, and write a listening page.
 
-What a file of each category must measure is data: tools/sfx/categories.json (its numbers are provisional until #525
-picks the real sounds). A WAV is read whole (RIFF chunks with `struct`, its samples with `array`): PCM 16-bit, mono,
+What a file of each category must measure is data: tools/sfx/categories.json (its numbers are provisional until
+the engineer's listening verdicts on the #525 set, assets/audio/sfx-verdicts.json, tune them). A WAV is read
+whole (RIFF chunks with `struct`, its samples with `array`): PCM 16-bit, mono,
 an allowed sample rate, peak headroom, RMS loudness and duration within its category's bounds, leading silence and
-DC offset. The standard library cannot decode Vorbis, so an OGG gets its identification header (channels, rate) and
-its length (the last page's granule position) checked, and is reported as "header-checked only".
+DC offset. The standard library cannot decode Vorbis, so an OGG gets its identification header (mono or stereo:
+OGG_CHANNELS, #525; its rate) and its length (the last page's granule position) checked, and is reported as
+"header-checked only".
 
 The listening page is one HTML file under tools/out/sfx/ with the sounds inside it as data: URLs, so it needs no
 server, no external script or font, and still plays when moved. Its verdicts (approve or reject, and a note) stay in
@@ -49,6 +51,9 @@ RULES = (
     "dc-offset",
 )
 FORMAT_NAMES = {1: "PCM", 3: "IEEE float", 6: "A-law", 7: "mu-law", 0xFFFE: "extensible"}
+# The channels an Ogg may have (#525): Kenney's packs ship stereo Ogg only, and there is no ffmpeg to fold one to
+# mono. A WAV stays mono.
+OGG_CHANNELS = (1, 2)
 # The bytes after the format tag in WAVE_FORMAT_EXTENSIBLE's sub-format GUID (xxxxxxxx-0000-0010-8000-00aa00389b71).
 KS_GUID_TAIL = b"\x00\x00\x00\x00\x10\x00\x80\x00\x00\xaa\x00\x38\x9b\x71"
 
@@ -411,8 +416,8 @@ def check_ogg(sound: Sound, raw: bytes, table: Table) -> None:
         sound.fail("format", f"Ogg {ogg.codec}, not Ogg Vorbis")
         check_category(sound, table, None)
         return
-    if ogg.channels != 1:
-        sound.fail("mono", f"{ogg.channels} channels, not mono")
+    if ogg.channels not in OGG_CHANNELS:
+        sound.fail("mono", f"{ogg.channels} channels, not mono or stereo")
     if ogg.rate not in table.sample_rates:
         sound.fail("sample-rate", f"{ogg.rate} Hz, not one of {', '.join(map(str, table.sample_rates))} Hz")
     check_category(sound, table, ogg.duration_s)

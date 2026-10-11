@@ -18,8 +18,8 @@ func before_test() -> void:
 		. roster
 		. assign(
 			[
-				{"peer": 1, "name": "Player1", "ready": true},
-				{"peer": OWN, "name": "Player2", "ready": false},
+				{"peer": 1, "name": "Player1", "ready": true, "colour": 0},
+				{"peer": OWN, "name": "Player2", "ready": false, "colour": 1},
 			]
 		)
 	)
@@ -43,8 +43,32 @@ func test_welcome_gives_the_peer_epoch_roster_settings_and_phase() -> void:
 	assert_vector(_model.spots[1]).is_equal(Vector3(5, 0, 5))
 
 
+## #214: the lobby's name comes with the Welcome and each SettingsChanged; "" is the default, built
+## by the UI from host_name().
+func test_the_lobby_name_follows_welcome_and_settings_changed() -> void:
+	assert_str(_model.lobby_name).is_empty()
+	assert_str(_model.host_name()).is_equal("Player1")
+	var other := ClientModel.new(FixtureBaseMode.mode())
+	assert_str(other.host_name()).is_empty()
+	var welcome := WelcomeEvent.new(3, Vector3.ZERO, 1)
+	welcome.lobby_name = "Den"
+	other.fold(welcome.event_name(), welcome.to_dict())
+	assert_str(other.lobby_name).is_equal("Den")
+	# A roster without the host (it left) has no host name.
+	assert_str(other.host_name()).is_empty()
+	var no_sets: Dictionary[StringName, PackedStringArray] = {}
+	var problems: Array[HostText] = []
+	var renamed_event := SettingsChangedEvent.new(
+		{}, "res://levels/a.tscn", 2, Demands.new(null), null, problems, no_sets, "Діма's den"
+	)
+	_fold(renamed_event)
+	assert_str(_model.lobby_name).is_equal("Діма's den")
+	_fold(SettingsChangedEvent.new({}, "res://levels/a.tscn", 2, Demands.new(null), null, problems))
+	assert_str(_model.lobby_name).is_empty()
+
+
 func test_the_roster_follows_joins_leaves_and_ready() -> void:
-	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9)))
+	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9), 2))
 	_fold(ReadyChangedEvent.new(3, true))
 	assert_bool(_model.roster[3].ready).is_true()
 	assert_vector(_model.spots[3]).is_equal(Vector3(0, 0, 9))
@@ -52,12 +76,31 @@ func test_the_roster_follows_joins_leaves_and_ready() -> void:
 	assert_array(_model.roster.keys()).contains_exactly([OWN, 3])
 
 
+## #551: every body colour is public; the Welcome, a join and a profile change carry it.
+func test_the_colours_follow_welcome_joins_and_profile_changes() -> void:
+	assert_int(_model.colour_of(1)).is_equal(0)
+	assert_int(_model.colour_of(OWN)).is_equal(1)
+	_fold(PlayerJoinedEvent.new(3, "Player3", Vector3(0, 0, 9), 2))
+	assert_int(_model.colour_of(3)).is_equal(2)
+	_fold(ProfileChangedEvent.new(1, "Діма", 7))
+	assert_str(_model.roster[1].name).is_equal("Діма")
+	assert_int(_model.colour_of(1)).is_equal(7)
+	assert_bool(_model.roster[1].ready).is_true()
+	assert_str(_model.host_name()).is_equal("Діма")
+	# A peer not on the roster: colour 0, and a profile of it adds nobody.
+	assert_int(_model.colour_of(9)).is_equal(0)
+	_fold(ProfileChangedEvent.new(9, "Ghost", 4))
+	assert_array(_model.roster.keys()).contains_exactly([1, OWN, 3])
+
+
 func test_settings_changed_and_phase_changed() -> void:
 	var numbers: Dictionary[StringName, int] = {&"knives": 4}
 	var sets: Dictionary[StringName, PackedStringArray] = {
 		&"banned_task_types": PackedStringArray(["delivery"])
 	}
-	var problems := PackedStringArray(["2 knife marker(s) needed, the map has 0"])
+	var problems: Array[HostText] = [
+		HostText.of(HostText.MARKERS, PackedStringArray(["knife"]), {&"need": 2, &"have": 0})
+	]
 	_fold(
 		SettingsChangedEvent.new(
 			numbers, "res://levels/b.tscn", 2, Demands.new(null), null, problems, sets
@@ -66,7 +109,7 @@ func test_settings_changed_and_phase_changed() -> void:
 	assert_int(_model.settings[&"knives"]).is_equal(4)
 	assert_array(_model.id_sets[&"banned_task_types"]).contains_exactly(["delivery"])
 	assert_str(_model.map).is_equal("res://levels/b.tscn")
-	assert_array(_model.shortfalls).has_size(1)
+	assert_array(_model.shortfalls).is_equal(HostText.to_dicts(problems))
 	_fold(PhaseChangedEvent.new(&"countdown", 100))
 	assert_str(String(_model.phase)).is_equal("countdown")
 	assert_int(_model.end_tick).is_equal(100)
@@ -95,6 +138,14 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	assert_bool(_model.is_alive(OWN)).is_true()
 	_fold(MatchEndedEvent.new(&"crew"))
 	assert_str(String(_model.winner)).is_equal("crew")
+	assert_str(String(_model.ended_by)).is_empty()
+	assert_int(_model.round_seconds).is_equal(-1)
+	_fold(MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}))
+	assert_str(String(_model.ended_by)).is_equal("time_up")
+	assert_int(_model.round_seconds).is_equal(600)
+	_fold(MatchEndedEvent.new(&"crew", &"no_crew_present", {}))
+	assert_str(String(_model.ended_by)).is_equal("no_crew_present")
+	assert_int(_model.round_seconds).is_equal(-1)
 
 
 func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
@@ -175,6 +226,7 @@ func test_a_newer_snapshot_replaces_the_avatars_and_an_older_one_does_not() -> v
 
 func test_load_match_clears_the_match_and_keeps_the_roster() -> void:
 	_to_round()
+	_fold(MatchEndedEvent.new(&"crew", &"every_task_done", {&"time": 461}))
 	var settings: Dictionary[StringName, int] = {&"knives": 1}
 	_fold(LoadMatchEvent.new(4, "res://levels/c.tscn", settings))
 	_assert_no_match_facts()
@@ -186,6 +238,7 @@ func test_load_match_clears_the_match_and_keeps_the_roster() -> void:
 
 func test_entering_the_lobby_clears_the_match() -> void:
 	_to_round()
+	_fold(MatchEndedEvent.new(&"crew", &"every_task_done", {&"time": 461}))
 	_fold(PhaseChangedEvent.new(&"end", -1))
 	assert_int(_model.items.size()).is_equal(1)
 	_fold(PhaseChangedEvent.new(&"lobby", -1))
@@ -405,6 +458,8 @@ func _assert_no_match_facts() -> void:
 	assert_int(_model.tasks.size()).is_equal(0)
 	assert_int(_model.start_tick).is_equal(-1)
 	assert_str(String(_model.winner)).is_empty()
+	assert_str(String(_model.ended_by)).is_empty()
+	assert_int(_model.round_seconds).is_equal(-1)
 	assert_int(_model.snapshot_tick).is_equal(-1)
 	assert_bool(_model.avatars.is_empty()).is_true()
 

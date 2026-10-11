@@ -25,7 +25,9 @@ extends RefCounted
 ## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
 ## whose event goes to everyone, which reveals the actor's role (§9.2); in a mode with a channel,
 ## any role-owned or role-gated action, since applying it stops its actor's channel publicly (a
-## raiser's RaiseStopped) while a refused one stops nothing (§9.2).
+## raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose KnockDown without
+## then_die enters a phase with no LifeTicks, whose downed stays downed for good (#599: the
+## tutorial's raise_stage wants that, so a warning, not an error).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -333,6 +335,40 @@ func _check_rows(mode: GameMode) -> void:
 					(
 						"row %s, %s starts a channel, which only a player's intent can start"
 						% [row.from, row.outcome]
+					)
+				)
+			var to_spec := mode.find_phase(row.to)
+			var from_spec := mode.find_phase(row.from)
+			if (
+				action is KnockDown
+				and to_spec != null
+				and from_spec != null
+				and to_spec.level != from_spec.level
+			):
+				# Match._transition switches the world to the entered phase's level before the
+				# row runs: the knockdown would ask the floor of a level the player is not in.
+				errors.append(
+					(
+						(
+							"row %s, %s: KnockDown changes the level (%s to %s); it acts where the"
+							+ " player stands, so a row that has it stays on one level"
+						)
+						% [row.from, row.outcome, row.from, row.to]
+					)
+				)
+			if (
+				action is KnockDown
+				and not (action as KnockDown).then_die
+				and to_spec != null
+				and not _lists_life_ticks(to_spec)
+			):
+				warnings.append(
+					(
+						(
+							"row %s, %s: KnockDown without then_die enters %s, which lists no"
+							+ " LifeTicks: the downed stays downed for good"
+						)
+						% [row.from, row.outcome, row.to]
 					)
 				)
 

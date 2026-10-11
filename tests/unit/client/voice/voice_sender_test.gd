@@ -227,6 +227,27 @@ func test_push_to_talk_sends_only_while_the_key_is_held_with_no_menu() -> void:
 	assert_int(_sent.size()).is_equal(VoiceGate.PREROLL + 1)
 
 
+func test_live_is_the_huds_mic_heard_open_and_in_push_to_talk_held() -> void:
+	# The HUD's microphone (#489): on while someone may hear the player, whether or not it talks.
+	var sender := _sender()
+	assert_bool(sender.live()).is_true()
+	_model.lives[OWN] = ClientModel.Life.DOWNED
+	assert_bool(sender.live()).is_false()
+	_model.lives.erase(OWN)
+	_model.phase = &"loading"
+	assert_bool(sender.live()).is_false()
+	_model.phase = &"lobby"
+	sender.gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
+	assert_bool(sender.live()).is_false()
+	sender.talk_held = true
+	assert_bool(sender.live()).is_true()
+	sender.listening = false
+	assert_bool(sender.live()).is_false()
+	sender.listening = true
+	sender.close()
+	assert_bool(sender.live()).is_false()
+
+
 func test_between_sessions_the_microphone_is_drained_and_nothing_is_sent() -> void:
 	var sender := _sender()
 	sender.reset()

@@ -113,3 +113,11 @@ func test_everything_a_chaos_transport_sends_is_in_its_outbox_in_order() -> void
 	assert_bool(sent[0].frame_valid).is_true()
 	assert_object(sent[1]).is_same(raw)
 	assert_array(_client.take_outbox()).is_empty()
+
+
+func test_no_unassigned_kind_has_a_row() -> void:
+	# UNKNOWN_KIND and RANDOM_BYTES expect UNKNOWN_KIND only while no row has the kind: a new row
+	# (NextStage took 15, #599) must leave the list.
+	for kind: int in ChaosFrames.UNASSIGNED:
+		assert_object(_schema.row(kind)).override_failure_message(str(kind)).is_null()
+		assert_bool(_schema.kind_table().has(kind)).override_failure_message(str(kind)).is_false()

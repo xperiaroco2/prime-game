@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://5y7c4dc1sdly"]
+
+[ext_resource type="PackedScene" uid="uid://qkqcnuxyfaga" path="res://levels/tutorial/rooms/tutorial_room.tscn" id="1_room"]
+
+[node name="Tutorial" type="Node3D" unique_id=211667307]
+
+[node name="TutorialRoom" parent="." unique_id=143647235 instance=ExtResource("1_room")]

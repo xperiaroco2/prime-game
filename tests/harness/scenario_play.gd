@@ -160,6 +160,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _setting(bot, step as StepSetting)
 	elif step is StepReturnToLobby:
 		result = _return_to_lobby(bot, step as StepReturnToLobby)
+	elif step is StepNextStage:
+		result = _next_stage(bot, step as StepNextStage)
 	elif step is StepWalkTo:
 		result = _walk(bot, step as StepWalkTo)
 	elif step is StepPickUp:
@@ -251,6 +253,15 @@ func _return_to_lobby(bot: ScenarioBot, step: StepReturnToLobby) -> Result:
 		return Result.WAITING
 	var back := _received(bot, bot.step_cursor, &"PhaseChanged", {"phase": "lobby"})
 	return _intent_result(bot, step, back)
+
+
+## NextStage (#599): done when the next phase's PhaseChanged arrives, whichever phase it is.
+func _next_stage(bot: ScenarioBot, step: StepNextStage) -> Result:
+	if bot.sent_seq < 0:
+		_send(bot, Intents.NEXT_STAGE, {})
+		return Result.WAITING
+	var moved := _received(bot, bot.step_cursor, &"PhaseChanged", {})
+	return _intent_result(bot, step, moved)
 
 
 func _join(bot: ScenarioBot, step: StepJoin, at_tick: int) -> Result:

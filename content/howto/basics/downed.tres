@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="HowtoCard" format=3 uid="uid://b8207huy1obur"]
+
+[ext_resource type="Script" uid="uid://cetfr522fmpdv" path="res://core/content/howto/howto_card.gd" id="1_card"]
+[ext_resource type="Script" uid="uid://bhqxouukqa5pa" path="res://core/content/howto/howto_frame.gd" id="2_frame"]
+
+[sub_resource type="Resource" id="HowtoFrame_1"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.downed.title"
+
+[sub_resource type="Resource" id="HowtoFrame_2"]
+script = ExtResource("2_frame")
+text = &"downed.give_up_hold"
+key_action = &"give_up"
+
+[sub_resource type="Resource" id="HowtoFrame_3"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.death.title"
+
+[sub_resource type="Resource" id="HowtoFrame_4"]
+script = ExtResource("2_frame")
+text = &"tutorial.step.death.how"
+key_action = &"spectate_next"
+
+[resource]
+script = ExtResource("1_card")
+id = &"downed"
+title = &"guide.downed"
+frames = Array[ExtResource("2_frame")]([SubResource("HowtoFrame_1"), SubResource("HowtoFrame_2"), SubResource("HowtoFrame_3"), SubResource("HowtoFrame_4")])

@@ -8,8 +8,11 @@ extends Node
 ## Hosting: HostNode.host() on an EnetTransport (Direct), or on a WebRtcTransport that opens a room
 ## with a code at the signalling service (the M6 design §2.3; --signal=lan serves a LanSignalling
 ## here), then the own ClientSession on its own_client. Joining: a JoinTarget (a code or an
-## address) hands over its transport, and the connecting screen names the step and the target;
-## a code join ends early when the service's `found` names another version (JoinProgress). The
+## address) hands over its transport, and the connecting screen shows the step, a code join's code
+## and the time since Join; a code join ends early when the service's `found` names another
+## version (JoinProgress). A failed join or session shows its failure there (EndReasons'
+## failure_state, #494) until Back, Try again (the same join, or the host again) or Join directly;
+## the player's own leaving goes straight to the menu, whose panels keep the code and address. The
 ## lobby shows the room's code to whoever knows it: the host from its transport, a joiner the code
 ## it typed (the M6 design §3). Everything shown comes from the own ClientModel
 ## and the client's own copy of the mode: the host's player reads nothing of the host's session
@@ -20,11 +23,11 @@ extends Node
 ## Movement on the network (M4-7): the local PlayerController takes the mode's PlayerRules and
 ## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
 ## others and the countdown and the clock read the estimated host tick. A debug build has the
-## debug overlay (F3), with the own connection's kind and round trip (#431).
+## debug overlay (F3), with the own connection's kind and round trip (#431), fed by OverlayFeed.
 ##
 ## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
 ## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
-## the life inputs and the lift music; the Ui's life panel shows its words in the round.
+## the life inputs and the lift music; the Ui's LifeScreen draws its state in the round.
 ##
 ## Items (M4-8): `Items` (ItemWorld) draws the items, the circles and the destination marker, sends
 ## the item keys and plays the world sounds; the Ui's HUD and task screen show the round.
@@ -35,14 +38,16 @@ extends Node
 ##
 ## Speaking (M5-6): `VoiceSender` sends the own microphone through the gate into the own session;
 ## `VoiceControl` applies this window's UserSettings (the microphone, the mode, the threshold,
-## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them; the lobby
+## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them, as does the
+## main menu's Settings panel before any session (#301: the meter runs, nothing is sent); the lobby
 ## hints at the tab until a microphone is picked; F3 shows the own gate, peak, age and encode time.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
 const STOP_CHECK_MS := 200
 
-## The client's own copy of the game mode; MODE_PATH unless a test sets one before _ready.
+## The client's own copy of the game mode; MODE_PATH unless a test sets one before _ready, and the
+## tutorial's while one runs (GameTutorial).
 var mode: GameMode
 ## The arguments after --; OS.get_cmdline_user_args() unless a test sets `read_command_line` off.
 var launch_args := PackedStringArray()
@@ -56,6 +61,12 @@ var clock := Callable()
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
 var last_reason: StringName = &""
+## The last end's words with their detail, or what was wrong with a target typed or given on the
+## command line, as the console prints them; no screen draws them since #493 (a failure shows on
+## the connecting screen, and the menu's fields admit no unparsed target).
+var last_words := ""
+## The end whose failure shows now (Screen.FAILURE); empty while none does.
+var failure: StringName = &""
 ## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
 ## and drive the player's wish fields themselves (headless runs have no input).
 var device_input := true
@@ -71,6 +82,16 @@ var voice_codec: VoiceCodec
 ## The player's settings on this machine: this window's file (UserSettings.for_this_window()),
 ## or in memory with `read_command_line` off, unless a test sets one before _ready.
 var settings: UserSettings
+## The player's controls (#211): the player's file (Controls.for_this_player()), applied to the
+## InputMap at the start, or the project's defaults in memory, untouched, with `read_command_line`
+## off, unless a test sets one before _ready. The Esc menu's Controls tab changes them.
+var controls: Controls
+## What the player has seen and done of each task type, for the loading screen's how-to card
+## (#254): the player's file under user:// (HowtoProgress.for_this_player()), or in memory with
+## `read_command_line` off, unless a test sets one; GameHowto wires the cards to it.
+var howto: HowtoProgress
+## The solo tutorial session (#601): Game.start_tutorial, the first launch's own start.
+var tutorial := GameTutorial.new()
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -79,6 +100,10 @@ var _room: CodeRoom
 ## What this client joined, and the transport it joins with; null for a host or no session.
 var _target: JoinTarget
 var _join_transport: NetTransport
+## When the join started (Time.get_ticks_msec), for the connecting screen's time since Join.
+var _join_started_ms := 0
+## Starts the last join or host again the same way: a failure's Try again.
+var _retry := Callable()
 ## This game's content hash, for the version check against `found`.
 var _own_content := 0
 var _client: ClientSession
@@ -95,8 +120,11 @@ var _items := ItemWorld.new()
 var _voices := VoiceViews.new()
 var _sender := VoiceSender.new()
 var _voice_control: VoiceControl
-## The Esc menu showed the Voice tab last frame: the device list is read again when it opens.
-var _voice_tab_shown := false
+## A Voice panel (the Esc menu's tab or the main menu's page) showed last frame: the device list
+## is read again when one opens.
+var _voice_panel_shown := false
+## The keys were typing and the talk key is not yet let go (#488): the microphone stays shut.
+var _talk_blocked := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -111,40 +139,55 @@ func _ready() -> void:
 	if mode == null:
 		mode = load(MODE_PATH) as GameMode
 	ui.esc.lobby.set_mode(mode)
+	ui.plates.avatars = _avatars
+	ui.plates.hider = _life.hider()
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
 	ui.menu.join_requested.connect(join)
-	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.port()))
+	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.default_port))
 	ui.menu.code_join_requested.connect(join_code)
 	ui.menu.quit_requested.connect(quit)
 	ui.connecting.cancel_requested.connect(leave)
+	ui.connecting.back_requested.connect(back_to_menu)
+	ui.connecting.retry_requested.connect(retry)
+	ui.connecting.direct_requested.connect(open_direct)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
 	ui.esc.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.settings_changed.connect(change_settings)
+	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.lobby.map_changed.connect(change_map)
-	ui.end.back_requested.connect(return_to_lobby)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
+	ui.map_opened.connect(_on_map_opened)
+	ui.map_closed.connect(_on_map_closed)
+	GameHowto.setup(self)
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
+	_ready_settings()
+	ui.menu.bind_name(settings)
 	_ready_voice()
+	_ready_controls()
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
-		ui.add_child(_overlay)
+		ui.above.add_child(_overlay)
 	var args := OS.get_cmdline_user_args() if read_command_line else launch_args
 	options = LaunchOptions.parse(args, true)
+	ui.menu.set_default_port(options.port)
 	if not options.problem.is_empty():
 		print("session: %s" % options.problem)
-		ui.menu.set_reason(options.problem)
+		last_words = options.problem
+		if options.joining and options.target != null:
+			_fill_menu(options.target, options.address)
 	elif options.hosting and options.by_code:
 		host_with_code(options.port, options.bind)
 	elif options.hosting:
 		host(options.port, options.bind)
 	elif options.joining:
+		_fill_menu(options.target)
 		join_target(options.target)
-	else:
-		ui.menu.port_box.value = options.port
+	tutorial.setup(self)
 
 
 ## The tree outlives this root in tests: give it back the quit it had. The microphone closes
@@ -155,23 +198,26 @@ func _exit_tree() -> void:
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
-## with the reason on the menu, when it could not start.
+## with host-failed shown (its reason in last_words), when it could not start.
 func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
+	_retry = host.bind(port, bind)
 	var transport := _new_transport()
 	var enet := transport as EnetTransport
 	if enet != null:
 		enet.bind_address = bind
-	return _host_on(transport, port, bind)
+	return host_on(transport, port, bind)
 
 
 ## Hosts a session whose room has a code, through the signalling service of the launch options
 ## (JoinTarget.SERVICE_URL by default); with --signal=lan this game serves it on `port` (TCP),
-## listening on `bind`. False, with the reason on the menu, when it could not start.
+## listening on `bind`. False, with host-failed shown (its reason in last_words), when it could
+## not start.
 func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
+	_retry = host_with_code.bind(port, bind)
 	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
 	if service.is_empty():
 		_cannot_host(
@@ -184,28 +230,38 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 		_cannot_host(room.problem)
 		return false
 	_room = room
-	if _host_on(room.transport, port, bind):
+	if host_on(room.transport, port, bind):
 		return true
 	_drop_room()
 	return false
 
 
-func _host_on(transport: NetTransport, port: int, bind: String) -> bool:
+## Hosts on `transport` (a socket's, a code room's or the tutorial's private hub) and joins it.
+func host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	var node := HostNode.host(transport, mode, port, clock)
 	if not node.is_running():
 		var why := "; ".join(node.errors)
 		node.free()
 		_cannot_host(why)
 		return false
-	if options != null and not options.replay:
+	if tutorial.running or (options != null and not options.replay):
 		node.skip_replay()
 	node.name = "HostNode"
 	_host = node
 	_host.ended.connect(_on_host_ended)
 	add_child(_host)
+	ui.connecting.show_join("", JoinProgress.Step.CONNECTING)
 	_start_client(_host.own_client)
 	print("%s %s on %s:%d" % [LaunchOptions.HOSTING, mode.resource_path.get_file(), bind, port])
 	return true
+
+
+## The solo tutorial (GameTutorial, #601), its invite on a first launch; false while a session runs
+## or when it could not start, and then Try again starts it again.
+func start_tutorial(invite := false) -> bool:
+	if _client == null:
+		_retry = start_tutorial.bind(false)
+	return tutorial.start(self, invite)
 
 
 ## Joins the host at `address` (a host name or address, ":port" allowed), on `port` otherwise.
@@ -219,13 +275,17 @@ func join_code(code: String) -> void:
 	join_target(JoinTarget.of_code(code, service))
 
 
-## Joins `target`; a problem with what was typed stays on the menu.
+## Joins `target`; a problem with it is printed and kept in last_words, and no screen shows it:
+## the menu's fields admit none (Join stays off), and a --join= that does not parse waits in the
+## Direct field (_fill_menu).
 func join_target(target: JoinTarget) -> void:
 	if _client != null:
 		return
 	if not target.problem.is_empty():
-		ui.menu.set_reason(target.problem)
+		print("session: %s" % target.problem)
+		last_words = target.problem
 		return
+	_retry = join_target.bind(target)
 	_own_content = ClientSession.content_of(mode)
 	var transport := (
 		_new_transport()
@@ -235,7 +295,10 @@ func join_target(target: JoinTarget) -> void:
 	_start_client(transport)
 	_target = target
 	_join_transport = transport
-	ui.connecting.set_target(JoinProgress.target_text(target))
+	_join_started_ms = Time.get_ticks_msec()
+	ui.connecting.show_join(
+		target.code if target.is_code() else "", JoinProgress.step(target.is_code(), -1, false)
+	)
 	print("session: joining %s" % target.label())
 	if transport.join(target.join_address(), target.port) != OK:
 		_end_session(
@@ -254,8 +317,23 @@ func set_ready(on: bool) -> void:
 
 ## The host changes one setting: a whole number, or the ids of a set (banned task types).
 func change_setting(id: StringName, value: Variant) -> void:
+	change_settings({id: value})
+
+
+## The host changes several settings in one ChangeSettings (a preset card, #491): the host checks
+## them together, so it never refuses a preset half-applied.
+func change_settings(values: Dictionary) -> void:
 	if _client != null:
-		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {id: value}})
+		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": values})
+
+
+## The host names the lobby (#214): "" asks for the default again. Cleaned as the host will, so a
+## pasted invisible character never makes the send fail.
+func change_lobby_name(text: String) -> void:
+	if _client != null:
+		_client.send_intent(
+			Intents.CHANGE_SETTINGS, {"settings": {}, "lobby_name": LobbyName.clean(text)}
+		)
 
 
 ## The host picks the match's map: one of the mode's maps, which the host checks (#627).
@@ -264,7 +342,8 @@ func change_map(map: String) -> void:
 		_client.send_intent(Intents.CHANGE_SETTINGS, {"settings": {}, "map": map})
 
 
-## The host's Back to lobby on the end screen.
+## The host's ReturnToLobby: everyone back in the lobby before End's own return. No screen offers it
+## since #212 (End returns by itself); the tests use it.
 func return_to_lobby() -> void:
 	if _client != null:
 		_client.send_intent(Intents.RETURN_TO_LOBBY)
@@ -278,6 +357,28 @@ func leave() -> void:
 		_client.leave()
 
 
+## A failure's Back (or Esc): the main menu, its fields as they were (the code or address kept).
+func back_to_menu() -> void:
+	failure = &""
+	ui.show_screen(screen())
+
+
+## A failure's Try again: the last join to the same target, or the host started again the same
+## way (host-failed).
+func retry() -> void:
+	var again := _retry
+	back_to_menu()
+	if again.is_valid():
+		again.call()
+
+
+## A failure's Join directly: the main menu's Direct panel, the address focused, the code kept in
+## its own field (#493).
+func open_direct() -> void:
+	back_to_menu()
+	ui.menu.open_direct()
+
+
 ## Ends any session, then the process.
 func quit() -> void:
 	leave()
@@ -289,14 +390,32 @@ func quit() -> void:
 func open_esc() -> void:
 	ui.open_esc(hosting(), _welcomed_model(), screen())
 	pointer.capture(false)
+	tutorial.esc_opened()
 
 
-## Esc again, or Resume: the menu closes; in the lobby, Loading and the round the mouse is captured
-## again.
+## Esc again with no question open on it (its Resume), or Resume: the menu closes; in the lobby,
+## Loading and the round the mouse is captured again.
 func close_esc() -> void:
 	ui.close_esc()
 	if GameFlow.pointer_on(screen()) != GameFlow.Pointer.FREE:
 		pointer.capture(true)
+	# Last: after lesson 9 the tutorial leaves here (D32 (b)).
+	tutorial.esc_closed()
+
+
+## The map opened (#253): the mouse is free for its «?»; the player keeps walking.
+func _on_map_opened() -> void:
+	pointer.capture(false)
+	_apply_player_flags(screen())
+
+
+## The map closed by its key or Esc: the round's mouse is captured again, as after the Esc menu.
+## Not under the Esc menu (it closes the map as it opens), not off the round (the next screen's
+## mouse is _point_for's), and only while the window has the focus.
+func _on_map_closed() -> void:
+	if screen() == GameFlow.Screen.ROUND and not ui.esc_open() and pointer.focused():
+		pointer.capture(true)
+	_apply_player_flags(screen())
 
 
 ## The Ready key (`ready`, F, #169): the Ready toggle's SetReady, with the own ready flag flipped.
@@ -319,8 +438,9 @@ func room() -> CodeRoom:
 	return _room
 
 
+## A networked host: the solo tutorial hosts for nobody else (no question on Leave, #601).
 func hosting() -> bool:
-	return _host != null
+	return _host != null and not tutorial.running
 
 
 func screen() -> GameFlow.Screen:
@@ -378,52 +498,82 @@ func voice_control() -> VoiceControl:
 	return _voice_control
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_check_runner()
 	if _room != null:
 		_room.poll()
 	var now := screen()
 	if now != _screen:
 		_screen = now
-		_point_for(now)
+		# A new screen closes the Esc menu opened over another, its question too (#726).
+		_point_for(now, ui.close_esc_left(now))
 	ui.show_screen(now)
-	ui.reads_device_input = device_input
 	if _client != null:
 		_refresh_join()
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+		if now == GameFlow.Screen.LOADING:
+			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
-		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
-	_refresh_overlay()
+		GameHowto.follow(self, now)
+		var tick := _avatars.host_tick()
+		ui.refresh_round(_client.model, mode, tick, _hud_local(tick))
+	OverlayFeed.refresh(_overlay, _client, _host, _avatars, _sender, _voices)
 	_refresh_voice()
 	_apply_player_flags(now)
+	tutorial.process(self, delta)
 
 
 func _input(event: InputEvent) -> void:
 	# Alt+Enter on every screen, before Enter reaches a focused button (#517).
 	if event.is_action_pressed(&"toggle_fullscreen"):
-		window.toggle_fullscreen()
+		GameSettings.toggle_window(self)
 		get_viewport().set_input_as_handled()
 		return
 	if _overlay != null and event.is_action_pressed(&"debug_overlay"):
 		_overlay.visible = not _overlay.visible
 		get_viewport().set_input_as_handled()
 		return
-	if _client == null or not event.is_action_pressed(&"ui_cancel"):
+	if not event.is_action_pressed(&"ui_cancel"):
 		return
-	if ui.esc_open():
-		close_esc()
-	else:
-		open_esc()
+	# Esc on the connecting screen is its Cancel, on a failure its Back (#494).
+	var now := screen()
+	if now == GameFlow.Screen.FAILURE or now == GameFlow.Screen.CONNECTING:
+		if now == GameFlow.Screen.FAILURE:
+			back_to_menu()
+		else:
+			leave()
+		get_viewport().set_input_as_handled()
+		return
+	# Then the open overlay on top, only that one (#488 rule 2): a card, the map, the host's
+	# question, the Esc menu (its Resume), the main menu's open panel (#493). A key capture in
+	# Settings > Controls took its Esc in its own _input already.
+	if ui.overlays.close_top() != &"":
+		get_viewport().set_input_as_handled()
+		return
+	# None open: the Esc menu, over a session only.
+	if _client == null:
+		return
+	open_esc()
 	get_viewport().set_input_as_handled()
 
 
-## The Ready key, while the player walks in the lobby with no Esc menu (gameplay input).
+## The Ready key, while the player walks in the lobby, and the map key (#253), which opens and
+## closes the map in the round on any life, or closes a card over it (#488); neither under the Esc
+## menu (gameplay input).
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed(&"ready") or ui.esc_open():
+	if ui.esc_open():
 		return
-	if screen() == GameFlow.Screen.LOBBY:
+	if event.is_action_pressed(&"ready") and screen() == GameFlow.Screen.LOBBY:
 		toggle_ready()
+		get_viewport().set_input_as_handled()
+	elif (
+		device_input
+		and event.is_action_pressed(&"map")
+		and screen() == GameFlow.Screen.ROUND
+		and _client != null
+		and ui.press_map_key()
+	):
 		get_viewport().set_input_as_handled()
 
 
@@ -442,13 +592,17 @@ func _notification(what: int) -> void:
 ## count only there with no Esc menu. Game._process applies them every frame (the Esc menu), and
 ## _on_event as soon as the session folds an event in its physics step (#241): under load several
 ## physics steps run before the next _process, and the player must neither step nor claim after
-## the phase turns frozen (Loading, End), nor wait for _process to walk again.
+## the phase turns frozen (Loading, Pregame, End), nor wait for _process to walk again.
 func _apply_player_flags(now: GameFlow.Screen) -> void:
 	if _player == null:
 		return
 	_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
-	var listening := not GameFlow.frozen(now) and not ui.esc_open()
+	var listening := not GameFlow.frozen(now) and not ui.blocks_keys()
 	_player.reads_device_input = device_input and listening
+	# The map frees the mouse for its «?» while the player still walks, jumps, picks up and talks
+	# (the designer's answer on #253): the controller only stops looking and recapturing. So
+	# does the tutorial's invite (#492), under which no key counts.
+	_player.mouse_free = ui.frees_mouse()
 	_life.reads_device_input = device_input
 	_life.listening = listening and now == GameFlow.Screen.ROUND
 	_items.interactions.reads_device_input = device_input
@@ -461,16 +615,17 @@ func _apply_player_flags(now: GameFlow.Screen) -> void:
 
 
 ## The mouse for the screen just shown (GameFlow.pointer_on): a mouse captured in the round would
-## stay captured on the end screen's button; the lobby and the round capture it (#517), but never
-## from under the Esc menu, and only while the window has the focus (MousePointer.focused): a
-## window in the background a click captures later.
-func _point_for(now: GameFlow.Screen) -> void:
-	match GameFlow.pointer_on(now):
-		GameFlow.Pointer.FREE:
-			pointer.capture(false)
-		GameFlow.Pointer.CAPTURE:
-			if not ui.esc_open() and pointer.focused():
-				pointer.capture(true)
+## stay captured on the end screen's button; the lobby and the round capture it (#517), and so do
+## Loading and Pregame when the change closed the Esc menu that freed it (`menu_closed`, #726);
+## never from under the Esc menu, and only while the window has the focus (MousePointer.focused):
+## a window in the background a click captures later.
+func _point_for(now: GameFlow.Screen, menu_closed: bool) -> void:
+	var wanted := GameFlow.pointer_on(now)
+	if wanted == GameFlow.Pointer.FREE:
+		pointer.capture(false)
+	elif (wanted == GameFlow.Pointer.CAPTURE or menu_closed) and not ui.esc_open():
+		if pointer.focused():
+			pointer.capture(true)
 
 
 func _player_dead() -> bool:
@@ -482,17 +637,25 @@ func _welcomed_model() -> ClientModel:
 	return _client.model if _client != null and _client.is_welcomed() else null
 
 
-## What the HUD knows besides the model: the predicted stamina and the crosshair's hint (ItemWorld),
-## and whom a dead player watches (LifeView, #168).
-func _hud_local() -> HudText.Local:
+## What the HUD knows besides the model: the predicted stamina and the item under the crosshair
+## (ItemWorld), the own raise's progress at the estimated host tick `tick`, the raise cue's key and
+## whether anyone may hear the own player (#489, #497).
+func _hud_local(tick: float) -> HudText.Local:
 	var local := _items.hud_local()
-	local.watching = _life.target()
+	local.raising = _life.raise_shown(tick)
+	local.raise_key = _life.raise_cue()
+	local.mic = _sender.live()
+	if _player != null and not _player_dead():
+		local.placed = true
+		local.position = _player.global_position
+		var look := _player.look_vector()
+		local.heading = atan2(look.x, -look.z)
 	return local
 
 
 func _session_state() -> GameFlow.Session:
 	if _client == null:
-		return GameFlow.Session.NONE
+		return GameFlow.Session.NONE if failure.is_empty() else GameFlow.Session.FAILED
 	return GameFlow.Session.WELCOMED if _client.is_welcomed() else GameFlow.Session.CONNECTING
 
 
@@ -504,7 +667,8 @@ func _new_transport() -> NetTransport:
 
 func _start_client(transport: NetTransport) -> void:
 	_ending = false
-	_client = ClientSession.new(transport, mode, _schema)
+	failure = &""
+	_client = ClientSession.new(transport, mode, _schema, settings.player_name)
 	_client.welcomed.connect(_on_welcomed)
 	_client.corrected.connect(_on_corrected)
 	_client.map_loaded.connect(_on_map_loaded)
@@ -561,6 +725,7 @@ func _place(position: Vector3, velocity: Vector3) -> void:
 ## The map LoadMatch asked for: instanced now, before the session sends LoadAck.
 func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 	_set_level(scene.instantiate(), PhaseSpec.Level.MAP)
+	ui.set_map_data(MapData.from_level(_level, mode))
 
 
 ## Every event, in the session's physics step: the level of a new phase, the own life, and the
@@ -615,21 +780,23 @@ func _clear_level() -> void:
 		_level.queue_free()
 	_level = null
 	_level_kind = PhaseSpec.Level.NONE
+	ui.set_map_data(MapData.new())
 
 
 func _on_host_ended(reason: StringName) -> void:
 	_end_session(reason)
 
 
-## Every end comes here: the sessions, the level and the views go, and the menu says why (with
-## `detail` after the reason's words).
+## Every end comes here: the sessions, the level and the views go, and last_words keeps why (with
+## `detail` after the reason's words); a failure shows on the connecting screen first.
 func _end_session(reason: StringName, detail := "") -> void:
 	if _ending or _client == null:
 		return
 	_ending = true
 	last_reason = reason
 	if detail.is_empty():
-		detail = _found_detail(reason)
+		detail = JoinProgress.detail_of(reason, _join_transport, _own_content)
+	var versions := JoinProgress.versions_of(reason, _join_transport, _own_content)
 	print("session: ended: %s%s" % [EndReasons.text(reason), ": " + detail if detail else ""])
 	if _host != null:
 		# Leaving the tree closes the session: every client sees host_lost.
@@ -658,106 +825,69 @@ func _end_session(reason: StringName, detail := "") -> void:
 	if _player != null:
 		_player.queue_free()
 		_player = null
-	_show_menu(reason, detail)
+	tutorial.end(self)
+	_show_end(reason, detail, versions)
 	_ending = false
 
 
-## Both versions in words when a code join ended on the service's `found` (the transport's
-## version check, before any ICE); "" for any other end, a Rejected Hello's included.
-func _found_detail(reason: StringName) -> String:
-	var webrtc := _join_transport as WebRtcTransport
-	if webrtc == null:
-		return ""
-	var found := webrtc.found_protocol
-	var own := WireSchema.VERSION
-	if JoinProgress.found_mismatch(found, webrtc.found_content, own, _own_content) != reason:
-		return ""
-	return JoinProgress.found_detail(reason, found, webrtc.found_content, own, _own_content)
-
-
-## A join under way: the connecting screen's step. Then the room's code to whoever knows it: the
-## host from its room (waiting for the service, then the code, or a line saying none is coming),
-## a code joiner the code it typed, a Direct joiner none.
+## A join under way: the connecting screen's step and the time since Join. Then the room's code to
+## whoever knows it: the host from its room (waiting for the service, then the code, or a line
+## saying none is coming), a code joiner the code it typed, a Direct joiner none. Once welcomed,
+## the title names the lobby (#214: the host's answer carries its name).
 func _refresh_join() -> void:
 	var webrtc := _join_transport as WebRtcTransport
+	if _client.is_welcomed():
+		ui.connecting.set_lobby(_client.model.lobby_name, _client.model.host_name())
 	if _target != null and not _client.is_welcomed():
 		var found := webrtc.found_protocol if webrtc != null else -1
 		var connected := _join_transport.own_id() != 0
-		ui.connecting.set_step(JoinProgress.step_text(_target.is_code(), found, connected))
+		ui.connecting.set_step(JoinProgress.step(_target.is_code(), found, connected))
+		ui.connecting.set_elapsed(floori((Time.get_ticks_msec() - _join_started_ms) / 1000.0))
 	var code := ""
 	if _room != null:
 		code = _room.code()
 	elif _target != null and _target.is_code():
 		code = _target.code
 	var line := JoinProgress.code_text(code, _room != null and _room.gone(), _room != null)
-	ui.lobby_hud.show_code(line)
+	ui.lobby_hud.show_code(code, _room != null and _room.gone(), _room != null)
 	ui.esc.lobby.show_code(line, code)
 
 
-## The overlay's numbers, while it shows: the own client's, its own connection (only its own
-## ClientSession's, the M6 design §3 item 4), and on the host the session's counters and, outside a
-## Round, the voice relay's (DebugOverlay.shows_relay). The own session measures its round trip
-## only while the overlay shows (WebRTC pings for it).
-func _refresh_overlay() -> void:
-	var shown := _overlay != null and _overlay.visible
-	if _client != null:
-		_client.set_measuring_round_trip(shown)
-	if not shown:
-		return
-	var counters: Dictionary[StringName, int] = {}
-	_refresh_voice_overlay()
-	if _client == null:
-		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
-		_overlay.show_relay(counters, null)
-		_overlay.show_connection(NetTransport.Route.NONE, -1)
-		return
-	_overlay.show_connection(_client.route(), _client.round_trip_ms())
-	var relay: Dictionary[StringName, int] = {}
-	if _host != null:
-		counters = _host.counters()
-		relay = _host.relay_counters()
-	_overlay.show_numbers(
-		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
-	)
-	_overlay.show_relay(relay, _client.model.phase_spec())
-
-
-## The overlay's voice lines: the own voice, then one per speaker played, by index of first
-## arrival (E47).
-func _refresh_voice_overlay() -> void:
-	_overlay.show_own_voice(
-		_sender.is_open(),
-		_sender.gate.is_open(),
-		_sender.peak,
-		_sender.frame_age_usec,
-		_sender.encode_usec
-	)
-	_overlay.show_voice(_voices.stats())
+## This window's settings, and their interface language applied (#208): the player's choice, or
+## on a first launch the system's when it is Ukrainian and English otherwise. A Game with no command
+## line (a test, a playcheck window) ignores the machine's language: it speaks English unless its
+## settings say otherwise, so a run reads the same on every machine.
+func _ready_settings() -> void:
+	if settings == null:
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
+	Languages.apply(settings, OS.get_locale_language() if read_command_line else Languages.ENGLISH)
 
 
 ## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
-## settings applied, and the Voice tab wired to them.
+## settings applied, and both Sound and voice pages (the Esc menu's, the main menu's, #301) wired
+## to them.
 func _ready_voice() -> void:
 	AudioBuses.ensure()
 	if voice_codec == null:
 		voice_codec = TwoVoipCodec.new()
 	_world.add_child(_voices)
-	if settings == null:
-		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
-		# player's file in user:// would set the process's buses and take an opening mark.
-		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
 	_sender.codec = voice_codec
 	add_child(_sender)
 	_voice_control = VoiceControl.new(settings, _sender)
-	var panel := ui.esc.voice
-	panel.device_picked.connect(_voice_control.pick_device)
-	panel.mode_picked.connect(_voice_control.set_mode)
-	panel.threshold_changed.connect(_voice_control.set_threshold)
-	panel.denoise_toggled.connect(_voice_control.set_denoise)
-	panel.volume_changed.connect(_voice_control.set_volume)
-	panel.tone_toggled.connect(_voice_control.set_tone)
-	panel.mute_toggled.connect(_voice_control.set_muted)
+	GameSettings.wire_voice(self, _voice_control)
 	_voice_control.start()
+
+
+## The player's controls applied (a test's or a playcheck window's stay the project's: the player's
+## file in user:// would rebind the process's keys), and both Settings pages wired (GameSettings).
+func _ready_controls() -> void:
+	if controls == null:
+		controls = Controls.for_this_player() if read_command_line else Controls.new()
+		if read_command_line:
+			controls.apply()
+	GameSettings.setup(self)
 
 
 ## The voices follow the new session's ClientSession, model and avatars; the own voice speaks
@@ -767,24 +897,45 @@ func _setup_voice() -> void:
 	_sender.setup(_client, mode)
 
 
-## Each frame: the talk key counts only without the Esc menu; an open Voice tab shows the settings
-## and the microphone's level (the device list read again as it opens); the lobby's hint.
+## Each frame: the talk key counts, under the Esc menu too (#488 rule 4), but never while the
+## keys are typing, nor after it, until the talk key has been let go once (a V that ended a typing
+## or bound a key is still held, and must not key the microphone); an open Voice panel (the Esc
+## menu's tab, or the main menu's page with no session, #301) shows the settings and the
+## microphone's level (the device list read again as it opens); the lobby's hint and mic (#495).
 func _refresh_voice() -> void:
 	_sender.reads_device_input = device_input
-	_sender.listening = not ui.esc_open()
-	var tab := ui.esc_open() and ui.esc.state.selected == EscMenuState.Tab.VOICE
-	if tab and not _voice_tab_shown:
+	var typing := _typing()
+	if typing:
+		_talk_blocked = true
+	elif not Input.is_action_pressed(VoiceSender.TALK_ACTION):
+		_talk_blocked = false
+	_sender.listening = not typing and not _talk_blocked
+	var panel := shown_voice_panel()
+	if panel != null and not _voice_panel_shown:
 		_voice_control.refresh_devices()
-	_voice_tab_shown = tab
-	if tab:
-		ui.esc.voice.show_facts(_voice_control.facts())
+	_voice_panel_shown = panel != null
+	if panel != null:
+		panel.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+	ui.lobby_hud.show_mic(_sender.live())
+
+
+## A text field has the focus (the Lobby tab's name, #214) or Settings > Controls captures a key:
+## the keys are letters or a binding then, and V must not key the microphone.
+func _typing() -> bool:
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus is LineEdit or focus is TextEdit or GameSettings.capturing(self)
+
+
+## Settings' Sound and voice on screen now: the Esc menu's, the main menu's, or null.
+func shown_voice_panel() -> VoicePanel:
+	return GameSettings.shown_voice(self)
 
 
 func _cannot_host(why: String) -> void:
 	print("session: cannot host: %s" % why)
 	last_reason = EndReasons.CANNOT_HOST
-	_show_menu(EndReasons.CANNOT_HOST, why)
+	_show_end(EndReasons.CANNOT_HOST, why)
 
 
 ## The code host's room and its own signalling go with its session.
@@ -794,12 +945,31 @@ func _drop_room() -> void:
 	_room = null
 
 
-func _show_menu(reason: StringName, detail := "") -> void:
+## After an end: its words kept (last_words), and its failure, if it has one, shows first.
+func _show_end(reason: StringName, detail := "", versions := PackedStringArray()) -> void:
 	ui.close_esc()
-	var why := EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
-	ui.menu.set_reason("The last session ended: %s." % why)
-	ui.show_screen(GameFlow.Screen.MENU)
+	if ui.menu.settings_open():
+		ui.menu.close_panel()
+	last_words = EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
+	var shown := ui.connecting.show_failure(EndReasons.failure_state(reason), versions)
+	failure = reason if shown else &""
+	ui.show_screen(screen())
 	pointer.capture(false)
+
+
+## The menu's panel and field of a join from the command line, so Back finds them there as if
+## typed: the code, or the address with its port when not the default. One that does not parse
+## (`typed`, as given) waits in the Direct field with its Join off, so the player sees what the
+## command line named (#493 review: the menu has no reason line).
+func _fill_menu(target: JoinTarget, typed := "") -> void:
+	if target.is_code():
+		ui.menu.code_edit.text = target.code
+		ui.menu.open_panel(MainMenu.Open.CODE, false)
+	else:
+		if target.problem.is_empty():
+			typed = target.label() if target.port != ui.menu.default_port else target.address
+		ui.menu.address_edit.text = typed.strip_edges()
+		ui.menu.open_panel(MainMenu.Open.DIRECT, false)
 
 
 ## The runner's stop file, or its alive file gone stale (a killed runner): quit cleanly.

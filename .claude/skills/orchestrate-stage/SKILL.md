@@ -167,7 +167,8 @@ A workflow that threw, a crash, a PC restart, a plan limit, or a new session wit
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
   timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000), armed only as the turn-end order
   says, one at a time (its task id and arm time in the state file); it fires before the cache your latest call refreshed
-  expires. A sleeping machine fires no timer: before a night, `request_keep_awake` (MANAGERS.md §4,
+  expires. A sleeping machine fires no timer: before a night, `request_keep_awake` and the "nobody is watching" sign
+  `unattended --until <HH:MM>` (so a guard ask is a deny, not a card that holds your notifications; MANAGERS.md §4,
   [resume.md](resume.md) §7).
 - **A wake is a cheap turn.** Re-read only the state file's keep-alive lines (session start, timer, wake count), not
   this skill or the plan issue. Run the turn-end check and at most one status line for what can change without waking

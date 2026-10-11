@@ -20,6 +20,13 @@ const STOP_RAISE := &"StopRaise"
 const GIVE_UP := &"GiveUp"
 ## A living player swaps its hand and belt items (M4-5, vision revision 1: Two hands).
 const SWAP := &"Swap"
+## The host's player asks a scripted mode to go on (#599, the tutorial's stages): a session control
+## like ReturnToLobby, no argument. The base mode accepts it in no phase (`not_accepted`).
+const NEXT_STAGE := &"NextStage"
+## A player sets its own name and body colour (#551, #73), a session control: both are always sent.
+## The host cleans the name, gives the first free colour on a clash and tells everyone
+## (ProfileChanged). The base mode accepts it in the lobby only, from a player.
+const SET_PROFILE := &"SetProfile"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
@@ -36,6 +43,8 @@ const ALL: Array[StringName] = [
 	STOP_RAISE,
 	GIVE_UP,
 	SWAP,
+	NEXT_STAGE,
+	SET_PROFILE,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
@@ -67,9 +76,9 @@ const FORCE_CLOCK := &"ForceClock"
 ## change here is a protocol change: it updates §4.3 and bumps JoinRules.PROTOCOL_VERSION in the
 ## same PR.
 const FIELDS: Dictionary[StringName, Dictionary] = {
-	HELLO: {"version": TYPE_INT, "content": TYPE_INT},
+	HELLO: {"version": TYPE_INT, "content": TYPE_INT, "name": TYPE_STRING},
 	SET_READY: {"ready": TYPE_BOOL},
-	CHANGE_SETTINGS: {"settings": TYPE_DICTIONARY, "map": TYPE_STRING},
+	CHANGE_SETTINGS: {"settings": TYPE_DICTIONARY, "map": TYPE_STRING, "lobby_name": TYPE_STRING},
 	LOAD_ACK: {"match_id": TYPE_INT},
 	MOVE_CLAIM:
 	{
@@ -93,6 +102,8 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	STOP_RAISE: {},
 	GIVE_UP: {},
 	SWAP: {},
+	NEXT_STAGE: {},
+	SET_PROFILE: {"name": TYPE_STRING, "colour": TYPE_INT},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 }

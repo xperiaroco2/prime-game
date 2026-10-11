@@ -1,10 +1,11 @@
 class_name AudioBuses
 extends RefCounted
 ## The game's audio buses (the M5 ADR §1.7, E43 (a), D15): Voice (the players' voices), Effects
-## (the world sounds) and Music (the dead's lift music), each sending to Master, made in code when
-## the game starts, never from an editor-made bus layout, so a merge cannot drop a bus unseen and
-## tests make them the same way. The Esc menu's sliders (M5-6) set their volumes; these defaults
-## are placeholders, "not a decision". No ducking.
+## (the world sounds), Music (the dead's lift music) and UI (the Toy buttons' click, #525), each
+## sending to Master, made in code when the game starts, never from an editor-made bus layout, so a
+## merge cannot drop a bus unseen and tests make them the same way. The Esc menu's sliders (M5-6)
+## set the volumes of Master, Voice, Effects and Music; UI has no slider of its own (Master's
+## applies). These defaults are placeholders, "not a decision". No ducking.
 ##
 ## Each of Voice and Effects has a muffled bus (the M5 ADR §1.6, D13 (a), M5-7), made after it and
 ## sending to it, so its slider still applies: an AudioEffectLowPassFilter at LOW_PASS_HZ, nothing
@@ -15,8 +16,12 @@ const MASTER := &"Master"
 const VOICE := VoiceSpeaker.BUS
 const EFFECTS := &"Effects"
 const MUSIC := &"Music"
+## The UI's click (UiSounds).
+const UI := &"UI"
 ## The buses made here, in order, and each one's default volume in dB.
-const DEFAULT_DB: Dictionary[StringName, float] = {VOICE: 0.0, EFFECTS: -6.0, MUSIC: -14.0}
+const DEFAULT_DB: Dictionary[StringName, float] = {
+	VOICE: 0.0, EFFECTS: -6.0, MUSIC: -14.0, UI: -6.0
+}
 const VOICE_MUFFLED := &"VoiceMuffled"
 const EFFECTS_MUFFLED := &"EffectsMuffled"
 ## Each muffled bus and the bus it sends to.

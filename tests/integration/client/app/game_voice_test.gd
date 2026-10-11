@@ -4,8 +4,10 @@ extends GdUnitTestSuite
 ## FakeMicrophone and settings in a file of its own. The settings apply at the start; the Esc
 ## menu's Voice tab shows them and its changes are saved; the talk key counts only without the
 ## menu; the lobby hints at the tab until a pick; a word into the client's microphone reaches the
-## host as a delivered frame; and a session's end leaves the sender with no session. Headless
-## runs open no microphone by themselves (VoiceControl.can_capture), so each test opens the fake.
+## host as a delivered frame; and a session's end leaves the sender with no session. The main
+## menu's Settings panel (#301, #493), before any session, saves a pick and opens it under the
+## mark as the tab does, and its meter runs while nothing is sent. Headless runs open no
+## microphone by themselves (VoiceControl.can_capture), so each test opens the fake.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7340
@@ -16,11 +18,17 @@ const PATHS: Array[String] = ["user://game_voice_test_1.cfg", "user://game_voice
 
 var _hub: LoopbackHub
 var _now := 1000000
+## The mark as the settings file held it each time the fake microphone opened.
+var _marks: Array[String] = []
+## The frames a test's own send callable was given.
+var _sent_frames := 0
 
 
 func before_test() -> void:
 	_hub = LoopbackHub.new()
 	_now = 1000000
+	_marks.clear()
+	_sent_frames = 0
 
 
 func after_test() -> void:
@@ -64,18 +72,19 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 		-20.0
 	)
 	assert_bool(await _until(func() -> bool: return host.screen() == S.LOBBY)).is_true()
-	# The lobby hints at the Voice tab until a microphone is picked.
+	# The lobby hints at Settings until a microphone is picked.
 	await get_tree().process_frame
-	assert_bool(host.ui.lobby_hud.voice_label.visible).is_true()
-	# The Voice tab shows the settings; the talk key does not count under the menu.
+	assert_bool(host.ui.lobby_hud.voice_hint.visible).is_true()
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_false()
+	# Settings opens on Sound and voice; the talk key counts under the menu too (#488 rule 4).
 	host.open_esc()
-	host.ui.esc.press(EscMenuState.Tab.VOICE)
+	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
 	await get_tree().process_frame
 	assert_bool(host.ui.esc.voice.visible).is_true()
-	assert_bool(host.sender().listening).is_false()
+	assert_bool(host.sender().listening).is_true()
 	var panel := host.ui.esc.voice
 	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
-	assert_bool(panel.microphone_box.visible).is_true()
+	assert_bool(panel.mic_row.visible).is_true()
 	# A change in the tab is applied and saved at once.
 	panel.mode_picked.emit(UserSettings.Mode.VOICE_ACTIVITY)
 	panel.device_picked.emit("Headset Microphone")
@@ -85,12 +94,70 @@ func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	assert_int(back.mode).is_equal(UserSettings.Mode.VOICE_ACTIVITY)
 	assert_str(back.device).is_equal("Headset Microphone")
 	await get_tree().process_frame
-	assert_bool(host.ui.lobby_hud.voice_label.visible).is_false()
+	assert_bool(host.ui.lobby_hud.voice_hint.visible).is_false()
 	host.close_esc()
 	await get_tree().process_frame
 	assert_bool(host.sender().listening).is_true()
 	host.leave()
 	await get_tree().process_frame
+
+
+## #488 rule 4: under the Esc menu the voice works as set, push-to-talk too; never while a text
+## field has the keys (the Lobby tab's name, #214) or a key capture runs (binding V in Controls).
+func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
+	var saved := UserSettings.new(PATHS[0])
+	saved.mode = UserSettings.Mode.PUSH_TO_TALK
+	saved.write()
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)], 0)
+	assert_bool(await _until(func() -> bool: return host.screen() == S.LOBBY)).is_true()
+	_open_fake(host)
+	var mic := host.sender().capture.microphone as FakeMicrophone
+	host.open_esc()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	host.sender().talk_held = true
+	# The lobby HUD's mic follows the sender: on while the talk key is held (live()), off after.
+	await _frames(2)
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_true()
+	mic.capture_chunks(5, 0.5)
+	assert_bool(await _until(func() -> bool: return host.sender().sent > 0)).is_true()
+	# A text field on the menu's page has the keys: V is a letter there.
+	var field := LineEdit.new()
+	host.ui.esc.page().add_child(field)
+	field.grab_focus()
+	await _frames(2)
+	assert_object(host.get_viewport().gui_get_focus_owner()).is_same(field)
+	assert_bool(host.sender().listening).is_false()
+	field.release_focus()
+	field.free()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	# A key capture: the key pressed is the binding, not talk.
+	host.ui.esc.press(EscMenuState.Tab.SETTINGS)
+	host.ui.esc.settings.show_page(SettingsPage.Page.CONTROLS)
+	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
+	assert_bool(host.ui.esc.controls.is_capturing()).is_true()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_false()
+	host.ui.esc.controls.cancel_capture()
+	await _frames(2)
+	assert_bool(host.sender().listening).is_true()
+	# V pressed to end a capture (or a field) is still held when the typing stops: it must be
+	# let go once before it keys the microphone (the key that bound an action is not talk).
+	host.ui.esc.controls.key_buttons[&"interact"].pressed.emit()
+	await _frames(2)
+	Input.action_press(VoiceSender.TALK_ACTION)
+	host.ui.esc.controls.cancel_capture()
+	await _frames(3)
+	assert_bool(host.sender().listening).is_false()
+	Input.action_release(VoiceSender.TALK_ACTION)
+	await _frames(3)
+	assert_bool(host.sender().listening).is_true()
+	host.sender().talk_held = false
+	await _frames(2)
+	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_false()
+	host.leave()
+	await _frames(2)
 
 
 func test_a_word_into_the_clients_microphone_reaches_the_host() -> void:
@@ -120,6 +187,74 @@ func test_a_word_into_the_clients_microphone_reaches_the_host() -> void:
 	await get_tree().process_frame
 
 
+func test_the_main_menus_voice_page_saves_a_pick_and_opens_it_under_the_mark() -> void:
+	var game := _game([], 0)
+	await get_tree().process_frame
+	assert_int(game.screen()).is_equal(S.MENU)
+	assert_object(game.client()).is_null()
+	var mic := game.sender().capture.microphone as FakeMicrophone
+	mic.on_open = func() -> void: _marks.append(_saved(0).opening)
+	game.voice_control().can_capture = true
+	# The menu's Settings item shows the same panel class as the Esc tab, fed by the game (#493).
+	game.ui.menu.settings_item.button_pressed = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var panel := game.ui.menu.voice
+	assert_object(game.shown_voice_panel()).is_same(panel)
+	assert_bool(panel.is_visible_in_tree()).is_true()
+	assert_bool(panel.mic_row.visible).is_true()
+	# The device list was read as the page opened: the fake's microphones (its first the Windows
+	# default) are there to pick.
+	assert_int(panel.device_button.item_count).is_equal(mic.names.size())
+	panel.device_picked.emit("Headset Microphone")
+	panel.mode_picked.emit(UserSettings.Mode.PUSH_TO_TALK)
+	# Opened as the Esc tab opens it: the mark in the file before the device opened.
+	assert_bool(game.sender().is_open()).is_true()
+	assert_str(mic.opened_device).is_equal("Headset Microphone")
+	assert_array(_marks).contains_exactly(["Headset Microphone"])
+	var back := _saved(0)
+	assert_str(back.device).is_equal("Headset Microphone")
+	assert_str(back.opening).is_equal("Headset Microphone")
+	assert_int(back.mode).is_equal(UserSettings.Mode.PUSH_TO_TALK)
+	assert_int(game.sender().gate.mode).is_equal(VoiceGate.Mode.PUSH_TO_TALK)
+	# The page shows the pick and the mode the next frame.
+	await get_tree().process_frame
+	assert_int(panel.mode_button.get_selected_id()).is_equal(UserSettings.Mode.PUSH_TO_TALK)
+	assert_str(panel.device_button.get_item_text(panel.device_button.selected)).is_equal(
+		"Headset Microphone"
+	)
+
+
+func test_the_main_menus_meter_runs_with_no_session_and_nothing_is_sent() -> void:
+	var game := _game([], 1)
+	await get_tree().process_frame
+	_open_fake(game)
+	game.ui.menu.open_panel(MainMenu.Open.SETTINGS)
+	# No ClientSession: the sender has nowhere to send. A send of the test's own catches any frame
+	# the gate would let out with no session.
+	assert_object(game.client()).is_null()
+	assert_bool(game.sender().send.is_valid()).is_false()
+	game.sender().send = func(_frame: PackedByteArray) -> Error:
+		_sent_frames += 1
+		return OK
+	var mic := game.sender().capture.microphone as FakeMicrophone
+	mic.capture_chunks(10, 0.5)
+	var metered := func() -> bool:
+		return mic.frames_available() == 0 and game.ui.menu.voice.meter.value > 0.4
+	assert_bool(await _until(metered)).is_true()
+	assert_float(game.sender().peak).is_equal_approx(0.5, 0.01)
+	assert_bool(game.sender().gate.is_open()).is_false()
+	assert_int(_sent_frames).is_equal(0)
+	assert_int(game.sender().sent).is_equal(0)
+
+
+## The settings file PATHS[`which`] as written now.
+func _saved(which: int) -> UserSettings:
+	var saved := UserSettings.new(PATHS[which])
+	saved.read()
+	return saved
+
+
 ## A Game with the fake codec, a FakeMicrophone and the settings file PATHS[`which`], in its own
 ## SubViewport world (several Games in one tree, client/CLAUDE.md).
 func _game(args: Array[String], which: int) -> Game:
@@ -134,6 +269,8 @@ func _game(args: Array[String], which: int) -> Game:
 	game.device_input = false
 	var settings := UserSettings.new(PATHS[which])
 	settings.read()
+	# A player who has seen the tutorial: a first launch would start it (E70, #601).
+	settings.tutorial_seen = true
 	game.settings = settings
 	var machine := SubViewport.new()
 	machine.own_world_3d = true
@@ -150,6 +287,12 @@ func _open_fake(game: Game) -> void:
 	game.voice_control().can_capture = true
 	game.voice_control().apply_microphone()
 	assert_bool(game.sender().is_open()).is_true()
+
+
+## `count` whole frames: process_frame fires before the nodes' _process (#222).
+func _frames(count: int) -> void:
+	for i in count:
+		await get_tree().process_frame
 
 
 ## Steps the clock and the frames until `done` holds, at most MAX_FRAMES physics frames.

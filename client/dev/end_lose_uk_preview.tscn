@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://client/dev/screen_preview.gd" id="1_preview"]
+
+[node name="ScreenPreview" type="Node"]
+script = ExtResource("1_preview")
+preview = 4
+language = "uk"
+end_winner = &"dissidents"
+end_reason = &"time_up"

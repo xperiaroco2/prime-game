@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## EndMatch and MatchEnded (ARCHITECTURE §3.2, §4.2, §5, §9.4): `Round, won -> End` records the
-## winning side and tells everyone the side and nothing else. End widens nothing: written here
-## independently of the audience declarations, over the whole session (lobby, round, end and
-## back to the lobby), a crew member learns one role, its own, and nobody learns a role at the end.
+## winning side and tells everyone the side, the winning condition's id and the round's time
+## (#548), no name and no role. End widens nothing: written here independently of the audience
+## declarations, over the whole session (lobby, round, end and back to the lobby), a crew member
+## learns one role, its own, and nobody learns a role at the end.
 
 const P1 := 1
 const P2 := 2
@@ -11,9 +12,12 @@ const P4 := 4
 const PEERS: Array[int] = [P1, P2, P3, P4]
 
 
-func test_match_ended_names_the_side_only_and_reaches_every_player() -> void:
+func test_match_ended_names_the_side_the_condition_and_the_time_to_every_player() -> void:
 	var game := FixtureWinModes.in_round(FixtureWinModes.basic(1), PEERS)
+	assert_int(game.state.clock_ticks_total).is_equal(FixtureWinModes.CLOCK_TICKS)
 	var crew := FixtureDealModes.players_of(game, &"crew")
+	# 7.25 s of the round: the time is in whole seconds, toward zero.
+	FixtureModes.run_ticks(game, 7 * Ticks.RATE + 5)
 	FixtureWinModes.deliver(game, crew[0], 0)
 	assert_str(game.state.winner).is_equal("crew")
 	var sent := game.emitted().filter(
@@ -23,7 +27,9 @@ func test_match_ended_names_the_side_only_and_reaches_every_player() -> void:
 	var ended := sent[0] as EmittedEvent
 	assert_array(Array(ended.recipients)).is_equal(PEERS)
 	assert_bool(ended.is_directive).is_false()
-	assert_dict(ended.event.to_dict()).is_equal({"side": &"crew"})
+	assert_dict(ended.event.to_dict()).is_equal(
+		{"side": &"crew", "reason": &"every_task_done", "numbers": {&"time": 7}}
+	)
 	assert_int(MatchEndedEvent.AUDIENCE_KIND).is_equal(ended.event.audience().kind)
 	assert_int(MatchEndedEvent.AUDIENCE_KIND).is_equal(Audience.Kind.EVERYONE)
 
@@ -58,6 +64,7 @@ func test_end_widens_nothing_and_no_role_reaches_anyone_over_the_session() -> vo
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
 	FixtureModes.run_ticks(game, 5)
 	assert_str(game.phase_id()).is_equal("lobby")
+	assert_int(game.state.clock_ticks_total).is_equal(-1)
 	for peer: int in PEERS:
 		var view := game.view_of(peer)
 		# Whole session: its own RoleAssigned only; a crew member no Teammates, and no payload
@@ -73,7 +80,8 @@ func test_end_widens_nothing_and_no_role_reaches_anyone_over_the_session() -> vo
 					. override_failure_message("%s reveals a role" % event.event_name())
 					. is_false()
 				)
-		# From the end on, nobody learns a role: MatchEnded holds the side alone.
+		# From the end on, nobody learns a role: MatchEnded holds the side, the condition and
+		# the time alone (#548: all three public).
 		var from := view.event_names().find(&"MatchEnded")
 		assert_int(from).is_less(at_end[peer])
 		for event: MatchEvent in view.events.slice(from):
@@ -83,7 +91,10 @@ func test_end_widens_nothing_and_no_role_reaches_anyone_over_the_session() -> vo
 				assert_bool(_names_role(event, &"crew")).is_false()
 		var ended := view.events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
-		assert_array(ended[0].to_dict().keys()).is_equal(["side"])
+		assert_array(ended[0].to_dict().keys()).is_equal(["side", "reason", "numbers"])
+		assert_dict(ended[0].to_dict()).is_equal(
+			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+		)
 
 
 func test_an_argument_that_is_no_side_is_a_rule_error_and_ends_nothing() -> void:
@@ -101,6 +112,28 @@ func test_an_argument_that_is_no_side_is_a_rule_error_and_ends_nothing() -> void
 	assert_int(game.diagnostics.size()).is_equal(3)
 	assert_str(game.diagnostics[0]).contains("pirates is not a side of the mode")
 	assert_str(game.diagnostics[1]).contains("carries no side")
+
+
+## A `won` that no win condition reported (a rule's) has no reason; a reason without a clock that
+## ran has no time (#548).
+func test_a_won_without_a_condition_names_no_reason_and_no_clock_no_time() -> void:
+	var game := FixtureWinModes.in_round(FixtureWinModes.basic(2), [P1, P2])
+	var seen := game.emitted().size()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.outcome = Match.WON
+	ctx.outcome_argument = &"crew"
+	EndMatch.new().run(ctx)
+	game.state.clock_ticks_total = -1
+	ctx.outcome_reason = &"every_task_done"
+	EndMatch.new().run(ctx)
+	var sent := game.emitted().slice(seen).map(
+		func(e: EmittedEvent) -> Dictionary: return e.event.to_dict()
+	)
+	assert_array(sent).is_equal(
+		[{"side": &"crew"}, {"side": &"crew", "reason": &"every_task_done", "numbers": {}}]
+	)
 
 
 ## Whether `event`'s payload holds the role id `role_id` as a value (a StringName or String),

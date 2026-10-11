@@ -24,8 +24,10 @@ func test_a_whole_cycle_from_lobby_back_to_lobby() -> void:
 	_h.ready_all()
 	assert_bool(_h.run_until_phase(&"countdown", 10)).is_true()
 	assert_bool(_h.run_until_phase(&"loading", 400)).is_true()
-	# Both acknowledge LoadMatch (bots: without loading), and LoadingPhase takes both.
-	assert_bool(_h.run_until_phase(&"round", 20)).is_true()
+	# Both acknowledge LoadMatch (bots: without loading), and LoadingPhase takes both; the pregame
+	# runs its 3 s (#213).
+	assert_bool(_h.run_until_phase(&"pregame", 20)).is_true()
+	assert_bool(_h.run_until_phase(&"round", 200)).is_true()
 	for client: ClientSession in _h.clients:
 		var loaded := client.view.events_named(&"PlayerLoaded")
 		assert_int(loaded.size()).is_equal(2)
@@ -42,10 +44,11 @@ func test_a_whole_cycle_from_lobby_back_to_lobby() -> void:
 	_h.own.send_intent(Intents.RETURN_TO_LOBBY)
 	assert_bool(_h.run_until_phase(&"lobby", 6)).is_true()
 	_h.pump_seconds(1)
-	# Claims in every phase that takes them, none in Loading.
+	# Claims in every phase that takes them, none in Loading and Pregame.
 	for phase: StringName in [&"lobby", &"countdown", &"round"]:
 		assert_int(_h.claims_in.get(phase, 0)).is_greater(0)
 	assert_int(_h.claims_in.get(&"loading", 0)).is_equal(0)
+	assert_int(_h.claims_in.get(&"pregame", 0)).is_equal(0)
 	assert_str(second.model.phase).is_equal("lobby")
 	# Each placement (into the round, back into the lobby) is a Correction the client adopts; the
 	# claims after it pass, so there is no other.

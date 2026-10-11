@@ -290,6 +290,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
 
     p = sub.add_parser(
+        "unattended",
+        help="the guard's 'nobody is watching' sign: asks become denials until its end time (--until | --hours | "
+        "--off | --status)",
+        description="A manager's sign, set before a night and cleared when the engineer is back (docs/AGENT_WORKFLOW.md "
+        "§8.2.11, #750). While it is in force for this session (CLAUDE_CODE_SESSION_ID) and its workflow agents, the "
+        "guard answers deny, with the reason it would have asked with and the line 'unattended: put this command in "
+        "the For-you block for the engineer', where it would ask: a permission card holds every notification of the "
+        "session until a human clicks it (#731). Nothing that asks today is allowed, deny rules are unchanged, and "
+        "without the sign nothing changes. --until HH:MM (the next such local time) or an ISO time, or --hours N, "
+        "at most 16 h ahead; --off clears this session's sign (--all: every sign); --status lists the signs. The sign "
+        "is a file per session in tools/out/unattended/ of the main checkout and fails closed: another session's, "
+        "an unreadable, malformed or expired one counts for nothing, so a human's own session never counts.",
+    )
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument("--until", metavar="TIME", help="HH:MM (the next such local time) or an ISO 8601 time")
+    what.add_argument("--hours", type=float, metavar="N", help="from now for N hours (more than 0, at most 16)")
+    what.add_argument("--off", action="store_true", help="clear this session's sign")
+    what.add_argument("--status", action="store_true", help="list the signs and whether they are in force")
+    p.add_argument("--all", action="store_true", help="with --off: clear every session's sign")
+
+    p = sub.add_parser(
         "slots",
         help="who holds and waits for the verify slots (--status); one slot for a while (--quiet <hours> | off)",
         description="The machine-wide verify slots, shared by every checkout of this PC (docs/AGENT_WORKFLOW.md §11). "
@@ -556,11 +577,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Check sound files with the Python standard library only (#524). A folder gives its .wav and "
         ".ogg files, at all depths. Each WAV must be PCM 16-bit, mono, at an allowed sample rate, with peak "
         "headroom (no clipping), its RMS loudness and duration within its category's bounds, little leading "
-        "silence and no DC offset. The bounds are data: tools/sfx/categories.json, provisional until #525. A "
+        "silence and no DC offset. The bounds are data: tools/sfx/categories.json, provisional until the "
+        "engineer's listening verdicts on the #525 set (assets/audio/sfx-verdicts.json) tune them. A "
         "file's category: --category, else the first category one of whose globs matches its file name, else "
         "its nearest folder named after a category or a glob's word, plural too (steps/ is footstep, backup/ "
-        "is none). The standard library cannot decode Vorbis: an OGG gets its identification header (channels, "
-        "rate) and its length checked and is reported as header-checked only. Writes a JSON "
+        "is none). The standard library cannot decode Vorbis: an OGG gets its identification header (mono or "
+        "stereo, #525; its rate) and its length checked and is reported as header-checked only. Writes a JSON "
         "report to tools/out/sfx/<set>.json and exits 1 on a failure, naming the file and the rule (format, "
         "pcm16, mono, sample-rate, category, duration, peak, rms, leading-silence, dc-offset). --page also "
         "writes tools/out/sfx/<set>.html: one self-contained page (the sounds inside it; no server, no external "
@@ -571,6 +593,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--page", action="store_true", help="also write the listening page")
     p.add_argument("--category", help="check every file as this category of the table")
     p.add_argument("--out", type=Path, help="the folder for the report and the page (default: tools/out/sfx/)")
+
+    p = sub.add_parser(
+        "ui-sync",
+        help="pin the UI pack of prime-game-ui at a tag into client/ui/theme/pack/; no tag: verify it offline",
+        description="Pin the UI track's pack (xperiaroco2/prime-game-ui, dist/pack/ at a tag ui-<semver>, #288): its "
+        "JSON and SVG files land byte for byte in client/ui/theme/pack/ under a .gdignore, and "
+        "client/ui/theme/pack.lock.json records the repo, tag, commit and each file's sha256. Every asset of the "
+        "pack's assets list (icons, card art) also lands in assets/ui/toy_pack/, which Godot imports, each SVG at "
+        "the pack's svg_scale (#520); another binary is listed under deferred. The pack is checked (format, a known "
+        "schema, version = the tag, assets' sha256) before anything is written. With no tag, or --check, it "
+        "verifies the pinned copy offline; a tag already pinned and intact is not fetched again unless --force. "
+        "Then regenerate the theme: run tools/theme/build_theme.gd --headless.",
+    )
+    p.add_argument("tag", nargs="?", help="the tag to pin, ui-<major>.<minor>.<patch> (none: verify the pinned copy)")
+    p.add_argument("--check", action="store_true", help="verify the pinned copy offline (with a tag: and its tag)")
+    p.add_argument("--force", action="store_true", help="fetch the tag even when it is already pinned and intact")
+    p.add_argument("--source", help="a clone or URL to fetch from instead of GitHub (e.g. D:/prime-game-ui)")
 
     p = sub.add_parser(
         "agents-check",
@@ -623,6 +662,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose",
         action="store_true",
         help="--compact: print each summary line whole (default: cut at 400 characters; metrics.md has them whole)",
+    )
+    p.add_argument(
+        "--adr-reads",
+        action="store_true",
+        help="also a table of the ADR reads by file: whole-file, section and small reads, tokens, list $, the top 10 "
+        "by $ and the agent types that read each (#793)",
     )
     p.add_argument(
         "--track",
@@ -705,6 +750,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--repo", nargs="+", action="extend", default=[], metavar="OWNER/NAME", help="only these repos (default all three)"
     )
+
+    p = sub.add_parser(
+        "ui-copy",
+        help="import the UI track's copy deck (the en and uk strings) at a ui-<semver> tag, with its lock",
+        description="Copy copy/strings.csv of xperiaroco2/prime-game-ui at a release tag into client/i18n/strings.csv, "
+        "byte for byte, and write client/i18n/strings.lock.json (repo, tag, commit, sha256). Godot's import turns it "
+        "into the translations project.godot lists; commit both files. Reads GitHub through gh, or a local checkout "
+        "with --from (#208).",
+    )
+    p.add_argument("tag", help="the UI release tag, for example ui-0.4.0")
+    p.add_argument("--from", dest="source", type=Path, help="a local checkout of prime-game-ui (its tags fetched)")
 
     p = sub.add_parser(
         "pins", help="print pinned tool versions as JSON", description="Print the pinned tool versions as JSON."
@@ -832,6 +888,12 @@ def main(argv: list[str] | None = None) -> int:
             from . import load
 
             return load.main(args.loops, args.seconds)
+        if args.command == "unattended":
+            from . import unattended
+
+            if args.all and not args.off:
+                raise Failure("--all goes with --off")
+            return unattended.main(args.until, args.hours, args.off, args.all, args.status)
         if args.command == "slots":
             from . import slots
 
@@ -943,6 +1005,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import sfx
 
             return sfx.main(args.paths, page=args.page, category=args.category, out=args.out)
+        if args.command == "ui-sync":
+            from . import ui_sync
+
+            return ui_sync.main(args.tag, source=args.source, check=args.check, force=args.force)
         if args.command == "agents-check":
             from . import agents_check
 
@@ -953,6 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
                 no_gh=args.no_gh, track=args.track, budget=args.budget, run_ids=args.run, verbose=args.verbose,
+                adr_reads=args.adr_reads,
             )
         if args.command == "wave":
             from . import wave
@@ -977,6 +1044,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import inbox
 
             return inbox.main(since=args.since, repos=args.repo)
+        if args.command == "ui-copy":
+            from . import ui_copy
+
+            return ui_copy.main(args.tag, source=args.source)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0

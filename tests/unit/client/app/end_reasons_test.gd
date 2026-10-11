@@ -44,6 +44,35 @@ func test_the_hosts_own_reasons_are_server_s() -> void:
 	)
 
 
+## #494: every end but the player's own leaving shows a failure of the connecting screen first,
+## and every state named is one the screen draws.
+func test_every_end_but_leaving_has_a_failure_state_the_screen_draws() -> void:
+	for reason: StringName in EndReasons.WORDS:
+		var state := EndReasons.failure_state(reason)
+		if EndReasons.NO_FAILURE.has(reason):
+			assert_str(String(state)).override_failure_message(reason).is_empty()
+		else:
+			(
+				assert_bool(ConnectingScreen.FAILURES.has(state))
+				. override_failure_message("%s -> %s" % [reason, state])
+				. is_true()
+			)
+	assert_array(EndReasons.NO_FAILURE).contains_exactly_in_any_order(
+		[ClientSession.LEFT, HostSession.CLOSED]
+	)
+	assert_int(EndReasons.FAILURE_STATES.size() + EndReasons.NO_FAILURE.size()).is_equal(
+		EndReasons.WORDS.size()
+	)
+	# Each of the screen's failure states is reachable from some end.
+	for state: StringName in ConnectingScreen.FAILURES:
+		(
+			assert_bool(EndReasons.FAILURE_STATES.values().has(state))
+			. override_failure_message(state)
+			. is_true()
+		)
+	assert_str(String(EndReasons.failure_state(&"no_such_reason"))).is_empty()
+
+
 func test_an_unknown_reason_is_its_id() -> void:
 	assert_str(EndReasons.words(&"no_such_reason")).is_equal("no_such_reason")
 	assert_str(EndReasons.text(&"no_such_reason")).is_equal("no_such_reason")

@@ -17,6 +17,9 @@ You review the diff of the current branch against `origin/main` (or `main` if th
   `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included. AGENT_WORKFLOW
   and the ADRs alike. Run it from the worktree under review (prefix `cd <worktree> &&` when the launch prompt names
   one), so a diff that edits a doc is read against its own version.
+- What a command prints stays in your context to the end: `git diff --stat` first, then the diff file by file or by
+  range (a large file with `git diff <base> -- <file>`, or `git show` of one commit), never a whole large doc or
+  one huge diff in a single read; the `section` outline before any doc section.
 - Check against: root `CLAUDE.md` (already loaded) and the area `CLAUDE.md` files of the changed folders; the
   ARCHITECTURE sections the change touches (layers §1, intents and events §4.1-§4.3, the host session §4.5, the
   client §4.7.x, filtering §5, content API §9.x: pick the subsections from the outline, never all of §4 or §9, the

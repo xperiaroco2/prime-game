@@ -1,7 +1,7 @@
-[gd_scene format=3 uid="uid://1drog7420uj1"]
+[gd_scene format=3]
 
-[ext_resource type="Script" uid="uid://c2ercwv4w0334" path="res://client/dev/screen_preview.gd" id="1_preview"]
+[ext_resource type="Script" path="res://client/dev/screen_preview.gd" id="1_preview"]
 
-[node name="ScreenPreview" type="Node" unique_id=1845144930]
+[node name="ScreenPreview" type="Node"]
 script = ExtResource("1_preview")
 preview = 5

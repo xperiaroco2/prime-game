@@ -1186,6 +1186,34 @@ session's workflow agents, and that a scheduled session carries one of the two s
 `CLAUDE_CODE_SESSION_ATTENDED=1` or runs outside the desktop app, the hook allows nothing and the run prompts as
 before #312).
 
+#### 8.2.11 The "nobody is watching" sign (#750)
+A guard `ask` is a permission card, and a card has no timeout: while a call waits on one, Claude Code holds every
+notification of that session (finished workflows, the keep-alive timer) until a human clicks it. On 2026-10-09 one ask
+at 22:06Z kept the meta manager silent for 9 h 23 min (#731). The card shows in every mode, bypass included, so a manager
+that runs while the engineer is away needs the guard to refuse instead of ask. That is the sign:
+
+- **Set** by the manager before a night, from its own session: `tools\run.cmd unattended --until 07:30` (the next such
+  local time; or an ISO time such as `2026-10-11T05:30Z`) or `--hours 9`. At most 16 h ahead; a longer one is refused.
+  It writes `tools/out/unattended/<session id>.json` in the main checkout (any worktree writes there), with the
+  session id from `CLAUDE_CODE_SESSION_ID`, so the shell must be the manager's own.
+- **Cleared** by the manager when the engineer is back (his first message), before anything else: `unattended --off`
+  (`--off --all` clears every session's; `--status` lists the signs). It also ends by itself at its time.
+- **Effect.** In a call with the sign in force, every guard `ask` is a `deny` with the same reason plus one line:
+  "unattended: put this command in the For-you block for the engineer". The agent gets an error and goes on; the
+  command goes into the For-you block (MANAGERS §3). Nothing is allowed that was not before: the deny and ask rules,
+  the guard's findings and Claude Code's own checks are unchanged, and a call the guard finds nothing in is left
+  alone (the `acceptEdits` allow of §8.2.10 is a separate sign).
+- **Fail-closed, per session.** The hook (`hooks.manager_sign`, read only when the guard would ask) counts the sign
+  for a call whose `session_id`, or an id in its `transcript_path`, is the sign's session. A workflow agent's
+  transcript sits under the manager's session id (`<session id>/subagents/workflows/<run>/`, seen 2026-10-10), so the
+  manager's sign covers its agents. A human's own session has another id and no file, so it keeps its prompts, also
+  when the manager forgot to clear the sign. No file, another session's, one that has ended, one that ends more than 16 h
+  ahead, an unreadable or malformed one, or an id that is not a UUID: the ask, as before. Unverified until a night shows
+  it: that the hook payload's `session_id` equals `CLAUDE_CODE_SESSION_ID` and that a workflow agent's call carries the
+  manager's id in its `transcript_path`; if not, the sign changes nothing and the ask stays (`unattended --status` shows
+  the sign; the first night's For-you says whether a guard ask still came).
+- Out of scope (the engineer's answers on #741): a `Notification` hook, a Claude Code feature request.
+
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
 `git config *hooksPath*` is denied). It blocks pushes to `main`, all deletions and force pushes (any non-fast-forward
@@ -1202,7 +1230,8 @@ marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` 
   step 5) and the lease push. It stops before touching anything when the remote branch has a commit this branch never
   had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease alone would not
   protect it, because the fetch just updated the expected value. A conflict aborts the rebase and leaves the branch as
-  it was; a red `verify` pushes nothing. After its parent was rebased or amended, a stacked child replays only its own
+  it was; a red `verify` pushes nothing. When HEAD already holds the base's tip (a branch that took `main` or the base
+  in by a merge, #694) there is no rebase: it would drop the merges and replay what they brought in as the branch's own. After its parent was rebased or amended, a stacked child replays only its own
   commits: those after the parent commit `start` recorded (`branch.<task>.primeBaseTip`, renewed by each publish on the
   parent; `rebase --onto`), else those after the fork point (`--fork-point`, which needs the reflog of the parent's
   remote ref).
@@ -1252,7 +1281,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ assets/ .github/ .claude/ project.godot export_presets.cfg CLAUDE.md README.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP,PLAYING,MANAGERS}.md`, and the **content area**: `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Designer (optional) | none of his own: he may contribute anywhere, mostly in the content area, through PRs the engineer merges |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1325,7 +1354,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Credits [applied]:** one file per asset or pack, `docs/credits/<asset-slug>.md`: a `# <name>` title, then
   `- **Files:**` (repo-relative globs in backticks; `*` stays in one folder, `**` crosses folders), `- **Author:**`,
   `- **Source:**` and `- **License:**` lines; more fields and free text are copied as they are
-  ([example](credits/gdunit4.md)). `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
+  ([example](credits/gdunit4.md)). An entry that covers an LFS asset also has `- **AI generated:**` and
+  `- **Public repo OK:**`, each `true` or `false` first (the art manifest's `ai_generated` and `public_repo_ok`,
+  #519; the art handoff: `docs/ARCHITECTURE.md` §11), and `check` refuses `Public repo OK: false`. A file the engineer
+  adds by hand later gets its entry first with `- **Pending:** <what lands, and how>`: its globs may match no file
+  yet (#520, the Comfortaa font); `check` warns about it, and fails once every glob matches a file until the line
+  goes.
+  `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
   `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
   files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
   date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
@@ -1610,7 +1645,7 @@ the guard's reason; the line ends with what the engineer does. The command is re
 session and 0 otherwise, and its last line counts the transcripts it read. Its flags other than `--minutes` are
 refused.
 
-### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
+### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--adr-reads] [--track NAME ... [--budget PCT ...]] | --run ID ...` [applied]
 (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
 baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
 reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -1651,7 +1686,8 @@ the end of the compact "task medians" line: run it for a wave before a change an
 prompt size per agent role (#470: the prompt the script gave each agent, in characters and estimated tokens, median and
 max; `prompt_sizes` in `metrics.json`, not in `--compact`), the Sonnet implementer trial (#560: per trial task, against the
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
-and CI fix rounds, tool calls and $, and the stop rule's advice; `sonnet_trial` in `metrics.json`;
+and CI fix rounds, tool calls and $, and, since the keep (2026-10-10 18:06Z), the revert rule's advice (blockers and
+majors over 0.3 a task across 10 tasks); `sonnet_trial` in `metrics.json`;
 [trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
 agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
@@ -1717,7 +1753,15 @@ $15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the wi
 one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
 AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
 single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
-`instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
+`instructions` in `metrics.json`, and one compact line. **`--adr-reads`** (#793) adds the table of ADR reads by file
+(`instructions.adr_reads` in `metrics.json` has it without the flag): per file under `docs/decisions/` that a tool
+read, the reads split whole (a `Read` with no offset or limit, or a `cat`, that returned over 150 lines), section
+(the runner's `section`, a `Read` with an offset or limit, `sed -n`, `head`, `tail`, a Grep or a search) and small (a
+file of 150 lines or fewer read in full), the tokens, the list $, the top 10 by $ and the agent types that read it by
+their share of its $. A `section <doc>` call is a (section) read of the doc in the by-file table too, but it carries
+no text to the by-§ tables of ARCHITECTURE and AGENT_WORKFLOW, so a doc's by-file $ can exceed its by-§ total; in a
+command with more steps, each other step's docs keep their own kind (a `cat` beside it is a plain read). Tests:
+`tools/runner/tests/test_metrics_adr_reads.py`. **`--track NAME ...`** (#409, P1 of the four-track budget
 design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
 session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and the checkouts with its folder
 name plus `-ui` and `-art`, each with its worktrees. The main checkout's folder comes from its path; the other two's
@@ -1768,7 +1812,8 @@ with no folder here: not on this machine, #586); next to an ID that does, it get
 The real game in off-screen
 windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
 (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
-players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
+players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port; with the `tutorial` header it
+is the only window and starts the solo tutorial, `--tutorial`, #601), up to two more windows join it,
 and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
 scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
 host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
@@ -1783,7 +1828,7 @@ turns its own player, `PlayerController.look`, to face the nearest resting item 
 paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
 `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
 stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
-edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+edit, and a timeout prints what the window drew (`hud.aim 'Package'`). `lacks` holds at once on a hidden field
 (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
 off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
 playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
@@ -1797,8 +1842,8 @@ driver when every core is busy, #354; the bots after 10 s). Under a full-PC load
 are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
 debugging it. Desktop only: CI and `verify` never run it; an agent
 may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
-up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
-second round, #276).
+up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, the end screen's countdown
+and the return to the lobby with no button, #212, and a second round, #276).
 
 ### 11.14 Warnings [applied]
 `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
@@ -1809,9 +1854,10 @@ Python core `tools/run.py` with
 `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
 `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
 `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), `signal` (the signalling Worker's
-tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25), and
-`hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+`mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `unattended` (§8.2.11), `section` (§3), `signal` (the signalling Worker's
+tests, `tools/signal/`, under the pinned Node; #368), `inbox` (§11.23), `export` (§11.24), `sfx-check` (§11.25),
+`ui-sync` (§11.26), `ui-copy` (§11.27), and `hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md`
+lists only the names, §3). Pins and pass/fail
 rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
 Bash; `doctor` finds Git Bash through git's install folder. Logs go to `tools/out/logs/`, GdUnit reports to
 `tools/out/gdunit/`. The commands agents run in loops are quiet by default (#590, #572; `--verbose` prints the whole
@@ -2225,11 +2271,46 @@ sounds; a change to them is a table edit, not code. A WAV is read whole and fail
 `mono`, `sample-rate`, `category`, `duration`, `peak` (with the count of samples at full scale), `rms`,
 `leading-silence` or `dc-offset`. An OGG gets its identification header (Vorbis only; channels, rate) and its length
 (the last page's granule position) checked and is "header-checked only": the standard library cannot decode Vorbis.
+Mono or stereo passes for an OGG only (`sfx.OGG_CHANNELS`, #525: Kenney's packs ship stereo Ogg, and without ffmpeg
+nothing folds one to mono; a stereo WAV still fails `mono`).
 The JSON report goes to `tools/out/sfx/<set>.json`; exit 1 on any failure, each printed as `<file>: <rule>:
 <numbers>`. `--page` also writes `tools/out/sfx/<set>.html`: one file with the sounds inside it as data: URLs (no
 server, no external script or font; it still plays when moved), an `<audio>` per file grouped by category with its
 numbers and failures, approve or reject and a note (kept in the browser's storage for that page), and "Export
 verdicts", a JSON download that the engineer saves next to the set as `sfx-verdicts.json`.
+
+### 11.26 `ui-sync [tag] [--check] [--force] [--source S]` [applied] (#288)
+Pins the UI track's pack (xperiaroco2/prime-game-ui, `dist/pack/` at a tag `ui-<semver>`) for the generated theme
+(`docs/ARCHITECTURE.md` §4.7.25; `tools/runner/ui_sync.py`, tests: `test_ui_sync.py` on a fixture repository built in
+a temporary folder). It clones the tag with `--no-checkout` and reads the blobs with `git cat-file` (no working tree,
+no line-ending conversion, no credentials: the repository is public; `--source` takes a local clone or another URL).
+The pack is checked in memory before anything is written (`format`, a known `schema`, `version` = the tag, each
+asset's sha256 against the pack's `assets` record), so a bad tag leaves the pinned copy as it was. Its JSON and SVG
+files land byte for byte in `client/ui/theme/pack/` (`-text` in `.gitattributes`: git converts no line ending)
+under a `.gdignore` (Godot imports none of it; nothing at run
+time may read it, and exports leave it out), stale ones are removed, and `client/ui/theme/pack.lock.json` records
+`{repo, tag, commit, files: {path: sha256}, imported: {path: sha256}, deferred: {path: sha256}}`. Every asset of the
+pack's `assets` list (its icons and card art) also lands byte for byte in `assets/ui/toy_pack/`, which Godot imports
+(#520, `docs/ARCHITECTURE.md` §4.7.34): the PNGs through LFS, each SVG's `.import` with the pack's `svg_scale` (a
+minimal file where none exists, else only that line changed); commit the `.import` files the next import writes. A
+binary outside the `assets` list (a font, later) is not landed and is listed under `deferred`. With no tag, or `--check`, it
+verifies the pinned copy offline (each file against the lock, no extra or missing file, the `.gdignore`, the lock's tag against the pack's version, the schema, the
+assets' sha256, nothing deferred on disk; the imported copy against `imported`, an LFS pointer file by its oid, each
+SVG's scale, no pack asset left out); a tag already pinned and intact is not fetched again unless `--force`. A
+runner test runs the same check on the committed copy, so a hand edit under `client/ui/theme/pack/` fails `verify`.
+Then `tools\run.cmd run tools/theme/build_theme.gd --headless` regenerates the themes.
+
+### 11.27 `ui-copy <tag> [--from DIR]` [applied] (#208)
+The UI track's copy deck into the game: `copy/strings.csv` of xperiaroco2/prime-game-ui at a release tag
+`ui-<major>.<minor>.<patch>` becomes `client/i18n/strings.csv`, byte for byte, and `client/i18n/strings.lock.json`
+records the repo, the tag, its commit and the file's sha256 (the shape of #288's theme pack lock; `ui-sync` copies
+the pack, not the deck, so the deck has its own step). It reads GitHub through `gh api`, or with `--from` a local
+checkout of prime-game-ui (its tags fetched first). It refuses another tag form, a missing tag, a deck that is not
+UTF-8, has CR line ends or a byte-order mark, or another header than `keys,en,uk,?plural,?context`, and then writes
+nothing. Godot's import turns the deck into `strings.en.translation` and `strings.uk.translation` beside it
+(gitignored, rebuilt by every import); commit the deck, the lock and a changed `strings.csv.import`. The game's side:
+`docs/ARCHITECTURE.md` §4.7.26. Tests: `tools/runner/tests/test_ui_copy.py` (a throwaway git repository as the
+checkout, and the committed deck against its lock).
 
 ## 12. The designer's agent
 

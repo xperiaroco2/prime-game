@@ -9,14 +9,18 @@ extends RuleEffect
 ## It must run before the row's PlacePlayers: placed first, a downed or dead player would be placed
 ## in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot.
 ##
-## Emits: ReadyChanged(peer, false) (everyone), per player in peer-id order. No demands.
+## Emits: ReadyChanged(peer, false) (everyone), per player in peer-id order; then SettingsChanged
+## (everyone, FitCheck), as a leave in the lobby does (#737): the players who left mid-match are
+## dropped here, so the lobby may be short of the mode's min_players again, and the shortfalls
+## every client last got are the empty ones of before the countdown. No demands.
 
 
 func run(ctx: MatchContext) -> void:
 	ctx.state.reset_match()
 	for peer: int in ctx.state.present_peers():
 		ctx.emit(ReadyChangedEvent.new(peer, false))
+	ctx.emit(FitCheck.settings_changed(ctx))
 
 
 func emits() -> Array[Script]:
-	return [ReadyChangedEvent]
+	return [ReadyChangedEvent, SettingsChangedEvent]

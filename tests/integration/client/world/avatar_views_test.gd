@@ -130,6 +130,27 @@ func test_the_invulnerable_flag_shows_the_shell_and_every_body_hides_out_of_sigh
 	assert_bool(body.is_invulnerable()).is_false()
 
 
+## #551: a body wears its player's colour from the roster, standing and lying, and a profile change
+## repaints the same material, never a new mesh per frame.
+func test_a_body_wears_its_players_colour_and_follows_a_profile_change() -> void:
+	_model.fold(&"PlayerJoined", {"peer": PEER, "name": "Olena", "spot": Vector3.ZERO, "colour": 4})
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var mesh := _views.body_of(PEER).get_node(^"Mesh") as MeshInstance3D
+	var capsule := mesh.mesh as CapsuleMesh
+	var material := capsule.material as StandardMaterial3D
+	assert_object(material.albedo_color).is_equal(BodyColours.of(4))
+	_model.fold(&"ProfileChanged", {"peer": PEER, "name": "Olena", "colour": 7})
+	await _drawn()
+	assert_object(mesh.mesh).is_same(capsule)
+	assert_object(material.albedo_color).is_equal(BodyColours.of(7))
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	assert_bool(_views.body_of(PEER).is_downed()).is_true()
+	assert_object(mesh.mesh).is_same(capsule)
+	assert_object(material.albedo_color).is_equal(BodyColours.of(7))
+
+
 func test_the_host_tick_never_runs_backwards() -> void:
 	var avatars := {}
 	# One snapshot arrives with no delay, then every later one 3 ticks late: when the first leaves

@@ -9,8 +9,10 @@ extends Condition
 ## at the start of a round.
 ##
 ## It reads every player's role, which is hidden (§5), but only inside a win condition: those
-## check facts and reject nothing, and `won` reaches no peer (§9.2); MatchEnded names only the
-## side. The dissidents' "no crew present". The class keeps its name from the "no crew alive" it
+## check facts and reject nothing. Its id reaches every player as MatchEnded's reason (#548, §5,
+## §9.2), which is safe only because a dissident win before `time_up` already implies that no crew
+## is present; a win condition whose holding the public events do not already imply must not be
+## added. The dissidents' "no crew present". The class keeps its name from the "no crew alive" it
 ## replaced (M4-2), so the content API's part list and the data that names it stay as they were.
 
 ## A SideSpec id of the mode.

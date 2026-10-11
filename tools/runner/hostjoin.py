@@ -225,6 +225,12 @@ def host_parts(
     return parts
 
 
+def tutorial_parts(*, stop: Path) -> list[Part]:
+    """The game's solo tutorial (--tutorial, #601): one window whose host runs on a private in-process hub, so it
+    opens no port and nothing joins it; it prints the HOSTING line too, which nobody waits for."""
+    return [Part("host", ["--tutorial", *_tail(None, stop)])]
+
+
 def join_parts(address: str, port: int | None, *, stop: Path, signal: str | None = None) -> list[Part]:
     """A joiner of `address` (a host's address, or a room's code through the `signal` service)."""
     service = [f"--signal={signal}"] if signal else []

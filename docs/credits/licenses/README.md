@@ -7,6 +7,7 @@ edit one; fetch the new file when the version changes, and update its row.
 
 | File | Why a build carries it | Source (verbatim) | SHA-256 |
 |---|---|---|---|
+| `comfortaa/OFL.txt` | The game's UI font, `assets/ui/comfortaa/comfortaa.ttf`, is packed into the `.pck` (#684) | https://github.com/google/fonts/blob/main/ofl/comfortaa/OFL.txt (google/fonts `ofl/comfortaa`, downloaded 2026-10-10) | `bc85bae0b512b799bbfb2b916e4d0a34cfd963d09778cd783e248b479e67760a` |
 | `godot/LICENSE.txt` | The `.exe` is Godot 4.7.2-stable's release template (`pins.py`) | https://github.com/godotengine/godot/blob/4.7.2-stable/LICENSE.txt (tag commit `ed1daf0bf001b61586d9930840f2f1394092c079`) | `b0435e3b3e4e55238f05f4b306f30524a1b2e20147810d436eaa554fa6855c80` |
 | `godot/COPYRIGHT.txt` | Godot's third-party notices for the same template | https://github.com/godotengine/godot/blob/4.7.2-stable/COPYRIGHT.txt (same commit) | `cb1980c88089573bcacd7221d777c689bb8bbd778799f24c27fca0fe5f774d6d` |
 | `opus/COPYING` | Opus, built into TwoVoIP v6.5's `libtwovoip` | https://github.com/xiph/opus/blob/ddbe48383984d56acd9e1ab6a090c54ca6b735a6/COPYING (the `opus` submodule commit at two-voip-godot-4's tag v6.5) | `01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551` |

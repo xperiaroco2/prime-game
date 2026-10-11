@@ -18,20 +18,25 @@ static func demands(ctx: MatchContext) -> Demands:
 	)
 
 
-## Every reason the settings do not fit; empty when they do.
-static func shortfalls(ctx: MatchContext, needed: Demands) -> PackedStringArray:
-	var found := PackedStringArray()
+## Every reason the settings do not fit, as HostTexts (#548): the player count first
+## (`players_few` or `players_many`, with `count` off the bound, `min` and `max`), then `no_layout`
+## or the map's shortfalls (Demands.shortfalls). Empty when they fit.
+static func shortfalls(ctx: MatchContext, needed: Demands) -> Array[HostText]:
+	var found: Array[HostText] = []
 	var players := ctx.state.present_peers().size()
-	if players < ctx.mode.min_players or players > ctx.mode.max_players:
-		found.append(
-			(
-				"%d player(s), the mode plays with %d to %d"
-				% [players, ctx.mode.min_players, ctx.mode.max_players]
-			)
-		)
+	var bounds: Dictionary[StringName, int] = {
+		&"min": ctx.mode.min_players, &"max": ctx.mode.max_players
+	}
+	if players < ctx.mode.min_players:
+		bounds[&"count"] = ctx.mode.min_players - players
+		found.append(HostText.of(HostText.PLAYERS_FEW, PackedStringArray(), bounds))
+	elif players > ctx.mode.max_players:
+		bounds[&"count"] = players - ctx.mode.max_players
+		found.append(HostText.of(HostText.PLAYERS_MANY, PackedStringArray(), bounds))
 	var layout := ctx.map_layout()
 	if layout == null:
-		found.append("no layout for the map %s" % ctx.state.map)
+		# No arguments: a map path is not a wire id, and SettingsChanged names the map.
+		found.append(HostText.of(HostText.NO_LAYOUT))
 	else:
 		found.append_array(needed.shortfalls(layout))
 	return found
@@ -51,7 +56,8 @@ static func settings_changed(ctx: MatchContext) -> SettingsChangedEvent:
 		needed,
 		ctx.map_layout(),
 		shortfalls(ctx, needed),
-		id_sets(ctx)
+		id_sets(ctx),
+		ctx.state.lobby_name
 	)
 
 

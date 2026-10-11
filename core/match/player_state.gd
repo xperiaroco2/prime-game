@@ -11,6 +11,9 @@ enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 var peer: int
 var name: String
+## The body colour, an index into PlayerColours (#551): public, kept for the session (ResetMatch
+## leaves it), set at the join and by SetProfile in the lobby.
+var colour := 0
 var ready := false
 ## A GameRole id, or empty before the deal.
 var role: StringName

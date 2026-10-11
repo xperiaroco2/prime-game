@@ -40,6 +40,10 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   say "the machine slept or was suspended (<n> s)", and `wait` says so. Not the change's red: relaunch the run fresh
   with that line in `notes`. `slots --status` marks a slot holder from before the sleep STALE: launch as if it were
   free.
+- **The "nobody is watching" sign** (#750): a guard ask is a card that holds your notifications all night (#731). Before
+  the engineer leaves, run `tools\run.cmd unattended --until <HH:MM>` in your own session, and `unattended --off` at his
+  first message (MANAGERS §4, AGENT_WORKFLOW §8.2.11). It turns the guard's asks into denials; settings `ask` rules and
+  Claude Code's own checks still show a card.
 - A plan limit: with `autoContinueAtUsageLimit` on, a workflow's agents wait for the reset and continue on their
   own; otherwise they fail and you resume after the reset. While you wait, the keep-alive (the skill's §7) is your
   only timer.

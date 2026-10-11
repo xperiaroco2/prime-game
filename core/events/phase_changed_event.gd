@@ -2,7 +2,7 @@ class_name PhaseChangedEvent
 extends MatchEvent
 ## Every transition (ARCHITECTURE §4.2): the new phase and, if one runs, the countdown's or the
 ## match clock's end as a host tick. It names only the phase: an outcome and its argument reach
-## no peer (§9.2). Audience: everyone.
+## no peer through it (§9.2; MatchEnded names the win condition, #548). Audience: everyone.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE

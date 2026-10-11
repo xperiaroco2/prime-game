@@ -278,6 +278,17 @@ class NoticesTest(unittest.TestCase):
                 version = f"{pins.GODOT}-stable" if name.startswith("godot/") else release.group(1)
                 self.assertIn(version, lines[0])
 
+    def test_the_font_ships_its_license_text(self) -> None:
+        # #684: the Comfortaa TTF is packed into the .pck; the OFL asks its copyright and license to travel with it.
+        self.assertIn("licenses/comfortaa/OFL.txt", export.NOTICES)
+        self.assertIn("comfortaa", export.BUNDLED)
+        text = (ROOT / export.BUNDLED_LICENSES / "comfortaa" / "OFL.txt").read_bytes()
+        sources = (ROOT / export.BUNDLED_LICENSES / "README.md").read_text(encoding="utf-8")
+        lines = [line for line in sources.splitlines() if "`comfortaa/OFL.txt`" in line]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("https://", lines[0])
+        self.assertIn(hashlib.sha256(text).hexdigest(), lines[0], "the text is no longer the primary source's file")
+
     def test_an_unshipped_addon_is_excluded_from_both_presets(self) -> None:
         presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
         filters = [line for line in presets.splitlines() if line.startswith("exclude_filter=")]

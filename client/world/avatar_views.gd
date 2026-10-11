@@ -6,7 +6,8 @@ extends Node3D
 ## player's push search sees this frame's capsules (static bodies placed with
 ## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
 ## model's life fold says its player is living, lies while it says downed (M4-9), and wears the
-## invulnerable shell while the newest snapshot's avatar has the flag. Every body is in
+## invulnerable shell while the newest snapshot's avatar has the flag, and is painted its player's
+## body colour as the model's roster has it (BodyColours, #551). Every body is in
 ## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
 ## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) and a phase on another level
 ## (End -> Lobby) forget the poses: drawn behind the interpolation delay, the round's would stand
@@ -141,6 +142,7 @@ func _physics_process(_delta: float) -> void:
 		body.set_living(model.is_alive(peer))
 		body.set_downed(model.life_of(peer) == ClientModel.Life.DOWNED)
 		body.set_invulnerable(model.is_invulnerable(peer))
+		body.set_colour(BodyColours.of(model.colour_of(peer)))
 		body.set_pose(pose)
 
 
