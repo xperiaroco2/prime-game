@@ -34,8 +34,8 @@
   session's to decide and report (tier (a)): decided here, each revertible in its issue.
 - **Date:** 2026-10-10
 - **Deciders:** the engineer (the rules: DD1 to DD8, answered on 2026-10-10 in PR #713's comment 6095445718; DD9 and
-  §5.1's drafts in its comment 6100696677, which approved the design); the game-design manager session of #676 (DE1 to
-  DE16). Designed by the agent of #683, on the engineer's word (#683; the track's kickoff on #593, comment
+  §5.1's drafts in its comment 6100696677, which approved the design; DD10 on 2026-10-11 in its comment 6108665402,
+  so D2 comes after #825); the game-design manager session of #676 (DE1 to DE16). Designed by the agent of #683, on the engineer's word (#683; the track's kickoff on #593, comment
   6088751685).
 - **Amends:** [MVP rules](2026-09-29-mvp-rules.md) (Delivery: a circle per package placed at random, a colour per
   package, the palette of 10; on the House, while the greybox keeps them, DD9 (c)) and [the M4 client

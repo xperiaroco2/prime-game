@@ -209,7 +209,7 @@ kind per place, on its own marker on the House; a list in its data saying which 
 in its rules or on the screen; House gets one marker per place and loses its circles. The issues follow from the ADR's
 split, for M7.
 
-Open questions: none. The engineer answered every one on 2026-10-10 (the ADR's §5 and §10).
+Open questions: none. The engineer answered every one on 2026-10-10 and 2026-10-11 (the ADR's §5 and §10).
 
 ### Photo (#687)
 The House map's photo chain ([House map](design/house-map.md) §2, decision 7; its stations in §6). The rules below
