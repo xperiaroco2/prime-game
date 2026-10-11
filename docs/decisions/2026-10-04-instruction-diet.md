@@ -252,7 +252,8 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 - Root's commands section becomes three or four lines: the command names, `tools\run.cmd <command> --help`, and the
   logs and reports line.
 - Root's human-only sections (15%) cannot move without O5's packs: every session loads root, and the human sessions
-  need them.
+  need them. *Amended by #836 (the engineer's word on #302):* they moved to `docs/HUMAN_SESSIONS.md` without packs;
+  root keeps a pointer that a chat with a human follows before its first reply and again after a compaction.
 - Area `CLAUDE.md` files cost $10 by path in the window (0.3 / 0.4 points per 7 days): not worth trimming now.
 - *Risk:* an agent forgets that a command exists. The failure: it runs Godot by hand, against the hard rule, or skips
   `normalize` after a `.tscn` edit. Four things limit it:
