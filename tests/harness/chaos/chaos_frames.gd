@@ -10,8 +10,11 @@ extends RefCounted
 ##   from a peer other than 1, which the host counts as bad payloads (E17); and NextStage's (kind
 ##   15, #599): 0 to 3 bytes where its seq goes (the codec's bad payload), and its seq with 1 to 4
 ##   bytes after it (over the row's cap of 4, NetFrame's payload too large); and Interact's (kind
-##   18, #796): a station 0xFFFF (the codec's), and its seq and station with 1 to 4 bytes after
-##   them (over the cap of 6). Each Packet names the NetRejects reason it must be counted under
+##   18, #796, #770): its seq and 0 to 3 of its 4 field bytes (the codec's), and its seq, station
+##   and item with 1 to 4 bytes after them (over the cap of 8). Since #770 its station and item
+##   may each be none (0xFFFF), so no value of them is malformed: a station or item that names
+##   nothing, or both or neither, is the rules' (ChaosOracle).
+##   Each Packet names the NetRejects reason it must be counted under
 ##   (`expect`);
 ## - well-formed intents (message()), whose answer the rules give (ChaosOracle);
 ## - hostile MoveClaims (Claim), tagged in their velocity so the host's observer can tell them from
@@ -46,7 +49,7 @@ enum Shape {
 	SET_PROFILE_NO_COLOUR,
 	SET_PROFILE_TRAILING,
 	SET_PROFILE_BAD_NAME,
-	INTERACT_BAD_STATION,
+	INTERACT_TRUNCATED,
 	INTERACT_TRAILING,
 }
 
@@ -275,8 +278,9 @@ static func _bad_frame(shape: Shape, rng: RandomNumberGenerator, schema: WireSch
 			packet.bytes = NetFrame.encode(schema.kind_of(&"NextStage"), next_stage)
 			packet.expect = NetRejects.Reason.PAYLOAD_TOO_LARGE
 		Shape.INTERACT_TRAILING:
-			# Interact (seq, station) with bytes after it: at the row's cap, as NEXT_STAGE_TRAILING.
-			var fields := {"station": rng.randi_range(0, 9)}
+			# Interact (seq, station, item) with bytes after it: at the row's cap, as
+			# NEXT_STAGE_TRAILING.
+			var fields := _interact_fields(rng)
 			var interact := schema.encode(WireMessage.new(&"Interact", fields, CHAOS_SEQ))
 			interact.append_array(_random_bytes(rng, rng.randi_range(1, 4)))
 			packet.bytes = NetFrame.encode(schema.kind_of(&"Interact"), interact)
@@ -299,11 +303,15 @@ static func _bad_payload(
 			packet = message(schema, &"PickUp", {"item": 1}, CHAOS_SEQ)
 			bytes = packet.bytes.duplicate()
 			bytes.encode_u16(at + 4, 0xFFFF)
-		Shape.INTERACT_BAD_STATION:
-			# All ones is "no station", which Interact's station may not be (#796).
-			packet = message(schema, &"Interact", {"station": 1}, CHAOS_SEQ)
-			bytes = packet.bytes.duplicate()
-			bytes.encode_u16(at + 4, 0xFFFF)
+		Shape.INTERACT_TRUNCATED:
+			# Interact's seq and 0 to 3 of its 4 field bytes (station, item; each may be none
+			# since #770, so no value of them is bad): NetFrame takes the frame, the codec cannot
+			# read it.
+			var whole := schema.encode(
+				WireMessage.new(&"Interact", _interact_fields(rng), CHAOS_SEQ)
+			)
+			var short := whole.slice(0, 4 + rng.randi_range(0, 3))
+			packet = framed(schema.kind_of(&"Interact"), short, NetKindTable.Lane.RELIABLE)
 		Shape.BAD_PEER:
 			packet = message(schema, &"Raise", {"target": maxi(own, 2)}, CHAOS_SEQ)
 			bytes = packet.bytes.duplicate()
@@ -366,6 +374,14 @@ static func _random_bytes(rng: RandomNumberGenerator, count: int) -> PackedByteA
 	for i in count:
 		bytes[i] = rng.randi_range(0, 255)
 	return bytes
+
+
+## Interact's fields (#770): a station, an item, both or neither (-1 is none), each id 0 to 9.
+static func _interact_fields(rng: RandomNumberGenerator) -> Dictionary:
+	var named := rng.randi_range(0, 3)
+	var station := rng.randi_range(0, 9) if named & 1 else -1
+	var item := rng.randi_range(0, 9) if named & 2 else -1
+	return {"station": station, "item": item}
 
 
 ## A SetProfile the codec refuses (#551), under its cap so NetFrame takes it: without its colour

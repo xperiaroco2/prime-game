@@ -146,8 +146,26 @@ static func _rule(
 			# whatever its role; a downed one the chaos peers never name.
 			var standing := target != null and target.life != PlayerState.Life.DOWNED
 			answer_now = NOT_DOWNED if standing else &"?"
+		Intents.INTERACT:
+			answer_now = _interact(args, state)
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
+
+
+## Interact's target checks (§4.1, the cooking ADR's CE1): naming both a station and an item, or
+## neither, is `bad_args`; an id that names nothing, or a display station (CE6), is `nothing_to_do`;
+## a target that exists is "?" (its rules are the mode's; the base mode accepts Interact nowhere,
+## so a run never asks).
+static func _interact(args: Dictionary, state: MatchState) -> StringName:
+	var station: int = args.get("station", -1)
+	var item: int = args.get("item", -1)
+	if (station >= 0) == (item >= 0):
+		return RejectReasons.BAD_ARGS
+	var exists := false
+	if state != null:
+		var target: StationState = state.stations.get(station)
+		exists = state.items.has(item) if item >= 0 else target != null and not target.kind.display
+	return &"?" if exists else RejectReasons.NOTHING_TO_DO
 
 
 ## PickUp's conditions in their order (§9.4): ItemOnGround (`unavailable`), then InReach from the

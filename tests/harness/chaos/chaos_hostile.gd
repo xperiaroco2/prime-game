@@ -157,9 +157,10 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var intent := choices[rng.randi_range(0, choices.size() - 1)]
 	var seq := _seq_for(intent)
 	var args := _args_of(intent, phase)
-	var item: int = args.get("item", ChaosOracle.NO_ITEM)
+	# PickUp's item only: Interact's (#770) may be none (-1) or NO_ITEM, which the model lacks.
+	var item: int = args.get("item", ChaosOracle.NO_ITEM) if intent == Intents.PICK_UP else -1
 	# Only a resting item is far (FAR_M): a carried one may be next to it, where a claim is a step.
-	var resting := item != ChaosOracle.NO_ITEM and _client.model.items[item].rests()
+	var resting := _client.model.items.has(item) and _client.model.items[item].rests()
 	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE and not _quiet():
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
@@ -185,7 +186,7 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 			var facings := ChaosFrames.THROW_FACINGS
 			args = {"facing": facings[rng.randi_range(0, facings.size() - 1)]}
 		Intents.INTERACT:
-			args = {"station": rng.randi_range(0, 9)}
+			args = _interact_args()
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:
@@ -224,6 +225,22 @@ func _fresh_seq() -> int:
 	_next_seq += 1
 	_seqs.append(seq)
 	return seq
+
+
+## Interact's args (#770): a station id 0 to 9, an item (one its client knows, or NO_ITEM, which
+## names nothing), both or neither (-1 is none). The base mode accepts Interact nowhere, so each
+## is not_accepted; the oracle has their rule for a mode that takes it (bad_args, nothing_to_do).
+func _interact_args() -> Dictionary:
+	var named := rng.randi_range(0, 3)
+	var station := rng.randi_range(0, 9) if named & 1 else -1
+	var item := -1
+	if named & 2:
+		var known: Array[int] = []
+		for id: int in _client.model.items:
+			known.append(id)
+		known.append(ChaosOracle.NO_ITEM)
+		item = known[rng.randi_range(0, known.size() - 1)]
+	return {"station": station, "item": item}
 
 
 ## The item a PickUp names, as its client knows the items: one resting at least FAR_M from it
