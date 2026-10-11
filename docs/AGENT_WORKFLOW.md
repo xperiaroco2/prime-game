@@ -2104,7 +2104,8 @@ the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule
 to 11): wait with `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the
 job in the Bash tool with `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers
 the rest), with a new log per run under its scratch folder:
-`cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
+`cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>`
+(in the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
 `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
 default 120000 would cut a 180 s wait short. `wait` polls every 3 s for at most S seconds (default 180, 1 to 180;
 else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
