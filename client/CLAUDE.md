@@ -65,7 +65,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Under the Esc menu or the tutorial's invite (`GameUi.blocks_keys()`, #492) no gameplay key is read and the keys held when it opened are released (`Game._process`); the voice keeps working, the Talk key too, but not while a text field or a key capture has the keys (#488);
   closing it captures the mouse again (#169) where `GameFlow.pointer_on` does not free it (#517, §4.7.4 "The mouse"); a new screen closes a menu opened over another (#726). The map (#253, §4.7.33) frees the mouse but pauses no key (`PlayerController.mouse_free`; `GameUi.frees_mouse()` covers the map and the invite); `GameUi` alone holds it open; it draws rooms and zones from level data and no place but the own body's.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
-- The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.25).
+- The client sends intents through `net/`, never state, and predicts no outcome but a throw's arc (§4.7.52).
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,
   stamina) come from the client's own copy of the mode's `PlayerRules`; `PlayerTuning` keeps client feel only (the
   push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.

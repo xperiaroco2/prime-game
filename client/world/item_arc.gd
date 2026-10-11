@@ -1,6 +1,6 @@
 class_name ItemArc
 extends RefCounted
-## One thrown item's arc as this client draws it (ARCHITECTURE §4.7.25, §7.1.16; the throwing
+## One thrown item's arc as this client draws it (ARCHITECTURE §4.7.52, §7.1.16; the throwing
 ## ADR's TE5 (a); 37e), pure: no Nodes, no physics. ItemFlights keeps one per item in flight and
 ## moves its drawn time; ItemViews draws the item's view where position() says.
 ##

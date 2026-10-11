@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ItemViews' items in flight (ARCHITECTURE §4.7.25, §7.1.16; the throwing ADR's TE5 (a); 37e) in
+## ItemViews' items in flight (ARCHITECTURE §4.7.52, §7.1.16; the throwing ADR's TE5 (a); 37e) in
 ## a fixture world with a local player and AvatarViews on a fake clock, the throw fixture mode
 ## (FixtureThrowModes: 10 m/s, 9.8 m/s², radius 0.15 m): another player's throw leaves its body's
 ## hand as the body is drawn throwing it, flies on the arc at the avatars' drawn tick, holds to

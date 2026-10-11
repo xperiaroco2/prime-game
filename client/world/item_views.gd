@@ -2,7 +2,7 @@ class_name ItemViews
 extends Node3D
 ## The items of the own ClientModel in 3D (ARCHITECTURE §4.7, Hands; M4-8): an ItemView per item
 ## the model knows, drawn from the model's fold of the item events (ItemSpawned, ItemPickedUp,
-## Swapped, ItemPlaced, PackageDelivered, ItemThrown) and, in flight, from its arc (37e, §4.7.25):
+## Swapped, ItemPlaced, PackageDelivered, ItemThrown) and, in flight, from its arc (37e, §4.7.52):
 ## - nobody holds it: where it lies;
 ## - in flight: on its arc (`flights`, ItemFlights: the own throw predicted from the key press,
 ##   another's on the avatars' timeline, with the stop and a short fall at its rest), the same

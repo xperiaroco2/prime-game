@@ -10,7 +10,7 @@ extends Node3D
 ## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
 ##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
 ##   that takes Throw from the living, one at a time (`predicting`): `throw_sent` then starts its
-##   predicted arc (ItemViews, §4.7.25). With no such rule nothing is sent.
+##   predicted arc (ItemViews, §4.7.52). With no such rule nothing is sent.
 ## The facing is the camera's look vector (E22). The host decides everything and the client
 ## predicts nothing of an action's outcome but the throw's drawn arc, which changes no slot: the
 ## slots change only with the host's events. The keys

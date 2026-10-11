@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ItemArc (client/world/item_arc.gd; ARCHITECTURE §4.7.25, §7.1.16; the throwing ADR's TE5 (a)):
+## ItemArc (client/world/item_arc.gd; ARCHITECTURE §4.7.52, §7.1.16; the throwing ADR's TE5 (a)):
 ## the drawn arc is core's ItemFlight.point() at every whole tick and the host's swept segment in
 ## between; the thrower's prediction builds the host's vectors from the client's copy of the
 ## rule, found in core's order; the stop is the arc's point above the host's rest, a short fall

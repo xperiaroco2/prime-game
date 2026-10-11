@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ItemWorld's throw (ARCHITECTURE §4.7.25; #645) with a real local player, a ClientSession
+## ItemWorld's throw (ARCHITECTURE §4.7.52; #645) with a real local player, a ClientSession
 ## harness and the throw fixture mode as the client's own mode copy: the throw key starts the
 ## predicted arc and its launch sound at once; the host's own ItemThrown repeats no sound; the
 ## thrown item's ItemPlaced plays its landing sound only once the drawn item lands, while a

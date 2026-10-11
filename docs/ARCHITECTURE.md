@@ -169,7 +169,7 @@ countdown changes no scene and places nobody.
   different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
   once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
-  bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.17): one task
+  bound to a random circle of its own, whose colour it takes (`tasks`). The zone task's deal (#647, §9.5.18): one task
   of *zones* zones on distinct random zone spawn points, each in a distinct random palette colour (both `zones`); zone
   *i* is subtask *i* in station-id order. Then each task's `TaskState` (its id, type and
   subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
@@ -722,7 +722,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1.14) |
 | `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
-| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.17): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress` |
+| `ZoneProgress` | a zone's station, its ticks so far (after this tick's gain), the ticks it needs, whether it counts now, and the host tick (#647, ZE4) | everyone: it names no player, and counting is role-blind (ZD3) | the zone task's tick (§9.5.18): a zone whose counting changed since its last one, at most once per zone per 5 ticks (a change inside the window goes out at its end with that tick's state), and a zone done, in its own tick, before its task's `TaskState` and `TaskProgress` |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
@@ -2253,7 +2253,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()` (and, since #645,
   `Throw(facing)` on G); the host checks each again (§7.1), and the client predicts nothing of an action's outcome
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
-  `PhaseChanged` or `LoadMatch` (§4.7.25), which change no slot.
+  `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
   display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
   through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
@@ -2303,7 +2303,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
 - `project.godot`: `give_up` (G; F since #211, §4.7.28), `spectate_next` and `spectate_previous` (the left and right
-  mouse buttons). G is `throw` since #645 (§4.7.25), and the give-up hold counts only from a press made while downed
+  mouse buttons). G is `throw` since #645 (§4.7.52), and the give-up hold counts only from a press made while downed
   (`LifeView.hold_give_up`): a key held for a throw through the own knockdown, should a rebind share it, gives nothing
   up until it is let go.
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
@@ -2334,14 +2334,14 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
-  drawn and when the own living player holds it; in flight, on its arc (§4.7.25). Each view joins
+  drawn and when the own living player holds it; in flight, on its arc (§4.7.52). Each view joins
   `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
   toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
   player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
   frame. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
   over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's). It leaves out a
-  zone, which `ZoneViews` (§4.7.24) draws.
+  zone, which `ZoneViews` (§4.7.51) draws.
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
   the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
@@ -2499,7 +2499,7 @@ eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
 public circles only, the destination marker of D10 (b) included; the name plates of #257 show only past no level
 geometry, within 10 m, §4.7.29; a zone's fill, which tells that a living player stands there, is depth-tested like
-the zone and hidden by the downed camera's sight hiding, with no marker, label or HUD line, §4.7.24); a role named
+the zone and hidden by the downed camera's sight hiding, with no marker, label or HUD line, §4.7.51); a role named
 only on its own player's screen
 (a dissident's teammates on theirs, the plates' teammate mark too); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
@@ -2762,125 +2762,7 @@ screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck`
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest. A thrown item's arc, stop and fall are pure (`ItemArc`, `ItemFlights`, unit-tested against
 core's `ItemFlight.point()` and a fixture match's real throw); the arcs in a physics world, the own arc's sweep
-against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/integration/client/world/` (§4.7.25).
-
-#### 4.7.24 Built in M7-Z4 (#650), the zones, their fill and the done look
-The client side of the zone task (§9.5.17; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
-ZD11 (b) and ZE8, as the engineer answered them on #302).
-- **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
-  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out and draws every other station kind as before.
-- **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
-  `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
-  start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
-  not heard of never shows a fill that runs and then jumps back.
-- **The fill** is pure (`ZoneViews.ticks_at(station, now)` and `fill(station, now)`): the event's `ticks`, plus the
-  host ticks since its `tick` while it counts, capped at `needed`; a host tick behind the event or unknown (-1) adds
-  nothing; a done zone is full; a zone with no `ZoneProgress` yet is empty. `now` is `AvatarViews.host_tick()`, the
-  estimate the match clock reads; between two events the fill errs by at most the host's window (5 ticks), and the
-  next event's `tick` sets it right.
-- **The look** (ZD11 (b), greybox placeholders until the art pass): `ZoneViews` (`client/world/`, under `ItemWorld`
-  beside `CircleViews`) draws each zone at its station's position as a faint flat disc of the zone's radius, a ring
-  (`TorusMesh` squashed to a band about 1 cm tall, resting on the fill) at that radius and a fill: a second flat disc
-  scaled from the centre, its radius the share of the time counted, hidden while empty. All three are unshaded,
-  translucent, in `StationPlaced`'s colour (the palette is the data's: yellow, provisional, #302) and ordered disc,
-  fill, ring among themselves by a small `sorting_offset` each (2 cm apart), with `render_priority` left at 0 so they
-  sort by camera distance against every other translucent object, the delivery circles' cylinders included. A done
-  zone is full and dimmed (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery
-  circle's cylinder.
-- **The render checklist** (the M4 ADR's §3): every material is depth-tested (no `no_depth_test`; items 5 and 10), so
-  the fill never shows through walls; there is no through-walls marker, label or HUD line for zones and no zone
-  sound (ZD11; sounds come later, within the hearing range). Item 3: the fill tells that a living player stands in the
-  zone, as an avatar does, so it sits under a `FillSight` holder in `SightHider.GROUP` (its sight point the zone's
-  centre 10 cm up): while the downed camera is in use it shows only where the body's eye could see that point. The
-  holder's `visible` is `SightHider`'s; the fill inside keeps its own (empty or not). The disc and the ring are the
-  zone's fixed, public place, like the level, and stay drawn. The task screen is unchanged: its rows are `TaskState`s.
-- Tests: `tests/unit/client/net/client_model_test.gd` (the fold), `tests/unit/client/world/zone_views_test.gd` (which
-  kinds are zones; the fill extrapolated, still, capped, done, never running backwards),
-  `tests/integration/client/world/zone_views_test.gd` (the parts' sizes and colour, no circle for a zone, the fill
-  following `ZoneProgress` and the host tick, the done look, every part depth-tested: seen failing with a planted
-  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted; the flat ring and the parts' sort order;
-  the fill hidden behind a wall by `SightHider` while the disc and the ring stay: seen failing without the group,
-  reverted). The `shot`s:
-  `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
-  `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
-  `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
-
-#### 4.7.25 Built in #645 (37e), the throw key, the predicted arc and the remote arcs
-The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
-TE5 (a)). The wire is unchanged.
-- **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
-  6085904317), "not a decision"; Q stays an exact put-down. G is also `give_up`, which acts only while downed and
-  counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
-  (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
-  client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
-  the role's, then the mode's, the first rule triggered by `Throw`, its first `ThrowItem`, as core finds it), the
-  phase takes `Throw` from the living, and no earlier throw waits for its answer. With no such rule G sends
-  nothing (the base mode until 37f). `ClientSession` sends the last claim's reliable twin right before it (#644).
-- **The prediction** (`ItemFlights`, `ItemArc`, pure, in `client/world/`). `throw_sent` hands the seq, the camera
-  and the look to `ItemViews.predict_throw`: the arc starts at the camera with the velocity and gravity built as
-  `ThrowItem` builds them from the rule's numbers (bit for bit the host's for the same facing), drawn on the
-  thrower's own clock from the press, and the first-person hand shows nothing. Until the arc's `ItemPlaced`, each
-  physics frame sweeps the drawn item's step through the own scene (a sphere of the rule's radius against the world
-  layer: `intersect_shape` at the start, then `cast_motion`'s safe fraction, as `HostWorldQuery.sweep`) and holds
-  it where the sweep stops it: presentation only. The own `ItemThrown` swaps in the host's vectors and launch tick,
-  and an offset that keeps the drawn item where it was fades out over `ItemArc.EASE_S` (0.2 s, not a decision); the
-  drawn time stays on the thrower's clock. The Throw's `Rejected` (by seq), or no answer within
-  `ItemFlights.PREDICTION_TIMEOUT_S` (2 s, not a decision; the reliable lane always answers), drops the arc and the
-  hand shows the item again.
-- **The remote arcs.** Every other `ItemThrown` gets an arc drawn at `AvatarViews.drawn_at()` less the launch tick,
-  the host-tick timeline the avatars are drawn on (behind by the interpolation delay). Between two whole ticks the
-  item is on the straight segment from point(k) to point(k + 1), the segment `FlightTicks` sweeps; at a whole tick it
-  is `ItemFlight.point()` exactly, no second copy of the formula. Before the drawn tick reaches the launch the item
-  stays at the thrower body's hand point (`carry_point()` for a two-handed kind), so it leaves the hand as the body
-  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed. A spectator
-  watching the thrower from its eyes sees no such item there: `LifeView` hides the views that
-  `ItemFlights.awaiting_launch_of(peer)` names, with the watched peer's hand and belt items (#168).
-- **The stop and the fall.** `ItemPlaced` with the cause `thrown` ends an arc: the host drops a stopped item straight
-  down, so the stop is the arc's point whose x and z are the rest's (`ItemArc.stop_of`; within
-  `REST_TOLERANCE_M`, 5 cm, not a decision), and a throw with no horizontal speed falls back to the rest's height;
-  the stop can lie no later than the estimated host tick at the event's arrival (`AvatarViews.host_tick()`; the
-  thrower's own clock for its own arc) plus `STOP_SLACK_TICKS` (3, not a decision). The drawn item flies on to the
-  stop, then falls straight down with the arc's gravity (sqrt(2h/g)); the own arc held at a wall falls from there.
-  A rest not below the arc (off its line, behind the launch, the no-floor fallback at the thrower's feet, TD11 (a)),
-  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest. The exception
-  is the own arc past a stop: its clock runs ahead of the host's flight by the round trip, and its sweep sees the
-  level only, not a living player the host stopped the item on, so it glides back to the rest over
-  `ItemArc.GLIDE_S` (0.15 s, not a decision) instead of jumping.
-- **A phase change.** `PhaseChanged` and `LoadMatch` drop every arc and the prediction; the model keeps `flying`, so
-  `ItemViews` hides the item until its `ItemPlaced`, if one comes, and no later phase draws it again (after a phase
-  without `FlightTicks` the host's flown ticks are no longer the host tick less the launch tick). An item picked up,
-  or gone from the model, loses its arc.
-- **The view** (the M4 ADR's §3 items 3, 5 and 10): the item in flight is its ordinary depth-tested `ItemView`, with
-  no trail, outline, label or `no_depth_test` overlay, already in `SightHider.GROUP` (its `sight_point()` follows
-  the arc), placed in `ItemViews`' physics step (priority 1, after the avatars and before `SightHider`).
-- **The sounds.** `SoundChooser` plays `ItemThrown` at its origin, the thrower's eye (`THROW`, aim at the origin),
-  cut beyond `HEARING_RANGE_M` of the ears and muffled behind the level by `WorldSounds`' ray: uncut, it would tell
-  every client where a package was just thrown to hide it. `ItemWorld` forwards every event to `ItemViews` and
-  plays neither `ItemThrown` nor a thrown item's `ItemPlaced` on arrival: `ItemViews.sound_due` hands them to
-  `WorldSounds.on_event` when the drawn item launches (the own throw at the press, from the predicted origin; the
-  host's own `ItemThrown` repeats nothing) and when it reaches its rest; an `ItemPlaced` with no arc lands at once.
-  The launch sound is a generated placeholder blip like the others (`WorldSounds.blip`); the asset is the
-  engineer's to pick.
-- Tests: `tests/unit/client/world/item_arc_test.gd` (the points against `ItemFlight.point()`, the fraction on the
-  segment; the prediction against a fixture match's real `ItemThrown`, bit for bit; `rule_of` in core's order
-  against a match's launch speed; the stop against a fixture match's wall stop, the longest flight, a vertical
-  throw, a rest off the arc and the no-floor fallback: seen failing without the past-the-stop rule, reverted; the
-  fall; the easing), `tests/unit/client/world/item_flights_test.gd` (the hidden hand, `Rejected` by seq, the
-  timeout, the own adoption with no second launch sound, the remote timeline and its launch sound, the stop, fall
-  and landing sound, no arc for a landing, the own sweep held at the wall: seen failing without the hold, reverted;
-  no sweep of a remote arc; a phase change, a new match, a pick-up),
-  `tests/integration/client/world/item_views_flight_test.gd` (a remote throw in the body's hand, then on the arc at
-  the drawn tick, to its stop and rest; the view in `SightHider`'s group with nothing drawn through walls; hidden at
-  a phase change until its rest; the own throw's empty hand and `Rejected`; the own drawn item held before a
-  fixture wall: seen failing without the sweep, reverted), `item_interactions_test.gd` (G after the claim's twin,
-  one at a time, Q still `PutDown`; nothing without a rule, in a phase that takes none, for a belt item, downed),
-  `item_world_throw_test.gd` (the launch sound at the press, none for the host's own `ItemThrown`, the landing sound
-  only once the drawn item lands, a put-down's at once), `sound_chooser_test.gd` (a launch beyond the hearing range
-  plays nothing), `world_sounds_test.gd` (a launch behind a wall muffled, none beyond the range),
-  `tests/unit/client/life/life_view_give_up_test.gd` (G held through the knockdown: seen failing without the guard,
-  reverted) and `input_actions_test.gd`. The `shot`: `client/dev/throw_preview.tscn`, on a `Throw` rule of its own
-  built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
-  a wall, and the own predicted knife held at a wall a step ahead.
+against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/integration/client/world/` (§4.7.52).
 
 #### 4.7.24 Built in #287 (M6.2), the UI's base resolution
 - `project.godot`: the UI is laid out on a 1920x1080 canvas (`display/window/size/viewport_width` and `_height`),
@@ -4194,6 +4076,124 @@ colour: its handoff (s04) draws none, the swatches are only on s05's Character p
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
 material, the lying pose) and `player_controller_downed_test.gd` (the own lying capsule).
 
+#### 4.7.51 Built in M7-Z4 (#650), the zones, their fill and the done look
+The client side of the zone task (§9.5.18; the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)'s ZD6 (a),
+ZD11 (b) and ZE8, as the engineer answered them on #302).
+- **Which stations are zones.** A station whose kind is the `zone` of a `ZoneTask` in the client's own copy of the mode
+  (`ZoneViews.zone_task(mode, kind)`); `CircleViews` leaves those out and draws every other station kind as before.
+- **The model** (§4.6.1.2): `ClientModel.Station` holds the last `ZoneProgress` (`ticks`, `needed`, `counting`,
+  `progress_tick`) and sets `done` from it. The client predicts nothing: the local player stepping in sees the fill
+  start about a round trip later (its claim to the host, the event back), and a knockdown or a push the client has
+  not heard of never shows a fill that runs and then jumps back.
+- **The fill** is pure (`ZoneViews.ticks_at(station, now)` and `fill(station, now)`): the event's `ticks`, plus the
+  host ticks since its `tick` while it counts, capped at `needed`; a host tick behind the event or unknown (-1) adds
+  nothing; a done zone is full; a zone with no `ZoneProgress` yet is empty. `now` is `AvatarViews.host_tick()`, the
+  estimate the match clock reads; between two events the fill errs by at most the host's window (5 ticks), and the
+  next event's `tick` sets it right.
+- **The look** (ZD11 (b), greybox placeholders until the art pass): `ZoneViews` (`client/world/`, under `ItemWorld`
+  beside `CircleViews`) draws each zone at its station's position as a faint flat disc of the zone's radius, a ring
+  (`TorusMesh` squashed to a band about 1 cm tall, resting on the fill) at that radius and a fill: a second flat disc
+  scaled from the centre, its radius the share of the time counted, hidden while empty. All three are unshaded,
+  translucent, in `StationPlaced`'s colour (the palette is the data's: yellow, provisional, #302) and ordered disc,
+  fill, ring among themselves by a small `sorting_offset` each (2 cm apart), with `render_priority` left at 0 so they
+  sort by camera distance against every other translucent object, the delivery circles' cylinders included. A done
+  zone is full and dimmed (darker, fainter fill and ring). It is flat on the floor, so it never reads as a delivery
+  circle's cylinder.
+- **The render checklist** (the M4 ADR's §3): every material is depth-tested (no `no_depth_test`; items 5 and 10), so
+  the fill never shows through walls; there is no through-walls marker, label or HUD line for zones and no zone
+  sound (ZD11; sounds come later, within the hearing range). Item 3: the fill tells that a living player stands in the
+  zone, as an avatar does, so it sits under a `FillSight` holder in `SightHider.GROUP` (its sight point the zone's
+  centre 10 cm up): while the downed camera is in use it shows only where the body's eye could see that point. The
+  holder's `visible` is `SightHider`'s; the fill inside keeps its own (empty or not). The disc and the ring are the
+  zone's fixed, public place, like the level, and stay drawn. The task screen is unchanged: its rows are `TaskState`s.
+- Tests: `tests/unit/client/net/client_model_test.gd` (the fold), `tests/unit/client/world/zone_views_test.gd` (which
+  kinds are zones; the fill extrapolated, still, capped, done, never running backwards),
+  `tests/integration/client/world/zone_views_test.gd` (the parts' sizes and colour, no circle for a zone, the fill
+  following `ZoneProgress` and the host tick, the done look, every part depth-tested: seen failing with a planted
+  `no_depth_test` on the fill and with `CircleViews` drawing zones, reverted; the flat ring and the parts' sort order;
+  the fill hidden behind a wall by `SightHider` while the disc and the ring stay: seen failing without the group,
+  reverted). The `shot`s:
+  `client/dev/zones_preview.tscn` (a zone empty, counting, paused, done, beside a circle) and
+  `zones_preview_low.tscn` (at eye height: a wall hides a counting zone and its fill); they use the base mode's
+  `ZoneTask` once M7-Z3 adds one, a stand-in of their own until then.
+
+#### 4.7.52 Built in #645 (37e), the throw key, the predicted arc and the remote arcs
+The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
+TE5 (a)). The wire is unchanged.
+- **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
+  6085904317), "not a decision"; Q stays an exact put-down. G is also `give_up`, which acts only while downed and
+  counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
+  (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
+  client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
+  the role's, then the mode's, the first rule triggered by `Throw`, its first `ThrowItem`, as core finds it), the
+  phase takes `Throw` from the living, and no earlier throw waits for its answer. With no such rule G sends
+  nothing (the base mode until 37f). `ClientSession` sends the last claim's reliable twin right before it (#644).
+- **The prediction** (`ItemFlights`, `ItemArc`, pure, in `client/world/`). `throw_sent` hands the seq, the camera
+  and the look to `ItemViews.predict_throw`: the arc starts at the camera with the velocity and gravity built as
+  `ThrowItem` builds them from the rule's numbers (bit for bit the host's for the same facing), drawn on the
+  thrower's own clock from the press, and the first-person hand shows nothing. Until the arc's `ItemPlaced`, each
+  physics frame sweeps the drawn item's step through the own scene (a sphere of the rule's radius against the world
+  layer: `intersect_shape` at the start, then `cast_motion`'s safe fraction, as `HostWorldQuery.sweep`) and holds
+  it where the sweep stops it: presentation only. The own `ItemThrown` swaps in the host's vectors and launch tick,
+  and an offset that keeps the drawn item where it was fades out over `ItemArc.EASE_S` (0.2 s, not a decision); the
+  drawn time stays on the thrower's clock. The Throw's `Rejected` (by seq), or no answer within
+  `ItemFlights.PREDICTION_TIMEOUT_S` (2 s, not a decision; the reliable lane always answers), drops the arc and the
+  hand shows the item again.
+- **The remote arcs.** Every other `ItemThrown` gets an arc drawn at `AvatarViews.drawn_at()` less the launch tick,
+  the host-tick timeline the avatars are drawn on (behind by the interpolation delay). Between two whole ticks the
+  item is on the straight segment from point(k) to point(k + 1), the segment `FlightTicks` sweeps; at a whole tick it
+  is `ItemFlight.point()` exactly, no second copy of the formula. Before the drawn tick reaches the launch the item
+  stays at the thrower body's hand point (`carry_point()` for a two-handed kind), so it leaves the hand as the body
+  is seen throwing it; with no body drawn it is hidden; no point before the launch is ever computed. A spectator
+  watching the thrower from its eyes sees no such item there: `LifeView` hides the views that
+  `ItemFlights.awaiting_launch_of(peer)` names, with the watched peer's hand and belt items (#168).
+- **The stop and the fall.** `ItemPlaced` with the cause `thrown` ends an arc: the host drops a stopped item straight
+  down, so the stop is the arc's point whose x and z are the rest's (`ItemArc.stop_of`; within
+  `REST_TOLERANCE_M`, 5 cm, not a decision), and a throw with no horizontal speed falls back to the rest's height;
+  the stop can lie no later than the estimated host tick at the event's arrival (`AvatarViews.host_tick()`; the
+  thrower's own clock for its own arc) plus `STOP_SLACK_TICKS` (3, not a decision). The drawn item flies on to the
+  stop, then falls straight down with the arc's gravity (sqrt(2h/g)); the own arc held at a wall falls from there.
+  A rest not below the arc (off its line, behind the launch, the no-floor fallback at the thrower's feet, TD11 (a)),
+  or a stop the drawn item has already flown more than a tick past, ends the arc at once at the rest. The exception
+  is the own arc past a stop: its clock runs ahead of the host's flight by the round trip, and its sweep sees the
+  level only, not a living player the host stopped the item on, so it glides back to the rest over
+  `ItemArc.GLIDE_S` (0.15 s, not a decision) instead of jumping.
+- **A phase change.** `PhaseChanged` and `LoadMatch` drop every arc and the prediction; the model keeps `flying`, so
+  `ItemViews` hides the item until its `ItemPlaced`, if one comes, and no later phase draws it again (after a phase
+  without `FlightTicks` the host's flown ticks are no longer the host tick less the launch tick). An item picked up,
+  or gone from the model, loses its arc.
+- **The view** (the M4 ADR's §3 items 3, 5 and 10): the item in flight is its ordinary depth-tested `ItemView`, with
+  no trail, outline, label or `no_depth_test` overlay, already in `SightHider.GROUP` (its `sight_point()` follows
+  the arc), placed in `ItemViews`' physics step (priority 1, after the avatars and before `SightHider`).
+- **The sounds.** `SoundChooser` plays `ItemThrown` at its origin, the thrower's eye (`THROW`, aim at the origin),
+  cut beyond `HEARING_RANGE_M` of the ears and muffled behind the level by `WorldSounds`' ray: uncut, it would tell
+  every client where a package was just thrown to hide it. `ItemWorld` forwards every event to `ItemViews` and
+  plays neither `ItemThrown` nor a thrown item's `ItemPlaced` on arrival: `ItemViews.sound_due` hands them to
+  `WorldSounds.on_event` when the drawn item launches (the own throw at the press, from the predicted origin; the
+  host's own `ItemThrown` repeats nothing) and when it reaches its rest; an `ItemPlaced` with no arc lands at once.
+  The launch sound is a generated placeholder blip like the others (`WorldSounds.blip`); the asset is the
+  engineer's to pick.
+- Tests: `tests/unit/client/world/item_arc_test.gd` (the points against `ItemFlight.point()`, the fraction on the
+  segment; the prediction against a fixture match's real `ItemThrown`, bit for bit; `rule_of` in core's order
+  against a match's launch speed; the stop against a fixture match's wall stop, the longest flight, a vertical
+  throw, a rest off the arc and the no-floor fallback: seen failing without the past-the-stop rule, reverted; the
+  fall; the easing), `tests/unit/client/world/item_flights_test.gd` (the hidden hand, `Rejected` by seq, the
+  timeout, the own adoption with no second launch sound, the remote timeline and its launch sound, the stop, fall
+  and landing sound, no arc for a landing, the own sweep held at the wall: seen failing without the hold, reverted;
+  no sweep of a remote arc; a phase change, a new match, a pick-up),
+  `tests/integration/client/world/item_views_flight_test.gd` (a remote throw in the body's hand, then on the arc at
+  the drawn tick, to its stop and rest; the view in `SightHider`'s group with nothing drawn through walls; hidden at
+  a phase change until its rest; the own throw's empty hand and `Rejected`; the own drawn item held before a
+  fixture wall: seen failing without the sweep, reverted), `item_interactions_test.gd` (G after the claim's twin,
+  one at a time, Q still `PutDown`; nothing without a rule, in a phase that takes none, for a belt item, downed),
+  `item_world_throw_test.gd` (the launch sound at the press, none for the host's own `ItemThrown`, the landing sound
+  only once the drawn item lands, a put-down's at once), `sound_chooser_test.gd` (a launch beyond the hearing range
+  plays nothing), `world_sounds_test.gd` (a launch behind a wall muffled, none beyond the range),
+  `tests/unit/client/life/life_view_give_up_test.gd` (G held through the knockdown: seen failing without the guard,
+  reverted) and `input_actions_test.gd`. The `shot`: `client/dev/throw_preview.tscn`, on a `Throw` rule of its own
+  built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
+  a wall, and the own predicted knife held at a wall a step ahead.
+
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
 [M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
@@ -5186,7 +5186,7 @@ never counts, because it is not at rest. A circle is an invisible cylinder stand
 placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
 included, and from the marker's height up to that plus the height, both included (1 mm below the marker
 still counts: float noise between a physics floor and a hand-placed marker): `StationState.contains`, the one
-cylinder test of a station, which the zone task asks with a player's feet (§9.5.17, #647). The rest position is the one
+cylinder test of a station, which the zone task asks with a player's feet (§9.5.18, #647). The rest position is the one
 point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (a
 throw's too, §7.1.16), not the centre of its mesh. So a package on a crate inside the circle counts, one on
 a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
@@ -5216,7 +5216,7 @@ speed and the provisional gravity, radius and longest flight in the next two com
 them. Built so far: the flight and the rest (37b, #642, below); the intent, `ThrowItem`, `OverFloor`, `ItemThrown`
 and their wire rows (37c, #643, below).
 The client's model, the chaos shapes and the bots' step (37d, #644, below);
-the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e, #645) are in §4.7.25.
+the base mode's rule and House's roof check (37f, #646, below); the client's view and prediction (37e, #645) are in §4.7.52.
 The flight runs in `core/` (TE1 (a)), not in
 `server/`'s physics, which the earlier sketch named (§9.8): the host's level spaces hold no players or items, and Godot
 4.7.2 steps them only by physics frames (no `space_step`), while core ticks come from the clock (§4.5.2), so a landing
@@ -5769,7 +5769,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
 | `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `FlightTicks` | tick system | each item in flight, in id order, except in its launch tick: one more tick flown and the swept segment between the arc's two points; the world's contact or a living player's other than the thrower (its capsule widened by the item's radius) ends the flight, as does its longest flight; the item rests on the floor below the stop through `Items.place` (cause `thrown`), or at the flight's fallback below the thrower's feet, with an error logged (§7.1.16). A phase that does not list it pauses every flight; a phase that accepts an intent whose rule throws (a `ThrowItem`) lists it, or the mode check refuses the phase (#643) | none | `ItemPlaced`, and what the rules on `item_rested` emit | 37b (#642, `core/items/flight_ticks.gd`) |
-| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.17, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
+| `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order: the zone task's (§9.5.18, #647; Delivery has none). `ModeCheck` refuses a mode with a ticking task type where no phase lists it | none | the task types' events | 2f (#62); the first ticking type, #647 |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`, `SetProfile` (#551: name and body colour, §3.5; `out_of_bounds` also for a colour past the ten); leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged`, `ProfileChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58); #551 (`SetProfile`) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
@@ -5835,7 +5835,7 @@ Settings:
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
 - Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery, Hold
-  the zone (§9.5.17). Win conditions, in order: every task done, no crew present, time up.
+  the zone (§9.5.18). Win conditions, in order: every task done, no crew present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Pregame 3 s (nothing; none; no; stopped; Silent; map; #213), Round (`MoveClaim` from the living
@@ -5932,7 +5932,7 @@ map screen lights the rooms that hold a `package` marker, never a circle's.
 Produces: `StationPlaced` and `ItemSpawned` (with the circle and colour) in id order, `PackageDelivered`, `TaskState`
 (its task's subtasks done and in total), `TaskProgress` (the subtasks done and in total, over every task); `item_rested` (spawn), `subtask_done`. Its task
 state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick; the zone task
-(§9.5.17, #647) is the task type that ticks.
+(§9.5.18, #647) is the task type that ticks.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
@@ -6176,7 +6176,7 @@ event that depended on a role would reveal it (§9.2, ZD3).
 Status: designed in #36 ([zone task ADR](decisions/2026-10-09-m7-zone-task.md), PR #619); `core/` built in #647
 (M7-Z1): `core/tasks/zone_task.gd`, `core/events/zone_progress_event.gd`, `StationState.contains`,
 `MovementRule.claim_age` and `credit_gain`; its data, the greybox's zones and three scenarios in #649 (M7-Z3,
-provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.24).
+provisional for the engineer's approval); the client's zones, their fill and the done look in #650 (M7-Z4, §4.7.51).
 Tests: `tests/unit/content/zone_content_test.gd` (the provisional values, the fit at the most zones, ZE9's spacing on
 every map of the base mode, each read in the host's collision world since #681, and the flat fake shown hiding a spawn
 point beside an upstairs zone), the scenarios `crew_works_every_zone`, `zone_paused_by_a_knockdown` and
@@ -6459,7 +6459,7 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.17; the client's look in #650, M7-Z4, §4.7.24; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
+| Zone task (#36): stand in a zone for N seconds (designed in the [zone task ADR](decisions/2026-10-09-m7-zone-task.md); the engineer took every recommendation on #302; `core/` built in #647, M7-Z1, §9.5.18; the client's look in #650, M7-Z4, §4.7.51; its data waits for M7-Z3) | a task type `.tres` (its time, a zone station kind, its own subtasks setting; the numbers and names are the engineer's, ZD7), markers of the zone's spawn tag in the map, the mode's task types (ZD8) | one task type (one script, §9.3), `ZoneTask`: its deal places one zone per subtask, as Delivery places its circles; its tick (through `TaskTicks`) adds one tick, kept in its task state, to each undone zone with a living player inside whose last claim is at most 10 ticks old (any role; several count as one; leaving pauses: the ADR's recommendations) and completes the subtask at its time. The cylinder test moves from Delivery to `StationState` so both share it | one, `ZoneProgress` (everyone): a zone's time, whether it counts and whether it is done, sent only on a change; a client draws the fill between changes. `StationPlaced`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: `DealTasks` draws among the mode's task types (#79). Two mode checks (one spawn tag per station kind; a ticking task type needs `TaskTicks`). Outside `core/`: its wire row and a protocol bump, a bot target `STATION` (a station kind's n-th station) and bans in a scenario's setup, so the MVP's scenarios keep dealing Delivery alone |
 | Delivery by meaning (#683): items of several kinds, each to its own place, no colours, on the House only (designed in its [ADR](decisions/2026-10-10-delivery-by-meaning.md), proposed, not built; the engineer answered every question and approved the design on PR #713, DD9 (c) included: the greybox, a test bench only (#767), keeps today's colour Delivery for its bot scenarios and the leak test) | a second Delivery `.tres`, listing the House alone in `TaskType.maps` (the Generator's G8; today's lists the greybox alone): routes, each an item kind and its drop-off station kind; one item kind per kind of item; one drop-off station kind per place, with its own spawn tag and no palette; one marker per drop-off tag on the House | a second task type, `DeliveryByMeaning`, and one data class, `DeliveryRoute` (a sub-resource, no behaviour); today's `Delivery` unchanged; `TaskType.station_kinds()` replaces the four finders of a type's station kinds (`MarkerReader`, ModeCheck, `WireBudget`, the client) | none: `StationPlaced`, `ItemSpawned` (its colour white for these items), `PackageDelivered`, `TaskState` and `TaskProgress` stay | none in `Match` or the loop, and no wire change. Outside `core/`: the House gains drop-off markers and loses its circles; the client draws drop-offs and items by kind, and no marker through walls on any map (the engineer's DD4 (a)); the bots and the leak test keep today's Delivery on the greybox, and the House's is tested without bots (unit, House and wire-codec tests) |
 | Photo task (#687): load a film, shoot, print and hang on the House map (designed in the [photo task ADR](decisions/2026-10-10-photo-task.md), proposed, not built; the engineer answered all its questions on 2026-10-10, the drafted words included) | a task type `.tres` (five station kinds, the camera, the photo spot, the box of films, the printer and the board, all but the photo spot with an `Interact` rule, the spot a display kind; `frames_per_film`; the frame's numbers; its own subtasks setting), two item kinds (the film, the photo, each with a cap), the station scenes on House, the one map its data lists (the Generator's `TaskType.maps`: the flat greybox gets none of the House's chains, so no bot plays the photo task; unit, House and wire tests stand in, the ADR's PE18), the mode's task types | on top of the Generator's `Interact` parts (#679, G1): one task type, `PhotoTask`, whose deal places a station on every marker of its five kinds and whose `use_station` loads a film or takes a shot by the camera's state, gives a film, prints and hangs; `PhotoFrame`, pure frustum math the host and the client share; the cooking design's parts by name (#682: `GiveItem.give_new` with its cap, tiered by a `TaskType.cap_tier` the photo task adds so a spammed box never vanishes the film in a camera, and the existing `Cooldown` cost for the box, as its herb beds; `Items.give`, a take beside a two-handed item going onto the belt, the engineer's rule for every take; the moves that lay or lock an item at a station for the camera's film and the board; `Items.vanish` for a printed film; a move serial per item, bumped by the cooking design's one move helper, from which the camera's film is derived; `TaskType.use_reasons()`) | four, all everyone: `FilmLoaded`, `ShotTaken` (with the record of the avatars near the lens at that tick, from which each client renders the picture), `PhotoPrinted`, `PhotoHung`; `ItemSpawned`, `ItemPickedUp`, `ItemVanished`, `TaskState` and `TaskProgress` are generic | none in `Match` or the loop: the film is taken out by the existing `PickUp`. The host decides who is in the shot from its own world (the frame and `WorldQuery.line_of_sight`, invariant 1), never from a client's image; the picture is each client's render from public data, so no image crosses the wire and every player receives the same task events (§5). Outside `core/`: four wire rows and protocol bumps, the viewfinder, the camera's frames counter and the render on the client; no scenario on the greybox |
 | Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (a #34 medic's resurrection at a body; #36's zone task only if the engineer picks ZD1 (b), a key held in the zone: the [zone task ADR](decisions/2026-10-09-m7-zone-task.md) recommends ZD1 (a), its time counting presence, which is no action) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1.8). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |

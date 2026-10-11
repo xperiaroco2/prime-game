@@ -1,6 +1,6 @@
 class_name ItemFlights
 extends RefCounted
-## The thrown items this client draws in flight (ARCHITECTURE §4.7.25, §7.1.16; the throwing ADR's
+## The thrown items this client draws in flight (ARCHITECTURE §4.7.52, §7.1.16; the throwing ADR's
 ## TE5 (a); 37e), pure: an ItemArc per item, from the own key press or the host's events, moved
 ## along each physics frame by ItemViews (advance()), which places each item's view at its arc.
 ##

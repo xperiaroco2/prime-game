@@ -1,5 +1,5 @@
 extends Node3D
-## A preview of thrown items in flight (#645, 37e; ARCHITECTURE §4.7.25) for `tools\run.cmd shot`:
+## A preview of thrown items in flight (#645, 37e; ARCHITECTURE §4.7.52) for `tools\run.cmd shot`:
 ## the base mode with a Throw rule of the preview's own, built in code (10 m/s, 9.8 m/s², radius
 ## 0.15 m, 3 s: a preview's numbers, not content; the base mode gets its rule in 37f). Player 2
 ## has thrown five packages one after another along the same arc, drawn at the avatars' tick (a

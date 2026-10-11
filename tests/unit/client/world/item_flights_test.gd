@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## ItemFlights (client/world/item_flights.gd; ARCHITECTURE §4.7.25, §7.1.16; the throwing ADR's
+## ItemFlights (client/world/item_flights.gd; ARCHITECTURE §4.7.52, §7.1.16; the throwing ADR's
 ## TE5 (a)): the own key press predicts the arc and hides the hand item until the host answers;
 ## its Rejected (by seq) or no answer gives the item back; the own ItemThrown is adopted, another
 ## throw drawn on the avatars' timeline; ItemPlaced (thrown) ends an arc at its stop with a short
