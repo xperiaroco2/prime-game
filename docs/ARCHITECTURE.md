@@ -6512,10 +6512,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, its first
     map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
     four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
-    still read every map's markers through the flat fake, so those maps must read there without an error: no
-    station marker (a delivery circle or a zone, #681) below y = 0 (it would find no floor) and no two markers of
-    different tags at one (x, z) (the fake puts every station marker at y = 0). `content_modes_test.gd` reads them
-    so; ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
+    read their markers where the scene puts them, none snapped to a floor (`MarkerReader.read_levels`'s `unsnapped`,
+    `ScenarioLevels.unsnapped`; GE12, #798), since the flat fake finds no floor below y = 0: a station marker (a delivery
+    circle, a zone, a basement device) may stand below it there, and markers of different tags may share an
+    (x, z). A level a scenario plays is still snapped, and flat. `content_modes_test.gd` reads every map so; ZE9's zone spacing, which the fake would misjudge across storeys, is read in the host's world
     (`zone_content_test.gd`). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of

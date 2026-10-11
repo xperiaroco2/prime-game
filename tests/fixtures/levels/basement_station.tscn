@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[node name="BasementStation" type="Node3D"]
+
+[node name="Basement" type="Marker3D" parent="." groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -3.2, 2)
+
+[node name="Package" type="Marker3D" parent="." groups=["spawn_package"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)

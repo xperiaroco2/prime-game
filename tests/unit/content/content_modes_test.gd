@@ -39,7 +39,9 @@ func test_every_mode_s_levels_pass_the_check_with_layouts() -> void:
 		var mode := load(path) as GameMode
 		if mode == null:
 			continue
-		var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+		var levels := MarkerReader.read_levels(
+			mode, FlatWorldQuery.new(), ScenarioLevels.unsnapped(mode)
+		)
 		(
 			assert_array(Array(levels.errors))
 			. override_failure_message("%s: %s" % [path, "\n".join(levels.errors)])
@@ -92,6 +94,17 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 			}
 		]
 	)
+
+
+func test_the_levels_no_scenario_plays_are_the_runners_unsnapped_ones() -> void:
+	# GE12: the runners snap station markers on the levels the scenarios play and read the rest as
+	# placed; together they are every level of the mode, with none in both.
+	var mode := _base_mode()
+	var played := ScenarioLevels.of(mode)
+	var rest := ScenarioLevels.unsnapped(mode)
+	for path: String in played:
+		assert_bool(rest.has(path)).override_failure_message(path).is_false()
+	assert_int(played.size() + rest.size()).is_equal(MarkerReader.level_paths_of(mode).size())
 
 
 func test_the_scenarios_levels_are_flat() -> void:
@@ -509,7 +522,9 @@ func test_the_base_mode_s_hearing_radius_per_phase() -> void:
 ## The layouts of the mode's levels, read from the real scenes by the marker reader (2j) with the
 ## flat world of the stage-2 levels (one floor at y = 0), which test_the_levels_are_flat checks.
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
-	var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	var levels := MarkerReader.read_levels(
+		mode, FlatWorldQuery.new(), ScenarioLevels.unsnapped(mode)
+	)
 	assert_array(Array(levels.errors)).is_empty()
 	return levels.layouts
 

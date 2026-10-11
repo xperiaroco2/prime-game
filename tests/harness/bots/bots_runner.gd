@@ -18,6 +18,7 @@ extends NetPlay
 ## same step cannot hide); and on the host, no message over budget and no rejected packet. Each
 ## frame: the host steps, then every client, then every bot acts on what it decoded.
 
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const PORT := 7400
 ## One frame of the simulated clock: 60 steps per simulated second.
 const FRAME_USEC := 16667
@@ -83,7 +84,9 @@ func run() -> void:
 		failures.append("scenario: bot 1 is the host's own client, connected at the start")
 		return
 	var world := FlatWorldQuery.new()
-	var levels := MarkerReader.read_levels(scenario.mode, world)
+	var levels := MarkerReader.read_levels(
+		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
+	)
 	for error: String in levels.errors:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():

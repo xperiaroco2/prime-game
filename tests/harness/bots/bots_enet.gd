@@ -37,6 +37,7 @@ extends NetPlay
 ## reordering. The leak test runs unchanged, plus the order check (OrderLog) of each bot, the lurker
 ## and the refused bot, both ways: each bot's view file carries its own lists.
 
+const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
 ## The lurker's hello deadline is the run's time limit plus this; a remote bot waits this long past
@@ -225,7 +226,9 @@ func _start_host(bot: ScenarioBot) -> bool:
 		failures.append("scenario: bot 1 is the host's own client, connected at the start")
 		return false
 	var world := FlatWorldQuery.new()
-	var levels := MarkerReader.read_levels(scenario.mode, world)
+	var levels := MarkerReader.read_levels(
+		scenario.mode, world, ScenarioLevels.unsnapped(scenario.mode, scenario.map)
+	)
 	for error: String in levels.errors:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():
