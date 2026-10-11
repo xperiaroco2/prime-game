@@ -62,3 +62,25 @@ func test_demands_add_up_and_name_every_shortfall() -> void:
 	circle.palette = PackedColorArray([Color.RED, Color.BLUE, Color.GREEN])
 	demands.add_colours(circle, 0)
 	assert_array(Array(demands.shortfalls(layout))).is_empty()
+
+
+func test_an_exact_demand_names_any_other_count_as_markers_exact() -> void:
+	var demands := Demands.new(null)
+	demands.add_markers(&"switch", 4, true)
+	demands.add_markers(&"package", 1)
+	for have: int in [3, 5, 4]:
+		var layout := LevelLayout.new()
+		for i in have:
+			layout.add_marker(&"switch", Vector3(i, 0, 0))
+		for i in 3:
+			layout.add_marker(&"package", Vector3(i, 0, 1))
+		var expected: Array[Dictionary] = []
+		if have != 4:
+			expected.append(
+				{
+					"id": &"markers_exact",
+					"ids": PackedStringArray(["switch"]),
+					"numbers": {&"need": 4, &"have": have}
+				}
+			)
+		assert_array(HostText.to_dicts(demands.shortfalls(layout))).is_equal(expected)

@@ -545,6 +545,34 @@ func test_a_new_match_makes_everyone_living_again() -> void:
 
 
 ## Plays a match up to the round: loading, an item, a station, a body, a role, a snapshot.
+func test_a_switch_is_off_until_its_first_switch_changed_and_the_button_counts_presses() -> void:
+	_to_round()
+	_fold(StationPlacedEvent.new(3, &"generator", Color.WHITE, Vector3(0, 0, 20)))
+	_fold(StationPlacedEvent.new(4, &"switch", Color.WHITE, Vector3(4, 0, 20)))
+	var button := _model.stations[3]
+	var switch := _model.stations[4]
+	assert_bool(switch.on).is_false()
+	assert_int(button.presses).is_equal(0)
+	_fold(SwitchChangedEvent.new(4, true))
+	assert_bool(switch.on).is_true()
+	_fold(SwitchChangedEvent.new(4, false))
+	assert_bool(switch.on).is_false()
+	_fold(ButtonPressedEvent.new(3))
+	_fold(ButtonPressedEvent.new(3))
+	assert_int(button.presses).is_equal(2)
+	assert_int(switch.presses).is_equal(0)
+	# A station the model does not know changes nothing and is not added.
+	_fold(SwitchChangedEvent.new(9, true))
+	_fold(ButtonPressedEvent.new(9))
+	assert_bool(_model.stations.has(9)).is_false()
+	# Nobody is told who switched: a station keeps no peer.
+	for property: Dictionary in switch.get_property_list():
+		if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			var name: String = property["name"]
+			for word: String in ["peer", "player", "actor", "by"]:
+				assert_bool(name.contains(word)).override_failure_message(name).is_false()
+
+
 func _to_round() -> void:
 	var settings: Dictionary[StringName, int] = {&"knives": 2}
 	_fold(LoadMatchEvent.new(1, "res://levels/a.tscn", settings))
