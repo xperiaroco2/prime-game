@@ -41,7 +41,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 - Every Godot call has a hard timeout and kills the whole process tree (the Windows console exe starts the engine as
   a child process).
 
-**CI** (`.github/workflows/ci.yml`, job `verify`, ubuntu-24.04) reads every pin with `tools/run.sh pins --get`
+**CI** (`.github/workflows/ci.yml`, the `verify` part jobs since #857, ubuntu-24.04) reads every pin with `tools/run.sh pins --get`
 (in the composite action `.github/actions/setup-toolchain`, which the night jobs share since #189), installs the
 checked Godot build, `gdtoolkit==<pin>` on Python 3.12 and the pinned Node (`actions/setup-node`), then runs `GODOT_BIN=$HOME/godot/godot tools/run.sh verify`. It uploads `tools/out/gdunit` and `tools/out/logs` even when
 `verify` fails.

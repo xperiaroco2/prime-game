@@ -20,7 +20,8 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
   lint and check; the tests run on CI (verify --full runs them here)", and its history record has `"mode": "fast"`
   (`metrics` keeps its total out of the full runs').
 - `verify --full` runs the whole suite exactly as before (lanes, `AFTER`, the count check, a verify slot,
-  `--fail-fast`). CI's `verify` job runs `tools/run.sh verify --full`.
+  `--fail-fast`). CI's `verify` job runs `tools/run.sh verify --full` (since #857, 2026-10-11, in parallel part jobs,
+  `verify --full --part <name>`, behind the one required check `verify`: the serial job had grown to a median 12.6 min).
 - `publish` calls the plain (fast) `verify`; `merge` runs none (#622). The definition of done: `verify` (lint and check) green
   locally, CI (the full suite) green on the PR.
 
