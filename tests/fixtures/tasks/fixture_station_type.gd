@@ -22,6 +22,10 @@ var reasons: Array[StringName] = [StationUsable.UNAVAILABLE]
 var quiet := false
 ## What kills() answers (the car repair ADR's RE6, #806), for ModeCheck's LifeTicks rule.
 var killing := false
+## Whether use_problem() answers empty from its second ask on (a type that breaks "a query that
+## changes nothing"), to see a refused intent still gets its Rejected.
+var empty_after_first_ask := false
+var _asked := 0
 
 
 func _init() -> void:
@@ -39,6 +43,9 @@ func deal(ctx: MatchContext) -> void:
 
 
 func use_problem(_ctx: MatchContext, _task: MatchTask, _station: StationState) -> StringName:
+	_asked += 1
+	if empty_after_first_ask and _asked > 1:
+		return &""
 	return problem
 
 

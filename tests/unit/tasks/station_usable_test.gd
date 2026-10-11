@@ -70,6 +70,35 @@ func test_a_reason_outside_the_list_is_an_error_and_refused_unavailable() -> voi
 	assert_str(game.diagnostics[0]).contains("saboteur_nearby")
 
 
+func test_a_reason_in_the_types_list_but_outside_reasons_is_still_an_error() -> void:
+	# A mode that skipped ModeCheck (the type lists the reason after the match started):
+	# StationUsable.REASONS does not have it, so it is still held to both lists.
+	var mode := FixtureStationModes.basic()
+	var type := FixtureStationModes.type_of(mode)
+	var game := FixtureStationModes.in_round(mode, [P1])
+	type.reasons = [StationUsable.UNAVAILABLE, &"saboteur_nearby"]
+	type.problem = &"saboteur_nearby"
+	FixtureItemModes.stand(game, P1, NEAR)
+	FixtureStationModes.interact(game, P1, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"unavailable"])
+	assert_array(Array(game.diagnostics)).has_size(1)
+	assert_str(game.diagnostics[0]).contains("saboteur_nearby")
+
+
+func test_a_use_problem_that_answers_empty_the_second_time_is_still_refused() -> void:
+	# use_problem should be a query that changes nothing; one that is not must not turn a refused
+	# intent into an applied one with no Rejected.
+	var mode := FixtureStationModes.basic()
+	var type := FixtureStationModes.type_of(mode)
+	type.problem = StationUsable.UNAVAILABLE
+	type.empty_after_first_ask = true
+	var game := FixtureStationModes.in_round(mode, [P1])
+	FixtureItemModes.stand(game, P1, NEAR)
+	FixtureStationModes.interact(game, P1, 1)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"unavailable"])
+	assert_array(FixtureModes.notes(game)).is_empty()
+
+
 func test_a_negated_station_usable_answers_not_allowed() -> void:
 	# `not StationUsable` before the plain one: a use the type takes is refused not_allowed; one it
 	# refuses passes the negated condition and gets the type's reason from the plain one.

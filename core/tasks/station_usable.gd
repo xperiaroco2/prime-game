@@ -40,7 +40,10 @@ func needs_target() -> bool:
 func rejection_reason_in(ctx: MatchContext) -> StringName:
 	if negate:
 		return RejectReasons.NOT_ALLOWED
-	return _problem(ctx, false)
+	# An empty answer the second time breaks "a query that changes nothing"; an empty reason would
+	# make RuleRunner report the intent applied (no Rejected), so refuse `unavailable` instead.
+	var reason := _problem(ctx, false)
+	return UNAVAILABLE if reason.is_empty() else reason
 
 
 func _test(ctx: MatchContext) -> bool:
@@ -64,10 +67,11 @@ func _problem(ctx: MatchContext, report: bool) -> StringName:
 	if reason.is_empty() or (REASONS.has(reason) and type.use_reasons().has(reason)):
 		return reason
 	if report:
+		var listed := type.use_reasons()
 		ctx.error(
 			(
-				"task type %s refused a use of station %d with %s, which is not one of its %s"
-				% [type.id, station.id, reason, type.use_reasons()]
+				"task type %s refused a use of station %d with %s, not one of its %s and REASONS %s"
+				% [type.id, station.id, reason, listed, REASONS]
 			)
 		)
 	return UNAVAILABLE
