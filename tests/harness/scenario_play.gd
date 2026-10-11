@@ -418,7 +418,7 @@ func _interact(bot: ScenarioBot, step: StepInteract) -> Result:
 		var station := bot.station_of(step.station)
 		if station < 0:
 			return _fail_step(bot, "the bot cannot know which station to use")
-		_send(bot, Intents.INTERACT, {"station": station})
+		_send(bot, Intents.INTERACT, {"station": station, "item": -1})
 		return Result.WAITING
 	var until := step.until
 	var done := bot.find_since(

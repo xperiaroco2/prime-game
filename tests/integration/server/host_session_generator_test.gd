@@ -38,15 +38,15 @@ func test_switches_and_the_button_reach_every_client_as_its_view() -> void:
 	var task_state := FixtureGeneratorModes.state_of(game)
 	assert_int(task_state.switches.size()).is_equal(FixtureGeneratorModes.SWITCHES)
 	# The button before every switch is on changes nothing but its press.
-	second.send_intent(Intents.INTERACT, {"station": task_state.generator})
-	second.send_intent(Intents.INTERACT, {"station": UNKNOWN_STATION})
+	second.send_intent(Intents.INTERACT, {"station": task_state.generator, "item": -1})
+	second.send_intent(Intents.INTERACT, {"station": UNKNOWN_STATION, "item": -1})
 	for i in task_state.switches.size():
 		var user := _h.own if i % 2 == 0 else second
-		user.send_intent(Intents.INTERACT, {"station": task_state.switches[i]})
+		user.send_intent(Intents.INTERACT, {"station": task_state.switches[i], "item": -1})
 	_h.pump_seconds(0.5)
 	assert_bool(task_state.on.has(false)).is_false()
 	assert_bool(task_state.running).is_false()
-	_h.own.send_intent(Intents.INTERACT, {"station": task_state.generator})
+	_h.own.send_intent(Intents.INTERACT, {"station": task_state.generator, "item": -1})
 	_h.pump_seconds(FixtureGeneratorModes.SECONDS + 1.0)
 	assert_bool(task_state.done).is_true()
 	for client: ClientSession in _h.clients:
