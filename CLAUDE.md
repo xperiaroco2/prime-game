@@ -93,35 +93,11 @@ Skills route by description; a manager kickoff: `orchestrate-stage` (`docs/MANAG
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->
 - What the trust ADR reserves for the humans ("ask and wait": game rules and taste, a milestone's goal, a go/no-go,
   the items above): one batched question: options, a recommendation.
-<!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
-- Launching a workflow: state the agent count (fewer than 5) and rough cost, wait for a yes (a manager: none up to
-  15% of the weekly limit, trust ADR); its prompt states its bounds (AGENT_WORKFLOW §7); "ultracode" alone never
-  exceeds the size guideline.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - A new permission ask or deny rule: first "can an agent work alone overnight?" (routine work must not prompt,
   AGENT_WORKFLOW §8.1).
 
 ## Talking to the humans
-- Voice dictation: infer the meaning, read the file name back before editing, ask a question only if a misreading
-  changes what gets built; read back a design answer with two readings (AGENT_WORKFLOW §13).
-<!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
-- Explain from a concrete scenario of what goes wrong, plainly; options, then jargon (AGENT_WORKFLOW §13).
-<!-- see docs/interventions/2026-09-28-engineer-plain-explanations.md -->
-- A command for a human goes in the chat itself, one fenced PowerShell block each (a PR or issue may add it, never
-  instead), starting with `cd` to its absolute folder (your worktree, not the main checkout). Run or preview it first.
-<!-- see docs/interventions/2026-09-29-engineer-commands-say-where.md -->
-<!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
-
-## Memory
-Auto memory is personal: no shared rules or task state. "запам'ятай", "remember" or a correction: ask "для проєкту
-(PR) чи тільки для вас?"; project → skill `log-intervention`, personal → `~/.claude/CLAUDE.md` after the human approves.
-
-## Dictation glossary
-Add a row per real misrecognition you resolved; never guess.
-
-| Heard | Meant |
-|---|---|
-| "посеред науки" | "посеред двору" (in the middle of the yard) |
-| "хаоса" | "House" (the map: "немає хаоса" = "the House is not there") |
-| "поїзд" | "пояс" (the belt: "траву можна на поїзд" = a herb may go on the belt, #682 CD3) |
-| "старілка" | "тарілка" (the plate: "старілка не може прийняти сиру котлету", #682 CD8) |
+In a chat with a human (not a workflow agent), read `docs/HUMAN_SESSIONS.md` before your first reply: how to talk
+(dictation, plain explanations, a command for a human), launching a workflow (state the agent count and cost, wait for a
+yes), memory ("запам'ятай"), and the dictation glossary (add a row per real misrecognition there).
