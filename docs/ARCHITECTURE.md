@@ -2255,8 +2255,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   but a throw's drawn arc and the hand item it hides, from the key press until `ItemThrown`, `Rejected`,
   `PhaseChanged` or `LoadMatch` (§4.7.52), which change no slot.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
-  display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
-  through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
+  display names, the shared progress (`TaskProgress`), the match
   clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), and
   what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
   and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
@@ -2339,9 +2338,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   toggles the look under it. `ItemViews` places in the physics step at priority 1, after the avatars and the
   player moved and before `SightHider` (10) casts, so a view out of the body's eye's sight is never drawn for a
   frame. `CircleViews` finds a station kind's size in the task types'
-  `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
-  over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's). It leaves out a
-  zone, which `ZoneViews` (§4.7.51) draws.
+  `StationKind` properties (Delivery's `circle`) and draws the circles in their colours; nothing of the client draws through walls since the destination
+  marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by what it is.
+  It leaves out a zone, which `ZoneViews` (§4.7.51) draws.
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
   the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
@@ -2496,8 +2495,7 @@ What the client renders follows the ADR's checklist (its §3), which `netcode-se
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
-position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
-public circles only, the destination marker of D10 (b) included; the name plates of #257 show only past no level
+position, and no name or marker over a player or an item drawn through walls (no `no_depth_test` at all, since the destination marker of D10 (b) went in #829; the name plates of #257 show only past no level
 geometry, within 10 m, §4.7.29; a zone's fill, which tells that a living player stands there, is depth-tested like
 the zone and hidden by the downed camera's sight hiding, with no marker, label or HUD line, §4.7.51); a role named
 only on its own player's screen
@@ -3408,7 +3406,7 @@ the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override
   place of Aim while the living player raises (the engineer, 2026-10-06). The map (#253) or a life other than living
   hides Cross, Aim and Raising. The HUD shows no key but the raise cue's, walking or running, player list, who
   knocked the player down, destination or task progress (the handoff): the old lines "Teammates", "Tasks n / m", the destination's
-  swatch and the crosshair's "E: pick up" hint are gone (the world's marker still shows the destination, §4.7.10;
+  swatch and the crosshair's "E: pick up" hint are gone (the destination is no longer shown: the world's marker went in #829, §4.7.10;
   the map the tasks' counters, §4.7.33; a dissident's teammates the name plates' mark, §4.7.29).
 - **Downed and dead** (#497 settled s09 against this HUD, §4.7.44): downed, only `Vitals` > `Mic` (off) shows
   (`HudText.Shown.bars` hides Health and Stamina); dead, nothing of the HUD shows, neither the spectator's own

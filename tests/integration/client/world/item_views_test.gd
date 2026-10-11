@@ -3,8 +3,8 @@ extends GdUnitTestSuite
 ## every item of the model where it lies, at another player's hand or belt attach point, a
 ## two-handed package in front, hidden while its holder has no body, and the own hand item in the
 ## first-person view only; circles of their station kind's size in their colour, dimmed when done;
-## the destination marker over the own package's circle is the only drawing through walls
-## (`no_depth_test`), never a label over an item (the M4 ADR's §3 item 5).
+## nothing of either draws through walls (`no_depth_test`): no marker over a circle, no label over
+## an item (the M4 ADR's §3 item 5; the marker of D10 (b) went with Delivery by meaning, D3a).
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -202,30 +202,17 @@ func test_a_circle_has_its_kinds_size_and_colour_and_dims_when_done() -> void:
 	assert_float(done.r).is_less(open.r)
 
 
-func test_the_marker_shows_over_the_own_packages_circle_only_through_walls() -> void:
+func test_nothing_draws_through_walls_not_even_over_a_carried_packages_circle() -> void:
 	_station(0, Color(0.9, 0.2, 0.2), Vector3(5, 0, 5))
 	_station(1, Color(0.2, 0.2, 0.9), Vector3(-5, 0, -5))
 	_spawn(3, &"package", Vector3.ZERO, 1)
-	_spawn(4, &"knife", Vector3(1, 0, 0))
-	await _drawn()
-	assert_int(_circles.marked()).is_equal(-1)
-	# Another player's package marks nothing on this screen.
-	_other_at(Vector3(4, 0, 0))
-	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 3})
-	await _drawn()
-	assert_int(_circles.marked()).is_equal(-1)
-	_model.fold(&"ItemPlaced", {"item": 3, "position": Vector3.ZERO, "cause": &"put_down"})
+	_spawn(4, &"wrench", Vector3(1, 0, 0))
 	_model.fold(&"ItemPickedUp", {"peer": 1, "item": 3})
 	await _drawn()
-	assert_int(_circles.marked()).is_equal(1)
-	var marker := _circles.marker()
-	assert_float(marker.global_position.x).is_equal(-5.0)
-	assert_float(marker.global_position.y).is_greater(1.0)
-	assert_bool((marker.material_override as StandardMaterial3D).no_depth_test).is_true()
-	# Nothing else draws through walls: no item, label or circle.
+	# The own package is carried and nothing floats over its circle; no item, label, circle or
+	# other node draws through walls.
+	assert_int(_circles.find_children("*", "", true, false).size()).is_equal(2)
 	for node: Node in _world.find_children("*", "", true, false):
-		if node == marker:
-			continue
 		assert_bool(_draws_through_walls(node)).override_failure_message(str(node.name)).is_false()
 
 
