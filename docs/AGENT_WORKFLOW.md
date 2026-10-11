@@ -497,15 +497,17 @@ Rules for every workflow run:
   agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a
   scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the
   rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review,
-  review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean; `code` is the diff's code
-  reviewer alone and falls back to `review`, which also covers the plan critique, the netcode reviews and the skeptics,
-  #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
+  review, code, netcode, second_review, godot, test_review, skeptic, publish, publish_clean, publish_findings; `code`
+  is the diff's code reviewer alone and falls back to `review`, which also covers the plan critique, the netcode
+  reviews and the skeptics, #535); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
   default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
   where the kickoff allows it (its amendment A,
   §5). `publish_clean` (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full
   publisher of a run with no blocker or major left open after the reviews, the test review and the skeptics, never of a
-  design task; the result's `publish_clean` says whether it applied. `ab_review: true` (#535, needs `models.code`
-  other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
+  design task; the result's `publish_clean` says whether it applied. `publish_findings` (#835, a trial under the
+  model-guard ADR's amendment of 2026-10-11; falls back to `publish`; only `sonnet`) is the full publisher of a
+  non-design run that left one open; the result's `publish_findings` says whether it applied. `ab_review: true`
+  (#535, needs `models.code` other than the review model; [A/B ADR](decisions/2026-10-07-code-reviewer-model-ab.md)): a control `code-reviewer`
   with the same prompt on the review model (`models.review`, else the model in `code-reviewer.md`) beside the trial
   one, both reviews going on as usual, then a read-only
   judge on the review model, told neither model, that rules each finding and pairs the shared ones; `metrics` scores
@@ -526,7 +528,8 @@ Rules for every workflow run:
   background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents run no standalone
   verify before `publish`, §4.2 step 5). The root CLAUDE.md rule reaches every workflow agent without it once on
   main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
-  (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix
+  (roles rebase, review, netcode, second_review, skeptic, fix, publish: `publish`, #835's trial, only `sonnet`, is the
+  fallback of rebase and fix, the two agents that publish); when skeptics refute every blocker or major, no fix
   agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
   The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
   comment give the counts, the roles and their fallbacks.
@@ -1697,7 +1700,12 @@ max; `prompt_sizes` in `metrics.json`, not in `--compact`), the Sonnet implement
 Opus-implemented Size S tasks of the window, runs and red runs, verify runs and reds, blockers and majors, publisher
 and CI fix rounds, tool calls and $, and, since the keep (2026-10-10 18:06Z), the revert rule's advice (blockers and
 majors over 0.3 a task across 10 tasks); `sonnet_trial` in `metrics.json`;
-[trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), per agent role and
+[trial ADR](decisions/2026-10-08-sonnet-implementer-trial.md)), the Sonnet publisher trial (#835: per task whose
+full publisher had a blocker or major left open, against the Opus publishers since 2026-10-08 12:25Z, open blockers
+and majors, not fixed, later findings, fix and CI fix rounds, publisher and run $, and its stop rule's advice; and
+per `pr-rebase` run, Sonnet against Opus, red runs, blockers and majors, not fixed and $; `publisher_trial` in
+`metrics.json`; the [model-guard ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)'s amendment
+of 2026-10-11), per agent role and
 agent type (#557: each agent's `agentType` from its `.meta.json`, `workflow-subagent` for the general one; agents, API
 list $ and the median first-call context; how many implementers, planners, test reviewers, publishers and pr-rebase
 agents ran general, also on the compact summary's first line; each run's types in `metrics.json` and on `--run`'s

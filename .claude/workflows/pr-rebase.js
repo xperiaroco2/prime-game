@@ -39,11 +39,13 @@ export const meta = {
 //                 identical tree was just verified green (#471), as in issue-task.js.
 //                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
-//                 netcode, second_review, skeptic, fix (default 'high'). review covers the code reviewer and is the
-//                 fallback of netcode, skeptic and (after netcode) second_review. A reviewer gets an effort only when
-//                 one is set; otherwise its agent file's applies, as before v2. +0 agents
+//                 netcode, second_review, skeptic, fix (default 'high'), publish. review covers the code reviewer and
+//                 is the fallback of netcode, skeptic and (after netcode) second_review; publish (#835) is the
+//                 fallback of rebase and fix, the two agents that publish. A reviewer gets an effort only when one is
+//                 set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 and no default (the model-guard ADR and its amendment A). +0 agents
+//                 and no default (the model-guard ADR and its amendment A). models.publish takes only sonnet: the
+//                 trial of a Sonnet rebase and fix agent (the model-guard ADR, amendment of 2026-10-11). +0 agents
 //   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
 //                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
@@ -96,19 +98,23 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
-const ROLES = ['rebase', 'review', 'netcode', 'second_review', 'skeptic', 'fix']
+const ROLES = ['rebase', 'review', 'netcode', 'second_review', 'skeptic', 'fix', 'publish']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
-  rebase: ['rebase'], review: ['review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'],
-  skeptic: ['skeptic', 'review'], fix: ['fix'],
+  rebase: ['rebase', 'publish'], review: ['review'], netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'],
+  skeptic: ['skeptic', 'review'], fix: ['fix', 'publish'], publish: ['publish'],
 }
+// #835: a trial's role takes only the model its trial names (the model-guard ADR, amendment of 2026-10-11); the roles
+// that fall back to it keep the values they had.
+const TRIAL_MODELS = { publish: ['sonnet'] }
 const perRole = (k, values) => {
   const m = A[k]
   if (m === undefined || m === null) return {}
   if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`pr-rebase: args.${k} must be an object {role: value}; roles: ${ROLES.join(', ')}`)
   for (const [role, v] of Object.entries(m)) {
     if (!ROLES.includes(role)) throw new Error(`pr-rebase: args.${k}.${role}: no such role; roles: ${ROLES.join(', ')}`)
-    if (typeof v !== 'string' || v === '' || (values && !values.includes(v))) throw new Error(`pr-rebase: args.${k}.${role} must be ${values ? values.join(', ') : 'a model name'}`)
+    const allowed = values || (k === 'models' ? TRIAL_MODELS[role] : undefined)
+    if (typeof v !== 'string' || v === '' || (allowed && !allowed.includes(v))) throw new Error(`pr-rebase: args.${k}.${role} must be ${allowed ? allowed.join(', ') : 'a model name'}`)
   }
   return m
 }
@@ -130,8 +136,8 @@ const withModel = (o, role) => {
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
-const REB_EFFORT = EFFORTS.rebase || 'high'
-const FIX_EFFORT = EFFORTS.fix || 'high'
+const REB_EFFORT = set(EFFORTS, 'rebase') || 'high'
+const FIX_EFFORT = set(EFFORTS, 'fix') || 'high'
 
 // #468: the reading rule for code, every agent's (the token audit of 2026-10-06: big code files read whole, the
 // same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py

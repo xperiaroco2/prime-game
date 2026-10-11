@@ -10,8 +10,9 @@ resume replays an agent only while its prompt and options are unchanged. So with
 `lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
 `workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
 origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
-of #308, `plan-review-main` #469's plan phase, `ab-review-main` #535's A/B of the code reviewer's model and
-`checkpoint-main` #559's implementer handoffs, so the
+of #308, `plan-review-main` #469's plan phase, `ab-review-main` #535's A/B of the code reviewer's model,
+`checkpoint-main` #559's implementer handoffs and `publish-findings-main` and pr-rebase's `publish-sonnet-main`
+#835's Sonnet publisher trial, so the
 byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
@@ -164,6 +165,12 @@ SNAPSHOT_CASES = {
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
         # #308's one-wave trial: a clean run's publisher with a cheaper model (a case with a v2 arg).
         ("publish-clean-main", {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MINOR]}),
+        # #835's trial: a run with findings left takes the publisher of publish_findings (a case with a v2 arg).
+        (
+            "publish-findings-main",
+            {"branch": "core/7-x", "models": {"publish_clean": "sonnet", "publish_findings": "sonnet"}},
+            {"paths": ["core/x.gd"], "findings": [MAJOR]},
+        ),
         # #469's plan phase: the planner on the model the manager passes, a plan with a file map and its comment.
         (
             "plan-review-main",
@@ -231,6 +238,8 @@ SNAPSHOT_CASES = {
             {},
             {"paths": ["core/x.gd"], "queues": {"rebase": [{"up_to_date": False, "verify_green": False, "published": False}]}},
         ),
+        # #835's trial: the rebase and fix agents on the model of models.publish (a case with a v2 arg).
+        ("publish-sonnet-main", {"models": {"publish": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MAJOR]}),
     ],
 }
 
@@ -707,8 +716,8 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main, plan-review-main, ab-review-main and checkpoint-main passes no v2 arg besides the bounded_waits
-        # and lean false of its unbounded/ run).
+        # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-main, publish-findings-main and
+        # publish-sonnet-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
         # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
         # and with both false (`unbounded/<case>.txt`, the text and options before #411).
         jobs, files = [], []
@@ -1447,6 +1456,129 @@ class PipelineV2Test(unittest.TestCase):
         for result in results[17:]:
             self.assertIn("must be", result["error"])
             self.assertNotIn("no such role", result["error"])
+            self.assertEqual(agents(result), [])
+
+    def test_publish_findings_applies_only_on_a_run_with_findings(self) -> None:
+        # #835, a trial: the full publisher of a non-design run with a blocker or major still open takes the role
+        # publish_findings (falling back to publish), whose model can only be sonnet. Nothing else changes: not its
+        # prompt, not another agent, not a clean run's, a design task's or a mutants stop's publisher.
+        s = "sonnet"
+        self.assertIn(s, AVAILABLE)
+        other = next(m for m in AVAILABLE if m != s)
+        core = dict(ARGS, branch="core/7-x")  # three reviewers: code, netcode, godot
+        clean = {"paths": ["core/x.gd"], "findings": [MINOR]}
+        major = {"paths": ["core/x.gd"], "findings": [MAJOR, MINOR]}  # three majors
+        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
+        trial = {"models": {"publish_findings": s}}
+        both = {"models": {"publish_clean": s, "publish_findings": s}}
+        jobs = [
+            ("issue-task.js", core, major),  # 0: the same run without the arg
+            ("issue-task.js", dict(core, **trial), major),
+            ("issue-task.js", dict(core, **trial), clean),
+            ("issue-task.js", dict(core, **both), clean),
+            ("issue-task.js", dict(core, **both), major),
+            ("issue-task.js", dict(core, models={"publish": other, "publish_findings": s}), major),  # 5
+            ("issue-task.js", dict(core, models={"publish": other, "publish_findings": s}), clean),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, **trial), {"paths": ["docs/x.md"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(core, test_review=True, **trial), dict(major, queues={"test-review": [stuck]})),
+            ("issue-task.js", dict(core, efforts={"publish_findings": "medium"}), major),
+            ("issue-task.js", dict(ARGS, models={"publish_findings": other}), {}),  # 10
+            ("issue-task.js", dict(ARGS, models={"publish_findings": ""}), {}),
+            ("issue-task.js", dict(ARGS, efforts={"publish_findings": "extreme"}), {}),
+            ("issue-task.js", dict(core, models={"publish": other}), major),
+        ]
+        results = run_jobs(jobs)
+        for k, result in enumerate(results[:10] + results[13:]):
+            self.assertIsNone(result["error"], k)
+
+        def publisher(result: dict) -> dict:
+            (event,) = calls(result, "publish")
+            return event
+
+        def trial_of(result: dict, key: str = "publish_findings") -> dict:
+            return result["returned"][key]
+
+        def logs(result: dict) -> list[str]:
+            return [e["message"] for e in result["events"] if e["kind"] == "log" and "publish_findings" in e["message"]]
+
+        base, on = results[0], results[1]
+        # A run with findings: only the publisher's model changes; its prompt and every other option are today's.
+        self.assertEqual(options(publisher(on))["model"], s)
+        self.assertEqual(publisher(on)["prompt"], publisher(base)["prompt"])
+        self.assertEqual({k: v for k, v in options(publisher(on)).items() if k != "model"}, options(publisher(base)))
+        self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(base)])
+        for before, after in zip(agents(base), agents(on)):
+            if not after["label"].startswith("publish"):
+                self.assertEqual((after["opts"], after["prompt"]), (before["opts"], before["prompt"]), after["label"])
+        self.assertNotIn("publish_findings", base["returned"])
+        self.assertNotIn("publish_clean", on["returned"])
+        self.assertEqual(logs(base), [])
+        want = {"applied": True, "why": "3 blocker or major finding(s) open", "open": 3, "model": s, "effort": "high"}
+        self.assertEqual(trial_of(on), want)
+        self.assertIn("publish_findings applied", logs(on)[0])
+        # A clean run keeps its publisher as it is (publish_clean's, here unset).
+        self.assertNotIn("model", options(publisher(results[2])))
+        self.assertEqual(trial_of(results[2]), dict(want, applied=False, why="no blocker or major open", open=0, model=None))
+        self.assertIn("publish_findings not applied: no blocker or major open", logs(results[2])[0])
+        # Both trials passed: every non-design publisher on Sonnet, each result saying which role applied.
+        for k, clean_applied in ((3, True), (4, False)):
+            with self.subTest(case=k):
+                self.assertEqual(options(publisher(results[k]))["model"], s)
+                self.assertEqual(trial_of(results[k], "publish_clean")["applied"], clean_applied)
+                self.assertEqual(trial_of(results[k])["applied"], not clean_applied)
+                self.assertEqual(trial_of(results[k])["model"], s)
+        # publish_findings falls back to publish, and wins over it on a run with findings.
+        self.assertEqual(options(publisher(results[5]))["model"], s)
+        self.assertEqual((options(publisher(results[6]))["model"], trial_of(results[6])["model"]), (other, other))
+        self.assertEqual(options(publisher(results[13]))["model"], other)
+        self.assertNotIn("publish_findings", results[13]["returned"])
+        # A design task and a mutants stop never switch.
+        for k, why in ((7, "a design task"), (8, "mutants exited 2")):
+            with self.subTest(case=k):
+                self.assertNotIn("model", options(publisher(results[k])))
+                self.assertEqual((trial_of(results[k])["applied"], trial_of(results[k])["why"]), (False, why))
+        self.assertIn("Task: report a stopped run of issue #7", publisher(results[8])["prompt"])
+        # efforts.publish_findings: the effort in the options and in the prompt's Effort line.
+        self.assertEqual(options(publisher(results[9]))["effort"], "medium")
+        self.assertIn("Effort: medium.", publisher(results[9])["prompt"])
+        # The whitelist: only sonnet, named in the error; a wrong effort is the efforts' error.
+        self.assertIn("args.models.publish_findings must be sonnet", results[10]["error"])
+        for result in results[10:13]:
+            self.assertIn("must be", result["error"])
+            self.assertNotIn("no such role", result["error"])
+            self.assertEqual(agents(result), [])
+
+    def test_pr_rebase_publish_moves_its_rebase_and_fix_agents(self) -> None:
+        # #835, a trial: pr-rebase's role publish is the fallback of rebase and fix, the two agents that publish; its
+        # model can only be sonnet, while rebase and fix keep the values they had. The reviewers never move.
+        s = "sonnet"
+        other = next(m for m in AVAILABLE if m != s)
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        jobs = [
+            ("pr-rebase.js", ARGS, core),  # 0: the same run without the arg
+            ("pr-rebase.js", dict(ARGS, models={"publish": s}), core),
+            ("pr-rebase.js", dict(ARGS, models={"publish": s, "fix": other}), core),
+            ("pr-rebase.js", dict(ARGS, efforts={"publish": "medium"}), core),
+            ("pr-rebase.js", dict(ARGS, models={"rebase": other}), core),
+            ("pr-rebase.js", dict(ARGS, models={"publish": other}), core),  # 5
+            ("pr-rebase.js", dict(ARGS, models={"publish_findings": s}), core),
+        ]
+        results = run_jobs(jobs)
+        for k, result in enumerate(results[:5]):
+            self.assertIsNone(result["error"], k)
+
+        def got(result: dict, key: str) -> dict:
+            return {e["label"]: options(e).get(key) for e in agents(result)}
+
+        base, on = results[0], results[1]
+        self.assertEqual({k: v for k, v in got(on, "model").items() if v}, {"rebase:#8": s, "fix:#8": s})
+        self.assertEqual([e["prompt"] for e in agents(on)], [e["prompt"] for e in agents(base)])
+        self.assertEqual({k: v for k, v in got(results[2], "model").items() if v}, {"rebase:#8": s, "fix:#8": other})
+        self.assertEqual((got(results[3], "effort")["rebase:#8"], got(results[3], "effort")["fix:#8"]), ("medium", "medium"))
+        self.assertEqual({k: v for k, v in got(results[4], "model").items() if v}, {"rebase:#8": other})
+        self.assertIn("args.models.publish must be sonnet", results[5]["error"])
+        self.assertIn("args.models.publish_findings: no such role", results[6]["error"])
+        for result in results[5:]:
             self.assertEqual(agents(result), [])
 
     def test_visual_allows_playcheck_and_hands_the_pngs_to_the_code_reviewer(self) -> None:

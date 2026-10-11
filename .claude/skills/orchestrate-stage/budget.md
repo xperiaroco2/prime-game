@@ -98,9 +98,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   files that differ from origin/main: pull `main` (or have it pulled) and run it again. Never pass `lean: false` to
   get around it.
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
-  `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as
-  `task-publisher` on Sonnet (the call's model wins); the pair is new, so check the first wave's runs with
-  `tools\run.cmd agents-check` and `metrics`.
+  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). With
+  `lean`, a clean run's publisher runs as `task-publisher` on Sonnet (the call's model wins); the pair is new, so
+  check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
@@ -117,6 +117,12 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   "Sonnet implementer trial" table before each wave; once its advice says revert (blockers and majors over 0.3 a task
   across the 10 Sonnet tasks since the keep, 2026-10-10 18:06Z), post it on #302 with the table and stop passing
   `implement`.
+- **`models: {publish_findings: "sonnet"}`** beside `publish_clean` on every non-design `issue-task` launch, and
+  **`models: {publish: "sonnet"}`** on every `pr-rebase` launch (#835, a trial:
+  [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md) amendment of
+  2026-10-11, the engineer's yes on #302): read `tools\run.cmd metrics --since 2026-10-08T12:25:00Z`'s
+  "Sonnet publisher trial (#835)" tables before each wave; once either gives advice other than "continue", post it
+  on #302 with the table and stop passing that role.
 - **`checkpoint: true`** on every `issue-task` launch and resume until `metrics` has measured 10 tasks with it (#759),
   then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
   implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's
