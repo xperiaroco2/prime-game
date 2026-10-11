@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
         "(--shards), the frame-bound suites at fixed fps in shards of their own, as in verify; with paths, one "
         "process in real time (--fixed-fps or --real-time chooses the clock). A run is judged by the exit code and "
         "results.xml (reports: tools/out/gdunit/), never by the console; orphan nodes fail it. --repeat N: N runs in "
-        "a row with a per-suite comparison (a flaky hunt).",
+        "a row with a per-suite comparison (a flaky hunt), each run in --shards processes, all real-time.",
     )
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
     p.add_argument(
@@ -110,7 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--shards",
         type=int,
         metavar="K",
-        help="K GdUnit4 processes at once (1: one at a time). Default: with no paths, from the CPU count; with paths, 1",
+        help="K GdUnit4 processes at once (1: one at a time; with --repeat, per run). Default: with no paths, "
+        "PRIME_TEST_SHARDS or from the CPU count; with paths, 1",
     )
     clock = p.add_mutually_exclusive_group()
     clock.add_argument(
@@ -828,11 +829,9 @@ def main(argv: list[str] | None = None) -> int:
             from . import gdunit
 
             fixed = {"fixed_fps": args.fixed_fps} if args.fixed_fps is not None else {}
-            if args.repeat is not None:
-                if args.shards is not None:
-                    raise Failure("--repeat runs one process per run; drop --shards")
-                return gdunit.repeat(args.repeat, paths=args.paths or None, **fixed)
             shards = {"shards": args.shards} if args.shards is not None else {}
+            if args.repeat is not None:
+                return gdunit.repeat(args.repeat, paths=args.paths or None, **shards, **fixed)
             return gdunit.main(paths=args.paths or None, **shards, **fixed)
         if args.command == "verify":
             from . import verify

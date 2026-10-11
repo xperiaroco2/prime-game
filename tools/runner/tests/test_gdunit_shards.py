@@ -667,14 +667,12 @@ class MergeTest(unittest.TestCase):
 
 
 class CliTest(unittest.TestCase):
-    def test_shards_reach_main_and_refuse_repeat(self) -> None:
-        with mock.patch.object(gdunit, "main", return_value=0) as main, mock.patch.object(gdunit, "repeat") as rep:
+    def test_shards_reach_main_and_repeat(self) -> None:
+        with mock.patch.object(gdunit, "main", return_value=0) as main, mock.patch.object(gdunit, "repeat", return_value=0) as rep:
             self.assertEqual(cli.main(["test", "--shards", "1"]), 0)
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(cli.main(["test", "--repeat", "2", "--shards", "2"]), 1)
+            self.assertEqual(cli.main(["test", "--repeat", "2", "--shards", "2"]), 0)  # #817: sharded runs
         main.assert_called_once_with(paths=None, shards=1)
-        rep.assert_not_called()
-        self.assertIn("--repeat runs one process per run", out.getvalue())
+        rep.assert_called_once_with(2, paths=None, shards=2)
 
     def test_the_clock_flags_reach_main_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "main", return_value=0) as main:
