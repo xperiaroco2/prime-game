@@ -180,7 +180,7 @@ Delivery on the greybox (DD9 (c)); this type emits the same event classes (`Stat
 | Two items of one kind, one place | each counts when it rests there; the place dims after the second | DE7 |
 | N below the number of routes | the routes drawn first get an item; the other places get no station and show nothing this round | DD2 (a), DE3 |
 | N above the number of routes | some places take two or more items | DD2 (a) |
-| A downed carrier crawls into the item's place and gives up | the item drops at the body: delivered if it rests inside | "however it got there" (#32); vision revision 1 notes it |
+| A carrier is knocked down holding the item, inside or near its place | the item drops at the body: delivered if it rests inside; a carrier knocked down outside cannot crawl in (a knocked-down player cannot move, #728's answer A, [comment 6095620279](https://github.com/xperiaroco2/prime-game/issues/728#issuecomment-6095620279)) | "however it got there" (#32); vision revision 1 notes it |
 | A package marker inside a drop-off's cylinder | an item of that place's kind spawning there is delivered in the deal | as today; the content test of DE12 keeps it off every map this Delivery lists |
 | A drop-off's cylinder reaches through a wall | an item resting behind the wall, inside the radius, counts | as a circle today; a level convention and D5's wall test (§7) |
 | E at a drop-off | `nothing_to_do`: a drop-off holds no `Interact` rule | the Generator ADR's §2 item 2 says so for a delivery circle; Delivery needs no use |
