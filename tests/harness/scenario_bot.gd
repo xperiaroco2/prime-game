@@ -331,15 +331,19 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				"where": Where.GROUND,
 				"station": fields.get("station", -1) as int,
 			}
+		# `belted` names the item this take put on the belt: the hand item (E29), or `item` itself
+		# when it went straight onto the belt beside a two-handed hand item, which stays held (the
+		# cooking ADR, CE20, CE21). A full belt's item went down first (its ItemPlaced cleared it).
 		&"ItemPickedUp":
 			var item := fields["item"] as int
 			var to_belt := fields.get("belted", -1) as int
 			if items.has(item):
-				items[item]["where"] = Where.HAND
-			if items.has(to_belt):
+				items[item]["where"] = Where.BELT if to_belt == item else Where.HAND
+			if to_belt != item and items.has(to_belt):
 				items[to_belt]["where"] = Where.BELT
 			if fields["peer"] as int == peer:
-				held = item
+				if to_belt != item:
+					held = item
 				if to_belt >= 0:
 					belted = to_belt
 		&"Swapped":
