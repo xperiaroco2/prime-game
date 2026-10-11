@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Interact (the Generator ADR's GE1 to GE4, §2.2; ARCHITECTURE §4.1, §9.2): the named station's
 ## kind owns the rule, tried before the mode's and never the hand item's; an id that names no
-## placed station is refused `nothing_to_do` before any owner; the refusals come in the order
+## placed station is refused `nothing_to_do` before any owner, an Interact naming neither a station
+## nor an item `bad_args` (the cooking ADR's CE1); the refusals come in the order
 ## not_accepted, nothing_to_do, two_handed, out_of_reach, blocked, unavailable; an applied use stops
 ## its actor's raise. Driven by commands on a seeded match whose deal placed two panels
 ## (FixtureStationModes: station 1 at (0, 0, 20), station 2 at (6, 0, 20); task 1).
@@ -59,14 +60,14 @@ func test_a_knife_in_hand_changes_nothing() -> void:
 	assert_array(_uses(game)).is_equal(["used 1 task 1"])
 
 
-func test_an_unplaced_id_is_nothing_to_do_before_the_modes_rule() -> void:
+func test_an_unplaced_id_is_nothing_to_do_and_none_is_bad_args_before_the_modes_rule() -> void:
 	var mode := FixtureStationModes.basic()
 	mode.actions.append(FixtureModes.rule(Intents.INTERACT, [], [FixtureNote.of("mode")]))
 	var game := FixtureStationModes.in_round(mode, [P1])
 	FixtureItemModes.stand(game, P1, NEAR)
 	FixtureStationModes.interact(game, P1, UNPLACED)
 	FixtureStationModes.interact(game, P1, -1, 1)
-	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do", &"nothing_to_do"])
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"nothing_to_do", &"bad_args"])
 	assert_array(_uses(game)).is_empty()
 
 
