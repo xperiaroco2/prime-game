@@ -143,10 +143,25 @@ jobs:
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
 
+      # The newest per-suite GdUnit4 seconds (CI's or an earlier night's), by which the shards of each run are
+      # balanced (tools/runner/gdunit.py, #182); the job saves its own at the end for the next night. A new key every
+      # run, the ref's slug in it so two refs never reserve one key.
+      - name: Restore the GdUnit4 suite times
+        uses: actions/cache@v6
+        with:
+          path: tools/out/logs/gdunit-times.json
+          key: gdunit-times-nightly-${{ matrix.slug }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: gdunit-times-
+
       # Every run is kept (tools/out/gdunit-runs/run-<i>/) and compared per suite and per test (summary.json, .md).
       # In real time, frame-bound suites too: verify runs those at fixed fps, where a frame never runs several
       # physics steps, the #222 class this job keeps covering (#341). No clock flag, so an older ref runs it.
+      # Each run in 2 processes at once, as CI shards its suite (#817): one process outgrew the runner's 600 s
+      # timeout per run when the suite grew (run 38120577422 of 2026-10-11, 3 x 600 s). PRIME_TEST_SHARDS is
+      # read by `test` since #182 (--repeat since #817); a ref whose runner is older ignores it and runs one process.
       - name: GdUnit4 three times
+        env:
+          PRIME_TEST_SHARDS: "2"
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh test --repeat 3
 
       - name: Job summary

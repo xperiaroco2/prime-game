@@ -194,6 +194,22 @@ class ShardRunTest(Fixture):
         self.assertEqual(suites[0], [heavy])
         self.assertIn("balanced by tools/out/logs/gdunit-times.json", text)
 
+    def test_a_real_time_run_plans_a_suite_known_only_at_fixed_fps_by_the_speed_up(self) -> None:
+        c, d = "res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd"
+        (self.root / "tools" / "out" / "logs").mkdir(parents=True)
+        # CI's times: c and d ran at fixed fps only. At the real-time mean (1.5 s) both would join shard 2; at
+        # 0.3 s x 10 they are the two heaviest and take a shard each (#817).
+        times = {"suites": {"res://tests/unit/a_test.gd": 2.0, "res://tests/unit/b_test.gd": 1.0},
+                 "fixed_fps": {c: 0.3, d: 0.3}}  # fmt: skip
+        (self.root / "tools" / "out" / "logs" / "gdunit-times.json").write_text(json.dumps(times), encoding="utf-8")
+        rc, text = self.run_test(shards=2, fixed_fps=False)
+        self.assertEqual(rc, 0, text)
+        calls = sorted(self.calls, key=lambda call: call["log"])
+        suites = [[s for s in call["selected"] if SUITES.get(s)] for call in calls]
+        self.assertEqual([c in shard for shard in suites], [True, False])
+        self.assertEqual([d in shard for shard in suites], [False, True])
+        self.assertIn(f"2 real-time by their --fixed-fps seconds x {gdunit.FIXED_FPS_SPEEDUP:g}", text)
+
     def test_a_fresh_worktree_takes_the_newest_times_of_another_checkout(self) -> None:
         other = self.root / "elsewhere"
         (other / "tools" / "out" / "logs").mkdir(parents=True)
@@ -667,14 +683,12 @@ class MergeTest(unittest.TestCase):
 
 
 class CliTest(unittest.TestCase):
-    def test_shards_reach_main_and_refuse_repeat(self) -> None:
-        with mock.patch.object(gdunit, "main", return_value=0) as main, mock.patch.object(gdunit, "repeat") as rep:
+    def test_shards_reach_main_and_repeat(self) -> None:
+        with mock.patch.object(gdunit, "main", return_value=0) as main, mock.patch.object(gdunit, "repeat", return_value=0) as rep:
             self.assertEqual(cli.main(["test", "--shards", "1"]), 0)
-            with contextlib.redirect_stdout(io.StringIO()) as out:
-                self.assertEqual(cli.main(["test", "--repeat", "2", "--shards", "2"]), 1)
+            self.assertEqual(cli.main(["test", "--repeat", "2", "--shards", "2"]), 0)  # #817: sharded runs
         main.assert_called_once_with(paths=None, shards=1)
-        rep.assert_not_called()
-        self.assertIn("--repeat runs one process per run", out.getvalue())
+        rep.assert_called_once_with(2, paths=None, shards=2)
 
     def test_the_clock_flags_reach_main_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "main", return_value=0) as main:

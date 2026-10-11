@@ -747,10 +747,17 @@ def run_shards(
         return None
     count = min(count, len(suites))
     times, source = read_times()
+    at_fixed, fixed_source = read_times(FIXED_KEY)
+    # A suite with a time at fixed fps alone (CI runs FIXED_FPS_SUITES so, and the nightly `test --repeat` restores
+    # CI's times) is planned at that time x FIXED_FPS_SPEEDUP, not at the mean: those frame-bound suites are the
+    # longest in real time, and several of them in one shard push it toward TIMEOUT (#817).
+    inferred = {res: at_fixed[res] * FIXED_FPS_SPEEDUP for res in suites if res not in times and res in at_fixed}
+    if inferred:
+        times = {**times, **inferred}
+        source += f"; {len(inferred)} real-time by their --fixed-fps seconds x {FIXED_FPS_SPEEDUP:g}"
     costs = estimates(files, suites, times)
     fixed = fixed_set(suites, items if named else None) if fixed_fps else set()
     if fixed:
-        at_fixed, fixed_source = read_times(FIXED_KEY)
         costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
         by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
         source += f"; the {len(fixed)} at --fixed-fps {FIXED_FPS} by {by}"
@@ -977,15 +984,59 @@ def summary_markdown(summary: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool | None = None) -> int:
+def _sharded_run(index: int, items: list[str], count: int, why: str, fixed_fps: bool, named: bool) -> RunOutcome | None:
+    """One run of `test --repeat` in `count` processes (run_shards, as `test` runs them: real-time, or with `fixed_fps`
+    every suite of the `named` paths at fixed fps), judged as `test` judges them; None when fewer than two suites are
+    found, so the caller runs them in one process. The merged report is tools/out/gdunit/results.xml; the run's shard
+    logs are kept as test-run<i>.log and test-run<i>-shard<j>.log, since the next run overwrites test-shard<j>.log.
+    The run's note names each shard that timed out, failed or could not start, and why."""
+    failed = run_shards(items, count, why, fixed_fps, named)
+    if failed is None:
+        return None
+    shards = (LAST_RUN or {}).get("shards")
+    processes = [p for p in shards if isinstance(p, dict)] if isinstance(shards, list) else []
+    for process in processes:
+        source = LOGS / f"test-shard{process['shard']}.log"
+        if source.is_file():
+            shutil.copyfile(source, LOGS / f"test-run{index}-shard{process['shard']}.log")
+    if (LOGS / "test.log").is_file():
+        shutil.copyfile(LOGS / "test.log", LOGS / f"test-run{index}.log")
+    slow = [str(p["shard"]) for p in processes if p.get("timed_out")]
+    note = f"{len(processes)} processes"
+    if slow:
+        note += f", shard {', '.join(slow)} timed out after {TIMEOUT}s"
+    for process in processes:
+        rc = process.get("rc")
+        if process.get("timed_out") or rc == 0:
+            continue
+        if not isinstance(rc, int):
+            why_failed = f"could not start: {process.get('error', '')}"
+        else:
+            meaning = EXIT_MEANING.get(rc)
+            why_failed = f"exit {rc}, " + (meaning.split(":")[0] if meaning else "crashed or exited unexpectedly")
+        note += f"; shard {process['shard']}: {why_failed}"
+    return RunOutcome(index, "FAILED" if failed else "passed", note)
+
+
+def repeat(
+    runs: int,
+    paths: list[str] | None = None,
+    run_import: bool = True,
+    fixed_fps: bool | None = None,
+    shards: int | None = None,
+) -> int:
     """`test --repeat N`: N runs one after another; any failed run fails it. Each run's report goes to
     tools/out/gdunit-runs/run-<i>/ and its log to tools/out/logs/test-run<i>.log; summary.json and summary.md compare
     them. `fixed_fps` True (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so; else, the
-    default too, real-time: the nightly flaky job's `test --repeat 3` keeps covering the #222 class (#341)."""
+    default too, real-time: the nightly flaky job's `test --repeat 3` keeps covering the #222 class (#341).
+    Each run takes as many processes as `test` would (shard_count: `shards`, else one for named paths, else
+    PRIME_TEST_SHARDS, else default_shards()): a run in one process outgrew TIMEOUT when the suite grew (#817). Its
+    shards keep the run's clock: real-time, or with `fixed_fps` every named suite at fixed fps."""
     if runs < 1:
         raise Failure("--repeat must be at least 1")
     if fixed_fps and not paths:
         raise Failure("--repeat with --fixed-fps needs the paths to run at fixed fps")
+    count, why = shard_count(paths, shards)
     say(f"test --repeat {runs}" + CLOCK_NOTE[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
@@ -1005,15 +1056,20 @@ def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, f
         say(f"test: run {index} of {runs}")
         shutil.rmtree(REPORT_DIR, ignore_errors=True)
         log = f"test-run{index}"
-        res = godot(args, timeout=TIMEOUT, log=log)
-        reports = _reports()
-        if res.timed_out:
-            bad(f"run {index} timed out after {TIMEOUT}s (log: tools/out/logs/{log}.log)")
-            outcome = RunOutcome(index, "FAILED", f"timed out after {TIMEOUT}s")
+        items = selectors(paths, tests_dir)
+        outcome = _sharded_run(index, items, count, why, bool(fixed_fps), bool(paths)) if count > 1 else None
+        if outcome is not None:
+            reports = [REPORT_DIR / "results.xml"] if (REPORT_DIR / "results.xml").is_file() else []
         else:
-            failed = _judge(res.rc, res.out, reports, f"tools/out/logs/{log}.log", restarted=res.restarted)
-            note = EXIT_MEANING.get(res.rc, f"exit {res.rc}: crashed or exited unexpectedly")
-            outcome = RunOutcome(index, "FAILED" if failed else "passed", note)
+            res = godot(args, timeout=TIMEOUT, log=log)
+            reports = _reports()
+            if res.timed_out:
+                bad(f"run {index} timed out after {TIMEOUT}s (log: tools/out/logs/{log}.log)")
+                outcome = RunOutcome(index, "FAILED", f"timed out after {TIMEOUT}s")
+            else:
+                failed = _judge(res.rc, res.out, reports, f"tools/out/logs/{log}.log", restarted=res.restarted)
+                note = EXIT_MEANING.get(res.rc, f"exit {res.rc}: crashed or exited unexpectedly")
+                outcome = RunOutcome(index, "FAILED" if failed else "passed", note)
         if reports:
             outcome.cases = case_results(reports[-1])
         if REPORT_DIR.is_dir():
