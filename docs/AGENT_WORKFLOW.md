@@ -2156,8 +2156,8 @@ project settings in a worktree's editor (`ProjectSettings.save()`) copies both k
 ### 11.19 `test` in shards [applied] (#182)
 `test` with no paths runs the suites in K GdUnit4 processes at once, K =
 half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
-or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
-`gdunit.main(paths)` stay one process. The shards are balanced by the last per-suite times
+or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>` and
+`gdunit.main(paths)` stay one process; `test --repeat N` shards each of its runs the same way since #817. The shards are balanced by the last per-suite times
 (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
 checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
 shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
@@ -2394,9 +2394,17 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run, in real time (the #222 class,
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, in real time (the #222 class,
   #341; `verify` runs the frame-bound suites at fixed fps); any failed run fails it.
-  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
+  With no paths each run is sharded as `test` is (§11.19: `--shards K`, else `PRIME_TEST_SHARDS`, else half the CPUs;
+  named paths and `--shards 1` take one process), because one real-time process outgrew the runner's `TIMEOUT` of
+  600 s per process when the suite grew past about 300 suites (#817: nightly run 38120577422, all three runs of
+  `flaky on main` timed out). The job sets `PRIME_TEST_SHARDS=2` (CI's 4 vCPUs) and restores the per-suite times
+  CI saves, to balance the shards; a release ref whose runner is older ignores the variable and runs one process
+  per run, as before, so the job's options check (`test --repeat`) did not change. A shard still has the 600 s
+  limit: when the suite outgrows two shards, raise the job's count.
+  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` (the shards' merged `results.xml`) and its log to
+  `tools/out/logs/test-run<i>.log` (sharded: also `test-run<i>-shard<j>.log`);
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
