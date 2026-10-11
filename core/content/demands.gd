@@ -16,12 +16,20 @@ var mode: GameMode
 ## The set settings the demands are for (MatchState.id_sets: the host's bans of task types, which
 ## DealTasks leaves out of its demand). Empty: every set at its default, the empty set.
 var id_sets: Dictionary[StringName, PackedStringArray] = {}
+## The path of the map the demands are for (GE15, #803): DealTasks asks only the task types that
+## play on it (TaskType.maps). Empty: no map in particular, every task type (the worst case over
+## the mode's maps, as WireBudget wants it).
+var map: String
+## Set by DealTasks when `tasks` asks for tasks but no task type plays on `map` after the bans:
+## the fit check refuses the map with HostText.NO_TASK_TYPES.
+var no_task_types := false
 
 
 ## `for_mode` is required so that no caller summing demands can forget it; null only in tests
-## whose rows deal no tasks.
-func _init(for_mode: GameMode) -> void:
+## whose rows deal no tasks. `for_map`: the map they are for (see `map`).
+func _init(for_mode: GameMode, for_map: String = "") -> void:
 	mode = for_mode
+	map = for_map
 
 
 func add_markers(tag: StringName, count: int) -> void:

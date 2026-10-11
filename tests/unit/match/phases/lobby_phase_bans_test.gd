@@ -179,6 +179,34 @@ func test_the_bans_outlive_the_match() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## #803 (GE15): a map whose task types are all banned, while another map's are not, passes the
+## bans (settings_problem counts every map's) and is refused by the fit check, `no_task_types`.
+func test_a_map_whose_types_are_all_banned_is_refused_by_the_fit_check() -> void:
+	var game := FixtureMapTaskModes.started()
+	FixtureBaseMode.join(game, P1)
+	# The small map plays `anywhere` alone; `map_only` is left, so `tasks` 1 passes the bans.
+	FixtureModes.send(
+		game,
+		Intents.CHANGE_SETTINGS,
+		P1,
+		{
+			"map": FixtureBaseMode.SMALL_MAP,
+			"settings": {"knives": 1, "tasks": 1, "banned_task_types": ["anywhere"]}
+		}
+	)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	FixtureBaseMode.ready(game, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	var changed := FixtureBanModes.last_change(game, P1)
+	assert_str(changed.map).is_equal(FixtureBaseMode.SMALL_MAP)
+	assert_array(HostText.to_dicts(changed.shortfalls)).is_equal(
+		[{"id": &"no_task_types", "ids": PackedStringArray(), "numbers": {}}]
+	)
+	# The map, where `map_only` plays, fits: all_ready fires at once.
+	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"map": FixtureBaseMode.MAP}, 3)
+	assert_str(game.phase_id()).is_equal("countdown")
+
+
 ## P1 readies, the countdown runs out, P1 loads and the pregame runs out: the round.
 func _play_to_the_round(game: Match) -> void:
 	FixtureBaseMode.ready(game, P1)
