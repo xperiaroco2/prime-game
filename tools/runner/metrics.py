@@ -2873,18 +2873,23 @@ def pub_trial_advice(trial: dict, base: dict) -> str:
 
 def rebase_row(r: dict) -> dict:
     """A finished pr-rebase run: its rebase agent's model, red (the rebase red or unpublished, or the last publishing
-    agent's CI red or nothing published), the review's blockers and majors, the fix's not_fixed and its API list $."""
+    agent's CI red or nothing published; a branch already up to date has nothing to push), the reviews' open blockers
+    and majors (every reviewer of SERIOUS_FROM minus the skeptics' refutations, as the scorecard counts), the fix's
+    not_fixed and its API list $."""
     done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
     reb, fix = done.get("pr-rebase") or {}, done.get("pr-rebase fix")
     last = fix if fix is not None else reb
-    reviewed = [done[role] for role in REVIEWERS if role in done]
+    idle = fix is None and reb.get("up_to_date") is True  # nothing to push: published false is no failure
+    reviews = [x["result"] for x in r["agents"] if x["role"] in SERIOUS_FROM and x["result"] is not None]
     serious = sum(isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
-                  for res in reviewed for f in (res.get("findings") if isinstance(res.get("findings"), list) else []))  # fmt: skip
+                  for res in reviews for f in (res.get("findings") if isinstance(res.get("findings"), list) else []))  # fmt: skip
+    refuted = sum(x["result"].get("refuted") is True for x in r["agents"] if x["role"] == "skeptic" and x["result"])
+    reviewed = any(role in done for role in REVIEWERS)
     return {
         "pr": r["issue"], "wf": r["wf"], "model": str(last_family(r, "pr-rebase")), "start": r.get("start"),
-        "red": (reb.get("verify_green") is False or reb.get("published") is False or last.get("published") is False
-                or last.get("ci_green") is False),
-        "serious": serious if reviewed else None, "fixed": fix is not None,
+        "red": (reb.get("verify_green") is False or last.get("ci_green") is False
+                or (not idle and (reb.get("published") is False or last.get("published") is False))),
+        "serious": max(serious - refuted, 0) if reviewed else None, "fixed": fix is not None,
         "not_fixed": count_of(fix.get("not_fixed")) if fix is not None else (0 if reviewed else None),
         "usd": run_usd(r),
     }  # fmt: skip

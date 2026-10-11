@@ -170,6 +170,23 @@ class RebaseTrialTest(unittest.TestCase):
         self.assertIn("| Sonnet | 2 | 1 | 1.00 | 1.00 | $1.00 |", md)
         self.assertIn("| Opus | 2 | 1 | 1.00 | 0.00 | $4.00 |", md)
 
+    def test_an_up_to_date_branch_with_nothing_to_push_is_not_red(self) -> None:
+        idle = rebase(96, SONNET, reb={"up_to_date": True, "published": False}, findings=None)
+        self.assertFalse(metrics.rebase_row(idle)["red"])
+        moved = rebase(97, SONNET, reb={"up_to_date": False, "published": False}, findings=None)
+        self.assertTrue(metrics.rebase_row(moved)["red"], "a rebase that moved the branch and pushed nothing is red")
+        fixed = rebase(98, SONNET, reb={"up_to_date": True, "published": False}, findings=1, fix={"published": False})
+        self.assertTrue(metrics.rebase_row(fixed)["red"], "a fix agent that pushed nothing is red")
+
+    def test_the_blockers_count_every_reviewer_minus_the_refuted(self) -> None:
+        run = rebase(99, SONNET, findings=1)  # the code review's one major
+        major = {"findings": [{"severity": "Major"}, {"severity": "minor"}]}
+        run["agents"] += [agent("netcode-second-reviewer", major), agent("skeptic", {"refuted": True}),
+                          agent("skeptic", {"refuted": False})]  # fmt: skip
+        self.assertEqual(metrics.rebase_row(run)["serious"], 1, "2 majors, 1 refuted")
+        run["agents"] += [agent("skeptic", {"refuted": True}), agent("skeptic", {"refuted": True})]
+        self.assertEqual(metrics.rebase_row(run)["serious"], 0, "never below 0")
+
     def test_its_stop_rule(self) -> None:
         red = rebase(95, SONNET, reb={"ci_green": False})
         self.assertEqual(record([], [*self.RUNS, red])["rebase"]["advice"], "stop: drop Sonnet for pr-rebase (2 Sonnet runs red)")
