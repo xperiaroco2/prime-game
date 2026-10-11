@@ -8,8 +8,10 @@ extends RefCounted
 ## RoundPhase calls leave() on a PeerLeft.
 ##
 ## - damage(): health falls by the amount, never below 0; Damaged to the victim only, and its
-##   SelfStatus is touched (sent at the end of the tick). The hit stops the victim's own channel (a
-##   raise it runs: RaiseStopped, Channels.interrupt). At 0 health the player is knocked down.
+##   SelfStatus is touched (sent at the end of the tick). The hit stops the victim's own channel
+##   when its effect stops on a hit (a raise it runs: RaiseStopped; Channels.interrupt_hit,
+##   ChannelEffect.stops_on_hit); a hold with HoldStation.hit_stops false goes on (the car repair
+##   ADR's RD10 (c), #805). At 0 health the player is knocked down, which stops every channel.
 ## - knock_down(): every channel the player runs stops first (Channels.interrupt_involving: a
 ##   raiser downed stops its raise). The player is downed where it stands: on the floor below its
 ##   last accepted position (WorldQuery, from just above the feet: Items.lifted), with a new
@@ -68,8 +70,9 @@ static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
 	victim.health = maxi(0, victim.health - taken)
 	ctx.emit(DamagedEvent.new(peer, taken, victim.health))
 	SelfStatusFeed.touch(ctx.state, peer)
-	# A hit stops what the victim was holding (a raise: vision revision 1, Revive).
-	Channels.interrupt(ctx, peer)
+	# A hit stops what the victim was holding (a raise: vision revision 1, Revive), unless its effect
+	# goes on through hits (the lift's hold, RD10 (c)).
+	Channels.interrupt_hit(ctx, peer)
 	if victim.health == 0:
 		knock_down(ctx, peer)
 

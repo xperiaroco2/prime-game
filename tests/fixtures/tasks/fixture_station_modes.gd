@@ -29,6 +29,39 @@ static func plain() -> GameMode:
 	return _with_stations(FixtureItemModes.basic(), AcceptSpec.From.LIVING)
 
 
+## basic() whose panel's Interact rule starts `effect` (hold_rule; the car repair ADR's RE1 to
+## RE5, #805) in place of a use. Round lists ChannelTicks (raising()'s).
+static func holding(effect: HoldStation) -> GameMode:
+	var mode := basic()
+	type_of(mode).panel.actions = [hold_rule(effect)]
+	return mode
+
+
+## A HoldStation of `seconds` (0 for an endless one), `hit_stops` as given.
+static func hold(seconds: float, endless := false, hit_stops := true) -> HoldStation:
+	var made := HoldStation.new()
+	made.seconds = seconds
+	made.endless = endless
+	made.hit_stops = hit_stops
+	return made
+
+
+## The panel's Interact rule as the car repair ADR's lift panel and car have it (§1.1 rows 5 and
+## 18): HandNotTwoHanded, AtStation, StationInSight, ChannelFree, StationUsable; then `hold`.
+static func hold_rule(hold_effect: HoldStation) -> Rule:
+	return FixtureModes.rule(
+		Intents.INTERACT,
+		[
+			HandNotTwoHanded.new(),
+			AtStation.new(),
+			StationInSight.new(),
+			ChannelFree.new(),
+			StationUsable.new()
+		],
+		[hold_effect]
+	)
+
+
 static func _with_stations(mode: GameMode, from: int) -> GameMode:
 	mode.settings.append(FixtureModes.setting(&"tasks", 1, 1, 1))
 	mode.settings.append(FixtureDealModes.banned_setting())

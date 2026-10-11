@@ -113,3 +113,38 @@ func use_station(_ctx: MatchContext, _task: MatchTask, _station: StationState) -
 ## so a role-gated station rule whose use reaches everyone warns (§9.2). None by default.
 func use_emits() -> Array[Script]:
 	return []
+
+
+## A HoldStation `channel` on `station`, a placed station of this type's kind, started (it is
+## running: Channels.of_actor finds it; the car repair ADR's RE1 to RE3, #805). The type writes its
+## own task state and emits only the events hold_emits() lists. `task` as in use_problem(). Nothing
+## by default.
+func hold_started(
+	_ctx: MatchContext, _task: MatchTask, _station: StationState, _channel: Channel
+) -> void:
+	pass
+
+
+## `channel` on `station` stopped before completing, for any reason: one of its conditions failed on
+## a re-check, StopRaise or another applied action of its actor, its actor hit (when
+## HoldStation.hit_stops), downed, dying or leaving, or its phase ending (Channel.phase_ended set:
+## the car comes down without a kill, RE4). It is no longer running. Nothing by default.
+func hold_stopped(
+	_ctx: MatchContext, _task: MatchTask, _station: StationState, _channel: Channel
+) -> void:
+	pass
+
+
+## `channel` on `station` ran its seconds and completed (an endless hold never does, RE3). It is no
+## longer running. Nothing by default.
+func hold_completed(
+	_ctx: MatchContext, _task: MatchTask, _station: StationState, _channel: Channel
+) -> void:
+	pass
+
+
+## The event classes hold_started(), hold_stopped() and hold_completed() can emit: ModeCheck counts
+## them for a HoldStation as it counts use_emits() for a UseStation (§9.2's role-reveal warning).
+## None by default.
+func hold_emits() -> Array[Script]:
+	return []

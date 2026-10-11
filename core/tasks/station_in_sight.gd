@@ -2,8 +2,9 @@ class_name StationInSight
 extends Condition
 ## Passes when the line from the actor's eye (Items.eye_of: the floor it stands on at its last
 ## accepted position, raised by PlayerRules.eye_height_m) to just above the marker of the station
-## the intent names (Items.lifted) is clear of walls (WorldQuery.line_of_sight; the Generator ADR's
-## GE4, #796), as InSight for an item. The marker is the use spot, on the floor in front of the
+## the intent names, or on a re-check the channel's (Stations.target_of; the car repair ADR's RE2),
+## (Items.lifted) is clear of walls (WorldQuery.line_of_sight; the Generator ADR's GE4, #796), as
+## InSight for an item. The marker is the use spot, on the floor in front of the
 ## device and clear of its collision (GE11), so the device does not block it, and a press through
 ## a thin wall from the next room is refused even where the cylinder reaches through it. Rejects
 ## with `blocked`: the sender sees the wall too.

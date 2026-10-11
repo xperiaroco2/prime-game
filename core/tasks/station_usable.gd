@@ -1,12 +1,14 @@
 class_name StationUsable
 extends Condition
-## Passes when the task type that owns the named station's kind takes a use of it now
-## (TaskType.use_problem empty; the Generator ADR's GE2, #796). Rejects with the type's reason,
-## which is one of REASONS: today only `unavailable` (the Generator: any station of its task once
-## the task is done). Each reason says only public state of a station the actor has in reach and in
-## sight (ModeCheck requires AtStation and StationInSight before this condition), and never a
-## role, so a task whose stations hold state the rules hide (cooking, #682) inherits the limit. A
-## reason outside REASONS is a match error and refused `unavailable`.
+## Passes when the task type that owns the kind of the rule's station (Stations.target_of: the one
+## the intent names, or on a re-check the channel's, the car repair ADR's RE2) takes a use of it
+## now (TaskType.use_problem empty; the Generator ADR's GE2, #796). On a re-check
+## (MatchContext.channel set) use_problem says whether a running hold may go on. Rejects with the
+## type's reason, which is one of REASONS: today only `unavailable` (the Generator: any station of
+## its task once the task is done). Each reason says only public state of a station the actor has
+## in reach and in sight (ModeCheck requires AtStation and StationInSight before this condition),
+## and never a role, so a task whose stations hold state the rules hide (cooking, #682) inherits
+## the limit. A reason outside REASONS is a match error and refused `unavailable`.
 ##
 ## Condition.rejection_reason() has no MatchContext, so the reason is the one of REASONS: a second
 ## reason needs the condition to carry its run's reason first (the seam is _test here).

@@ -10,11 +10,15 @@ extends RefCounted
 ## - advance(): ChannelTicks, every tick, for each running channel in actor-id order: the rule's
 ##   conditions again (not its costs), with the channel in the context and no intent; the first
 ##   that fails stops it. Else it runs one more tick, and the tick that reaches its time completes
-##   it.
+##   it, unless its effect is endless (ChannelEffect.is_endless: the car repair ADR's RE3), which
+##   counts its ticks but never completes.
 ## - interrupt(): an applied action of the actor stops its channel first (RuleRunner, §9.2), and so
-##   does a hit (LifeRules.damage).
+##   does a hit (LifeRules.damage) when the channel's effect stops on a hit
+##   (ChannelEffect.stops_on_hit).
 ## - interrupt_involving(): a player knocked down, dying or leaving stops every channel it runs or
-##   is the target of (LifeRules).
+##   is the target of (LifeRules). A channel on a station (Channel.station, RE2) targets no player.
+## - stop_all(): a phase is ending; each channel is marked Channel.phase_ended before its stop
+##   (RE4).
 ## Each stop or completion removes the channel before its effect's stopped() or completed() runs,
 ## so whatever that does sees it gone.
 
@@ -38,6 +42,30 @@ static func target_of(ctx: MatchContext) -> int:
 		return 0
 	var fields: Dictionary = Intents.FIELDS.get(ctx.command.kind, {})
 	return ctx.command.get_int("target", 0) if fields.has("target") else 0
+
+
+## The placed station's id an action's channel runs on (the car repair ADR's RE2, #805): the
+## channel's, while its conditions are checked again or it ends; else the `station` of the intent
+## being handled, when its intent has one (Interact); -1 when there is none. The station conditions
+## find their station through it (Stations.target_of), as TargetInReach finds its player through
+## target_of, so a hold passes its own re-check, where no intent is handled.
+static func station_of(ctx: MatchContext) -> int:
+	if ctx.channel != null:
+		return ctx.channel.station
+	if ctx.command == null:
+		return -1
+	var fields: Dictionary = Intents.FIELDS.get(ctx.command.kind, {})
+	return ctx.command.get_int("station", -1) if fields.has("station") else -1
+
+
+## The channel running on the placed station `station`, or null: at most one (ChannelFree).
+static func on_station(state: MatchState, station: int) -> Channel:
+	if station < 0:
+		return null
+	for channel: Channel in running(state):
+		if channel.station == station:
+			return channel
+	return null
 
 
 ## The channel `peer` runs, or null.
@@ -97,7 +125,7 @@ static func advance(ctx: MatchContext) -> void:
 			channel.effect.stopped(own, channel)
 			continue
 		channel.done_ticks += 1
-		if channel.done_ticks >= channel.total_ticks:
+		if channel.done_ticks >= channel.total_ticks and not channel.effect.is_endless():
 			_remove(ctx.state, channel)
 			channel.effect.completed(own, channel)
 
@@ -117,9 +145,20 @@ static func interrupt_involving(ctx: MatchContext, peer: int) -> void:
 
 
 ## Stops every running channel, in actor-id order: a phase is ending (Match's transition), and no
-## channel outlives the phase that advanced it.
+## channel outlives the phase that advanced it. Each is marked phase_ended before its stop, so its
+## effect tells the phase's end from a let-go (the car repair ADR's RE4).
 static func stop_all(ctx: MatchContext) -> void:
 	for channel: Channel in running(ctx.state):
+		if of_actor(ctx.state, channel.actor) != channel:
+			continue  # Ended meanwhile, by what an earlier channel's stop did.
+		channel.phase_ended = true
+		stop(ctx, channel)
+
+
+## Stops the channel `peer` runs when a hit stops it (ChannelEffect.stops_on_hit; LifeRules.damage).
+static func interrupt_hit(ctx: MatchContext, peer: int) -> void:
+	var channel := of_actor(ctx.state, peer)
+	if channel != null and channel.effect.stops_on_hit():
 		stop(ctx, channel)
 
 
