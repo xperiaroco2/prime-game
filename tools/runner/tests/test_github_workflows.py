@@ -270,6 +270,37 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertEqual(cli.main(argv), 0)
         self.assertIn(repeat.call_args.kwargs.get("fixed_fps"), (None, False))
 
+    def test_the_nightly_flaky_job_shards_each_run_and_balances_them_by_the_restored_times(self) -> None:
+        # #817: one real-time process per run outgrew the runner's 600 s timeout (nightly run 38120577422). The shard
+        # count goes in by PRIME_TEST_SHARDS, which a ref whose runner is older ignores, so its job still runs one
+        # process per run and needs no new option in the job's options check.
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["flaky"]["steps"]
+        run = next(i for i, step in enumerate(steps) if "tools/run.sh test --repeat" in step.get("run", ""))
+        shards = steps[run]["env"][gdunit.SHARDS_VAR]
+        self.assertGreaterEqual(int(shards), 2)
+        self.assertEqual(shard_count_of(shards), (int(shards), f"{gdunit.SHARDS_VAR}={shards}"))
+        cache = [i for i, step in enumerate(steps) if step.get("uses") == "actions/cache@v6"]
+        self.assertEqual(len(cache), 1)
+        settings = steps[cache[0]]["with"]
+        self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
+        self.assertEqual(settings["restore-keys"], "gdunit-times-", "CI's times are restored too")
+        self.assertIn("${{ github.run_id }}", settings["key"])
+        self.assertIn("${{ matrix.slug }}", settings["key"], "two refs of a night never reserve one key")
+        self.assertLess(cache[0], run)
+        calls = steps[next(i for i, s in enumerate(steps) if s.get("name") == "The ref's runner has the job's options")]
+        self.assertEqual(calls["env"]["CALLS"], "test --repeat", "an older ref's runner must still pass its check")
+        argv = steps[run]["run"].split("tools/run.sh ", 1)[1].split()
+        self.assertNotIn("--shards", argv, "--shards would fail on a ref whose runner refuses it with --repeat")
+
+
+def shard_count_of(value: str) -> tuple[int, str]:
+    """What `test --repeat` takes from PRIME_TEST_SHARDS=<value> on a runner with a per-process user:// (no paths)."""
+    with (
+        mock.patch.dict(gdunit.os.environ, {gdunit.SHARDS_VAR: value}),
+        mock.patch.object(gdunit, "app_data_var", return_value="XDG_DATA_HOME"),
+    ):
+        return gdunit.shard_count(None, None)
+
 
 # A stub of gh for the `refs` step: canned output instead of GitHub's API (and of gh's --jq, which it skips). Each
 # call goes to $GH_CALLS.
