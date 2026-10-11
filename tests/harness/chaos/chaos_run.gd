@@ -964,19 +964,7 @@ func _quiet_reason() -> String:
 	var behind := Vector2(player.position.x - bot.position.x, player.position.z - bot.position.z)
 	if behind.length() > 0.01:
 		return QUIET_BEHIND
-	return QUIET_NEAR_ZONE if _near_zone(player.position) else ""
-
-
-## Whether `at` is within a zone's radius plus 1 m, horizontally.
-func _near_zone(at: Vector3) -> bool:
-	for id: int in game.state.stations:
-		var station := game.state.stations[id]
-		if station.kind == null or station.kind.id != ChaosScenario.ZONE:
-			continue
-		var apart := Vector2(at.x - station.position.x, at.z - station.position.z)
-		if apart.length() <= station.kind.radius_m + 1.0:
-			return true
-	return false
+	return QUIET_NEAR_ZONE if ChaosZones.near(game.state, player.position) else ""
 
 
 ## While bot 4 is frozen, the zone's ticks since its last accepted claim; when the freeze ends,
@@ -984,7 +972,7 @@ func _near_zone(at: Vector3) -> bool:
 func _watch_freeze() -> void:
 	if game == null or freeze_gained >= 0:
 		return
-	var ticks := _zone_ticks()
+	var ticks := ChaosZones.ticks(game.state)
 	if _frozen():
 		var tick := game.ticked_through()
 		var age := MovementRule.claim_age(game.state, peers.peer_of(HOSTILE), tick)
@@ -992,7 +980,7 @@ func _watch_freeze() -> void:
 		if claimed != _freeze_claim_tick:
 			_freeze_claim_tick = claimed
 			_freeze_gain = 0
-		elif _freezing and not _other_inside():
+		elif _freezing and not ChaosZones.other_inside(game.state, peers.peer_of(HOSTILE)):
 			_freeze_gain += ticks - _freeze_prev
 		_freeze_prev = ticks
 		_freezing = true
@@ -1007,28 +995,3 @@ func _watch_freeze() -> void:
 				% [freeze_gained, ZoneTask.STALE_TICKS]
 			)
 		)
-
-
-## Whether a living player but bot 4 stands in a zone: bot 2 may carry its package across one.
-func _other_inside() -> bool:
-	var bot4_peer := peers.peer_of(HOSTILE)
-	for id: int in game.state.stations:
-		var station := game.state.stations[id]
-		if station.kind == null or station.kind.id != ChaosScenario.ZONE:
-			continue
-		for peer: int in game.state.peers():
-			var player := game.state.player(peer)
-			if peer != bot4_peer and player != null and player.is_alive():
-				if station.contains(player.position):
-					return true
-	return false
-
-
-## The ticks the match's one zone counted so far (0 before the deal).
-func _zone_ticks() -> int:
-	for id: int in game.state.tasks:
-		var task := game.state.tasks[id]
-		if task.type is ZoneTask:
-			var state := task.state as ZoneTask.State
-			return state.ticks[0] if state.ticks.size() > 0 else 0
-	return 0
