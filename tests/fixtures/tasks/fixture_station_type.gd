@@ -17,6 +17,8 @@ extends TaskType
 var problem: StringName = &""
 ## Whether use_emits() lists nothing (a use that reaches nobody), for ModeCheck's warning.
 var quiet := false
+## What kills() answers (the car repair ADR's RE6, #806), for ModeCheck's LifeTicks rule.
+var killing := false
 
 
 func _init() -> void:
@@ -77,6 +79,10 @@ func hold_completed(
 			"hold completed %d by %d after %d" % [station.id, channel.actor, channel.done_ticks]
 		)
 	)
+
+
+func kills() -> bool:
+	return killing
 
 
 func hold_emits() -> Array[Script]:

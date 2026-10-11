@@ -9,6 +9,8 @@ extends RefCounted
 ## outcome a phase can report without a row; an accepted intent that neither the phase class, the
 ## movement rule nor any rule handles; a phase whose rules can knock a player down (an effect that
 ## emits KnockedDown: a Strike) that lists no LifeTicks, so the downed would never die (M4-3); a
+## phase that accepts Interact in a mode with a task type that can kill (TaskType.kills(): the
+## car's drop) and lists no LifeTicks with a Respawn, so the dead would stay dead (KillCheck); a
 ## phase that accepts an intent whose rule starts a channel (a ChannelEffect: the raise) that lists
 ## no ChannelTicks, so the channel would never complete and a raise would pause a knockdown for
 ## good (M4-4); a ChannelEffect outside an action (a reaction, a row's actions), which has no player
@@ -715,6 +717,7 @@ func _check_phases(mode: GameMode) -> void:
 					% [spec.id, knocks_down]
 				)
 			)
+		errors.append_array(KillCheck.problems(mode, spec))
 		var throws := _running(mode, spec, ThrowItem)
 		if not throws.is_empty() and not _lists(spec, FlightTicks):
 			errors.append(
