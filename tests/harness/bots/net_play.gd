@@ -328,7 +328,10 @@ func _join_again(bot: ScenarioBot) -> void:
 	if not _join_retry(bot.number).join_again(reason, client.transport(), _join_clock_usec()):
 		return
 	print(
-		"%s: bot %d joins again (%s: the host did not answer)" % [_log_label(), bot.number, reason]
+		(
+			"%s: bot %d joins again (%s: %s)"
+			% [_log_label(), bot.number, reason, JoinRetry.why(reason)]
+		)
 	)
 	_join_host(bot)
 
@@ -432,8 +435,13 @@ func _watcher_join_again(watcher: BotWatcher) -> void:
 		return
 	print(
 		(
-			"%s: the %s joins again (%s: the host did not answer)"
-			% [_log_label(), watcher.label, watcher.failed_reason]
+			"%s: the %s joins again (%s: %s)"
+			% [
+				_log_label(),
+				watcher.label,
+				watcher.failed_reason,
+				JoinRetry.why(watcher.failed_reason),
+			]
 		)
 	)
 	watcher.rejoin(transport, _join_clock_usec())

@@ -90,6 +90,15 @@ func earlier() -> String:
 	return "; earlier joins ended %s" % ", ".join(ends)
 
 
+## What a join that ended for `reason` and is joined again met, for the log line of the new join.
+static func why(reason: StringName) -> String:
+	if reason == NetTransport.JOIN_NO_ROOM:
+		return "the host's room is not up yet"
+	if reason == NetTransport.JOIN_SERVICE_UNREACHABLE:
+		return "the signalling service did not answer in time"
+	return "the host did not answer"
+
+
 ## Whether a join on `transport` ended for no answer (UNANSWERED). Over WebRTC connect_failed is a
 ## connection that closed or a bad ADMIT, never a missing answer.
 static func _unanswered(reason: StringName, transport: NetTransport) -> bool:
