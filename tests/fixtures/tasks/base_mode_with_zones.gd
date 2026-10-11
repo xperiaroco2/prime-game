@@ -19,7 +19,14 @@ func _init() -> void:
 		var usage: int = property["usage"]
 		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			var property_name: String = property["name"]
-			set(property_name, base.get(property_name))
+			var value: Variant = base.get(property_name)
+			# Its own arrays: a test that changes the fixture's list leaves the cached shipped
+			# mode's alone (the parts in them are shared, as the shipped mode's own).
+			if value is Array:
+				value = (value as Array).duplicate()
+			elif value is Dictionary:
+				value = (value as Dictionary).duplicate()
+			set(property_name, value)
 	var tasks := SettingSpec.new()
 	tasks.id = &"tasks"
 	tasks.display_name = "Tasks"

@@ -229,6 +229,19 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	assert_int(zones.max_value).is_equal(1)
 	assert_object(base.find_setting(&"zones")).is_null()
 	assert_int(base.find_setting(&"tasks").max_value).is_equal(1)
+	# Its .tres holds the script and nothing else: a re-save that wrote the copied parts into it
+	# would freeze them, and the fixture would drift from the shipped mode unseen.
+	var text := FileAccess.get_file_as_string(FixtureBaseModeWithZones.PATH)
+	assert_str(text).is_not_empty()
+	assert_bool(text.contains("[sub_resource")).is_false()
+	var at := text.find("[resource]")
+	assert_int(at).is_greater_equal(0)
+	var stored: Array[String] = []
+	for line: String in text.substr(at + "[resource]".length()).split("\n", false):
+		if not line.strip_edges().is_empty():
+			stored.append(line.strip_edges())
+	assert_int(stored.size()).is_equal(1)
+	assert_str(stored[0]).starts_with("script = ExtResource(")
 
 
 ## A match of `mode` that the lone player joins, ready and loaded: in the pregame, the deal done
