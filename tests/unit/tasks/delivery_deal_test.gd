@@ -339,6 +339,15 @@ func test_the_mode_check_refuses_circles_and_packages_sharing_a_spawn_tag() -> v
 	assert_str(errors).contains("Delivery delivery: circle and package share spawn tag package")
 
 
+func test_the_mode_check_refuses_a_package_kind_that_vanishes() -> void:
+	# A package is known by its item id alone, and the id of a vanished item is reused.
+	var mode := FixtureDeliveryModes.basic()
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	delivery.package.vanish_seconds = 30
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("Delivery delivery: the package kind package must not vanish")
+
+
 func test_a_circle_that_forgot_its_radius_or_height_is_refused() -> void:
 	var mode := FixtureDeliveryModes.basic()
 	var circle := StationKind.new()
