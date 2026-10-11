@@ -1,0 +1,48 @@
+class_name FixtureBaseModeWithZones
+extends GameMode
+## The base mode as release/m7's #649 made it, for the zone task's tests and scenarios: the
+## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
+## from it) plus the zone task `content/tasks/hold_the_zone.tres`, the setting `zones` (1 to 1)
+## and `tasks` 2 (1 to 2): every match deals Delivery and the zone task. The engineer took the
+## zone task out of the shipped base mode on #842 (comment 6110558513: "only from the mode, now"),
+## keeping its code, its tests and the House's zones; this fixture is where they run. Loaded
+## through `base_mode_with_zones.tres` (PATH), so a bot scenario can name it as its mode.
+
+const PATH := "res://tests/fixtures/tasks/base_mode_with_zones.tres"
+const BASE_MODE := "res://content/modes/base_mode.tres"
+const ZONE_TASK := "res://content/tasks/hold_the_zone.tres"
+
+
+func _init() -> void:
+	var base := load(BASE_MODE) as GameMode
+	for property: Dictionary in base.get_property_list():
+		var usage: int = property["usage"]
+		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			var property_name: String = property["name"]
+			set(property_name, base.get(property_name))
+	var tasks := SettingSpec.new()
+	tasks.id = &"tasks"
+	tasks.display_name = "Tasks"
+	tasks.default_value = 2
+	tasks.min_value = 1
+	tasks.max_value = 2
+	var zones := SettingSpec.new()
+	zones.id = &"zones"
+	zones.display_name = "Zones (Hold the zone)"
+	zones.default_value = 1
+	zones.min_value = 1
+	zones.max_value = 1
+	var with_zones: Array[SettingSpec] = []
+	for spec: SettingSpec in base.settings:
+		with_zones.append(tasks if spec.id == &"tasks" else spec)
+		if spec.id == &"packages":
+			with_zones.append(zones)
+	settings = with_zones
+	var types: Array[TaskType] = base.task_types.duplicate()
+	types.append(load(ZONE_TASK) as TaskType)
+	task_types = types
+
+
+## The mode, loaded from PATH.
+static func mode() -> GameMode:
+	return load(PATH) as GameMode
