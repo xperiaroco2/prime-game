@@ -145,6 +145,12 @@ static func kill(ctx: MatchContext, peer: int) -> void:
 	if victim.health != 0:
 		victim.health = 0
 		SelfStatusFeed.touch(ctx.state, peer)
+	if victim.sprinting:
+		# A knockdown ends the sprint (knock_down); a kill from standing must too, with the ticks
+		# since its last claim paid as its sprint's.
+		if ctx.state.player_rules != null:
+			StaminaLedger.settle_ahead(victim, ctx.state.player_rules, ctx.tick)
+		victim.sprinting = false
 	_to_dead(ctx, victim, "kill")
 
 

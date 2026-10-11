@@ -28,10 +28,12 @@ func test_a_living_player_killed_dies_at_once_and_drops_its_items_at_the_body() 
 	var seen := game.view_of(P3).events.size()
 	var own := game.view_of(P2).events.size()
 	var at_tick := game.ticked_through() + 1
+	game.state.player(P2).sprinting = true
 	_spring(game)
 	var dead := game.state.player(P2)
 	assert_int(dead.life).is_equal(PlayerState.Life.DEAD)
 	assert_int(dead.health).is_equal(0)
+	assert_bool(dead.sprinting).is_false()
 	assert_int(dead.life_deadline).is_equal(at_tick + RESPAWN_TICKS)
 	assert_dict(game.state.bodies).is_equal({P2: P2_AT})
 	# Died, the fact, then the drop at the body: no knockdown on the way.
