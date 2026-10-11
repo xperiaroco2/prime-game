@@ -85,22 +85,22 @@ with three changes:
 - **Still:** a knocked-down player cannot move; there is no crawl and no separate "wounded" state.
 - **Mute:** it hears, but cannot speak: nobody hears it, under any rule (as before).
 - **A ragdoll:** the body falls as a rigid body, with no animation. On the House only (below), a hit can send it
-  flying, and a body knocked down on a sloped roof can roll off. Everyone sees it in the same place: the host moves
-  the body, and each screen draws its own ragdoll there.
+  flying, and it rolls or slides off whatever slope, roof or stairs it lands on. Everyone sees it in the same place:
+  the host's physics moves the body, and each screen draws its own ragdoll there.
 
-His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comment 6097876326, the
-same day):
+His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comments 6097876326 and
+6100602989, the same day):
 - Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
   launch, the knife's too.
-- A floor steeper than an angle makes a body slide downhill and off its edge; stairs do not. No floor of the House
-  slopes yet (its roof is flat), so where the slide is built is an open question for the engineer (the ADR's KD10).
-- A body still flying or sliding cannot be raised.
+- The body is a real rigid body with normal physics, run by the host: a blow launches it, and it rolls or slides off
+  any slope, roof or stairs by itself. There is no separate slide rule (the ADR's KD10).
+- A body still flying or rolling cannot be raised.
 - A knocked-down player hears the living near its body, as before, and its camera stays above its body, following it.
 - A dead body stays a ragdoll, greyed, with the cross; a raised player stands up at once.
-- A death in mid-flight or mid-slide ends the motion: the body and its items rest where it stopped.
-- **The launch and the slide play on the House only.** On the flat greybox a knocked-down body lies still where it
-  fell, as a ragdoll, with no launch and no slide.
-- The numbers (how hard a blow launches, how steep a floor slides, how fast) are placeholders, "not a decision",
+- A death in mid-flight ends the motion: the body and its items rest where it stopped.
+- **The launch plays on the House only.** On the flat greybox a knocked-down body lies still where it fell, as a
+  ragdoll, with no launch.
+- The numbers (how hard a blow launches, when a moving body counts as resting) are placeholders, "not a decision",
   until a playtest.
 
 ### Later modes
