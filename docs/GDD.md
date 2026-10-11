@@ -112,7 +112,8 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
 - Tables keep the space under them: a body may rest under a table a crouching player fits under, as long as a raise
   can reach it, and no level rule closes tables (the ADR's KD14).
 - A player raised from a body launched into the lowered car gets up inside the car on its own screen, and its own
-  game pushes it out, the car's accepted quirk; nothing new is built for it (the ADR's KD15).
+  game pushes it out, the car's accepted quirk; nothing new is built for it but a test of that push, which brings
+  the question back to him if the host keeps correcting the player into the car (the ADR's KD15).
 - The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
   not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
   the ragdoll on screen.

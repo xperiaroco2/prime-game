@@ -5092,7 +5092,8 @@ and the host's capsule never turns. KD14 and KD15 (comment 6110171062, the same 
 space under them, so a body may rest under a table a crouching player fits under as long as a raise can reach it,
 with no level rule that closes tables; and a player raised from a body launched into the lowered car (client-only,
 so the host's body rests inside it) is pushed out by its own client, the car's accepted quirk (its ADR's RE8 and
-RD6 (a)), with nothing new in code.
+RD6 (a)), with nothing new in code. That push starts with the feet inside the footprint box, deeper than the 0.4 m
+from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once.
 - **Still.** A knocked-down player's `MoveClaim` moves nothing: the host takes its facing only (a spectator watching
   a knocked-down target looks through it) and ignores the rest, with no movement check and no `Correction` (KE4).
   §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's hold go; `revive` sends a `Correction`
