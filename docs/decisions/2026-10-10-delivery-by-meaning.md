@@ -293,7 +293,10 @@ later station of the same room (a car repair workbench, say), which ZE3 would re
   D2 shows by running them on its PR; the task-event lists stay. The tutorial's are not D2's (DD10):
   `content/scenarios/tutorial_stages.tres` (bots, on `levels/tutorial/`), `tests/unit/content/tutorial_mode_test.gd`
   and `tests/integration/levels/tutorial_map_test.gd` play or check `tutorial_mode.tres`, which deals `delivery.tres`
-  today; #825, which deals the tutorial no task, changes them in its own PR, before D2.
+  today, and the lesson tests lean on its delivery (among them
+  `tests/integration/client/app/game_tutorial_lessons_test.gd`, `tests/unit/client/tutorial/lesson_runner_test.gd` and
+  `tests/unit/content/tutorial/tutorial_content_test.gd`; a sample, not the full list, which is #825's to draw up);
+  #825, which deals the tutorial no task, changes them in its own PR, before D2.
 - **Integration tests on House** (D5; bots do not play House, ARCHITECTURE §9.7): `Match` over `HostWorldQuery` with
   House's level: items put down from scripted commands at each drop-off are delivered, on the floor within the radius
   and, once D4's props stand, on their tops; one put down in the next room is not; horizontal `WorldQuery` rays from
