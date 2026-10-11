@@ -341,8 +341,9 @@ issue of its own (D3a): its removal needs nothing else, so it may land first.
   on the package", `client/i18n/strings.csv`) name a sign that DD4 (a) leaves out: the UI track's to redraw and reword,
   routed by the manager (no issue of §8); under DE15 (i) they stay keyed to the House's Delivery, and the greybox's
   `colour_delivery` gets a copy of today's card. #253's map screen lights a type's zones from `item_spawn_tags()`,
-  which returns every route's item tag (storage on House, as today); #489's `ITEM_KEYS` has no key for the new kinds,
-  so their display names show until the copy deck adds keys; `task.delivery` stays under DD7 (a).
+  which returns every route's item tag (storage on House, as today); the copy deck has no `item.<id>` key for the new
+  kinds (`ContentNames`, `client/ui/content_names.gd`, falls back to the display name), so their display names show
+  until it adds keys; `task.delivery` stays under DD7 (a).
 - **The shared total** (#738, the engineer's answers on PR #695): the HUD's "Tasks x / y" and the task screen's
   "Shared progress" go; Delivery's row keeps its own count ("2 / 6") and is struck through once every item is
   delivered. Delivery emits `TaskState` as today, which is all the row needs; whether `TaskProgress` stays on the wire
