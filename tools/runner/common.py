@@ -34,6 +34,9 @@ SCRATCH = "tests/scratch"
 IS_WINDOWS = os.name == "nt"
 IS_LINUX = sys.platform.startswith("linux")
 IS_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
+# Claude Code sets it in an agent's shell; a human's terminal and CI have none (the M4 ADR's E20). hostjoin tells a
+# headless session by it, publish a narrowed lint (#859).
+AGENT_ENV = "CLAUDECODE"
 # A Claude Code cloud session (#159): a headless Linux container set up by tools/cloud/setup.sh, like CI.
 IS_CLOUD = os.environ.get("CLAUDE_CODE_REMOTE", "").lower() == "true"
 

@@ -24,7 +24,7 @@ import re
 import shutil
 
 from . import verify, wait
-from .common import ROOT, Failure, Result, bad, ok, run, say, warn
+from .common import AGENT_ENV, ROOT, Failure, Result, bad, ok, run, say, warn
 
 REMOTE = "origin"
 # The checkout publish works on (tests point it at a temp repo).
@@ -32,8 +32,6 @@ REPO = ROOT
 TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 MARKER = {"PRIME_GAME_PUBLISH": "force-with-lease"}
 TIMEOUT = 300
-# Set in every Claude Code shell, never in a human's terminal or on CI: an agent's publish narrows its lint (#859).
-AGENT_ENV = "CLAUDECODE"
 
 
 def _git(*args: str, env: dict[str, str] | None = None) -> Result:

@@ -44,6 +44,7 @@ from pathlib import Path
 
 from . import launch, shot
 from .common import (
+    AGENT_ENV,
     IS_WINDOWS,
     LOGS,
     ROOT,
@@ -61,8 +62,6 @@ from .common import (
 
 SCRIPT = "tools/run/headless_session.gd"
 GAME = "client/app/game.tscn"
-# Claude Code sets it in an agent's shell; a human's terminal has none (the M4 ADR's E20).
-AGENT_ENV = "CLAUDECODE"
 LOCALHOST = "127.0.0.1"
 # The game's LaunchOptions.DEFAULT_PORT: a --code host serves its signalling on TCP of the same number.
 GAME_PORT = 24600
