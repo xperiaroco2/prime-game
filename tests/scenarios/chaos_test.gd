@@ -394,7 +394,7 @@ func test_the_hostile_throws_with_each_facing_and_only_those() -> void:
 	var hostile := ChaosHostile.new(null, null, WireSchema.game(true), Callable(), null, 188001)
 	var seen: Dictionary[Vector3, int] = {}
 	for _i in 64:
-		var facing: Vector3 = hostile._args_of(Intents.THROW)["facing"]
+		var facing: Vector3 = hostile._args_of(Intents.THROW, &"round")["facing"]
 		(
 			assert_bool(ChaosFrames.THROW_FACINGS.has(facing))
 			. override_failure_message(str(facing))
