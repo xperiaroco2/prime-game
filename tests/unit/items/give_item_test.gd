@@ -108,3 +108,52 @@ func test_a_box_out_of_reach_answers_out_of_reach() -> void:
 	FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id, 4)
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"out_of_reach"])
 	assert_array(FixtureGiveModes.ids_of(game, &"bun")).is_empty()
+
+
+func test_a_wall_between_answers_blocked() -> void:
+	var world := FlatWorldQuery.new()
+	var game := FixtureGiveModes.in_round([P1, P2], null, world)
+	world.add_wall(AABB(Vector3(10.4, 0, 4), Vector3(0.2, 3, 2)))
+	FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id, 6)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"blocked"])
+	assert_array(FixtureGiveModes.ids_of(game, &"bun")).is_empty()
+
+
+func test_the_refusals_come_in_their_order() -> void:
+	# Each step clears the first refusal while every later one still holds.
+	var world := FlatWorldQuery.new()
+	var game := FixtureGiveModes.in_round([P1, P2], null, world)
+	var box := FixtureGiveModes.box_of(game)
+	FixtureItemModes.pick_up(game, P2, box, 1)
+	FixtureItemModes.stand(game, P2, FixtureGiveModes.HERE)
+	FixtureItemModes.pick_up(game, P2, box, 2)
+	assert_int(box.holder).is_equal(P2)
+	FixtureItemModes.put_down(game, P2, Vector3(1, 0, 0), 3)
+	assert_int(box.where).is_equal(ItemState.Where.GROUND)
+	# A wall on the box's far side (x + 0.5) cuts every line from the east.
+	world.add_wall(AABB(box.position + Vector3(0.5, 0, -2), Vector3(0.2, 3, 4)))
+	var east := box.position + Vector3(1.2, 0, 0)
+	# Held: unavailable first, though the sender is far away and behind the wall.
+	FixtureItemModes.pick_up(game, P2, box, 4)
+	FixtureItemModes.stand(game, P1, AWAY_A)
+	FixtureGiveModes.interact_item(game, P1, box.id, 1)
+	FixtureItemModes.put_down(game, P2, Vector3(1, 0, 0), 5)
+	# On the ground, far and behind the wall: out of reach before blocked.
+	FixtureGiveModes.interact_item(game, P1, box.id, 2)
+	FixtureItemModes.stand(game, P1, east)
+	FixtureGiveModes.interact_item(game, P1, box.id, 3)
+	world.walls.clear()
+	FixtureGiveModes.interact_item(game, P1, box.id, 4)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal(
+		[&"unavailable", &"out_of_reach", &"blocked"]
+	)
+	assert_array(FixtureGiveModes.ids_of(game, &"bun")).has_size(1)
+
+
+func test_a_downed_or_dead_sender_naming_a_box_is_not_accepted() -> void:
+	for life: PlayerState.Life in [PlayerState.Life.DOWNED, PlayerState.Life.DEAD]:
+		var game := FixtureGiveModes.in_round([P1, P2])
+		game.state.player(P1).life = life
+		FixtureGiveModes.interact_item(game, P1, FixtureGiveModes.box_of(game).id, 7)
+		assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+		assert_array(FixtureGiveModes.ids_of(game, &"bun")).is_empty()

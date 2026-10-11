@@ -39,8 +39,8 @@ static func take_rule(given: ItemKind) -> Rule:
 
 ## A match of `mode` (basic() by default) in the round with `peers`, P1 standing at HERE and a box
 ## lying at BOX_AT.
-static func in_round(peers: Array[int], mode: GameMode = null) -> Match:
-	var game := FixtureStationModes.in_round(mode if mode != null else basic(), peers)
+static func in_round(peers: Array[int], mode: GameMode = null, world: WorldQuery = null) -> Match:
+	var game := FixtureStationModes.in_round(mode if mode != null else basic(), peers, world)
 	FixtureItemModes.stand(game, peers[0], HERE)
 	FixtureItemModes.lay(game, &"box", BOX_AT)
 	return game
