@@ -154,6 +154,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 	var none: Array[StringName] = []
 	var expected: Dictionary[StringName, Array] = {
 		&"AllSubtasksDone": [false, false, none],
+		&"AtStation": [true, true, none],
 		&"CarriesItem": [true, false, none],
 		&"ChannelFree": [true, false, none],
 		&"Channeling": [true, false, none],
@@ -168,6 +169,8 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"NoneAlive": [false, false, none],
 		&"OverFloor": [true, false, none],
 		&"StaminaCost": [true, false, none],
+		&"StationInSight": [true, true, none],
+		&"StationUsable": [true, true, none],
 		&"TargetDowned": [false, true, none],
 		&"TargetInReach": [true, true, none],
 		&"TargetInSight": [true, true, none],

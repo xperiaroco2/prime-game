@@ -21,7 +21,8 @@ extends RefCounted
 ## has (it never picks anything up; Round takes Throw from the living since #646, so a Throw there
 ## is `empty_hand`), SetProfile with a new name and colour only while its client is in loading or
 ## pregame (the host cannot be back in the lobby then; the round ends in End and then the lobby)
-## and else with its own (unchanged in the lobby, #551), nothing a race could turn into an action.
+## and else with its own (unchanged in the lobby, #551), Interact naming any id (the base mode
+## accepts it nowhere until G5, #800), nothing a race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -148,6 +149,7 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 		Intents.HELLO,
 		Intents.NEXT_STAGE,
 		Intents.SET_PROFILE,
+		Intents.INTERACT,
 	]
 	if phase != &"round" or life == ClientModel.Life.DEAD:
 		# Outside the round, or dead, nothing can turn a GiveUp into a death.
@@ -182,6 +184,8 @@ func _args_of(intent: StringName, phase: StringName) -> Dictionary:
 		Intents.THROW:
 			var facings := ChaosFrames.THROW_FACINGS
 			args = {"facing": facings[rng.randi_range(0, facings.size() - 1)]}
+		Intents.INTERACT:
+			args = {"station": rng.randi_range(0, 9)}
 		Intents.RAISE:
 			args = {"target": _raise_target()}
 		Intents.HELLO:

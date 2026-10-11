@@ -376,6 +376,48 @@ func test_a_station_target_is_the_n_th_station_of_its_kind_the_bot_was_told_of()
 	assert_str("\n".join(bad.problems())).contains("no station kind").contains("index 0")
 
 
+func test_an_interact_step_uses_the_n_th_station_of_its_kind_and_waits_for_its_event() -> void:
+	# Bot 1 walks onto the second panel and uses it: its type's FixtureNote names that station.
+	var walk := StepWalkTo.new()
+	walk.target = _station(&"panel", 2)
+	walk.stop_m = 0.0
+	var use := StepInteract.new()
+	use.station = _station(&"panel", 2)
+	use.until = &"FixtureNote"
+	var scenario := _scenario([[StepReady.new(), _round(), walk, use]])
+	scenario.mode = _panel_mode()
+	scenario.time_limit_s = 60.0
+	var runner := ScenarioRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var bot: ScenarioBot = runner.bots[0]
+	var panels: Array[int] = []
+	for id: int in bot.station_kinds:
+		if bot.station_kinds[id] == &"panel":
+			panels.append(id)
+	panels.sort()
+	assert_int(panels.size()).is_equal(4)
+	var note := bot.find_since(
+		0, func(event: WireMessage) -> bool: return event.name == &"FixtureNote"
+	)
+	assert_object(note).is_not_null()
+	assert_str(str(note.fields["text"])).starts_with("used %d task " % panels[1])
+	# From where it stands (the round's spawn, far from every panel) the use is refused in reach.
+	var far := StepInteract.new()
+	far.station = _station(&"panel", 2)
+	far.expect_rejected = &"out_of_reach"
+	scenario = _scenario([[StepReady.new(), _round(), far]])
+	scenario.mode = _panel_mode()
+	assert_array(Array(ScenarioRunner.play(scenario).failures)).is_empty()
+	# A station it was told of none of: it cannot know, and sends nothing.
+	var lost := StepInteract.new()
+	lost.station = _station(&"panel", 99)
+	lost.until = &"FixtureNote"
+	scenario = _scenario([[StepReady.new(), _round(), lost]])
+	scenario.mode = _panel_mode()
+	runner = ScenarioRunner.play(scenario)
+	assert_str(_text(runner)).contains("step 3 (Interact)").contains("cannot know")
+
+
 func test_the_setup_sends_the_bans_and_refuses_unknown_ones_or_too_few_types_left() -> void:
 	var scenario := _scenario([[]])
 	scenario.id_sets = {&"banned_task_types": PackedStringArray()}
@@ -503,6 +545,32 @@ func _scenario(scripts: Array) -> BotScenario:
 		made.append(script)
 	scenario.scripts = made
 	return scenario
+
+
+## The zone fixture's base mode (its own arrays) with FixtureStationType in the zone task's place,
+## its panels on the greybox's four `zone` markers, and the round accepting Interact from the
+## living: a mode whose stations a bot can use (#796).
+func _panel_mode() -> GameMode:
+	var mode := FixtureBaseModeWithZones.new()
+	var panels := FixtureStationModes.station_type()
+	panels.panel.spawn_tag = &"zone"
+	var types: Array[TaskType] = []
+	for type: TaskType in mode.task_types:
+		types.append(panels if type is ZoneTask else type)
+	mode.task_types = types
+	var phases: Array[PhaseSpec] = []
+	for phase: PhaseSpec in mode.phases:
+		if phase.id == &"round":
+			# A copy: the shipped mode's PhaseSpec is cached and shared.
+			var round_phase := phase.duplicate() as PhaseSpec
+			var accepts: Array[AcceptSpec] = phase.accepts.duplicate()
+			accepts.append(AcceptSpec.of(Intents.INTERACT, AcceptSpec.From.LIVING))
+			round_phase.accepts = accepts
+			phases.append(round_phase)
+		else:
+			phases.append(phase)
+	mode.phases = phases
+	return mode
 
 
 func _round() -> StepWaitFor:

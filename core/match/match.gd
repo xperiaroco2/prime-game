@@ -514,6 +514,10 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 	if state.player(command.peer) == null:
 		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 		return
+	var problem := _target_problem(command, ctx)
+	if not problem.is_empty():
+		ctx.reject(command, problem)
+		return
 	var rule := _find_action(command, ctx)
 	if rule == null:
 		ctx.reject(command, RejectReasons.NOTHING_TO_DO)
@@ -543,11 +547,31 @@ func _accepts(command: MatchCommand) -> bool:
 	return from & AcceptSpec.From.PLAYER != 0 or living or downed or host
 
 
-## The first rule for the intent among the held item's actions, the actor's role's and the
-## mode's (§9.2), with ctx.source naming it; null when none.
+## Why an accepted intent's target refuses it before any owner is tried, or empty. An intent that
+## names a station (Interact) whose id names no placed station gets `nothing_to_do` (the Generator
+## ADR's §2.2, GE2, #796): an unknown id, which is all a fixed switch is, so a role's or the mode's
+## rule on it only ever sees a placed station, and a package carrier naming one hears
+## `nothing_to_do`, not `two_handed`. C1 (#770) makes `station` optional and adds `item`: exactly
+## one of the two, else `bad_args`, goes here.
+func _target_problem(command: MatchCommand, ctx: MatchContext) -> StringName:
+	if Stations.names_station(command.kind) and Stations.target_of(ctx) == null:
+		return RejectReasons.NOTHING_TO_DO
+	return &""
+
+
+## The first rule for the intent among its owners (§9.2), with ctx.source naming it; null when
+## none. An intent that names a placed station tries the station's kind's actions, then the
+## actor's role's and the mode's, never the hand item's (GE2: ModeCheck refuses an item kind's
+## rule on Interact); any other intent the held item's actions, the role's and the mode's.
 func _find_action(command: MatchCommand, ctx: MatchContext) -> Rule:
 	var player := state.player(command.peer)
-	if player.held_item >= 0 and state.items.has(player.held_item):
+	var station := Stations.target_of(ctx)
+	if station != null:
+		var rule := _first_rule(station.kind.actions, command.kind)
+		if rule != null:
+			ctx.source = "action %s of station kind %s" % [command.kind, station.kind.id]
+			return rule
+	elif player.held_item >= 0 and state.items.has(player.held_item):
 		var kind := state.items[player.held_item].kind
 		var rule := _first_rule(kind.actions, command.kind)
 		if rule != null:

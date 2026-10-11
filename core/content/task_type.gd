@@ -90,3 +90,26 @@ func check(mode: GameMode) -> PackedStringArray:
 ## every type (DealTasks.pool_of without a map, for the lobby's bounds, #79).
 func plays_on(map: String) -> bool:
 	return map.is_empty() or maps.is_empty() or maps.has(map)
+
+
+## Why this type refuses a use of `station`, a placed station of its kind, by the actor of `ctx`
+## now (StationUsable, the Generator ADR's GE2, #796), or empty when it takes it. Only a reason
+## of StationUsable.REASONS: each says only public state of a station the actor has in reach and
+## in sight (AtStation and StationInSight run before StationUsable), and never reads a role.
+## `task` is the type's task (null when the deal dealt none). By default every use is refused
+## `unavailable`: a type whose stations nobody uses takes no use.
+func use_problem(_ctx: MatchContext, _task: MatchTask, _station: StationState) -> StringName:
+	return StationUsable.UNAVAILABLE
+
+
+## Uses `station` (UseStation, after StationUsable passed): the type writes its own task state
+## (§9.1) and emits only the events use_emits() lists. Nothing by default.
+func use_station(_ctx: MatchContext, _task: MatchTask, _station: StationState) -> void:
+	pass
+
+
+## The event classes use_station() can emit (the Generator's SwitchChanged, ButtonPressed and its
+## progress event): ModeCheck counts them for a UseStation in a rule of this type's station kinds,
+## so a role-gated station rule whose use reaches everyone warns (§9.2). None by default.
+func use_emits() -> Array[Script]:
+	return []

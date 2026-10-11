@@ -248,19 +248,30 @@ func where_is(target: ScenarioTarget) -> Vector3:
 				var station: int = items[held]["station"]
 				found = stations.get(station, Vector3.INF)
 		ScenarioTarget.Kind.STATION:
-			var ids: Array[int] = []
-			for id: int in station_kinds:
-				if station_kinds[id] == target.station_kind:
-					ids.append(id)
-			ids.sort()
-			if target.index >= 1 and target.index <= ids.size():
-				found = stations[ids[target.index - 1]]
+			var station := station_of(target)
+			if station >= 0:
+				found = stations[station]
 		_:
 			var item := item_of(target)
 			# An item in flight is somewhere along its arc: its last known place would mislead a step.
 			if item >= 0 and items[item]["where"] != Where.FLYING:
 				found = items[item]["position"]
 	return found
+
+
+## The station id a STATION `target` names (the n-th, from 1, of its kind in station-id order,
+## from the bot's own StationPlaced), or -1 when the bot knows no such station.
+func station_of(target: ScenarioTarget) -> int:
+	if target.kind != ScenarioTarget.Kind.STATION:
+		return -1
+	var ids: Array[int] = []
+	for id: int in station_kinds:
+		if station_kinds[id] == target.station_kind:
+			ids.append(id)
+	ids.sort()
+	if target.index >= 1 and target.index <= ids.size():
+		return ids[target.index - 1]
+	return -1
 
 
 ## The item `target` names, as the bot knows it, or -1.
