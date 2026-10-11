@@ -284,7 +284,7 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
 | Launched off the balcony or a ledge | it lands below and can be raised there | a body resting in the air over the yard |
 | Launched over no floor | the longest motion ends it at the fallback; the match logs an error | a body nobody can reach, and its items with it |
 | It comes to rest on the parapet or a railing | it rests on top, where the physics holds it, and can be raised there from within reach | a body snapped to a floor it never reached |
-| Launched at a table, or into a gap behind furniture | the host's capsule, a crouching player's that never turns, goes only where a crouching player fits (KD11, KE13): it rests against the table's edge, or under a table higher than a crouching player; a raised player gets up crouched there and stands once there is room (KE6) | a raised player standing up inside the table, pushed out through the level |
+| Launched at a table, or into a gap behind furniture | the host's capsule, a crouching player's that never turns, goes only where a crouching player fits (KD11, KE13): it rests beside or on a table a crouching player does not fit under, and only under one it fits under; a raised player gets up crouched there and stands once there is room (KE6) | a raised player standing up inside the table, pushed out through the level |
 | Launched where no player can reach (the locked roof's edge) | open: KD12 (§2); recommended (a), the levels' reach convention covering bodies, checked on the House by 728e | a package launched out of everyone's reach for the match |
 | Two bodies land on one spot | both lie there; the host's bodies and the ragdolls pass through each other | a pile that differs on each screen |
 | A `Raise` while the body moves | `Rejected(moving)` (KD4 (a)) | a raise of a body that leaves reach a tick later |
@@ -335,8 +335,8 @@ ragdoll is a thing in the world, which `SightHider` hides like the avatar it rep
   ledge, a ramp, stairs, a wall, a hole and a low table, through `HostBodies` and a `Match` on a fixture mode that
   lists it (and the crouch on it, KE12): a body launched off the ledge rests on the floor below, one launched down
   the ramp or the stairs ends lower on them or at their foot, one knocked down with no launch on a flat floor rests
-  where it stood with its capsule's axis vertical (it never turns), one launched at the low table, whose top is lower
-  than a crouching player and higher than the capsule is wide, rests short of it and never under it (KD11: a capsule
+  where it stood with its capsule's axis vertical (it never turns), one launched at the low table, whose underside is
+  lower than a crouching player is tall and higher than the capsule is wide, never rests under it (KD11: a capsule
   free to turn would roll under), one crouched under a low fixture ceiling starts below it, one launched at the wall
   rests on its near side, and one over the hole ends at the longest motion with the fallback and its error; each
   waits real physics frames and asserts where the body may rest (on a floor, inside the level, within the longest
