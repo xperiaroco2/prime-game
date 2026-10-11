@@ -73,6 +73,8 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		ItemVanishedEvent.new(1),
 		TaskProgressEvent.new(0, 1),
 		ZoneProgressEvent.new(1, 0, 20, true, 0),
+		SwitchChangedEvent.new(2, true),
+		ButtonPressedEvent.new(1),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),
 		SwungEvent.new(P1, Vector3.FORWARD),
 		DamagedEvent.new(P1, 1, 0),

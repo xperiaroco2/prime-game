@@ -102,6 +102,10 @@ static func events() -> Dictionary[String, Array]:
 			0xFFFFFFFE
 		),
 	]
+	found["SwitchChangedEvent"] = [
+		SwitchChangedEvent.new(2, true), SwitchChangedEvent.new(0xFFFE, false)
+	]
+	found["ButtonPressedEvent"] = [ButtonPressedEvent.new(1), ButtonPressedEvent.new(0xFFFE)]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [
 		MatchEndedEvent.new(&"crew"),

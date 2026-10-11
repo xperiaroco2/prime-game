@@ -69,22 +69,29 @@ class Task:
 	var total := 0
 
 
-## One station: a delivery circle or a zone (#36).
+## One station: a delivery circle, a zone (#36), or the Generator's generator or a switch (#797).
+## Nothing here names who used it: no event of a station carries a player.
 class Station:
 	extends RefCounted
 	var kind: StringName
 	var colour := Color.WHITE
 	var position := Vector3.ZERO
-	## Done: a package was delivered to it (§4.2 PackageDelivered), or, for a zone, its last
-	## ZoneProgress has `ticks` at `needed` (ZE8 of the zone task ADR).
+	## Done: a package was delivered to it (§4.2 PackageDelivered), or, for a zone or the
+	## generator, its last ZoneProgress has `ticks` at `needed` (ZE8 of the zone task ADR).
 	var done := false
-	## A zone's progress as its last ZoneProgress told it (ZE4, ZE8): its ticks so far, the ticks
-	## it needs, whether it counts, and the host tick this held at (-1 before the first). The client
-	## predicts nothing: ZoneViews extrapolates from these alone.
+	## A zone's progress, or the generator's charge (GE7), as its last ZoneProgress told it (ZE4,
+	## ZE8): its ticks so far, the ticks it needs, whether it counts, and the host tick this held at
+	## (-1 before the first). The client predicts nothing: ZoneViews extrapolates from these alone.
 	var ticks := 0
 	var needed := 0
 	var counting := false
 	var progress_tick := -1
+	## A switch of the Generator: whether it is on, as its last SwitchChanged told it; a placed
+	## switch is off until its first (GE9, GE14).
+	var on := false
+	## The Generator's button: the ButtonPressed events decoded for it, so a view can tell a new
+	## press (its sound, its animation) from one it has shown.
+	var presses := 0
 
 
 ## Its own peer id once welcomed; 0 before.
@@ -393,6 +400,14 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 				zone.counting = fields["counting"]
 				zone.progress_tick = fields["tick"]
 				zone.done = zone.needed > 0 and zone.ticks >= zone.needed
+		&"SwitchChanged":
+			var switch: Station = stations.get(fields["station"] as int)
+			if switch != null:
+				switch.on = fields["on"]
+		&"ButtonPressed":
+			var button: Station = stations.get(fields["station"] as int)
+			if button != null:
+				button.presses += 1
 		&"TaskProgress":
 			tasks_done = fields["done"]
 			tasks_total = fields["total"]
