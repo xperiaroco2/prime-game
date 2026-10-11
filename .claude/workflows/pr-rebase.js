@@ -186,7 +186,7 @@ const waits = (publishes, loops = false) => [
   '- Read a log by search, never whole (what you read rides along on every later call): `grep -n -E "FAIL|Error" <log>` or the Grep tool, then only the lines around a hit. `verify` and `publish` print the failure lines of their red steps and the summary; the whole output is in `tools/out/logs/verify-output.log` (#572).',
   `- CI: \`cd ${WTB} && timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?\` in the Bash tool with the tool's timeout set to 300000 (in PowerShell \`timeout\` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red. CI runs every test (\`verify --full\`; a local \`verify\` is doctor, lint and check, #605): its green is the test gate, so never run \`verify --full\` locally.`,
   publishes ? '- No standalone `verify` before `publish`: after fixes, run the tests they touch and `check`, then `publish`. It verifies, unless the newest verify passed on this identical tree under 2 hours ago (it says so and pushes on that), and a red verify inside it pushes nothing.' : '',
-  loops ? '- In your inner loop you may run `verify --fail-fast` (it stops at the first red step); the run you report as verify_tail, and publish\'s, is a plain `verify`.' : '',
+  loops ? '- In your inner loop you may run `verify --fail-fast` (it stops at the first red step); the run you report as verify_tail, like publish\'s, is a whole `verify --changed` (no `--fail-fast`).' : '',
   '- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.',
 ].filter(Boolean).join('\n')
 

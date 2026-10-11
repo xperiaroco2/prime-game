@@ -1718,7 +1718,9 @@ class PipelineV2Test(unittest.TestCase):
                     fail_fast = "In your inner loop you may run `verify --fail-fast` (it stops at the first red step)"
                     if kind == "implementing":
                         self.assertIn(fail_fast, paragraph)
-                        self.assertIn("the run you report as verify_tail, and publish's, is a plain `verify`", paragraph)
+                        self.assertIn(
+                            "the run you report as verify_tail, like publish's, is a whole `verify --changed`", paragraph
+                        )
                     else:
                         self.assertNotIn("--fail-fast", paragraph)
                     if kind == "publishing":
