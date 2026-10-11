@@ -117,7 +117,9 @@ longer crawls. It cannot move, and, as before, cannot talk; its body falls as a 
 hit can send flying, and which rolls or slides off any slope, roof or stairs by itself, a rigid body in the host's
 physics (the flat greybox gets no launch). By his answer of 2026-10-11 (PR #754, comment 6108669765, KD11) that body
 has a crouching player's collider, so it rests only where a crouching player fits, and a raised player gets up
-crouched there (whether the host's body then rolls, or only slides and falls, is the ADR's KD13, open). The rest of
+crouched there; by his answers of the same day (comment 6109457234, KD12 and KD13) the host's body never turns, so
+it slides and falls and only each screen's ragdoll rolls, and the levels keep a launched body within a raise's reach
+of where a crouching player can stand. The rest of
 this section stands; where it says the downed crawl, they will
 lie still once #728's issues are built.
 
