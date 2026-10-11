@@ -89,21 +89,25 @@ with three changes:
   the host's physics moves the body, and each screen draws its own ragdoll there.
 
 His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comments 6097876326 and
-6100602989, the same day):
+6100602989, the same day, and 6108669765 on 2026-10-11):
 - Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
   launch, the knife's too.
 - The body is a real rigid body with normal physics, run by the host: a blow launches it, and it rolls or slides off
   any slope, roof or stairs by itself. There is no separate slide rule (the ADR's KD10).
 - A body still flying or rolling cannot be raised.
 - A knocked-down player hears the living near its body, as before, and its camera stays above its body, following it.
-- A dead body stays a ragdoll, greyed, with the cross; a raised player stands up at once.
+- A dead body stays a ragdoll, greyed, with the cross; a raised player gets up at once (crouched where only a
+  crouching player fits, below).
 - A death in mid-flight ends the motion: the body and its items rest where it stopped.
 - **The launch plays on the House only.** On the flat greybox a knocked-down body lies still where it fell, as a
   ragdoll, with no launch.
 - The numbers (how hard a blow launches, when a moving body counts as resting) are placeholders, "not a decision",
   until a playtest.
-- Open (the ADR's KD11): where a body may come to rest, when it lands where a standing player does not fit (under a
-  table) or where no player can walk (the locked roof), out of reach with the package it carries.
+- The body has a crouching player's collider, so it comes to rest only where a crouching player fits (it does not
+  roll under a low table); a raised player gets up crouched there and stands up by the crouch's rules once there is
+  room (the ADR's KD11).
+- Open (the ADR's KD12): a body a launch carries where nobody can reach it (the locked roof's edge), out of reach
+  with the package it carries.
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
