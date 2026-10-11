@@ -278,8 +278,6 @@ func test_the_mode_check_refuses_numbers_the_data_did_not_set() -> void:
 	assert_str(errors).contains("Strike damage is 1001, outside 1 to 1000")
 
 
-## A round of `peers` (of `mode`, the knife mode when null, in `world`) with P1 at the origin
-## holding a knife.
 func test_a_target_no_longer_alive_when_its_turn_comes_is_skipped_with_no_rule_error() -> void:
 	# The hit on P2 stops its channel, whose stop kills P3 at once (FixtureKillingChannel; the car
 	# repair ADR's RE17 queues such kills, #806): P3, picked with P2, is dead at its turn.
@@ -301,6 +299,8 @@ func test_a_target_no_longer_alive_when_its_turn_comes_is_skipped_with_no_rule_e
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## A round of `peers` (of `mode`, the knife mode when null, in `world`) with P1 at the origin
+## holding a knife.
 func _armed(peers: Array[int], mode: GameMode = null, world: WorldQuery = null) -> Match:
 	var used := mode if mode != null else FixtureCombatModes.basic()
 	var game := FixtureCombatModes.in_round(used, peers, world)
