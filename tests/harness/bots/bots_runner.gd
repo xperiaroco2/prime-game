@@ -25,8 +25,10 @@ const START_USEC := 1000000
 const USEC_PER_SECOND := 1000000
 ## The lurker's hello deadline is the run's time limit plus this.
 const LURKER_MARGIN_S := 10
-## The transport's room besides the bots: the lurker, the refused bot and one spare.
-const EXTRA_CLIENTS := 3
+## The transport's room besides the bots: every join the lurker and the refused bot may make, and
+## one spare. A watcher's unanswered join can still hold a slot on the host's ENet until ENet's own
+## timeout (the client's close of a join that never connected tells the host nothing, #509).
+const EXTRA_CLIENTS := 2 * BotWatcher.MAX_JOINS + 1
 
 var session: HostSession
 var game: Match

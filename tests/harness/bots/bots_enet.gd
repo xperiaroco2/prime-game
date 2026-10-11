@@ -42,7 +42,8 @@ const USEC_PER_SECOND := 1000000
 ## The lurker's hello deadline is the run's time limit plus this; a remote bot waits this long past
 ## the time limit for the host to close.
 const MARGIN_S := 10
-const EXTRA_CLIENTS := 3
+## The transport's room besides the bots, as BotsRunner.EXTRA_CLIENTS: every join of the watchers.
+const EXTRA_CLIENTS := BotsRunner.EXTRA_CLIENTS
 const PEERS_FILE := "peers"
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
