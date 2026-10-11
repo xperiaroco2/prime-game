@@ -71,6 +71,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		StationPlacedEvent.new(1, &"circle", Color.RED, Vector3.ZERO),
 		PackageDeliveredEvent.new(1, 1),
 		ItemVanishedEvent.new(1),
+		ItemChangedEvent.new(1, &"fried"),
 		TaskProgressEvent.new(0, 1),
 		ZoneProgressEvent.new(1, 0, 20, true, 0),
 		SwitchChangedEvent.new(2, true),
