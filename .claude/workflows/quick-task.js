@@ -58,6 +58,7 @@ const RULES = [
   WAIT_RULE,
   '- Read a log by search, never whole (what you read rides along on every later call): `grep -n -E "FAIL|Error" <log>` or the Grep tool, then only the lines around a hit; `lint` and `check` print a summary and name their whole output under `tools/out/logs/` (#572).',
   '- Commits: Conventional Commits, one logical change each, `git commit -F <file>`, the message ending with the attribution line your system reminder gives for commits; the PR body ends with the line it gives for pull requests.',
+  '- Never delete, move or edit anything under addons/, not even a stray ~*.TMP (ignored: leave it); list any needed cleanup under needs_engineer in your result instead.',
 ].join('\n')
 const CI = `CI: \`cd ${WTB} && timeout 180 gh pr checks <pr> --watch --interval 30; echo rc=$?\` with the tool's timeout 300000, again while rc is 124 or 8 (rc 1 with "no checks reported": CI has not started, again). rc 0 is green, 1 red: find the failure with \`gh run view <id> --log-failed | grep -n -i -E "fail|error" | head -40\`, fix it, lint and check, commit, \`git push origin ${A.branch}\`, watch again. At most two fix rounds, then return ci_green false with what is still red under needs_engineer.`
 
