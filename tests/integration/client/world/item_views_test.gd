@@ -183,6 +183,17 @@ func test_views_go_with_the_models_items() -> void:
 	assert_int(_items.count()).is_equal(0)
 
 
+func test_an_id_freed_and_reused_in_one_frame_gets_the_new_kinds_view() -> void:
+	_spawn(1, &"knife", Vector3.ZERO)
+	await _drawn()
+	assert_str(_items.view_of(1).kind).is_equal(&"knife")
+	_model.fold(&"ItemVanished", {"item": 1})
+	_spawn(1, &"wrench", Vector3(1, 0, 1))
+	await _drawn()
+	assert_int(_items.count()).is_equal(1)
+	assert_str(_items.view_of(1).kind).is_equal(&"wrench")
+
+
 func test_a_circle_has_its_kinds_size_and_colour_and_dims_when_done() -> void:
 	_station(0, Color(0.9, 0.2, 0.2), Vector3(5, 0, 5))
 	await _drawn()
