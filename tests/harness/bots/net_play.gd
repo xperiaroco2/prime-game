@@ -369,7 +369,10 @@ func _fail_lost_join(bot: ScenarioBot) -> bool:
 
 ## `bot`'s JoinRetry, made on first use, bounded by max_joins as it is now.
 func _join_retry(number: int) -> JoinRetry:
-	var retry: JoinRetry = _joins.get_or_add(number, JoinRetry.new())
+	var retry: JoinRetry = _joins.get(number)
+	if retry == null:
+		retry = JoinRetry.new()
+		_joins[number] = retry
 	retry.max_joins = max_joins
 	return retry
 
