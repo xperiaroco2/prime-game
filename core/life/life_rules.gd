@@ -136,7 +136,8 @@ static func die(ctx: MatchContext, peer: int) -> void:
 
 ## `peer`, living or downed, invulnerable or not, dies at once (RE6, RD7): as die(), and a living
 ## player's health falls to 0. A player who is neither (dead already, left, or unknown) is a rule
-## error, logged; settle_kills() skips such a player before it calls this.
+## error, logged; settle_kills() skips such a player before it calls this. A part in the middle of
+## someone's command or a channel's hook queues the kill (kill_later) instead (RE17).
 static func kill(ctx: MatchContext, peer: int) -> void:
 	var victim := ctx.state.player(peer)
 	if victim == null or not _killable(victim):

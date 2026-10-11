@@ -88,7 +88,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   earlier effect of the same command already ended the phase; then its sender gets `Rejected` with the reason
   `outcome_dropped`, so the loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal
   (§9.2), the rule's costs were paid and its effects ran. The kills a step queues (`LifeRules.kill_later`, #806)
-  land before its win check, once the command's dispatch, the phase's own timers or each tick system has finished,
+  land before its win check, once the command's dispatch, the phase's own timers, each tick system, the clock ending or a phase's entry has finished,
   and never once the step has an outcome (§9.3 "Life").
 - A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
   and back. The deal runs only on `Loading, all_loaded → Pregame`, so returning to Round deals nothing, and a phase
@@ -5788,11 +5788,12 @@ phase classes come in the task each row names.
   queued players in peer-id order, skipping one no longer living or downed (dead already, or left) with no rule
   error, and clearing the queue with no kill once the step has an outcome (`MatchContext.step_has_outcome`: a win
   recorded earlier in the same advance; RD16 (c), nothing dies after the outcome); kills a kill queues settle in the
-  same call. `Match` settles after a command's dispatch, after the phase's own timers and after each tick system
-  (each before the step's win check), `Channels.advance` after each channel's step, so a kill lands in the command
-  or tick of its cause, after that command's or channel step's own events; a transition drops the queue
-  (`drop_kills`, once the old phase has exited). `Strike` skips a target no longer alive at its turn (a defensive
-  check behind the queue).
+  same call. `Match` settles after a command's dispatch, after the phase's own timers, after each tick system, after
+  the clock ending and at the end of a phase's entry (each before the step's win check), `Channels.advance` after each
+  channel's step, so a kill lands in the command or tick of its cause, after that command's or channel step's own
+  events; a transition drops the queue (`drop_kills`, once the old phase has exited). `kill` itself is public but a
+  part's hook never calls it in the middle of someone's command (RE17): it queues. `Strike` skips a target no longer
+  alive at its turn (a defensive check behind the queue).
 - **Channels** (`core/channel/`, M4-4 #140): an action that takes time, the generic primitive the raise uses and
   any later timed action reuses (the zone task does not: it counts presence in its own tick, standing being no
   action, ZD1 (a) of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md), the engineer's answer on #302; built
