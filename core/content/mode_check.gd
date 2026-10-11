@@ -30,16 +30,18 @@ extends RefCounted
 ## GE2); a UseStation on an intent that names no station or without AtStation, StationInSight and
 ## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
 ## an AtStation, StationInSight or StationUsable on an intent that names no station (a dead rule);
-## two station kinds among the task types with one id or one spawn tag, one kind held twice included
-## (stations take markers without asking whether one stands there, and Demands keys palettes by
-## the kind's id); a task type that ticks (#36's zone task) in a mode where no phase lists
-## TaskTicks, so it would never count; an item kind with `vanish_seconds` in a mode where no phase
-## lists VanishTicks, so its items would never vanish (the cooking ADR, C10); a number outside its
-## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
-## rule with an effect whose event goes to everyone (for a UseStation, an event its station's task
-## type's use_emits() lists), which reveals the actor's role (§9.2); in a
-## mode with a channel, any role-owned or role-gated action, since applying it stops its actor's
-## channel publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose
+## a HoldStation on an intent that names no station (and, as every ChannelEffect, without its
+## required AtStation and ChannelFree; the car repair ADR's RE9, #805); two station kinds among
+## the task types with one id or one spawn tag, one kind held twice included (stations take
+## markers without asking whether one stands there, and Demands keys palettes by the kind's id); a
+## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
+## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
+## its items would never vanish (the cooking ADR, C10); a number outside its part's bounds; an id
+## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
+## whose event goes to everyone (for a UseStation, an event its station's task type's use_emits()
+## lists; for a HoldStation, its hold_emits()), which reveals the actor's role (§9.2); in a mode
+## with a channel, any role-owned or role-gated action, since applying it stops its actor's channel
+## publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose
 ## KnockDown without then_die enters a phase with no LifeTicks, whose downed stays downed for good
 ## (#599: the tutorial's raise_stage wants that, so a warning, not an error).
 ##
@@ -371,11 +373,19 @@ func _check_throw_rule(owner: String, rule: Rule, on_intent: bool) -> void:
 ## A station's rule (the Generator ADR's GE2, #796): a UseStation only on an intent that names a
 ## station, with AtStation, StationInSight and StationUsable (UseStation.required_conditions); and
 ## a StationUsable only after AtStation and StationInSight, so its reason only ever tells about a
-## station the actor has in reach and in sight (§9.4.1).
+## station the actor has in reach and in sight (§9.4.1). A HoldStation only on an intent that names
+## a station too (the car repair ADR's RE9, #805; its required conditions _check_channel_rule's).
 func _check_station_rule(owner: String, rule: Rule) -> void:
 	var uses_station := false
 	for effect: RuleEffect in rule.effects:
-		uses_station = uses_station or effect is UseStation
+		uses_station = uses_station or effect is UseStation or effect is HoldStation
+		if effect is HoldStation and not Stations.names_station(rule.trigger):
+			errors.append(
+				(
+					"%s: rule %s holds a station, which only an intent naming one (%s) can"
+					% [owner, rule.trigger, station_intents()]
+				)
+			)
 	if not uses_station and not Stations.names_station(rule.trigger):
 		# A dead rule (#379): on an intent with no station they find none and always refuse.
 		for condition: Condition in rule.conditions:
@@ -846,14 +856,17 @@ static func _emits_to_everyone(effect: RuleEffect) -> bool:
 
 ## Whether `effect` emits an event to everyone: its own emits(), or for a UseStation the
 ## use_emits() of `uses`, the task types whose station it may use (GE2: UseStation.emits() alone
-## cannot name what its station's type emits).
+## cannot name what its station's type emits), and for a HoldStation their hold_emits() (#805).
 static func _reaches_everyone(effect: RuleEffect, uses: Array[TaskType]) -> bool:
 	if _emits_to_everyone(effect):
 		return true
-	if not effect is UseStation:
+	if not effect is UseStation and not effect is HoldStation:
 		return false
 	for type: TaskType in uses:
-		if type != null and _any_to_everyone(type.use_emits()):
+		if type == null:
+			continue
+		var emitted := type.use_emits() if effect is UseStation else type.hold_emits()
+		if _any_to_everyone(emitted):
 			return true
 	return false
 
