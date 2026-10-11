@@ -68,7 +68,10 @@ def check_args(scenarios: list[str], instances: int, transport: str = "enet") ->
     exactly one; a transport is a network's, and needs --instances."""
     for name in scenarios:
         if not NAME_RE.fullmatch(name.removesuffix(".tres")):
-            raise Failure(f"{name}: give a scenario's file name in content/scenarios/, such as refusals")
+            raise Failure(
+                f"{name}: give a scenario's file name in content/scenarios/ or tests/fixtures/scenarios/, "
+                "such as refusals"
+            )
     if instances < 1 or instances > launch.MAX_INSTANCES:
         raise Failure(f"--instances must be between 1 and {launch.MAX_INSTANCES}")
     if instances > 1 and len(scenarios) != 1:
