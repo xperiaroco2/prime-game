@@ -53,17 +53,21 @@ static func problems_of(mode: GameMode) -> PackedStringArray:
 
 ## The task types this round may deal, in `mode`'s order: the pool of the mode's DealTasks (its
 ## task types minus the ones the host banned in the lobby, the id set its `banned_setting` names
-## in `model`'s settings; no other set); none when the mode deals no tasks. The deal itself comes
-## at the end of Loading (DealTasks on `all_loaded`), so the loading screen knows no more.
+## in `model`'s settings; no other set) that play on the lobby's map (`model.map`, TaskType.maps;
+## every type while the model has no map or is null); none when the mode deals no tasks. The deal
+## itself comes at the end of Loading (DealTasks on `all_loaded`), so the loading screen knows no
+## more.
 static func dealable(mode: GameMode, model: ClientModel) -> Array[StringName]:
 	var found: Array[StringName] = []
 	var deal := deal_of(mode)
 	if deal == null:
 		return found
 	var banned := PackedStringArray()
+	var map := ""
 	if model != null:
 		banned = model.id_sets.get(deal.banned_setting, PackedStringArray())
-	for type: TaskType in DealTasks.pool_of(mode, banned):
+		map = model.map
+	for type: TaskType in DealTasks.pool_of(mode, banned, map):
 		found.append(type.id)
 	return found
 

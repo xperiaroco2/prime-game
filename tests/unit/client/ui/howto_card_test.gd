@@ -61,6 +61,19 @@ func test_the_dealable_types_of_a_mode_with_zones_leave_out_the_banned_ones() ->
 	assert_array(HowtoCards.dealable(mode, null)).is_equal([&"delivery", &"hold_the_zone"])
 
 
+func test_the_dealable_types_are_the_lobbys_maps_types() -> void:
+	# A type that lists a map (TaskType.maps, #803) is dealt, so shown, only on it.
+	var mode := FixtureMapTaskModes.mode()
+	var model := Preview.fake_model(mode, true)
+	model.map = FixtureBaseMode.MAP
+	assert_array(HowtoCards.dealable(mode, model)).is_equal([&"anywhere", &"map_only"])
+	model.map = FixtureBaseMode.SMALL_MAP
+	assert_array(HowtoCards.dealable(mode, model)).is_equal([&"anywhere"])
+	model.map = ""
+	assert_array(HowtoCards.dealable(mode, model)).is_equal([&"anywhere", &"map_only"])
+	assert_array(HowtoCards.dealable(mode, null)).is_equal([&"anywhere", &"map_only"])
+
+
 func test_the_dealable_types_read_only_the_deals_banned_set() -> void:
 	var model := Preview.fake_model(_mode, true)
 	# Another set setting (say a later "banned roles") that happens to name a task type.
