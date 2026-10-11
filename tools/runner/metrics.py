@@ -358,6 +358,10 @@ CMD_KINDS = [
 # A summary row, with verify's note after the seconds when it has one: "(Godot crashed at exit, #442)" (#449).
 STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s(?:\s+\((.*)\))?\s*$")
 EXIT_CRASH_NOTE = "crashed at exit"
+# The lint step of `verify --changed` (#859; verify.CHANGED_NOTE on its row, "changed_only" in its record) linted the
+# changed GDScript only: it counts as a step of its own, CHANGED_STEP, never as the whole lint's.
+CHANGED_LINT = "changed files only"
+CHANGED_STEP = "lint-changed"
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # The end line of a run that `verify --fail-fast` stopped at its first red step (#556): its total is no run's length.
 STOPPED_EARLY = ", stopped early at "
@@ -771,7 +775,8 @@ def parse_verify(text: str) -> dict | None:
             part = named.group(1)
         m = STEP_LINE.match(line)
         if m:
-            steps[m.group(2)] = (m.group(1), float(m.group(3)))
+            narrowed = m.group(2) == "lint" and (m.group(4) or "").startswith(CHANGED_LINT)
+            steps[CHANGED_STEP if narrowed else m.group(2)] = (m.group(1), float(m.group(3)))
             if EXIT_CRASH_NOTE in (m.group(4) or ""):
                 exit_crashes.append(m.group(2))
             continue
@@ -1710,6 +1715,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                     if str(step.get("status", "")).lower() == "not run":  # a --fail-fast run stopped first (#556)
                         continue
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
+                    if name == "lint" and step.get("changed_only"):  # `verify --changed` (#859)
+                        name = CHANGED_STEP
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
                     if isinstance(step.get("exit_crash"), bool):  # a check step of a runner since #449 has it
                         exit_tracked.append(str(name))

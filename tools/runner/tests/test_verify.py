@@ -7,6 +7,7 @@ test run."""
 
 import ast
 import contextlib
+import functools
 import inspect
 import io
 import json
@@ -578,6 +579,92 @@ class PartTest(unittest.TestCase):
         with mock.patch.object(verify, "_verify", side_effect=lambda _l, full, *_a: seen.append(full) or 0):
             verify.main(run_lane=mock.MagicMock(), part="test", verbose=True)
         self.assertEqual(seen, [True])
+
+
+class ChangedLintTest(unittest.TestCase):
+    """`verify --changed` (#859): its lint step is `lint --changed`, and its summary row, its record and metrics say
+    so; a plain `verify` and `verify --full` (CI's) lint every file."""
+
+    def run_verify(self, *, full: bool, changed: bool) -> tuple[list[dict[str, object]], str, dict[str, object]]:
+        calls: list[dict[str, object]] = []
+
+        def fake_lint(**kwargs: object) -> int:
+            calls.append(kwargs)
+            if kwargs.get("changed"):
+                verify.lint._SCOPE.update({"changed_only": [1, 709]})  # as lint_all leaves it
+            return 0
+
+        real = verify.main
+        with (
+            stub_steps(),
+            mock.patch.object(verify.lint, "main", side_effect=fake_lint),
+            mock.patch.object(verify, "main", functools.partial(real, changed=changed)),
+        ):
+            rc, text, record = Verify(self).run(inline_lane, full=full)
+        self.assertEqual(rc, 0)
+        self.assertNotIn(verify.LINT_CHANGED_VAR, os.environ)  # Verify.run restores the environment
+        return calls, text, record
+
+    def test_verify_changed_lints_the_changed_files_and_its_row_record_and_metrics_say_so(self) -> None:
+        calls, text, record = self.run_verify(full=False, changed=True)
+        self.assertEqual(calls, [{"verbose": True, "changed": True}])
+        row = next(line for line in text.splitlines() if line.split()[:2] == ["passed", "lint"])
+        self.assertTrue(row.endswith(f"  ({verify.CHANGED_NOTE}, 1 of 709)"), row)
+        lint_record = next(s for s in record["steps"] if s["name"] == "lint")  # type: ignore[union-attr]
+        self.assertEqual(lint_record["changed_only"], [1, 709])
+        self.assertEqual(record["mode"], "fast")
+        parsed = metrics.parse_verify(text)
+        assert parsed is not None
+        self.assertIn(metrics.CHANGED_STEP, parsed["steps"])
+        self.assertNotIn("lint", parsed["steps"])  # never taken for the whole lint's seconds
+
+    def test_plain_verify_and_verify_full_lint_every_file(self) -> None:
+        for full, changed in ((False, False), (True, False), (True, True)):
+            with self.subTest(full=full, changed=changed):
+                calls, text, record = self.run_verify(full=full, changed=changed)
+                self.assertEqual(calls, [{"verbose": True, "changed": False}])
+                self.assertNotIn(verify.CHANGED_NOTE, text)
+                lint_record = next(s for s in record["steps"] if s["name"] == "lint")  # type: ignore[union-attr]
+                self.assertNotIn("changed_only", lint_record)
+                parsed = metrics.parse_verify(text)
+                assert parsed is not None
+                self.assertIn("lint", parsed["steps"])
+
+    def test_a_fallback_row_says_why_it_linted_every_file(self) -> None:
+        step = verify.StepRun("lint", "python", "passed", 70.0, "", {"changed_fallback": "the base is unknown"})
+        self.assertEqual(verify.step_note(step), "  (every file: the base is unknown)")
+
+    def test_metrics_keeps_a_recorded_changed_lint_apart(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "verify-history.jsonl"
+            steps = [{"name": "lint", "status": "passed", "seconds": 9.0, "changed_only": [1, 709]},
+                     {"name": "check", "status": "passed", "seconds": 40.0}]  # fmt: skip
+            whole = [{"name": "lint", "status": "passed", "seconds": 74.0}]
+            path.write_text(
+                json.dumps({"start": "2026-10-11T12:00:00Z", "worktree": "a", "mode": "fast", "steps": steps}) + "\n"
+                + json.dumps({"start": "2026-10-11T12:05:00Z", "worktree": "a", "mode": "fast", "steps": whole}) + "\n",
+                encoding="utf-8",
+            )
+            found = metrics.read_history([path], None, time.time())
+        self.assertEqual([v["steps"] for v in found], [{metrics.CHANGED_STEP: ("passed", 9.0), "check": ("passed", 40.0)},
+                                                       {"lint": ("passed", 74.0)}])  # fmt: skip
+
+    def test_the_flags_reach_verify_and_lint(self) -> None:
+        with mock.patch.object(verify, "main", return_value=0) as run, mock.patch.object(common, "IS_CI", False):
+            self.assertEqual(cli.main(["verify", "--changed"]), 0)
+            self.assertEqual(cli.main(["verify"]), 0)
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertNotEqual(cli.main(["verify", "--full", "--changed"]), 0)  # CI's run never narrows
+            self.assertIn("verify --full lints every file", out.getvalue())
+        self.assertEqual(
+            run.call_args_list,
+            [mock.call(full=False, fail_fast=False, verbose=False, part=None, changed=True),
+             mock.call(full=False, fail_fast=False, verbose=False, part=None)],
+        )  # fmt: skip
+        with mock.patch.object(verify.lint, "main", return_value=0) as lint_main:
+            self.assertEqual(cli.main(["lint", "--changed"]), 0)
+            self.assertEqual(cli.main(["lint"]), 0)
+        self.assertEqual([c.kwargs["changed"] for c in lint_main.call_args_list], [True, False])
 
 
 def red_lane(outputs: dict[str, str]) -> verify.RunLane:
