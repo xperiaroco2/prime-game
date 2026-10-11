@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## ModeCheck on HoldStation (the car repair ADR's RE3 and RE9, #805; ARCHITECTURE §9.1, §9.4.2):
-## its rule holds AtStation and ChannelFree, it runs only on an intent that names a station, a
-## timed hold has seconds in bounds and an endless one has none, and a role-gated hold whose type's
-## hold_emits() reaches everyone warns that it reveals the role. Each found on
-## FixtureStationModes.holding() with one thing wrong.
+## its rule holds AtStation, StationInSight and ChannelFree (after the two), it runs only on an
+## intent that names a station, a timed hold has seconds in bounds and an endless one has none, and
+## a role-gated hold whose type's hold_emits() reaches everyone warns that it reveals the role. Each
+## found on FixtureStationModes.holding() with one thing wrong.
 
 const PANEL := "station kind panel.actions"
 
@@ -83,7 +83,49 @@ func test_a_phase_accepting_interact_that_holds_lists_channel_ticks() -> void:
 		if not system is ChannelTicks:
 			kept.append(system)
 	round_spec.tick_systems = kept
-	assert_str(" ".join(ModeCheck.run(mode).errors)).contains("Interact")
+	# The fixture's Raise starts a channel too: the error names Interact only for the hold.
+	(
+		assert_str(" ".join(ModeCheck.run(mode).errors))
+		. contains(
+			'phase round accepts [&"Raise", &"Interact"], which starts a channel, but lists no ChannelTicks'
+		)
+	)
+
+
+func test_a_hold_needs_station_in_sight() -> void:
+	var mode := FixtureStationModes.holding(FixtureStationModes.hold(1.0))
+	_drop(_panel(mode).actions[0], StationInSight)
+	var errors := " ".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("%s: rule Interact holds a station without StationInSight" % PANEL)
+	assert_str(errors).contains("holds ChannelFree without StationInSight before it")
+
+
+func test_channel_free_comes_after_at_station_and_station_in_sight() -> void:
+	# ChannelFree's busy would tell a player anywhere that another holds the station (§9.4.1).
+	for earlier: Script in [AtStation, StationInSight]:
+		var mode := FixtureStationModes.holding(FixtureStationModes.hold(1.0))
+		var rule := _panel(mode).actions[0]
+		var moved: Condition = null
+		for condition: Condition in rule.conditions:
+			if condition.get_script() == earlier:
+				moved = condition
+		rule.conditions.erase(moved)
+		rule.conditions.append(moved)
+		# StationUsable, now before the moved condition, finds it missing too: so not _expect.
+		assert_str(" ".join(ModeCheck.run(mode).errors)).contains(
+			(
+				"%s: rule Interact holds ChannelFree without %s before it"
+				% [PANEL, earlier.get_global_name()]
+			)
+		)
+
+
+func _drop(rule: Rule, missing: Script) -> void:
+	var kept: Array[Condition] = []
+	for condition: Condition in rule.conditions:
+		if condition.get_script() != missing:
+			kept.append(condition)
+	rule.conditions = kept
 
 
 func _panel(mode: GameMode) -> StationKind:

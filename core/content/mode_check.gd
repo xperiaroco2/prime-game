@@ -31,8 +31,9 @@ extends RefCounted
 ## StationUsable, a StationUsable (negated too) without AtStation and StationInSight before it, and
 ## an AtStation, StationInSight or StationUsable on an intent that names no station (a dead rule);
 ## a HoldStation on an intent that names no station (and, as every ChannelEffect, without its
-## required AtStation and ChannelFree; the car repair ADR's RE9, #805); two station kinds among
-## the task types with one id or one spawn tag, one kind held twice included (stations take
+## required AtStation and ChannelFree; the car repair ADR's RE9, #805), without StationInSight, or
+## with ChannelFree before AtStation or StationInSight (its busy would leak); two station kinds
+## among the task types with one id or one spawn tag, one kind held twice included (stations take
 ## markers without asking whether one stands there, and Demands keys palettes by the kind's id); a
 ## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
 ## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
@@ -386,6 +387,8 @@ func _check_station_rule(owner: String, rule: Rule) -> void:
 					% [owner, rule.trigger, station_intents()]
 				)
 			)
+	if _holds_effect(rule, HoldStation):
+		_check_hold_order(owner, rule)
 	if not uses_station and not Stations.names_station(rule.trigger):
 		# A dead rule (#379): on an intent with no station they find none and always refuse.
 		for condition: Condition in rule.conditions:
@@ -443,6 +446,39 @@ func _check_station_rule(owner: String, rule: Rule) -> void:
 						)
 						% [owner, rule.trigger, before.get_global_name()]
 					)
+				)
+			)
+
+
+## A HoldStation's rule holds StationInSight (a station's cylinder can reach through a thin wall,
+## GE4: the re-check only runs the rule's own conditions, so a hold started through one would go
+## on), and ChannelFree only after AtStation and StationInSight: its `busy` tells that another
+## player holds the station, which only a player with the station in reach and in sight may hear
+## (§9.4.1). A missing AtStation or ChannelFree is _check_channel_rule's.
+func _check_hold_order(owner: String, rule: Rule) -> void:
+	var free := _index_of(rule, ChannelFree)
+	if _index_of(rule, StationInSight) < 0:
+		errors.append(
+			(
+				(
+					"%s: rule %s holds a station without StationInSight: a station behind a wall"
+					+ " could be held through it"
+				)
+				% [owner, rule.trigger]
+			)
+		)
+	if free < 0:
+		return
+	for before: Script in [AtStation, StationInSight]:
+		var at := _index_of(rule, before)
+		if at > free or (at < 0 and before == StationInSight):
+			errors.append(
+				(
+					(
+						"%s: rule %s holds ChannelFree without %s before it: its busy would tell"
+						+ " about a station out of reach or out of sight"
+					)
+					% [owner, rule.trigger, before.get_global_name()]
 				)
 			)
 
