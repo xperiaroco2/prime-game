@@ -200,6 +200,23 @@ per task pass REVERT_OVER, else keep; fewer tasks: continue. A task with no coun
 stays out of the mean, and the advice then says how many were reviewed. The JSON record's "revert" holds those tasks'
 count, the reviewed count, the mean and advice; "advice" stays the trial's own verdict.
 
+The Sonnet publisher trial (#835, docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md, amendment of
+2026-10-11): the finished `issue-task` runs since PUB_TRIAL_FROM whose scorecard row had a blocker or major left open
+(not a design task, not stopped by mutants: issue-task's publish_findings role), grouped per task. A trial task has
+such a run whose last publisher (its transcript) is of TRIAL_FAMILY; the baseline's tasks have only BASELINE_FAMILY
+publishers there. Per task: those runs, the blockers and majors open before the publisher, its not_fixed, the later
+findings (the PR's Found-by follow-ups plus fix-up PRs, from GitHub: unknown with --no-gh), the publisher's fix rounds,
+the PR's red CI rounds (both once per PR), the publishers' and the runs' API list $; per side the per-task means. The
+stop rule (pub_trial_advice): from PUB_TRIAL_EARLY_TASKS trial tasks stop when their not_fixed per task is
+PUB_TRIAL_NOT_FIXED_OVER or more over the baseline's; after PUB_TRIAL_TASKS keep Sonnet when PUB_TRIAL_NO_WORSE's
+measures are no worse per task and the publisher $ per task is lower, else drop it; no baseline then: "no verdict".
+pr-rebase beside it: the finished `pr-rebase` runs since PUB_TRIAL_FROM by their rebase agent's model family, per run
+red (the rebase red or unpublished, or the last publishing agent's ci_green or published false), the review's blockers
+and majors, the fix's not_fixed (0 when no fix ran after a review) and API list $; stop once REBASE_TRIAL_RED Sonnet
+runs were red; after REBASE_TRIAL_RUNS keep Sonnet when the red share, blockers and majors and not fixed per run are no
+worse than the Opus runs' and the $ per run is lower. The verdicts are advice: the engineer decides. The JSON record's
+"publisher_trial" holds the tasks, the baseline, the totals, the advice and "rebase" (its runs, totals and advice).
+
 One run's spend so far (#534, the check after a large launch's first phase, docs/MANAGERS.md §9): `--run ID ...`,
 alone, finds each run folder whose name starts with an ID (`wf_` optional) in the folders of TRACK_CHECKOUTS (so the
 UI and art managers' runs too) and prints, finished or in flight and with no window: its agents started (a retried key
@@ -1968,6 +1985,7 @@ def build(
     quality = quality_record(finished, labels, github)
     md += quality_section(quality)
     md += trial_section(trial := trial_record(finished, tasks, quality["tasks"], github))
+    md += publisher_trial_section(pub_trial := publisher_trial_record(finished, quality["tasks"], counted))
     md += time_section(counted)
     md += cache_section(counted)
     idle = idle_record(idle_agents(counted))
@@ -2012,6 +2030,7 @@ def build(
         "handoffs": handoffs,
         "ab_review": ab,
         "sonnet_trial": trial,
+        "publisher_trial": pub_trial,
         "instructions": instructions,
         "agent_types": types,
         "prompt_sizes": prompts,
@@ -2756,6 +2775,215 @@ def trial_section(record: dict) -> list[str]:
         f"verdict: {record['advice']}.",
         "",
         f"Advice: {record['revert']['advice']}.",
+        "",
+    ]
+
+
+# The Sonnet publisher trial (#835, the module docstring; the model-guard ADR's amendment of 2026-10-11): the full
+# publisher of an issue-task run with a blocker or major left open, and pr-rebase's rebase and fix agents, on Sonnet
+# against the Opus ones of the same window. The stop rule's numbers are proposals the engineer may change.
+PUB_TRIAL_FROM = "2026-10-08T12:25:00Z"  # #835's scouting window: the Opus baseline counts from here
+PUB_TRIAL_TASKS = 10
+PUB_TRIAL_EARLY_TASKS = 4
+PUB_TRIAL_NOT_FIXED_OVER = 1.0
+PUB_TRIAL_MEASURES = ("open", "not_fixed", "later", "fix_rounds", "ci_fix_rounds", "pub_usd", "usd")
+PUB_TRIAL_NO_WORSE = {"later": "later findings", "not_fixed": "findings not fixed", "ci_fix_rounds": "CI fix rounds"}
+REBASE_TRIAL_RUNS = 10
+REBASE_TRIAL_RED = 2
+REBASE_MEASURES = ("serious", "not_fixed", "usd")
+
+
+def last_family(r: dict, role: str) -> str | None:
+    """The model family of a run's last agent of a role with a transcript."""
+    d = next((x["data"] for x in reversed(r["agents"]) if x["role"] == role and x["data"] and x["data"].get("model")),
+             None)  # fmt: skip
+    return agents_check.family(str(d["model"])) if d else None
+
+
+def findings_run(q: dict) -> bool:
+    """A scorecard row whose full publisher had a blocker or major left open: issue-task's publish_findings role."""
+    return q["design"] is False and not q["stopped_by_mutants"] and bool(q["open"])
+
+
+def pub_trial_task(key: object, members: list[tuple[dict, dict]]) -> dict:
+    """One task's runs with findings left (run, scorecard row) summed; None where no run knows. A PR's signals count
+    once; its later findings are its Found-by follow-ups plus its fix-up PRs (GitHub's, a lower bound)."""
+
+    def known(values: list) -> int | None:
+        values = [v for v in values if v is not None]
+        return sum(values) if values else None
+
+    prs = {q["pr"]: q for _r, q in members if q["pr"] is not None}
+    first = members[0][0]
+    return {
+        "issue": first["issue"], "wf": first["wf"], "key": key,
+        "models": sorted({str(last_family(r, "publisher")) for r, _q in members}),
+        "start": min((r["start"] for r, _q in members if r.get("start") is not None), default=None),
+        "runs": len(members), "open": sum(q["open"] for _r, q in members),
+        "not_fixed": known([q["not_fixed"] for _r, q in members]),
+        "later": known([None if q.get("followups") is None or q.get("fixups") is None
+                        else len(q["followups"]) + len(q["fixups"]) for q in prs.values()]),
+        "fix_rounds": known([q["fix_rounds"] for _r, q in members]),
+        "ci_fix_rounds": known([q.get("ci_red_rounds") for q in prs.values()]),
+        "pub_usd": sum(usd(x["data"]["tokens"]) for r, _q in members for x in r["agents"]
+                       if x["role"] == "publisher" and x["data"]),
+        "usd": sum(q["usd"] for _r, q in members),
+    }  # fmt: skip
+
+
+def means(rows: list[dict], measures: tuple[str, ...]) -> dict:
+    """The rows' count and the per-row mean of each measure, over the rows that know it (None when none does)."""
+    out: dict = {"n": len(rows)}
+    for k in measures:
+        values = [x[k] for x in rows if x[k] is not None]
+        out[k] = sum(values) / len(values) if values else None
+    return out
+
+
+def pub_trial_advice(trial: dict, base: dict) -> str:
+    """The publisher's stop rule (the module docstring) over the two sides' means."""
+    what = "Sonnet for the publisher of runs with findings"
+    if not base["n"]:
+        if trial["n"] >= PUB_TRIAL_TASKS:
+            return (f"no verdict: {trial['n']} trial tasks but no baseline in the window (Opus publishers of runs with "
+                    f"findings since {PUB_TRIAL_FROM}); report on #302, the engineer decides")  # fmt: skip
+        return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks; no baseline in the window yet"
+    over = None if trial["not_fixed"] is None or base["not_fixed"] is None else trial["not_fixed"] - base["not_fixed"]
+    if trial["n"] >= PUB_TRIAL_EARLY_TASKS and over is not None and over >= PUB_TRIAL_NOT_FIXED_OVER:
+        return f"stop: drop {what} ({over:.2f} findings not fixed per task over the baseline's)"
+    if trial["n"] < PUB_TRIAL_TASKS:
+        return f"continue: {trial['n']} of {PUB_TRIAL_TASKS} trial tasks"
+    worse = [name for k, name in PUB_TRIAL_NO_WORSE.items()
+             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
+    if trial["pub_usd"] is None or base["pub_usd"] is None or trial["pub_usd"] >= base["pub_usd"]:
+        worse.append("publisher $ per task not lower")
+    if worse:
+        return f"drop {what} (worse or unknown: {', '.join(worse)})"
+    return f"keep {what} (the engineer decides; a habit only by a further amendment)"
+
+
+def rebase_row(r: dict) -> dict:
+    """A finished pr-rebase run: its rebase agent's model, red (the rebase red or unpublished, or the last publishing
+    agent's CI red or nothing published), the review's blockers and majors, the fix's not_fixed and its API list $."""
+    done = {x["role"]: x["result"] for x in r["agents"] if x["result"] is not None}
+    reb, fix = done.get("pr-rebase") or {}, done.get("pr-rebase fix")
+    last = fix if fix is not None else reb
+    reviewed = [done[role] for role in REVIEWERS if role in done]
+    serious = sum(isinstance(f, dict) and bool(SERIOUS.search(str(f.get("severity", ""))))
+                  for res in reviewed for f in (res.get("findings") if isinstance(res.get("findings"), list) else []))  # fmt: skip
+    return {
+        "pr": r["issue"], "wf": r["wf"], "model": str(last_family(r, "pr-rebase")), "start": r.get("start"),
+        "red": (reb.get("verify_green") is False or reb.get("published") is False or last.get("published") is False
+                or last.get("ci_green") is False),
+        "serious": serious if reviewed else None, "fixed": fix is not None,
+        "not_fixed": count_of(fix.get("not_fixed")) if fix is not None else (0 if reviewed else None),
+        "usd": run_usd(r),
+    }  # fmt: skip
+
+
+def rebase_advice(trial: dict, base: dict) -> str:
+    """pr-rebase's stop rule (the module docstring): Sonnet against Opus pr-rebase runs of the window."""
+    if trial["red_runs"] >= REBASE_TRIAL_RED:
+        return f"stop: drop Sonnet for pr-rebase ({trial['red_runs']} Sonnet runs red)"
+    if trial["n"] < REBASE_TRIAL_RUNS:
+        return f"continue: {trial['n']} of {REBASE_TRIAL_RUNS} Sonnet pr-rebase runs"
+    if not base["n"]:
+        return "no verdict: no Opus pr-rebase run in the window; report on #302, the engineer decides"
+    worse = [name for k, name in (("red", "red runs"), ("serious", "blockers and majors"), ("not_fixed", "not fixed"))
+             if trial[k] is None or base[k] is None or trial[k] > base[k]]  # fmt: skip
+    if trial["usd"] is None or base["usd"] is None or trial["usd"] >= base["usd"]:
+        worse.append("$ per run not lower")
+    if worse:
+        return f"drop Sonnet for pr-rebase (worse or unknown: {', '.join(worse)})"
+    return "keep Sonnet for pr-rebase (the engineer decides; a habit only by a further amendment)"
+
+
+def publisher_trial_record(runs: list[dict], rows: list[dict], counted: list[dict]) -> dict:
+    """The Sonnet publisher trial (#835) from the finished issue-task runs and their scorecard rows (in one order), and
+    the counted runs' finished pr-rebase runs, each since PUB_TRIAL_FROM."""
+    since = parse_time(PUB_TRIAL_FROM)
+    groups: dict[object, list[tuple[dict, dict]]] = {}
+    for r, q in zip(runs, rows):
+        if findings_run(q) and r.get("start") is not None and r["start"] >= since:
+            groups.setdefault(r["issue"] if r["issue"] is not None else r["wf"], []).append((r, q))
+    trial, base = [], []
+    for key, members in groups.items():
+        families = [last_family(r, "publisher") for r, _q in members]
+        if TRIAL_FAMILY in families:
+            trial.append(pub_trial_task(key, members))
+        elif all(f == BASELINE_FAMILY for f in families):
+            base.append(pub_trial_task(key, members))
+    rebases = [rebase_row(r) for r in counted
+               if r["kind"] == "pr-rebase" and r["finished"] and r.get("start") is not None and r["start"] >= since]  # fmt: skip
+    totals = {}
+    for side in (TRIAL_FAMILY, BASELINE_FAMILY):
+        xs = [x for x in rebases if x["model"] == side]
+        totals[side] = {**means(xs, REBASE_MEASURES), "red_runs": sum(x["red"] for x in xs),
+                        "red": sum(x["red"] for x in xs) / len(xs) if xs else None}  # fmt: skip
+    pub = {"trial": means(trial, PUB_TRIAL_MEASURES), "baseline": means(base, PUB_TRIAL_MEASURES)}
+    return {
+        "from": PUB_TRIAL_FROM, "tasks": trial, "baseline": base, "totals": pub,
+        "advice": pub_trial_advice(pub["trial"], pub["baseline"]),
+        "rebase": {"runs": rebases, "totals": totals,
+                   "advice": rebase_advice(totals[TRIAL_FAMILY], totals[BASELINE_FAMILY])},
+    }  # fmt: skip
+
+
+def publisher_trial_section(record: dict) -> list[str]:
+    """The Sonnet publisher trial's tables (#835); nothing before its first Sonnet publisher or pr-rebase run."""
+    if not record["tasks"] and not record["rebase"]["totals"][TRIAL_FAMILY]["n"]:
+        return []
+
+    def n(value: int | float | None, digits: int = 0) -> str:
+        return "?" if value is None else f"{value:.{digits}f}"
+
+    def money(value: float | None) -> str:
+        return "?" if value is None else fmt_usd(value)
+
+    body = [
+        [f"#{x['issue']}" if x["issue"] is not None else x["wf"], ", ".join(x["models"]), x["runs"], x["open"],
+         n(x["not_fixed"]), n(x["later"]), n(x["fix_rounds"]), n(x["ci_fix_rounds"]), fmt_usd(x["pub_usd"]),
+         fmt_usd(x["usd"])]
+        for x in record["tasks"]
+    ]  # fmt: skip
+    head = ["task", "publisher models", "runs", "open blockers+majors", "not fixed", "later findings",
+            "publisher fix rounds", "CI fix rounds", "publisher $", "run $"]  # fmt: skip
+    totals = [[label, t["n"], *(n(t[k], 2) for k in PUB_TRIAL_MEASURES[:-2]), money(t["pub_usd"]), money(t["usd"])]
+              for label, t in (("Sonnet trial", record["totals"]["trial"]),
+                               ("Opus baseline", record["totals"]["baseline"]))]  # fmt: skip
+    total_head = ["side", "tasks", "open blockers+majors", "not fixed", "later findings", "publisher fix rounds",
+                  "CI fix rounds", "publisher $ (mean)", "run $ (mean)"]  # fmt: skip
+    rb = record["rebase"]["totals"]
+    rebase = [[label, t["n"], t["red_runs"], n(t["serious"], 2), n(t["not_fixed"], 2), money(t["usd"])]
+              for label, t in (("Sonnet", rb[TRIAL_FAMILY]), ("Opus", rb[BASELINE_FAMILY]))]  # fmt: skip
+    since = f"{record['from'][:10]} {record['from'][11:16]}Z"
+    return [
+        "## Sonnet publisher trial (#835)",
+        "",
+        "Per trial task (an issue-task run whose full publisher had a blocker or major left open, its publisher on "
+        "Sonnet; the task's other such runs count with it): those runs, the blockers and majors open before the "
+        "publisher, what it left not fixed, the later findings (Found-by follow-ups and fix-up PRs: a lower bound, "
+        "from GitHub), its fix rounds, the PR's red CI rounds, the publishers' and the runs' API list $.",
+        "",
+        table(head, body),
+        "",
+        f"Per task (means), against the baseline: tasks whose every such run had an Opus publisher, since {since}. "
+        f"From {PUB_TRIAL_EARLY_TASKS} trial tasks stop at {PUB_TRIAL_NOT_FIXED_OVER:g} or more findings not fixed "
+        f"per task over the baseline; after {PUB_TRIAL_TASKS} keep Sonnet when the later findings, not fixed and CI "
+        f"fix rounds are no worse and the publisher $ per task is lower (the model-guard ADR; the engineer decides).",
+        "",
+        table(total_head, totals),
+        "",
+        f"Advice (publisher): {record['advice']}.",
+        "",
+        f"pr-rebase since {since}, per model of its rebase agent: runs, red runs (rebase red or unpublished, or CI red "
+        f"or nothing published after the last publishing agent), the review's blockers and majors and the fix's not "
+        f"fixed (means per run), $ per run. Stop after {REBASE_TRIAL_RED} red Sonnet runs; after {REBASE_TRIAL_RUNS} "
+        f"keep Sonnet when the red share, blockers and majors and not fixed are no worse and the $ per run is lower.",
+        "",
+        table(["rebase agent", "runs", "red", "blockers+majors", "not fixed", "$ (mean)"], rebase),
+        "",
+        f"Advice (pr-rebase): {record['rebase']['advice']}.",
         "",
     ]
 
