@@ -71,6 +71,10 @@ Notes that worked: say which PR a needed file comes from if it is unmerged ("bui
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
 in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
+An update run of a published design PR: before launching, collect every engineer answer posted since its last
+update, also those on sibling design PRs that apply to it (#695's GD7 greybox answer covered four chains), and put them
+all in `notes`: a second update minutes after the first costs a whole review chain and publisher (#682: $9.6, #833).
+
 ## quick-task (#608)
 A task whose issue says `Size: XS` or `S`, one logical change and no design (a rename, a text or value change, a docs
 fix) goes to `quick-task` (`.claude/workflows/quick-task.js`) instead of `issue-task`, after `start` as usual. Args:
