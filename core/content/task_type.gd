@@ -103,15 +103,8 @@ func check(mode: GameMode) -> PackedStringArray:
 	for reason: StringName in use_reasons():
 		# One outside the wire's alphabet is ModeCheck's (_check_ids), said once.
 		if ModeCheck.is_wire_id(reason) and not StationUsable.REASONS.has(reason):
-			(
-				found
-				. append(
-					(
-						"task type %s lists the use reason %s, which is not one of StationUsable.REASONS"
-						% [id, reason]
-					)
-				)
-			)
+			var text := "task type %s lists the use reason %s, which is not one of StationUsable.REASONS"
+			found.append(text % [id, reason])
 	return found
 
 
