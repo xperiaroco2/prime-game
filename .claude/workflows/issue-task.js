@@ -47,7 +47,7 @@ export const meta = {
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
 // steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
-// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -244,8 +244,13 @@ const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code
 // same text in issue-task.js, pr-rebase.js and quick-task.js; test_workflows.py compares them.
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
+// #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960 of
+// them repeats of the same task ADRs by the implementer, the publisher and the two reviewers. Every agent gets it,
+// the publisher too (its PUB_RULES keep it); the same text in issue-task.js and pr-rebase.js, test_workflows.py
+// compares them.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
-const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE].join('\n')
+const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const GODOT_RULE = VISUAL
   ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
   : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).'
@@ -268,6 +273,7 @@ const RULE_LINES = [
   GODOT_RULE,
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
   READ_RULE,
+  ADR_RULE,
   '- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).',
   GAME_RULE,
   '- Files in content/ and levels/ are provisional under docs/decisions/2026-09-29-mvp-content-built-by-the-engineer.md: the engineer approves them in the PR; the PR says so and names them.',

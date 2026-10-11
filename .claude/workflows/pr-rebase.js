@@ -25,7 +25,7 @@ export const meta = {
 // script before v2
 // (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -140,8 +140,10 @@ const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code
 // #326 and #818, as in issue-task.js (test_workflows.py compares them): every agent, the read-only ones too.
 const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
 const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
+// #815, as in issue-task.js (test_workflows.py compares them): the task's ADR, each section once per context.
+const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links): read each section you need once per context and keep what you learned; read a section again only after the file changed or your context was compacted.'
 // The read-only agents' rules (reviewers, skeptics): no other line of RULES.
-const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE].join('\n')
+const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE, ADR_RULE].join('\n')
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,
@@ -157,6 +159,7 @@ const RULES = [
   HOOKS_RULE,
   WAIT_RULE,
   READ_RULE,
+  ADR_RULE,
   '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
 ].join('\n')
 
