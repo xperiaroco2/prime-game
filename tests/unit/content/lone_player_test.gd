@@ -4,8 +4,9 @@ extends GdUnitTestSuite
 ## The base mode's own data (`content/modes/base_mode.tres`, ARCHITECTURE §9.5.1): its DealRoles
 ## quota leaves at least 1 player to Crew, so one player is dealt Crew whatever the seed and the
 ## `dissidents` setting; and the round with that one player plays: no win condition fires at
-## once (the crew is present, the packages wait), Delivery deals its task, and delivering every
-## package wins it for the crew. A content test (§9.6): it loads `content/` and `levels/`.
+## once (the crew is present, the packages and the zone wait), Delivery and the zone task deal
+## their tasks (both since #649, ZD8 (a)), and delivering every package and holding the zone wins
+## it for the crew. A content test (§9.6): it loads `content/` and `levels/`.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const LONE := 1
@@ -51,15 +52,15 @@ func test_a_lone_player_is_dealt_crew_whatever_the_seed_and_the_dissidents_setti
 			assert_array(Array(game.diagnostics)).override_failure_message(context).is_empty()
 
 
-func test_the_lone_engineer_s_round_plays_and_ends_when_every_package_is_delivered() -> void:
+func test_the_lone_engineer_s_round_plays_and_ends_when_every_task_is_done() -> void:
 	var mode := _base_mode()
 	var game := _lone_in_pregame(mode, _layouts_for(mode), 7, 1)
 	FixtureModes.run_ticks(game, 3 * Ticks.RATE + 1)
 	assert_str(game.phase_id()).is_equal("round")
-	# Delivery dealt its one shared task: 6 packages for 6 circles (the default `packages`), and
-	# the 2 knives lie on the map.
-	assert_int(game.state.tasks.size()).is_equal(1)
-	assert_int(game.state.stations.size()).is_equal(6)
+	# Delivery dealt its shared task: 6 packages for 6 circles (the default `packages`); the zone
+	# task its one zone (the default `zones`, #649); and the 2 knives lie on the map.
+	assert_int(game.state.tasks.size()).is_equal(2)
+	assert_int(game.state.stations.size()).is_equal(7)
 	assert_int(FixtureDealModes.items_of(game, &"package").size()).is_equal(6)
 	assert_int(FixtureDealModes.items_of(game, &"knife").size()).is_equal(2)
 	# A minute of the round alone: the crew is present, no package is delivered and the clock
@@ -69,12 +70,18 @@ func test_the_lone_engineer_s_round_plays_and_ends_when_every_package_is_deliver
 	assert_str(game.state.winner).is_empty()
 	assert_array(game.view_of(LONE).events_named(&"MatchEnded")).is_empty()
 	assert_int(game.state.clock_ticks_left).is_equal(9 * 60 * Ticks.RATE)
-	# The engineer delivers every package alone: the crew wins.
-	var task := FixtureDeliveryModes.task_of(game)
+	# The engineer delivers every package alone: one task of two is done, the round goes on.
+	var task := _task_of_type(game, &"delivery")
 	for index in 6:
 		var package := FixtureDeliveryModes.package_of(game, task, index)
 		var circle := FixtureDeliveryModes.circle_of(game, task, index)
 		FixtureDeliveryModes.carry_to(game, LONE, package, circle.position)
+	assert_str(game.phase_id()).is_equal("round")
+	# Then holds the zone alone for its time: the crew wins.
+	var zone := FixtureZoneModes.zone_of(game, 0)
+	FixtureItemModes.stand(game, LONE, zone.position)
+	var needed := Ticks.from_seconds(FixtureZoneModes.zone_task_of(mode).seconds)
+	FixtureZoneModes.hold(game, [LONE], needed + 1)
 	assert_str(game.phase_id()).is_equal("end")
 	assert_str(game.state.winner).is_equal("crew")
 	var ended := game.view_of(LONE).events_named(&"MatchEnded")
@@ -114,3 +121,11 @@ func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
 
 func _base_mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
+
+
+## The match's task of the task type `type_id`; null when none was dealt.
+func _task_of_type(game: Match, type_id: StringName) -> MatchTask:
+	for id: int in game.state.tasks:
+		if game.state.tasks[id].type.id == type_id:
+			return game.state.tasks[id]
+	return null
