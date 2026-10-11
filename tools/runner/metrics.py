@@ -553,7 +553,6 @@ ADR_TOP = 10
 # #834: docs/ARCHITECTURE.md's tool reads by role with --adr-reads, their repeats counted by line. The runner's
 # `section` heads each section it prints with `--- <path>:<first>-<last> <§ title>`; its outline (no section asked
 # for) starts with `<path>: <n> lines`.
-ARCH_DOC = "docs/ARCHITECTURE.md"
 ARCH_SECTION_HEAD = re.compile(r"^--- \S*ARCHITECTURE\.md:(\d+)-(\d+)(?:\s|$)", re.MULTILINE)
 ARCH_OUTLINE_HEAD = re.compile(r"^\S*ARCHITECTURE\.md: \d+ lines, ", re.MULTILINE)
 # The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
@@ -1221,7 +1220,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             arch_seen.clear()
                         for rel in changed + (code_edits(cmd) if cmd else []):
                             code_seen.pop(rel, None)
-                        if ARCH_DOC in changed + (code_edits(cmd, md=True) if cmd else []):
+                        if ARCHITECTURE in changed + (code_edits(cmd, md=True) if cmd else []):
                             arch_seen.clear()
                         uses[b["id"]] = {
                             "name": b.get("name"),
@@ -1232,7 +1231,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "docs": doc_targets(str(b.get("name")), inp),
                             "limited": read_limited(str(b.get("name")), inp),
                             "code": code_read(str(b.get("name")), inp),
-                            "arch": [r for r in code_read(str(b.get("name")), inp, md=True) if r[0] == ARCH_DOC],
+                            "arch": [r for r in code_read(str(b.get("name")), inp, md=True) if r[0] == ARCHITECTURE],
                             "section_piped": any(piped for step, piped in shell_steps(cmd) if SECTION_CMD.search(step)),
                             **idle_use(b["id"], mid, str(b.get("name")), inp),
                         }
@@ -1438,7 +1437,7 @@ def arch_lines(call: dict, text: str) -> set[int] | None:
     read: a Read's numbered lines, a `cat`'s 1 to n or a `sed -n`'s ranges, each section the runner's `section` printed
     (its `--- <path>:<first>-<last>` head); its outline is line 0. None for a search (a Grep, a `grep`) or a read whose
     lines cannot be told (`head`, `tail`, a `section` piped on, a doc read beside another)."""
-    modes = {mode for rel, _how, mode in call["docs"] if rel == ARCH_DOC}
+    modes = {mode for rel, _how, mode in call["docs"] if rel == ARCHITECTURE}
     if "section" in modes:
         if call.get("section_piped"):  # `section ... | grep` or `| head`: some of what it printed
             return None
@@ -1462,7 +1461,7 @@ def count_arch_read(items: list[dict], lines: set[int] | None, seen: set[int]) -
         return
     again = len(lines & seen)
     for item in items:
-        if item.get("file") == ARCH_DOC:
+        if item.get("file") == ARCHITECTURE:
             item |= {"arch_lines": len(lines), "arch_again": again}
     seen |= lines
 
@@ -3521,7 +3520,7 @@ def arch_record(agents: list[tuple[str, dict]]) -> dict:
     roles: dict[str, dict] = {}
     for role, d in agents:
         reads = [item for item in d.get("instructions") or []
-                 if item.get("file") == ARCH_DOC and how_class(item["how"]) == "read"]  # fmt: skip
+                 if item.get("file") == ARCHITECTURE and how_class(item["how"]) == "read"]  # fmt: skip
         if not reads:
             continue
         r = roles.setdefault(role, {"role": role} | {k: 0.0 if k in ("tokens", "usd", "whole_usd", "repeat_usd") else 0
