@@ -409,7 +409,7 @@ func test_the_downed_players_claims_move_it_neither_while_a_raise_runs_nor_after
 	FixtureModes.run_ticks(game, 1)
 	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
 	assert_vector(downed.position).is_equal(lies)
-	# After the raise stops, no more either: there is no crawl.
+	# After the raise stops, no more either: it holds still (KE4).
 	FixtureCombatModes.stop_raise(game, P3)
 	FixtureModes.run_ticks(game, 1)
 	FixtureMoves.claim(game, P2, lies + Vector3(0.04, 0, 0))
