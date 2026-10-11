@@ -278,6 +278,27 @@ func test_the_mode_check_refuses_numbers_the_data_did_not_set() -> void:
 	assert_str(errors).contains("Strike damage is 1001, outside 1 to 1000")
 
 
+func test_a_target_no_longer_alive_when_its_turn_comes_is_skipped_with_no_rule_error() -> void:
+	# The hit on P2 stops its channel, whose stop kills P3 at once (FixtureKillingChannel; the car
+	# repair ADR's RE17 queues such kills, #806): P3, picked with P2, is dead at its turn.
+	var channel := FixtureKillingChannel.killing(5.0)
+	channel.kills_on_stop = {P2: P3}
+	var mode := FixtureCombatModes.basic()
+	mode.actions.append(FixtureModes.rule(Intents.USE, [ChannelFree.new()], [channel]))
+	mode.find_phase(&"round").tick_systems.append(ChannelTicks.new())
+	var game := _armed([P1, P2, P3], mode)
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1.4))
+	FixtureItemModes.stand(game, P3, Vector3(0.1, 0, 0.7))
+	FixtureCombatModes.use(game, P2, NORTH)
+	assert_object(Channels.of_actor(game.state, P2)).is_not_null()
+	FixtureModes.run_ticks(game, 1)
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	assert_int(game.state.player(P3).life).is_equal(PlayerState.Life.DEAD)
+	assert_array(FixtureCombatModes.received(game, P3, &"Damaged")).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## A round of `peers` (of `mode`, the knife mode when null, in `world`) with P1 at the origin
 ## holding a knife.
 func _armed(peers: Array[int], mode: GameMode = null, world: WorldQuery = null) -> Match:

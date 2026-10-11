@@ -14,7 +14,9 @@ extends RuleEffect
 ## - the line from the attacker's eye (Items.eye_of) to the middle of its capsule is clear
 ##   (WorldQuery.line_of_sight).
 ## Each target then takes `damage` through the life rule (LifeRules.damage), in peer-id order; at 0
-## health it is knocked down there (KnockedDown, Correction; nothing drops).
+## health it is knocked down there (KnockedDown, Correction; nothing drops). A target no longer
+## alive when its turn comes (what an earlier target's damage set off downed or killed it) is
+## skipped.
 ##
 ## The facing is the Use's `facing`, a claim: harmless, because the positions are the host's. A
 ## Use without a finite, non-zero facing uses the last accepted claim's. A facing with no
@@ -51,6 +53,10 @@ func run(ctx: MatchContext) -> void:
 	var ahead := horizontal(facing)
 	ctx.emit(SwungEvent.new(attacker.peer, Vector3(ahead.x, 0.0, ahead.y)))
 	for peer: int in hit:
+		# A target no longer alive when its turn comes is skipped (a defensive check behind the
+		# kill queue, the car repair ADR's RE17): damage() would log a rule error for it.
+		if not ctx.state.players[peer].is_alive():
+			continue
 		LifeRules.damage(ctx, peer, Ticks.thousandths(damage))
 
 

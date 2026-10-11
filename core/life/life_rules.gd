@@ -5,7 +5,8 @@ extends RefCounted
 ## or changes its life state during a round. Strike (2g) calls damage(); LifeTicks calls die() when
 ## a knockdown runs out, and its Respawn calls respawn() when a death's respawn time runs out; the
 ## raise (RaiseDowned, M4-4) calls revive() when it completes, and the give-up (Die) calls die();
-## RoundPhase calls leave() on a PeerLeft.
+## RoundPhase calls leave() on a PeerLeft. A task type that can kill (TaskType.kills(): the car's
+## drop) queues kill() through kill_later().
 ##
 ## - damage(): health falls by the amount, never below 0; Damaged to the victim only, and its
 ##   SelfStatus is touched (sent at the end of the tick). The hit stops the victim's own channel
@@ -38,6 +39,21 @@ extends RefCounted
 ##   Died (everyone), the fact player_died, and only then its items drop at the body, the hand's
 ##   first, then the belt's (Items.place_carried, `death`). The fact comes before the drop so a win
 ##   condition that the death meets is checked before one that a dropped item meets (§3.4).
+## - kill(): the instant kill (the car repair ADR's RE6, #806): a living or downed player,
+##   invulnerable or not (RD7), dies at once, everything else as die(): every channel it runs or
+##   is the target of stops first, then its body, Died, player_died and the drop at the body, and
+##   its respawn time. A living player's health falls to 0 (its SelfStatus touched); no
+##   KnockedDown and no Correction. A task type that can kill calls it through the queue below, and
+##   the mode check requires LifeTicks with a Respawn wherever such a mode takes Interact.
+## - kill_later() and settle_kills() (RE17): a kill decided inside a command, a tick system or a
+##   channel's step (the car's drop, from inside Channels.interrupt) is queued, never run halfway
+##   through someone's command. Match settles the queue once a command's dispatch has finished,
+##   after the phase's own timers and after each tick system, and Channels.advance after each
+##   channel's step, so a kill lands in the command or tick of its cause, after its own events:
+##   the queued players die in peer-id order; one no longer living or downed (dead already, or
+##   left) is skipped with no rule error; once the step has an outcome (a win recorded earlier in
+##   it) the queue clears with no kill, so nothing dies after the outcome (RD16 (c)). Kills that a
+##   kill queues (its channels' stops) settle in the same call. A transition drops the queue.
 ## - respawn(): a dead player is living again at a respawn marker (Respawn draws it): its body is
 ##   removed, its role kept, its health and stamina full, its hand and belt empty, a new epoch (a
 ##   placement for the movement rule), and invulnerable (make_invulnerable). Then Respawned
@@ -53,6 +69,15 @@ extends RefCounted
 ##
 ## No event names an attacker or a cause (§4.2). The name is LifeRules, not Life, so that no global
 ## class shadows the enum PlayerState.Life.
+
+## The kill queue's key in MatchState's per-part state (§9.1): ResetMatch clears it.
+const KILL_QUEUE_KEY := &"kill_queue"
+
+
+## The players whose kill is queued (kill_later), in the order queued.
+class KillQueue:
+	extends RefCounted
+	var peers: Array[int] = []
 
 
 ## `peer` takes `amount` thousandths of damage. Damaged (the victim), its SelfStatus touched, and
@@ -106,21 +131,66 @@ static func die(ctx: MatchContext, peer: int) -> void:
 	if dead == null or dead.life != PlayerState.Life.DOWNED:
 		ctx.error("die: player %d is not downed" % peer)
 		return
-	Channels.interrupt_involving(ctx, peer)
-	var body := _floor_at(ctx, dead, "die")
-	ctx.state.bodies[peer] = body
-	dead.life = PlayerState.Life.DEAD
-	var rules := ctx.state.player_rules
-	dead.life_deadline = ctx.tick + Ticks.from_seconds(rules.respawn_s) if rules != null else -1
-	dead.position = body
-	dead.velocity = Vector3.ZERO
-	ctx.emit(DiedEvent.new(peer, body))
-	var fact := Fact.new(Facts.PLAYER_DIED)
-	fact.player = peer
-	fact.position = body
-	ctx.raise_fact(fact)
-	# The items rest at the body itself, not at a second floor query from the same point.
-	Items.place_carried(ctx, peer, body, Items.DEATH)
+	_to_dead(ctx, dead, "die")
+
+
+## `peer`, living or downed, invulnerable or not, dies at once (RE6, RD7): as die(), and a living
+## player's health falls to 0. A player who is neither (dead already, left, or unknown) is a rule
+## error, logged; settle_kills() skips such a player before it calls this. A part in the middle of
+## someone's command or a channel's hook queues the kill (kill_later) instead (RE17).
+static func kill(ctx: MatchContext, peer: int) -> void:
+	var victim := ctx.state.player(peer)
+	if victim == null or not _killable(victim):
+		ctx.error("kill: player %d is not living or downed" % peer)
+		return
+	if victim.health != 0:
+		victim.health = 0
+		SelfStatusFeed.touch(ctx.state, peer)
+	if victim.sprinting:
+		# A knockdown ends the sprint (knock_down); a kill from standing must too, with the ticks
+		# since its last claim paid as its sprint's.
+		if ctx.state.player_rules != null:
+			StaminaLedger.settle_ahead(victim, ctx.state.player_rules, ctx.tick)
+		victim.sprinting = false
+	_to_dead(ctx, victim, "kill")
+
+
+## Queues `peer`'s kill for the next settle_kills() (RE17): the end of the command, tick system or
+## channel step running now. Queuing a player twice kills it once.
+static func kill_later(ctx: MatchContext, peer: int) -> void:
+	var queue := _kill_queue(ctx.state)
+	if not queue.peers.has(peer):
+		queue.peers.append(peer)
+
+
+## Kills the queued players in peer-id order (RE17), skipping one no longer living or downed with
+## no rule error; once the step has an outcome (MatchContext.step_has_outcome) the rest of the
+## queue clears with no kill (RD16 (c)). Kills that a kill queues (its channels' stops) settle here
+## too, in peer-id order after it. Match and Channels.advance call it.
+static func settle_kills(ctx: MatchContext) -> void:
+	var queue := _kill_queue(ctx.state)
+	while not queue.peers.is_empty():
+		var queued: Array[int] = queue.peers.duplicate()
+		queue.peers.clear()
+		queued.sort()
+		for peer: int in queued:
+			if ctx.step_has_outcome():
+				queue.peers.clear()
+				return
+			var victim := ctx.state.player(peer)
+			if victim != null and _killable(victim):
+				kill(ctx, peer)
+
+
+## Whether a kill is queued: Match settles only then, so a step with none builds no context.
+static func kills_queued(state: MatchState) -> bool:
+	return not _kill_queue(state).peers.is_empty()
+
+
+## Drops every queued kill: a transition is moving the match on, and nothing dies after the step's
+## outcome (RD16 (c)). Match calls it once the old phase has exited.
+static func drop_kills(state: MatchState) -> void:
+	_kill_queue(state).peers.clear()
 
 
 ## `peer`, downed, stands up where it lies (a completed raise): living with `health` whole points
@@ -216,6 +286,38 @@ static func leave(ctx: MatchContext, peer: int) -> void:
 	fact.player = peer
 	ctx.raise_fact(fact)
 	Items.drop_carried(ctx, peer, Items.LEAVE)
+
+
+## `dead` (living or downed: the caller checked) dies: every channel it runs or is the target of
+## stops first, its body on the floor below, Died, player_died, then both slots drop at the body.
+static func _to_dead(ctx: MatchContext, dead: PlayerState, what: String) -> void:
+	var peer := dead.peer
+	Channels.interrupt_involving(ctx, peer)
+	var body := _floor_at(ctx, dead, what)
+	ctx.state.bodies[peer] = body
+	dead.life = PlayerState.Life.DEAD
+	var rules := ctx.state.player_rules
+	dead.life_deadline = ctx.tick + Ticks.from_seconds(rules.respawn_s) if rules != null else -1
+	dead.knockdown_left = -1
+	dead.position = body
+	dead.velocity = Vector3.ZERO
+	ctx.emit(DiedEvent.new(peer, body))
+	var fact := Fact.new(Facts.PLAYER_DIED)
+	fact.player = peer
+	fact.position = body
+	ctx.raise_fact(fact)
+	# The items rest at the body itself, not at a second floor query from the same point.
+	Items.place_carried(ctx, peer, body, Items.DEATH)
+
+
+static func _killable(player: PlayerState) -> bool:
+	return player.life == PlayerState.Life.ALIVE or player.life == PlayerState.Life.DOWNED
+
+
+static func _kill_queue(state: MatchState) -> KillQueue:
+	return (
+		state.part_state(KILL_QUEUE_KEY, func() -> RefCounted: return KillQueue.new()) as KillQueue
+	)
 
 
 ## The floor below `player`'s last accepted position; where it is, logged, when there is none.

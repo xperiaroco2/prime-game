@@ -143,6 +143,13 @@ func hold_completed(
 	pass
 
 
+## Whether this type can kill a player (LifeRules.kill through kill_later: the car's drop; the car
+## repair ADR's RE6, #806). ModeCheck then requires LifeTicks with a Respawn in every phase that
+## accepts Interact, so a dead player always comes back. False by default.
+func kills() -> bool:
+	return false
+
+
 ## The event classes hold_started(), hold_stopped() and hold_completed() can emit: ModeCheck counts
 ## them for a HoldStation as it counts use_emits() for a UseStation (§9.2's role-reveal warning).
 ## None by default.

@@ -11,7 +11,8 @@ extends RefCounted
 ##   conditions again (not its costs), with the channel in the context and no intent; the first
 ##   that fails stops it. Else it runs one more tick, and the tick that reaches its time completes
 ##   it, unless its effect is endless (ChannelEffect.is_endless: the car repair ADR's RE3), which
-##   counts its ticks but never completes.
+##   counts its ticks but never completes. The kills a channel's step queued
+##   (LifeRules.kill_later: the car's drop) land after that step, before the next channel's (RE17).
 ## - interrupt(): an applied action of the actor stops its channel first (RuleRunner, §9.2), and so
 ##   does a hit (LifeRules.damage) when the channel's effect stops on a hit
 ##   (ChannelEffect.stops_on_hit).
@@ -119,15 +120,23 @@ static func advance(ctx: MatchContext) -> void:
 		if of_actor(ctx.state, channel.actor) != channel:
 			# Ended meanwhile, by what an earlier channel's end did in this tick.
 			continue
-		var own := _context_of(ctx, channel)
-		if not _still_holds(own, channel):
-			_remove(ctx.state, channel)
-			channel.effect.stopped(own, channel)
-			continue
-		channel.done_ticks += 1
-		if channel.done_ticks >= channel.total_ticks and not channel.effect.is_endless():
-			_remove(ctx.state, channel)
-			channel.effect.completed(own, channel)
+		_step(ctx, channel)
+		# The kills this channel's step queued land now, before the next channel's step (RE17).
+		if LifeRules.kills_queued(ctx.state):
+			LifeRules.settle_kills(ctx)
+
+
+## One channel's step of advance(): its re-check, then one more tick, maybe its completion.
+static func _step(ctx: MatchContext, channel: Channel) -> void:
+	var own := _context_of(ctx, channel)
+	if not _still_holds(own, channel):
+		_remove(ctx.state, channel)
+		channel.effect.stopped(own, channel)
+		return
+	channel.done_ticks += 1
+	if channel.done_ticks >= channel.total_ticks and not channel.effect.is_endless():
+		_remove(ctx.state, channel)
+		channel.effect.completed(own, channel)
 
 
 ## Stops the channel `peer` runs, if any.
