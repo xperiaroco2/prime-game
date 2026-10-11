@@ -4461,7 +4461,7 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
-  and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647); no
+  the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647, and `ItemVanished`, an item left lying too long, #779); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -5526,7 +5526,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
     lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
     (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a phase that accepts an intent whose
-    rule throws (a `ThrowItem`) but lists no `FlightTicks` (#643); an item kind with `vanish_seconds` in a mode where no phase lists `VanishTicks` (#779); a `ThrowItem` outside an action or in a rule that
+    rule throws (a `ThrowItem`) but lists no `FlightTicks` (#643); an item kind with `vanish_seconds` in a mode where no phase lists `VanishTicks` (#779), or a Delivery whose package kind vanishes (the task knows a package by its item id alone, which a vanish frees for reuse); a `ThrowItem` outside an action or in a rule that
     lacks `HoldsItem` or `OverFloor` (`ThrowItem.required_conditions`); a required condition counts only when it is
     not negated (#643); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
