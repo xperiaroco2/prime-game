@@ -46,7 +46,8 @@ export const meta = {
 // the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
 // section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
+// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -238,6 +239,13 @@ const SERIOUS = /blocker|major/i
 // same content read twice, one read per turn). The same text in issue-task.js and pr-rebase.js; test_workflows.py
 // compares the two. It names no value of this run, so it is the same in every prompt.
 const READ_RULE = '- Reading (the docs-by-section rule of #339, extended to code by #468): a code file over 400 lines gets its outline or a `grep -n` (the Grep tool) first, then only the range you need; read it whole only when you restructure it. `cd <your worktree> && tools/run.sh section <file>` (read-only; you may run it) prints its line count and its top-level symbols with line ranges (run from main it shows main\'s copy), and `tools/run.sh section <file> <symbol>` prints one symbol (a name or Class.method); otherwise Read with offset and limit. If the rows of that outline do not each start with a kind (def, async, class, func, static, signal, enum, const, let, var, function, assign or block), that is, it shows `#` comments as headings or nothing after its first line (a base before #468), use `grep -n`. What you read stays in your context: read it again only after an edit, a rebase, a checkout, a failed Edit or a compaction. Reads that do not depend on each other go in one message as parallel calls, or, where your shell commands allow it, as several `sed -n` ranges in one command.'
+// #326 and #818: the two calls Claude Code or the guard refuses at once, a wasted turn each. Every agent gets both,
+// the read-only ones too (7 of 12 refusals from 2026-10-07 to 11 were reviewers', 2 a PowerShell Start-Sleep). The
+// same text in issue-task.js, pr-rebase.js and quick-task.js; test_workflows.py compares them.
+const HOOKS_RULE = '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.'
+const WAIT_RULE = '- Never poll with a foreground `sleep N; cat <log>` or `Start-Sleep N` (Claude Code blocks both): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.'
+// The read-only agents' rules (reviewers, the plan critique, the A/B judge, the skeptics): no other line of RULES.
+const REVIEW_RULES = [HOOKS_RULE, WAIT_RULE, READ_RULE].join('\n')
 const GODOT_RULE = VISUAL
   ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
   : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).'
@@ -254,8 +262,8 @@ const RULE_LINES = [
   // open the message editor (git refuses -m and -F with them), so a reword is an `amend!` commit made with -F, which
   // autosquash applies as `fixup -C`.
   `- Change an earlier commit only with \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`), free in your own worktree on your task branch. To reword one: \`git commit --allow-empty -F <file>\` with the file's first line \`amend! <that commit's subject>\`, then a blank line and the whole new message, then the same rebase; or leave the message as it is. The last commit alone: \`git commit --amend --no-edit\` or \`--amend -F <file>\`, never a bare \`--amend\`, which opens the editor. Nothing else: another sequence editor (a script, \`sed\`, \`-c sequence.editor=...\`), an interactive rebase without \`GIT_SEQUENCE_EDITOR=:\`, \`--fixup=reword:\` or \`--fixup=amend:\` (both open the message editor) and a \`squash!\` commit each can open an editor or run a program on the todo list (a script can add \`exec\` lines): an editor that opens hangs the call until its timeout, and under Claude Code's \`GIT_EDITOR=true\` a \`--fixup=reword:\` keeps the old message without a word. Since #457 the guard lets each of these through in your own worktree on your task branch (before it, its ask held a night run 9 hours, #456); it still asks for \`git rebase --exec\` and for any rebase in the main checkout or another worktree.`,
-  '- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.',
-  '- Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.',
+  HOOKS_RULE,
+  WAIT_RULE,
   '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
   GODOT_RULE,
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
@@ -608,7 +616,7 @@ if (PLAN_REVIEW && !PLAN_SKIPPED) {
   if (short !== plan) log(`#${N}: the plan's result was ${size(plan)} characters of JSON; cut to ${size(short)} for the critique and the implementer`)
   const critique = await agent([
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-    READ_RULE,
+    REVIEW_RULES,
     `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, the area CLAUDE.md files, the code the plan names and ${arch('the plan')}. Budget: at most about 40 tool calls. Edit nothing.`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
     `The plan, in short (the whole plan is the plan agent's comment on the issue, comment_url; its file_map holds the facts the implementer will trust without reading the files again): ${JSON.stringify(short)}`,
@@ -712,7 +720,7 @@ if (impl.verify_green) {
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-    READ_RULE,
+    REVIEW_RULES,
     `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs the issue links, the area CLAUDE.md files and ${arch(DESIGN ? 'the design' : 'the change')}. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
     `${REPORT} ${JSON.stringify(digest(impl))}`,
@@ -762,7 +770,7 @@ if (impl.verify_green) {
     } else {
       judging = agent([
         `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-        READ_RULE,
+        REVIEW_RULES,
         'A read-only judge of two independent code reviews of the same diff. Budget: at most about 40 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
         `Read \`git -C ${WTB} diff origin/${BASE}...HEAD\`, the issue and its comments (\`gh issue view ${N} --comments\`), and the code, tests and docs each finding names.`,
         `Reviewer 1 found: ${JSON.stringify(trial)}`,
@@ -815,7 +823,7 @@ if (impl.verify_green) {
     if (checked.length) {
       const verdicts = await parallel(checked.map(s => () => agent([
         `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-        READ_RULE,
+        REVIEW_RULES,
         'A skeptic\'s read-only check of ONE review finding (skeptic), before the publisher fixes it. Budget: at most about 30 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
         `The finding, from the ${s.from}: ${JSON.stringify(s.finding)}`,
         `Try to refute it: read the code, the tests and the docs it names, the issue and its comments (\`gh issue view ${N} --comments\`), and decide whether it is wrong: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer's answers, or the fault cannot happen. refuted true only with evidence (file:line, or a command and its output); uncertain, or right in part: refuted false. A finding about an acceptance criterion, an invariant or a leak is refuted only when the code is shown to meet it.`,
