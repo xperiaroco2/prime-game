@@ -263,6 +263,12 @@ func test_the_version_is_cores_protocol_version() -> void:
 	assert_int(WireSchema.VERSION).is_equal(JoinRules.PROTOCOL_VERSION)
 
 
+## core/'s highest item id (MatchState.add_item, the cooking ADR's CE3) is the wire's highest item.
+func test_the_highest_item_id_is_the_wires() -> void:
+	var bounds: Array = WireField.INT_BOUNDS[WireField.Type.ITEM]
+	assert_int(MatchState.MAX_ITEM_ID).is_equal(bounds[1] as int)
+
+
 ## Host text travels as ids plus arguments (#548): no row carries a sentence (TEXT or NOTE) that
 ## a client would show in the host's language.
 func test_no_row_carries_free_text() -> void:
