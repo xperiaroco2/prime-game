@@ -34,7 +34,8 @@ tooling test expectations, the publisher's CI step and the shared bounded-waits 
 gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
 return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
 skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
-#815's ADR line (each section of the task's ADR once per context), every agent's, the publisher's too.
+#815's ADR line (each section of the task's ADR once per context), which every agent
+carries, the publisher too.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
