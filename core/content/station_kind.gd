@@ -15,6 +15,12 @@ extends ContentPart
 @export var height_m := 0.0
 ## Distinct colours, one per placed station.
 @export var palette: PackedColorArray = PackedColorArray()
+## Rules on the intents that name a station (Interact; the Generator ADR's GE2, #796): Match tries
+## the named station's kind first, before the actor's role's and the mode's, and never the hand
+## item's (§9.2). Its conditions say who may use it and from where (HandNotTwoHanded, AtStation,
+## StationInSight, StationUsable); its effect is UseStation, which hands the use to the kind's
+## task type. Empty for a station nobody uses (a delivery circle, a zone).
+@export var actions: Array[Rule] = []
 
 
 func check(_mode: GameMode) -> PackedStringArray:
