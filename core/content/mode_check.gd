@@ -39,12 +39,16 @@ extends RefCounted
 ## markers without asking whether one stands there, and Demands keys palettes by the kind's id); a
 ## task type that ticks (#36's zone task) in a mode where no phase lists TaskTicks, so it would
 ## never count; an item kind with `vanish_seconds` in a mode where no phase lists VanishTicks, so
-## its items would never vanish (the cooking ADR, C10); a number outside its part's bounds; an id
-## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
-## whose event goes to everyone (for a UseStation, an event its station's task type's use_emits()
-## lists; for a HoldStation, its hold_emits()), which reveals the actor's role (§9.2); in a mode
-## with a channel, any role-owned or role-gated action, since applying it stops its actor's channel
-## publicly (a raiser's RaiseStopped) while a refused one stops nothing (§9.2); a row whose
+## its items would never vanish (the cooking ADR, C10); an item kind's target_actions holding a
+## UseStation, AtStation, StationInSight or StationUsable (an intent naming an item names no
+## station), and a GiveItem anywhere but in an action on an intent that names a target (C1, #770;
+## its kind's bounds and a display station kind's actions are the parts' own checks); a number
+## outside its part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or
+## role-gated rule with an effect whose event goes to everyone (for a UseStation, an event its
+## station's task type's use_emits() lists; for a HoldStation, its hold_emits()), which reveals the
+## actor's role (§9.2); in a mode with a channel, any role-owned or role-gated action, since
+## applying it stops its actor's channel publicly (a raiser's RaiseStopped) while a refused one
+## stops nothing (§9.2); a row whose
 ## KnockDown without then_die enters a phase with no LifeTicks, whose downed stays downed for good
 ## (#599: the tutorial's raise_stage wants that, so a warning, not an error).
 ##
