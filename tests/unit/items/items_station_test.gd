@@ -118,6 +118,23 @@ func test_a_carried_item_keeps_its_holder_and_a_lying_one_its_rest_tick() -> voi
 	assert_array(game.view_of(P2).events_named(&"ItemChanged")).has_size(2)
 
 
+func test_locking_or_laying_no_item_is_a_logged_rule_error_and_moves_nothing() -> void:
+	var game := _game()
+	var seen := game.view_of(P2).events.size()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.tick = game.ticked_through() + 1
+	ctx.actor = P1
+	Items.lock_at(ctx, null, STATION)
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_str(game.diagnostics[0]).contains("lock_at: no item")
+	Items.lay_on_station(ctx, null, STATION)
+	assert_int(game.diagnostics.size()).is_equal(2)
+	assert_str(game.diagnostics[1]).contains("lay_on_station: no item")
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_empty()
+	assert_array(FixtureModes.notes(game)).is_empty()
+
+
 func _game() -> Match:
 	var game := FixtureItemModes.in_round(FixtureItemMove.mode(), [P1, P2])
 	FixtureItemModes.stand(game, P1, HERE)
