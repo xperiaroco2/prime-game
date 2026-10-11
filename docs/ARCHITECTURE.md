@@ -1546,8 +1546,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `dropped_at_the_loading_deadline --instances 3` failed once in four runs (2026-10-01), then passed 3 times. The
   ENet runs checked to pass: `dissident_kills_the_crew` (the `verify` step), `late_join_cancels_the_countdown`
   and `crew_delivers_every_package`. The bot's own placement check does not depend on polls: core/ emits one
-  `Correction` after each placement of a player and after its knockdown (M4-2), and the bot expects exactly that
-  one; a death sends none.
+  `Correction` after each placement of a player, after its knockdown (M4-2) and after its revive (KE6), and the bot
+  expects exactly that one; a death sends none.
 
 #### 4.6.4 The information-leak test (§5)
 Compares what each bot b decoded with `view_of(b)`:
@@ -5101,7 +5101,7 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn, a revive), until the epoch's first
   accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
   record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
-  keeps the last one's age, and a revive keeps the epoch. The zone task counts a player only while it is at most
+  keeps the last one's age. The zone task counts a player only while it is at most
   `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a client that stops claiming (a
   freeze, or a modified client that goes on polling) stops counting 10 ticks after its last claim. Its companion
   `MovementRule.credit_gain(state, peer, now)` is how many ticks of credit the player stores at `now` above the
@@ -6757,7 +6757,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
   the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
   it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
-  inside the raise's 2 m reach; the zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
+  inside the raise's 2 m reach; the zone counts again from its first claim after the `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
   a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
 
 ### 9.8 The extensibility test
