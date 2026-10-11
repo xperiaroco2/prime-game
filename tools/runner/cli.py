@@ -154,6 +154,13 @@ def build_parser() -> argparse.ArgumentParser:
         "record, the run is red (an agent's inner loop; publish, merge and CI run every step)",
     )
     p.add_argument(
+        "--part",
+        metavar="NAME",
+        help="only one part of the --full run (implies --full; #857): doctor, then that part's steps of "
+        "verify.PARTS (test, network, runner); CI runs each part in a job of its own, and its check `verify` is green "
+        "only when every part was",
+    )
+    p.add_argument(
         "--verbose",
         action="store_true",
         help="print every step's whole output as it ends (always on CI; default: each red step's failure lines, "
@@ -841,7 +848,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
-            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=args.verbose or common.IS_CI)
+            verbose = args.verbose or common.IS_CI
+            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=verbose, part=args.part)
         if args.command == "selftest":
             from . import verify
 

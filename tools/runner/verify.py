@@ -3,7 +3,9 @@
 `verify` with no flag is the fast local run (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md):
 `doctor --quick`, then `lint` and `check` in two lanes at once (FAST_LANES), then the clean-tree check; no verify slot,
 no test: every test runs on CI, whose job runs `verify --full`. Its record's "mode" is "fast", and its summary says so
-(FAST_LINE), so no tool takes it for a full run. The rest of this docstring is `verify --full` (exactly what CI runs).
+(FAST_LINE), so no tool takes it for a full run. The rest of this docstring is `verify --full` (exactly what CI runs,
+in parts: `verify --full --part <name>` runs doctor and only that part's steps of PARTS, and CI runs each part in a
+job of its own, #857).
 
 `doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
@@ -176,6 +178,40 @@ AFTER: dict[str, tuple[str, ...]] = {
     "selftest-godot": ("check",),
     "enet": ("selftest-godot",),
 }
+# CI's parts (#857): `verify --full --part <name>` runs doctor, then only these steps, each in its lane of LANES and in
+# its order there, with AFTER kept among them (a step's AFTER step outside the part counts as ended: run_lanes). CI runs
+# every part at once, a job each (.github/workflows/ci.yml's matrix), and one job named `verify`, the required check,
+# is green only when every part was. Every step of LANES is in some part (part_steps_cover_the_full_run, a runner
+# test); a part with a Godot step runs `check` first, whose import a fresh checkout needs (`test` runs no import of its
+# own, the runner tests that start Godot discover RealSessionTest after it); `test` and the network runs keep apart from
+# every other Godot run as in one machine's run (AFTER); selftest and selftest-godot share a part, as the count check
+# compares both groups' results of one run with one serial discovery. Grouped by CI's step seconds of 2026-10-11 (run
+# 38165201035, the whole job 12.7 min): test 427 s, the network, bots and chaos runs and game 290 s together, lint 104 s
+# and selftest 104 s beside check 25 s and selftest-godot 61 s; so `test` alone is the longest part.
+PARTS: dict[str, tuple[str, ...]] = {
+    "test": ("check", "test"),
+    "network": (
+        "check",
+        "enet",
+        "freeze",
+        "stall",
+        "webrtc",
+        "webrtc-freeze",
+        "webrtc-stall",
+        "webrtc-silence",
+        "bots",
+        "bots-enet",
+        "bots-webrtc",
+        "chaos",
+        "chaos-webrtc",
+        "game",
+    ),
+    "runner": ("lint", "signal", "check", "selftest", "selftest-godot"),
+}
+# A part run's summary line (and its record's "part"); metrics.PART_RUN reads it, so a part's total is no full run's.
+PART_LINE = "part {part} of verify --full: {names}"
+# The steps whose results the count check compares with one serial discovery: it runs only where both ran.
+COUNTED = ("selftest", "selftest-godot")
 # A step that a run stopped early by --fail-fast never ended: neither a pass nor a red (`metrics` counts it as neither).
 NOT_RUN = "not run"
 # A lane process that outlives this is stopped and its unfinished steps fail (CI's whole job has 20 minutes).
@@ -656,6 +692,11 @@ def run_lanes(
     printing = printing or threading.Lock()
     _GATE = gate = Gate()
     _STOP.clear()
+    present = {name for names in lanes.values() for name in names}
+    for name in sorted(present):  # an AFTER step outside this run (a part's, #857) has ended: none waits for it
+        for needed in AFTER.get(name, ()):
+            if needed not in present:
+                gate.end(needed)
 
     def ended(step: StepRun) -> None:
         emit(step)
@@ -1324,11 +1365,21 @@ def steps_in_flight(ended: set[str], lanes: dict[str, tuple[str, ...]] | None = 
     """The step each lane was running when the lanes ended in the middle (a suspend, #595): its first step that has not
     ended, unless that step was still waiting for an AFTER step of another lane, which it never started."""
     running = set()
-    for names in (LANES if lanes is None else lanes).values():
+    lanes = LANES if lanes is None else lanes
+    present = {name for names in lanes.values() for name in names}
+    for names in lanes.values():
         step = next((name for name in names if name not in ended), None)
-        if step is not None and set(AFTER.get(step, ())) <= ended:
+        if step is not None and {name for name in AFTER.get(step, ()) if name in present} <= ended:
             running.add(step)
     return running
+
+
+def part_lanes(part: str) -> dict[str, tuple[str, ...]]:
+    """A part's lanes (#857): each lane of LANES with only the part's steps, in their order there; no empty lane."""
+    if part not in PARTS:
+        raise Failure(f"verify: no part {part!r} (the parts: {', '.join(PARTS)})")
+    lanes = {lane: tuple(name for name in names if name in PARTS[part]) for lane, names in LANES.items()}
+    return {lane: names for lane, names in lanes.items() if names}
 
 
 def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
@@ -1347,14 +1398,18 @@ def main(
     fail_fast: bool = False,
     watch: Watch = suspend.watch_in_background,
     verbose: bool = False,
+    part: str | None = None,
 ) -> int:
     """`verify`, quiet unless `verbose` (#572): the whole output goes to tools/out/logs/verify-output.log as it is
     printed (the run before it is kept as verify-output.prev.log), the terminal gets each red step's excerpt and the
     summary block (Split). An exception (Ctrl+C, a crash) prints one line with the log's path and goes on up
-    unchanged."""
+    unchanged. `part` (`--part`, #857): only that part of PARTS, a `--full` run's."""
     global _SPLIT
+    if part is not None:
+        part_lanes(part)  # an unknown part fails before anything runs
+        full = True
     if verbose:
-        return _verify(run_lane, full, fail_fast, watch)
+        return _verify(run_lane, full, fail_fast, watch, part)
     ensure_out()
     log = quiet_log("verify")
     if log.exists():  # a retry in the same worktree (merge-train) keeps the red run's whole output one run longer
@@ -1366,7 +1421,7 @@ def main(
         _SPLIT = split
         try:
             with contextlib.redirect_stdout(split):
-                return _verify(run_lane, full, fail_fast, watch)
+                return _verify(run_lane, full, fail_fast, watch, part)
         except BaseException as exc:
             split.show([f"verify: stopped by {type(exc).__name__}; {split.where}"])
             raise
@@ -1374,17 +1429,23 @@ def main(
             _SPLIT = previous
 
 
-def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int:
+def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch, part: str | None = None) -> int:
     """`verify`: without `full` the fast run (#605): doctor, lint and check (FAST_LANES), the clean-tree check, no slot
     and no count check; with `full` (`verify --full`, CI's job) every step of LANES in a verify slot. With `fail_fast` the first red step of a lane stops the lanes (#556): the steps that had not ended
     are not run, the count check is left out, and the summary and the record say so. While the lanes run, `watch`
     (suspend.watch_in_background) calls back once the machine slept (#595): the lanes stop, each step that was running
-    is red with suspend.message, the steps not started are not run, and the run counts as stopped early."""
+    is red with suspend.message, the steps not started are not run, and the run counts as stopped early. With `part`
+    (#857) only that part's steps run (part_lanes), the summary and the record name it, and the count check runs only
+    in the part that runs both selftest groups (COUNTED)."""
     started = time.monotonic()
     start_time = datetime.now(UTC)
     before = git_status()
     facts = git_facts(clean=not before)
     lanes, order = (LANES, STEP_ORDER) if full else (FAST_LANES, FAST_ORDER)
+    if part is not None:
+        lanes = part_lanes(part)
+        order = tuple(name for name in STEP_ORDER if name == "doctor" or name in PARTS[part])
+    part_line = PART_LINE.format(part=part, names=", ".join(order[1:])) if part is not None else ""
     run_id = uuid.uuid4().hex
     os.environ[RUN_ID_VAR] = run_id  # the lane processes inherit it; their selftest results carry it
     runs: dict[str, StepRun] = {}
@@ -1417,6 +1478,8 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int
             described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in lanes.items())
             if not full:
                 say(f"verify: {FAST_LINE}")
+            if part_line:
+                say(f"verify: {part_line}")
             say(f"verify: {len(lanes)} lanes at once ({described}); each step's output follows whole when it ends")
             if fail_fast:
                 say("verify: --fail-fast: the first red step stops every lane")
@@ -1470,7 +1533,8 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int
             for name in names:  # its lane never reported it: it failed, or the run stopped before it ended
                 stopped = stopped_at is not None or slept is not None
                 runs.setdefault(name, StepRun(name, lane, NOT_RUN if stopped else "FAILED", 0.0))
-        if full and stopped_at is None and slept is None:  # a stopped run's runner tests are partial: no count
+        counted = set(COUNTED) <= set(order)  # a part without the runner tests counts none (#857)
+        if full and counted and stopped_at is None and slept is None:  # a stopped run's are partial: no count
             problems, count_line, counts = count_after_lanes(run_id)
             if problems:
                 with red_block("selftest-count"):
@@ -1500,6 +1564,8 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int
                      + f"; {os.cpu_count()} CPUs{workers}")  # fmt: skip
     if not full:
         block.append(f"  {FAST_LINE}")
+    if part_line:
+        block.append(f"  {part_line}")
     if count_line:
         block.append(f"  {count_line}")
     if slot_line:
@@ -1532,6 +1598,7 @@ def _verify(run_lane: RunLane, full: bool, fail_fast: bool, watch: Watch) -> int
             **facts,
             "status": "FAILED" if failed else "passed",
             "mode": "full" if full else "fast",
+            "part": part,
             "seconds": round(seconds, 1),
             "steps": [step_record(s) for s in ordered],
             "lanes": {lane: round(walls[lane], 1) for lane in lanes if lane in walls},

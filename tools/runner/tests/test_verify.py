@@ -145,6 +145,7 @@ class Verify:
         fail_fast: bool = False,
         watch: object = None,
         verbose: bool = True,
+        part: str | None = None,
     ) -> tuple[int, str, dict[str, object]]:
         """verbose: the whole output, as before #572 (these tests read every step's lines); a quiet run's log goes to
         self.logs, never this checkout's tools/out."""
@@ -169,7 +170,12 @@ class Verify:
         ):
             no_watch = lambda _on_suspend, _stop: None  # noqa: E731 - a run without a suspend
             rc = verify.main(  # type: ignore[arg-type]
-                run_lane=run_lane, full=full, fail_fast=fail_fast, watch=watch or no_watch, verbose=verbose
+                run_lane=run_lane,
+                full=full,
+                fail_fast=fail_fast,
+                watch=watch or no_watch,
+                verbose=verbose,
+                part=part,
             )
         lines = self.history.read_text(encoding="utf-8").splitlines()
         self.test.assertEqual(len(lines), 1, lines)
@@ -334,7 +340,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(
             set(record),
             {"start", "worktree", "branch", "head", "tree", "runner", "status", "seconds", "steps", "lanes", "cpus",
-             "workers", "selftest", "slot", "stopped", "mode"},  # fmt: skip
+             "workers", "selftest", "slot", "stopped", "mode", "part"},  # fmt: skip
         )
         self.assertIsNone(record["slot"])  # no slot pool: CI, or a verify inside a verify
         self.assertIsNone(record["stopped"])  # every step ran
@@ -459,6 +465,118 @@ class FastTest(unittest.TestCase):
         with stub_steps(ran), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(verify.lane_main("godot", wait=no_wait, names=("check",)), 0)
         self.assertEqual(ran, ["check"])
+
+
+class PartTest(unittest.TestCase):
+    """CI's parts (#857): `verify --full --part <name>` runs doctor and one part's steps; CI runs every part."""
+
+    def test_part_steps_cover_the_full_run(self) -> None:
+        # The union of the parts is every step of `verify --full`: a step in no part would never run on CI.
+        in_parts = {name for names in verify.PARTS.values() for name in names}
+        self.assertEqual({"doctor", *in_parts}, set(verify.STEP_ORDER))
+        self.assertNotIn("doctor", in_parts, "every part runs doctor first anyway")
+        for part, names in verify.PARTS.items():
+            with self.subTest(part=part):
+                self.assertEqual(len(names), len(set(names)))
+                lanes = verify.part_lanes(part)
+                self.assertEqual(sorted(n for ns in lanes.values() for n in ns), sorted(names))
+                for lane, steps in lanes.items():  # each in its LANES lane, in its order there
+                    self.assertEqual(list(steps), [n for n in verify.LANES[lane] if n in names])
+
+    def test_each_part_with_a_godot_step_imports_first_and_keeps_the_network_runs_apart(self) -> None:
+        godot = {*verify.LANES["godot"], "selftest-godot"}
+        for part, names in verify.PARTS.items():
+            with self.subTest(part=part):
+                if godot & set(names):
+                    self.assertIn("check", names, "a fresh checkout needs check's import before any Godot run")
+                    self.assertEqual(verify.part_lanes(part)["godot"][0], "check")
+                if set(NETWORK_STEPS) & set(names):  # no Godot run of the part beside a network run, as on one machine
+                    self.assertTrue({"test", "selftest-godot"}.isdisjoint(names) or set(NETWORK_STEPS) <= set(names))
+        # The count check compares both groups' results of one run with one serial discovery.
+        holders = [part for part, names in verify.PARTS.items() if set(verify.COUNTED) & set(names)]
+        self.assertEqual(len(holders), 1, holders)
+        self.assertLessEqual(set(verify.COUNTED), set(verify.PARTS[holders[0]]))
+
+    def test_a_part_runs_doctor_and_only_its_steps_and_names_itself(self) -> None:
+        for part, names in verify.PARTS.items():
+            ran: list[str] = []
+            with self.subTest(part=part), stub_steps(ran):
+                run = Verify(self)
+                rc, text, record = run.run(inline_lane, full=False, part=part)
+                self.assertEqual(rc, 0, text)
+                self.assertEqual(sorted(ran), sorted(names))  # doctor: the stub in Verify
+                order = [name for name in verify.STEP_ORDER if name == "doctor" or name in names]
+                self.assertEqual([name for _status, name in summary_rows(text)], order)
+                line = verify.PART_LINE.format(part=part, names=", ".join(order[1:]))
+                self.assertIn(f"  {line}", text.splitlines())
+                self.assertEqual((record["mode"], record["part"], record["status"]), ("full", part, "passed"))
+                self.assertEqual(list(record["lanes"]), list(verify.part_lanes(part)))  # type: ignore[arg-type]
+                if set(verify.COUNTED) <= set(names):
+                    run.count.assert_called_once()
+                else:
+                    run.count.assert_not_called()
+
+    def test_a_red_step_of_a_part_fails_it(self) -> None:
+        with stub_steps([], "game"):
+            rc, text, record = Verify(self).run(inline_lane, part="network")
+        self.assertEqual(rc, 1)
+        self.assertIn(("FAILED", "game"), summary_rows(text))
+        self.assertEqual((record["status"], record["part"]), ("FAILED", "network"))
+
+    def test_a_full_run_names_no_part_and_an_unknown_part_fails_before_anything_runs(self) -> None:
+        with stub_steps([]):
+            _rc, text, record = Verify(self).run(inline_lane)
+        self.assertIsNone(record["part"])
+        self.assertNotIn("of verify --full:", text)
+        lane = mock.MagicMock()
+        with mock.patch.object(verify.doctor, "main") as doctor_main, self.assertRaises(verify.Failure) as caught:
+            verify.main(run_lane=lane, part="nope", verbose=True)
+        self.assertIn("the parts: test, network, runner", str(caught.exception))
+        doctor_main.assert_not_called()
+        lane.assert_not_called()
+
+    def test_a_step_whose_after_step_is_in_no_lane_of_the_run_does_not_wait_for_it(self) -> None:
+        # The network part's first network run waits for selftest-godot (AFTER), which runs in another part: a real
+        # lane process, gated, starts it at once instead of waiting out its lane timeout for a step that never ends.
+        tools = str(ROOT / "tools")
+        code = (
+            f"import sys; sys.path.insert(0, {tools!r}); sys.dont_write_bytecode = True; "
+            "from runner import verify; verify.LANES = {'b': ('two',)}; verify.AFTER = {'two': ('one',)}; "
+            "verify.steps = lambda: {'two': lambda: (print('two ran'), 0)[1]}; "
+            "sys.exit(verify.lane_main('b'))"
+        )
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            verify.run_lane_process(lane, names, emit, cmd=[sys.executable, "-u", "-c", code], timeout=20)
+
+        steps: list[verify.StepRun] = []
+        with (
+            mock.patch.object(verify, "LANES", {"a": ("one",), "b": ("two",)}),
+            mock.patch.object(verify, "AFTER", {"two": ("one",)}),
+        ):
+            started = time.monotonic()
+            verify.run_lanes(run_lane, steps.append, lanes={"b": ("two",)})
+        self.assertEqual([(step.name, step.status) for step in steps], [("two", "passed")], steps)
+        self.assertLess(time.monotonic() - started, 15)
+
+    def test_the_steps_in_flight_of_a_part_wait_for_no_step_outside_it(self) -> None:
+        network = verify.part_lanes("network")
+        self.assertEqual(verify.steps_in_flight({"doctor"}, network), {"check"})
+        self.assertEqual(verify.steps_in_flight({"doctor", "check"}, network), {NETWORK_STEPS[0]})
+        runner = verify.part_lanes("runner")
+        self.assertEqual(verify.steps_in_flight({"doctor", "lint"}, runner), {"signal", "check"})
+        self.assertEqual(verify.steps_in_flight({"doctor", "lint", "check"}, runner), {"signal", "selftest-godot"})
+
+    def test_the_cli_passes_the_part_and_a_part_implies_the_full_run(self) -> None:
+        args = cli.build_parser().parse_args(["verify", "--full", "--part", "test"])
+        self.assertEqual((args.full, args.part), (True, "test"))
+        with mock.patch.object(verify, "main", return_value=0) as main:
+            self.assertEqual(cli.main(["verify", "--part", "runner"]), 0)
+        self.assertEqual(main.call_args.kwargs["part"], "runner")
+        seen: list[bool] = []
+        with mock.patch.object(verify, "_verify", side_effect=lambda _l, full, *_a: seen.append(full) or 0):
+            verify.main(run_lane=mock.MagicMock(), part="test", verbose=True)
+        self.assertEqual(seen, [True])
 
 
 def red_lane(outputs: dict[str, str]) -> verify.RunLane:
@@ -1130,10 +1248,10 @@ class FailFastTest(unittest.TestCase):
         self.assertEqual(
             run.call_args_list,
             [
-                mock.call(full=False, fail_fast=False, verbose=False),
-                mock.call(full=False, fail_fast=True, verbose=False),
-                mock.call(full=True, fail_fast=True, verbose=False),
-                mock.call(full=True, fail_fast=False, verbose=False),
+                mock.call(full=False, fail_fast=False, verbose=False, part=None),
+                mock.call(full=False, fail_fast=True, verbose=False, part=None),
+                mock.call(full=True, fail_fast=True, verbose=False, part=None),
+                mock.call(full=True, fail_fast=False, verbose=False, part=None),
             ],
         )
 
