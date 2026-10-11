@@ -94,6 +94,39 @@ func test_give_up_and_ready_never_act_in_the_same_phase() -> void:
 		assert_array(controls.clashes_of(action)).override_failure_message(action).is_empty()
 
 
+func test_no_living_action_takes_the_throw_key_and_others_may() -> void:
+	# #842's review: throw (G, #645) is no Settings row yet (#851), so a living action bound to G
+	# would swing and throw on one press. Such a binding is refused, as a fixed key is; an action
+	# that never acts while living may take G.
+	assert_dict(Controls.UNLISTED).is_equal({&"throw": Controls.Phase.ALIVE})
+	assert_bool(Controls.ACTIONS.has(&"throw")).is_false()
+	assert_int(_key(Controls.default_event(&"throw"))).is_equal(KEY_G)
+	var controls := Controls.new()
+	assert_bool(controls.bind(&"use", _press(KEY_G))).is_false()
+	assert_bool(controls.is_default(&"use")).is_true()
+	assert_array(Controls.unlisted_on(&"use", _press(KEY_G))).contains_exactly([&"throw"])
+	# Move forward acts while living too (and in the lobby and downed): refused as well.
+	assert_bool(controls.bind(&"move_forward", _press(KEY_G))).is_false()
+	# Give up acts only while downed, Ready only in the lobby: G is theirs to take.
+	assert_bool(controls.bind(&"give_up", _press(KEY_G))).is_true()
+	assert_bool(controls.bind(&"ready", _press(KEY_G))).is_true()
+	assert_array(Controls.unlisted_on(&"give_up", _press(KEY_G))).is_empty()
+	# Another key for a living action is still fine.
+	assert_bool(controls.bind(&"use", _press(KEY_H))).is_true()
+
+
+func test_a_saved_living_binding_on_the_throw_key_reads_as_its_default() -> void:
+	# A controls.cfg written before the refusal (Use on G) keeps Use's default.
+	var path := "user://controls_throw_key_test.cfg"
+	var file := ConfigFile.new()
+	file.set_value(Controls.SECTION, "use", Controls.encode(_press(KEY_G)))
+	assert_int(file.save(path)).is_equal(OK)
+	var controls := Controls.new(path)
+	assert_int(controls.read()).is_equal(OK)
+	assert_bool(controls.is_default(&"use")).is_true()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func test_one_key_in_one_phase_is_a_clash_and_in_two_phases_is_none() -> void:
 	var controls := Controls.new()
 	# The review page's example: Map and Talk on one key, both while living.

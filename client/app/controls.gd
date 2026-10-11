@@ -14,6 +14,10 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: `throw`,
+##   G, #645, whose name the copy deck lacks, #851) keeps its key for the phases it acts in: a
+##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
+##   press never does both (Use on G would swing and throw).
 ## - A missing, damaged or foreign entry (an unknown action, an unreadable binding) keeps the
 ##   default.
 ## - Never sent to anyone.
@@ -29,6 +33,9 @@ const ALL_DEVICES := -1
 ## The actions with a key that is not rebindable and that no binding may take: the debug overlay
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
+## The actions that act on their project.godot key in some phases but are not rebindable yet, with
+## those phases: `throw` (G) while living, until the deck names it (`control.throw`, #851).
+const UNLISTED: Dictionary[StringName, int] = {&"throw": Phase.ALIVE}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -224,10 +231,11 @@ func is_default(action: StringName) -> bool:
 
 
 ## Binds `action` to `event` (normalised()); false, and nothing changes, for an action that is not
-## rebindable or an event that cannot be a binding. The default itself clears the player's entry.
+## rebindable, an event that cannot be a binding, or the key of an UNLISTED action that acts in a
+## phase `action` acts in (unlisted_on()). The default itself clears the player's entry.
 func bind(action: StringName, event: InputEvent) -> bool:
 	var bound := normalised(event)
-	if not ACTIONS.has(action) or bound == null:
+	if not ACTIONS.has(action) or bound == null or not unlisted_on(action, bound).is_empty():
 		return false
 	var fallback := default_event(action)
 	if fallback != null and same(bound, fallback):
@@ -235,6 +243,19 @@ func bind(action: StringName, event: InputEvent) -> bool:
 	else:
 		_bound[action] = bound
 	return true
+
+
+## The UNLISTED actions whose project.godot key is `event` and that act in a phase `action` acts
+## in, in UNLISTED's order: bound there, one press would do both.
+static func unlisted_on(action: StringName, event: InputEvent) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for other: StringName in UNLISTED:
+		if (UNLISTED[other] & PHASES.get(action, 0)) == 0:
+			continue
+		var theirs := default_event(other)
+		if theirs != null and event != null and same(event, theirs):
+			found.append(other)
+	return found
 
 
 ## Every action back to its default.

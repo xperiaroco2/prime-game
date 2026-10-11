@@ -2944,7 +2944,10 @@ the issue's comment of ui-0.2.0), all in `client/ui/` and built on the generated
   check per phase (#488's rule 6), under which `give_up` and `ready`
   share F legally. A binding is a bare physical key or mouse button (not the wheel, which only clicks), no modifiers,
   for every device (-1, as `project.godot`); Esc is never bound (#488's rule 2), nor the keys of the fixed actions
-  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act.
+  `debug_overlay` (F3) and `toggle_fullscreen` (Enter), on which both would act. `Controls.UNLISTED` holds the actions that
+  act on their `project.godot` key but have no Settings row yet, with their phases: `throw` (G, #645, alive), until the
+  copy deck names it (`control.throw`, #851). `bind()` refuses a binding that would put an action of such a phase on
+  that key (`unlisted_on()`; Use on G would swing and throw on one press), and a saved one reads as the default.
   The player's file is `user://controls.cfg`, one per PC (not per window, unlike `UserSettings`), holding only the
   actions bound away from their default as `key:<physical keycode>` or `mouse:<button index>`, so a changed default
   reaches every player who never rebound it; a missing, damaged or foreign entry keeps the default. Each window keeps
