@@ -97,12 +97,14 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     (`publisher_trial` in `metrics.json`, read with `--since 2026-10-08T12:25:00Z`) gives advice other than
     "continue". **Measure:** the baseline is the Opus publishers of runs with findings since 2026-10-08T12:25Z; per
     task, the blockers and majors the review left open, the findings the publisher did not fix, the findings found
-    after its fixes (`Found-by` follow-ups and fix-up PRs, a lower bound), its fix and CI fix rounds, the publisher's
-    $ and the run's $; for `pr-rebase`, per run, red runs, the review's blockers and majors, not fixed and $.
-    **Stop rule** (the numbers are proposals the engineer may change in the PR): from 4 trial tasks, stop when the
-    findings not fixed per task exceed the baseline's by 1.0 or more; after at least 10 trial tasks, keep when the
-    later findings, not fixed and CI fix rounds per task are no worse than the baseline's and the publisher's $ per
-    task is lower, else drop; no baseline in the window gives no verdict, and the engineer decides. `pr-rebase` stops
+    after its fixes (`Found-by` follow-ups filed after the run ended and fix-up PRs, a lower bound), its fix and CI
+    fix rounds, the publisher's $ and the run's $; for `pr-rebase`, per run, red runs (a branch already up to date
+    has nothing to push), the open blockers and majors of every review minus the skeptics' refutations, not fixed
+    and $. **Stop rule** (the numbers are proposals the engineer may change in the PR): from 4 trial tasks, against a
+    baseline of at least 3 tasks, stop when the findings not fixed per task exceed the baseline's by 1.0 or more;
+    after at least 10 trial tasks, keep when the later findings, not fixed and CI fix rounds per task are no worse
+    than the baseline's and the publisher's $ per task is lower, else drop; no baseline in the window, or a measure
+    no run knows (a run without GitHub), gives no verdict, and the engineer decides. `pr-rebase` stops
     after 2 red Sonnet runs; after 10 Sonnet runs it keeps when its red share, blockers and majors and not fixed per run
     are no worse than the Opus runs' and its $ per run is lower. **Revert rule:** the manager stops passing
     `models.publish_findings` and `pr-rebase`'s `models.publish`; nothing else changes. It is a trial, not a habit: a
