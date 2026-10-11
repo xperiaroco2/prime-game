@@ -2005,7 +2005,7 @@ def build(
     rewrites = rewrite_rows(data["sessions"], data["runs"])
     md += rewrite_section(rewrites)
     md += other_section(counted)
-    relaunches = relaunch_rows(counted)
+    relaunches = relaunch_rows(counted, data["runs"])
     md += relaunch_section(relaunches)
     if ci is not None:
         md += ci_section(ci)
@@ -3549,17 +3549,45 @@ def other_section(counted: list[dict]) -> list[str]:
             table(["session", "run", "kind", "issue", "finished", "wall min", "tokens", "API list $"], rows), ""]
 
 
-def relaunch_rows(counted: list[dict]) -> list[dict]:
-    """#833: each issue that 2 or more counted runs worked on (any kind), the most $ first. Per issue: its runs, the
-    $ of all of them and of those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of
-    the implementer continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK
-    seconds of the previous one's end (one run's update that could have been in the previous launch)."""
-    by_issue: dict[int, list[dict]] = defaultdict(list)
+PR_URL_NUMBER = re.compile(r"/pull/(\d+)")
+
+
+def pr_issues(runs: list[dict]) -> dict[int, int]:
+    """PR number -> issue, from the publisher results of the runs (pr_number, else the number in pr_url)."""
+    out: dict[int, int] = {}
+    for r in runs:
+        for x in r["agents"]:
+            res = x.get("result") or {}
+            if x["role"] != "publisher" or r["issue"] is None or not res:
+                continue
+            num = res.get("pr_number")
+            if not isinstance(num, (int, float)) or isinstance(num, bool):
+                m = PR_URL_NUMBER.search(str(res.get("pr_url") or ""))
+                num = int(m.group(1)) if m else None
+            if num:
+                out[int(num)] = r["issue"]
+    return out
+
+
+def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[dict]:
+    """#833: each issue that 2 or more counted runs worked on (any kind), the most $ first. A pr-rebase run is labelled
+    with its PR's number: it is put under the issue whose publisher (in `known`, every run read, else `counted`)
+    returned that PR, else under "PR #N" (`pr` set, `issue` None). Per row: its runs, the $ of all of them and of
+    those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
+    continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds of the
+    previous one's end (one run's update that could have been in the previous launch)."""
+    pr_issue = pr_issues(known if known is not None else counted)
+    by_key: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for r in counted:
-        if r["issue"] is not None and r["start"] is not None and r["end"] is not None:
-            by_issue[r["issue"]].append(r)
+        if r["issue"] is None or r["start"] is None or r["end"] is None:
+            continue
+        if r["kind"] == "pr-rebase":
+            key = ("issue", pr_issue[r["issue"]]) if r["issue"] in pr_issue else ("pr", r["issue"])
+        else:
+            key = ("issue", r["issue"])
+        by_key[key].append(r)
     rows = []
-    for issue, runs in by_issue.items():
+    for (what, num), runs in by_key.items():
         if len(runs) < 2:
             continue
         runs.sort(key=lambda r: r["start"])
@@ -3573,7 +3601,8 @@ def relaunch_rows(counted: list[dict]) -> list[dict]:
         ]
         rows.append(
             {
-                "issue": issue,
+                "issue": num if what == "issue" else None,
+                "pr": num if what == "pr" else None,
                 "runs": len(runs),
                 "kinds": dict(kinds),
                 "usd": sum(spent),
@@ -3598,7 +3627,7 @@ def relaunch_section(rows: list[dict]) -> list[str]:
     if not rows:
         return []
     body = [
-        [f"#{x['issue']}", x["runs"], ", ".join(f"{n} {k}" for k, n in x["kinds"].items()), fmt_usd(x["usd"]),
+        [f"#{x['issue']}" if x["issue"] is not None else f"PR #{x['pr']}", x["runs"], ", ".join(f"{n} {k}" for k, n in x["kinds"].items()), fmt_usd(x["usd"]),
          fmt_usd(x["later_usd"]), f"{x['unfinished']} ({fmt_usd(x['unfinished_usd'])})",
          f"{x['handoffs']} ({fmt_usd(x['handoff_usd'])})", x["back_to_back"], f"{x['span_s'] / 3600:.1f}"]
         for x in rows

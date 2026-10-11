@@ -11,9 +11,9 @@ from runner.tests.test_metrics import Fixture, assistant, usage
 UNIT = {"usd_input": 1.0, "usd_cache_write": 0.0, "usd_cache_read": 0.0, "usd_output": 0.0}
 
 
-def agent(role: str, dollars: float, label: str | None = None) -> dict:
+def agent(role: str, dollars: float, label: str | None = None, result: dict | None = None) -> dict:
     tokens = {**UNIT, "usd_input": dollars}
-    return {"role": role, "label": label or f"{role}:#1", "data": {"tokens": tokens}}
+    return {"role": role, "label": label or f"{role}:#1", "data": {"tokens": tokens}, "result": result}
 
 
 def run(wf: str, issue: int | None, start: float, end: float, *, finished: bool = True, kind: str = "issue-task",
@@ -67,9 +67,30 @@ class RelaunchRowsTest(unittest.TestCase):
         row = metrics.relaunch_rows(runs)[0]
         self.assertEqual((row["handoffs"], row["handoff_usd"]), (2, 2.0))
 
-    def test_kinds_count_a_pr_rebase_beside_issue_tasks(self) -> None:
-        runs = [run("a1", 8, 0, 100), run("a2", 8, 5_000, 5_100, kind="pr-rebase")]
-        self.assertEqual(metrics.relaunch_rows(runs)[0]["kinds"], {"issue-task": 1, "pr-rebase": 1})
+    def test_a_pr_rebase_labelled_with_its_pr_counts_under_the_issue_that_published_the_pr(self) -> None:
+        # pr-rebase.js labels its agents rebase:#PR, review:code:#PR, fix:#PR, so read_run gives it the PR's number.
+        task = run("a1", 8, 0, 100, agents=[agent("implementer", 1.0, "implement:#8"),
+                                            agent("publisher", 1.0, "publish:#8", {"pr_number": 9})])
+        rebase = run("a2", 9, 5_000, 5_100, kind="pr-rebase",
+                     agents=[agent("pr-rebase", 2.0, "rebase:#9"), agent("code-reviewer", 1.0, "review:code:#9")])
+        rows = metrics.relaunch_rows([task, rebase])
+        self.assertEqual([(x["issue"], x["pr"], x["runs"]) for x in rows], [(8, None, 2)])
+        self.assertEqual(rows[0]["kinds"], {"issue-task": 1, "pr-rebase": 1})
+
+    def test_the_pr_is_found_from_a_run_outside_the_counted_ones_or_from_pr_url(self) -> None:
+        earlier = run("a0", 8, -9_000, -8_900, agents=[
+            agent("publisher", 1.0, "publish:#8", {"pr_url": "https://github.com/o/r/pull/9"})])  # fmt: skip
+        rebases = [run(w, 9, t, t + 100, kind="pr-rebase", agents=[agent("pr-rebase", 1.0, "rebase:#9")])
+                   for w, t in (("r1", 0), ("r2", 5_000))]  # fmt: skip
+        row = metrics.relaunch_rows(rebases, [earlier, *rebases])[0]
+        self.assertEqual((row["issue"], row["pr"], row["runs"]), (8, None, 2))
+
+    def test_a_pr_rebase_with_no_known_publisher_is_listed_under_its_pr(self) -> None:
+        rebases = [run(w, 9, t, t + 100, kind="pr-rebase", agents=[agent("pr-rebase", 1.0, "rebase:#9")])
+                   for w, t in (("r1", 0), ("r2", 5_000))]  # fmt: skip
+        rows = metrics.relaunch_rows(rebases)
+        self.assertEqual([(x["issue"], x["pr"]) for x in rows], [(None, 9)])
+        self.assertIn("| PR #9 | 2 |", "\n".join(metrics.relaunch_section(rows)))
 
 
 class RelaunchSectionTest(unittest.TestCase):
