@@ -12,7 +12,7 @@ extends RefCounted
 ## (the living by default).
 ##
 ## layouts(): the fixture lobby and map (round_player markers at (10 + i, 0, 5)) plus a `panel`
-## marker at each of SPOTS, far from the players: stations 0 and 1, in that order.
+## marker at each of SPOTS, far from the players: stations 1 and 2 (task 1), in that order.
 
 const RADIUS_M := 1.0
 const HEIGHT_M := 2.0
@@ -20,7 +20,16 @@ const SPOTS: Array[Vector3] = [Vector3(0, 0, 20), Vector3(6, 0, 20)]
 
 
 static func basic(from: int = AcceptSpec.From.LIVING) -> GameMode:
-	var mode := FixtureCombatModes.raising()
+	return _with_stations(FixtureCombatModes.raising(), from)
+
+
+## basic() on FixtureItemModes.basic(): no knife and no raise, so no channel (ModeCheck's
+## role-reveal warning about a channel stays out of the way).
+static func plain() -> GameMode:
+	return _with_stations(FixtureItemModes.basic(), AcceptSpec.From.LIVING)
+
+
+static func _with_stations(mode: GameMode, from: int) -> GameMode:
 	mode.settings.append(FixtureModes.setting(&"tasks", 1, 1, 1))
 	mode.settings.append(FixtureDealModes.banned_setting())
 	mode.task_types = [station_type()]

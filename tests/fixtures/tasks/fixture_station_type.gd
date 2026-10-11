@@ -12,6 +12,8 @@ extends TaskType
 
 ## Why use_problem() refuses every use, or empty.
 var problem: StringName = &""
+## Whether use_emits() lists nothing (a use that reaches nobody), for ModeCheck's warning.
+var quiet := false
 
 
 func _init() -> void:
@@ -38,6 +40,8 @@ func use_station(ctx: MatchContext, task: MatchTask, station: StationState) -> v
 
 
 func use_emits() -> Array[Script]:
+	if quiet:
+		return []
 	return [FixtureNoteEvent]
 
 
