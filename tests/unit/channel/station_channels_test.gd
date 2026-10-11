@@ -73,6 +73,25 @@ func test_a_timed_hold_with_no_claim_since_its_placement_stops_at_its_first_re_c
 	assert_array(FixtureModes.notes(game)).is_equal([STARTED, "hold stopped 1 by 2 after 0"])
 
 
+func test_a_timed_hold_stops_once_its_holder_stored_more_than_the_push_allowance_of_credit(
+) -> void:
+	# The drip (#647's bound): a claim every 10 host ticks covering one client tick keeps the claim
+	# young but stores 9 ticks of credit each time, which a later claim would spend as travel.
+	var game := _round(FixtureStationModes.hold(30.0))
+	_claim(game, P2)
+	FixtureStationModes.interact(game, P2, 1)
+	var channel := Channels.of_actor(game.state, P2)
+	for i in 4:
+		var covered := game.state.player(P2).claim_tick + 1
+		FixtureMoves.claim(game, P2, NEAR_1, {"client_tick": covered})
+		FixtureModes.run_ticks(game, 10)
+		if i == 0:
+			# 9 stored: within the allowance (PUSH_TICKS = 10), the hold goes on.
+			assert_object(Channels.of_actor(game.state, P2)).is_same(channel)
+	assert_object(Channels.of_actor(game.state, P2)).is_null()
+	assert_str(" ".join(FixtureModes.notes(game))).contains("hold stopped 1 by 2")
+
+
 func test_a_second_holder_of_the_same_station_is_busy_and_another_station_is_free() -> void:
 	var game := _round(FixtureStationModes.hold(0.0, true))
 	FixtureItemModes.stand(game, P3, NEAR_1)
