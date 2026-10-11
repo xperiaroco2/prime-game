@@ -6,7 +6,9 @@ extends NetPlay
 ## every time. A HostSession hosts on the hub, with its match's keep_history on; bot 1 is its own
 ## client, the other bots are BotClients on loopback clients, and LoopbackHub hands out their peer
 ## ids (this runner's ScenarioPeers). Every scenario also runs a lurker and a refused bot
-## (BotWatcher), with the hello deadline raised past the run for the lurker.
+## (BotWatcher), with the hello deadline raised past the run for the lurker; a watcher whose join
+## was lost the way a bot's is joined again joins again (NetPlay._watcher_join_again, #509: the
+## chaos run's network variants; over the loopback a join is never lost so).
 ##
 ## Asserted: the steps (ScenarioPlay's failures); ScenarioInvariants per Match call, through
 ## HostSession's observer (§4.5); the expected ends; no match error; and the leak test (LeakCheck)
@@ -132,8 +134,8 @@ func _join_everyone() -> void:
 	for bot: ScenarioBot in bots.slice(1):
 		if not bot.joins_late():
 			_connect(bot)
-	lurker = BotWatcher.lurker(_joining(), schema)
-	refused = BotWatcher.refused(_joining(), schema, session.content_hash)
+	lurker = _watching(BotWatcher.lurker(_joining(), schema))
+	refused = _watching(BotWatcher.refused(_joining(), schema, session.content_hash))
 
 
 func _play() -> void:
@@ -150,6 +152,8 @@ func _play() -> void:
 		step_clients()
 		lurker.poll()
 		refused.poll()
+		_watcher_join_again(lurker)
+		_watcher_join_again(refused)
 		tick_now = session.tick_of(now_usec)
 		play_frame(tick_now)
 		frames_run = frame + 1

@@ -29,7 +29,8 @@ extends ScenarioPlay
 ## whose join went unanswered joins again (_join_again). A join it does not join again is lost for
 ## good: its bot's step fails at once, naming the reason it ended and those of its earlier joins
 ## (_lost_join, #483), never a silent bot that sits the run out until the time limit. The rule of
-## when a join is tried again is JoinRetry's.
+## when a join is tried again is JoinRetry's; the watchers (the lurker and the refused bot) of the
+## runners that run them join again by the same rule (_watcher_join_again, #509).
 
 ## The schema every bot and host uses: a debug build's, which has ForceRole's kind (E17).
 var schema := WireSchema.game(true)
@@ -361,6 +362,40 @@ func _join_retry(number: int) -> JoinRetry:
 	var retry: JoinRetry = _joins.get_or_add(number, JoinRetry.new())
 	retry.max_joins = max_joins
 	return retry
+
+
+## A new transport joining the host, for a watcher (and in the runners that join bots, a bot):
+## null in a runner that runs no watchers.
+func _joining() -> NetTransport:
+	return null
+
+
+## `watcher` (the lurker or the refused bot, just made on _joining()), its join started now.
+func _watching(watcher: BotWatcher) -> BotWatcher:
+	watcher.joins.start(_join_clock_usec())
+	return watcher
+
+
+## Joins `watcher` again on a new _joining() while it never connected and its join was lost the way
+## a bot's is joined again (JoinRetry, within BotWatcher.MAX_JOINS): over a network under load its
+## join can go unanswered or end at the signalling's 5 s cap (`service_unreachable`), and the leak
+## test then failed the run for a watcher that never connected (#509). Every other end, or the last
+## allowed join's, stays: the leak test names its reason and the earlier ones (LeakCheck).
+func _watcher_join_again(watcher: BotWatcher) -> void:
+	if watcher == null or watcher.peer != 0:
+		return
+	if not watcher.joins.join_again(watcher.failed_reason, watcher.transport, _join_clock_usec()):
+		return
+	var transport := _joining()
+	if transport == null:
+		return
+	print(
+		(
+			"%s: the %s joins again (%s: the host did not answer)"
+			% [_log_label(), watcher.label, watcher.failed_reason]
+		)
+	)
+	watcher.rejoin(transport, _join_clock_usec())
 
 
 ## The clock _join_again judges a join on, in microseconds: the runner's (now_usec), which is the

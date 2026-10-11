@@ -3,8 +3,9 @@ extends NetPlay
 ## One instance of the bots runner over ENet (ARCHITECTURE §4.6; E12): `--instances N` runs one
 ## scenario on 127.0.0.1, on the real clock, one process per bot. Instance 1 hosts a HostSession
 ## (keep_history on) with bot 1 as its own client, and runs the lurker and the refused bot on ENet
-## in its process; instance i > 1 runs bot i alone. The owner calls start() once, then step() every
-## frame until done() is true, then finish().
+## in its process (a watcher whose join was lost to no answer or the signalling's 5 s cap joins
+## again, NetPlay._watcher_join_again, #509); instance i > 1 runs bot i alone. The owner calls
+## start() once, then step() every frame until done() is true, then finish().
 ##
 ## Bot numbers to peer ids, out of band (harmless: peer ids are public in the roster): each
 ## instance writes its peer id to `peer-<i>` in the scenario's folder on `connected`; bot 1 reads
@@ -139,6 +140,8 @@ func step(now: int) -> void:
 			return
 		lurker.poll()
 		refused.poll()
+		_watcher_join_again(lurker)
+		_watcher_join_again(refused)
 		_read_peer_files()
 		if now >= _next_window_usec:
 			# From now: after a stall longer than a window, one window covers it, not catch-ups.
@@ -262,8 +265,8 @@ func _start_host(bot: ScenarioBot) -> bool:
 	add_client(bot, session.own_client)
 	_relay_before = session.relay_counters()
 	_next_window_usec = now_usec + RELAY_WINDOW_S * USEC_PER_SECOND
-	lurker = BotWatcher.lurker(_joining(), schema)
-	refused = BotWatcher.refused(_joining(), schema, session.content_hash)
+	lurker = _watching(BotWatcher.lurker(_joining(), schema))
+	refused = _watching(BotWatcher.refused(_joining(), schema, session.content_hash))
 	return true
 
 

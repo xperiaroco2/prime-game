@@ -5,11 +5,24 @@ extends RefCounted
 ## (`wrong_version`). It records every message it decodes; view_of of its peer holds at most the
 ## Rejected, so a server/ that sends *everyone* events, snapshots or voice to the transport's peers
 ## instead of core/'s recipients fails the test.
+##
+## Its runner joins it again (NetPlay._watcher_join_again, rejoin) while it never connected and its
+## join was lost the way a bot's is joined again (JoinRetry: no answer, or no room at the
+## signalling), MAX_JOINS joins at most (#509).
+
+## The joins a watcher makes at most, as a networked chaos run's bots (ChaosRun.MAX_JOINS): its
+## host is up in the same process before it joins, so a lost join is load, not a late host, and
+## three joins (a no-room end within the 5 s signalling cap plus the 0.5 s wait, an unanswered ENet
+## one after its 5 s JOIN_TIMEOUT_MS) end well inside the run's time limit.
+const MAX_JOINS := 3
 
 ## "lurker" or "refused".
 var label: String
+## The transport of its last join.
 var transport: NetTransport
 var view := DecodedView.new()
+## Its joins: when the last one started, and why the earlier ones ended (the leak test names them).
+var joins := JoinRetry.new(MAX_JOINS)
 ## Its peer id once connected; 0 before.
 var peer := 0
 ## It sent a Hello.
@@ -31,13 +44,9 @@ func _init(
 	watcher_label: String, on_transport: NetTransport, schema: WireSchema, hello: Dictionary = {}
 ) -> void:
 	label = watcher_label
-	transport = on_transport
 	_schema = schema
 	_hello = hello
-	transport.connected.connect(_on_connected)
-	transport.host_lost.connect(_on_lost)
-	transport.connect_failed.connect(_on_failed)
-	transport.packet_received.connect(_on_packet)
+	_listen(on_transport)
 
 
 ## The lurker: it never sends Hello.
@@ -63,6 +72,28 @@ func poll() -> void:
 
 func close() -> void:
 	transport.close()
+
+
+## Joins again on `on_transport` (joining already) at `now_usec`, after its last join was lost
+## (JoinRetry): that join's transport is closed and no longer heard, and its failure is cleared.
+func rejoin(on_transport: NetTransport, now_usec: int) -> void:
+	transport.connected.disconnect(_on_connected)
+	transport.host_lost.disconnect(_on_lost)
+	transport.connect_failed.disconnect(_on_failed)
+	transport.packet_received.disconnect(_on_packet)
+	transport.close()
+	failed_reason = &""
+	lost = false
+	_listen(on_transport)
+	joins.start(now_usec)
+
+
+func _listen(on_transport: NetTransport) -> void:
+	transport = on_transport
+	transport.connected.connect(_on_connected)
+	transport.host_lost.connect(_on_lost)
+	transport.connect_failed.connect(_on_failed)
+	transport.packet_received.connect(_on_packet)
 
 
 func _on_connected(own_id: int) -> void:
