@@ -14,8 +14,8 @@ extends StaminaSource
 ##   free, the engineer's decision of 2026-09-30).
 ## - The sprint state starts at `sprint_start` and lasts while sprint is held and stamina is
 ##   above 0; a jump needs its full cost and spends it at once (Q7).
-## - Only the living sprint and jump: the downed (the controller's life) crawl, are never in
-##   the sprint state and regenerate as usual, since they spend none (M4-2's crawl check).
+## - Only the living sprint and jump: the downed (the controller's life) hold still (KE4), are never
+##   in the sprint state and regenerate as usual, since they spend none.
 ##
 ## On the network (#155, follow_claims()) the ticks are the claims': the host's ledger settles each
 ## MoveClaim's covered ticks with the flags its masks give each tick, which are that claim's

@@ -3,7 +3,6 @@ extends Node3D
 ## height, a ledge above it, a doorway, and dummy players. Run it (it opens a window):
 ##   tools\run.cmd run client/dev/test_room.tscn
 ## Click to capture the mouse, Esc to release it. WASD, Shift to sprint, Space to jump.
-## F1 toggles the downed mode (it crawls, never sprints or jumps, and pushes nobody),
 ## F2 puts the player and the dummies back where they started.
 ## Dummies: green stands in the doorway and can be pushed; yellow walks back and forth across the
 ## room and pushes whoever is in its way. Both are player controllers in this same world, so they
@@ -48,11 +47,9 @@ func _physics_process(_delta: float) -> void:
 	if (heading.x > 0.0 and x > WALK_TURN_X) or (heading.x < 0.0 and x < -WALK_TURN_X):
 		_walker.look(PI, 0.0)
 	var state := "sprinting" if _player.is_sprinting() else "walking"
-	if _player.is_downed():
-		state = "downed " + state
 	_overlay.text = (
 		"stamina %.0f  |  %s  |  %s\n" % [_player.stamina.get_stamina(), state, _position_text()]
-		+ "F1 downed  F2 respawn  click: capture mouse  Esc: release\n"
+		+ "F2 respawn  click: capture mouse  Esc: release\n"
 		+ "green: push it out of the doorway  yellow: walks into you  blue, red: frozen clients"
 	)
 
@@ -61,10 +58,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
-	if key.physical_keycode == KEY_F1:
-		var downed := ClientModel.Life.DOWNED
-		_player.life = ClientModel.Life.ALIVE if _player.is_downed() else downed
-	elif key.physical_keycode == KEY_F2:
+	if key.physical_keycode == KEY_F2:
 		_player.teleport(_spawn)
 		_pushable.teleport(_starts[0])
 		_walker.teleport(_starts[1])

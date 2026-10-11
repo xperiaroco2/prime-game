@@ -738,11 +738,10 @@ func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	_apply_player_flags(screen())
 
 
-## The own player's body follows its own life fold (M4-9): it crawls while downed (a KnockedDown
-## naming it), has no body while dead (Died; _apply_player_flags stops the physics step, so it
-## neither walks nor claims until its Respawned), and walks again once living (Revived, Respawned,
-## a new match, the lobby). Only a change switches the body, since switching stops it. A raise
-## naming it holds it still (`held`).
+## The own player's body follows its own life fold (M4-9): it holds still and looks while downed (a
+## KnockedDown naming it, KE4), has no body while dead (Died; _apply_player_flags stops the physics
+## step, so it neither walks nor claims until its Respawned), and walks again once living (Revived,
+## Respawned, a new match, the lobby). Only a change switches the body, since switching stops it.
 func _sync_life() -> void:
 	if _player == null:
 		return
@@ -750,7 +749,6 @@ func _sync_life() -> void:
 	var own_life := model.life_of(model.own_peer)
 	if _player.life != own_life:
 		_player.life = own_life
-	_player.held = model.raiser_of(model.own_peer) != 0
 
 
 ## The level of the current phase: the lobby, loaded at once when a lobby phase starts; a map

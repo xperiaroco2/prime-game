@@ -142,13 +142,17 @@ func test_a_downed_player_is_not_pushed_and_pushes_nobody() -> void:
 	assert_vector(downed.global_position).is_equal_approx(
 		Vector3(0.0, 0.0, -2.0), Vector3.ONE * 0.001
 	)
-	# The other way round: a downed player crawls through a standing player, who stays put.
-	var standing := living.global_position
+	# The other way round: a living player standing where a downed one lies stays put, and so does
+	# the downed one (it holds still, KE4).
 	living.move_input = Vector2.ZERO
-	downed.move_input = Vector2(0.0, -1.0)
+	living.teleport(Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, -2.0)))
 	await _world.frames(40)
-	assert_float(downed.global_position.z).is_greater(standing.z + 1.0)
-	assert_vector(living.global_position).is_equal_approx(standing, Vector3.ONE * 0.001)
+	assert_vector(living.global_position).is_equal_approx(
+		Vector3(0.0, 0.0, -2.0), Vector3.ONE * 0.001
+	)
+	assert_vector(downed.global_position).is_equal_approx(
+		Vector3(0.0, 0.0, -2.0), Vector3.ONE * 0.001
+	)
 
 
 ## One player walks or sprints into another standing 2 m ahead: once in contact both move on at

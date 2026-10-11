@@ -66,7 +66,7 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 }
 ## Where each action acts, as the client reads it today: the lobby screen reads movement, talk and
 ## Ready (Game._unhandled_input); the round reads the item keys and the raise while living
-## (ItemInteractions, LifeView), the crawl while downed (no sprint, no jump: PlayerController), the
+## (ItemInteractions, LifeView), the look alone while downed (it holds still: PlayerController), the
 ## give-up while downed and the spectate buttons while dead (LifeView), and the map on any life
 ## (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule hears
 ## (VoiceSender.may_speak).

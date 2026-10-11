@@ -64,10 +64,12 @@ const LEFT := &"left"
 ## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
 const MAX_JUMPS := 0xFFFF
 ## The events that move this client right before its Correction (place_players.gd at Loading and
-## at End -> Lobby, life_rules.gd at a knockdown and a respawn; a death and a revive send none):
+## at End -> Lobby, life_rules.gd at a knockdown, a revive (KE6) and a respawn; a death sends none):
 ## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
 ## and sends a Correction adds its event here.
-const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown", &"Respawned"]
+const PLACING_EVENTS: Array[StringName] = [
+	&"PlayersPlaced", &"KnockedDown", &"Revived", &"Respawned"
+]
 ## Horizontal travel in one claim that counts as moving, for stamina: the host's
 ## `MovementRule.MOVE_EPSILON`.
 const MOVE_EPSILON := 0.0001
