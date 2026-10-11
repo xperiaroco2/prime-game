@@ -138,8 +138,9 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
   `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
   its share of lines read again); `instructions.arch_reads` in the JSON record always;
-- per issue that 2 or more counted runs worked on (#833): the runs, the $ after the first, the unfinished runs, the
-  handoff continuations and the runs that started within RELAUNCH_BACK_TO_BACK of the previous one's end;
+- per issue that 2 or more counted issue-task or pr-rebase runs worked on (#833; a pr-rebase under the issue of its
+  PR): the runs, the $ after the first, the unfinished runs, the handoff continuations and the runs that started
+  within RELAUNCH_BACK_TO_BACK after the previous one's end;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
@@ -3570,17 +3571,18 @@ def pr_issues(runs: list[dict]) -> dict[int, int]:
 
 
 def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[dict]:
-    """#833: each issue that 2 or more counted runs worked on (any kind), the most $ first. A pr-rebase run is labelled
-    with its PR's number: it is put under the issue whose publisher (in `known`, every run read, else `counted`)
-    returned that PR, else under "PR #N" (`pr` set, `issue` None). Per row: its runs, the $ of all of them and of
-    those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
+    """#833: each issue that 2 or more counted runs worked on, the most $ first: issue-task runs (resumed too) and
+    pr-rebase runs; an "other" run (a wave, a probe) is left out, its issue is only the most common #N in its labels,
+    which may name several issues. A pr-rebase run is labelled with its PR's number: it is put under the issue whose
+    publisher (in `known`, every run read, else `counted`) returned that PR, else under "PR #N" (`pr` set, `issue`
+    None). Per row: its runs, the $ of all of them and of those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
     continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds after the
     previous one's end (one run's update that could have been in the previous launch; a run that started before the
     previous one ended, such as a pr-rebase beside a running task, is not)."""
     pr_issue = pr_issues(known if known is not None else counted)
     by_key: dict[tuple[str, int], list[dict]] = defaultdict(list)
     for r in counted:
-        if r["issue"] is None or r["start"] is None or r["end"] is None:
+        if r["kind"] == "other" or r["issue"] is None or r["start"] is None or r["end"] is None:
             continue
         if r["kind"] == "pr-rebase":
             key = ("issue", pr_issue[r["issue"]]) if r["issue"] in pr_issue else ("pr", r["issue"])
@@ -3640,10 +3642,11 @@ def relaunch_section(rows: list[dict]) -> list[str]:
     return [
         "## Issues launched 2 or more times (#833)",
         "",
-        "Per issue: its runs of any kind, the $ of the runs after the first, the runs that did not finish, the "
-        "implementer continuations after a checkpoint handoff, and the runs that started within "
-        f"{RELAUNCH_BACK_TO_BACK // 60} minutes of the previous one's end (an update that could have gone into that "
-        "launch). A relaunch for the engineer's answer is not a waste; its cause is in the run's notes and the issue's "
+        "Per issue: its issue-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, else under "
+        "\"PR #N\"; wave and other runs left out), the $ of the runs after the first, the runs that did not finish, "
+        "the implementer continuations after a checkpoint handoff, and the runs that started within "
+        f"{RELAUNCH_BACK_TO_BACK // 60} minutes after the previous one's end (an update that could have gone into "
+        "that launch). A relaunch for the engineer's answer is not a waste; its cause is in the run's notes and the issue's "
         "comments, not here.",
         "",
         table(head, body),

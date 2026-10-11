@@ -57,6 +57,11 @@ class RelaunchRowsTest(unittest.TestCase):
                 run("a3", 5, 2_000 + metrics.RELAUNCH_BACK_TO_BACK, 3_000)]  # fmt: skip
         self.assertEqual(metrics.relaunch_rows(runs)[0]["back_to_back"], 1, "the gap of exactly the limit is not")
 
+    def test_other_runs_are_left_out(self) -> None:
+        # A wave's agents name several issues; the most common #N is not a relaunch of that issue.
+        runs = [run("a1", 5, 0, 1_000), run("w1", 5, 5_000, 6_000, kind="other")]
+        self.assertEqual(metrics.relaunch_rows(runs), [])
+
     def test_a_run_that_overlaps_the_previous_one_is_not_back_to_back(self) -> None:
         runs = [run("a1", 5, 0, 1_000), run("a2", 5, 500, 2_000, kind="issue-task (resumed)")]
         self.assertEqual(metrics.relaunch_rows(runs)[0]["back_to_back"], 0)
