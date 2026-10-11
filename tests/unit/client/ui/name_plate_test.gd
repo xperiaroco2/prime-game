@@ -44,16 +44,17 @@ func test_the_plate_centres_on_the_point() -> void:
 	assert_float(plate.size.x).is_greater(20.0)
 
 
-func test_the_plate_shrinks_when_the_large_text_theme_is_swapped_back() -> void:
+func test_the_plate_resets_to_its_minimum_when_the_minimum_changes() -> void:
 	var plate: NamePlate = auto_free(NamePlate.new())
-	plate.theme = GameUi.THEME_LARGE
 	add_child(plate)
 	await get_tree().process_frame
-	var large := plate.size.x
-	plate.theme = GameUi.THEME
+	# A container only grows on its own: a plate larger than its minimum stays so, until a
+	# minimum-size change makes NamePlate reset it.
+	plate.size = Vector2(300, 80)
+	plate.mark.custom_minimum_size = Vector2(30, 30)
 	await get_tree().process_frame
-	assert_float(plate.size.x).is_less_equal(large)
 	assert_vector(plate.size).is_equal_approx(plate.get_combined_minimum_size(), Vector2.ONE * 0.01)
+	assert_float(plate.size.x).is_less(300.0)
 
 
 func test_a_dissident_marks_its_teammates_only_never_itself() -> void:
