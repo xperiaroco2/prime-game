@@ -492,7 +492,7 @@ GH_LIST_LIMIT = 1000
 RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
 GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
-                  "green_first", "followups", "fixups")  # fmt: skip
+                  "green_first", "followups", "late_followups", "fixups")  # fmt: skip
 
 # Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
 # docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
@@ -2821,8 +2821,8 @@ def pub_trial_task(key: object, members: list[tuple[dict, dict]]) -> dict:
         "start": min((r["start"] for r, _q in members if r.get("start") is not None), default=None),
         "runs": len(members), "open": sum(q["open"] for _r, q in members),
         "not_fixed": known([q["not_fixed"] for _r, q in members]),
-        "later": known([None if q.get("followups") is None or q.get("fixups") is None
-                        else len(q["followups"]) + len(q["fixups"]) for q in prs.values()]),
+        "later": known([None if q.get("late_followups") is None or q.get("fixups") is None
+                        else len(q["late_followups"]) + len(q["fixups"]) for q in prs.values()]),
         "fix_rounds": known([q["fix_rounds"] for _r, q in members]),
         "ci_fix_rounds": known([q.get("ci_red_rounds") for q in prs.values()]),
         "pub_usd": sum(usd(x["data"]["tokens"]) for r, _q in members for x in r["agents"]
@@ -2962,8 +2962,9 @@ def publisher_trial_section(record: dict) -> list[str]:
         "",
         "Per trial task (an issue-task run whose full publisher had a blocker or major left open, its publisher on "
         "Sonnet; the task's other such runs count with it): those runs, the blockers and majors open before the "
-        "publisher, what it left not fixed, the later findings (Found-by follow-ups and fix-up PRs: a lower bound, "
-        "from GitHub), its fix rounds, the PR's red CI rounds, the publishers' and the runs' API list $.",
+        "publisher, what it left not fixed, the later findings (Found-by follow-ups filed after the run and fix-up "
+        "PRs: a lower bound, from GitHub), its fix rounds, the PR's red CI rounds, the publishers' and the runs' API "
+        "list $.",
         "",
         table(head, body),
         "",
@@ -4077,12 +4078,16 @@ def quality_github(q: dict, github: dict | None) -> dict:
     if runs_from is None or (opened is not None and opened >= runs_from):
         out.update(ci_rounds(github.get("runs") or [], pr.get("headRefName"), opened, q["end"]))
     numbers = [n for n in (q["issue"], q["pr"]) if n is not None]
-    out["followups"] = sorted(
-        i["number"] for i in github.get("issues") or []
+    found = [
+        i for i in github.get("issues") or []
         if i.get("number") not in numbers
         and (q["start"] is None or (stamp(i.get("createdAt")) or 0) >= q["start"])
         and any(mentions(m.group(0), numbers, repo) for m in FOUND_BY.finditer(str(i.get("body") or "")))
-    )  # fmt: skip
+    ]  # fmt: skip
+    out["followups"] = sorted(i["number"] for i in found)
+    # Those filed once the run was over (#835: the publisher's own filings are not "later findings").
+    out["late_followups"] = (None if q["end"] is None
+                             else sorted(i["number"] for i in found if (stamp(i.get("createdAt")) or 0) >= q["end"]))  # fmt: skip
     own = re.compile(rf"^[A-Za-z]+/{q['issue']}-") if q["issue"] is not None else None
     fixups = []
     for p in github["prs"]:

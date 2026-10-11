@@ -27,7 +27,8 @@ def member(issue: int | None, wf: str, model: str, *, open_: int = 2, not_fixed:
     run = {"issue": issue, "wf": wf, "start": start, "kind": "issue-task", "finished": True,
            "agents": [agent("implementer", {"verify_green": True}), agent("publisher", new_pub(pr or 0), model, pub_usd)]}  # fmt: skip
     row = {"design": design, "stopped_by_mutants": stopped, "open": open_, "not_fixed": not_fixed, "pr": pr,
-           "followups": None if later is None else list(range(later[0])),
+           "followups": None if later is None else list(range(later[0] + 1)),  # one filed in the run
+           "late_followups": None if later is None else list(range(later[0])),
            "fixups": None if later is None else list(range(later[1])),
            "fix_rounds": fix_rounds, "ci_red_rounds": ci, "usd": usd}  # fmt: skip
     return run, row
