@@ -119,9 +119,8 @@ physics (the flat greybox gets no launch). By his answer of 2026-10-11 (PR #754,
 has a crouching player's collider, so it rests only where a crouching player fits, and a raised player gets up
 crouched there; by his answers of the same day (comment 6109457234, KD12 and KD13) the host's body never turns, so
 it slides and falls and only each screen's ragdoll rolls, and the levels keep a launched body within a raise's reach
-of where a crouching player can stand. The rest of
-this section stands; where it says the downed crawl, they will
-lie still once #728's issues are built.
+of a spot a player can walk to. The rest of this section stands; where it says the downed crawl, they will lie still
+once #728's issues are built.
 
 | State | Moves | May do | Struck | Heard by | Hears | Sees |
 |---|---|---|---|---|---|---|
