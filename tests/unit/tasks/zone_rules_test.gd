@@ -112,20 +112,20 @@ func test_a_player_who_leaves_stops_it() -> void:
 	assert_bool(FixtureZoneModes.state_of(game).counting[0]).is_false()
 
 
-func test_a_downed_player_crawling_in_does_not_count_and_counts_once_raised() -> void:
-	# P1 is knocked down just outside zone A and crawls in; P2 stands in zone B, which counts on
-	# while P2 raises P1 (a raise changes nothing); zone A counts from the tick P1 is living again.
+func test_a_downed_player_inside_does_not_count_and_counts_from_its_first_claim_once_raised(
+) -> void:
+	# P1, sending no claim yet, is knocked down inside zone A and claims where it lies; P2 stands in
+	# zone B, which counts on while P2 raises P1 (a raise changes nothing). The revive is a placement
+	# (the knockdown rework's KE6), as a respawn is: zone A counts from P1's first claim after it.
 	var game := FixtureZoneModes.in_round(FixtureZoneModes.basic(2, 10.0), [P1, P2])
-	var start := A + Vector3(1.2, 0, -1)
+	var start := A + EAST * 1.2
 	FixtureZoneModes.put(game, P1, start)
 	FixtureCombatModes.arm(game, P2, start - NORTH)
-	FixtureZoneModes.hold(game, [P1], 1)
 	FixtureCombatModes.use(game, P2, NORTH)
-	FixtureZoneModes.hold(game, [P1], FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P2, NORTH)
 	FixtureModes.run_ticks(game, 1)
 	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
-	FixtureZoneModes.walk(game, P1, A + EAST * 1.2, [], 0.04)
 	FixtureZoneModes.hold(game, [P1], 5)
 	assert_bool(game.state.stations[_zone_id(game, 0)].contains(game.state.player(P1).position))
 	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(0)
@@ -138,10 +138,11 @@ func test_a_downed_player_crawling_in_does_not_count_and_counts_once_raised() ->
 		held += 1
 	assert_bool(game.state.player(P1).is_alive()).is_true()
 	assert_int(FixtureZoneModes.ticks_of(game, 1)).is_equal(b_before + held)
-	# Revived in ChannelTicks, before TaskTicks: the revive's tick counts.
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(1)
+	# Revived in ChannelTicks, before TaskTicks: its position is the host's until its first claim
+	# of the new epoch, so the revive's tick does not count; each tick from that claim on does.
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(0)
 	FixtureZoneModes.hold(game, [P1, P2], 4)
-	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(5)
+	assert_int(FixtureZoneModes.ticks_of(game, 0)).is_equal(4)
 
 
 func test_a_respawn_inside_counts_from_its_first_claim() -> void:

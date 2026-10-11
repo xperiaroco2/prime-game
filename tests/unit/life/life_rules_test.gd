@@ -106,7 +106,7 @@ func test_the_downed_player_gets_a_new_epoch_told_to_it_alone() -> void:
 	assert_array(own.slice(at, at + 2)).is_equal([&"KnockedDown", &"Correction"])
 
 
-func test_the_downed_crawl_and_their_walking_claims_in_flight_are_dropped_as_stale() -> void:
+func test_the_downed_holds_still_and_their_walking_claims_in_flight_are_dropped_as_stale() -> void:
 	var game := _duel()
 	_knock_down(game)
 	var downed := game.state.player(P2)
@@ -114,11 +114,11 @@ func test_the_downed_crawl_and_their_walking_claims_in_flight_are_dropped_as_sta
 	# A walking claim it sent while living, still in flight: the old epoch, dropped silently.
 	FixtureMoves.claim(game, P2, Vector3(0, 0, 1.2), {"epoch": downed.epoch - 1})
 	assert_vector(downed.position).is_equal(Vector3(0, 0, 1))
-	# Then it crawls at 1 m/s (0.05 m per tick), holding sprint or not.
+	# Then its claims move nothing (KE4), holding sprint or not, and nothing corrects them.
 	FixtureMoves.steps(game, P2, 5, EAST * 0.05, {"moving": true})
 	FixtureMoves.steps(game, P2, 5, EAST * 0.05, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(seen)
-	assert_vector(downed.position).is_equal_approx(Vector3(0.5, 0, 1), Vector3.ONE * 1e-4)
+	assert_vector(downed.position).is_equal(Vector3(0, 0, 1))
 	assert_int(downed.life).is_equal(PlayerState.Life.DOWNED)
 
 
@@ -157,6 +157,7 @@ func test_the_knockdown_runs_out_after_its_time_and_the_player_dies_where_it_lay
 	var game := _duel()
 	_knock_down(game)
 	var deadline := game.state.player(P2).life_deadline
+	# Its claims move nothing (KE4): it dies where it was knocked down.
 	FixtureMoves.steps(game, P2, 4, EAST * 0.05, {"moving": true})
 	var corrections := FixtureMoves.corrections(game, P2).size()
 	FixtureModes.run_ticks(game, deadline - 1 - game.ticked_through())
@@ -167,7 +168,7 @@ func test_the_knockdown_runs_out_after_its_time_and_the_player_dies_where_it_lay
 	assert_int(dead.life).is_equal(PlayerState.Life.DEAD)
 	# Its respawn time starts at the death (PlayerRules.respawn_s, 30 s: 600 ticks).
 	assert_int(dead.life_deadline).is_equal(deadline + 600)
-	var body := Vector3(0.2, 0, 1)
+	var body := Vector3(0, 0, 1)
 	assert_dict(game.state.bodies).is_equal({P2: body})
 	for peer: int in [P1, P2, P3]:
 		var died := FixtureCombatModes.received(game, peer, &"Died")

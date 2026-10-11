@@ -27,10 +27,12 @@ extends RefCounted
 ##   a knockdown.
 ## - revive(): a downed player whose raise completed stands up where it lay, living, with the
 ##   raise's health (at most PlayerRules.health), its stamina as it was (settled first, as the
-##   downed player it was: it regenerated), no deadline, and invulnerable (make_invulnerable). Then
-##   Revived (everyone) and its SelfStatus at the end of the tick. No Correction and no new epoch:
-##   the raise held it in place (MovementRule), so its client stands where the host has it, and its
-##   next claim is checked at walking speed from there. No fact: no win condition reads a revive.
+##   downed player it was: it regenerated), no deadline, a new epoch (a placement for the movement
+##   rule, as a respawn is), and invulnerable (make_invulnerable). Then Revived (everyone), its
+##   Correction (that player only: where it lay; the knockdown rework's KE6) and its SelfStatus at
+##   the end of the tick. A downed player's claims move nothing (MovementRule, KE4), so without the
+##   Correction its client would stand up where its last walking claim was; with it, its next
+##   claim is checked at walking speed from where it lay. No fact: no win condition reads a revive.
 ## - die(): every channel targeting the downed player stops first (a raise of a player who gives
 ##   up: RaiseStopped). A downed player dies: its body comes to rest on the floor below its last
 ##   accepted position, recorded in MatchState.bodies until it leaves or respawns; it has no
@@ -194,8 +196,8 @@ static func drop_kills(state: MatchState) -> void:
 
 
 ## `peer`, downed, stands up where it lies (a completed raise): living with `health` whole points
-## (at most PlayerRules.health), stamina kept, invulnerable. Revived (everyone), then its SelfStatus
-## (at the end of the tick).
+## (at most PlayerRules.health), stamina kept, a new epoch, invulnerable. Revived (everyone), then
+## its Correction, then its SelfStatus (at the end of the tick).
 static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 	var revived := ctx.state.player(peer)
 	if revived == null or revived.life != PlayerState.Life.DOWNED:
@@ -211,9 +213,13 @@ static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 	revived.life_deadline = -1
 	revived.knockdown_left = -1
 	revived.health = mini(Ticks.thousandths(health), Ticks.thousandths(rules.health))
+	revived.sprint_held = false
+	revived.moving = false
 	revived.velocity = Vector3.ZERO
+	revived.epoch += 1
 	make_invulnerable(ctx, peer)
 	ctx.emit(RevivedEvent.new(peer))
+	ctx.emit(CorrectionEvent.new(peer, revived.epoch, revived.position, revived.velocity))
 	SelfStatusFeed.touch(ctx.state, peer)
 
 

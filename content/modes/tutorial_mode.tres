@@ -295,7 +295,6 @@ sprint_cost_per_s = 20
 sprint_start = 20
 jump_height_m = 1.0
 jump_cost = 10
-crawl_speed_mps = 1.0
 knockdown_s = 10.0
 respawn_s = 10.0
 invulnerable_s = 3.0

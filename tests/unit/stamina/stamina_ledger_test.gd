@@ -115,7 +115,7 @@ func test_ticks_no_claim_covers_are_settled_before_a_jump_with_the_last_claims_f
 
 
 func test_a_downed_player_is_never_in_the_sprint_state_and_regenerates() -> void:
-	# The crawl (M4-2): holding sprint spends nothing, and the ticks regenerate as usual.
+	# The downed (KE4): holding sprint spends nothing, and the ticks regenerate as usual.
 	var game := FixtureMoves.in_round([P1])
 	var downed := game.state.player(P1)
 	downed.life = PlayerState.Life.DOWNED

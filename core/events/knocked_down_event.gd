@@ -1,7 +1,7 @@
 class_name KnockedDownEvent
 extends MatchEvent
 ## A living player reached 0 health and is downed where it stood (ARCHITECTURE §4.2, §5): it
-## crawls at `position` for the knockdown time, then dies. Public, like the downed avatar itself;
+## lies still at `position` for the knockdown time, then dies. Public, like the downed avatar;
 ## no field names an attacker or a cause. It confirms a hit to the attacker, an accepted exception
 ## to "no hit confirmation" (vision revision 1). Audience: everyone.
 

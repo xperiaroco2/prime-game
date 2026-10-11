@@ -54,12 +54,6 @@ func required_conditions() -> Array[Script]:
 	return []
 
 
-## Whether a running channel of this effect holds its target in place (the raise: the downed
-## player's claims may not move it, MovementRule). False by default.
-func holds_target() -> bool:
-	return false
-
-
 ## Whether a running channel of this effect never completes (the car repair ADR's RE3: the lift's
 ## hold): Channels.advance checks its conditions and counts its ticks every tick but never calls
 ## completed(), and check() skips the `seconds` bound (a subclass checks its own). Only its stops

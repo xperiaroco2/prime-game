@@ -284,7 +284,7 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
-	# MoveClaim from the living and the downed (the downed crawl, M4-2).
+	# MoveClaim from the living and the downed (the downed claims its look only, KE4).
 	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
 	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
 	# The knife from the base mode's own data: a living player strikes, and the downed cannot.

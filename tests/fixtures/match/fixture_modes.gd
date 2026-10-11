@@ -92,7 +92,6 @@ static func player_rules() -> PlayerRules:
 	rules.sprint_start = 20
 	rules.jump_height_m = 1.0
 	rules.jump_cost = 10
-	rules.crawl_speed_mps = 1.0
 	rules.knockdown_s = 10.0
 	rules.respawn_s = 30.0
 	rules.invulnerable_s = 3.0

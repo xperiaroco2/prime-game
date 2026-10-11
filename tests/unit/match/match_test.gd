@@ -209,25 +209,27 @@ func test_only_the_host_may_send_a_host_intent() -> void:
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 
 
-func test_a_downed_player_may_move_but_not_use() -> void:
+func test_a_downed_player_may_claim_its_look_but_not_use() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var downed := game.state.player(P2)
 	downed.life = PlayerState.Life.DOWNED
 	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
 	assert_array(FixtureModes.notes(game)).not_contains(["used"])
-	# One tick of the crawl: 1 m/s is 0.05 m (the check adds a tenth of it as slack).
-	var to := downed.position + Vector3(0.05, 0, 0)
+	# Its MoveClaim is accepted by the phase, and the movement rule takes its facing only (KE4).
+	var lies := downed.position
 	var claim := {
 		"epoch": downed.epoch,
-		"position": to,
+		"position": lies + Vector3(0.05, 0, 0),
 		"velocity": Vector3.ZERO,
-		"facing": Vector3.FORWARD,
+		"facing": Vector3.RIGHT,
 		"client_tick": 1,
 		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
-	assert_vector(downed.position).is_equal(to)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_vector(downed.position).is_equal(lies)
+	assert_vector(downed.facing).is_equal_approx(Vector3.RIGHT, Vector3.ONE * 1e-6)
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 

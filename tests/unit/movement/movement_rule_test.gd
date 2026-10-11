@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## MovementRule (ARCHITECTURE §7, §7.1): epochs, well-formed claims, horizontal speed over the
 ## client's tick delta with the client's tick rate bounded, the push allowance (only near another
-## living player), the downed's crawl, the stored facing (a unit vector, pitch within ±89°),
+## living player), the stored facing (a unit vector, pitch within ±89°),
 ## Correction with a new epoch to that player only. Jumps and heights: movement_rule_jump_test.gd.
 ## Numbers per tick: FixtureMoves.
 
@@ -406,54 +406,6 @@ func test_a_claim_covering_stored_credit_is_pushed_for_at_most_the_push_ticks() 
 	assert_bool(_quiet_push_corrected(12.5)).is_false()
 	assert_bool(_quiet_push_corrected(12.6)).is_true()
 	assert_bool(_quiet_push_corrected(20.0)).is_true()
-
-
-func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
-	var game := FixtureMoves.in_round([P1])
-	var downed := game.state.player(P1)
-	downed.life = PlayerState.Life.DOWNED
-	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var seen := FixtureMoves.corrections(game, P1).size()
-	# The crawl: 1 m/s is 0.05 m per tick, plus a tenth of it as slack, with or without sprint.
-	FixtureMoves.step(game, P1, EAST * 0.054, {"moving": true})
-	FixtureMoves.step(game, P1, EAST * 0.054, FixtureMoves.sprinting())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	# Sprinting buys nothing: a living walker's 0.225 m per tick is corrected.
-	FixtureMoves.step(game, P1, EAST * 0.2, FixtureMoves.sprinting())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	# Nobody pushes the downed: no push allowance either, with no movement input.
-	var fields := {"client_tick": downed.claim_tick + 1}
-	FixtureMoves.step(game, P1, EAST * 0.11, fields)
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
-
-
-func test_one_tick_claims_do_not_double_the_crawl_speed() -> void:
-	# A fixed slack per claim (0.05 m) is a whole tick of the crawl: a client claiming every tick
-	# would crawl at about 1.9 m/s. The crawl's slack is in proportion to its own travel.
-	var game := FixtureMoves.in_round([P1])
-	var downed := game.state.player(P1)
-	downed.life = PlayerState.Life.DOWNED
-	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var seen := FixtureMoves.corrections(game, P1).size()
-	FixtureMoves.steps(game, P1, 20, EAST * 0.05, {"moving": true})
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	FixtureMoves.steps(game, P1, 20, EAST * 0.095, {"moving": true})
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_greater(seen)
-
-
-func test_a_downed_player_spends_no_stamina_and_regenerates() -> void:
-	var game := FixtureMoves.in_round([P1])
-	var downed := game.state.player(P1)
-	downed.life = PlayerState.Life.DOWNED
-	downed.stamina = 0
-	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var seen := FixtureMoves.corrections(game, P1).size()
-	var stamina_before := downed.stamina
-	FixtureMoves.steps(game, P1, 20, EAST * 0.05, FixtureMoves.sprinting())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	# 750 thousandths a tick, as for a living player who does not sprint.
-	assert_int(downed.stamina).is_equal(stamina_before + 20 * 750)
-	assert_bool(downed.sprinting).is_false()
 
 
 func test_the_stored_facing_is_the_claims_direction_as_a_unit_vector() -> void:
