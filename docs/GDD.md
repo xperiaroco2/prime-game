@@ -89,7 +89,7 @@ with three changes:
   the host's physics moves the body, and each screen draws its own ragdoll there.
 
 His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comments 6097876326 and
-6100602989, the same day, and 6108669765 on 2026-10-11):
+6100602989, the same day, and 6108669765 and 6109457234 on 2026-10-11):
 - Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
   launch, the knife's too.
 - The body is a real rigid body with normal physics, run by the host: a blow launches it, and it rolls or slides off
@@ -106,11 +106,12 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
 - The body has a crouching player's collider, so it comes to rest only where a crouching player fits (it does not
   roll under a low table); a raised player gets up crouched there and stands up by the crouch's rules once there is
   room (the ADR's KD11).
-- Open (the ADR's KD12): a body a launch carries where nobody can reach it (the locked roof's edge), out of reach
-  with the package it carries.
-- Open (the ADR's KD13, a read-back): the design reads the crouching collider as one that never turns, so the body
-  the host moves slides and falls but does not roll (only the ragdoll on screen rolls), and slides off only a steep
-  slope. Until he answers, "rolls" above reads "slides or falls".
+- A blow never launches a body where no player can reach it to raise it: the levels keep every surface a launch can
+  reach, tables and the roof included, within a raise's reach of a spot where a crouching player can stand, the same
+  convention as for a thrown item, checked on the House by tests (the ADR's KD12).
+- The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
+  not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
+  the ragdoll on screen.
 
 ### Later modes
 - Meetings mode (#35): dropped by [vision revision 1](decisions/2026-10-01-vision-revision-1.md), since deduction
