@@ -138,6 +138,9 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   `--- <path>:<first>-<last>` head, its outline as line 0) and the partial ones (some lines; a Grep, a search, `head`,
   `tail` or a `section` piped on is never one), tokens and list $, and the $ of the whole reads and of the repeated lines (a read's $ times
   its share of lines read again); `instructions.arch_reads` in the JSON record always;
+- per issue that 2 or more counted issue-task or pr-rebase runs worked on (#833; a pr-rebase under the issue of its
+  PR): the runs, the $ after the first, the unfinished runs, the handoff continuations and the runs that started
+  within RELAUNCH_BACK_TO_BACK after the previous one's end;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
@@ -474,6 +477,7 @@ AB_SIDES = ("trial", "control")
 HIGH_CTX = 200_000
 HANDOFF_CTX = 150_000
 HANDOFF_LABEL = re.compile(r"#\d+#\d+$")
+RELAUNCH_BACK_TO_BACK = 600  # s: a run starting this soon after the previous one on the issue ended (#833)
 PROXY_CALLS = (40, 60, 80, 100)
 TOKENS_LEFT = re.compile(r"<total_tokens>(\d+) tokens left")
 # A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
@@ -2002,6 +2006,8 @@ def build(
     rewrites = rewrite_rows(data["sessions"], data["runs"])
     md += rewrite_section(rewrites)
     md += other_section(counted)
+    relaunches = relaunch_rows(counted, data["runs"])
+    md += relaunch_section(relaunches)
     if ci is not None:
         md += ci_section(ci)
     week = total_week(counted, managers)
@@ -2035,6 +2041,7 @@ def build(
         "publisher_trial": pub_trial,
         "instructions": instructions,
         "agent_types": types,
+        "relaunches": relaunches,
         "prompt_sizes": prompts,
         "compact": compact,
     }
@@ -3541,6 +3548,113 @@ def other_section(counted: list[dict]) -> list[str]:
     ]
     return ["## Other runs (pr-rebase, resumed, unfinished, others)", "",
             table(["session", "run", "kind", "issue", "finished", "wall min", "tokens", "API list $"], rows), ""]
+
+
+PR_URL_NUMBER = re.compile(r"/pull/(\d+)")
+
+
+def pr_issues(runs: list[dict]) -> dict[int, int]:
+    """PR number -> issue, from the publisher results of the runs (pr_number, else the number in pr_url)."""
+    out: dict[int, int] = {}
+    for r in runs:
+        for x in r["agents"]:
+            res = x.get("result") or {}
+            if x["role"] != "publisher" or r["issue"] is None or not res:
+                continue
+            num = res.get("pr_number")
+            if not isinstance(num, (int, float)) or isinstance(num, bool):
+                m = PR_URL_NUMBER.search(str(res.get("pr_url") or ""))
+                num = int(m.group(1)) if m else None
+            if num:
+                out[int(num)] = r["issue"]
+    return out
+
+
+def relaunch_rows(counted: list[dict], known: list[dict] | None = None) -> list[dict]:
+    """#833: each issue that 2 or more counted runs worked on, the most $ first: issue-task runs (resumed too) and
+    pr-rebase runs; an "other" run (a wave, a probe) is left out, its issue is only the most common #N in its labels,
+    which may name several issues. A pr-rebase run is labelled with its PR's number: it is put under the issue whose
+    publisher (in `known`, every run read, else `counted`) returned that PR, else under "PR #N" (`pr` set, `issue`
+    None). Per row: its runs, the $ of all of them and of those after the first, the unfinished runs (died, stopped, threw) and their $, the $ of the implementer
+    continuations after a checkpoint handoff, and the runs that started within RELAUNCH_BACK_TO_BACK seconds after the
+    previous one's end (one run's update that could have been in the previous launch; a run that started before the
+    previous one ended, such as a pr-rebase beside a running task, is not)."""
+    pr_issue = pr_issues(known if known is not None else counted)
+    by_key: dict[tuple[str, int], list[dict]] = defaultdict(list)
+    for r in counted:
+        if r["kind"] == "other" or r["issue"] is None or r["start"] is None or r["end"] is None:
+            continue
+        if r["kind"] == "pr-rebase":
+            key = ("issue", pr_issue[r["issue"]]) if r["issue"] in pr_issue else ("pr", r["issue"])
+        else:
+            key = ("issue", r["issue"])
+        by_key[key].append(r)
+    rows = []
+    for (what, num), runs in by_key.items():
+        if len(runs) < 2:
+            continue
+        runs.sort(key=lambda r: r["start"])
+        spent = [run_usd(r) for r in runs]
+        kinds = Counter(r["kind"] for r in runs)
+        hand = [
+            usd(x["data"]["tokens"])
+            for r in runs
+            for x in r["agents"]
+            if x["role"] == "implementer" and x["data"] and HANDOFF_LABEL.search(x["label"])
+        ]
+        rows.append(
+            {
+                "issue": num if what == "issue" else None,
+                "pr": num if what == "pr" else None,
+                "runs": len(runs),
+                "kinds": dict(kinds),
+                "usd": sum(spent),
+                "later_usd": sum(spent[1:]),
+                "unfinished": sum(not r["finished"] for r in runs),
+                "unfinished_usd": sum(u for r, u in zip(runs, spent) if not r["finished"]),
+                "handoffs": len(hand),
+                "handoff_usd": sum(hand),
+                "back_to_back": sum(
+                    0 <= b["start"] - a["end"] < RELAUNCH_BACK_TO_BACK for a, b in zip(runs, runs[1:])
+                ),
+                "wfs": [r["wf"] for r in runs],
+                "span_s": runs[-1]["end"] - runs[0]["start"],
+            }
+        )
+    return sorted(rows, key=lambda x: -x["usd"])
+
+
+def relaunch_section(rows: list[dict]) -> list[str]:
+    """The relaunch table (#833); nothing when no issue had 2 runs. The cause of a relaunch (the engineer's answer, a
+    sibling PR merged, a crash) is not in the transcripts: read it from the run's notes and the issue's comments."""
+    if not rows:
+        return []
+    body = [
+        [f"#{x['issue']}" if x["issue"] is not None else f"PR #{x['pr']}", x["runs"], ", ".join(f"{n} {k}" for k, n in x["kinds"].items()), fmt_usd(x["usd"]),
+         fmt_usd(x["later_usd"]), f"{x['unfinished']} ({fmt_usd(x['unfinished_usd'])})",
+         f"{x['handoffs']} ({fmt_usd(x['handoff_usd'])})", x["back_to_back"], f"{x['span_s'] / 3600:.1f}"]
+        for x in rows
+    ]  # fmt: skip
+    head = ["issue", "runs", "kinds", "API list $", "$ after the first run", "unfinished runs ($)",
+            "handoff continuations ($)", f"back to back (<{RELAUNCH_BACK_TO_BACK // 60} min)", "hours first to last"]  # fmt: skip
+    spent = sum(x["usd"] for x in rows)
+    later = sum(x["later_usd"] for x in rows)
+    return [
+        "## Issues launched 2 or more times (#833)",
+        "",
+        "Per issue: its issue-task and pr-rebase runs (a pr-rebase under the issue whose PR it rebased, else under "
+        "\"PR #N\"; wave and other runs left out), the $ of the runs after the first, the runs that did not finish, "
+        "the implementer continuations after a checkpoint handoff, and the runs that started within "
+        f"{RELAUNCH_BACK_TO_BACK // 60} minutes after the previous one's end (an update that could have gone into "
+        "that launch). A relaunch for the engineer's answer is not a waste; its cause is in the run's notes and the issue's "
+        "comments, not here.",
+        "",
+        table(head, body),
+        "",
+        f"{len(rows)} {'issue' if len(rows) == 1 else 'issues'}, {fmt_usd(spent)}; "
+        f"after the first run {fmt_usd(later)}.",
+        "",
+    ]
 
 
 def ci_section(ci: dict) -> list[str]:
