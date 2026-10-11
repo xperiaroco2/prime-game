@@ -152,3 +152,22 @@ func _expect(mode: GameMode, fragment: String) -> void:
 	var errors := ModeCheck.run(mode).errors
 	assert_array(Array(errors)).has_size(1)
 	assert_str(" ".join(errors)).contains(fragment)
+
+
+func test_a_task_types_use_reasons_are_wire_ids_of_station_usable() -> void:
+	# The cooking ADR's CE11 (#780): each reason a type lists fits the wire's alphabet and is one
+	# of StationUsable.REASONS, whose §9.4.1 row says what it reveals.
+	var mode := FixtureStationModes.basic()
+	var type := FixtureStationModes.type_of(mode)
+	type.reasons = StationUsable.REASONS.duplicate()
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+	type.reasons = [StationUsable.UNAVAILABLE, &"saboteur_nearby"]
+	_expect(
+		mode,
+		(
+			"task type fixture_station lists the use reason saboteur_nearby, which is not one"
+			+ " of StationUsable.REASONS"
+		)
+	)
+	type.reasons = [&"Wrong-Item"]
+	_expect(mode, 'mode.task_types[0]\'s use reason is "Wrong-Item": an id is 1 to 32')

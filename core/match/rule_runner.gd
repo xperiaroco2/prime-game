@@ -15,7 +15,7 @@ static func run(rule: Rule, ctx: MatchContext) -> StringName:
 	ctx.rule = rule
 	for condition: Condition in rule.conditions:
 		if not condition.passes(ctx):
-			return condition.rejection_reason()
+			return condition.rejection_reason_in(ctx)
 	for effect: RuleEffect in rule.effects:
 		var refused := effect.refusal(ctx)
 		if not refused.is_empty():

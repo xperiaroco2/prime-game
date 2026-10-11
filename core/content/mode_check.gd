@@ -53,8 +53,8 @@ extends RefCounted
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
 ## sides, item and station kinds, task types, settings, phases, win conditions), the sides and
-## spawn tags parts name, and the reason each condition rejects with. D1 (a) in the wire ADR,
-## the designer's answer on #96.
+## spawn tags parts name, the reason each condition rejects with, and the reasons each task type
+## refuses a use with (TaskType.use_reasons). D1 (a) in the wire ADR, the designer's answer on #96.
 
 ## The longest id the wire carries (§4.3 `id`).
 const MAX_ID_LENGTH := 32
@@ -939,8 +939,9 @@ func _check_nulls(path: String, resource: Resource) -> void:
 			errors.append("%s.%s has an empty entry" % [path, name])
 
 
-## Every id `resource` holds (ID_PROPERTIES, and a condition's rejection reason) against the
-## wire's alphabet. An empty side or tag means "none" and is left to the part's own check.
+## Every id `resource` holds (ID_PROPERTIES, a condition's rejection reason, a task type's use
+## reasons) against the wire's alphabet. An empty side or tag means "none" and is left to the
+## part's own check.
 func _check_ids(path: String, resource: Resource) -> void:
 	for property: String in ID_PROPERTIES:
 		var value: Variant = resource.get(property)
@@ -955,6 +956,11 @@ func _check_ids(path: String, resource: Resource) -> void:
 		var reason := String((resource as Condition).rejection_reason())
 		if not is_wire_id(reason):
 			errors.append(_bad_id("%s's rejection reason" % path, reason))
+	if resource is TaskType:
+		# StationUsable refuses a use with the reason the type gives (the cooking ADR's CE11).
+		for reason: StringName in (resource as TaskType).use_reasons():
+			if not is_wire_id(String(reason)):
+				errors.append(_bad_id("%s's use reason" % path, String(reason)))
 
 
 ## Whether `id` fits the wire's `id` type (§4.3): 1 to MAX_ID_LENGTH characters of `a-z`, `0-9`
