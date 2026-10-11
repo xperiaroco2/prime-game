@@ -11,9 +11,10 @@ extends RefCounted
 ## signalling), MAX_JOINS joins at most (#509).
 
 ## The joins a watcher makes at most, as a networked chaos run's bots (ChaosRun.MAX_JOINS): its
-## host is up in the same process before it joins, so a lost join is load, not a late host, and
-## three joins (a no-room end within the 5 s signalling cap plus the 0.5 s wait, an unanswered ENet
-## one after its 5 s JOIN_TIMEOUT_MS) end well inside the run's time limit.
+## host is up in the same process before it joins, so a lost join is load, not a late host. The
+## match cannot close joins on it: no bot acts while its join is open (NetPlay._watchers_settled),
+## so three joins (a no-room end within the 5 s signalling cap plus the 0.5 s wait, an unanswered
+## ENet one after its 5 s JOIN_TIMEOUT_MS) delay the run by about 16.5 s at most.
 const MAX_JOINS := 3
 
 ## "lurker" or "refused".

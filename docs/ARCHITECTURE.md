@@ -1567,10 +1567,17 @@ Compares what each bot b decoded with `view_of(b)`:
   ENet, or `no_room` / `service_unreachable`, the signalling's 5 s connect cap, over WebRTC) joins again on a new
   transport, `BotWatcher.MAX_JOINS` (3) joins at most (`NetPlay._watcher_join_again`, run by `BotsRunner` and so the
   chaos run, and by `BotsEnet`'s host; #509): under load a lost watcher join failed a run whose leak test never
-  ran on it. Its checks are the same on the join that connected; one that never connected names the reasons its
-  earlier joins ended too ("...; earlier joins ended service_unreachable, service_unreachable"). Tests:
-  `tests/scenarios/watcher_join_test.gd` (a lurker lost to the cap and a refused bot unanswered join again and pass,
-  `MAX_JOINS` joins and then every reason, a refusal or `host_unreachable` not joined again).
+  ran on it. No bot (nor the chaos run's hostile peers) acts until each watcher connected or its join is lost for
+  good (`NetPlay._watchers_settled`, checked in `play_frame`): the match's Loading refuses new joins (over WebRTC
+  the room closes), so with bots that ready at once the countdown's 5 s closed joins before a watcher lost to the
+  cap joined again. The hold is what bounds the watchers' joins, not the run's time limit: 3 joins of up to 5.5 s
+  each. A run out of time names the watchers it still waited for (`_lobby_wait`). The host's room
+  (`BotsRunner.EXTRA_CLIENTS`) holds every join the watchers may make plus one: an unanswered ENet join can hold a
+  slot until ENet's own timeout. Its checks are the same on the join that connected; one that never connected
+  names the reasons its earlier joins ended too ("...; earlier joins ended service_unreachable,
+  service_unreachable"). Tests: `tests/scenarios/watcher_join_test.gd` (bots that ready at once; a lurker lost to
+  the cap and a refused bot unanswered, each after 5 s, join again and pass; `MAX_JOINS` joins and then every
+  reason; a refusal or `host_unreachable` not joined again).
   Prevents: a `server/` refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of
   `core/`'s recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a
   test in which every bot is a player within one tick;
