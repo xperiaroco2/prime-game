@@ -3,8 +3,9 @@ extends NetPlay
 ## One instance of the bots runner over ENet (ARCHITECTURE §4.6; E12): `--instances N` runs one
 ## scenario on 127.0.0.1, on the real clock, one process per bot. Instance 1 hosts a HostSession
 ## (keep_history on) with bot 1 as its own client, and runs the lurker and the refused bot on ENet
-## in its process; instance i > 1 runs bot i alone. The owner calls start() once, then step() every
-## frame until done() is true, then finish().
+## in its process (a watcher whose join was lost to no answer or the signalling's 5 s cap joins
+## again, NetPlay._watcher_join_again, #509); instance i > 1 runs bot i alone. The owner calls
+## start() once, then step() every frame until done() is true, then finish().
 ##
 ## Bot numbers to peer ids, out of band (harmless: peer ids are public in the roster): each
 ## instance writes its peer id to `peer-<i>` in the scenario's folder on `connected`; bot 1 reads
@@ -41,7 +42,8 @@ const USEC_PER_SECOND := 1000000
 ## The lurker's hello deadline is the run's time limit plus this; a remote bot waits this long past
 ## the time limit for the host to close.
 const MARGIN_S := 10
-const EXTRA_CLIENTS := 3
+## The transport's room besides the bots, as BotsRunner.EXTRA_CLIENTS: every join of the watchers.
+const EXTRA_CLIENTS := BotsRunner.EXTRA_CLIENTS
 const PEERS_FILE := "peers"
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
@@ -139,6 +141,8 @@ func step(now: int) -> void:
 			return
 		lurker.poll()
 		refused.poll()
+		_watcher_join_again(lurker)
+		_watcher_join_again(refused)
 		_read_peer_files()
 		if now >= _next_window_usec:
 			# From now: after a stall longer than a window, one window covers it, not catch-ups.
@@ -262,8 +266,8 @@ func _start_host(bot: ScenarioBot) -> bool:
 	add_client(bot, session.own_client)
 	_relay_before = session.relay_counters()
 	_next_window_usec = now_usec + RELAY_WINDOW_S * USEC_PER_SECOND
-	lurker = BotWatcher.lurker(_joining(), schema)
-	refused = BotWatcher.refused(_joining(), schema, session.content_hash)
+	lurker = _watching(BotWatcher.lurker(_joining(), schema))
+	refused = _watching(BotWatcher.refused(_joining(), schema, session.content_hash))
 	return true
 
 
@@ -304,6 +308,15 @@ func _join_host(bot: ScenarioBot) -> String:
 	return ""
 
 
+## The lurker and the refused bot, once made (on the host only).
+func _watchers() -> Array[BotWatcher]:
+	var made: Array[BotWatcher] = []
+	for watcher: BotWatcher in [lurker, refused]:
+		if watcher != null:
+			made.append(watcher)
+	return made
+
+
 func _log_label() -> String:
 	return "BOTS %s" % dir.get_file()
 
@@ -326,9 +339,9 @@ func _peer_known(bot: ScenarioBot) -> void:
 	if not is_host():
 		# How long the join took, printed for every transport: the WebRTC library's setup was once
 		# part of it (#510). add_client stamps the start; with no stamp nothing is printed.
-		if _join_started.has(bot.number):
+		if _joins.has(bot.number):
 			@warning_ignore("integer_division")
-			var took_ms := (Time.get_ticks_usec() - _join_started[bot.number]) / 1000
+			var took_ms := (Time.get_ticks_usec() - _joins[bot.number].started_usec) / 1000
 			print(
 				(
 					"%s: bot %d connected as peer %d; its join took %d ms"

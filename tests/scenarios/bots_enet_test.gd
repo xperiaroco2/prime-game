@@ -133,7 +133,7 @@ func test_over_webrtc_a_join_that_found_no_room_joins_again_after_a_short_wait()
 		assert_object(runner.clients[2]).override_failure_message("waits first").is_same(first)
 		assert_bool(runner._fail_lost_join(bot)).override_failure_message("not lost").is_false()
 		assert_array(runner.failures).is_empty()
-		runner.now_usec += NetPlay.ROOM_RETRY_USEC
+		runner.now_usec += JoinRetry.ROOM_RETRY_USEC
 		runner._join_again(bot)
 		var second: BotClient = runner.clients[2]
 		assert_object(second).override_failure_message(String(reason)).is_not_same(first)

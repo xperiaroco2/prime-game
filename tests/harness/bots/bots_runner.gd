@@ -6,7 +6,9 @@ extends NetPlay
 ## every time. A HostSession hosts on the hub, with its match's keep_history on; bot 1 is its own
 ## client, the other bots are BotClients on loopback clients, and LoopbackHub hands out their peer
 ## ids (this runner's ScenarioPeers). Every scenario also runs a lurker and a refused bot
-## (BotWatcher), with the hello deadline raised past the run for the lurker.
+## (BotWatcher), with the hello deadline raised past the run for the lurker; a watcher whose join
+## was lost the way a bot's is joined again joins again (NetPlay._watcher_join_again, #509: the
+## chaos run's network variants; over the loopback a join is never lost so).
 ##
 ## Asserted: the steps (ScenarioPlay's failures); ScenarioInvariants per Match call, through
 ## HostSession's observer (§4.5); the expected ends; no match error; and the leak test (LeakCheck)
@@ -23,8 +25,10 @@ const START_USEC := 1000000
 const USEC_PER_SECOND := 1000000
 ## The lurker's hello deadline is the run's time limit plus this.
 const LURKER_MARGIN_S := 10
-## The transport's room besides the bots: the lurker, the refused bot and one spare.
-const EXTRA_CLIENTS := 3
+## The transport's room besides the bots: every join the lurker and the refused bot may make, and
+## one spare. A watcher's unanswered join can still hold a slot on the host's ENet until ENet's own
+## timeout (the client's close of a join that never connected tells the host nothing, #509).
+const EXTRA_CLIENTS := 2 * BotWatcher.MAX_JOINS + 1
 
 var session: HostSession
 var game: Match
@@ -132,8 +136,8 @@ func _join_everyone() -> void:
 	for bot: ScenarioBot in bots.slice(1):
 		if not bot.joins_late():
 			_connect(bot)
-	lurker = BotWatcher.lurker(_joining(), schema)
-	refused = BotWatcher.refused(_joining(), schema, session.content_hash)
+	lurker = _watching(BotWatcher.lurker(_joining(), schema))
+	refused = _watching(BotWatcher.refused(_joining(), schema, session.content_hash))
 
 
 func _play() -> void:
@@ -150,6 +154,8 @@ func _play() -> void:
 		step_clients()
 		lurker.poll()
 		refused.poll()
+		_watcher_join_again(lurker)
+		_watcher_join_again(refused)
 		tick_now = session.tick_of(now_usec)
 		play_frame(tick_now)
 		frames_run = frame + 1
@@ -168,6 +174,15 @@ func _joining() -> NetTransport:
 	var transport := LoopbackTransport.new(schema.kind_table(), hub)
 	transport.join("loopback", port)
 	return transport
+
+
+## The lurker and the refused bot, once made.
+func _watchers() -> Array[BotWatcher]:
+	var made: Array[BotWatcher] = []
+	for watcher: BotWatcher in [lurker, refused]:
+		if watcher != null:
+			made.append(watcher)
+	return made
 
 
 ## The host's transport, not hosting yet: a loopback on the hub.

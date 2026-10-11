@@ -28,22 +28,9 @@ extends ScenarioPlay
 ## bots: a bot acts only once its lobby is full (_lobby_full), and a bot that joins at the start and
 ## whose join went unanswered joins again (_join_again). A join it does not join again is lost for
 ## good: its bot's step fails at once, naming the reason it ended and those of its earlier joins
-## (_lost_join, #483), never a silent bot that sits the run out until the time limit.
-
-## A join that failed this long or more after it started went unanswered: half of
-## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
-## sooner `connect_failed` is a refusal.
-const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
-## Over WebRTC a join can also end at once because the host's room is not up yet (its process
-## starts later, or its signalling has not opened the room): the bot joins again this long after.
-const ROOM_RETRY_USEC := 500000
-## The joins that end for no answer (ENet's connect_failed), and the ones that end because the
-## room is not up yet (WebRTC). WebRTC's host_unreachable is no such case: the service answered and
-## the connection never opened, a transport fault the run must not ride out.
-const UNANSWERED: Array[StringName] = [ClientSession.CONNECT_FAILED]
-const ROOM_NOT_UP: Array[StringName] = [
-	NetTransport.JOIN_NO_ROOM, NetTransport.JOIN_SERVICE_UNREACHABLE
-]
+## (_lost_join, #483), never a silent bot that sits the run out until the time limit. The rule of
+## when a join is tried again is JoinRetry's; the watchers (the lurker and the refused bot) of the
+## runners that run them join again by the same rule (_watcher_join_again, #509).
 
 ## The schema every bot and host uses: a debug build's, which has ForceRole's kind (E17).
 var schema := WireSchema.game(true)
@@ -90,18 +77,14 @@ var _travel_now: Dictionary[int, int] = {}
 var _fresh_claim: Dictionary[int, bool] = {}
 ## The bots whose lobby was full once (_lobby_full).
 var _lobby_was_full: Dictionary[int, bool] = {}
-## Bot number -> _join_clock_usec() when its last join started (add_client), and when _join_again
-## first saw it fail.
-var _join_started: Dictionary[int, int] = {}
-var _join_failed: Dictionary[int, int] = {}
-## Bot number -> the reasons its earlier joins ended, in order (_join_again, before each rejoin).
-var _join_ends: Dictionary[int, PackedStringArray] = {}
+## Bot number -> its joins (_join_retry): when its last one started on _join_clock_usec()
+## (add_client), when _join_again first saw it fail, and why its earlier ones ended.
+var _joins: Dictionary[int, JoinRetry] = {}
 
 
 ## Makes `bot`'s client on `transport` (not joined yet, or the host's own client).
 func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
-	_join_started[bot.number] = _join_clock_usec()
-	_join_failed.erase(bot.number)
+	_join_retry(bot.number).start(_join_clock_usec())
 	var client := BotClient.new(transport, scenario.mode, schema)
 	client.keep_history = true
 	client.load_levels = false
@@ -151,8 +134,11 @@ func claim_clients() -> void:
 			client.claim(now_usec)
 
 
-## Every bot acts on what it decoded so far, at tick `at_tick` of the runner's clock, then speaks.
+## Every bot acts on what it decoded so far, at tick `at_tick` of the runner's clock, then speaks;
+## none acts while a watcher's join is still open (_watchers_settled).
 func play_frame(at_tick: int) -> void:
+	if not _watchers_settled():
+		return
 	for bot: ScenarioBot in bots:
 		if bot.gone or not failures.is_empty():
 			continue
@@ -312,69 +298,52 @@ func _lobby_full(bot: ScenarioBot) -> bool:
 	return true
 
 
-## Why `bot` still waits for its lobby, for a run that ran out of time; "" once it was full.
+## Why `bot` still waits for its lobby or the watchers (_watchers_settled), for a run that ran out
+## of time; "" once neither holds it.
 func _lobby_wait(bot: ScenarioBot) -> String:
-	if _lobby_full(bot):
+	if not _lobby_full(bot):
+		return (
+			"bot %d waited for the lobby: peers %s, players seen %s"
+			% [bot.number, peers.to_dict(), bot.seen.keys()]
+		)
+	if _watchers_settled():
 		return ""
-	return (
-		"bot %d waited for the lobby: peers %s, players seen %s"
-		% [bot.number, peers.to_dict(), bot.seen.keys()]
-	)
+	var open := PackedStringArray()
+	for watcher: BotWatcher in _watchers():
+		if not _watcher_settled(watcher):
+			open.append("%s (join %d)" % [watcher.label, watcher.joins.ends.size() + 1])
+	return "bot %d waited for the watchers: %s" % [bot.number, ", ".join(open)]
 
 
-## A bot that joins at the start joins again when its join went unanswered: it failed (UNANSWERED)
-## UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host never admitted
-## after JOIN_TIMEOUT_MS. Under load its process can start seconds
-## before the host's listens, and it sat out the run unheard (#284). A host that refuses a join
-## answers at once: before the admission (refusing new connections, an id in use) the client also
-## ends `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`;
-## both stay failures (_lost), as do WebRTC's `joins_closed`, `full` and `host_unreachable`. Over
-## WebRTC a join that found no room (ROOM_NOT_UP: the host's process or room is not up yet) joins
-## again ROOM_RETRY_USEC after it ended. Judged when the failure is first seen, on
-## _join_clock_usec(). It keeps the reason each join ended, for the line of a join lost for good.
+## A bot that joins at the start joins again when its join went unanswered or found no room, by
+## JoinRetry's rule (its bound max_joins): under load its process can start seconds before the
+## host's listens, and it sat out the run unheard (#284). A refusal stays a failure (_lost). Judged
+## when the failure is first seen, on _join_clock_usec(). It keeps the reason each join ended, for
+## the line of a join lost for good.
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if client == null or bot.joined or bot.gone or bot.joins_late():
 		return
 	var reason := client.end_reason
-	if not _unanswered(client) and not reason in ROOM_NOT_UP:
+	if not _join_retry(bot.number).join_again(reason, client.transport(), _join_clock_usec()):
 		return
-	var failed: int = _join_failed.get_or_add(bot.number, _join_clock_usec())
-	if not _joins_again(bot):
-		return
-	if reason in ROOM_NOT_UP and _join_clock_usec() - failed < ROOM_RETRY_USEC:
-		return
-	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
-	ended.append(String(reason))
-	_join_ends[bot.number] = ended
 	print(
-		"%s: bot %d joins again (%s: the host did not answer)" % [_log_label(), bot.number, reason]
+		(
+			"%s: bot %d joins again (%s: %s)"
+			% [_log_label(), bot.number, reason, JoinRetry.why(reason)]
+		)
 	)
 	_join_host(bot)
 
 
-## Whether `client`'s join ended for no answer (UNANSWERED). Over WebRTC connect_failed is a
-## connection that closed or a bad ADMIT, never a missing answer.
-func _unanswered(client: BotClient) -> bool:
-	return client.end_reason in UNANSWERED and not client.transport() is WebRtcTransport
-
-
-## Whether _join_again joins `bot` again, now or after ROOM_RETRY_USEC: it saw the join fail
-## (only _join_again records _join_failed, so a runner that never calls it joins nobody again) for
-## a reason it retries. Writes nothing.
+## Whether _join_again joins `bot` again, now or after JoinRetry.ROOM_RETRY_USEC (JoinRetry's
+## joins_again: only _join_again records a failure, so a runner that never calls it joins nobody
+## again). Writes nothing.
 func _joins_again(bot: ScenarioBot) -> bool:
 	var client: BotClient = clients.get(bot.number)
-	if client == null or not _join_failed.has(bot.number):
+	if client == null or not _joins.has(bot.number):
 		return false
-	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
-	if max_joins > 0 and ended.size() + 1 >= max_joins:
-		return false
-	if client.end_reason in ROOM_NOT_UP:
-		return true
-	if not _unanswered(client):
-		return false
-	var failed := _join_failed[bot.number]
-	return failed - _join_started.get(bot.number, failed) >= UNANSWERED_USEC
+	return _join_retry(bot.number).joins_again(client.end_reason, client.transport())
 
 
 ## Why `bot`'s join is lost for good, or "": it joins at the start, never joined, its client ended
@@ -386,11 +355,9 @@ func _lost_join(bot: ScenarioBot) -> String:
 		return ""
 	if _joins_again(bot):
 		return ""
-	var why := "its join was lost for good (%s)" % client.end_reason
-	var ended: PackedStringArray = _join_ends.get(bot.number, PackedStringArray())
-	if not ended.is_empty():
-		why += "; earlier joins ended %s" % ", ".join(ended)
-	return why
+	return (
+		"its join was lost for good (%s)%s" % [client.end_reason, _join_retry(bot.number).earlier()]
+	)
 
 
 ## Fails `bot`'s step when its join is lost for good (_lost_join): it acts no more. True if it did.
@@ -401,6 +368,83 @@ func _fail_lost_join(bot: ScenarioBot) -> bool:
 	_fail_step(bot, why)
 	bot.gone = true
 	return true
+
+
+## `bot`'s JoinRetry, made on first use, bounded by max_joins as it is now.
+func _join_retry(number: int) -> JoinRetry:
+	var retry: JoinRetry = _joins.get(number)
+	if retry == null:
+		retry = JoinRetry.new()
+		_joins[number] = retry
+	retry.max_joins = max_joins
+	return retry
+
+
+## A new transport joining the host, for a watcher (and in the runners that join bots, a bot):
+## null in a runner that runs no watchers.
+func _joining() -> NetTransport:
+	return null
+
+
+## The watchers this runner runs (the lurker and the refused bot, once made): none here.
+func _watchers() -> Array[BotWatcher]:
+	return []
+
+
+## Whether every watcher's join is settled (_watcher_settled). Until then no bot acts (play_frame):
+## the match must not leave its lobby while a watcher may still join again. Its Loading refuses new
+## joins (RefuseJoinsEvent; over WebRTC the room closes), so a join again that came after the bots
+## readied at once was refused, and the leak test failed the run for a watcher that never connected
+## (#509). Over the loopback the watchers connect in the first frame, before any bot acts.
+func _watchers_settled() -> bool:
+	for watcher: BotWatcher in _watchers():
+		if not _watcher_settled(watcher):
+			return false
+	return true
+
+
+## Whether `watcher` connected, or its join is lost for good: it ended for a reason JoinRetry does
+## not join again, or after its last allowed join. _watcher_join_again records the failure before
+## this is asked (JoinRetry.joins_again needs it).
+func _watcher_settled(watcher: BotWatcher) -> bool:
+	if watcher.peer != 0:
+		return true
+	if watcher.failed_reason.is_empty():
+		return false
+	return not watcher.joins.joins_again(watcher.failed_reason, watcher.transport)
+
+
+## `watcher` (the lurker or the refused bot, just made on _joining()), its join started now.
+func _watching(watcher: BotWatcher) -> BotWatcher:
+	watcher.joins.start(_join_clock_usec())
+	return watcher
+
+
+## Joins `watcher` again on a new _joining() while it never connected and its join was lost the way
+## a bot's is joined again (JoinRetry, within BotWatcher.MAX_JOINS): over a network under load its
+## join can go unanswered or end at the signalling's 5 s cap (`service_unreachable`), and the leak
+## test then failed the run for a watcher that never connected (#509). Every other end, or the last
+## allowed join's, stays: the leak test names its reason and the earlier ones (LeakCheck).
+func _watcher_join_again(watcher: BotWatcher) -> void:
+	if watcher == null or watcher.peer != 0:
+		return
+	if not watcher.joins.join_again(watcher.failed_reason, watcher.transport, _join_clock_usec()):
+		return
+	var transport := _joining()
+	if transport == null:
+		return
+	print(
+		(
+			"%s: the %s joins again (%s: %s)"
+			% [
+				_log_label(),
+				watcher.label,
+				watcher.failed_reason,
+				JoinRetry.why(watcher.failed_reason),
+			]
+		)
+	)
+	watcher.rejoin(transport, _join_clock_usec())
 
 
 ## The clock _join_again judges a join on, in microseconds: the runner's (now_usec), which is the

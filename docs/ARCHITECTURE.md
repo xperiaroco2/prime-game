@@ -1473,7 +1473,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   view file with that line at once, and the host reports it as that bot's failure when its own time limit ends
   the run (it reads the view files only then). A runner that
   never calls `_join_again` (`PerfRun`) joins nobody again, so every lost join of it fails at once. Since #318 both
-  live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+  live in `NetPlay` (`_lobby_full`, `_join_again`; since #509 the rule of when a join is tried again, and how
+  often, is `JoinRetry`'s, one per joiner, which the watchers of §4.6.4 share) and the chaos run's ENet
   variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
   every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
   `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
@@ -1562,6 +1563,21 @@ Compares what each bot b decoded with `view_of(b)`:
   `core/` disconnected that is still connected fails (`server/` did not carry it out). A watcher that never
   connected fails with why: its `connect_failed` reason ("connect_failed, reason service_unreachable", `host_unreachable`,
   ...; "the backend gave no precise reason" for ENet and the loopback) or "still joining when the run ended" (#483).
+  Before that, a watcher whose join was lost the way a bot's is joined again (§4.6.2's `JoinRetry`: unanswered over
+  ENet, or `no_room` / `service_unreachable`, the signalling's 5 s connect cap, over WebRTC) joins again on a new
+  transport, `BotWatcher.MAX_JOINS` (3) joins at most (`NetPlay._watcher_join_again`, run by `BotsRunner` and so the
+  chaos run, and by `BotsEnet`'s host; #509): under load a lost watcher join failed a run whose leak test never
+  ran on it. No bot (nor the chaos run's hostile peers) acts until each watcher connected or its join is lost for
+  good (`NetPlay._watchers_settled`, checked in `play_frame`): the match's Loading refuses new joins (over WebRTC
+  the room closes), so with bots that ready at once the countdown's 5 s closed joins before a watcher lost to the
+  cap joined again. The hold is what bounds the watchers' joins, not the run's time limit: 3 joins of up to 5.5 s
+  each. A run out of time names the watchers it still waited for (`_lobby_wait`). The host's room
+  (`BotsRunner.EXTRA_CLIENTS`) holds every join the watchers may make plus one: an unanswered ENet join can hold a
+  slot until ENet's own timeout. Its checks are the same on the join that connected; one that never connected
+  names the reasons its earlier joins ended too ("...; earlier joins ended service_unreachable,
+  service_unreachable"). Tests: `tests/scenarios/watcher_join_test.gd` (bots that ready at once; a lurker lost to
+  the cap and a refused bot unanswered, each after 5 s, join again and pass; `MAX_JOINS` joins and then every
+  reason; a refusal or `host_unreachable` not joined again).
   Prevents: a `server/` refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of
   `core/`'s recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a
   test in which every bot is a player within one tick;
@@ -1858,7 +1874,8 @@ took. A bot
 whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later;
 every other end (`host_unreachable`, after 15 s at most: the service answered and the connection never opened;
 `joins_closed`, `full` and the other refusals; `host_lost` before the `Welcome`) fails the bot's step at once,
-naming the reason (#483), and a remote bot's view file carries that line to the host. The fault
+naming the reason (#483), and a remote bot's view file carries that line to the host. The lurker and the refused
+bot, in the host's process, join again the same way, 3 joins at most (§4.6.4, #509). The fault
 shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % duplicated, and
 on the clients LATEST also 10 % dropped and one in five 120 ms late (a host that loses an epoch's first claim takes
 the next as one tick, §7.1, and corrected an honest chaos bot in 1 of 10 runs under load); not for a measurement (`BotScenario.measurement`, which measures the relay).
