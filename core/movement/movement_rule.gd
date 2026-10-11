@@ -467,11 +467,11 @@ static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
 
 ## How many host ticks old `peer`'s last accepted claim is at host tick `now` (0 in the tick the
 ## claim was accepted), or -1 when its position is not a claim of its current epoch: no player, no
-## record, or a placement since (PlacePlayers, a knockdown, a respawn: the position is the host's
-## until the epoch's first claim is accepted, and a refused or malformed first claim does not end
-## that). A refused claim's Correction keeps the age of the last accepted one. The zone task counts
-## a player only while this and credit_gain are at most PUSH_TICKS (ZE10 of the zone task ADR): a
-## client that stops claiming stops counting.
+## record, or a placement since (PlacePlayers, a knockdown, a respawn, a revive: the position is
+## the host's until the epoch's first claim is accepted, and a refused or malformed first claim
+## does not end that). A refused claim's Correction keeps the age of the last accepted one. The
+## zone task counts a player only while this and credit_gain are at most PUSH_TICKS (ZE10 of the
+## zone task ADR): a client that stops claiming stops counting.
 static func claim_age(state: MatchState, peer: int, now: int) -> int:
 	var motion := _claimed(state, peer)
 	if motion == null:
