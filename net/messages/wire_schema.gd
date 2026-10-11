@@ -27,8 +27,10 @@ extends RefCounted
 ## 17 since #779 added ItemVanished (kind 69);
 ## 18 since #797 added the Generator's SwitchChanged (kind 70) and ButtonPressed (kind 71);
 ## 19 since #771 added ItemChanged (kind 72);
-## 20 since #770 made Interact's `station` optional and added its optional `item`.
-const VERSION := 20
+## 20 since #770 made Interact's `station` optional and added its optional `item`;
+## 21 since #780 let a station refuse a use `wrong_item` (StationUsable.REASONS, the cooking ADR's
+## CE11): a new Rejected reason, no row changed, so a client of 20 never meets it.
+const VERSION := 21
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
