@@ -73,8 +73,10 @@ var _target_life := ClientModel.Life.ALIVE
 ## The body hidden while watched from its eyes; null when none.
 var _watched: RemotePlayerBody
 var _give_up_held_s := 0.0
-## G was up at least once since the own knockdown: only then does holding it count. G is also the
-## throw key (#645), so a living player holding it as it goes down gives nothing up for it.
+## The give_up key was up at least once since the own knockdown: only then does holding it count.
+## It came when G was both give_up and the throw key (#645); since #211 give_up is on F, and the
+## guard stays for a rebind that puts both on one key: holding it as the player goes down gives
+## nothing up for it.
 var _give_up_armed := false
 var _gave_up := false
 ## E is held for a raise (sent, or waiting for its RaiseStarted).
@@ -255,8 +257,8 @@ func give_up() -> void:
 	session.send_intent(Intents.GIVE_UP)
 
 
-## G's state this frame while downed (`pressed`), `delta` seconds after the last: held for
-## GIVE_UP_HOLD_S, counted only from a press made while downed, it gives up (give_up()).
+## The give_up key's state this frame while downed (`pressed`), `delta` seconds after the last:
+## held for GIVE_UP_HOLD_S, counted only from a press made while downed, it gives up (give_up()).
 func hold_give_up(pressed: bool, delta: float) -> void:
 	if not pressed:
 		_give_up_held_s = 0.0

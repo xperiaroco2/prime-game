@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## LifeView's give-up hold (client/life/life_view.gd; the M4 ADR's D6): G held for GIVE_UP_HOLD_S
-## while downed sends GiveUp() once, counted only from a press made while downed. G is also the
-## throw key (#645): a living player who holds G for a throw as it is knocked down must not give
+## LifeView's give-up hold (client/life/life_view.gd; the M4 ADR's D6): the give_up key (F since
+## #211) held for GIVE_UP_HOLD_S while downed sends GiveUp() once, counted only from a press made
+## while downed. The guard came when G was also the throw key (#645) and stays for a rebind that
+## shares one: a living player who holds that key for a throw as it is knocked down must not give
 ## up for holding on.
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")

@@ -4121,7 +4121,8 @@ ZD11 (b) and ZE8, as the engineer answered them on #302).
 The client side of throwing (§7.1.16; the [throwing ADR](decisions/2026-10-09-throwing-held-items.md)'s TD7 (a) and
 TE5 (a)). The wire is unchanged.
 - **The key.** The input action `throw` on G: a provisional pick on the engineer's delegation (#302 comment
-  6085904317), "not a decision"; Q stays an exact put-down. G is also `give_up`, which acts only while downed and
+  6085904317), "not a decision"; Q stays an exact put-down. G was also `give_up` (F since #211, §4.7.28),
+  which acts only while downed and
   counts its hold only from a press made while downed (§4.7.9). `ItemInteractions.throw()` sends `Throw(facing)`
   (the camera's look vector) only while the own player is living, its hand (never the belt) holds an item, the
   client's own copy of the mode has a `Throw` rule for it (`ItemArc.rule_of`: the hand item kind's actions, then
@@ -4189,7 +4190,7 @@ TE5 (a)). The wire is unchanged.
   `item_world_throw_test.gd` (the launch sound at the press, none for the host's own `ItemThrown`, the landing sound
   only once the drawn item lands, a put-down's at once), `sound_chooser_test.gd` (a launch beyond the hearing range
   plays nothing), `world_sounds_test.gd` (a launch behind a wall muffled, none beyond the range),
-  `tests/unit/client/life/life_view_give_up_test.gd` (G held through the knockdown: seen failing without the guard,
+  `tests/unit/client/life/life_view_give_up_test.gd` (the give_up key held through the knockdown: seen failing without the guard,
   reverted) and `input_actions_test.gd`. The `shot`: `client/dev/throw_preview.tscn`, on a `Throw` rule of its own
   built in code (the base mode gets its rule in 37f): five packages on one remote arc, one falling from its stop at
   a wall, and the own predicted knife held at a wall a step ahead.

@@ -47,7 +47,7 @@ func test_put_down_is_q() -> void:
 func test_throw_is_g_and_q_stays_an_exact_put_down() -> void:
 	# The throwing ADR's TD7 (a): `throw` is an action of its own, so Q never waits to tell a tap
 	# from a hold. G is the meta manager's provisional pick on the engineer's delegation (#302
-	# comment 6085904317), "not a decision"; G is also give_up, which acts only while downed.
+	# comment 6085904317), "not a decision"; G was also give_up then, which is on F since #211.
 	for pair: Array in [[&"throw", KEY_G], [&"put_down", KEY_Q]]:
 		var keys: Array[Key] = []
 		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
