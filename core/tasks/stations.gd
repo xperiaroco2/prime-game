@@ -7,13 +7,14 @@ extends RefCounted
 ## through its kind.
 
 
-## The placed station the rule's intent names (its `station` field, Intents.FIELDS), or null: no
-## intent, an intent with no `station` field, or an id that names no placed station (Match refuses
-## that one `nothing_to_do` before any owner is tried).
+## The placed station of the rule (Channels.station_of): its channel's while the channel's
+## conditions are checked again or it ends (the car repair ADR's RE2: a hold passes its own
+## re-check, where no intent is handled), else the one its intent names (its `station` field,
+## Intents.FIELDS); null when there is none: no channel on a station and no intent, an intent with
+## no `station` field, or an id that names no placed station (Match refuses that one
+## `nothing_to_do` before any owner is tried).
 static func target_of(ctx: MatchContext) -> StationState:
-	if ctx.command == null or not names_station(ctx.command.kind):
-		return null
-	return ctx.state.stations.get(ctx.command.get_int("station", -1))
+	return ctx.state.stations.get(Channels.station_of(ctx))
 
 
 ## Whether `intent` carries a `station` (Interact).

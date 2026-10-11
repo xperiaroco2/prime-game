@@ -3,16 +3,19 @@ extends RuleEffect
 ## The base of an effect that starts a channel (ARCHITECTURE §9.4; M4-4): an action that takes
 ## `seconds` of the actor holding it, such as the raise. Run as the effect of an action (a rule on
 ## an intent), it starts a Channel for the actor on the intent's `target` (a player, or none) and
-## calls started(). ChannelTicks then advances it every tick and checks the rule's conditions again
-## each time (Channels.advance): the first that fails stops it, and so do the stops of Channels
-## (an applied action of its actor, its actor or target leaving, being hit, downed or dying; §9.2).
-## When it has run `seconds` it completes. A subclass says what its start, stop and completion do
-## and emit; this class emits nothing itself.
+## on the intent's `station` (a placed station, or none; Channels.station_of, the car repair ADR's
+## RE2) and calls started(). ChannelTicks then advances it every tick and checks the rule's
+## conditions again each time (Channels.advance): the first that fails stops it, and so do the
+## stops of Channels (an applied action of its actor, its actor or target leaving, downed or dying,
+## a hit of its actor when stops_on_hit(); §9.2). When it has run `seconds` it completes, unless it
+## is endless (is_endless(): it never completes, RE3). A subclass says what its start, stop and
+## completion do and emit; this class emits nothing itself.
 ##
 ## A phase that accepts an intent whose rule holds a ChannelEffect lists ChannelTicks, or the mode
 ## check refuses the phase: the channel would never complete (§9.1). The rule's conditions must
-## read the target through Channels.target_of, since no intent is handled while they are checked
-## again; a condition on the intent's item (InReach) would fail every tick.
+## read the target through Channels.target_of and the station through Channels.station_of (the
+## station conditions do, through Stations.target_of), since no intent is handled while they are
+## checked again; a condition on the intent's item (InReach) would fail every tick.
 
 ## Seconds the actor holds it, 0.05 to 600. The neutral default is out of bounds on purpose: the
 ## data sets it (the base mode's raise: 3), so the mode check refuses a rule that forgot it.
@@ -35,6 +38,7 @@ func run(ctx: MatchContext) -> void:
 	channel.rule = ctx.rule
 	channel.actor = ctx.actor
 	channel.target = Channels.target_of(ctx)
+	channel.station = Channels.station_of(ctx)
 	channel.started_tick = ctx.tick
 	channel.total_ticks = maxi(1, Ticks.from_seconds(seconds))
 	Channels.add(ctx.state, channel)
@@ -56,6 +60,20 @@ func holds_target() -> bool:
 	return false
 
 
+## Whether a running channel of this effect never completes (the car repair ADR's RE3: the lift's
+## hold): Channels.advance checks its conditions and counts its ticks every tick but never calls
+## completed(), and check() skips the `seconds` bound (a subclass checks its own). Only its stops
+## end it. False by default.
+func is_endless() -> bool:
+	return false
+
+
+## Whether a hit of its actor stops it (LifeRules.damage; the raise's does, vision revision 1's
+## Revive; the lift's hold does not, the car repair ADR's RD10 (c)). True by default.
+func stops_on_hit() -> bool:
+	return true
+
+
 ## `channel` started (it is running already). Nothing by default.
 func started(_ctx: MatchContext, _channel: Channel) -> void:
 	pass
@@ -74,7 +92,8 @@ func completed(_ctx: MatchContext, _channel: Channel) -> void:
 
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
-	append_found(found, [out_of_bounds("%s seconds" % _name(), seconds, 0.05, 600)])
+	if not is_endless():
+		append_found(found, [out_of_bounds("%s seconds" % _name(), seconds, 0.05, 600)])
 	return found
 
 
