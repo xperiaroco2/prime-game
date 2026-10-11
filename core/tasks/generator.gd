@@ -1,6 +1,6 @@
 class_name Generator
 extends TaskType
-## The Generator (#679; ARCHITECTURE §3.3, §9.5; the Generator ADR, 2026-10-10, §2): one shared
+## The Generator (#679; ARCHITECTURE §3.3, §9.5; the Generator ADR's part 2): one shared
 ## task whose subtasks are its N active switches, N the subtasks setting (0 to `switches`), all
 ## done at once when the generator's charge is full (GE13 (a)). Nobody owns it: any living player
 ## of any role uses a switch or the button (Interact, through the station kinds' rules; GE1, GE2).
@@ -24,8 +24,8 @@ extends TaskType
 ## progress event whose window has passed goes out, whether or not the charge still runs (GE8);
 ## then a running charge gains one tick, and at needed_ticks() it is done: every station of the
 ## task done, the progress event at its full value, then Tasks.subtask_done per active switch in
-## station order (GE9, GE13). Nothing else stops or resets the charge (§2.6): it belongs to no
-## player.
+## station order (GE9, GE13). Nothing else stops or resets the charge (the ADR's rule 2.6): it
+## belongs to no player.
 ##
 ## The progress event is ZoneProgress (GE7) for the generator's station: `ticks` counted through
 ## host tick `tick`, and whether it counts in the ticks after it. A start or stop inside a
@@ -33,7 +33,7 @@ extends TaskType
 ## (ZE4's window, GE8); done goes out in its own tick. A start or stop in a command comes before
 ## that tick's gain, so its event's `tick` is the tick before (the charge counted through it).
 ## SwitchChanged and ButtonPressed go out once per accepted use, bounded by the reliable-intent
-## bucket alone (§4.5.6). No event names a player (§1.1 row 18), and nothing reads a role.
+## bucket alone (§4.5.6). No event names a player (the ADR's row 18), and nothing reads a role.
 ##
 ## Emits: StationPlaced and ZoneProgress (everyone) in the deal; SwitchChanged, ButtonPressed and
 ## ZoneProgress (everyone) on a use (use_emits); ZoneProgress, TaskState and TaskProgress
@@ -139,7 +139,7 @@ func deal(ctx: MatchContext) -> void:
 
 
 ## Every use is taken until the task is done; then every station of it refuses `unavailable`
-## (§1.1 row 11). Reads no role.
+## (the ADR's row 11). Reads no role.
 func use_problem(_ctx: MatchContext, task: MatchTask, _station: StationState) -> StringName:
 	if task == null or (task.state as State).done:
 		return StationUsable.UNAVAILABLE
