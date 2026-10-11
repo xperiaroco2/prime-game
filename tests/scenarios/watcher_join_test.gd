@@ -21,7 +21,7 @@ class LostJoin:
 		reason = why
 		polls_left = polls
 
-	func _backend_join(_address: String, _port: int) -> Error:
+	func _backend_join(_address: String, _join_port: int) -> Error:
 		return OK
 
 	func _backend_poll() -> void:
