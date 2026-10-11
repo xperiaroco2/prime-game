@@ -545,15 +545,9 @@ func _check_give_rule(owner: String, rule: Rule) -> void:
 		return
 	for effect: RuleEffect in rule.effects:
 		if effect is GiveItem:
-			(
-				errors
-				. append(
-					(
-						"%s: rule %s gives an item at the rule's target, which only an intent naming one (%s) has"
-						% [owner, rule.trigger, station_intents()]
-					)
-				)
-			)
+			var text := "%s: rule %s gives an item at the rule's target" % [owner, rule.trigger]
+			text += ", which only an intent naming one (%s) has" % [station_intents()]
+			errors.append(text)
 
 
 ## The intents that name a station (Interact): a station kind's rules may trigger on these only.
