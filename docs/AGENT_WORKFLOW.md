@@ -528,10 +528,13 @@ Rules for every workflow run:
   runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it replaces, with the exact
   background launch, `wait` and CI commands of §11.17 "Bounded waits" (its publishing agents run no standalone
   verify before `publish`, §4.2 step 5). The root CLAUDE.md rule reaches every workflow agent without it once on
-  main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models`
-  (roles rebase, review, netcode, second_review, skeptic, fix, publish: `publish`, #835's trial, only `sonnet`, is the
-  fallback of rebase and fix, the two agents that publish); when skeptics refute every blocker or major, no fix
-  agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in the PR body.
+  main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models`
+  and `review` (roles rebase, review, netcode, second_review, skeptic, fix, publish: `publish`, #835's trial, only
+  `sonnet`, is the fallback of rebase and fix, the two agents that publish); when skeptics refute every blocker or
+  major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their reasons in
+  the PR body. A clean rebase (#858: no conflict, no fix, every patch unchanged in its range-diff, the `why`'s
+  conflict settled by verify, CI green) runs no reviewer and no fix agent (`path: "clean"`); `review: true` forces the
+  full review.
   The kickoff's approved agent count must cover the options the manager will pass; each script's `whenToUse` and args
   comment give the counts, the roles and their fallbacks.
 - **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean` (`issue-task`

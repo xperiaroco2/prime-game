@@ -57,16 +57,19 @@ taken in a `main` that has them.
   PR comment listing the conflicts. The guard lets a rebase through without a prompt when the command enters the
   worktree with `cd` (or `git -C`) and it is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live
   session works in that worktree it asks, so hand such a case to `pr-rebase` when the human is away.
-- A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
-  with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
-  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models`, `lean` and `lean_reason` (roles rebase, review, netcode, second_review,
-  skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
-  agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
-  `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
-  fresh relaunch with its `problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
-  blocker and major, so no fix agent ran): add its `refuted`, each with its reason, to the PR body (`gh pr view <pr>
-  --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
-  agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
+- A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase` with
+  args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args `second_review`,
+  `skeptic`, `bounded_waits`, `efforts`, `models`, `lean`, `lean_reason` and `review` (roles rebase, review, netcode,
+  second_review, skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or
+  major; 2 to 4 agents (the rebase alone on a clean rebase, below), plus 1 for `second_review` and 1 per skeptic.
+  `why` names what merged and the PRs and handoffs to read; `steps` says which side's files and payloads to keep. A
+  result with `stopped` (rebase red or unpublished) gets one fresh relaunch with its `problems` in `steps`, then goes
+  to the human. A result with `note` (skeptics refuted every blocker and major, so no fix agent ran): add its
+  `refuted`, each with its reason, to the PR body (`gh pr view <pr> --json body -q .body` into a file under
+  `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix agent that changed netcode-relevant
+  code gets a fresh `netcode-security-reviewer` before the merge (§9). A clean rebase (no conflict, no fix, every
+  patch `=` in the range-diff, the `why`'s conflict settled by verify, CI green) skips the reviewers and the fix
+  (#858; the result's `path: "clean"`); pass `review: true` when you suspect a semantic clash no text conflict shows.
 - **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,
   then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
   refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
