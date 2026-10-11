@@ -6703,7 +6703,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
   `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (rewritten in M4-2: a
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
-  `not_accepted`, and it crawls; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
+  `not_accepted`; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
   step, and over WebRTC `bots-webrtc`, §4.6.7), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no

@@ -462,8 +462,8 @@ func _is_chaos_answer(event_name: StringName, fields: Dictionary, bot: ScenarioB
 			hostile_rejected.append("%d %s" % [seq, fields["reason"]])
 			return true
 	elif event_name == &"Correction" and _hostile_client.corrections > _corrections_seen:
-		# Not a placement's (ClientSession counts those apart): a chaos claim's, as the host never
-		# corrects an honest one (ChaosHonestClaims fails the run if it does, #693).
+		# Not a placement's (ClientSession counts those apart, a revive's too, KE6): a chaos claim's,
+		# as the host never corrects an honest one (ChaosHonestClaims fails the run if it does, #693).
 		_corrections_seen = _hostile_client.corrections
 		return true
 	return false
@@ -558,7 +558,8 @@ func _check_intent(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 
 
 ## Class 5: a Correction (a new epoch, the position it had) when the phase takes the claim from its
-## life state and the epoch is its own, else nothing (§7.1, E15); the position never changes.
+## life state, the epoch is its own and it is not knocked down (KE4: none for any of its claims),
+## else nothing (§7.1, E15); the position never changes.
 func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 	var peer := command.peer
 	var player := game.state.player(peer)
@@ -569,6 +570,7 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 		player != null
 		and ChaosOracle.accepts(Intents.MOVE_CLAIM, peer, game.phase_id(), player)
 		and command.args.get("epoch") == before_epoch
+		and player.life != PlayerState.Life.DOWNED
 	)
 	var most := 1 if taken else 0
 	var least := 1 if taken and shape != ChaosFrames.Claim.STALE_TICK else 0

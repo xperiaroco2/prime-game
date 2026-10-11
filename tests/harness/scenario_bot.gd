@@ -78,7 +78,7 @@ var seen: Dictionary[int, Vector3] = {}
 
 var _next_seq := 1
 var _client_tick := 0
-## A placement of the bot (PlayersPlaced naming it, its own KnockedDown or its own Respawned)
+## A placement of the bot (PlayersPlaced naming it, its own KnockedDown, Revived or Respawned)
 ## awaits its Correction: core/ emits exactly one after each, so a network poll that splits the
 ## two still expects it, and any other Correction fails. A death sends none.
 var _correction_due := false
@@ -189,9 +189,10 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 				dead = false
 				_correction_due = true
 		&"Revived":
-			# It stands up where it lay: no Correction follows (M4-4).
+			# It stands up where it lay, placed there by the Correction that follows (KE6).
 			if fields["peer"] as int == peer:
 				downed = false
+				_correction_due = true
 		_:
 			_learn(event_name, fields)
 	return ""

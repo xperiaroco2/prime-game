@@ -5,8 +5,8 @@ extends RefCounted
 ## what a modified client can, from a seeded RandomNumberGenerator, once its own SetReady is in:
 ## - intents the phase or the rules refuse whatever the timing (ChaosOracle), with fresh, repeated,
 ##   replayed and out-of-order seqs (seq is only echoed, §4.3), and a Hello with seq 0;
-## - hostile MoveClaims (ChaosFrames.Claim), at most one LATEST message per frame with its bot's own
-##   claim, so the LATEST merge supersedes none;
+## - hostile MoveClaims (ChaosFrames.Claim; knocked down, walking ones too), at most one LATEST
+##   message per frame with its bot's own claim, so the LATEST merge supersedes none;
 ## - malformed frames, fewer than ChaosFrames' limit within the host's window, so the host never
 ##   disconnects it (§4.5: 50 within 10 s), and debug kinds;
 ## - its synthetic voice in every phase and life state (frames the leak test can read), and one
@@ -283,6 +283,10 @@ func _raise_target() -> int:
 
 func _claim() -> void:
 	var shape := rng.randi_range(0, ChaosFrames.RANDOM_CLAIMS - 1) as ChaosFrames.Claim
+	# Knocked down, half of them walk a step a living walk could: the host takes only the look of
+	# a knocked-down claim and corrects none (KE4).
+	if _client.model.life_of(_bot.peer) == ClientModel.Life.DOWNED and rng.randf() < 0.5:
+		shape = ChaosFrames.Claim.WALK
 	if not _quiet():
 		_claim_at(shape, _bot.position)
 
@@ -292,8 +296,19 @@ func _quiet() -> bool:
 
 
 func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
-	var packet := ChaosFrames.claim(
-		shape, _schema, _client.model.epoch, maxi(_client.last_claim_tick(), 0), at, _claims
+	var packet := (
+		ChaosFrames
+		. claim(
+			shape,
+			_schema,
+			_client.model.epoch,
+			maxi(_client.last_claim_tick(), 0),
+			at,
+			_claims,
+			# No direction: the host keeps the last facing (stored_facing), so a knocked-down claim it
+			# takes the look of (KE4) changes nothing the honest bots decode.
+			Vector3.ZERO
+		)
 	)
 	_claims += 1
 	var alive := _client.model.life_of(_bot.peer) == ClientModel.Life.ALIVE

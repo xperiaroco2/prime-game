@@ -304,15 +304,14 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 		return Result.DONE
 	if bot.dead:
 		return _fail_step(bot, "a dead bot cannot walk: the dead send no claims")
+	if bot.downed:
+		return _fail_step(bot, "a knocked-down bot cannot walk: the host takes only its look (KE4)")
 	var ticks := _travel_ticks(bot)
 	if ticks <= 0:
 		return Result.WAITING
 	var rules := scenario.mode.player_rules
-	# The downed crawl: the crawl speed, never a sprint.
-	var sprinting := step.sprint and not bot.downed and _sprint_available(bot)
+	var sprinting := step.sprint and _sprint_available(bot)
 	var speed := rules.sprint_speed_mps if sprinting else rules.walk_speed_mps
-	if bot.downed:
-		speed = rules.crawl_speed_mps
 	var direction := offset / distance
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)
 	_claim(bot, bot.position + direction * travel, direction * speed, sprinting)
