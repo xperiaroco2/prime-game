@@ -3651,7 +3651,8 @@ def relaunch_section(rows: list[dict]) -> list[str]:
         "",
         table(head, body),
         "",
-        f"{len(rows)} issues, {fmt_usd(spent)}; after the first run {fmt_usd(later)}.",
+        f"{len(rows)} {'issue' if len(rows) == 1 else 'issues'}, {fmt_usd(spent)}; "
+        f"after the first run {fmt_usd(later)}.",
         "",
     ]
 

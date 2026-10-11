@@ -112,7 +112,7 @@ class RelaunchSectionTest(unittest.TestCase):
         text = "\n".join(metrics.relaunch_section(metrics.relaunch_rows(runs)))
         self.assertIn("## Issues launched 2 or more times (#833)", text)
         self.assertIn("| #12 | 2 | 2 issue-task | $5.00 | $3.00 | 0 ($0.00) | 0 ($0.00) | 0 | 2.0 |", text)
-        self.assertIn("1 issues, $5.00; after the first run $3.00.", text)
+        self.assertIn("1 issue, $5.00; after the first run $3.00.", text)
 
 
 class RelaunchBuildTest(unittest.TestCase):
