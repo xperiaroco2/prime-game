@@ -544,7 +544,6 @@ func test_a_new_match_makes_everyone_living_again() -> void:
 	assert_int(_model.lives.size()).is_equal(0)
 
 
-## Plays a match up to the round: loading, an item, a station, a body, a role, a snapshot.
 func test_a_switch_is_off_until_its_first_switch_changed_and_the_button_counts_presses() -> void:
 	_to_round()
 	_fold(StationPlacedEvent.new(3, &"generator", Color.WHITE, Vector3(0, 0, 20)))
@@ -568,11 +567,16 @@ func test_a_switch_is_off_until_its_first_switch_changed_and_the_button_counts_p
 	# Nobody is told who switched: a station keeps no peer.
 	for property: Dictionary in switch.get_property_list():
 		if property["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
-			var name: String = property["name"]
+			var property_name: String = property["name"]
 			for word: String in ["peer", "player", "actor", "by"]:
-				assert_bool(name.contains(word)).override_failure_message(name).is_false()
+				(
+					assert_bool(property_name.contains(word))
+					. override_failure_message(property_name)
+					. is_false()
+				)
 
 
+## Plays a match up to the round: loading, an item, a station, a body, a role, a snapshot.
 func _to_round() -> void:
 	var settings: Dictionary[StringName, int] = {&"knives": 2}
 	_fold(LoadMatchEvent.new(1, "res://levels/a.tscn", settings))

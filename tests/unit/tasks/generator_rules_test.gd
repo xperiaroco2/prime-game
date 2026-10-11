@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 const P1 := 1
 const P2 := 2
 const P3 := 3
+const P4 := 4
 const NORTH := Vector3(0, 0, 1)
 const NEEDED := FixtureGeneratorModes.NEEDED
 const UNPLACED := 99
@@ -255,8 +256,8 @@ func test_an_unknown_station_or_a_fixed_switch_is_nothing_to_do_with_no_event() 
 	assert_array(FixtureModes.rejections(game, P1)).is_equal(
 		[&"nothing_to_do", &"nothing_to_do", &"nothing_to_do"]
 	)
-	for name: StringName in [&"SwitchChanged", &"ButtonPressed"]:
-		assert_array(_dicts(game, P2, name)).is_empty()
+	for event_name: StringName in [&"SwitchChanged", &"ButtonPressed"]:
+		assert_array(_dicts(game, P2, event_name)).is_empty()
 	assert_array(FixtureGeneratorModes.state_of(game).on).is_equal([false, false])
 
 
@@ -274,6 +275,26 @@ func test_every_use_after_the_charge_is_done_is_unavailable() -> void:
 	assert_array(FixtureGeneratorModes.state_of(game).on).is_equal([true, true])
 
 
+func test_every_present_player_hears_the_generators_events_downed_and_dead_included() -> void:
+	# SwitchChanged, ButtonPressed and the generator's ZoneProgress go to everyone (ARCHITECTURE
+	# section 5): a spectator's task screen must not freeze. Audience.of_life or Audience.only on
+	# any of the three would leave P3 (downed) or P4 (dead) with fewer events than P1.
+	var game := FixtureGeneratorModes.in_round(FixtureGeneratorModes.basic(2), [P1, P2, P3, P4])
+	FixtureWinModes.kill(game, P2, P4)
+	assert_int(game.state.player(P4).life).is_equal(PlayerState.Life.DEAD)
+	game.state.player(P3).life = PlayerState.Life.DOWNED
+	_start(game, P1)
+	FixtureModes.run_ticks(game, NEEDED)
+	assert_bool(FixtureGeneratorModes.state_of(game).done).is_true()
+	var names: Array[StringName] = [&"SwitchChanged", &"ButtonPressed", &"ZoneProgress"]
+	var heard := FixtureGeneratorModes.stream(game, P1, names)
+	assert_array(heard).contains([&"SwitchChanged", &"ButtonPressed", &"ZoneProgress"])
+	for peer: int in [P2, P3, P4]:
+		assert_array(FixtureGeneratorModes.stream(game, peer, names)).is_equal(heard)
+		for event_name: StringName in names:
+			assert_array(_dicts(game, peer, event_name)).is_equal(_dicts(game, P1, event_name))
+
+
 func test_100_presses_in_100_ticks_give_at_most_21_progress_events() -> void:
 	# A client that sends no claim twin gets every press accepted (the reliable-intent bucket, not
 	# Match, bounds it); the window bounds the progress events.
@@ -281,13 +302,13 @@ func test_100_presses_in_100_ticks_give_at_most_21_progress_events() -> void:
 	FixtureGeneratorModes.type_of(mode).seconds = 600.0
 	var game := FixtureGeneratorModes.in_round(mode, [P1, P2])
 	FixtureGeneratorModes.switch_all_on(game, P1)
-	var before := FixtureGeneratorModes.progress(game, P2).size()
+	var already := FixtureGeneratorModes.progress(game, P2).size()
 	var button := FixtureGeneratorModes.button_of(game)
 	for i in 100:
 		FixtureGeneratorModes.use(game, P1, button, i)
 		FixtureModes.run_ticks(game, 1)
 	assert_array(_dicts(game, P2, &"ButtonPressed")).has_size(100)
-	var sent := FixtureGeneratorModes.progress(game, P2).size() - before
+	var sent := FixtureGeneratorModes.progress(game, P2).size() - already
 	assert_int(sent).is_greater(0)
 	assert_int(sent).is_less_equal(21)
 
@@ -304,10 +325,10 @@ func _start(game: Match, peer: int) -> void:
 	assert_bool(FixtureGeneratorModes.state_of(game).running).is_true()
 
 
-## The `name` events `peer` received, as plain data, in order.
-func _dicts(game: Match, peer: int, name: StringName) -> Array[Dictionary]:
+## The `event_name` events `peer` received, as plain data, in order.
+func _dicts(game: Match, peer: int, event_name: StringName) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
-	for event: MatchEvent in game.view_of(peer).events_named(name):
+	for event: MatchEvent in game.view_of(peer).events_named(event_name):
 		found.append(event.to_dict())
 	return found
 

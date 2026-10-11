@@ -91,11 +91,15 @@ func test_use_emits_names_every_event_a_use_sends() -> void:
 
 
 func test_both_leak_lists_name_every_event_the_generator_emits() -> void:
-	for name: StringName in _names(Generator.new().emits()):
-		assert_bool(LeakCheck.TASK_EVENTS.has(name)).override_failure_message(name).is_true()
+	for event_name: StringName in _names(Generator.new().emits()):
 		(
-			assert_bool(ScenarioInvariants.TASK_EVENTS.has(name))
-			. override_failure_message(name)
+			assert_bool(LeakCheck.TASK_EVENTS.has(event_name))
+			. override_failure_message(event_name)
+			. is_true()
+		)
+		(
+			assert_bool(ScenarioInvariants.TASK_EVENTS.has(event_name))
+			. override_failure_message(event_name)
 			. is_true()
 		)
 
