@@ -5091,8 +5091,8 @@ M7 backlog; nothing is built until he says so.
 - **The body's motion** (KE1 (b), KD10 (A)). Only the strike that knocks down launches the body (KD1; the strike's
   `launch_mps` away from the attacker and `launch_up_mps` upwards, the knife's included; KD2, KE9). On a map
   `motion_maps` lists, `knock_down` emits the directive `LaunchBody` (audience *server*, §4.2), and `server/`'s
-  `HostBodies` starts a rigid capsule upright where the player stood, in the level's world that answers `WorldQuery`
-  (§4.5.9), colliding with the world only, under the engine's gravity and materials (KE13): it flies, rolls and falls
+  `HostBodies` starts a rigid capsule upright at the player's feet, toppling away from the blow, in the level's
+  world that answers `WorldQuery` (§4.5.9), colliding with the world only, under the engine's gravity and materials (KE13): it flies, rolls and falls
   off whatever the level's colliders give it. `core/` holds no physics (invariant 3) and keeps where the body is:
   each core tick `server/` queues `BodyMoved` (the capsule's lowest point and its velocity), a command it originates
   as it does `PeerConnected`, logged for the replay (§3.3) and never sent by a peer; `core/` sets the knocked-down
