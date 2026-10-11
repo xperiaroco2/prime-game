@@ -107,8 +107,10 @@ His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (
   roll under a low table); a raised player gets up crouched there and stands up by the crouch's rules once there is
   room (the ADR's KD11).
 - A blow never launches a body where no player can reach it to raise it: the levels keep every surface a launch can
-  reach, tables and the roof included, within a raise's reach of a spot where a crouching player can stand, the same
-  convention as for a thrown item, checked on the House by tests (the ADR's KD12).
+  reach, tables and the roof included, within a raise's reach of a spot a player can walk to, the same convention as
+  for a thrown item, checked on the House by tests (the ADR's KD12).
+- Open: whether a table's collider closes the space under it, so nothing thrown or launched rests under one (the
+  ADR's KD14); and what a player raised from a body launched into the lowered car gets (the ADR's KD15).
 - The body keeps the crouching collider upright and never turns: the body the host moves slides and falls but does
   not roll, and slides off only a steep slope; the ragdoll on each screen rolls (the ADR's KD13). "Rolls" above is
   the ragdoll on screen.
