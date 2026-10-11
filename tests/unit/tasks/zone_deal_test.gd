@@ -177,8 +177,14 @@ func test_demands_are_zone_markers_and_colours_per_zone() -> void:
 	for i in 13:
 		layout.add_marker(&"zone", Vector3(i, 0, 0))
 	assert_array(Array(demands.shortfalls(layout))).is_empty()
-	assert_array(Array(many.shortfalls(layout))).is_equal(
-		["13 zone colour(s) needed, the palette has 12"]
+	assert_array(HostText.to_dicts(many.shortfalls(layout))).is_equal(
+		[
+			{
+				"id": &"colours",
+				"ids": PackedStringArray(["zone"]),
+				"numbers": {&"need": 13, &"have": 12}
+			}
+		]
 	)
 	var few := LevelLayout.new(FixtureModes.MAP)
 	few.add_marker(&"zone", Vector3.ZERO)
