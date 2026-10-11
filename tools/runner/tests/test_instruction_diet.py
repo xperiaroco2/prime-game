@@ -113,6 +113,11 @@ class RootClaudeMdTest(unittest.TestCase):
         managers = (common.ROOT / "docs" / "MANAGERS.md").read_text(encoding="utf-8")
         self.assertIn("HUMAN_SESSIONS.md", managers)
 
+    def test_log_intervention_promotes_a_talking_rule_into_the_human_sessions_doc(self) -> None:
+        # Review of #836: without it the next correction on how to talk to a human goes back into root.
+        skill = (common.ROOT / ".claude" / "skills" / "log-intervention" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`docs/HUMAN_SESSIONS.md` for how an agent talks to a human", skill)
+
     def test_the_dropped_rows_and_sentences_keep_a_pointer(self) -> None:
         # Review of #561: the Routing table's skill rows and the retarget sentence of the Definition of done had none.
         routing = next(text for title, text in self.sections.items() if title.startswith("Routing"))

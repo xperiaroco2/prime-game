@@ -29,6 +29,7 @@ allowed-tools:
    - **Where the rule lives now**: this entry, plus each file it was promoted into.
 4. **Promote the rule** to the narrowest place that is loaded when it matters:
    - root `CLAUDE.md` only for rules that apply to every task (it is always loaded; 150-line budget);
+   - `docs/HUMAN_SESSIONS.md` for how an agent talks to a human in a chat (no workflow agent needs it, #836);
    - an area `CLAUDE.md` (`core/`, `content/`, …) for one area;
    - `.claude/rules/<topic>.md` with `paths:` for a kind of file;
    - a skill step for a procedure; a hook or permission rule when it must be enforced (engineer-owned, ask first).
