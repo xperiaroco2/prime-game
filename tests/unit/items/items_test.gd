@@ -156,6 +156,9 @@ func test_use_with_a_package_in_hand_is_nothing_to_do() -> void:
 	var package := FixtureItemModes.lay(game, &"package", Vector3(1, 0, 0))
 	FixtureItemModes.pick_up(game, P1, package)
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
+	# Put down first: beside the package a picked tool would go onto the belt (the cooking ADR,
+	# CE21), and the package's (lack of a) Use would still answer.
+	FixtureItemModes.put_down(game, P1, Vector3.FORWARD)
 	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1))
 	FixtureItemModes.pick_up(game, P1, tool)
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})

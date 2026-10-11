@@ -2,8 +2,10 @@ extends GdUnitTestSuite
 ## PickUp (ARCHITECTURE §7.1, §9.4): ItemOnGround, InReach and InSight from the host's position of
 ## the player, then TakeIntoHand: the picked item goes to the hand, a one-handed hand item to an
 ## empty belt (ItemPickedUp's `belted`, E29), any other hand item onto the picked-up one's spot
-## (vision revision 1, Two hands). Driven by commands through the fixture item mode (a two-handed
-## `package`, a one-handed `tool`); asserted on the events, view_of and the match state.
+## (vision revision 1, Two hands); beside a two-handed hand item a one-handed picked item goes onto
+## the belt, a full belt's item down at the feet first (the cooking ADR, CE19 to CE21). Driven by
+## commands through the fixture item mode (a two-handed `package`, a one-handed `tool`); asserted on
+## the events, view_of and the match state.
 
 const P1 := 1
 const P2 := 2
@@ -152,11 +154,14 @@ func test_the_conditions_run_in_order() -> void:
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"out_of_reach", &"unavailable"])
 
 
+## A two-handed picked item beside a two-handed hand item keeps the swap: the belt holds only a
+## one-handed item, so the belt rule cannot apply (the cooking ADR, CE21; a box picked up by
+## holding E beside a box). A one-handed picked item goes onto the belt (the tests below).
 func test_a_full_hand_swaps_onto_the_picked_up_items_spot() -> void:
 	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1, P2])
 	FixtureItemModes.stand(game, P1, HERE)
 	var first := FixtureItemModes.lay(game, &"package", Vector3(1, 0, 0))
-	var second := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1.5))
+	var second := FixtureItemModes.lay(game, &"package", Vector3(0, 0, 1.5))
 	FixtureItemModes.pick_up(game, P1, first)
 	var seen := game.view_of(P2).events.size()
 	FixtureItemModes.pick_up(game, P1, second)
@@ -231,20 +236,64 @@ func test_with_a_full_belt_the_hand_item_rests_where_the_picked_one_lay() -> voi
 	)
 
 
-func test_a_two_handed_hand_item_rests_even_with_an_empty_belt() -> void:
+## The engineer's belt rule for every take (the cooking ADR, CD3 (b), CE20, CE21; PR #701 comment
+## 6096157421): beside a two-handed hand item a one-handed picked item goes straight onto the empty
+## belt, ItemPickedUp's `belted` naming the item itself, and the package stays in the hand.
+func test_beside_a_two_handed_hand_item_a_one_handed_pick_goes_onto_the_belt() -> void:
 	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1, P2])
 	FixtureItemModes.stand(game, P1, HERE)
 	var package := FixtureItemModes.lay(game, &"package", Vector3(1, 0, 0))
 	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1.5))
 	FixtureItemModes.pick_up(game, P1, package)
+	var seen := game.view_of(P2).events.size()
 	FixtureItemModes.pick_up(game, P1, tool)
 	var player := game.state.player(P1)
-	assert_int(player.held_item).is_equal(tool.id)
-	assert_int(player.belt_item).is_equal(-1)
-	assert_int(package.where).is_equal(ItemState.Where.GROUND)
-	assert_vector(package.position).is_equal(Vector3(0, 0, 1.5))
+	assert_int(player.held_item).is_equal(package.id)
+	assert_int(player.belt_item).is_equal(tool.id)
+	assert_int(package.where).is_equal(ItemState.Where.HAND)
+	assert_int(tool.where).is_equal(ItemState.Where.BELT)
+	assert_int(tool.holder).is_equal(P1)
+	assert_int(tool.rest_tick).is_equal(-1)
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal([&"ItemPickedUp"])
 	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[1] as ItemPickedUpEvent
-	assert_int(picked.belted).is_equal(-1)
+	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": tool.id, "belted": tool.id})
+	assert_array(FixtureModes.notes(game)).is_empty()
+
+
+## With a full belt the belt's item is put down at the taker's feet first (CE19: below the eye,
+## ItemPlaced `put_down`, item_rested), then the picked item goes onto the belt; the package stays
+## in the hand.
+func test_beside_a_two_handed_hand_item_a_full_belt_s_item_goes_down_at_the_feet() -> void:
+	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1, P2])
+	var feet := Vector3(0.5, 0, 0.25)
+	FixtureItemModes.stand(game, P1, feet)
+	var first := FixtureItemModes.lay(game, &"tool", Vector3(1, 0, 0))
+	var package := FixtureItemModes.lay(game, &"package", Vector3(-1, 0, 0))
+	var second := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1.5))
+	FixtureItemModes.pick_up(game, P1, first)
+	FixtureItemModes.pick_up(game, P1, package)
+	assert_int(first.where).is_equal(ItemState.Where.BELT)
+	var seen := game.view_of(P2).events.size()
+	FixtureItemModes.pick_up(game, P1, second)
+	var player := game.state.player(P1)
+	assert_int(player.held_item).is_equal(package.id)
+	assert_int(player.belt_item).is_equal(second.id)
+	assert_int(second.where).is_equal(ItemState.Where.BELT)
+	assert_int(first.where).is_equal(ItemState.Where.GROUND)
+	assert_int(first.holder).is_equal(0)
+	assert_vector(first.position).is_equal(feet)
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal(
+		[&"ItemPlaced", &"FixtureNote", &"FixtureNote", &"ItemPickedUp"]
+	)
+	var placed := game.view_of(P2).events_named(&"ItemPlaced")[0] as ItemPlacedEvent
+	assert_dict(placed.to_dict()).is_equal(
+		{"item": first.id, "position": feet, "cause": &"put_down"}
+	)
+	var picked := game.view_of(P2).events_named(&"ItemPickedUp")[2] as ItemPickedUpEvent
+	assert_dict(picked.to_dict()).is_equal({"peer": P1, "item": second.id, "belted": second.id})
+	assert_array(FixtureModes.notes(game)).is_equal(
+		[FixtureRestedNote.text(first.id, &"put_down", feet), "task item_rested"]
+	)
 
 
 func test_a_downed_player_cannot_pick_up() -> void:
