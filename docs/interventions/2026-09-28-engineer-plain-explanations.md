@@ -27,4 +27,5 @@
 **Where the rule lives now.**
 - `docs/AGENT_WORKFLOW.md` §13 ("The agent explains choices plainly").
 - `docs/decisions/2026-09-28-godot-editor-save-first-convention.md`.
-- Root `CLAUDE.md`, "Talking to the humans" (promoted in M0 stage 3).
+- `docs/HUMAN_SESSIONS.md`, "Talking to the humans" (promoted into root `CLAUDE.md` in M0 stage 3, moved in #836;
+  root points to it).
