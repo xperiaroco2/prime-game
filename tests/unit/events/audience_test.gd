@@ -70,6 +70,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		ItemSpawnedEvent.new(1, &"package", Vector3.ZERO),
 		StationPlacedEvent.new(1, &"circle", Color.RED, Vector3.ZERO),
 		PackageDeliveredEvent.new(1, 1),
+		ItemVanishedEvent.new(1),
 		TaskProgressEvent.new(0, 1),
 		ZoneProgressEvent.new(1, 0, 20, true, 0),
 		ItemThrownEvent.new(1, P1, Vector3.ZERO, Vector3.FORWARD, Vector3.DOWN, 0),

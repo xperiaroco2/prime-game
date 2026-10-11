@@ -5,6 +5,9 @@ extends ContentPart
 ## `Use`), never on the belt; the display name is the HUD's hand or belt item; the spawn tag names
 ## the markers it is placed on (§9.6).
 
+## The longest `vanish_seconds`: an hour (the cooking ADR, C10).
+const MAX_VANISH_SECONDS := 3600
+
 @export var id: StringName
 @export var display_name: String
 @export var spawn_tag: StringName
@@ -13,7 +16,17 @@ extends ContentPart
 ## neutral default is out of bounds on purpose: the data sets it (the base mode's Package: 2,
 ## Knife: 1), so the mode check refuses an item kind that forgot it.
 @export var hands := 0
+## How long an item of this kind may lie on the ground before it vanishes, in whole seconds since
+## it last came to rest (the cooking ADR, CD6 (c), CE3; VanishTicks, ARCHITECTURE §9.4.5): 0, the
+## default, never; else 1 to MAX_VANISH_SECONDS. Only a phase that lists VanishTicks removes an
+## item, so ModeCheck refuses a kind with it in a mode where no phase lists one.
+@export var vanish_seconds := 0
 @export var actions: Array[Rule] = []
+
+
+## Whether an item of this kind vanishes when left lying (`vanish_seconds` set).
+func vanishes() -> bool:
+	return vanish_seconds > 0
 
 
 ## Whether it takes both hands (`hands` 2): it is never on the belt.
@@ -28,4 +41,7 @@ func check(_mode: GameMode) -> PackedStringArray:
 	if spawn_tag.is_empty():
 		found.append("item kind %s has no spawn_tag" % id)
 	append_found(found, [out_of_bounds("item kind %s hands" % id, hands, 1, 2)])
+	if vanish_seconds != 0:
+		var label := "item kind %s vanish_seconds" % id
+		append_found(found, [out_of_bounds(label, vanish_seconds, 1, MAX_VANISH_SECONDS)])
 	return found

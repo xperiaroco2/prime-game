@@ -114,6 +114,12 @@ func _physics_process(delta: float) -> void:
 	for id: int in model.items:
 		var item := model.items[id]
 		var view: ItemView = _views.get(id)
+		if view != null and view.kind != item.kind:
+			# The id was freed and reused within one frame (ItemVanished, then ItemSpawned of
+			# another kind, cooking ADR CE3): the old view's look is not this item's.
+			view.queue_free()
+			_views.erase(id)
+			view = null
 		if view == null:
 			view = ItemView.make(id, item.kind, item.colour)
 			view.add_to_group(SightHider.GROUP)

@@ -33,7 +33,8 @@ extends RefCounted
 ## two station kinds among the task types with one id or one spawn tag, one kind held twice included
 ## (stations take markers without asking whether one stands there, and Demands keys palettes by
 ## the kind's id); a task type that ticks (#36's zone task) in a mode where no phase lists
-## TaskTicks, so it would never count; a number outside its
+## TaskTicks, so it would never count; an item kind with `vanish_seconds` in a mode where no phase
+## lists VanishTicks, so its items would never vanish (the cooking ADR, C10); a number outside its
 ## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
 ## rule with an effect whose event goes to everyone (for a UseStation, an event its station's task
 ## type's use_emits() lists), which reveals the actor's role (§9.2); in a
@@ -78,6 +79,7 @@ func _check_mode(mode: GameMode) -> void:
 	_walk(mode, "mode", mode, {})
 	_check_stations(mode)
 	_check_ticking(mode)
+	_check_vanishing(mode)
 	_check_rules(mode)
 	_check_rows(mode)
 	_check_phases(mode)
@@ -559,6 +561,18 @@ func _check_ticking(mode: GameMode) -> void:
 			errors.append(
 				"task type %s ticks, but no phase lists TaskTicks: it would never run" % type.id
 			)
+
+
+## An item kind that vanishes (ItemKind.vanish_seconds, the cooking ADR's CD6 (c)) where no phase
+## lists VanishTicks: its items would lie for good, which the data says they must not.
+func _check_vanishing(mode: GameMode) -> void:
+	for spec: PhaseSpec in mode.phases:
+		if spec != null and _lists(spec, VanishTicks):
+			return
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null and kind.vanishes():
+			var found := "item kind %s vanishes after %d s" % [kind.id, kind.vanish_seconds]
+			errors.append(found + ", but no phase lists VanishTicks: it never would")
 
 
 ## A row's actions run with no actor, so a ChannelEffect or a ThrowItem among them is an error.

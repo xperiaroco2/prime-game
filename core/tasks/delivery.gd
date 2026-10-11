@@ -77,6 +77,9 @@ func deal(ctx: MatchContext) -> void:
 		return
 	var stations := _place_circles(ctx, count)
 	var items := _place_packages(ctx, count)
+	# Every item id in use (Items.spawn logged it): no deal comes near that.
+	if items.size() < count:
+		return
 	# Each package, in id order, goes to a circle of its own: a random permutation of the circles.
 	var circle_order := RngStreams.shuffled_indices(count, ctx.rng(tasks_rng))
 	var task := ctx.state.add_task(self)
@@ -114,7 +117,7 @@ func on_fact(ctx: MatchContext) -> void:
 		var station: StationState = ctx.state.stations.get(task_state.circles[index])
 		if station == null or not station.contains(item.position):
 			return
-		item.where = ItemState.Where.LOCKED
+		Items.lock(item)
 		station.done = true
 		task_state.done[index] = true
 		ctx.emit(PackageDeliveredEvent.new(item.id, station.id))
@@ -151,6 +154,9 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append(
 			"Delivery %s names item kind %s, which the mode does not declare" % [id, package.id]
 		)
+	elif package.vanishes():
+		# The task knows a package by its item id alone, and a vanished item's id is reused.
+		found.append("Delivery %s: the package kind %s must not vanish" % [id, package.id])
 	if circle == null:
 		found.append("Delivery %s has no circle station kind" % id)
 	elif package != null and circle.spawn_tag == package.spawn_tag:
@@ -199,5 +205,8 @@ func _place_packages(ctx: MatchContext, count: int) -> Array[ItemState]:
 	var markers := Tasks.pick(spots.size(), count, ctx.rng(packages_rng))
 	var placed: Array[ItemState] = []
 	for i in count:
-		placed.append(ctx.state.add_item(package, spots[markers[i]]))
+		var item := Items.spawn(ctx, package, spots[markers[i]])
+		if item == null:
+			break
+		placed.append(item)
 	return placed

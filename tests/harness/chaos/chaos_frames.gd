@@ -74,8 +74,9 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## NextStage took it (#599), 16 took its place; 16 and 66 left it when SetProfile and
 ## ProfileChanged took them (#551), 17 and 67 took theirs; 17 and 67 left it when release/m7's
 ## Throw and ZoneProgress took them (#837, ItemThrown took 68), 18 and 69 took theirs; 18 left it
-## when Interact took it (#796), 20 took its place.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 69, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## when Interact took it (#796), 20 took its place; 69 left it when ItemVanished took it (#779), 70
+## took its place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 70, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
 ## zero, and two whose squared length underflows (1e-30) or overflows (1e38) in single precision.

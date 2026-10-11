@@ -42,7 +42,9 @@ func run(ctx: MatchContext) -> void:
 	chosen.sort()
 	var spawned: Array[ItemState] = []
 	for index: int in chosen:
-		spawned.append(ctx.state.add_item(kind, free[index]))
+		var item := Items.spawn(ctx, kind, free[index])
+		if item != null:
+			spawned.append(item)
 	for item: ItemState in spawned:
 		ctx.emit(ItemSpawnedEvent.new(item.id, kind.id, item.position))
 	for item: ItemState in spawned:

@@ -371,6 +371,10 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 				item.position = fields["position"]
 		&"ItemThrown":
 			_fold_throw(fields)
+		&"ItemVanished":
+			# Gone for good (the cooking ADR, CE3): its view goes with it; a later ItemSpawned may
+			# reuse the id for a new item.
+			items.erase(fields["item"] as int)
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:

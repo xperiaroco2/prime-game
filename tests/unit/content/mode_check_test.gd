@@ -301,6 +301,25 @@ func test_an_item_kind_takes_one_or_two_hands_which_the_data_sets() -> void:
 	assert_int(ItemKind.new().hands).is_equal(0)
 
 
+func test_a_vanishing_item_kind_is_bounded_and_needs_a_phase_listing_vanish_ticks() -> void:
+	# The cooking ADR, CD6 (c), C10: 0 never vanishes (the default); else 1 to 3600 s.
+	assert_int(ItemKind.new().vanish_seconds).is_equal(0)
+	for seconds: int in [-1, 3601]:
+		var mode := FixtureVanishModes.basic()
+		mode.find_item_kind(&"crumb").vanish_seconds = seconds
+		_expect(mode, "item kind crumb vanish_seconds is %d, outside 1 to 3600" % seconds)
+	for seconds: int in [1, 3600]:
+		var mode := FixtureVanishModes.basic()
+		mode.find_item_kind(&"crumb").vanish_seconds = seconds
+		_expect_none(mode)
+	# With no phase listing VanishTicks its items would lie for good.
+	var unticked := FixtureVanishModes.basic()
+	FixtureVanishModes.unlist(unticked, &"round")
+	_expect(unticked, "item kind crumb vanishes after 60 s, but no phase lists VanishTicks")
+	unticked.find_item_kind(&"crumb").vanish_seconds = 0
+	_expect_none(unticked)
+
+
 func test_a_task_type_needs_a_description() -> void:
 	# The task screen shows it (vision revision 1, the Tab task screen).
 	for empty: String in ["", "  \n"]:

@@ -9,4 +9,4 @@ extends RuleEffect
 
 
 func run(ctx: MatchContext) -> void:
-	Items.raise_rested(ctx, ctx.state.add_item(kind, at), Items.SPAWN)
+	Items.raise_rested(ctx, Items.spawn(ctx, kind, at), Items.SPAWN)
