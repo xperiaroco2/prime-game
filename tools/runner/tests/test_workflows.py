@@ -33,7 +33,8 @@ and #572's line on reading a log by search, never whole.
 tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
 gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
 return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
-skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`.
+skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
+#815's ADR line (each section of the task's ADR once per context), every agent's, the publisher's too.
 #469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
 snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
 #386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
@@ -124,6 +125,8 @@ SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
 # #413's one-line rule: the writes outside the worktree and the scratchpad that a throwaway first command made.
 # #468: how every agent reads code (outline or grep -n first, no re-read of unchanged content, batched reads).
 READ_RULE = "- Reading (the docs-by-section rule of #339, extended to code by #468):"
+# #815: the task's ADR, each section once per context (the repeats of PR #794's `metrics --adr-reads` table).
+ADR_RULE = "- The task's ADR (each docs/decisions/ file the issue links):"
 WRITE_RULE = "- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway"
 # #456's one-line rule: the one way to change or reword an earlier commit, with no editor.
 REBASE_RULE = "- Change an earlier commit only with `git commit --fixup=<sha>`"
@@ -335,6 +338,43 @@ class WorkflowTest(unittest.TestCase):
         sleep = next(iter(seen[SLEEP_RULE]))
         for way in ("`Start-Sleep N`", "blocks both", "`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
             self.assertIn(way, sleep)
+
+    def test_every_agent_reads_each_section_of_the_tasks_adr_once_per_context(self) -> None:
+        # #815: PR #794's `metrics --adr-reads` table (2026-10-08 to 11) counted 976 section reads of ADRs, about 960
+        # of them repeats of the same task ADRs, by the implementer, the publisher and the two reviewers. Every role
+        # of both scripts gets one line, the same text everywhere: issue-task's publisher too, whose PUB_RULES drop
+        # the reading line (#696) but keep this one, and the read-only agents in their REVIEW_RULES.
+        jobs = [
+            ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
+            ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+        ]
+        lines: set[str] = set()
+        labels: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                labels.add(f"{name}:{event['label'].rsplit(':#', 1)[0]}")
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(ADR_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    lines.update(found)
+        self.assertEqual(len(lines), 1, f"the line differs between agents or scripts: {sorted(lines)}")
+        self.assertLessEqual({f"issue-task.js:{r}" for r in ("plan", "review:plan", "implement", "review:code", "review:netcode",
+                                                             "review:godot-api", "review:netcode-second", "test-review",
+                                                             "ab-judge", "skeptic", "publish")}
+                             | {f"pr-rebase.js:{r}" for r in ("rebase", "review:code", "review:netcode", "review:netcode-second",
+                                                              "skeptic", "fix")},
+                             labels)  # fmt: skip
+        rule = next(iter(lines))
+        for part in ("docs/decisions/", "the issue links", "each section you need once per context",
+                     "only after the file changed or your context was compacted"):
+            self.assertIn(part, rule)
 
     def test_every_agent_gets_the_no_write_outside_rule(self) -> None:
         # #413: from 2026-10-01 to 05 workflow agents opened Bash calls with 75 throwaway writes (`cat > <file>
