@@ -89,7 +89,7 @@ with three changes:
   the host's physics moves the body, and each screen draws its own ragdoll there.
 
 His answers to the [knockdown ADR](decisions/2026-10-10-knockdown-reworked.md) (PR #754, comments 6097876326 and
-6100602989, the same day, and 6108669765 and 6109457234 on 2026-10-11):
+6100602989, the same day, and 6108669765, 6109457234 and 6110171062 on 2026-10-11):
 - Only the blow that knocks a player down sends its body flying, away from the attacker; every weapon's blow has a
   launch, the knife's too.
 - The body is a real rigid body with normal physics, run by the host: a blow launches it, and it rolls or slides off
