@@ -491,7 +491,8 @@ class PartTest(unittest.TestCase):
                     self.assertIn("check", names, "a fresh checkout needs check's import before any Godot run")
                     self.assertEqual(verify.part_lanes(part)["godot"][0], "check")
                 if set(NETWORK_STEPS) & set(names):  # no Godot run of the part beside a network run, as on one machine
-                    self.assertTrue({"test", "selftest-godot"}.isdisjoint(names) or set(NETWORK_STEPS) <= set(names))
+                    self.assertLessEqual(set(NETWORK_STEPS), set(names), "the network runs are not split")
+                    self.assertTrue({"test", "selftest-godot"}.isdisjoint(names), "no other Godot run beside them")
         # The count check compares both groups' results of one run with one serial discovery.
         holders = [part for part, names in verify.PARTS.items() if set(verify.COUNTED) & set(names)]
         self.assertEqual(len(holders), 1, holders)
