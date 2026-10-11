@@ -148,8 +148,8 @@ Each chain's points, with level and position (x, y). "Proposal" marks a point th
 | Delivery | Wine rack (a source: any Delivery item starts on any storage spot, decided in #683) | -1 | 16, 26 | Storage |
 | Delivery | Boxes (a source, as the wine rack) | -1 | 21, 29 | Storage |
 | Delivery | Dining table (drop-off, the wine) | 0 | 36, 27 | Dining room |
-| Delivery | Terrace table (drop-off, the parasol: a draft for the engineer, #683) | 0 | 29, 20 | Terrace |
-| Delivery | Garden drop-off (the garden gnome: a draft for the engineer, #683) | 0 | 62, 24 | Garden |
+| Delivery | Terrace table (drop-off, the parasol, approved by the engineer in #683) | 0 | 29, 20 | Terrace |
+| Delivery | Garden drop-off (the garden gnome, approved by the engineer in #683) | 0 | 62, 24 | Garden |
 | Delivery | Workbench (drop-off, the motor oil) | 0 | 70, 37 | Garage |
 | Generator | Generator | -1 | 49, 32 | Generator hall |
 | Generator | Switch A | -1 | 16, 32 | Storage |
@@ -198,6 +198,15 @@ use spot, and still out of reach of the car (the [car repair ADR](../decisions/2
 (later, ideally, a player crawls under the car to see it); the fitter works crouched under the raised car, every
 player having a crouch (#727). He approved the car repair for the MVP only (PR #709, comment 6100556321): a much
 more interesting mechanic will replace it later. It plays on the House only, never on the greybox (#767).
+
+Delivery (the engineer, 2026-10-10, #683; the rules in [GDD](../GDD.md) §8): each item goes to its own drop-off by
+what it is, with no colours and nothing pointing to the place; the garden gnome, the parasol and the name "Motor oil"
+are his, approved as drafted
+([PR #713, comment 6100696677](https://github.com/xperiaroco2/prime-game/pull/713#issuecomment-6100696677)). This
+Delivery plays on the House only: the greybox, a test bench only (#767), keeps today's colour-matched Delivery as far
+as its bot scenarios and the information-leak test need it, and gets no drop-offs (DD9 (c) of the
+[Delivery by meaning ADR](../decisions/2026-10-10-delivery-by-meaning.md), the same comment). The House's circle
+markers go once the House plays this Delivery (the ADR's D4).
 
 ## 7. Routes and travel times
 
