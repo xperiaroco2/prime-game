@@ -1921,8 +1921,8 @@ part of `verify.PARTS` (`verify --full --part <name>`: `test` is check and test,
 bots and chaos run and game, `runner` lint, signal, check and both selftest groups, so the count check stays whole),
 each with its own reports artifact; a step's AFTER step in another part counts as ended. The job named `verify`, the
 check the ruleset requires, needs every part (`if: always()`) and is green only when every part's job was (a red,
-cancelled or skipped part makes it red); one serial job took a median 12.6 min over 12 runs (2026-10-11). It runs on every PR
-(whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
+cancelled or skipped part makes it red); one serial job took a median 12.6 min over 12 runs (2026-10-11). It runs on
+every PR (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
 pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
 (the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
 if its Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving

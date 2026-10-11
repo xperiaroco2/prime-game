@@ -3070,7 +3070,9 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
         for s in step_names:
             vals = [v["steps"][s][1] for v in lst if s in v["steps"]]
             row.append(f"{med(vals):.0f}" if vals else "")
-        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")]
+        tots = [
+            v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")
+        ]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
         if with_slots:
             waits, over = slot_waits(lst)
@@ -4512,7 +4514,9 @@ def compact_lines(
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
-            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")]
+            tots = [
+                v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")
+            ]
             names: list[str] = []
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]
