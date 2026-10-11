@@ -7,7 +7,8 @@ extends RefCounted
 ##
 ## The mode is FixtureBaseMode's with res:// level paths (the wire carries only those; the files
 ## need not exist: ContentFingerprint counts a missing one as missing on both sides), proximity
-## voice in Lobby and Countdown, FixtureVoice in Round and none in End.
+## voice in Lobby and Countdown, FixtureVoice in Round and none in End; a test may pass its own mode
+## and layouts (layouts() by default) to _init.
 
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
@@ -138,7 +139,10 @@ class LossyTransport:
 
 
 func _init(
-	game_mode: GameMode = null, with_own_client := true, host_schema: WireSchema = null
+	game_mode: GameMode = null,
+	with_own_client := true,
+	host_schema: WireSchema = null,
+	game_layouts: Dictionary[String, LevelLayout] = {},
 ) -> void:
 	mode = game_mode if game_mode != null else fixture_mode()
 	var wire := host_schema if host_schema != null else schema
@@ -146,7 +150,8 @@ func _init(
 	session = HostSession.new(transport, wire)
 	session.replay_dir = ""
 	session.observer = _on_call
-	started = session.start_with(mode, FlatWorldQuery.new(), layouts(), PORT, 8, now, SEED)
+	var levels := game_layouts if not game_layouts.is_empty() else layouts()
+	started = session.start_with(mode, FlatWorldQuery.new(), levels, PORT, 8, now, SEED)
 	if started:
 		session.game.keep_history = true
 		if with_own_client:
