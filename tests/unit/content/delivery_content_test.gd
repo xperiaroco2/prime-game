@@ -1,7 +1,6 @@
 extends GdUnitTestSuite
 ## The base mode's tasks in `content/` (ARCHITECTURE §9.5; the engineer's decision of 2026-09-30,
-## #79): the settings `tasks` (2 of 2 types since #649, ZD8 (a)), `banned_task_types` and
-## Delivery's `packages` with their numbers;
+## #79): the settings `tasks`, `banned_task_types` and Delivery's `packages` with their numbers;
 ## Delivery's circle (radius 1 m, height 2 m) and a palette with a colour for every package the
 ## `packages` setting allows, so `all_ready`'s fit check never refuses a setting for want of
 ## colours; and Round runs TaskTicks. Like the mode check, this test loads `content/` on purpose
@@ -14,7 +13,7 @@ func test_the_task_settings_and_their_numbers() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var tasks := mode.find_setting(&"tasks")
 	assert_bool(tasks.is_number()).is_true()
-	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([2, 1, 2])
+	assert_array([tasks.default_value, tasks.min_value, tasks.max_value]).is_equal([1, 1, 1])
 	var banned := mode.find_setting(&"banned_task_types")
 	assert_int(banned.kind).is_equal(SettingSpec.Kind.TASK_TYPES)
 	var packages := mode.find_setting(&"packages")
@@ -57,8 +56,9 @@ func test_round_runs_life_channel_flight_then_task_ticks_and_the_mode_deals_deli
 	if respawn != null:
 		assert_str(String(respawn.tag)).is_equal("respawn")
 		assert_str(String(respawn.rng_purpose)).is_equal("respawn")
-	# Delivery and Hold the zone (#649): its own test is zone_content_test.gd.
-	assert_int(mode.task_types.size()).is_equal(2)
+	# Delivery alone: the zone task (#649) left the base mode on #842; zone_base_mode_test.gd
+	# checks the fixture mode that still deals it.
+	assert_int(mode.task_types.size()).is_equal(1)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 
 

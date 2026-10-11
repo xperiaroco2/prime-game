@@ -84,7 +84,7 @@ func test_a_banned_task_type_shows_no_card() -> void:
 	assert_bool(await _until(func() -> bool: return game.ui.screen == S.LOBBY)).is_true()
 	# With every type banned the lobby cannot start: the card is picked from the dealable types.
 	var model := game.client().model
-	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery", "hold_the_zone"])
+	model.id_sets[&"banned_task_types"] = PackedStringArray(["delivery"])
 	assert_array(HowtoCards.dealable(game.mode, model)).is_empty()
 	game.ui.show_screen(S.LOADING)
 	assert_array(_loading_states).is_equal([&"load"])
