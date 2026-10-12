@@ -18,8 +18,9 @@ update run. A deliberate change of a default prompt rewrites them: run `selftest
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
 commit it with the change, and run `selftest` again without the variable. Such a change merges between waves, with no
 issue-task run before its publisher, because a run that resumes after the merge replays its publisher fresh; the
-scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #555, #563, #572, #574, #605, #606, #815,
-#818, #834). Each snapshot ends with the run's return value, which a resume does not replay (#386 made it compact).
+scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834; issue-task.js
+also records #555's 180 s wait, #563's Cross-area line, #572's reading a log by search and #574's `verify --fail-fast`).
+Each snapshot ends with the run's return value, which a resume does not replay (#386 made it compact).
 """
 
 import difflib
