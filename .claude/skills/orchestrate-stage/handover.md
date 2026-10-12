@@ -3,8 +3,7 @@
 How a game or meta manager hands its track over to a fresh session (#467, #484, #511). The rules every track's
 manager follows, UI and art included, are [docs/MANAGERS.md](../../../docs/MANAGERS.md): when (its §5), the handover
 comment and the paste (§6), route C (§7). This file is how you carry them out here, with `wave` and the
-scheduled-task tools. When a handover is due is the skill's §7 (the turn-end verdict and order). Read it at a
-handover, and first thing in a session a scheduled task started (§3).
+scheduled-task tools. Read it at a handover, and first thing in a session a scheduled task started (§3).
 
 ## 1. When, beyond the verdict
 The thresholds (500k context, 12 hours, changed instructions), the 250k at a stop for the human, the earlier handover
@@ -12,8 +11,7 @@ by cost math and the away rules are [MANAGERS.md](../../../docs/MANAGERS.md) §5
 is only this file's:
 - **A scheduled task's prompt is not a message from the human**: a successor counts his 2 hours away from the time of
   his last chat message that the handover comment gives, or from his own later messages.
-- **While he is away**, at §7's "at a stop for the human: due" no handover is made; with runs in flight, launch
-  nothing new and post the handover once they end instead of stopping them (the verdict's "the human away" clause).
+- **While he is away**: MANAGERS.md §5's rule; step (a) below waits for the runs instead of stopping them.
 
 ## 2. The steps
 - **(a)** TaskStop each run the verdict names (a publish, rebase or fix agent at work: after it, the timer armed),
