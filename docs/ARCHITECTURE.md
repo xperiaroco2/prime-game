@@ -2098,9 +2098,10 @@ model folds none (§4.6.1); such an arrival still counts for the jitter.
   Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
   Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
-  with that setting only; a Map picker of the mode's `maps`, named by file name (#627), shows `ClientModel.map` and
-  sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and the mode has
-  two or more maps); the demands and shortfalls come from `SettingsChanged` (the
+  with that setting only; a Map picker of the maps players play (`GameMode.player_maps()`: the mode's `maps` but its
+  test benches, #767), named by file name (#627), shows `ClientModel.map` and
+  sends `ChangeSettings` with no settings and that map (disabled unless the settings are editable and there are
+  two or more such maps); the demands and shortfalls come from `SettingsChanged` (the
   shortfalls worded by `HostTextView`, §4.7.47). Everyone sees the settings; only
   the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
   The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
@@ -2528,6 +2529,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
   `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s: `esc_lobby_preview.tscn` and
   `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
+- #767 (the engineer's option (a)): players always play the House. `GameMode.bench_maps` marks the maps of
+  `maps` that are test benches only (the base mode's: the flat greybox, for the bot scenarios and the leak test,
+  §9.7); `player_maps()` is the rest and `default_map()` its first, where every match starts (`Match`), so the
+  picker lists the House alone. The host still accepts a bench in `ChangeSettings` (the bots ask for it, and the
+  host cannot tell a bot from a person); the mode check refuses a bench not in `maps` and a mode whose every map
+  is a bench. Tests: `game_mode_maps_test.gd`, `screens_test.gd` (the shipped lobby offers the House alone),
+  `content_modes_test.gd` and `game_map_choice_test.gd` (a human match loads the House on both machines).
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
@@ -6726,7 +6734,8 @@ content/
   tutorial/tutorial.tres           the tutorial's nine lessons (#602, §4.7.45; client data on core/content/tutorial/)
 levels/
   lobby/lobby.tscn                 the lobby: floor, walls, lobby_player markers
-  greybox/greybox.tscn             the MVP map: rooms and round_player, package, knife, circle, respawn and zone markers
+  greybox/greybox.tscn             the test bench (#767; the MVP map until then), never offered to players: rooms and
+                                   round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with the stations' markers
 ```
@@ -6793,7 +6802,9 @@ told. One format runs in two runners.
   designer from M3 (`docs/AGENT_WORKFLOW.md` §12), the engineer's agent for the MVP. Its classes (the scenario, its
   steps and targets) are data only and live in `core/content/scenario/` (§9.3), so `content/` still uses only the
   content API; the runners live in `tests/harness/`. It holds:
-  - the setup: the mode; the map, one of the mode's maps; the seed; the number of bots (bot 1 is the host's own
+  - the setup: the mode; the map, one of the mode's maps (none named: the mode's first test bench, `bench_maps`, else
+    its default map; `BotScenario.played_map()`, #767, which the setup's `ChangeSettings` sends when it is not the
+    default); the seed; the number of bots (bot 1 is the host's own
     client); the match settings that differ from the defaults, numbers (`settings`) and sets of task type ids (`id_sets`: the host's bans, #79; M7-Z2), which `problems()` checks as the lobby would: a set the mode does not declare, an id that is none of its task types, and bans that leave fewer types than `tasks` are refused, so a ban of one of two types also lowers `tasks` in the same setup (`DealTasks.settings_problem`); roles forced per bot (debug builds only, invariant 8;
     otherwise the deal draws them from the seed); the match clock's length in seconds, forced with the debug command
     `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every
@@ -6898,9 +6909,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
     declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
     error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat, marker-only
-    lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, its first
-    map and any map a scenario names (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
-    four-level House (#626), are played by people in the host's real world, never by the scenarios; the runners
+    lobby and map (§9.6). Only the levels the scenarios play on must be flat: the mode's lobby, the map
+    a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
+    (`tests/fixtures/scenario_levels.gd`). A mode's other maps, such as the
+    four-level House (#626), the one map players play (#767), are played by people in the host's real world, never by the scenarios; the runners
     read their markers where the scene puts them, none snapped to a floor (`MarkerReader.read_levels`'s `unsnapped`,
     `ScenarioLevels.unsnapped`; GE12, #798), since the flat fake finds no floor below y = 0: a station marker (a delivery
     circle, a zone, a basement device) may stand below it there, and markers of different tags may share an
