@@ -30,6 +30,8 @@ except ImportError:  # pragma: no cover - only without gdtoolkit's dependencies
 ROOT = Path(__file__).resolve().parents[3]
 GITHUB = ROOT / ".github"
 SETUP = "./.github/actions/setup-toolchain"
+# The two steps each night job runs after SETUP (repo-1, #884): the TwoVoIP extension out, the runner's options checked.
+NIGHT_REF = "./.github/actions/night-ref"
 # CI's part jobs run this (#857); PART is the job's matrix.part.
 VERIFY_PART = 'GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full --part "$PART"'
 # The actions CI used when the night jobs came (#189). Another one from the marketplace is a new dependency: the
@@ -242,9 +244,10 @@ class GithubWorkflowsTest(unittest.TestCase):
             # The ref's runner is asked for the job's options before anything runs on it.
             names = [step.get("name", "") for step in job["steps"]]
             check = names.index("The ref's runner has the job's options")
-            self.assertIn("--help", job["steps"][check]["run"], name)
+            self.assertEqual(job["steps"][check]["uses"], NIGHT_REF, name)
+            self.assertIn("REF", job["env"], f"{name}: the action's error message names the ref by $REF")
             self.assertLess(check, names.index("doctor"), name)
-            command, *options = job["steps"][check]["env"]["CALLS"].split()
+            command, *options = job["steps"][check]["with"]["calls"].split()
             later = "".join(step.get("run", "") for step in job["steps"][check + 1 :])
             self.assertIn(f"tools/run.sh {command} ", later, name)
             for option in options:
@@ -321,7 +324,7 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertIn("${{ matrix.slug }}", settings["key"], "two refs of a night never reserve one key")
         self.assertLess(cache[0], run)
         calls = steps[next(i for i, s in enumerate(steps) if s.get("name") == "The ref's runner has the job's options")]
-        self.assertEqual(calls["env"]["CALLS"], "test --repeat", "an older ref's runner must still pass its check")
+        self.assertEqual(calls["with"]["calls"], "test --repeat", "an older ref's runner must still pass its check")
         argv = steps[run]["run"].split("tools/run.sh ", 1)[1].split()
         self.assertNotIn("--shards", argv, "--shards would fail on a ref whose runner refuses it with --repeat")
 
@@ -478,7 +481,24 @@ class NightlyScriptsTest(unittest.TestCase):
             run = where / "tools" / "run.sh"
             run.write_bytes(b'#!/usr/bin/env bash\n[ "$2" = --help ] && cat "$(dirname "$0")/help-$1.txt"\n')
             run.chmod(0o755)
-            return self.bash(self.script(calls[0], calls[1]), where, {"CALLS": calls[2], "REF": "release/m0"})
+            return self.bash(self.night_ref_step(calls[1])["run"], where, {"CALLS": calls[2], "REF": "release/m0"})
+
+    def night_ref_step(self, name: str) -> dict:
+        return next(s for s in load(ROOT / NIGHT_REF / "action.yml")["runs"]["steps"] if s.get("name") == name)
+
+    def test_the_night_ref_action_removes_the_extension_before_it_checks_the_options(self) -> None:
+        data = load(ROOT / NIGHT_REF / "action.yml")
+        self.assertEqual(data["runs"]["using"], "composite")
+        self.assertTrue(data["inputs"]["calls"]["required"])
+        names = [step.get("name") for step in data["runs"]["steps"]]
+        self.assertEqual(names, ["Remove the TwoVoIP extension", "The ref's runner has the job's options"])
+        for step in data["runs"]["steps"]:
+            self.assertEqual(step.get("shell"), "bash", step.get("name"))
+        self.assertEqual(
+            self.night_ref_step(names[0])["run"],
+            "rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid",
+        )
+        self.assertEqual(self.night_ref_step(names[1])["env"], {"CALLS": "${{ inputs.calls }}"})
 
     def real_help(self, command: str) -> str:
         out = io.StringIO()
@@ -490,7 +510,7 @@ class NightlyScriptsTest(unittest.TestCase):
         jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
         check = "The ref's runner has the job's options"
         return [
-            (name, check, step["env"]["CALLS"])
+            (name, check, step["with"]["calls"])
             for name, job in jobs.items()
             for step in job.get("steps", [])
             if step.get("name") == check
