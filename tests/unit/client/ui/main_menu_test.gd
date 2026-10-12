@@ -489,6 +489,31 @@ func _assert_rect(
 	assert_int(control.grow_vertical).override_failure_message(why).is_equal(grow)
 
 
+func test_the_fields_start_with_the_last_code_and_address() -> void:
+	var settings := UserSettings.new()
+	settings.last_code = "K7Q2XR"
+	settings.last_address = "192.168.0.12:7020"
+	_menu.bind_name(settings)
+	assert_str(_menu.code_edit.text).is_equal("K7Q2XR")
+	assert_str(_menu.address_edit.text).is_equal("192.168.0.12:7020")
+	assert_bool((_menu.code_join.face as Button).disabled).is_false()
+	assert_bool((_menu.direct_join.face as Button).disabled).is_false()
+	# Typed over, then the Join item again: the last code a join used, not an empty field.
+	_menu.code_edit.text = "AAAAAA"
+	_menu.open_panel(MainMenu.Open.CODE)
+	assert_str(_menu.code_edit.text).is_equal("K7Q2XR")
+	# A new join kept in the settings shows on the next opening.
+	settings.last_code = "M2K7QX"
+	_menu.open_panel(MainMenu.Open.CODE)
+	assert_str(_menu.code_edit.text).is_equal("M2K7QX")
+	# No last join: both fields start empty and Join is off.
+	var fresh := UserSettings.new()
+	_menu.bind_name(fresh)
+	assert_str(_menu.code_edit.text).is_empty()
+	assert_str(_menu.address_edit.text).is_empty()
+	assert_bool((_menu.code_join.face as Button).disabled).is_true()
+
+
 func _focus() -> Control:
 	return get_viewport().gui_get_focus_owner()
 

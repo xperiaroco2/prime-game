@@ -4,9 +4,10 @@ extends RefCounted
 ## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
 ## §1.1's "opening" mark, the interface language (#208), the player's own name (#550), large text,
 ## reduced motion and the window mode (Settings, #491) and whether the first launch's tutorial was
-## seen (#601), and the return secret (#638), in a ConfigFile under user://, read at the start and
-## written on each change. Only the name and the return key made from the secret are ever sent (in
-## Hello); the secret itself never is. Key bindings get their own file.
+## seen (#601), the return secret (#638) and the last room code and Direct address a join used
+## (#640), in a ConfigFile under user://, read at the start and
+## written on each change. Only the name and the return key made from the secret are ever sent
+## (in Hello); the secret itself never is. Key bindings get their own file.
 ##
 ## The windows that `tools\run.cmd host --clients N` starts on one PC share one user:// folder, and
 ## the runner gives each its PRIME_INSTANCE (1 the host, 2 and on the clients): the file is
@@ -23,6 +24,8 @@ const INSTANCE_ENV := "PRIME_INSTANCE"
 const WINDOW_FULLSCREEN := "fullscreen"
 const WINDOW_WINDOWED := "windowed"
 const FOLDER := "user://"
+## The longest Direct address kept as the last one (a host name is at most 253 characters).
+const LAST_ADDRESS_MAX := 255
 ## How each mode is written, so a reordered enum reads an old file right.
 const MODE_NAMES: Dictionary[Mode, String] = {
 	Mode.VOICE_ACTIVITY: "voice_activity",
@@ -91,6 +94,16 @@ var tutorial_seen := false
 ## characters, made once per settings file (ensure_secret) and kept across reads; a malformed one
 ## reads as "" and is replaced. Never sent: Hello carries return_key(target) made from it.
 var secret := ""
+## The last room code and the last Direct address a join used (#640; the returning-players ADR, P9
+## (b)): the main menu's fields start with them, so a player whose connection dropped need not ask
+## for the code again. last_code is a whole code or ""; last_address is the address[:port] as typed
+## (stripped, at most LAST_ADDRESS_MAX characters) or "".
+var last_code := "":
+	set(value):
+		last_code = value if SignalCodec.is_code(value) else ""
+var last_address := "":
+	set(value):
+		last_address = value.strip_edges().left(LAST_ADDRESS_MAX)
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -177,6 +190,10 @@ func read() -> Error:
 	tutorial_seen = seen is bool and seen as bool
 	var stored: Variant = file.get_value("player", "secret", "")
 	secret = stored if ReturnKey.is_valid(stored) else ""
+	var code_stored: Variant = file.get_value("join", "last_code", "")
+	last_code = code_stored if code_stored is String else ""
+	var address_stored: Variant = file.get_value("join", "last_address", "")
+	last_address = address_stored if address_stored is String else ""
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -201,6 +218,8 @@ func write() -> Error:
 	file.set_value("lobby", "own_preset", own_preset)
 	file.set_value("player", "tutorial_seen", tutorial_seen)
 	file.set_value("player", "secret", secret)
+	file.set_value("join", "last_code", last_code)
+	file.set_value("join", "last_address", last_address)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)
