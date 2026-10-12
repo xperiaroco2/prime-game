@@ -6,24 +6,14 @@ comment and the paste (§6), route C (§7). This file is how you carry them out 
 scheduled-task tools. When a handover is due is the skill's §7 (the turn-end verdict and order). Read it at a
 handover, and first thing in a session a scheduled task started (§3).
 
-Approved by the engineer:
-[#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486): the handover
-goes back to a pasted kickoff by default, and route C, which
-[#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550) and the probe
-in [#484 comment 6025677487](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487) brought,
-becomes a fallback: its successor always runs in `acceptEdits` at medium effort.
-
 ## 1. When, beyond the verdict
-- **The thresholds stay mandatory**, day and night: the context over 500k, the session over 12 hours, changed
-  instructions (§7's verdict; MANAGERS.md §5).
-- **Earlier, by judgment**: at a natural break (no run in flight, or a stop for the human) you may hand over before a
-  threshold when your cost math says a fresh start is cheaper: the footer's mean $ per call, last 20 against first 20,
-  times the calls the work left still takes, against one start-up (about the first 20 calls).
-- **While the human is away** (he said so, or his last message is over 2 hours old; a scheduled task's prompt is not
-  a message from him: a successor counts from the time of his last chat message that the handover comment gives, or
-  from his own later messages): no successor starts before his paste, so hand over only when a threshold forces it,
-  never by judgment or at §7's "at a stop for the human: due"; with runs in flight, launch nothing new and post the
-  handover once they end instead of stopping them (the verdict's "the human away" clause).
+The thresholds (500k context, 12 hours, changed instructions), the 250k at a stop for the human, the earlier handover
+by cost math and the away rules are [MANAGERS.md](../../../docs/MANAGERS.md) §5; the verdict is the skill's §7. What
+is only this file's:
+- **A scheduled task's prompt is not a message from the human**: a successor counts his 2 hours away from the time of
+  his last chat message that the handover comment gives, or from his own later messages.
+- **While he is away**, at §7's "at a stop for the human: due" no handover is made; with runs in flight, launch
+  nothing new and post the handover once they end instead of stopping them (the verdict's "the human away" clause).
 
 ## 2. The steps
 - **(a)** TaskStop each run the verdict names (a publish, rebase or fix agent at work: after it, the timer armed),
@@ -90,19 +80,12 @@ mode, and cannot raise either itself.
 
 ## 4. The ready kickoff
 What the handover comment's notes end with and the last For-you carries, so no handover needs a prompt written by hand:
-the human's kickoff of the stage (the skill's §10, [kickoff-template.md](kickoff-template.md)) as he wrote it (his
-language kept, its `Track:` line included, "ultracode" dropped if an older one has it: MANAGERS.md §2), with its "Start
-from", "If from a design" and "After a handover" lines replaced by the "Continue from" line of MANAGERS.md §6:
+the human's kickoff of the stage (the skill's §10, [kickoff-template.md](kickoff-template.md)) as he wrote it, with its
+"Start from", "If from a design" and "After a handover" lines replaced by the "Continue from" block of
+[MANAGERS.md](../../../docs/MANAGERS.md) §6 (his language kept, its `Track:` line included, "ultracode" dropped: its
+§2).
 
-```text
-Continue from the latest comment titled "Handover to a fresh manager session" on #<plan issue> and every note after
-it: its order from here wins over this kickoff's Scope and Order; the previous session stopped its runs or let them
-end (relaunch fresh the ones that comment lists as stopped) and launches nothing more; my yes to the stage's
-restatement stands: restate the order from there and go on. A standing instruction of mine (a pause, a changed
-budget) is in that comment: obey it.
-```
-
-For route C (§3), the task's prompt adds this line after it:
+For route C (§3), the task's prompt adds this line after the kickoff:
 
 ```text
 You were started by the previous manager through the Desktop scheduled task <track>-manager (orchestrate-stage's
