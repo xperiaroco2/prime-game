@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?, lean_reason?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?, ab_review?, checkpoint?, tier?, update?}. Review tier (#606): the diff after the implementer chooses, the worst path winning: full (a path under core/, server/, net/, client/ but client/ui/, voice/ or tests/harness/, no changed paths, a design task, or tier full) runs the chain below; light (any other diff, client/ui/ included) drops the netcode review, test_review, second_review and skeptic even when passed, and plan_review too when the branch area (decided before the implementer) is content, level or tooling. update true (#856), a relaunch for an issue whose PR is published: the implementer records the published head of the PR, the reviewers read only the delta since it, and plan_review, test_review and skeptic are dropped; the full chain (plan_review still dropped) when no published head comes back, tier is full or the delta touches any path of the full tier, whatever its size. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task, a diff without core, server, net, client or voice code, or one whose only production code is under client/ui/), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many), ab_review 2 (a control code reviewer and a judge; needs models.code), checkpoint none or up to 2 (a fresh implementer for each handoff of one past 150k context); update removes the 2 of plan_review, and on its update path the test reviewer and the skeptics; visual, efforts and models add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major, ab_review: a control code reviewer and a judge; the light review tier, client/ui/ included, drops the netcode review, the first three and plan_review)' },
@@ -51,16 +51,30 @@ export const meta = {
 //            update and the publisher's prompt (for the PR) name the path taken, the delta's size and what was
 //            skipped. -2 agents with plan_review (on the full path too), -1 with
 //            test_review, -1 a checked finding with skeptic (the last two on the update path only)
+// Always on, with no switch since #883 (their switches, bounded_waits false and lean false with lean_reason, only
+// served the resume of a run launched before #411 or #458; a launch that still passes one of them only logs):
+//   bounded waits (#411): the implementer, the test reviewer and the full publisher run verify, publish and mutants
+//                 in the background and poll them with `tools\run.cmd wait` (#303), and wait on CI in calls of at
+//                 most 180 s, so no tool call outlasts their 5-minute prompt cache; the publisher runs no standalone
+//                 verify before `publish`, which verifies itself unless an identical tree was just verified green
+//                 (#471). Without `wait` on the branch: the foreground.
+//   lean types    (#458): the implementer, the plan agent and the test reviewer run as the agent type
+//                 task-implementer, the publisher (both kinds) as task-publisher: lean tool allowlists, no Skill tool
+//                 (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
+//                 options; prompts, efforts and models stay. A task editing .claude/workflows/ runs lean too: its
+//                 agents read docs/workflow-scripts.md (#557). .claude/agents/ in the manager's checkout must have
+//                 both files (`tools\run.cmd agents-check --launch`; an agentType with no file throws at agent()).
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default but bounded_waits (on since #411) and lean (on since #458). With none of them and bounded_waits and lean
-// false every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
-// (tools/runner/tests/test_workflows.py snapshots them, and the default too), so a launch or resume with the earlier
-// args, bounded_waits false and lean false is unchanged, but for
-// the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
-// section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
+// by default. With none of them every agent's prompt, label, phase, schema and options stay as they were
+// (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args is unchanged, but
+// for the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines,
+// #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
-// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
+// pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the read-only agents' hooks-path and wait lines, and
+// Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
+// 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`).
+// The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -81,12 +95,6 @@ export const meta = {
 //                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
 //                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
 //                 task's branch: reported in the result and the PR. +0 agents
-//   bounded_waits true, the default (#411; missing or null is true): the implementer, the test reviewer and the full
-//                 publisher run verify, publish and mutants in the background and poll them with `tools\run.cmd wait`
-//                 (#303), and wait on CI in calls of at most 180 s, so no tool call outlasts their 5-minute prompt
-//                 cache; the publisher runs no standalone verify before `publish`, which verifies itself unless an
-//                 identical tree was just verified green (#471). Without `wait` on the branch: the foreground.
-//                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, code,
 //                 netcode, second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
@@ -111,17 +119,6 @@ export const meta = {
 //                 Sonnet publisher there (the model-guard ADR, amendment of 2026-10-11), so models.publish_findings
 //                 takes only sonnet; when models or efforts name it, the result's publish_findings says whether it
 //                 applied.
-//   lean          true (the default since #458; a missing or null arg is true): the implementer, the plan agent and
-//                 the test reviewer run as the agent type task-implementer, the publisher (both kinds) as
-//                 task-publisher: lean tool allowlists, no Skill tool (#332,
-//                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
-//                 options; prompts, efforts and models stay. A task editing .claude/workflows/ stays lean: its agents
-//                 read docs/workflow-scripts.md (#557). false: the general workflow agent, only with lean_reason.
-//                 .claude/agents/ in the manager's checkout must have both files (`tools\run.cmd agents-check
-//                 --launch`; an agentType with no file throws at agent()). +0 agents
-//   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
-//                 run launched before #458. It changes no prompt or option; the result carries it. Ignored with lean
-//                 on (a log line says so). +0 agents
 //   ab_review     true: the A/B of the code reviewer's model (#535, docs/decisions/2026-10-07-code-reviewer-model-ab.md).
 //                 Needs models.code, the model on trial, other than the review model (models.review, else the model in
 //                 .claude/agents/code-reviewer.md), which is the control's. A control code-reviewer runs beside the trial one with the same
@@ -145,8 +142,7 @@ export const meta = {
 // human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, the
 // review tier (tier; tier_skipped, the agents passed that it dropped, #606), with update the path it took (update,
 // #856: path update or full, the published head and the delta's size, or why the full chain; skipped), and
-// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review), and under lean false
-// lean_off (#557: how many general agents it launched, and the lean_reason); `full` points to the run's
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean, ab_review); `full` points to the run's
 // journal.jsonl, which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole
 // was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
@@ -170,10 +166,14 @@ const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
-// kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason', 'ab_review', 'checkpoint', 'tier', 'update']
-const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
+// kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields), and so does a retired one
+// (#883: bounded_waits, lean and lean_reason, the switches of what is now always on).
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'efforts', 'models', 'ab_review', 'checkpoint', 'tier', 'update']
+const RETIRED = ['bounded_waits', 'lean', 'lean_reason']
+const unknown = Object.keys(A).filter(k => !KNOWN.includes(k) && !RETIRED.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
+const retired = Object.keys(A).filter(k => RETIRED.includes(k))
+if (retired.length) log(`#${N}: retired args ignored (#883: bounded waits and the lean agent types are always on): ${retired.join(', ')}`)
 const flag = k => {
   if (A[k] !== undefined && A[k] !== null && typeof A[k] !== 'boolean') throw new Error(`issue-task: args.${k} must be true or false`)
   return A[k] === true
@@ -187,15 +187,6 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
-// On unless a launch passes false (#411): a missing or null arg is the default.
-const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
-// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
-const LEAN = flag('lean') || A.lean === undefined || A.lean === null
-// #557: lean false needs a reason, so a stray false (2026-10-06 to 08: 27 general implementers and publishers at about
-// twice the first-call tokens) is refused before any agent runs. The reason changes no prompt or option.
-if (A.lean_reason !== undefined && A.lean_reason !== null && !(typeof A.lean_reason === 'string' && A.lean_reason.trim())) throw new Error('issue-task: args.lean_reason must be a non-empty string')
-if (!LEAN && !A.lean_reason) throw new Error('issue-task: args.lean false needs args.lean_reason (a non-empty string: why the general agent, e.g. a resume of a run launched before #458; its agents stay unchanged). A task editing .claude/workflows/ runs lean: its agents read docs/workflow-scripts.md')
-if (LEAN && A.lean_reason) log(`#${N}: lean_reason ignored: lean is on`)
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
@@ -241,17 +232,14 @@ const FORCED_FULL = A.tier === 'full'
 // update (#856): a run that continues a published PR. Off, nothing below changes.
 const UPDATE = flag('update')
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
-// and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
-// that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
+// and a model are appended only where this launch sets them for the role, and the lean agent type of a role that has
+// none (a reviewer's own agentType wins), resolved through CHAIN, last.
 const LEAN_TYPES = { implement: 'task-implementer', plan: 'task-implementer', test_review: 'task-implementer', publish: 'task-publisher' }
-const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
-// #557: every agent's options are built here, as agent() is called, so this counts the general agents it launched.
-let GENERAL = 0
+const leanType = (o, role) => (!o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
 const withModel = (o, role) => {
   const m = set(MODELS, role)
   const t = leanType(o, role)
   const out = m === undefined ? o : { ...o, model: m }
-  if (!t && !o.agentType) GENERAL += 1
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
@@ -311,9 +299,9 @@ const RULE_LINES = [
 ].filter(Boolean)
 const RULES = RULE_LINES.join('\n')
 // #696: the publisher's preamble leaves out lines it never uses (about 1.5k characters; its median launch prompt was
-// 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it; lean must change only
-// the agent type, so a lean-off publisher goes without it too, and lean off is only a resume of a pre-#458 run), no Godot windows unless the run is visual (it runs check, publish and
-// CI, nothing that opens one; a visual publisher may rerun playcheck, so it keeps the line) and the game-rule line
+// 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it), no Godot windows unless the
+// run is visual (it runs check, publish and CI, nothing that opens one; a visual publisher may rerun playcheck, so it
+// keeps the line) and the game-rule line
 // (it fixes review findings, and the implementer's needs_engineer reaches it in full).
 const PUB_DROPS = [READ_RULE, GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
 const PUB_RULES = RULE_LINES.filter(l => !PUB_DROPS.includes(l)).join('\n')
@@ -379,9 +367,11 @@ const PUB = {
 // human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
 // into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
 const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
-// bounded_waits (#303): one paragraph for each agent that runs verify, publish, mutants or a CI watch, placed after the
-// steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two). `loops` (#574): the
-// implementer's inner loop may run `verify --fail-fast`; the verify it reports, and publish's, run every step.
+// Bounded waits (#303, always on; the paragraph keeps the name `(bounded_waits)` of the retired arg so that a resumed run
+// and the snapshots replay it byte for byte): one paragraph for each agent that runs verify, publish, mutants or a CI watch,
+// placed after the steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two). `loops`
+// (#574): the implementer's inner loop may run `verify --fail-fast`; the verify it reports, and publish's, run every
+// step.
 const waits = (publishes, loops = false) => [
   'Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 180 s: bound it with the shell\'s `timeout` or `wait --max`, never only with the tool\'s timeout.',
   `- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under ${SCRATCH}/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): \`cd ${WTB} && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>\` (<command>: \`verify --changed\` (#859: it lints only the changed GDScript, the repo-wide checks whole; CI lints every file), \`publish\` with the arguments given above, or \`mutants <spec.json>\`).`,
@@ -393,13 +383,9 @@ const waits = (publishes, loops = false) => [
   '- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.',
 ].filter(Boolean).join('\n')
 // #455: with bounded waits the test reviewer runs each mutants spec, and the publisher a survived mutant again, in the
-// background with a new log and `wait`, as verify and publish; bounded_waits false keeps the text of before #411.
-const MUTANTS_RUN = BOUNDED
-  ? `Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the baseline come before the first mutant): \`cd ${WTB} && tools/run.sh mutants <spec.json> > <log> 2>&1; echo "exit=$?" >> <log>\` in the Bash tool with run_in_background true and its timeout 3600000, a NEW log under ${SCRATCH}/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then \`cd ${WTB} && tools/run.sh wait <log>\` in separate calls until it finishes, as the bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a time: another mutants run in the same checkout exits 1.`
-  : 'Run ONE mutant per `tools\\run.cmd mutants <spec.json>` call (a foreground call dies at 600 s), or start it in the background and wait for it.'
-const MUTANTS_RERUN = BOUNDED
-  ? `then run that mutant again in the background (a NEW log under ${SCRATCH}/ of your scratchpad, then \`tools/run.sh wait <log>\`, as the bounded waits below say) to show it killed`
-  : 'then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed'
+// background with a new log and `wait`, as verify and publish.
+const MUTANTS_RUN = `Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the baseline come before the first mutant): \`cd ${WTB} && tools/run.sh mutants <spec.json> > <log> 2>&1; echo "exit=$?" >> <log>\` in the Bash tool with run_in_background true and its timeout 3600000, a NEW log under ${SCRATCH}/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then \`cd ${WTB} && tools/run.sh wait <log>\` in separate calls until it finishes, as the bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a time: another mutants run in the same checkout exits 1.`
+const MUTANTS_RERUN = `then run that mutant again in the background (a NEW log under ${SCRATCH}/ of your scratchpad, then \`tools/run.sh wait <log>\`, as the bounded waits below say) to show it killed`
 // The pipeline v2 schemas.
 const STRINGS = { type: 'array', items: { type: 'string' } }
 // #469 (the token audit of 2026-10-06): 3 plan agents sent 23 to 28 KB of StructuredOutput JSON that did not parse
@@ -700,7 +686,7 @@ const implement = (k, note) => agent([
   planned ? `Plan review (plan_review): a plan agent planned this task and a fresh reviewer critiqued the plan; neither changed the worktree. Build from the plan, changed where the critique is right: settle each blocker and major point before you build, and say in decisions how you settled each critique finding, or why it is wrong.\n\nThe plan, in short (the whole plan is the plan agent's comment on the issue, comment_url, which \`gh issue view ${N} --comments\` shows): ${JSON.stringify(planned.plan)}\n\nThe critique: ${JSON.stringify(planned.critique)}${mapRule(planned.plan.file_map)}` : '',
   'Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.',
   '`tools\\run.cmd verify --changed` in the worktree until green: the fast verify (#605: doctor, lint and check, a minute or two). Every test runs on GitHub CI once the publisher pushes, so never run `verify --full` or the whole `test` suite here; while you build and debug, run the tests your change touches by path (`tools\\run.cmd test <path>`).',
-  BOUNDED ? waits(false, true) : '',
+  waits(false, true),
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
   CHECKPOINT && k < HANDOFF_MAX ? handoffRule(k) : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
@@ -883,7 +869,7 @@ if (impl.verify_green) {
         `3. Write each spec (its format: \`tools\\run.cmd mutants --help\`) under ${SCRATCH}/ of your scratchpad. The rules \`mutants\` enforces: a mutant may not touch a \`class_name\` or \`extends\` line (the scratch tree is imported once, before the mutants), and its \`original\` must start exactly once on its 1-based \`line\`. ${MUTANTS_RUN} Each test run (the baseline's and the mutant's) times out after \`--seconds\` (default 300), and a timeout makes the mutant error. Exit 0: the run completed, whatever the results; 1: an invalid spec or a run that could not start or finish (a dirty worktree, another mutants run in the same checkout, a failed import, a crash): fix the spec, else report the FAIL lines in notes; 2: its scratch worktree could not be removed, or the task's \`git status\` changed during the run: run no more mutants, set exit_2 true and put what \`git worktree list\` and \`git status\` show in notes.`,
         '4. Each survived mutant is a finding: major when the fault breaks an acceptance criterion or an invariant (a leak, an unvalidated intent, a wrong rule) and no test caught it, else minor; the file and line of the mutant, the problem, and as the fix the test that would kill it. A mutant that changes no behaviour is equivalent, not a finding. At the end confirm that `git status` in the worktree is unchanged.',
       ].join('\n'),
-      ...(BOUNDED ? [waits(false)] : []),
+      waits(false),
       `${REPORT} ${JSON.stringify(digest(impl))}`,
       `Fresh reviewers found: ${JSON.stringify(reviews)}`,
       'Return the structured result: every mutant you ran in mutants, each with its result (killed, survived, error or equivalent) and exit code. A mutant that a stopped run lists as `not run` is reported as error, with why in notes.',
@@ -980,7 +966,6 @@ const brief = (stopped, pub, extra) => {
   }
   if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
   Object.assign(out, extra)
-  if (!LEAN) out.lean_off = { general: GENERAL, reason: line(A.lean_reason) }
   out.full = FULL
   return out
 }
@@ -1058,7 +1043,7 @@ const pub = stoppedByMutants
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
     ].join('\n'),
-    BOUNDED ? waits(true) : '',
+    waits(true),
     `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
     HUMAN_STEPS,
     'Return the structured result.',

@@ -1,7 +1,7 @@
 export const meta = {
   name: 'pr-rebase',
   description: 'Bring one open prime-game PR up to date with its base after a semantic conflict: rebase and reconcile, verify, publish; fresh review; fix only if blocker or major',
-  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?, lean_reason?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
+  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, efforts?, models?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); efforts and models add none.',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
     { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major)' },
@@ -19,11 +19,17 @@ export const meta = {
 //   focus   what the reviewer must check beyond the usual
 //   plan    the plan issue whose body no agent edits (default 30)
 //   manager who runs this (default 'the manager session')
+// Always on, with no switch since #883, as in issue-task.js (bounded_waits false and lean false with lean_reason only
+// served the resume of a run launched before #411 or #458; a launch that still passes one of them only logs):
+//   bounded waits (#411): the rebase and fix agents run verify and publish in the background and poll them with
+//                 `tools\run.cmd wait` (#303), wait on CI in calls of at most 180 s, and run no standalone verify
+//                 before `publish`, which verifies itself unless an identical tree was just verified green (#471).
+//   lean types    (#458): the rebase and fix agents run as the agent type task-publisher (a lean tool allowlist, no
+//                 Skill tool; #332, docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is
+//                 appended to their options.
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
-// all off by default but bounded_waits (on since #411) and lean (on since #458), as in issue-task.js: with none of them
-// and bounded_waits and lean false every agent's prompt, label, phase, schema and options are byte-identical to the
-// script before v2
-// (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
+// all off by default, as in issue-task.js: with none of them every agent's prompt, label, phase, schema and options
+// stay as they were (tools/runner/tests/test_workflows.py snapshots them), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
 // line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
@@ -33,11 +39,6 @@ export const meta = {
 //                 refuted finding is not sent to the fix agent but listed in the PR body with the reason (by the fix
 //                 agent, or by the manager when every one was refuted: the result's note says so). +1 agent per
 //                 finding checked
-//   bounded_waits true, the default (#411; missing or null is true): the rebase and fix agents run verify and
-//                 publish in the background and poll them with `tools\run.cmd wait` (#303), wait on CI in calls of
-//                 at most 180 s, and run no standalone verify before `publish`, which verifies itself unless an
-//                 identical tree was just verified green (#471), as in issue-task.js.
-//                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
 //                 netcode, second_review, skeptic, fix (default 'high'), publish. review covers the code reviewer and
 //                 is the fallback of netcode, skeptic and (after netcode) second_review; publish (#835) is the
@@ -46,18 +47,11 @@ export const meta = {
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 and no default (the model-guard ADR and its amendment A). models.publish takes only sonnet: the
 //                 trial of a Sonnet rebase and fix agent (the model-guard ADR, amendment of 2026-10-11). +0 agents
-//   lean          true (the default since #458; a missing or null arg is true): the rebase and fix agents run as the
-//                 agent type task-publisher (a lean tool allowlist, no Skill tool; #332,
-//                 docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js. Only agentType is
-//                 appended to their options. false: the general workflow agent, only with lean_reason. +0 agents
-//   lean_reason   with lean false (required then, #557): why the general agent, a non-empty string, e.g. a resume of a
-//                 run launched before #458, as in issue-task.js. It changes no prompt or option; the result carries
-//                 it. Ignored with lean on (a log line says so). +0 agents
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
 // problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
 // fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full),
-// lean_off under lean false as in issue-task.js, and `full`, a pointer to the run's journal.jsonl with every agent's
+// and `full`, a pointer to the run's journal.jsonl with every agent's
 // whole result.
 // Resume: relaunch with resumeFromRunId and the SAME args.
 
@@ -77,22 +71,16 @@ const SCRATCH = `r${PR}`
 const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
-// The pipeline v2 args, checked as in issue-task.js: a wrong value throws before any agent runs; an unknown arg logs.
-const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean', 'lean_reason']
-const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
+// The pipeline v2 args, checked as in issue-task.js: a wrong value throws before any agent runs; an unknown arg logs,
+// and so does a retired one (#883).
+const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'efforts', 'models']
+const RETIRED = ['bounded_waits', 'lean', 'lean_reason']
+const unknown = Object.keys(A).filter(k => !KNOWN.includes(k) && !RETIRED.includes(k))
 if (unknown.length) log(`#${PR}: unknown args ignored: ${unknown.join(', ')}`)
+const retired = Object.keys(A).filter(k => RETIRED.includes(k))
+if (retired.length) log(`#${PR}: retired args ignored (#883: bounded waits and the lean agent types are always on): ${retired.join(', ')}`)
 if (A.second_review !== undefined && A.second_review !== null && typeof A.second_review !== 'boolean') throw new Error('pr-rebase: args.second_review must be true or false')
 const SECOND_REVIEW = A.second_review === true
-if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounded_waits !== 'boolean') throw new Error('pr-rebase: args.bounded_waits must be true or false')
-// On unless a launch passes false (#411): a missing or null arg is the default.
-const BOUNDED = A.bounded_waits !== false
-if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
-// On unless a launch passes false (#458, the engineer's N4 (b)): a missing or null arg is the default.
-const LEAN = A.lean !== false
-// #557: lean false needs a reason, as in issue-task.js.
-if (A.lean_reason !== undefined && A.lean_reason !== null && !(typeof A.lean_reason === 'string' && A.lean_reason.trim())) throw new Error('pr-rebase: args.lean_reason must be a non-empty string')
-if (!LEAN && !A.lean_reason) throw new Error('pr-rebase: args.lean false needs args.lean_reason (a non-empty string: why the general agent, e.g. a resume of a run launched before #458; its agents stay unchanged). A PR editing .claude/workflows/ runs lean: its agents read docs/workflow-scripts.md')
-if (LEAN && A.lean_reason) log(`#${PR}: lean_reason ignored: lean is on`)
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
@@ -122,17 +110,14 @@ const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
 // Today's options keep their keys and order; an effort (reviewers only: the others carry their default) and a model
-// are appended only where this launch sets them for the role, and under lean the agent type of a role that has none
-// (a reviewer's own agentType wins), resolved through CHAIN, last.
+// are appended only where this launch sets them for the role, and the lean agent type of a role that has none (a
+// reviewer's own agentType wins), resolved through CHAIN, last.
 const LEAN_TYPES = { rebase: 'task-publisher', fix: 'task-publisher' }
-const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
-// #557: every agent's options are built here, as agent() is called, so this counts the general agents it launched.
-let GENERAL = 0
+const leanType = (o, role) => (!o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
 const withModel = (o, role) => {
   const m = set(MODELS, role)
   const t = leanType(o, role)
   const out = m === undefined ? o : { ...o, model: m }
-  if (!t && !o.agentType) GENERAL += 1
   return t === undefined ? out : { ...out, agentType: t }
 }
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
@@ -176,9 +161,9 @@ const SKEPTIC_SCHEMA = { type: 'object', properties: { refuted: { type: 'boolean
 // the manager copies into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans").
 const HUMAN_STEPS_SCHEMA = { type: 'array', items: { type: 'object', properties: { why: { type: 'string' }, command: { type: 'string' } }, required: ['why', 'command'] } }
 const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
-// bounded_waits (#303), the same text as in issue-task.js (test_workflows.py compares the two): one paragraph for each
-// agent that runs verify, publish or a CI watch, placed after the steps it replaces. No agent here gets `loops`
-// (#574, issue-task's implementer): each one publishes.
+// Bounded waits (#303, always on), the same text as in issue-task.js (test_workflows.py compares the two): one
+// paragraph for each agent that runs verify, publish or a CI watch, placed after the steps it replaces. No agent here
+// gets `loops` (#574, issue-task's implementer): each one publishes.
 const waits = (publishes, loops = false) => [
   'Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 180 s: bound it with the shell\'s `timeout` or `wait --max`, never only with the tool\'s timeout.',
   `- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under ${SCRATCH}/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): \`cd ${WTB} && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>\` (<command>: \`verify --changed\` (#859: it lints only the changed GDScript, the repo-wide checks whole; CI lints every file), \`publish\` with the arguments given above, or \`mutants <spec.json>\`).`,
@@ -226,7 +211,6 @@ const brief = (stopped, reviews, fix, extra) => {
   out.fix = fix ? { fixed: items(fix.fixed).length } : null
   if (fix) out.not_fixed = lines(items(fix.not_fixed))
   Object.assign(out, extra)
-  if (!LEAN) out.lean_off = { general: GENERAL, reason: line(A.lean_reason) }
   out.full = FULL
   return out
 }
@@ -244,7 +228,7 @@ const reb = await agent([
     `3. Run the tests the rebase and the fixes touch and \`tools\\run.cmd check\`, then \`${PUBLISH}\` with no standalone \`verify\` before it: it verifies the rebased tree, and a red verify inside it pushes nothing (fix, then publish again until green; it can fail right after a rebase that changed tools/runner: run it again).`,
     `4. Update PR #${PR}'s body (\`gh pr edit ${PR} --body-file\`): a "Rebased on ${BASE}" section with the conflicts, how each was resolved and the fixes; keep the rest. \`gh pr checks ${PR} --watch\`, at most two fix rounds. A short comment on #${N}.`,
   ].join('\n'),
-  ...(BOUNDED ? [waits(true)] : []),
+  waits(true),
   HUMAN_STEPS,
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`.`,
 ].join('\n\n'), withModel({
@@ -323,7 +307,7 @@ if (toFix.length) {
     `Task: fix the blocker and major findings of a fresh review of PR #${PR}, each with a test where it is a behaviour, plus cheap minor ones. Budget: at most about 100 tool calls. Check \`git log\` and PR #${PR}'s body first (a resumed run may have fixed some). Findings: ${JSON.stringify(reviews)}`,
     skeptic && skeptic.refuted.length ? `Skeptics refuted these blocker or major findings (skeptic): ${JSON.stringify(skeptic.refuted)}\n\nDo not fix a refuted finding unless you find the skeptic wrong; list each with the skeptic's reason in PR #${PR}'s body.` : '',
     `Run the tests the fixes touch and \`tools\\run.cmd check\`, then \`${PUBLISH}\` with no standalone \`verify\` before it (it verifies, and a red verify inside it pushes nothing: fix and publish again), add the findings and what happened to each to PR #${PR}'s body, \`gh pr checks ${PR} --watch\` (at most two fix rounds).`,
-    BOUNDED ? waits(true) : '',
+    waits(true),
     HUMAN_STEPS,
     'Return the structured result.',
   ].filter(Boolean).join('\n\n'), withModel({

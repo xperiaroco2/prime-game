@@ -5,41 +5,22 @@ function and passes `args`, `agent`, `parallel`, `phase` and `log`. Node is not 
 tests skip, except on GitHub Actions, where a missing Node fails `test_github_actions_runs_the_workflow_tests`.
 
 Snapshots: other managers launch these scripts by name from their own copies and resume runs with the same args, and a
-resume replays an agent only while its prompt and options are unchanged. So with none of the optional pipeline-v2 args
-(docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), `bounded_waits: false` and
-`lean: false` every agent's prompt, label, phase, schema and options must stay byte-identical:
-`workflow_snapshots/<script>/unbounded/` holds them for representative arg sets, captured from the scripts on
-origin/main before v2 changed them. The exceptions pass a v2 arg: `publish-clean-main` pins the publish_clean trial
-of #308, `plan-review-main` #469's plan phase, `ab-review-main` #535's A/B of the code reviewer's model,
-`checkpoint-main` #559's implementer handoffs and `publish-findings-main` and pr-rebase's `publish-sonnet-main`
-#835's Sonnet publisher trial, so the
-byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
-holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
-bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
-an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
-resume of a run launched without `lean` passes `lean: false`, since #557 with a `lean_reason`, which changes no
-prompt or option). A deliberate change of a default prompt rewrites them:
-run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
-wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote
-unbounded/ too: #413's and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan
-critique's ARCHITECTURE sections, no root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading
-list), #471's publish steps (no standalone verify before `publish`), #468's reading line (every agent's, reviewers
-too), and #470's digests (the reviewers' and the test reviewer's digest of the implementer's report, the implementer's
-summary cap, the publisher's plan summary and inline finish-task steps), and #563's Cross-area line (no relay phrase
-nor tag); they must merge between waves, with no issue-task run before its publisher, because a run that resumes after
-the merge replays its publisher fresh. #555's wait step (240 to 180 s) changed only the bounded-waits paragraph of the
-launched snapshots, between waves too, and so did #574's line on `verify --fail-fast` (the implementer's alone)
-and #572's line on reading a log by search, never whole.
-#605's fast verify rewrote both folders between waves (#606): the implementer's verify line, the default net and
-tooling test expectations, the publisher's CI step and the shared bounded-waits CI line (CI's full suite is the test
-gate, no local `verify --full`); so did #606's review tier line in the full publisher's prompt, and its `tier` in the
-return value. #818 rewrote both folders too: the read-only agents (reviewers, the plan critique, the A/B judge, the
-skeptics) gained the hooks-path and wait lines of the shared rules, and the wait line names `Start-Sleep N`; and so did
-#815's ADR line (each section of the task's ADR once per context), which every agent
-carries, the publisher too, and #834's words in it for docs/ARCHITECTURE.md.
-#469's plan phase (the plan's comment, its short form and file map) changed only `plan-review-main`, new with it. Each
-snapshot ends with the run's return value, which the rule does not cover (a resume replays agents, not the return):
-#386 made it compact and changed only that part of every snapshot, and #557 added `lean_off` to the unbounded/ ones.
+resume replays an agent only while its prompt and options are unchanged. `workflow_snapshots/<script>/<case>.txt`
+pins every agent's prompt, label, phase, schema and options for representative arg sets, as launched: bounded waits
+(#411: each agent that waits has the bounded-waits paragraph) and the lean agent types (#458: the implementing and
+publishing agents' options end in an `agentType`) are always on. Until #883 an `unbounded/` folder held the same cases
+with `bounded_waits: false` and `lean: false`, the text a resume of a run launched before #411 or #458 replayed; #883
+removed both switches and that folder once no such run could resume (the engineer's approval on #876). Most cases pass
+no v2 arg; `publish-clean-main` pins the publish_clean trial of #308, `plan-review-main` #469's plan phase,
+`ab-review-main` #535's A/B of the code reviewer's model, `checkpoint-main` #559's implementer handoffs,
+`publish-findings-main` and pr-rebase's `publish-sonnet-main` #835's Sonnet publisher trial, and `update-main` #856's
+update run. A deliberate change of a default prompt rewrites them: run `selftest` once with
+PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
+commit it with the change, and run `selftest` again without the variable. Such a change merges between waves, with no
+issue-task run before its publisher, because a run that resumes after the merge replays its publisher fresh; the
+scripts' header comments name each one (#339, #413, #456, #468, #470, #471, #605, #606, #815, #818, #834; issue-task.js
+also records #555's 180 s wait, #563's Cross-area line, #572's reading a log by search and #574's `verify --fail-fast`).
+Each snapshot ends with the run's return value, which a resume does not replay (#386 made it compact).
 """
 
 import difflib
@@ -328,11 +309,11 @@ class WorkflowTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("quick-task.js", ARGS, {"findings": [MAJOR], "queues": {"publish": [quick(["core/x.gd"])], "fix": [{"fixed": ["f"], "open": 0, "ci_green": True}]}}),
         ]
         seen: dict[str, set[str]] = {HOOKS_RULE: set(), SLEEP_RULE: set()}
@@ -371,11 +352,11 @@ class WorkflowTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS), {"paths": ["tools/x.py"]}),
         ]
         lines: set[str] = set()
         labels: set[str] = set()
@@ -407,7 +388,7 @@ class WorkflowTest(unittest.TestCase):
         # `section <adr> <§>`, never the whole file.
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         roles: set[str] = set()
@@ -472,7 +453,6 @@ class WorkflowTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, **base), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **base, **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, **base, lean=True), {"paths": ["tools/x.py"]}),
-            ("issue-task.js", dict(ARGS, **base, bounded_waits=False), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, **base), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, **base, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, **base, lean=True), {"paths": ["tools/x.py"], "findings": [MAJOR]}),
@@ -728,15 +708,13 @@ class WorkflowTest(unittest.TestCase):
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
         # case but publish-clean-main, plan-review-main, ab-review-main, checkpoint-main, publish-findings-main,
-        # publish-sonnet-main and update-main passes no v2 arg besides the bounded_waits and lean false of its unbounded/ run).
-        # Each case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411, lean since #458)
-        # and with both false (`unbounded/<case>.txt`, the text and options before #411).
+        # publish-sonnet-main and update-main passes no v2 arg). Each case runs as launched (`<case>.txt`), with
+        # bounded waits (#411) and the lean agent types (#458) always on.
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                for extra, folder in (({}, ()), (dict(OFF, bounded_waits=False), ("unbounded",))):
-                    jobs.append((name, dict(ARGS, **args, **extra), stub))
-                    files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
+                jobs.append((name, dict(ARGS, **args), stub))
+                files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), f"{case}.txt"))
         results = run_jobs(jobs)
         if UPDATE:
             for path, result in zip(files, results):
@@ -767,35 +745,24 @@ PLAYCHECK_LINE = (
     "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or "
     "`tools\\run.cmd playcheck` (both off-screen)."
 )
-# #455: how the test reviewer runs a mutants spec and the publisher a survived mutant again, with bounded waits (the
-# default: in the background, a new log, `wait`) and without (the foreground text of before #411), for ARGS.
-MUTANTS_RUN = {
-    True: (
-        "Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the "
-        "baseline come before the first mutant): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
-        '<spec.json> > <log> 2>&1; echo "exit=$?" >> <log>` in the Bash tool with run_in_background true and its timeout '
-        "3600000, a NEW log under a7/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then "
-        "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
-        "bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a "
-        "time: another mutants run in the same checkout exits 1."
-    ),
-    False: (
-        "Run ONE mutant per `tools\\run.cmd mutants <spec.json>` call (a foreground call dies at 600 s), or start it in "
-        "the background and wait for it."
-    ),
-}
-MUTANTS_RERUN = {
-    True: (
-        "then run that mutant again in the background (a NEW log under a7/ of your scratchpad, then "
-        "`tools/run.sh wait <log>`, as the bounded waits below say) to show it killed"
-    ),
-    False: "then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed",
-}
+# #455: how the test reviewer runs a mutants spec and the publisher a survived mutant again with bounded waits: in the
+# background, a new log, `wait`; for ARGS.
+MUTANTS_RUN = (
+    "Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the "
+    "baseline come before the first mutant): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
+    '<spec.json> > <log> 2>&1; echo "exit=$?" >> <log>` in the Bash tool with run_in_background true and its timeout '
+    "3600000, a NEW log under a7/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then "
+    "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
+    "bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a "
+    "time: another mutants run in the same checkout exits 1."
+)
+MUTANTS_RERUN = (
+    "then run that mutant again in the background (a NEW log under a7/ of your scratchpad, then "
+    "`tools/run.sh wait <log>`, as the bounded waits below say) to show it killed"
+)
 PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
 # lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
-# Since #557 a launch with lean false says why in lean_reason (a resume of a run launched before #458 does too).
-OFF = {"lean": False, "lean_reason": "a resume of a run launched before #458"}
 LEAN_WRITERS = ("task-implementer", "task-publisher")
 LEAN_TYPES = {
     "plan": "task-implementer",
@@ -805,9 +772,8 @@ LEAN_TYPES = {
     "rebase": "task-publisher",
     "fix": "task-publisher",
 }
-# The lean snapshots pin the options lean adds, for a launch that passes `lean: true` (every launch of the week of
-# N4 (a), 2026-10-06, before #458 made it the default). They sit beside the pre-v2 snapshots but are not part of that
-# guard: every other case's unbounded/ run passes lean false.
+# The lean snapshots pin a launch that passes `lean: true` (every launch of the week of N4 (a), 2026-10-06, before #458
+# made it the default): since #883 a retired arg, which only logs.
 LEAN_SNAPSHOT_CASES = {
     "issue-task.js": [("lean-main", {"branch": "core/7-x", "lean": True}, {"paths": ["core/x.gd"]})],
     "pr-rebase.js": [("lean-main", {"lean": True}, {"paths": ["core/x.gd"], "findings": [MAJOR]})],
@@ -1031,15 +997,6 @@ class PipelineV2Test(unittest.TestCase):
             {"skeptic": "yes"},
             {"skeptic": 0.5},
             {"second_review": "true"},
-            {"bounded_waits": "yes"},
-            {"lean": "yes"},
-            {"lean": 1},
-            # #557: lean false needs a reason; a reason is a non-empty string.
-            {"lean": False},
-            {"lean": False, "lean_reason": ""},
-            {"lean": False, "lean_reason": "  "},
-            {"lean": False, "lean_reason": 5},
-            {"lean_reason": ["x"]},
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
@@ -1069,6 +1026,42 @@ class PipelineV2Test(unittest.TestCase):
                 self.assertTrue(any("unknown args ignored" in m and "second_reveiw" in m for m in logs), logs)
                 self.assertFalse(calls(result, "review:netcode-second"))
 
+    def test_a_retired_arg_only_logs(self) -> None:
+        # #883 removed the switches of bounded waits (#411) and the lean agent types (#458), whose only use was the
+        # resume of a run launched before them (the engineer's approval on #876). A manager's launch with the old args
+        # must not throw: each one only logs, as retired rather than unknown, and the run is the one without it.
+        retired = (
+            {"bounded_waits": True},
+            {"bounded_waits": False},
+            {"bounded_waits": None},
+            {"lean": True},
+            {"lean": None},
+            {"lean": False, "lean_reason": "a resume of a run launched before #458"},
+            {"lean_reason": "x"},
+            {"bounded_waits": "yes", "lean": 1},
+        )
+        cases = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        jobs = [(name, dict(args, **extra), stub) for name, args, stub in cases for extra in ({}, *retired)]
+        results = run_jobs(jobs)
+        size = 1 + len(retired)
+        for i, (name, _, _) in enumerate(cases):
+            plain, *rest = results[size * i : size * (i + 1)]
+            self.assertIsNone(plain["error"])
+            self.assertFalse([e for e in plain["events"] if e["kind"] == "log" and "retired args" in e["message"]])
+            for extra, result in zip(retired, rest):
+                with self.subTest(workflow=name, args=extra):
+                    self.assertIsNone(result["error"])
+                    self.assertEqual(render(result), render(plain))
+                    logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
+                    said = [m for m in logs if "retired args ignored (#883" in m]
+                    self.assertEqual(len(said), 1, logs)
+                    for key in extra:
+                        self.assertIn(key, said[0])
+                    self.assertFalse([m for m in logs if "unknown args ignored" in m and any(k in m for k in extra)], logs)
+
     def test_every_agent_gets_the_reading_line(self) -> None:
         # #468: the token audit of 2026-10-06 found big code files read whole (metrics.py, guard.py, merge.py,
         # test_workflows.py), the same content read twice with nothing changed, and 88% of turns with one tool. The
@@ -1078,11 +1071,11 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS), {"paths": ["tools/x.py"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, **OFF), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS), {"paths": ["tools/x.py"]}),
         ]
         lines: set[str] = set()
         labels: set[str] = set()
@@ -1134,9 +1127,8 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **AB), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
-        # With lean (the default since #458) the implementing and publishing agents get a lean writer type (#332) and
-        # still every rule; with lean false they are general workflow agents, also with every rule.
-        jobs += [(name, dict(args, **OFF), stub) for name, args, stub in jobs]
+        # With lean (always on since #883) the implementing and publishing agents get a lean writer type (#332) and
+        # still every rule.
         for result in run_jobs(jobs):
             for event in agents(result):
                 with self.subTest(agent=event["label"]):
@@ -1232,9 +1224,8 @@ class PipelineV2Test(unittest.TestCase):
                 dict(ARGS, branch="core/7-x", test_review=True),
                 dict(core, queues={"publish": [{"published": False, "handoff_posted": True, "stopped_by_mutants": True}]}),
             ),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True, bounded_waits=False), core),
         ]
-        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck, unbounded = run_jobs(jobs)
+        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck = run_jobs(jobs)
         # The publisher's own mutants rerun exited 2: the result says so, like the test review's, with the way on.
         self.assertIn("stopped_by_mutants true", calls(pub_stuck, "publish")[0]["prompt"])
         self.assertIn("stopped_by_mutants", options(calls(pub_stuck, "publish")[0])["schema"]["properties"])
@@ -1253,21 +1244,15 @@ class PipelineV2Test(unittest.TestCase):
         test_review = calls(ok, "test-review")[0]["prompt"]
         for text in ("`tools\\run.cmd mutants --help`", "exit_2 true"):
             self.assertIn(text, test_review)
-        # #455: with bounded waits (the default) each spec runs in the background with a new log and `wait`, as
-        # verify and publish do, before the bounded-waits paragraph that gives the commands; the foreground advice of
-        # before #411 is left only to bounded_waits false, and so is the publisher's rerun of a survived mutant.
+        # #455: with bounded waits (always on) each spec runs in the background with a new log and `wait`, as verify
+        # and publish do, before the bounded-waits paragraph that gives the commands, and so does the publisher's
+        # rerun of a survived mutant; the foreground advice of before #411 is gone (#883).
         publish = calls(ok, "publish")[0]["prompt"]
         for prompt, text in ((test_review, MUTANTS_RUN), (publish, MUTANTS_RERUN)):
-            self.assertEqual(prompt.count(text[True]), 1)
-            self.assertNotIn(text[False], prompt)
-            self.assertLess(prompt.index(text[True]), prompt.index("Bounded waits (bounded_waits)"))
+            self.assertEqual(prompt.count(text), 1)
+            self.assertLess(prompt.index(text), prompt.index("Bounded waits (bounded_waits)"))
             for foreground in ("ONE mutant per", "one per call"):
                 self.assertNotIn(foreground, prompt)
-        old_review, old_publish = calls(unbounded, "test-review")[0]["prompt"], calls(unbounded, "publish")[0]["prompt"]
-        for prompt, text in ((old_review, MUTANTS_RUN), (old_publish, MUTANTS_RERUN)):
-            self.assertEqual(prompt.count(text[False]), 1)
-            self.assertNotIn(text[True], prompt)
-            self.assertNotIn("Bounded waits (bounded_waits)", prompt)
         # What `mutants` really does (#202): its exit codes, the spec rules it enforces, its per-test-run timeout,
         # and its `not run` result, which the schema's enum lacks.
         for text in (
@@ -1637,57 +1622,39 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("`spectate`", calls(unreported, "implement")[0]["prompt"])
         self.assertIn("the implementer reported no playcheck run", calls(unreported, "publish")[0]["prompt"])
 
-    def test_bounded_waits_adds_one_paragraph_to_each_agent_that_waits(self) -> None:
+    def test_each_agent_that_waits_gets_one_bounded_waits_paragraph(self) -> None:
         # #303: a tool call that blocks over 5 minutes (verify, publish, mutants, CI) costs the agent's whole context
-        # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces. #411 made
-        # it the default (a missing or null arg); with bounded_waits false every prompt is the one before (the
-        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged. #455 changed one sentence
-        # more where mutants run: the test reviewer's run of a spec and the publisher's rerun of a survived mutant.
+        # again, so each agent that runs one gets one paragraph, after the steps it replaces; the others get none.
+        # #411 made it the default and #883 removed its switch (bounded_waits false, the prompts of before #411). #455
+        # changed one sentence more where mutants run: the test reviewer's run of a spec and the publisher's rerun of a
+        # survived mutant.
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
         design = {"paths": ["docs/x.md"], "findings": [MAJOR]}
-        pairs = [
+        jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), core),
             ("pr-rebase.js", dict(ARGS), core),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True, skeptic=True), design),
         ]
-        jobs = []
-        for name, args, stub in pairs:
-            jobs += [(name, args, stub), (name, dict(args, bounded_waits=True), stub)]
-            jobs += [(name, dict(args, bounded_waits=None), stub), (name, dict(args, bounded_waits=False), stub)]
-        results = run_jobs(jobs)
         waiting, publishing = ("implement", "test-review", "publish", "rebase", "fix"), ("publish", "rebase", "fix")
         extra = {}
-        for k, (name, _, _) in enumerate(pairs):
-            default, on, null, off = results[4 * k : 4 * k + 4]
-            for result in (default, on, null, off):
-                self.assertIsNone(result["error"])
-            self.assertEqual(render(default), render(on), "bounded_waits true is the default")
-            self.assertEqual(render(null), render(on), "a null bounded_waits is the default")
-            self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
+        for k, ((name, _, _), result) in enumerate(zip(jobs, run_jobs(jobs))):
+            self.assertIsNone(result["error"])
             stopped = k == 2  # the publisher that only reports a mutants stop runs no long command
-            for before, after in zip(agents(off), agents(on)):
-                label = before["label"]
+            for event in agents(result):
+                label, prompt = event["label"], event["prompt"]
                 with self.subTest(case=k, agent=label):
-                    self.assertEqual(after["opts"], before["opts"])
                     if not label.startswith(waiting) or (stopped and label.startswith("publish")):
-                        self.assertEqual(after["prompt"], before["prompt"])
+                        self.assertNotIn("Bounded waits (bounded_waits)", prompt)
                         continue
                     # #455: the one other text bounded waits change is how mutants run, in the background with `wait`.
-                    prompt = after["prompt"]
                     if label.startswith("test-review"):
-                        self.assertIn(MUTANTS_RUN[True], prompt)
-                    for text in (MUTANTS_RUN, MUTANTS_RERUN):
-                        if text[True] in prompt:
-                            self.assertEqual(before["prompt"].count(text[False]), 1)
-                            prompt = prompt.replace(text[True], text[False])
-                    old, new = before["prompt"].split("\n\n"), prompt.split("\n\n")
-                    self.assertEqual(len(new), len(old) + 1)
-                    i = next(i for i, (a, b) in enumerate(zip(old + [None], new)) if a != b)
+                        self.assertIn(MUTANTS_RUN, prompt)
+                    self.assertEqual(prompt.count("Bounded waits (bounded_waits)"), 1)
+                    new = prompt.split("\n\n")
+                    i = next(i for i, text in enumerate(new) if text.startswith("Bounded waits (bounded_waits): this replaces how"))
                     paragraph = new[i]
-                    self.assertEqual(new[:i] + new[i + 1 :], old, "removing the paragraph gives today's prompt")
-                    self.assertTrue(paragraph.startswith("Bounded waits (bounded_waits): this replaces how"), paragraph[:120])
                     scratch = "r8" if name == "pr-rebase.js" else "a7"
                     for text in (
                         "every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt",
@@ -1756,9 +1723,9 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean", "lean_reason", "ab_review", "checkpoint", "tier", "update"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "efforts", "models", "ab_review", "checkpoint", "tier", "update"),
             ),
-            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean", "lean_reason")),
+            ("pr-rebase.js", ("second_review", "skeptic", "efforts", "models")),
         ):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             when = next(line for line in text.splitlines() if line.strip().startswith("whenToUse:"))
@@ -1769,118 +1736,47 @@ class PipelineV2Test(unittest.TestCase):
                     self.assertIn(f"{arg}?", when)
                     self.assertRegex(comment, rf"//   {arg} ")
 
-    def test_lean_adds_only_the_agent_type(self) -> None:
-        # #332: lean must change nothing but an agentType appended to the implementing and publishing agents' options,
-        # so the efforts and models a launch sets still reach them, and a run with lean false stays as it was. Since
-        # #458 lean is the default: a launch without the arg, or with null, is a lean launch.
+    def test_the_writers_run_as_the_lean_types(self) -> None:
+        # #332: lean appends an agentType to the implementing and publishing agents' options, last, so the efforts and
+        # models a launch sets still reach them; a reviewer keeps its own type. #458 made it the default and #883
+        # removed its switch (lean false, the general workflow agent): every agent of a launch has a type (#557).
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "n"}
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
-        tuned = {"bounded_waits": True, "efforts": {"implement": "medium", "publish": "low"}, "models": {"implement": AVAILABLE[0]}}
+        tuned = {"efforts": {"implement": "medium", "publish": "low"}, "models": {"implement": AVAILABLE[0]}}
         bases = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **tuned, **V2), core),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, efforts={"fix": "medium"}), core),
         ]
-        extras = ({}, {"lean": None}, OFF, {"lean": True})
-        jobs = [(name, dict(args, **extra), stub) for name, args, stub in bases for extra in extras]
-        results = run_jobs(jobs)
+        results = run_jobs(bases)
         typed = set()
-        for i, (name, _, _) in enumerate(bases):
-            plain, null, off, lean = results[len(extras) * i : len(extras) * (i + 1)]
+        for i, ((name, _, _), result) in enumerate(zip(bases, results)):
             with self.subTest(job=i, workflow=name):
-                for result in (plain, null, off, lean):
-                    self.assertIsNone(result["error"])
-                self.assertEqual(render(plain), render(lean))
-                self.assertEqual(render(null), render(lean))
-                before, after = agents(off), agents(lean)
-                self.assertEqual([e["label"] for e in after], [e["label"] for e in before])
-                for old, new in zip(before, after):
-                    self.assertEqual(new["prompt"], old["prompt"], old["label"])
-                    want = LEAN_TYPES.get(old["label"].split(":")[0])
+                self.assertIsNone(result["error"])
+                for event in agents(result):
+                    label, opts = event["label"], options(event)
+                    self.assertIn("agentType", opts, label)
+                    want = LEAN_TYPES.get(label.split(":")[0])
                     if want is None:
-                        self.assertEqual(new["opts"], old["opts"], old["label"])
+                        self.assertNotIn(opts["agentType"], LEAN_WRITERS, label)
                         continue
-                    typed.add(old["label"].split(":")[0])
-                    self.assertNotIn("agentType", options(old))
-                    self.assertEqual(options(new), dict(options(old), agentType=want), old["label"])
-                    self.assertEqual(list(options(new))[-1], "agentType", old["label"])  # appended last
+                    typed.add(label.split(":")[0])
+                    self.assertEqual(opts["agentType"], want, label)
+                    self.assertEqual(list(opts)[-1], "agentType", label)  # appended last
         self.assertEqual(sorted(typed), sorted(LEAN_TYPES))
         # The tuned launch's effort and model still reach the lean implementer and publisher.
-        lean = {e["label"]: options(e) for e in agents(results[3])}
+        lean = {e["label"]: options(e) for e in agents(results[0])}
         self.assertEqual((lean["implement:#7"]["effort"], lean["implement:#7"]["model"]), ("medium", AVAILABLE[0]))
         self.assertEqual(lean["publish:#7"]["effort"], "low")
 
-    def test_lean_false_needs_a_reason(self) -> None:
-        # #557: 14 of 37 implementers and 13 of 32 publishers of 2026-10-06 to 08 ran the general type, at about twice
-        # the first-call tokens. A launch with lean false now says why (lean_reason), so a stray false is refused before
-        # any agent runs; a resume of a run launched before #458 passes a reason and replays its old agents unchanged.
-        long = "a resume of wf_1 launched before #458, " * 10
-        cases = (
-            ("refused", {"lean": False}),
-            ("ok", OFF),
-            ("ok", {"lean": False, "lean_reason": long}),
-            ("ignored", {"lean_reason": "x"}),
-            ("ignored", {"lean": True, "lean_reason": "x"}),
-        )
-        for name in ("issue-task.js", "pr-rebase.js"):
-            jobs = [(name, dict(ARGS, **extra), {"paths": ["tools/x.py"]}) for _, extra in cases]
-            jobs.append((name, dict(ARGS, lean=False, lean_reason="z"), {"paths": ["tools/x.py"]}))
-            results = run_jobs(jobs)
-            plain = run_one(name, {"lean": False, "lean_reason": "z"}, {"paths": ["tools/x.py"]})
-            for (kind, extra), result in zip(cases, results):
-                with self.subTest(workflow=name, args=extra):
-                    logs = [e["message"] for e in result["events"] if e["kind"] == "log"]
-                    if kind == "refused":
-                        self.assertIn("args.lean false needs args.lean_reason", result["error"])
-                        self.assertIn("docs/workflow-scripts.md", result["error"])
-                        self.assertEqual(agents(result), [])
-                        continue
-                    self.assertIsNone(result["error"])
-                    if kind == "ignored":
-                        self.assertTrue(any("lean_reason ignored" in m for m in logs), logs)
-                        self.assertNotIn("lean_off", result["returned"])
-                        continue
-                    # The reason changes no prompt or option (a resume replays by prompt), and the result names it, cut
-                    # to a line.
-                    self.assertFalse([e for e in agents(result) if e["label"].split(":")[0] in LEAN_TYPES and "agentType" in options(e)])
-                    self.assertEqual([(e["prompt"], e["opts"]) for e in agents(result)], [(e["prompt"], e["opts"]) for e in agents(plain)])
-                    reason = result["returned"]["lean_off"]["reason"]
-                    self.assertTrue(extra["lean_reason"].startswith(reason.removesuffix("…").rstrip()), reason)
-                    self.assertLessEqual(len(reason), 160)
-
-    def test_lean_off_counts_its_general_agents(self) -> None:
-        # #557: the result of a run with lean false counts the general agents it launched beside its reason; a lean run
-        # has no such field (its compact result stays as it was). Claude Code records each agent's agentType in its
-        # agent-*.meta.json, which `metrics` reports per run; an agentType it cannot resolve throws at agent().
-        jobs = [
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd", "client/x.tscn"], "findings": [MAJOR]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2, **OFF), {"paths": ["core/x.gd", "client/x.tscn"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, **OFF), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
-        ]
-        results = run_jobs(jobs)
-        for (name, args, _), result in zip(jobs, results):
-            with self.subTest(workflow=name, lean=args.get("lean", True)):
-                self.assertIsNone(result["error"])
-                general = sum(1 for e in agents(result) if "agentType" not in options(e))
-                if args.get("lean", True):
-                    self.assertEqual(general, 0)
-                    self.assertNotIn("lean_off", result["returned"])
-                else:
-                    self.assertEqual(result["returned"]["lean_off"], {"general": general, "reason": OFF["lean_reason"]})
-        # plan, implement, test-review and publish; rebase and fix.
-        self.assertEqual([r["returned"]["lean_off"]["general"] for r in results[1::2]], [4, 2])
-
     def test_lean_options_match_their_snapshots(self) -> None:
-        # Like the main snapshots, each case runs as launched and with bounded_waits false (`unbounded/`): a resume of
-        # a lean run launched before #411 passes false and must replay its old prompts byte for byte.
+        # Like the main snapshots, each case runs as launched.
         jobs, files = [], []
         for name, cases in LEAN_SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                for extra, folder in (({}, ()), ({"bounded_waits": False}, ("unbounded",))):
-                    jobs.append((name, dict(ARGS, **args, **extra), stub))
-                    files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
+                jobs.append((name, dict(ARGS, **args), stub))
+                files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), f"{case}.txt"))
         results = run_jobs(jobs)
         if UPDATE:
             for path, result in zip(files, results):
@@ -2284,13 +2180,11 @@ class PublisherCopyTest(unittest.TestCase):
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="client/7-x", visual="spectate"), {"paths": ["client/hud/hud.gd"]}),
-            ("issue-task.js", dict(ARGS, branch="core/7-x", **OFF), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stopped]}}),
         ]
         dropped = [
             (READ_RULE, GODOT_LINE, GAME_RULE),
             (READ_RULE, GAME_RULE),  # visual: the playcheck line stays
-            (READ_RULE, GODOT_LINE, GAME_RULE),  # lean off: the same prompt as a lean run (#332)
             (READ_RULE, GODOT_LINE, GAME_RULE),
         ]
         for result, gone in zip(run_jobs(jobs), dropped):

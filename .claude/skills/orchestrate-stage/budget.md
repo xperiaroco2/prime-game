@@ -89,18 +89,17 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   launches.
 
 ## Launch args (N4 (b), N5 (a))
-- **`lean`** is the default of `issue-task` and `pr-rebase` since #458 (the engineer's N4 (b), 2026-10-06): pass
-  nothing, also for a task that edits `.claude/workflows/` (#557: its agents read `docs/workflow-scripts.md`).
-  `lean: false` needs `lean_reason` ([launch-args.md](launch-args.md) §3's row;
+- **The lean agent types** are always on in `issue-task` and `pr-rebase` (#458, the engineer's N4 (b), 2026-10-06;
+  #883 removed `lean: false` and `lean_reason`, the switch of a resume of a run launched before #458): pass nothing,
+  also for a task that edits `.claude/workflows/` (#557: its agents read `docs/workflow-scripts.md`;
   [lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
 - **The launch check** (#557): before each `issue-task` or `pr-rebase` launch or resume, `tools\run.cmd agents-check
   --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
-  files that differ from origin/main: pull `main` (or have it pulled) and run it again. Never pass `lean: false` to
-  get around it.
+  files that differ from origin/main: pull `main` (or have it pulled) and run it again. No arg gets around it.
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
-  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). With
-  `lean`, a clean run's publisher runs as `task-publisher` on Sonnet (the call's model wins); the pair is new, so
-  check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
+  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). A clean run's
+  publisher runs as `task-publisher` (the lean types are always on) on Sonnet (the call's model wins); the pair is
+  new, so check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
@@ -127,10 +126,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   then the engineer decides on a script default ([launch-args.md](launch-args.md) §3's row). Its up to 2 extra
   implementers count toward the approved agents per workflow: where they exceed it with `plan_review`, the launch's
   estimate says so. After each wave: the results' `handoffs` key and `metrics`' handoff table.
-- `bounded_waits` is the default since #411: pass nothing. A resume takes the args of its launch
-  ([resume.md](resume.md) §7); for a run launched before #458 without `lean`, add `lean: false` and `lean_reason: "a
-  resume of <run id>, launched before #458"` (launch-args.md §3's row), or the lean agent types change its agents and
-  the resume replays nothing past the reviews.
+- Bounded waits are always on since #411 (#883 removed `bounded_waits: false`): pass nothing. A resume takes the
+  args of its launch ([resume.md](resume.md) §7); a run launched before #411 or #458 is relaunched fresh, not resumed
+  (`bounded_waits`, `lean` and `lean_reason` only log now).
 
 ## Managers (N6 (b), N7 (a))
 - **Four managers, one per track**, each in its track's checkout with the `Track:` line in its kickoff

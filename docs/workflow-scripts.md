@@ -43,13 +43,13 @@ agent, `agent-*.jsonl` and `agent-*.meta.json` (its `agentType`); `tools\run.cmd
 ## This repo's scripts
 - `issue-task.js` and `pr-rebase.js`, launched by the orchestrate-stage skill (`docs/AGENT_WORKFLOW.md` §7.1). Each
   arg has a row `//   <arg>  ...` in the header comment and `<arg>?` in `meta.whenToUse`; `KNOWN` lists them; a
-  wrong value throws before any agent runs, an unknown arg only logs.
-- Every agent's options are built in `withModel` (via `asReviewer` for a reviewer): models, efforts and, under
-  `lean`, the agent type are appended last, so options of a launch without them stay as they were.
+  wrong value throws before any agent runs, an unknown arg only logs, and so does a retired one (`RETIRED`, #883:
+  `bounded_waits`, `lean`, `lean_reason`; bounded waits and the lean agent types are always on).
+- Every agent's options are built in `withModel` (via `asReviewer` for a reviewer): models, efforts and the lean
+  agent type are appended last, so options of a launch without them stay as they were.
 - `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents (`selftest`, part of
-  `verify`). The snapshots in `tools/runner/tests/workflow_snapshots/` pin every agent's prompt and options: each
-  case as launched, and under `unbounded/` with `bounded_waits: false` and `lean: false`, the text a resume of an
-  older run replays. A deliberate change regenerates them: run the tests once with `PRIME_WORKFLOW_SNAPSHOTS=update`,
+  `verify`). The snapshots in `tools/runner/tests/workflow_snapshots/` pin every agent's prompt and options, each
+  case as launched. A deliberate change regenerates them: run the tests once with `PRIME_WORKFLOW_SNAPSHOTS=update`,
   read the diff (only the intended lines may change), commit it with the change, then run them again without it.
   Never edit a snapshot by hand; after a rebase that touched the scripts, regenerate them.
 - The compact result (#386) stays small: `CompactResultTest` bounds it.

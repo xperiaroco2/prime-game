@@ -242,7 +242,7 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 Files in `.claude/agents/` **[applied]**. Six are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. The three lean writers are the exception: `task-implementer` and
 `task-publisher` ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332), which only `issue-task` and
-`pr-rebase` under `lean` (their default since #458) use (§7.1), and `lean-writer`
+`pr-rebase` (always since #458) use (§7.1), and `lean-writer`
 ([ADR](decisions/2026-10-06-lean-reader-and-writer-types.md), #466) for the other workflows. Each lean type (the
 writers and `lean-reader`) keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and Agent, sets no
 `effort:` and no `skills:` preload, and names in its body only `docs/` and `.claude/` paths that exist (#557). No agent
@@ -257,8 +257,8 @@ rules.
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
-| `task-implementer` | `lean` only (the default): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`, and for a workflow script `docs/workflow-scripts.md`, #557) | `opus`, effort from the workflow's role |
-| `task-publisher` | `lean` only (the default): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
+| `task-implementer` | Always (#458): the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`, and for a workflow script `docs/workflow-scripts.md`, #557) | `opus`, effort from the workflow's role |
+| `task-publisher` | Always (#458): the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 | `lean-reader` | Workflows other than `issue-task` and `pr-rebase`: finders, gatherers, scouts, lenses, skeptics and verifiers that read and report (below); Read, Grep, Glob, Bash, PowerShell, WebFetch, WebSearch | `sonnet` (a skeptic's call passes `opus`), effort from the call or the session |
 | `lean-writer` | Workflows other than `issue-task` and `pr-rebase`: the agents that write files (a synthesis, issue or comment bodies); the reader's tools plus Edit and Write | `opus` (or the call's model), effort from the call or the session |
 
@@ -294,7 +294,7 @@ rules.
   merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
   when another family served it; a request in neither list must be served by another family (the model guard).
   Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
-  printed with their label and run: a default launch's meta file has no `model` (a reviewer, a `lean` implementer
+  printed with their label and run: a default launch's meta file has no `model` (a reviewer, a lean implementer
   or publisher, or a `lean-reader` or `lean-writer`, is judged by its agent file; an implementer or publisher of
   `agentType` `workflow-subagent` inherits the session's model and is only listed, unless a model in neither list
   served it: a failure); a `models` launch is
@@ -417,13 +417,14 @@ Rules for every workflow run:
   publisher's prompt carries `finish-task`'s docs, intervention and credits steps itself.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`, `efforts`,
-  `models`, `ab_review`, `checkpoint`, `bounded_waits`, `lean`; `pr-rebase` takes `second_review`, `skeptic`,
-  `bounded_waits`, `efforts`, `models` and `lean`), all off by default but `bounded_waits` (#411) and `lean` (#458). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
+  `models`, `ab_review`, `checkpoint`; `pr-rebase` takes `second_review`, `skeptic`, `efforts` and `models`), all off
+  by default; bounded waits (#411) and the lean agent types (#458) are always on (#883 removed their switches). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
   arg) and each script's header comment, `whenToUse` and args comment (the counts, the roles and their fallbacks);
   `tools/runner/tests/workflow_snapshots/` pins the prompts and options they produce (`docs/workflow-scripts.md`).
   The kickoff's approved agent count must cover the options the manager will pass.
-- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332, #458, #557): `lean`, the
-  default, runs the implementing agents as `task-implementer` and the publishing ones as `task-publisher` (§5), with
+- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332, #458, #557): always on since #458
+  (#883 removed the `lean` switch); the implementing agents run as `task-implementer` and the publishing ones as
+  `task-publisher` (§5), with
   no desktop, MCP or Skill tools; the manager's checkout must have both agent files, which `agents-check --launch`
   checks (§5). A task that edits `.claude/workflows/` reads `docs/workflow-scripts.md` instead of the bundled
   `workflow-authoring` skill.
@@ -1610,7 +1611,7 @@ clean, else 1 with the reason: the test `publish` runs before it reuses that ver
 whose base predates `wait`, the agents run these commands in the foreground as before. Tests:
 `tools/runner/tests/test_wait.py` (a fake clock; the launch line and `wait` through Git Bash, cmd and PowerShell 5.1;
 the commands pass the permission model outside bypass). The rule is one Shell bullet of root CLAUDE.md, the commands are
-`bounded_waits` (§7.1).
+the workflow prompts' bounded-waits paragraph (§7.1).
 
 ### 11.18 An own `user://` per worktree [applied] (#182)
 Godot names `user://` after the project, so every checkout of

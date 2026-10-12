@@ -2228,7 +2228,7 @@ def stage_section(stages: list[dict]) -> list[str]:
 
 # #557: the roles a lean writer type serves (task-implementer: implementer, planner, test reviewer; task-publisher:
 # publisher, pr-rebase and its fix agent). On the general type (workflow-subagent) they cost about twice the first-call
-# tokens; after #557 a launch needs lean_reason for that, so the count should read 0.
+# tokens; since #883 no launch can ask for that (lean false is gone), so the count should read 0.
 WRITER_ROLES = ("implementer", "planner", "test-reviewer", "publisher", "pr-rebase", "pr-rebase fix")
 GENERAL_TYPE = "workflow-subagent"
 
@@ -2273,7 +2273,7 @@ def type_section(rec: dict) -> list[str]:
         "",
         f"Implementers, planners, test reviewers, publishers and pr-rebase agents on the general type "
         f"({GENERAL_TYPE}): {w['general']} of {w['all']} (a lean launch gives them task-implementer or task-publisher; "
-        "lean false needs lean_reason).",
+        "#883 removed lean false).",
         "",
     ]
 

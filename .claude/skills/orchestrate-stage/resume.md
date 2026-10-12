@@ -17,7 +17,7 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
-- A fresh relaunch is a launch like any other: it takes budget.md's args (`lean`, `models.publish_clean` and `.plan`).
+- A fresh relaunch is a launch like any other: it takes budget.md's args (`models.publish_clean` and `.plan`).
 
 ## 7. Resume after a crash, a restart or a plan limit (continued from the skill's §7)
 - A workflow throws when an agent returns nothing. Relaunch it the same way (name or `scriptPath`) with

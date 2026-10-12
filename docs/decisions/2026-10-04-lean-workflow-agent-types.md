@@ -5,7 +5,8 @@
   Accepted 2026-10-04 for an opt-in trial (default off); amended 2026-10-05 and 2026-10-06 (below); amendment
   2026-10-08 (#557) accepted, Approved by the engineer:
   [#579 comment 6062973984](https://github.com/xperiaroco2/prime-game/pull/579#issuecomment-6062973984)
-  ((b) over (a), `lean_reason` required, `agents-check --launch`; no REV token)
+  ((b) over (a), `lean_reason` required, `agents-check --launch`; no REV token); amendment 2026-10-12 (#883, below)
+  retires `lean: false`, `lean_reason` and `bounded_waits: false`
 - **Date:** 2026-10-04
 - **Deciders:** the engineer: build the token efficiency research's proposals, lean agent types once the cache-read
   probe has a result (#302 comment 5974021004); the probe found cache reads count at about 0.5-1 of list (#302
@@ -157,6 +158,13 @@ task that reads it. Decision, under (b):
   their tokens), so the check before the launch is the early one. `metrics` reports agents per role and type and the general-type writers.
 - `instructions.py`: a lean type sets no `skills:` preload, and its body names only `docs/` and `.claude/` paths that
   exist; no project skill may be named `workflow-authoring`.
+
+## Amendment 2026-10-12: the resume switches retired (#883)
+Approved by the engineer: [PR #893 comment 6122029326](https://github.com/xperiaroco2/prime-game/pull/893#issuecomment-6122029326).
+`lean: false` and `lean_reason` are retired with `bounded_waits: false`. Their only use was resuming a run launched
+before #458 or #411, and none can resume now. `issue-task` and `pr-rebase` always append the lean agent types and
+bounded waits; a launch that still passes `lean`, `lean_reason` or `bounded_waits` only gets a log line. The
+`unbounded/` snapshots and their tests are deleted (approval: #876 comment 6120919067). The text above stays as history.
 
 ## Alternatives
 - Role packs with `omitClaudeMd` and per-role instructions (#325 O5, N3 (b)): a larger change; later, after this
