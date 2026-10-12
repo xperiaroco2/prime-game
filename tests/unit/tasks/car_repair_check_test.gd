@@ -113,6 +113,19 @@ func test_a_bin_needs_its_cooldown_and_its_part() -> void:
 	)
 
 
+func test_a_cooldown_on_another_rule_than_the_give_does_not_count() -> void:
+	var mode := FixtureCarRepairModes.basic()
+	var type := FixtureCarRepairModes.type_of(mode)
+	var give: Rule = type.bins[0].actions[0]
+	var cooled := give.duplicate() as Rule
+	cooled.effects = []
+	give.conditions = give.conditions.filter(func(c: Condition) -> bool: return not c is Cooldown)
+	type.bins[0].actions = [cooled, give]
+	assert_str(_errors(mode)).contains(
+		"CarRepair car_repair: bin bin_spark_plug has no Interact rule with a Cooldown"
+	)
+
+
 func test_the_car_holds_for_a_time_and_the_panel_without_end() -> void:
 	var mode := FixtureCarRepairModes.basic()
 	var type := FixtureCarRepairModes.type_of(mode)

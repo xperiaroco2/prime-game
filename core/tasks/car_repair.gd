@@ -484,10 +484,13 @@ static func _given_by(bin: StationKind) -> ItemKind:
 	return null
 
 
-## Whether `bin`'s Interact rule holds a Cooldown (cooking's CE17: a take's `too_soon`).
+## Whether the Interact rule of `bin` that ends in a GiveItem holds a Cooldown (cooking's CE17:
+## a take's `too_soon`): the cooldown and the give are one rule.
 static func _has_cooldown(bin: StationKind) -> bool:
 	for rule: Rule in bin.actions:
-		if rule == null or rule.trigger != Intents.INTERACT:
+		if rule == null or rule.trigger != Intents.INTERACT or rule.effects.is_empty():
+			continue
+		if not rule.effects[rule.effects.size() - 1] is GiveItem:
 			continue
 		for condition: Condition in rule.conditions:
 			if condition is Cooldown and not condition.negate:
