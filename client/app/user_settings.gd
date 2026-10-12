@@ -176,18 +176,18 @@ func read() -> Error:
 		if MODE_NAMES[each] == mode_name:
 			mode = each
 	threshold = _number(file.get_value("voice", "threshold", NAN), VoiceGate.DEFAULT_THRESHOLD)
-	denoise = file.get_value("voice", "denoise", true) == true
+	denoise = _flag(file.get_value("voice", "denoise", true), true)
 	opening = str(file.get_value("voice", "opening", ""))
 	language = str(file.get_value("interface", "language", ""))
 	player_name = str(file.get_value("player", "name", ""))
-	large_text = file.get_value("interface", "large_text", false) == true
+	large_text = _flag(file.get_value("interface", "large_text", false), false)
 	var motion: Variant = file.get_value("interface", "reduced_motion", -1)
 	reduced_motion = motion as int if motion is int else -1
 	window_mode = str(file.get_value("display", "window_mode", ""))
 	var preset: Variant = file.get_value("lobby", "own_preset", {})
 	own_preset = preset as Dictionary if preset is Dictionary else {}
 	var seen: Variant = file.get_value("player", "tutorial_seen", false)
-	tutorial_seen = seen is bool and seen as bool
+	tutorial_seen = _flag(seen, false)
 	var stored: Variant = file.get_value("player", "secret", "")
 	secret = stored if ReturnKey.is_valid(stored) else ""
 	var code_stored: Variant = file.get_value("join", "last_code", "")
@@ -247,3 +247,8 @@ static func _number(value: Variant, fallback: float) -> float:
 	if value is int:
 		return float(value as int)
 	return fallback
+
+
+## A bool as stored, or `fallback` for any other type (a hand-edited file), never an error.
+static func _flag(value: Variant, fallback: bool) -> bool:
+	return value as bool if value is bool else fallback

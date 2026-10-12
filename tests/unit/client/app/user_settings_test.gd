@@ -344,3 +344,40 @@ func test_a_file_without_a_last_join_reads_as_none() -> void:
 	assert_str(settings.player_name).is_equal("Ann")
 	assert_str(settings.last_code).is_empty()
 	assert_str(settings.last_address).is_empty()
+
+
+## A bool key holding another type (a hand-edited file, #898) reads as its default, with no error:
+## denoise's is on, large text's off, the tutorial flag's not seen.
+func _assert_bool_keys_read_as_defaults_for(wrong: Variant) -> void:
+	var file := ConfigFile.new()
+	file.set_value("player", "name", "Ann")
+	file.set_value("voice", "denoise", wrong)
+	file.set_value("interface", "large_text", wrong)
+	file.set_value("player", "tutorial_seen", wrong)
+	assert_int(file.save(PATH)).is_equal(OK)
+	var settings := UserSettings.new(PATH)
+	assert_int(settings.read()).is_equal(OK)
+	assert_bool(settings.denoise).is_true()
+	assert_bool(settings.large_text).is_false()
+	assert_bool(settings.tutorial_seen).is_false()
+	assert_str(settings.player_name).is_equal("Ann")
+
+
+func test_a_string_in_a_bool_key_reads_as_the_default() -> void:
+	_assert_bool_keys_read_as_defaults_for("false")
+
+
+func test_an_int_in_a_bool_key_reads_as_the_default() -> void:
+	_assert_bool_keys_read_as_defaults_for(0)
+
+
+func test_a_float_in_a_bool_key_reads_as_the_default() -> void:
+	_assert_bool_keys_read_as_defaults_for(1.5)
+
+
+func test_an_array_in_a_bool_key_reads_as_the_default() -> void:
+	_assert_bool_keys_read_as_defaults_for([false])
+
+
+func test_a_dictionary_in_a_bool_key_reads_as_the_default() -> void:
+	_assert_bool_keys_read_as_defaults_for({"on": false})
