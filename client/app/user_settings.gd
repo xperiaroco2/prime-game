@@ -103,7 +103,12 @@ func _init(at := "") -> void:
 
 ## The settings file of this window: opened(FOLDER + file_name(PRIME_INSTANCE)).
 static func for_this_window() -> UserSettings:
-	return opened(FOLDER + file_name(OS.get_environment(INSTANCE_ENV)))
+	return opened(this_window_path())
+
+
+## Where this window's settings live: FOLDER and file_name of the runner's PRIME_INSTANCE.
+static func this_window_path() -> String:
+	return FOLDER + file_name(OS.get_environment(INSTANCE_ENV))
 
 
 ## The settings at `at`, read if the file exists, with its secret made and written on the first

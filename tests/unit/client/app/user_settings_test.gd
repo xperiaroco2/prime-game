@@ -216,9 +216,9 @@ func test_each_window_has_its_own_file() -> void:
 	assert_str(UserSettings.file_name(" 3 ")).is_equal("settings_3.cfg")
 	assert_str(UserSettings.file_name("0")).is_equal("settings.cfg")
 	assert_str(UserSettings.file_name("two")).is_equal("settings.cfg")
-	var own := UserSettings.for_this_window()
+	# The path only: for_this_window() would make and save a secret in the real settings file.
 	var expected := UserSettings.file_name(OS.get_environment(UserSettings.INSTANCE_ENV))
-	assert_str(own.path).is_equal("user://" + expected)
+	assert_str(UserSettings.this_window_path()).is_equal("user://" + expected)
 
 
 func test_large_text_reduced_motion_and_the_window_mode_round_trip() -> void:
@@ -290,10 +290,10 @@ func test_a_file_that_cannot_be_read_is_left_alone() -> void:
 	var broken := FileAccess.open(PATH, FileAccess.WRITE)
 	broken.store_string('[voice\nmode = = "push\n')
 	broken.close()
-	var before := FileAccess.get_file_as_bytes(PATH)
+	var bytes_before := FileAccess.get_file_as_bytes(PATH)
 	var settings := UserSettings.opened(PATH)
 	assert_bool(ReturnKey.is_valid(settings.secret)).is_true()
-	assert_array(Array(FileAccess.get_file_as_bytes(PATH))).is_equal(Array(before))
+	assert_array(Array(FileAccess.get_file_as_bytes(PATH))).is_equal(Array(bytes_before))
 
 
 ## Settings with no file make their own secret in memory; the key is one per target, the same on
