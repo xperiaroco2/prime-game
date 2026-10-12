@@ -97,9 +97,9 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   --launch` in the checkout you launch from. Exit 1 names a missing or invalid lean agent file, or scripts and agent
   files that differ from origin/main: pull `main` (or have it pulled) and run it again. No arg gets around it.
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
-  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). With
-  `lean`, a clean run's publisher runs as `task-publisher` on Sonnet (the call's model wins); the pair is new, so
-  check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
+  `pr-rebase`: it has no clean-run publisher and rejects the role; its rebase and fix take `publish`, below). A clean run's
+  publisher runs as `task-publisher` (the lean types are always on) on Sonnet (the call's model wins); the pair is
+  new, so check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
