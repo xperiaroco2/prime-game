@@ -155,12 +155,12 @@ func test_each_draw_comes_from_its_own_purpose() -> void:
 			FixtureCookingModes.type_of(mode).set(
 				StringName(purposes[part] as String), StringName("other_" + part)
 			)
-			var renamed := _deal_of(FixtureCookingModes.in_round(mode, [P1, P2], {}, seed_value))
+			var reshuffled := _deal_of(FixtureCookingModes.in_round(mode, [P1, P2], {}, seed_value))
 			for i in parts.size():
 				if parts[i] == part:
-					moved = moved or str(renamed[i]) != str(plain[i])
+					moved = moved or str(reshuffled[i]) != str(plain[i])
 				else:
-					assert_str(str(renamed[i])).override_failure_message(part).is_equal(
+					assert_str(str(reshuffled[i])).override_failure_message(part).is_equal(
 						str(plain[i])
 					)
 		assert_bool(moved).override_failure_message(part).is_true()
