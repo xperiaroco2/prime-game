@@ -33,7 +33,10 @@ extends RefCounted
 ## 22 since #772 added Cooking's OrderPosted (kind 73) and HerbsDealt (kind 74);
 ## 23 since #807 added the car repair's LiftChanged (kind 75) and PartNeeded (kind 76), and the
 ## host text `short_axis`.
-const VERSION := 23
+## 24 since #781 added the photo task's FilmLoaded (kind 77) and ShotTaken (kind 78) and the
+## Rejected reasons `no_film`, `no_frames_left` and `film_exposed` and the host text
+## `photo_spot_near` (the photo ADR §3.2, §3.3, PE12).
+const VERSION := 24
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -492,7 +495,42 @@ static func _events() -> Array[WireRow]:
 			36,
 			[_station("station"), WireField.when("has_kind", [_id("kind")], {"kind": &""})]
 		),
+		_down(77, &"FilmLoaded", 4, [_station("station"), _item("item")]),
+		_shot_taken(),
 	]
+
+
+## The photo camera's shot (the photo ADR §3.3): the record is the snapshot's avatar row without
+## its velocity and invulnerability, with its peer, at most MAX_AVATARS rows (15 * 33 bytes). Its
+## rows grow with the mode's players, so WireBudget holds its worst case (the photo ADR §3.3).
+static func _shot_taken() -> WireRow:
+	var shot_row := (
+		WireField
+		. record(
+			"",
+			[
+				_peer("peer"),
+				_vec3("position"),
+				_vec3("facing"),
+				WireField.bits(PackedStringArray(["downed"])),
+				WireField.maybe("held_item", WireField.Type.ITEM),
+				WireField.maybe("belt_item", WireField.Type.ITEM),
+			]
+		)
+	)
+	var shot := _down(
+		78,
+		&"ShotTaken",
+		502,
+		[
+			_station("station"),
+			_item("film"),
+			_u16("shot"),
+			WireField.list("record", shot_row, MAX_AVATARS),
+		]
+	)
+	shot.content_sized = true
+	return shot
 
 
 static func _state_and_voice() -> Array[WireRow]:

@@ -63,8 +63,8 @@ const FOR_ONE: Array[StringName] = [
 ## lying going (the bot folds it once a scenario plays Cooking, the cooking ADR CE22), ItemChanged
 ## (#771), an item turning another kind (folded the same way), and the Generator's SwitchChanged and
 ## ButtonPressed (#797), and Cooking's OrderPosted and HerbsDealt (#772: the bot folds them once
-## a scenario plays Cooking, CE22), and the car repair's LiftChanged and PartNeeded (#807; read
-## once bots play the House, its RD13).
+## a scenario plays Cooking, CE22), the car repair's LiftChanged and PartNeeded (#807; read
+## once bots play the House, its RD13), and the photo task's FilmLoaded and ShotTaken (#781).
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced",
 	&"ItemSpawned",
@@ -80,6 +80,8 @@ const TASK_EVENTS: Array[StringName] = [
 	&"HerbsDealt",
 	&"LiftChanged",
 	&"PartNeeded",
+	&"FilmLoaded",
+	&"ShotTaken",
 ]
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
 ## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
@@ -226,6 +228,7 @@ func check_bot(
 		_check_reaches_end(view, decoded, found)
 	_check_subjects(view, matched, peer, found)
 	_check_dead_events(matched, peer, found)
+	_check_records(decoded, matched, peer, found)
 	_check_teammates(view, matched, peer, found)
 	_check_snapshots(view, decoded, found)
 	_check_voice(view, decoded, peer, found)
@@ -407,6 +410,58 @@ func _check_subjects(view: PeerView, matched: int, peer: int, found: PackedStrin
 			)
 		elif subject != peer:
 			found.append("decoded %s of peer %d" % [event.event_name(), subject])
+
+
+## The record invariant (ScenarioInvariants.record_problems, the photo ADR §8) on the decoded side:
+## each ShotTaken among the first `matched` events `peer` decoded, its rows against the camera's
+## position as `peer` decoded it from StationPlaced, the mode's eye height and its PhotoTask's
+## range, the players living or downed after the tick before the shot's or after the shot's tick
+## (record_tick sees only tick ends), and their accepted positions at those two tick ends.
+func _check_records(
+	decoded: DecodedView, matched: int, peer: int, found: PackedStringArray
+) -> void:
+	var rules := _game.mode.player_rules
+	var placed: Dictionary[int, Dictionary] = {}
+	var seen := 0
+	for emitted: EmittedEvent in _game.emitted():
+		if seen >= matched:
+			return
+		if not emitted.recipients.has(peer):
+			continue
+		var mine := decoded.events[seen]
+		seen += 1
+		if mine.name == &"StationPlaced":
+			var placed_at: int = mine.fields.get("station", -1)
+			placed[placed_at] = mine.fields
+			continue
+		if mine.name != &"ShotTaken" or rules == null:
+			continue
+		var station: int = mine.fields.get("station", -1)
+		var at: Dictionary = placed.get(station, {})
+		var task := ScenarioInvariants.photo_task_of(
+			_game.mode, StringName(str(at.get("kind", "")))
+		)
+		if task == null or not (at.get("position") is Vector3):
+			found.append("it decoded a ShotTaken at station %d, no camera it decoded" % station)
+			continue
+		var position: Vector3 = at["position"]
+		var lens := position + Vector3.UP * rules.eye_height_m
+		var living := PackedInt32Array()
+		var accepted: Array[Dictionary] = []
+		for tick: int in [emitted.tick - 1, emitted.tick]:
+			for list: PackedInt32Array in [
+				_alive_at.get(tick, PackedInt32Array()), _downed_at.get(tick, PackedInt32Array())
+			]:
+				living.append_array(list)
+			accepted.append(_positions_at.get(tick, {}))
+		var rows: Array = (
+			mine.fields.get("record", []) if mine.fields.get("record") is Array else []
+		)
+		var step := ScenarioInvariants.record_step(rules)
+		for problem: String in ScenarioInvariants.record_problems(
+			rows, lens, task.range_m, step, living, accepted
+		):
+			found.append("tick %d: %s" % [emitted.tick, problem])
 
 
 ## The first `matched` events of `peer` (the ones it decoded): each one emitted at a tick after

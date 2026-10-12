@@ -149,6 +149,7 @@ func test_content_sized_rows_are_the_ones_wire_budget_checks() -> void:
 				&"StationPlaced",
 				&"ItemSpawned",
 				&"HerbsDealt",
+				&"ShotTaken",
 			]
 		)
 	)

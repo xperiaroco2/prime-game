@@ -60,6 +60,7 @@ static func worst_cases(mode: GameMode) -> Array[WireMessage]:
 		}
 		found.append(WireMessage.new(&"ItemSpawned", spawned))
 	found.append(_herbs_dealt(mode))
+	found.append(_shot_taken())
 	return found
 
 
@@ -83,6 +84,29 @@ static func _herbs_dealt(mode: GameMode) -> WireMessage:
 			largest = ids
 			largest_bytes = bytes
 	return WireMessage.new(&"HerbsDealt", {"code": largest, "beds": largest})
+
+
+## The photo camera's ShotTaken with a full record (the photo ADR §3.3): PhotoTask.MAX_RECORD rows,
+## every id at its largest and both hand and belt items set. Its size does not depend on the mode.
+static func _shot_taken() -> WireMessage:
+	var record: Array[Dictionary] = []
+	for i in PhotoTask.MAX_RECORD:
+		(
+			record
+			. append(
+				{
+					"peer": WireField.PEER_MAX - i,
+					"position": Vector3.ONE,
+					"facing": Vector3.FORWARD,
+					"downed": true,
+					"held_item": 0xFFFE,
+					"belt_item": 0xFFFD,
+				}
+			)
+		)
+	return WireMessage.new(
+		&"ShotTaken", {"station": 0xFFFE, "film": 0xFFFE, "shot": 0xFFFF, "record": record}
+	)
 
 
 static func _welcome(content: _Content) -> WireMessage:

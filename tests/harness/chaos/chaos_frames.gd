@@ -85,13 +85,20 @@ const RANDOM_CLAIMS := Claim.NEAR_ITEM
 ## took its place; 70 left it when SwitchChanged took it (#797, ButtonPressed took 71), 72 took its
 ## place; 72 left it when ItemChanged took it (#771), 73 took its place; 73 left it when OrderPosted
 ## took it (#772, HerbsDealt took 74), 75 took its place; 75 left it when LiftChanged took it (#807,
-## PartNeeded took 76), 77 took its place.
-const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 77, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## PartNeeded took 76), 77 took its place; 77 left it when FilmLoaded took it (#781, ShotTaken took
+## 78), 79 took its place.
+const UNASSIGNED: Array[int] = [0, 19, 20, 23, 26, 31, 79, 80, 95, 97, 111, 113, 127, 128, 200, 255]
 ## The host-to-client kinds a chaos peer sends the host (Shape.WRONG_DIRECTION, NetFrame's
 ## `wrong_direction`), one drawn per packet: Rejected, the Generator's events (#797) and the car
-## repair's (#807), each with valid fields.
+## repair's (#807) and the photo task's (#781), each with valid fields.
 const WRONG_DIRECTION: Array[StringName] = [
-	&"Rejected", &"SwitchChanged", &"ButtonPressed", &"LiftChanged", &"PartNeeded"
+	&"Rejected",
+	&"SwitchChanged",
+	&"ButtonPressed",
+	&"LiftChanged",
+	&"PartNeeded",
+	&"FilmLoaded",
+	&"ShotTaken",
 ]
 const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"Rejected": {"seq": CHAOS_SEQ, "reason": &"not_accepted"},
@@ -99,6 +106,24 @@ const WRONG_DIRECTION_FIELDS: Dictionary[StringName, Dictionary] = {
 	&"ButtonPressed": {"station": 1},
 	&"LiftChanged": {"station": 1, "up": true, "tick": 1},
 	&"PartNeeded": {"station": 1, "kind": &"part"},
+	&"FilmLoaded": {"station": 1, "item": 1},
+	&"ShotTaken":
+	{
+		"station": 1,
+		"film": 1,
+		"shot": 0,
+		"record":
+		[
+			{
+				"peer": 2,
+				"position": Vector3.ZERO,
+				"facing": Vector3.FORWARD,
+				"downed": false,
+				"held_item": -1,
+				"belt_item": 1,
+			}
+		],
+	},
 }
 ## The facings a hostile Throw carries (kind 17, §4.6.5.3): a plain unit facing, and the finite
 ## ones ThrowItem.unit_facing cannot normalize, so the host falls back on the last accepted claim's:
