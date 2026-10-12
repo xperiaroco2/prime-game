@@ -57,7 +57,9 @@ enum Shape {
 ## the first claim of a new baseline, checked as one tick and corrected (§7.1; both allowed).
 ## NEAR_ITEM claims the position it is given (an item resting far away, ahead of a PickUp of it):
 ## not one of the random shapes (RANDOM_CLAIMS), its caller picks the item.
-enum Claim { TELEPORT, SPEED, FUTURE_TICK, JUMPS, OTHER_EPOCH, STALE_TICK, NEAR_ITEM }
+## WALK is a step a living walk covers in one client tick: the knocked-down hostile sends it, and
+## the host takes only its look and corrects none (KE4); not a random shape either.
+enum Claim { TELEPORT, SPEED, FUTURE_TICK, JUMPS, OTHER_EPOCH, STALE_TICK, NEAR_ITEM, WALK }
 
 ## The chaos intents' seqs start here: an honest client's own seqs stay far below, so a Rejected
 ## names which intent it answers.
@@ -69,6 +71,8 @@ const CLAIM_TAG := 1000.0
 ## a sprint with the push allowance covers in several ticks, §7.1).
 const TELEPORT_M := 80.0
 const SPEED_M := 6.0
+## How far the walking claim goes in one client tick: less than a walk covers (§7.1).
+const WALK_M := 0.1
 ## How far past its last claim a "future" client tick goes: past MAX_TICK_CREDIT (200 ticks).
 const FUTURE_TICKS := 5000
 ## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
@@ -174,9 +178,15 @@ static func malformed(
 
 ## A hostile MoveClaim of `shape` from a player standing at `at` in `epoch`, whose last claim
 ## carried `last_tick`; `index` makes its tag unique. NEAR_ITEM claims `at` itself, which its
-## caller sets to a point far from where the player stands.
+## caller sets to a point far from where the player stands. `facing` is the claim's facing.
 static func claim(
-	shape: Claim, schema: WireSchema, epoch: int, last_tick: int, at: Vector3, index: int
+	shape: Claim,
+	schema: WireSchema,
+	epoch: int,
+	last_tick: int,
+	at: Vector3,
+	index: int,
+	facing := Vector3.FORWARD,
 ) -> Packet:
 	var position := at + Vector3(TELEPORT_M, 0.0, 0.0)
 	var tick := last_tick + 1
@@ -185,6 +195,8 @@ static func claim(
 	match shape:
 		Claim.SPEED:
 			position = at + Vector3(0.0, 0.0, SPEED_M)
+		Claim.WALK:
+			position = at + Vector3(0.0, 0.0, WALK_M)
 		Claim.NEAR_ITEM:
 			position = at
 		Claim.FUTURE_TICK:
@@ -203,7 +215,7 @@ static func claim(
 		"client_tick": tick,
 		"position": position,
 		"velocity": Vector3(float(index % 997), CLAIM_TAG + shape, 0.0),
-		"facing": Vector3.FORWARD,
+		"facing": facing,
 		"sprint": false,
 		"moving": true,
 		"on_floor": true,

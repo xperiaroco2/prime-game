@@ -5,6 +5,7 @@ extends GdUnitTestSuite
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
+const KILLS_THE_CREW := "res://content/scenarios/dissident_kills_the_crew.tres"
 
 
 func test_a_target_the_bot_cannot_know_fails() -> void:
@@ -557,6 +558,21 @@ class LeakyMatch:
 
 	func speakers_for(listener: int) -> PackedInt32Array:
 		return heard_by[listener] if heard_by.has(listener) else speakers
+
+
+func test_a_knocked_down_bot_s_walk_to_fails_the_step() -> void:
+	# KE4 (#846): the host takes only the look of a knocked-down claim, so a WalkTo fails while
+	# knocked down, as a dead bot's does. dissident_kills_the_crew knocks bot 2 down; bot 2 then
+	# walks towards bot 1 right after its KnockedDown.
+	var scenario := (load(KILLS_THE_CREW) as BotScenario).duplicate(true) as BotScenario
+	var walk := StepWalkTo.new()
+	walk.target = _target(ScenarioTarget.Kind.BOT)
+	walk.stop_m = 0.3
+	scenario.scripts[1].steps.insert(3, walk)
+	var runner := ScenarioRunner.play(scenario)
+	assert_str(_text(runner)).contains("bot 2 (peer 1002), step 4 (WalkTo)").contains(
+		"a knocked-down bot cannot walk"
+	)
 
 
 func _scenario(scripts: Array) -> BotScenario:

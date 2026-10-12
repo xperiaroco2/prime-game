@@ -6,7 +6,7 @@ extends RefCounted
 ## ChaosRun._is_chaos_answer takes each for a chaos claim's, so a refused honest claim of bot 4 went
 ## unseen (#674: its walk away corrected over WebRTC). So ChaosRun checks the host's answer to each
 ## of them on the host (any transport): an honest claim is never corrected. A placement's Correction
-## (PlacePlayers, a knockdown, a respawn) comes with another call, never with a claim's.
+## (PlacePlayers, a knockdown, a revive, a respawn) comes with another call, never with a claim's.
 
 ## The hostile's honest claims the movement rule accepted (its claim_tick is the claim's): a claim
 ## Match drops before the rule looks at it (a phase without claims, a stale epoch) is not counted.

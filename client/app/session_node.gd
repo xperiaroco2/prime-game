@@ -9,8 +9,8 @@ extends Node
 ## tick is then the physics step divided by 3 at 60 Hz (§7.1 "The client tick's rate"), so a
 ## claim's travel always matches the client ticks it covers. On the real clock, Godot's
 ## back-to-back catch-up steps after a hitch (or steps running late on a fast display) put 4 or
-## more steps of travel in a claim of one client tick, which the host's crawl check, with no fixed
-## slack, corrects.
+## more steps of travel in a claim of one client tick, beyond what the host's walk check's small
+## fixed slack allows, so it corrects.
 ##
 ## After a hitch longer than Godot's catch-up (8 physics steps a frame), the steps would trail the
 ## real clock for good, and with them the host's stamina ledger, so the next sprint-jump would

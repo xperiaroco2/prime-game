@@ -118,7 +118,7 @@ hello deadline.
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
 | Pregame (§3.6) | the deal has run; its end tick: now + 3 s; frozen: no movement, no snapshots, no win check | nothing (a `MoveClaim` is dropped); leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646); downed: `MoveClaim` (the crawl, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4); `FlightTicks` flies the thrown items (#646) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5), `Throw` (#646); downed: `MoveClaim` (its look only, §7.1.7), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots; its end tick: now + 3 s (#212) | `ReturnToLobby` (host; a shortcut no screen offers); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -680,7 +680,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map, lobby_name)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). The optional `lobby_name` (#214, §3.5) is text (else `bad_args`, which only a `core/` caller can reach: the wire's type is `name`), never refused for its content: `LobbyName.clean` keeps 20 characters, "" is the default again. All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (its facing only, the rest ignored and never corrected, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5); beside a two-handed hand item a one-handed picked item goes onto the belt instead, a full belt's item put down at the feet first (the cooking ADR's CE21, #771) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1.10) |
@@ -739,11 +739,11 @@ wire schemas of the events and the snapshot are §4.3.
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
 | `KnockedDown` | peer, where it lies (the floor below its last accepted position) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
 | `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2) or it gives up (`GiveUp`, M4-4), or a living or downed player is killed at once (`LifeRules.kill`, #806: no `KnockedDown` before it); no event names a killer or a cause. The body stays until its player respawns or leaves |
-| `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses and it is held in place |
+| `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses (it holds still as every knocked-down player does, §7.1.7) |
 | `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
-| `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); no `Correction` (it was held in place) |
+| `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); a `Correction` follows (a placement where it lay, with a new epoch: its client claimed no place while knocked down, #728 KE6) |
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
-| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1.7); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3); a revive: where it lay, with a new epoch, after `Revived` (#728 KE6). None at a death (the dead send no claims), and none to a knocked-down player for any claim (its claims carry only its look, KE4) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents) and, when a win condition reported the `won`, its id as the reason with `numbers` {`time`: the round's play time in whole seconds, when the clock ran} (#548); no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
@@ -1344,7 +1344,7 @@ Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record,
 - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
   and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
   physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
-  of travel in a claim of one client tick, past the crawl's allowance. So the client tick follows physics steps
+  of travel in a claim of one client tick, past the movement check's allowance. So the client tick follows physics steps
   on purpose, and `SessionNode` checks that the physics rate is a multiple of `Ticks.RATE`. After a hitch longer
   than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
   with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
@@ -1425,8 +1425,8 @@ splits the steps from the stand-in and has `ScenarioBot` learn from (name, field
 `to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
 `ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
 §4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
-the flat levels (2j), at the crawl speed with no sprint while downed, claims every client tick, counts its jumps
-and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+the flat levels (2j), claims every client tick, counts its jumps
+and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2), as one of a knocked-down bot does (it holds still, #728 KE4). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
 A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
 wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
 run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
@@ -1467,7 +1467,7 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   bot moved, and the bot then advanced by every client tick since its last move: after a stall of the process
   the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
   (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
-  allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
+  allowed, or 0.15 m crawled (the crawl went with #728) against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
   honest bot (7 of 12 loaded runs, 2026-10-04). The chaos runner, a `BotsRunner`, claims after the moves too (its
   hostile acts after the honest claims of the frame went out, as before). The perf and playcheck runners keep
   claiming as they poll, so their bots move one client tick at most per frame (a stall slows them down).
@@ -1546,8 +1546,8 @@ refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   `dropped_at_the_loading_deadline --instances 3` failed once in four runs (2026-10-01), then passed 3 times. The
   ENet runs checked to pass: `dissident_kills_the_crew` (the `verify` step), `late_join_cancels_the_countdown`
   and `crew_delivers_every_package`. The bot's own placement check does not depend on polls: core/ emits one
-  `Correction` after each placement of a player and after its knockdown (M4-2), and the bot expects exactly that
-  one; a death sends none.
+  `Correction` after each placement of a player, after its knockdown (M4-2) and after its revive (KE6), and the bot
+  expects exactly that one; a death sends none.
 
 #### 4.6.4 The information-leak test (§5)
 Compares what each bot b decoded with `view_of(b)`:
@@ -1723,8 +1723,9 @@ sections named:
    ones: `ChaosFrames.HONEST_MOVED_TICKS`), so the shape alone calls for the answer (a mask outside the u32 the
    encoder refuses, and core corrects; bits older than the covered ticks count for nothing: both
    `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
-   the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
-   position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
+   the sender alone when the phase takes its claims, the epoch is its own and the sender is not knocked down, else
+   nothing (§7.1, E15); to a knocked-down sender none for any claim, its walking ones included (#728 KE4: the host
+   takes only its look); the position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
    a new baseline, checked as one tick and corrected: either answer passes. **The freeze** (#649, the zone task
    ADR's freeze row, ZE10): bot 4 stands in the zone a second, then its client sends no claim for 190 ticks while
    it polls on (`ChaosRun.claim_clients` holds them while `ChaosScenario.FREEZE` is its step, in every run), and
@@ -1844,7 +1845,10 @@ before the codec could see a trailing byte). Kind 17, `Throw`: its facing from `
 vector, zero, a 1e-30 vector and a 1e38 vector); since the base mode's rule (#646) Round takes it from the living, so
 the hostile's `Throw` there, with the empty hand its bot always has, is refused `empty_hand` (`HoldsItem` comes before
 `OverFloor`), and `not_accepted` in every other phase and from the downed and the dead; non-finite facings are the
-codec's, class 1, #644. A new intent gets its refusals in
+codec's, class 1, #644. Kind 1, `MoveClaim`: knocked down, half the hostile's claims are `ChaosFrames.Claim.WALK`
+(a step of `WALK_M`, 0.1 m, less than a walk covers in one client tick, #728), and its claims carry a zero facing so
+the look the host takes of a knocked-down claim (KE4) changes nothing the honest bots decode; class 5 expects no
+`Correction` for any of them. A new intent gets its refusals in
 `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
 in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it. Since #214 the hostile's
 `ChangeSettings` also carries a `lobby_name`: a non-host rename is caught by the oracle's `not_accepted` check of
@@ -2162,7 +2166,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (a bot falling straight down claims (0, -1, 0)): `MovementRule` stores a unit facing, keeps the last one when a
   claim's has no direction and clamps the pitch to ±89° (built in M4-2, §7.1), and every camera, head or basis the client builds from a
   remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
-- **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and crawl speed come from
+- **Numbers:** the controller's speeds, jump height, capsule, eye and step height and stamina come from
   the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
   speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
@@ -2185,9 +2189,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   M4-7's two-client push tests assert every frame that the server holds the pose set at -80 and that a shape query on
   the living layer, as the push search's, finds the capsule there and not where it was a frame before (an
   `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
-- **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
-  colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
-  checks use it), and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
+- **The knocked-down hold still** (M4-9; the crawl went with #728, KE4): a downed controller moves nothing, with no
+  gravity, no sprint and no jump (`PlayerController._hold` every physics step), and claims where it lay with its
+  look; it keeps the standing capsule for collision, and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
   which no push search looks at: the downed collide with no player.
 
 #### 4.7.7 Built in M4-7 (#143), movement on the network
@@ -2206,7 +2210,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the model drops leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
-  (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
+  (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown`, `Respawned` (M4-4) and `Revived` (#728 KE6); a death sends no
   `Correction`; a later rule that places a player with a `Correction` adds its event there).
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
@@ -2242,7 +2246,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   | Life | Controller | Camera | Inputs | HUD |
   |---|---|---|---|---|
   | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | clock, own role, health, stamina, mic, hand and belt (#489, §4.7.37; the destination and task progress moved to the world marker and the map) |
-  | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
+  | Downed | holds still where it lay and keeps its items; its claims carry its look only, which the host takes and never corrects (#728 KE4) | third person above the body | look, give up | the knockdown countdown (paused while raised), who raises them |
   | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Watching: <name>" (§4.7.37) and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
@@ -2285,9 +2289,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   a sound plays muffled, not cut (one ray from the ears as it starts, M5-7; §6.5.7 Occlusion).
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
-  the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands
-  up where it lay, in first person; a revive sends no `Correction` (M4-4: the raise held the downed player where
-  the host has it).
+  the markers carry no facing); the spectate camera and the lift music stop. After `Revived` and its `Correction` (a
+  placement where it lay, #728 KE6) the controller stands up there, in first person, keeping its look (only the own
+  respawn levels it, #191).
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
@@ -2325,10 +2329,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
 #### 4.7.9 Built in M4-9 (#145), the life states in 3D
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
-  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, crawling, with its lying
+  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, holding still (#728), with its lying
   mesh (`Lying`); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
-  its step), so a dead player never stands back up and walks before its `Respawned`. `held` (from
-  `ClientModel.raiser_of(own) != 0`) makes a downed controller stand still, spend nothing and claim where it lay.
+  its step), so a dead player never stands back up and walks before its `Respawned`. `held` (the
+  raise's hold, from `ClientModel.raiser_of(own) != 0`) went with #728: every downed controller holds still.
   Any life change clears a pending jump. `RemotePlayerBody` lies down while its player is downed (its head hidden,
   the capsule shape kept standing), wears a pulsing white shell while its avatar has the `invulnerable` flag, hides
   its meshes while watched from its eyes (`set_watched`), and knows its `peer`. `LifeLooks` holds D8's greybox
@@ -2370,7 +2374,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   from the arm's end past a short wall but not from the eye is hidden),
   `tests/integration/client/world/body_views_test.gd`, and over the loopback (`NetPair.with_life()`, which adds the
   raise, the give-up and a 2 s respawn on `steps_room`'s new `respawn` markers) `life_network_test.gd`: a raised
-  downed joiner trying to crawl holds still and gets 0 `Correction`s (58 without the hold) and stands up
+  downed joiner holds still, is never corrected (its revive's `Correction` is a placement, #728 KE6) and stands up
   invulnerable in first person; a joiner who gives up stays off the living however it is driven, watches the host
   from its eyes with the music, follows it to the camera above its body when it goes down, and respawns at a marker
   in first person, invulnerable on the host's screen, with no `Correction`; `life_raise_network_test.gd` (#352: the
@@ -4898,15 +4902,15 @@ The local player's controller (#46, `client/player/`):
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
   the only copy of it on the client, and follows each `SelfStatus`: off the network as it arrives, on it claim by
   claim from the claim the status names (#155, §7.1.5 Speed).
-- A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) crawls as the host's crawl check
-  allows (§7.1.7 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
-  lying mesh), gravity, floor, steps and slopes at `PlayerRules.crawl_speed_mps`, with no sprint and no jump;
-  `StaminaSource` refuses both to the downed, and their stamina regenerates as usual. There is no flight (the
-  engineer's correction of 2026-09-30, #46). While a raise holds it (`held`, from `ClientModel.raiser_of(own) != 0`)
-  it stands still and claims where it lay. A dead player has no collision layer, no mesh and no physics step. `Game`
-  sets `life` from its own life fold and `held` from the raise fold; any life change drops a pending jump. A downed
-  crawl over the loopback, holding sprint and asking to jump, is corrected 0 times, also on a clock that stands still
-  and then jumps, and up the fixture's steps (`player_network_test.gd`, `player_controller_downed_test.gd`).
+- A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) holds still where the host has it and
+  only looks (§7.1.7, #728 KE4): every physics step moves nothing, with no gravity, no sprint and no jump
+  (`PlayerController._hold`), the living's capsule left standing under a lying mesh, and its claims carry where it
+  lay and its look; `StaminaSource` refuses sprint and jump to the downed, and their stamina regenerates as usual.
+  There is no flight (the engineer's correction of 2026-09-30, #46). The crawl (M4-2) and the raise's hold (`held`)
+  went with #728. A dead player has no collision layer, no mesh and no physics step. `Game` sets `life` from its own
+  life fold; any life change drops a pending jump. A knocked-down joiner holding the move keys over the loopback
+  stays where the host has it with 0 `Correction`s, also on a clock that stands still and then jumps
+  (`player_network_test.gd`, `player_controller_downed_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
   only; the dead are on no layer; a living player finds the
@@ -4915,8 +4919,8 @@ The local player's controller (#46, `client/player/`):
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
   height and glides over the edge until it snaps onto the top. While it glides, `move_and_slide`'s own snap is off
-  and a snap that lands below the ledge's top is undone: at a slow walk or the crawl it would catch the edge under
-  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads). What
+  and a snap that lands below the ledge's top is undone: at a slow walk it would catch the edge under
+  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads, before #728). What
   blocks it must be a ledge: a walkable blocker (a ramp, a low edge under the rounded bottom) is left to
   `move_and_slide`, and a ledge whose top is steeper than `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
   lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
@@ -4946,7 +4950,7 @@ range rule (reach, hit zone, circle, voice) reads those, never a position inside
 claiming to stand next to what it wants to grab.
 
 #### 7.1.3 Stamina
-Belongs to `core/` (only the living sprint; the downed regenerate, see §7.1.7 The crawl). The client
+Belongs to `core/` (only the living sprint; the downed regenerate, see §7.1.7). The client
 predicts its own from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the
 network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up to which stamina is
 settled. A claim settles the ticks it covers (its client-tick delta, never past the current host tick), each with
@@ -4969,7 +4973,7 @@ a client that never spends stamina, or spaces its claims out to regenerate betwe
 Are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
 step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
 the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost; a
-downed player's new jump is always corrected (§7.1.7 The crawl). Until the next landing
+downed player's jumps are ignored, never corrected (§7.1.7, #728 KE4). Until the next landing
 the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
 corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
 it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
@@ -5002,10 +5006,8 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   without its own movement gets the walk speed, since only movement pays for sprint),
   for the living plus `sprint_speed` for at most `PUSH_TICKS` (10) covered ticks while another living player's
   last accepted position is within `MovementRule.push_reach()` of the claim's path (§7.1.6 Pushing apart; #76);
-  for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M`
-  (0.05 m) per claim, or
-  for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
-  crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
+  (the downed are not checked: §7.1.7); plus `DISTANCE_SLACK_M`
+  (0.05 m) per claim.
   No tick of sprint goes uncharged (#155). From #76 to #155 the host granted "the sprint's last tick", one covered
   tick more at sprint speed after a sprinting claim, which a modified client alternating its flags turned into
   about eight times the sprint endurance. #155 replaced it with exact data, so three honest cases pass without it:
@@ -5096,10 +5098,10 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
 - The claim's age (#647; ZE10 of the [zone task ADR](decisions/2026-10-09-m7-zone-task.md)):
   `MovementRule.claim_age(state, peer, now)` is how many host ticks old the player's last accepted claim is at host
   tick `now` (0 in its own tick), from the record's `claimed_tick`, or -1 when the position is no claim of the
-  current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn), until the epoch's first
+  current epoch: no record, or a placement since (`PlacePlayers`, a knockdown, a respawn, a revive), until the epoch's first
   accepted claim (a refused or malformed first claim leaves it -1, though its `Correction` bumps the epoch; the
   record's `accepted_tick`, which the push reach reads, counts the placement too); a refused claim's `Correction`
-  keeps the last one's age, and a revive keeps the epoch. The zone task counts a player only while it is at most
+  keeps the last one's age. The zone task counts a player only while it is at most
   `PUSH_TICKS` (10), the lost-claim tolerance the push allowance already accepts: a client that stops claiming (a
   freeze, or a modified client that goes on polling) stops counting 10 ticks after its last claim. Its companion
   `MovementRule.credit_gain(state, peer, now)` is how many ticks of credit the player stores at `now` above the
@@ -5156,39 +5158,45 @@ two-client tests (`player_controller_push_test.gd`) run with that delay. *Open (
 decides whether that is enough; the options are a larger limit (deeper visible overlap) or drawing the pushed
 capsule moved ahead on the pusher's client (display only).
 
-#### 7.1.7 The crawl (vision revision 1; M4-2, #138, replacing the ghosts' movement)
-A downed player's claims get the
-movement checks with the crawl's bounds: the allowed travel is `PlayerRules.crawl_speed_mps` times the ticks covered
-(plus a tenth of that, and 1 mm for floats), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
-(plus `STEP_CLEARANCE` and the slope allowance) above the last landing. The downed are never in the sprint state and
-spend no stamina; it regenerates as usual. They collide with the level client-side and with no player. `PickUp`,
-`PutDown` and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead
-send no intent that is accepted (§3.1). The knockdown places the downed player where it stood, on the floor below
-its last accepted position, with a new epoch and a `Correction` (`LifeRules.knock_down`), even on the floor. The
-movement rule treats that like a placement: walking claims in flight are dropped as stale instead of failing the
-crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
-the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
-`tests/unit/life/life_rules_test.gd`. #728's design (§7.1.18, not built) removes the crawl: a knocked-down player
-will not move.
+#### 7.1.7 The knocked-down hold still (#728's KE4, 728a #846; the crawl of vision revision 1, M4-2 #138, went)
+A knocked-down player cannot move: of its claim the host takes the facing only (a unit vector, as for every claim)
+and ignores its position, velocity, jumps and sprint, with no movement check and no `Correction`; its covered ticks
+are settled as standing still, so its stamina regenerates as usual and it never sprints (`MovementRule._take_look`).
+A taken claim still advances the claim bookkeeping (`player.claim_tick`, and the credit it covers spent), so a claim
+whose tick does not rise is dropped, an older twin (§7.1.15) sets no older facing, a run of claims ahead of the
+host's ticks meets the past-credit drop, and `SelfStatus`'s `claim_tick` names the last claim taken. A malformed
+claim, a negative client tick and a claim past its credit, each corrected from the living, are dropped from a
+knocked-down sender with no `Correction` and its facing not taken (`MovementRule._refuse`): the host takes no place
+from it to correct. A claim of an old epoch is dropped as stale, as from anyone. The look matters: a dead player
+watching a knocked-down target looks through its look. Prevents: a client that still crawls (an old build, a
+hostile peer) moving its body, and a `Correction` storm while #728's later parts move the body. `PickUp`, `PutDown`
+and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead send no
+intent that is accepted (§3.1). The knockdown places the downed player where it stood, on the floor below its last
+accepted position, with a new epoch and a `Correction` (`LifeRules.knock_down`), even on the floor: claims in flight
+are dropped as stale, and its first claim as downed starts a new client-tick baseline there. A revive is a
+placement too (KE6, §7.1.8). A death sends no `Correction`: the dead claim nothing. Tests:
+`tests/unit/movement/movement_rule_downed_test.gd` (a far claim moves nothing and is not corrected, the facing, the
+regeneration, the malformed, negative-tick, stale and older-twin claims, the past-credit drop),
+`tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`, `tests/unit/life/life_rules_test.gd`.
 
 #### 7.1.8 The raise (vision revision 1, Revive; M4-4, #140)
 The host checks the raise's conditions when `Raise` arrives
 and again every tick while it runs (a channel, §9.4): the target is downed, it lies within the pick-up's reach
 (2 m) of the raiser's last accepted position, both feet, and the line from the raiser's eye (`Items.eye_of`) to
 just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
-sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
-raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
-`MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
-started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
-`Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
-just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
-anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
-it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a
-stop restarts only a knockdown the raise paused, of a player still downed).
+sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. The raised
+player holds still as every knocked-down player does (§7.1.7); until #728 a raise held it in place on its own (the
+engineer's answer 8 on PR #133, `Channel.held_at` and `MovementRule.held_against`), which went with the crawl. A
+teammate who restarts a raise just short of its time again and again keeps a downed package carrier alive (the
+pause) but cannot carry it anywhere; giving up is the way out. A completed raise is a placement (#728 KE6):
+`Revived`, then a `Correction` where the player lay with a new epoch (its client claimed no place while knocked
+down), then its `SelfStatus`; its next claim starts a new baseline there and is checked at walking speed. Tests:
+`tests/unit/life/raise_test.gd` (also: claims move it neither while a raise runs nor after; a stop restarts only a
+knockdown the raise paused, of a player still downed).
 A hit of the raiser stops the raise because the raise's effect stops on a hit (`ChannelEffect.stops_on_hit`, true
 by default; #805). The raise is no longer the only channel: a hold at a station (`HoldStation`, the
-[car repair ADR](decisions/2026-10-10-car-repair-task.md)'s RE1 to RE5, #805) is one too. It targets no player, so it
-holds nobody in place (`ChannelEffect.holds_target` is false for it). Instead, its rule's `AtStation` checks the holder's feet
+[car repair ADR](decisions/2026-10-10-car-repair-task.md)'s RE1 to RE5, #805) is one too. It targets no player:
+its rule's `AtStation` checks the holder's feet
 against the station's cylinder every tick. A timed hold (the fit) also fails that re-check when the holder's last
 accepted claim is more than `MovementRule.PUSH_TICKS` old, when there is no claim since a placement, or when the
 holder stored more than `PUSH_TICKS` of credit since (`MovementRule.claim_age`, `credit_gain`). This is the zone
@@ -5448,7 +5456,7 @@ reads, do not move.
 - **Proposed issues** (in the ADR, for the M7 backlog): 727a (`core/`, `net/`: the flag, the eye, the capsule, the
   numbers, `crouch_maps`), 727b (the local crouch), 727c (others' crouch: pose, voice, the quiet steps).
 
-#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; not built)
+#### 7.1.18 The knockdown reworked (designed in #728, answered by the engineer; "Still" built in 728a, #846, the rest not built)
 The engineer decided (#728, his answer A in its comment 6095620279) that the knockdown stays as it is (§7.1.7's
 knockdown, §7.1.8's raise, `LifeTicks`, the give-up), except that a knocked-down player cannot move and cannot talk,
 and its body falls as a ragdoll that a hit can send flying. He answered every question of the
@@ -5468,10 +5476,11 @@ with no level rule that closes tables; and a player raised from a body launched 
 so the host's body rests inside it) is pushed out by its own client, the car's accepted quirk (its ADR's RE8 and
 RD6 (a)), with nothing new in code. That push starts with the feet inside the footprint box, deeper than the 0.4 m
 from its edge RD6 (a) accepts, so 728e's test records it and stops if the host corrects it more than once.
-- **Still.** A knocked-down player's `MoveClaim` moves nothing: the host takes its facing only (a spectator watching
-  a knocked-down target looks through it) and ignores the rest, with no movement check and no `Correction` (KE4).
-  §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's hold go; `revive` sends a `Correction`
-  (KE6). Prevents: an old or hostile client crawling, and a correction storm while the host moves the body.
+- **Still** (built in 728a, #846: §7.1.7, §7.1.8). A knocked-down player's `MoveClaim` moves nothing: the host
+  takes its facing only (a spectator watching a knocked-down target looks through it) and ignores the rest, with no
+  movement check and no `Correction` (KE4). §7.1.7's crawl, its slack, `PlayerRules.crawl_speed_mps` and §7.1.8's
+  hold went; `revive` sends a `Correction` (KE6). Prevents: an old or hostile client crawling, and a correction
+  storm while the host moves the body.
 - **Mute.** Nothing changes: §6.3 already routes no voice from a speaker who is not living, its client sends none,
   and the HUD's mic (#489, open) is to show off while knocked down (KE10).
 - **The body's motion** (KE1 (b), KD10 (A)). Only the strike that knocks down launches the body (KD1; the strike's
@@ -5947,7 +5956,7 @@ names the facts that do.
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1.12); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `ThrowItem` | the hand item leaves the actor's eye (`Items.eye_of`) into a flight (§7.1.16): the claimed facing normalized, else the last accepted claim's, times `speed_mps`, without the actor's velocity; the fallback rest below its feet is asked once (`Items.fallback_rest`). Only in an intent's rule, after `HoldsItem` and `OverFloor` (ModeCheck requires both); over no floor anyway it logs an error and throws nothing. A phase that accepts such an intent lists `FlightTicks` | `speed_mps` (1 to 40), `gravity_mps2` (1 to 40), `radius_m` (0.02 to 0.5 and at most `ThrowItem.largest_radius` of the mode's `PlayerRules`), `longest_flight_s` (0.5 to 30); each defaults to 0, so the data sets it; the bounds are placeholders, "not a decision" | `ItemThrown` (everyone); the flight's rest: `ItemPlaced` (thrown) through `FlightTicks` | 37c (#643, `core/items/throw_item.gd`) |
 | `Strike` | picks the targets as in §7.1.10 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order, skipping one no longer alive at its turn (#806, a defensive check behind the kill queue: what an earlier target's damage set off downed or killed it); at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
-| `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
+| `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1.8): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) (it holds still, as every knocked-down player does, §7.1.7). Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health`, a placement (#728 KE6) | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `Correction` and `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
 | `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports `outcome` in the current phase with `argument` (a button in the level, say; the tutorial's `NextStage` rule reports `next`, `docs/design/tutorial.md` §2.4); the row's actions read the argument as `MatchContext.outcome_argument` (null when empty). The first outcome of a step wins (§3.1). Mode check: an outcome named (the existing check wants a row for it in every phase that accepts the rule's intent). As a row's action it is a row error (`Match.report_outcome`) | `outcome`, `argument` (an id, empty for none; unused by the tutorial) | an outcome (§3.1), which reaches no peer (§9.2); no event of its own | T1 (#599, `core/match/report_outcome.gd`, `tests/unit/match/report_outcome_test.gd`); 2a built the outcome reporting it calls |
@@ -6058,8 +6067,8 @@ Settings:
   decision"); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
-  maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed crawl at 1 m/s (`crawl_speed_mps`, 0.1 to the
-  walk speed) for a knockdown of 10 s (`knockdown_s`, 1 to 120; vision revision 1's numbers, M4-2, the bounds
+  maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed hold still (§7.1.7) for
+  a knockdown of 10 s (`knockdown_s`, 1 to 120; vision revision 1's numbers, M4-2, the bounds
   placeholders, "not a decision"); the dead respawn after 30 s (`respawn_s`, 1 to 300) at a `respawn` marker with
   no living or downed player within 1 m (`respawn_free_m`, 0 to 5) and are invulnerable for 3 s (`invulnerable_s`,
   0 to 30; M4-3, the bounds placeholders); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
@@ -6092,7 +6101,7 @@ Loading and End, the join rules, the fit check, the mode check with layouts and 
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
 2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
 accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; M4-2 (#138)
-LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
+LifeTicks before it, the crawl speed (gone since #728) and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
 between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. #649 (M7-Z3) added Hold the zone to
@@ -6218,7 +6227,7 @@ Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a bas
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped, a target dead at its turn skipped, #806), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
-`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life transition, the crawl, the
+`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life transition, the downed holding still, the
 dead, the §3.4 order, a death of a player who is not downed refused; M4-2), `tests/unit/life/respawn_test.gd` (the
 respawn at a free marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's
 flag; M4-3), `tests/unit/life/kill_test.gd` (the instant kill from living and downed, invulnerable or not, and the kill queue: its order, its skips, no kill after the step's outcome or in a transition; #806), `tests/unit/content/mode_check_kills_test.gd` (`TaskType.kills()` needs `LifeTicks` with a `Respawn`), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
@@ -6322,8 +6331,8 @@ mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_w
 What it does: the `sprint` flag of `MoveClaim` and its per-tick mask `sprint_ticks` (#155), settled by the movement
 rule for every tick a claim covers (§7.1), with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick
 costs only when the claim's `moving` flag and `moved_ticks` say the player gave movement input and it moved
-horizontally. The downed never sprint: they crawl at 1 m/s (§7.1.7
-The crawl, M4-2).
+horizontally. The downed never sprint: they hold still (§7.1.7,
+#728 KE4).
 Why not a part: a rule fires once per trigger, while sprint cost and speed apply to every covered tick of a
 continuous claim. A mechanic that changes movement (a faster role, a slowing item) needs a movement modifier that the
 movement rule reads: a new kind, v1 (§10).
@@ -6335,7 +6344,7 @@ Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`; 
 #### 9.5.16 Jump (not a part in v0)
 What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1.4 with the numbers in
 `PlayerRules`: 1 m for 10 per jump.
-The downed never jump: a new jump of theirs is corrected (§7.1.7 The crawl, M4-2).
+The downed never jump: their jumps are ignored, never corrected (§7.1.7, #728 KE4).
 Why not a part: as for sprint.
 Visible to: as for sprint.
 Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
@@ -6600,7 +6609,7 @@ told. One format runs in two runners.
 | `ReturnToLobby` | (the host's bot) sends `ReturnToLobby`, the shortcut: End returns everyone by itself after 3 s (#212), which `WaitFor(PhaseChanged, lobby)` waits for | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
-| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (at the crawl speed with no sprint while downed, M4-2; a dead bot cannot walk and fails the step), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
+| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (a dead bot cannot walk and fails the step, M4-2, nor a knocked-down one, which holds still, #728), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Throw(towards, pitch_deg)` | faces the target flat, tilts that facing up by `pitch_deg` (-90 to 90) and sends `Throw`; standing on the target with a pitch other than ±90 fails the step (a zero facing would throw along the last one) | its `ItemThrown` of the item it held arrives (a `WaitFor` of `ItemPlaced` with cause `thrown` waits for the rest) |
@@ -6633,8 +6642,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
   last `SelfStatus` says sprint is available in the core runner, and over the network while the bot's own
-  `PredictedStamina`, settled by its claims, says so (#155; a downed bot never: it crawls), and stops exactly
-  `stop_m` short. A dead bot claims nothing at all, standing or walking (M4-2).
+  `PredictedStamina`, settled by its claims, says so (#155), and stops exactly
+  `stop_m` short. A dead bot claims nothing at all, standing or walking (M4-2), and a knocked-down bot's `WalkTo` fails the step (#728).
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings and sets in one `ChangeSettings` from bot 1 after them (`BotScenario.setup_change()`, in both runners).
@@ -6650,7 +6659,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
-  (M4-2) or its own respawn (M4-3) fails (a revive sends none, M4-4), because an honest bot is never corrected, so
+  (M4-2), its own respawn (M4-3) or its own revive (#728 KE6) fails, because an honest bot is never corrected, so
   every scenario also checks the
   host's movement rules against honest movement. A field that
   names a player is written as the bot's number; the runner maps it to the peer id (the core runner: bot 1 is
@@ -6703,7 +6712,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
   `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (rewritten in M4-2: a
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
-  `not_accepted`, and it crawls; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
+  `not_accepted`; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
   step, and over WebRTC `bots-webrtc`, §4.6.7), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
@@ -6748,7 +6757,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   knocks it down; both crew bots expect `ZoneProgress` with `counting` false within 0.5 s of the `KnockedDown`, and
   the downed one no `counting` true for 3 s, while the dissident still stands outside, so only the knockdown can stop
   it (a plant that let the downed count failed the scenario); a crew bot raises it from 1.8 m, outside the zone and
-  inside the raise's 2 m reach; the zone counts again from its `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
+  inside the raise's 2 m reach; the zone counts again from its first claim after the `Revived` and fills; nobody dies) and `dissident_works_a_zone_alone` (Delivery banned:
   a dissident alone in the zone fills it, ZD3, and the crew wins). All three run in `bots`, the leak test.
 
 ### 9.8 The extensibility test

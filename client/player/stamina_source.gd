@@ -5,8 +5,8 @@ extends RefCounted
 ## each physics step. `PredictedStamina` predicts with `core/`'s rule (`StaminaLedger`, 2d) and
 ## follows `SelfStatus` (M4-7, E24).
 ## `downed` is the player's life state (the controller's life): only the living sprint and
-## jump, so a source refuses both to the downed, and their stamina regenerates as usual (M4-2's
-## crawl check, StaminaLedger).
+## jump, so a source refuses both to the downed, and their stamina regenerates as usual (they
+## hold still, KE4; StaminaLedger).
 
 ## Whether the player may be in the sprint state this step, given whether it was last step.
 @abstract func can_sprint(was_sprinting: bool, downed: bool) -> bool

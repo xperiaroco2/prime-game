@@ -66,7 +66,10 @@ func test_a_refused_or_malformed_first_claim_after_a_placement_leaves_it_minus_o
 		ctx.mode = game.mode
 		ctx.world = FlatWorldQuery.new()
 		ctx.tick = game.ticked_through() + 1
+		# The revive is the placement (KE6): a knocked-down sender's refused claim is dropped
+		# with no Correction (KE4), so the living player it stands up as is the one refused.
 		LifeRules.knock_down(ctx, P1)
+		LifeRules.revive(ctx, P1, 50)
 		var corrected := FixtureMoves.corrections(game, P1).size()
 		if refused.has("far"):
 			FixtureMoves.step(game, P1, EAST * 30)

@@ -5,13 +5,12 @@ extends CharacterBody3D
 ## wall: walking into a living player pushes them (the engineer's decision of 2026-09-30, #46).
 ## This controller moves only its own body: pushing slows it, and a player that pushes into it
 ## moves it out of the overlap. Its `life` follows the own ClientModel's (Game, M4-9): a downed
-## player crawls with the same capsule, gravity, floor and steps at `rules.crawl_speed_mps`, never
-## sprints and never jumps, as the host's crawl check allows (§7.1 The crawl, M4-2); its stamina
+## (knocked-down) player holds still where the host has it and only looks (KE4, the knockdown ADR
+## of 2026-10-10): it moves nothing, never sprints or jumps, and claims its look only; its stamina
 ## regenerates as usual. It is on the downed layer, pushes nobody and is pushed by nobody, and
 ## shows its lying mesh (its collision capsule stays standing, as the host's floor checks have it).
-## While a raise holds it (`held`) it stands still and claims no displacement (M4-4's hold). A dead
-## player has no body: no layer, no mesh, and the game stops its physics step. The origin is at
-## the feet.
+## A dead player has no body: no layer, no mesh, and the game stops its physics step. The origin is
+## at the feet.
 ##
 ## On the network (M4-7) every physics step ends with what it claims: `attach()`ed to a
 ## ClientSession, it calls `set_motion` with its position, velocity, the camera's 3D look vector as
@@ -72,13 +71,10 @@ var mouse_captured := func() -> bool: return Input.mouse_mode == Input.MOUSE_MOD
 var stamina: StaminaSource
 ## The session it claims to; null offline (the dev room, the controller's own tests).
 var session: ClientSession
-## The player's life as the own ClientModel tells it (set_life): living, downed (the crawl) or
-## dead (no body).
+## The player's life as the own ClientModel tells it (set_life): living, downed (it holds still and
+## looks) or dead (no body).
 var life := ClientModel.Life.ALIVE:
 	set = set_life
-## True while a raise holds this downed player (ClientModel.raiser_of): it stands still, so every
-## claim is where the host holds it (M4-4, the engineer's answer 8 on PR #133).
-var held := false
 
 var _sprinting: bool = false
 ## Height of the floor surface the body last stood on: what a step's height is measured from.
@@ -124,7 +120,7 @@ func _physics_process(delta: float) -> void:
 		rules.eye_height_m,
 		rules.step_height_m / tuning.view_catch_up_seconds * delta
 	)
-	if held and is_downed():
+	if is_downed():
 		_hold(delta)
 	else:
 		_walk(delta)
@@ -204,9 +200,9 @@ func look_level() -> void:
 
 ## Switches the body to `value`'s: the living and the downed collide with the level only (the
 ## living push each other apart in `_push_apart`, not through collisions); the downed are on the
-## downed layer, which no push looks at (Q6), and keep the capsule, gravity, floor and steps of
-## the living, with the lying mesh shown. The dead are on no layer and show nothing. Any change
-## stops the body.
+## downed layer, which no push looks at (Q6), and keep the standing capsule of the living (they
+## hold still, KE4), with the lying mesh shown. The dead are on no layer and show nothing. Any
+## change stops the body.
 func set_life(value: ClientModel.Life) -> void:
 	life = value
 	collision_mask = PhysicsLayers.WORLD
@@ -227,7 +223,7 @@ func set_life(value: ClientModel.Life) -> void:
 	jump_requested = false
 
 
-## Whether the player is downed: it crawls.
+## Whether the player is downed: it holds still and looks.
 func is_downed() -> bool:
 	return life == ClientModel.Life.DOWNED
 
@@ -294,8 +290,8 @@ func _paint_lying() -> void:
 	(mesh.material as StandardMaterial3D).albedo_color = BodyColours.of(own)
 
 
-## One step held by a raise: no movement and no gravity (it lies on the floor where the host holds
-## it), and nothing spent, so the claim is where it lay; stamina regenerates as usual.
+## One downed step: no movement and no gravity (it lies on the floor where the host has it, KE4),
+## and nothing spent, so the claim is where it lay and carries its look; stamina regenerates.
 func _hold(delta: float) -> void:
 	velocity = Vector3.ZERO
 	_sprinting = false
@@ -319,8 +315,7 @@ func _walk(delta: float) -> void:
 	var speed := _speed()
 	var steering := _horizontal_wish()
 	var wish := steering * speed
-	if not is_downed():
-		wish = _push_apart(wish, delta)
+	wish = _push_apart(wish, delta)
 	velocity.x = wish.x
 	velocity.z = wish.z
 	var jumped := false
@@ -351,7 +346,6 @@ func _walk(delta: float) -> void:
 	_moving = not steering.is_zero_approx()
 	_jumped = jumped
 	var moved_itself := moved > MOVE_EPSILON and _moving
-	# The downed never sprint or jump (`stamina` refuses both), so their stamina regenerates.
 	stamina.report(delta, _sprinting and moved_itself, jumped, is_downed())
 
 
@@ -416,10 +410,8 @@ func _follow_claims() -> void:
 		predicted.follow_claims()
 
 
-## Metres per second on the ground this step: the living walk or sprint, the downed crawl.
+## Metres per second on the ground this step: the living walk or sprint.
 func _speed() -> float:
-	if is_downed():
-		return rules.crawl_speed_mps
 	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
 
 
@@ -545,7 +537,7 @@ func _cross_step(moved: float) -> void:
 		floor_snap_length = rules.step_height_m
 		apply_floor_snap()
 		# A snap below the ledge's top caught its edge under the rounded bottom, which the body
-		# would then rest on for good at a slow walk or the crawl: glide on at the crossing height.
+		# would then rest on for good at a slow walk: glide on at the crossing height.
 		landed = is_on_floor() and global_position.y >= _step_top - STEP_EPSILON
 		if not landed:
 			global_position = lifted

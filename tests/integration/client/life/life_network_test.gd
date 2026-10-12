@@ -5,9 +5,10 @@ extends GdUnitTestSuite
 ## wish fields and the life view's actions (headless runs have no input):
 ## - the host's player aiming at a downed joiner sees the raise cue in its Aim, as a dissident too
 ##   (#497);
-## - a downed joiner raised by the host's player holds still while it tries to crawl and is never
-##   corrected; it stands up living, in first person, invulnerable for the mode's time, with the
-##   look it had (the knockdown's Correction and the revive keep it, #191);
+## - a downed joiner raised by the host's player holds still while it holds the move keys and is
+##   never corrected; it stands up living, in first person, invulnerable for the mode's time, with
+##   the look it had (the knockdown's and the revive's Corrections keep it, #191), and the revive's
+##   Correction is a placement (KE6);
 ## - a downed joiner gives up on F held (G no longer), through real key events, and F in the round
 ##   readies nobody (#211);
 ## - a joiner who gives up dies: its controller stays off the living (no layer, no step) however
@@ -90,8 +91,9 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(_pair.host.ui.hud.aim.visible).is_true()
 	assert_str(_pair.host.ui.hud.aim_label.text).is_equal(HudText.raise_cue(key))
 	var lay := downed.global_position
+	var placed := session.placements
 	_pair.host.life().press_raise()
-	assert_bool(await _until(func() -> bool: return downed.held)).is_true()
+	assert_bool(await _until(func() -> bool: return session.model.raiser_of(joiner) != 0)).is_true()
 	assert_int(_pair.host.life().countdowns.raising()).is_equal(joiner)
 	# The raiser's HUD bar (#489): the downed player's own raise bar's value, at any one tick; the
 	# raised player's HUD shows none. Game._process writes the HUD (#222).
@@ -110,7 +112,7 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(raised_screen.raise_bar.is_visible_in_tree()).is_true()
 	assert_bool(raised_screen.give_up.visible).is_false()
 	assert_bool(raised_screen.bleed.visible).is_false()
-	# Raised, the joiner tries to crawl away with sprint and jumps: it stays where it lay.
+	# Raised, the joiner holds the move keys with sprint and jumps: it stays where it lay (KE4).
 	downed.move_input = Vector2(0.0, 1.0)
 	downed.sprint_held = true
 	var revived := func() -> bool: return session.model.is_alive(joiner)
@@ -126,9 +128,10 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	await _pair.frames(5)
 	assert_int(session.corrections).is_equal(0)
 	assert_int(_pair.host.client().corrections).is_equal(0)
+	# The revive's Correction (KE6) is a placement, not a correction.
+	assert_int(session.placements).is_equal(placed + 1)
 	# Standing up where it lay, in first person, invulnerable for the mode's 3 s.
 	assert_bool(downed.is_living()).is_true()
-	assert_bool(downed.held).is_false()
 	assert_bool(downed.get_camera().current).is_true()
 	assert_float(_pitch(downed)).is_equal_approx(0.7, 0.0001)
 	assert_float(angle_difference(downed.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)

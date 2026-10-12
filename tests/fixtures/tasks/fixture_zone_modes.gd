@@ -156,7 +156,7 @@ static func hold(game: Match, peers: Array[int], ticks: int = 1) -> void:
 		FixtureModes.run_ticks(game, 1)
 
 
-## `peer` walks to `to` in steps of at most `step_m` (a downed player crawls 0.05 m a tick), one
+## `peer` walks to `to` in steps of at most `step_m`, one
 ## claim and one tick each, while `others` hold where they are. Returns the ticks it took.
 static func walk(
 	game: Match, peer: int, to: Vector3, others: Array[int] = [], step_m: float = STEP_M

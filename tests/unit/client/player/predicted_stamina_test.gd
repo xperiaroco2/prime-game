@@ -75,7 +75,7 @@ func test_each_self_status_resets_the_prediction_within_bounds() -> void:
 
 
 func test_the_downed_never_sprint_or_jump_whatever_their_stamina() -> void:
-	# M4-2's crawl check: only the living sprint, and a downed player's new jump is corrected.
+	# Only the living sprint and jump; the knocked-down hold still and spend none (KE4).
 	var stamina := PredictedStamina.new(_rules)
 	assert_bool(stamina.can_sprint(false, true)).is_false()
 	assert_bool(stamina.can_sprint(true, true)).is_false()
@@ -105,7 +105,7 @@ func test_by_claims_it_holds_the_ledgers_number_and_state_after_every_claim() ->
 	stamina.follow_claims()
 	var player := _ledger_player(Ticks.thousandths(_rules.stamina))
 	# [covered, sprint, moved itself, downed]: a sprint until empty and on, a walk holding sprint
-	# below the start threshold, standing holding sprint, a claim covering a freeze, the crawl.
+	# below the start threshold, standing holding sprint, a claim covering a freeze, a downed claim.
 	var claims: Array[Array] = []
 	for i: int in 120:
 		claims.append([1, true, true, false])

@@ -96,16 +96,16 @@ func test_a_player_who_left_hears_and_is_heard_by_nobody() -> void:
 		assert_bool(rule.hears(game.state, P3, peer)).is_false()
 
 
-func test_a_downed_player_moving_away_stops_hearing_at_living_m() -> void:
+func test_a_downed_player_stops_hearing_a_living_one_walking_away_at_living_m() -> void:
 	var game := FixtureVoiceMatch.in_round(_round_voice(), [P1, P2])
 	var p1 := game.state.player(P1)
 	var downed := game.state.player(P2)
 	downed.life = PlayerState.Life.DOWNED
 	var heard_on: Array[bool] = []
 	var within_on: Array[bool] = []
-	# It crawls away at the crawl speed: 0.05 m a tick (1 m/s).
-	for i in 280:
-		FixtureMoves.step(game, P2, EAST * 0.05, {"moving": true})
+	# It lies still (KE4); P1 walks away from it, 0.2 m a tick.
+	for i in 70:
+		FixtureMoves.step(game, P1, EAST * 0.2, {"moving": true})
 		heard_on.append(FixtureVoiceMatch.heard(game, P2) == [P1])
 		within_on.append(p1.position.distance_to(downed.position) <= LIVING_M)
 		assert_array(FixtureVoiceMatch.heard(game, P1)).is_empty()

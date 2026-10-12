@@ -130,7 +130,7 @@ Open questions:
 Decided by the engineer (#727, 2026-10-10): every player can crouch by holding Ctrl, and Shift while crouched moves
 a bit faster. A crouched player is lower, so it passes under things a standing one does not: the raised car in the
 garage, under which the fitter works crouched (car repair, #688). The art has or will have a crouch animation. A
-knocked-down player cannot crouch (today it crawls lying down; once #728's rework is built it cannot move at all).
+knocked-down player cannot crouch: since 728a (#846) it cannot move at all, it only looks around.
 
 His answers to the crouch design (PR #752, comments 6097878317 and 6098097098; the options and the reasons are in the
 [crouch ADR](decisions/2026-10-10-crouch.md)):
@@ -584,9 +584,9 @@ cannot see who is under the car.
 - As for the Generator (#679): a dissident plays the same character under the same rules, so either side may hold the
   lift, let it go or fit a part; busy hands: a player holding a two-handed item, such as a package, cannot use the
   lift panel or the car (a take at the shelf still works, above).
-- The drop kills a knocked-down player under the car too. The knockdown is being reworked in #728 (its design in PR
-  #754): once it lands, a knocked-down player cannot move or talk (hears, but cannot speak) and falls as a ragdoll;
-  until then it crawls slowly, as the accepted vision revision 1 says.
+- The drop kills a knocked-down player under the car too. The knockdown is reworked in #728 (its design in PR #754):
+  since 728a (#846) a knocked-down player cannot move, it only looks around; the rest of the rework adds that it cannot
+  talk (hears, but cannot speak) and falls as a ragdoll.
 
 **Hidden information.** Nobody at the lift panel sees who is under the car, and nothing tells anyone who let go, unless
 they saw it. It is hidden by sight, as packages are: every client still receives every player's position, and the

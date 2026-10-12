@@ -7,9 +7,9 @@ extends GdUnitTestSuite
 ## (#191), and play goes on without another. The host's own placement at the round's start is one
 ## placement and no correction, the claims of the old epoch still in flight draw none, and the
 ## placed joiner snaps on the host's screen. The host sees the joiner where it walked, through the
-## snapshots and SnapshotBuffer. A downed joiner crawls from the KnockedDown on (Game's own life
-## fold) and its crawl (M4-2's crawl check) is corrected 0 times: on flat floor, on a clock that
-## stands still and then jumps (the claims count physics steps, SessionNode), and up the steps.
+## snapshots and SnapshotBuffer. A knocked-down joiner holds still from the KnockedDown on (Game's
+## own life fold, KE4) and, holding the move keys, stays where the host has it with 0 corrections:
+## also on a clock that stands still and then jumps (the claims count physics steps, SessionNode).
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The top of the fixture's stairs.
@@ -141,41 +141,15 @@ func test_the_round_placement_is_no_correction_and_the_placed_player_snaps() -> 
 	await _pair.stop()
 
 
-func test_a_downed_crawl_is_never_corrected() -> void:
-	await _crawl_on_the_floor()
+func test_a_knocked_down_joiner_holding_the_move_keys_stays_with_no_correction() -> void:
+	await _hold_the_keys_while_down()
 
 
-func test_a_downed_crawl_on_an_uneven_clock_is_never_corrected() -> void:
+func test_a_knocked_down_joiner_on_an_uneven_clock_stays_with_no_correction() -> void:
 	# The clock stands still for a frame and then advances two: on the real clock a claim of one
-	# client tick would then hold 4 physics steps of crawl, past the host's crawl allowance.
+	# client tick would then hold 4 physics steps.
 	_pair.uneven = true
-	await _crawl_on_the_floor()
-
-
-func test_a_downed_crawl_up_the_steps_is_never_corrected() -> void:
-	assert_bool(await _pair.start()).is_true()
-	assert_bool(await _pair.to_round()).is_true()
-	var player := _pair.client.player()
-	var session := _pair.client.client()
-	var joiner := _pair.peer_of(_pair.client)
-	# From the round spot to the foot of the stairs, then face them (+X).
-	assert_bool(await _pair.walk_to(player, Vector3(5.0, 0.0, -2.0))).is_true()
-	player.move_input = Vector2.ZERO
-	player.look(angle_difference(player.rotation.y, -PI / 2.0), 0.0)
-	await _pair.frames(10)
-	_pair.knock_down(_pair.client)
-	assert_bool(await _until_downed(player)).is_true()
-	await _pair.frames(5)
-	player.move_input = Vector2(0.0, 1.0)
-	await _pair.frames(270)
-	player.move_input = Vector2.ZERO
-	await _pair.frames(20)
-	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DOWNED)
-	assert_float(player.global_position.x).is_greater(8.0)
-	assert_float(player.global_position.y).is_equal_approx(TOP_Y, 0.02)
-	assert_int(session.corrections).is_equal(0)
-	assert_int(session.placements).is_equal(2)
-	await _pair.stop()
+	await _hold_the_keys_while_down()
 
 
 func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
@@ -227,11 +201,11 @@ func _until(done: Callable) -> void:
 		await get_tree().process_frame
 
 
-## The host knocks the joiner down in the round. Game's life fold makes its controller crawl
-## (its life) from the KnockedDown on; it crawls holding sprint and asking to jump all
-## along: the host's crawl check (M4-2) never corrects it, and the knockdown's Correction counts
-## as a placement.
-func _crawl_on_the_floor() -> void:
+## The host knocks the joiner down in the round. Game's life fold makes its controller hold still
+## (its life) from the KnockedDown on; it holds the move keys and sprint and asks to jump all
+## along: it stays where the host has it, the host takes only the look of its claims (KE4) and
+## corrects none, and the knockdown's Correction counts as a placement.
+func _hold_the_keys_while_down() -> void:
 	assert_bool(await _pair.start()).is_true()
 	assert_bool(await _pair.to_round()).is_true()
 	var player := _pair.client.player()
@@ -245,6 +219,8 @@ func _crawl_on_the_floor() -> void:
 	await _pair.frames(5)
 	var lay := player.global_position
 	player.sprint_held = true
+	# It looks aside while down: the host takes the look (KE4) and draws it.
+	player.look(angle_difference(player.rotation.y, 1.0), 0.0)
 	for i: int in 180:
 		player.jump_requested = true
 		await _pair.frames(1)
@@ -252,18 +228,18 @@ func _crawl_on_the_floor() -> void:
 	player.sprint_held = false
 	await _pair.frames(20)
 	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DOWNED)
-	assert_float(player.global_position.distance_to(lay)).is_between(2.5, 3.2)
-	assert_float(player.global_position.y).is_equal_approx(lay.y, 0.01)
+	assert_vector(player.global_position).is_equal(lay)
 	assert_bool(player.is_sprinting()).is_false()
 	assert_int(session.corrections).is_equal(0)
 	assert_int(session.placements).is_equal(2)
-	# The host draws the downed joiner where it crawled.
+	# The host draws the downed joiner where it lay.
 	var seen := _pair.host.avatars().body_of(joiner)
 	assert_vector(seen.global_position).is_equal_approx(player.global_position, Vector3.ONE * 0.05)
+	assert_float(angle_difference(seen.rotation.y, 1.0)).is_equal_approx(0.0, 0.01)
 	await _pair.stop()
 
 
-## Waits until Game made `player` crawl; false after 10 frames.
+## Waits until Game made `player` downed; false after 10 frames.
 func _until_downed(player: PlayerController) -> bool:
 	for i: int in 10:
 		if player.is_downed():

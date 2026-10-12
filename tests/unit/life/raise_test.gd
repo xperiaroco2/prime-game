@@ -1,13 +1,13 @@
 extends GdUnitTestSuite
 ## The raise, the revive and the give-up (ARCHITECTURE §3.4, §7.1, §9.4; vision revision 1, Revive
 ## and Give up; the engineer's answers 3, 4, 7 and 8 on PR #133): a living player raises a downed
-## one by holding E for the raise time (RaiseDowned, a channel); the knockdown pauses meanwhile and
-## the downed player is held in place; every cancel stops it with RaiseStopped, which names no
-## cause, and the knockdown runs on from where it paused; a completed raise revives the downed
-## player where it lay with the revive health and 3 s of invulnerability, its stamina kept; a
-## downed player may give up and dies at once. Driven by FixtureCombatModes.raising(): the knife
-## (50 damage, 1.5 m, 30°), a raise of 3 s (60 ticks) within 2 m and in sight, 50 revive health,
-## a knockdown of 10 s (200 ticks).
+## one by holding E for the raise time (RaiseDowned, a channel); the knockdown pauses meanwhile;
+## the downed player's claims move nothing (KE4); every cancel stops it with RaiseStopped, which
+## names no cause, and the knockdown runs on from where it paused; a completed raise revives the
+## downed player where it lay (a placement: its Correction, KE6) with the revive health and 3 s of
+## invulnerability, its stamina kept; a downed player may give up and dies at once. Driven by
+## FixtureCombatModes.raising(): the knife (50 damage, 1.5 m, 30°), a raise of 3 s (60 ticks) within
+## 2 m and in sight, 50 revive health, a knockdown of 10 s (200 ticks).
 
 const P1 := 1
 const P2 := 2
@@ -42,7 +42,8 @@ func test_a_raise_pauses_the_knockdown_and_revives_where_it_lay_after_its_time()
 	assert_int(downed.life_deadline).is_equal(-1)
 	assert_int(downed.knockdown_left).is_equal(-1)
 	assert_vector(downed.position).is_equal(lies)
-	assert_int(downed.epoch).is_equal(epoch)
+	# A placement (KE6): a new epoch, so the claims it sent while downed are dropped as stale.
+	assert_int(downed.epoch).is_equal(epoch + 1)
 	assert_int(downed.invulnerable_until).is_equal(game.ticked_through() + INVULNERABLE_TICKS)
 	assert_object(Channels.of_actor(game.state, P3)).is_null()
 	assert_array(Array(game.diagnostics)).is_empty()
@@ -53,6 +54,10 @@ func test_the_raise_events_reach_everyone_and_the_revived_player_gets_its_status
 	# The knockdown's tick, with the hit's SelfStatus.
 	FixtureModes.run_ticks(game, 1)
 	var own_seen := game.view_of(P2).events.size()
+	var others := {}
+	for peer: int in [P1, P3]:
+		others[peer] = FixtureMoves.corrections(game, peer).size()
+	var lies := game.state.player(P2).position
 	FixtureCombatModes.raise(game, P3, P2)
 	FixtureModes.run_ticks(game, RAISE_TICKS)
 	for peer: int in [P1, P2, P3]:
@@ -63,10 +68,18 @@ func test_the_raise_events_reach_everyone_and_the_revived_player_gets_its_status
 		assert_array(revived).has_size(1)
 		assert_dict(revived[0].to_dict()).is_equal({"peer": P2})
 		assert_array(FixtureCombatModes.received(game, peer, &"RaiseStopped")).is_empty()
-	# No Correction and no new epoch: the raise held it where the host has it.
+	# Its Correction after Revived (KE6), to the revived player only: a new epoch where it lay, so
+	# its client stands up where the host has it, not where its last walking claim was.
 	assert_array(FixtureItemModes.names_after(game, P2, own_seen)).is_equal(
-		[&"RaiseStarted", &"Revived", &"SelfStatus"]
+		[&"RaiseStarted", &"Revived", &"Correction", &"SelfStatus"]
 	)
+	var corrections := FixtureMoves.corrections(game, P2)
+	var placed := corrections[corrections.size() - 1]
+	assert_dict(placed.to_dict()).is_equal(
+		{"epoch": game.state.player(P2).epoch, "position": lies, "velocity": Vector3.ZERO}
+	)
+	for peer: int in [P1, P3]:
+		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
 	var statuses := FixtureMoves.statuses(game, P2)
 	assert_int(statuses[statuses.size() - 1].health).is_equal(REVIVED)
 
@@ -381,7 +394,7 @@ func test_round_accepts_the_raise_from_the_living_and_the_give_up_from_the_downe
 	)
 
 
-func test_the_downed_player_is_held_in_place_while_a_raise_runs() -> void:
+func test_the_downed_players_claims_move_it_neither_while_a_raise_runs_nor_after() -> void:
 	var game := _downed()
 	var downed := game.state.player(P2)
 	var lies := downed.position
@@ -389,21 +402,20 @@ func test_the_downed_player_is_held_in_place_while_a_raise_runs() -> void:
 	FixtureModes.run_ticks(game, 1)
 	FixtureCombatModes.raise(game, P3, P2)
 	var corrected := FixtureMoves.corrections(game, P2).size()
-	# A claim where it lies passes; a crawl step is corrected.
+	# A claim where it lies and one a step away: neither moves it and neither is corrected (KE4).
 	FixtureMoves.claim(game, P2, lies)
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
 	FixtureMoves.claim(game, P2, lies + Vector3(0.04, 0, 0))
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected + 1)
+	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
 	assert_vector(downed.position).is_equal(lies)
-	# After the raise stops, the crawl is free again.
+	# After the raise stops, no more either: it holds still (KE4).
 	FixtureCombatModes.stop_raise(game, P3)
 	FixtureModes.run_ticks(game, 1)
 	FixtureMoves.claim(game, P2, lies + Vector3(0.04, 0, 0))
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected + 1)
-	assert_vector(downed.position).is_equal(lies + Vector3(0.04, 0, 0))
+	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
+	assert_vector(downed.position).is_equal(lies)
 
 
 func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> void:
@@ -413,10 +425,11 @@ func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> v
 	FixtureMoves.claim(game, P2, lies)
 	FixtureModes.run_ticks(game, 1)
 	var left := downed.life_deadline - (game.ticked_through() + 1)
+	var corrected := FixtureMoves.corrections(game, P2).size()
 	for cycle in 5:
 		FixtureCombatModes.raise(game, P3, P2)
 		for i in RAISE_TICKS - 1:
-			# The downed client crawls on: every step is corrected while the raise runs.
+			# The downed client claims a step on every tick: each moves nothing.
 			FixtureMoves.claim(game, P2, downed.position + Vector3(0.05, 0, 0))
 			FixtureModes.run_ticks(game, 1)
 		# Stopped just short, and started again in the same host tick.
@@ -426,6 +439,7 @@ func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> v
 		FixtureModes.run_ticks(game, 1)
 		FixtureCombatModes.stop_raise(game, P3)
 	assert_vector(downed.position).is_equal(lies)
+	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
 	assert_int(downed.life).is_equal(PlayerState.Life.DOWNED)
 	# The pause held: what was left of the knockdown is still left.
 	assert_int(downed.life_deadline).is_equal(game.ticked_through() + 1 + left)
@@ -433,24 +447,19 @@ func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> v
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_claims_within_the_slack_do_not_add_up_to_a_move() -> void:
+func test_small_claims_do_not_add_up_to_a_move() -> void:
 	var game := _downed()
 	var downed := game.state.player(P2)
 	var lies := downed.position
 	FixtureMoves.claim(game, P2, lies)
 	FixtureModes.run_ticks(game, 1)
 	FixtureCombatModes.raise(game, P3, P2)
-	var corrected := FixtureMoves.corrections(game, P2).size()
-	# Each claim lies 0.8 mm past the last one (under MovementRule.HOLD_SLACK_M, 1 mm): the first
-	# passes, the second is 1.6 mm from where the raise started and is corrected.
+	# Claims 0.8 mm past each last one, through the raise: the downed player stays where it lies.
 	var step := Vector3(0.0008, 0, 0)
-	FixtureMoves.claim(game, P2, lies + step)
-	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
-	FixtureMoves.claim(game, P2, lies + step * 2)
-	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected + 1)
-	assert_float(downed.position.distance_to(lies)).is_less_equal(MovementRule.HOLD_SLACK_M)
+	for i in 20:
+		FixtureMoves.claim(game, P2, lies + step * (i + 1))
+		FixtureModes.run_ticks(game, 1)
+	assert_vector(downed.position).is_equal(lies)
 
 
 func test_a_raise_running_when_the_round_ends_stops_before_the_phase_changes() -> void:
@@ -467,9 +476,9 @@ func test_a_raise_running_when_the_round_ends_stops_before_the_phase_changes() -
 		var stopped := names.rfind(&"RaiseStopped")
 		assert_int(stopped).is_greater_equal(0)
 		assert_int(stopped).is_less(names.rfind(&"PhaseChanged"))
-	# The knockdown it paused runs on: nothing is held in place any more.
+	# The knockdown it paused runs on: no channel targets it any more.
 	assert_int(downed.life_deadline).is_greater(game.ticked_through())
-	assert_bool(Channels.holds(game.state, P2)).is_false()
+	assert_object(Channels.on_target(game.state, P2)).is_null()
 	assert_array(Array(game.diagnostics)).is_empty()
 
 

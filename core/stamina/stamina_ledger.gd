@@ -15,8 +15,8 @@ extends RefCounted
 ##   (settle_ahead), so an idle player is not refused on stale stamina; a later claim settles only
 ##   what is left.
 ## - At 0 stamina walking works; sprint and jump need their full cost (Q7).
-## - Only the living sprint: a downed player crawls (MovementRule), is never in the sprint state
-##   and regenerates as usual, since it spends none (vision revision 1).
+## - Only the living sprint: a downed player moves nothing (MovementRule), is never in the sprint
+##   state and regenerates as usual, since it spends none (vision revision 1).
 ##
 ## The client's PredictedStamina (client/player/) predicts with the same rule and follows
 ## SelfStatus: on the network claim by claim, from the claim each SelfStatus names (M4-7, E24,
