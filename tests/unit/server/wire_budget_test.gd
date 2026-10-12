@@ -236,3 +236,39 @@ func _cooking(count: int) -> Cooking:
 		herb.hands = 1
 		type.herbs.append(herb)
 	return type
+
+
+## A task type's own layout problems (TaskType.most_layout_problems, #807) are shortfalls too:
+## SettingsChanged is sized with them, one more per problem the type may report.
+func test_a_task_types_layout_problems_size_the_settings_shortfalls() -> void:
+	var mode := _mode(10, 3, 1, 1)
+	var type := FixtureKindsType.of(&"kinds", [])
+	type.layout_problems_count = 3
+	mode.task_types = [type]
+	var changed: WireMessage = null
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			changed = message
+	assert_object(changed).is_not_null()
+	assert_int((changed.fields["shortfalls"] as Array).size()).is_equal(2 + 3)
+
+
+## The longest short_axis text (two 32-character tags, need and have at the largest) is a host text
+## the encoder takes, within MAX_TEXT_IDS and MAX_TEXT_NUMBERS.
+func test_the_longest_short_axis_text_is_a_host_text_the_wire_takes() -> void:
+	var mode := _mode(WireSchema.MAX_PLAYERS, 1, 0, 1)
+	var text := HostText.of(
+		HostText.SHORT_AXIS,
+		PackedStringArray([ID_32, ID_32]),
+		{&"need": WireField.S32_MAX, &"have": WireField.S32_MAX}
+	)
+	var fields: Dictionary = {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		if message.name == &"SettingsChanged":
+			fields = message.fields
+	var one: Array[Dictionary] = [text.to_dict()]
+	fields["shortfalls"] = one
+	var encoded := WireSchema.game(false).write(WireMessage.new(&"SettingsChanged", fields))
+	assert_str(encoded.problem).is_empty()
+	assert_int(text.ids.size()).is_less_equal(WireSchema.MAX_TEXT_IDS)
+	assert_int(text.numbers.size()).is_less_equal(WireSchema.MAX_TEXT_NUMBERS)
