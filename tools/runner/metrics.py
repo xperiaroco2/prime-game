@@ -366,6 +366,8 @@ STOPPED_EARLY = ", stopped early at "
 SUSPENDED_RUN = "the machine slept or was suspended"
 # A fast run's summary line (#605; verify.FAST_LINE): doctor, lint and check only, so its total is no full run's.
 FAST_RUN = "fast verify: "
+# A part run's summary line (#857; verify.PART_LINE): one of CI's parts of verify --full, so its total is no full run's.
+PART_RUN = re.compile(r"^\s*part (\S+) of verify --full: ")
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
@@ -754,15 +756,19 @@ def parse_verify(text: str) -> dict | None:
     """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over,
     exit_crashes, stopped}; wait is the seconds it waited for a verify slot (None: a run without slots), over whether
     it ran without one, exit_crashes the steps whose row notes that Godot crashed at exit (#449), stopped whether
-    `--fail-fast` stopped it early (#556; its `not run` rows are no steps); a fast run (#605) has "fast": True."""
+    `--fail-fast` stopped it early (#556; its `not run` rows are no steps); a fast run (#605) has "fast": True, a
+    part run (#857) "part": its name."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
     exit_crashes: list[str] = []
     total_s, status, wait, over, stopped, fast = None, None, None, False, False, False
+    part: str | None = None
     for line in text[i:].splitlines()[1:]:
         fast = fast or line.strip().startswith(FAST_RUN)
+        if (named := PART_RUN.match(line)) is not None:
+            part = named.group(1)
         m = STEP_LINE.match(line)
         if m:
             steps[m.group(2)] = (m.group(1), float(m.group(3)))
@@ -783,7 +789,17 @@ def parse_verify(text: str) -> dict | None:
         return None
     found = {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over,
              "exit_crashes": exit_crashes, "stopped": stopped}  # fmt: skip
+    if part is not None:
+        found["part"] = part
     return {**found, "fast": True} if fast else found
+
+
+def parse_verifies(text: str) -> list[dict]:
+    """Every "verify summary" block in text, in order (parse_verify of each): a CI run's log holds one per part
+    (#857), an older run's one."""
+    starts = [m.start() for m in re.finditer("verify summary", text)]
+    found = [parse_verify(text[a:b]) for a, b in zip(starts, [*starts[1:], len(text)], strict=True)]
+    return [v for v in found if v is not None]
 
 
 def timer_seconds(block: object) -> float | None:
@@ -1717,7 +1733,8 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
                               "wait": wait, "over": over, "exit_crashes": exit_crashes,
                               "stopped": bool(rec.get("stopped")),
                               "exit_tracked": exit_tracked, **red,
-                              **({"fast": True} if rec.get("mode") == "fast" else {})})  # fmt: skip
+                              **({"fast": True} if rec.get("mode") == "fast" else {}),
+                              **({"part": str(rec["part"])} if rec.get("part") else {})})  # fmt: skip
     return found
 
 
@@ -1800,11 +1817,14 @@ def ci_data(since: float | None, until: float, last: int, gh=_gh) -> dict:
         if starts and ends:
             jobs.append(max(ends) - min(starts))
         log = gh(["run", "view", str(r["databaseId"]), "--log"])
-        v = parse_verify("\n".join(re.sub(r"^.*?\dZ ", "", line) for line in log.splitlines()))
-        for name, (_, sec) in (v or {}).get("steps", {}).items():
-            steps[name].append(sec)
-        if v and v["total"]:
-            steps["verify total"].append(v["total"])
+        found = parse_verifies("\n".join(re.sub(r"^.*?\dZ ", "", line) for line in log.splitlines()))
+        for v in found:  # one summary per part since #857: a step every part runs (doctor, check) counts each time
+            for name, (_, sec) in v["steps"].items():
+                steps[name].append(sec)
+            if v["total"] and v.get("part"):
+                steps[f"verify part {v['part']}"].append(v["total"])
+        if totals := [v["total"] for v in found if v["total"]]:  # the longest part: the run's critical path
+            steps["verify total"].append(max(totals))
     waits = [(stamp(r.get("createdAt")), stamp(r.get("startedAt"))) for r in runs]
     queue = [b - a for a, b in waits if a is not None and b is not None]
     oldest = min((t for r in listed if (t := stamp(r.get("createdAt"))) is not None), default=None)
@@ -3050,7 +3070,9 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
         for s in step_names:
             vals = [v["steps"][s][1] for v in lst if s in v["steps"]]
             row.append(f"{med(vals):.0f}" if vals else "")
-        tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast")]
+        tots = [
+            v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")
+        ]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
         if with_slots:
             waits, over = slot_waits(lst)
@@ -4492,7 +4514,9 @@ def compact_lines(
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
-            tots = [v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast")]
+            tots = [
+                v["total"] for v in lst if v["total"] and not v.get("stopped") and not v.get("fast") and not v.get("part")
+            ]
             names: list[str] = []
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]

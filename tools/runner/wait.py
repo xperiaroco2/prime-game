@@ -212,6 +212,8 @@ def reuse_refusal(
         return "there is no verify record"
     if record.get("status") != "passed":
         return f"the newest verify ({when}) is {record.get('status')}"
+    if record.get("part"):  # #857: a CI part (doctor, check and some steps) is no lint-and-check gate
+        return f"the newest verify ({when}) ran only the {record.get('part')} part of verify --full"
     if record.get("head") != facts.get("head"):
         head = str(facts.get("head"))[:12]
         return f"the newest verify ({when}) ran at {str(record.get('head'))[:12]}, HEAD is {head}"

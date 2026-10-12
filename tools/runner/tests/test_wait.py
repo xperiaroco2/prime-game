@@ -377,6 +377,7 @@ class VerifiedTest(unittest.TestCase):
             "no history": (None, False, "no verify record"),
             "an empty history": ([], False, "no verify record"),
             "red": ([self.record(status="FAILED")], False, "is FAILED"),
+            "one part of a full run": ([self.record(part="test")], False, "ran only the test part of verify --full"),
             "a commit since": ([self.record(head="b" * 40)], False, "ran at bbbbbbbbbbbb, HEAD is aaaaaaaaaaaa"),
             "a dirty run": ([self.record(tree=None)], False, "ran with uncommitted changes"),
             "dirty now": ([self.record()], True, "uncommitted changes now"),

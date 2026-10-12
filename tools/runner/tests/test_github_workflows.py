@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, gdunit
+from runner import cli, gdunit, verify
 from runner.common import git_bash
 
 try:
@@ -30,6 +30,8 @@ except ImportError:  # pragma: no cover - only without gdtoolkit's dependencies
 ROOT = Path(__file__).resolve().parents[3]
 GITHUB = ROOT / ".github"
 SETUP = "./.github/actions/setup-toolchain"
+# CI's part jobs run this (#857); PART is the job's matrix.part.
+VERIFY_PART = 'GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full --part "$PART"'
 # The actions CI used when the night jobs came (#189). Another one from the marketplace is a new dependency: the
 # engineer's call (root CLAUDE.md, "Stop and ask before").
 # actions/setup-node came with the signalling Worker's tests (#368; the M6 ADR D23).
@@ -103,10 +105,38 @@ class GithubWorkflowsTest(unittest.TestCase):
         # release/** (#622): `merge --base release/<x>` relies on CI, so a release branch's tree is tested on push.
         push = {"branches": ["main", "release/**"]}
         self.assertEqual(data["on"], {"pull_request": None, "push": push, "workflow_dispatch": None})
-        steps = data["jobs"]["verify"]["steps"]
+        steps = data["jobs"]["part"]["steps"]
         uses = [step.get("uses", "") for step in steps]
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
-        self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full", [step.get("run") for step in steps])
+        self.assertIn(VERIFY_PART, [step.get("run") for step in steps])
+
+    def test_ci_runs_every_part_of_verify_full_in_a_job_of_its_own(self) -> None:
+        # #857: the union of the parts is every step of verify --full (test_verify's PartTest), and CI runs each part.
+        part = load(GITHUB / "workflows" / "ci.yml")["jobs"]["part"]
+        self.assertEqual(part["strategy"]["matrix"], {"part": list(verify.PARTS)})
+        self.assertIs(part["strategy"]["fail-fast"], False, "a red part must not cancel the others' runs")
+        self.assertEqual(part["name"], "verify ${{ matrix.part }}")
+        run = next(step for step in part["steps"] if step.get("run") == VERIFY_PART)
+        self.assertEqual(run["env"], {"PART": "${{ matrix.part }}"})
+        upload = next(step for step in part["steps"] if step.get("uses") == "actions/upload-artifact@v7")
+        self.assertEqual(upload["if"], "always()")
+        self.assertEqual(upload["with"]["name"], "verify-reports-${{ matrix.part }}", "one artifact name per part")
+        removal = next(i for i, step in enumerate(part["steps"]) if step.get("name") == "Remove the TwoVoIP extension")
+        self.assertLess(removal, part["steps"].index(run))
+        argv = VERIFY_PART.split("tools/run.sh ", 1)[1].replace('"$PART"', "test").split()
+        args = cli.build_parser().parse_args(argv)
+        self.assertEqual((args.command, args.full, args.part, args.fail_fast), ("verify", True, "test", False))
+
+    def test_the_required_check_verify_needs_every_part_and_runs_whatever_they_ended_in(self) -> None:
+        # The ruleset main-2 requires the context `verify`: the aggregate job keeps that name (#857).
+        jobs = load(GITHUB / "workflows" / "ci.yml")["jobs"]
+        job = jobs["verify"]
+        self.assertEqual((job["name"], job["needs"], job["if"]), ("verify", "part", "always()"))
+        self.assertNotIn("strategy", job)
+        self.assertEqual([step.get("env") for step in job["steps"]], [{"RESULT": "${{ needs.part.result }}"}])
+        self.assertEqual(jobs["python-min"]["name"], "runner on the minimum Python")
+        names = [j.get("name") for key, j in jobs.items() if key != "verify"]
+        self.assertNotIn("verify", names, "one check named verify, the aggregate")
 
     def test_every_workflow_verify_runs_the_full_suite(self) -> None:
         # #605: a plain `verify` runs only doctor, lint and check; CI is where every test runs, so each workflow's
@@ -149,7 +179,7 @@ class GithubWorkflowsTest(unittest.TestCase):
 
     def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:
         # `test` balances its shards by them (#182); a fresh CI checkout has none of its own.
-        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["part"]["steps"]
         runs = [step.get("run") for step in steps]
         cache = [i for i, step in enumerate(steps) if step.get("uses") == "actions/cache@v6"]
         self.assertEqual(len(cache), 1)
@@ -157,7 +187,10 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
         self.assertEqual(settings["restore-keys"], "gdunit-times-")
         self.assertIn("${{ github.run_id }}", settings["key"])
-        self.assertLess(cache[0], runs.index("GODOT_BIN=$HOME/godot/godot tools/run.sh verify --full"))
+        self.assertLess(cache[0], runs.index(VERIFY_PART))
+        # Only the part that runs `test` restores and saves them (#857): another part would save a stale copy.
+        testing = [part for part, names in verify.PARTS.items() if "test" in names]
+        self.assertEqual(steps[cache[0]]["if"], " || ".join(f"matrix.part == '{part}'" for part in testing))
 
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
         data = load(GITHUB / "workflows" / "nightly.yml")
@@ -256,7 +289,7 @@ class GithubWorkflowsTest(unittest.TestCase):
         # #341, the engineer's option (b) on PR #323. CI runs `verify --full` (test_ci_keeps_its_triggers_...), whose
         # test step takes gdunit.FIXED_FPS_SUITES at fixed fps (test_gdunit_shards, the verify pin). The flaky job's
         # `test --repeat` stays real-time, the run that still meets the #222 class (several physics steps a frame).
-        ci = [step.get("run", "") for step in load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]]
+        ci = [step.get("run", "") for step in load(GITHUB / "workflows" / "ci.yml")["jobs"]["part"]["steps"]]
         self.assertFalse([run for run in ci if "--real-time" in run or "tools/run.sh test" in run], ci)
         steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["flaky"]["steps"]
         runs = [step["run"] for step in steps if "tools/run.sh test" in step.get("run", "")]
@@ -315,6 +348,34 @@ FAKE_GH = """gh() {
 }
 """
 MAIN_SHA = "a" * 40
+
+
+@unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
+class CiScriptsTest(unittest.TestCase):
+    """The bash of ci.yml's aggregate job, run as GitHub runs a `run:` (bash --noprofile --norc -eo pipefail)."""
+
+    def test_the_aggregate_is_green_only_when_every_part_succeeded(self) -> None:
+        # #857: needs.part.result of a matrix: success only when every part succeeded; a red, cancelled or skipped
+        # part (or an empty result) fails the required check.
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
+        bash = git_bash()
+        self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the workflow's scripts")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "step.sh"
+            path.write_bytes(steps[0]["run"].encode("utf-8"))
+            for result, rc in (("success", 0), ("failure", 1), ("cancelled", 1), ("skipped", 1), ("", 1)):
+                with self.subTest(result=result):
+                    done = subprocess.run(
+                        [str(bash), "--noprofile", "--norc", "-eo", "pipefail", path.as_posix()],
+                        cwd=tmp,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        env={**os.environ, "RESULT": result},
+                        timeout=60,
+                    )
+                    self.assertEqual(done.returncode, rc, done.stdout + done.stderr)
+                    self.assertIn(f"the parts of verify --full: {result}", done.stdout)
 
 
 @unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
