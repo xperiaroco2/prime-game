@@ -34,7 +34,8 @@ extends RefCounted
 ## 23 since #807 added the car repair's LiftChanged (kind 75) and PartNeeded (kind 76), and the
 ## host text `short_axis`.
 ## 24 since #781 added the photo task's FilmLoaded (kind 77) and ShotTaken (kind 78) and the
-## Rejected reasons `no_film`, `no_frames_left` and `film_exposed` (the photo ADR §3.2, §3.3).
+## Rejected reasons `no_film`, `no_frames_left` and `film_exposed` and the host text
+## `photo_spot_near` (the photo ADR §3.2, §3.3, PE12).
 const VERSION := 24
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and

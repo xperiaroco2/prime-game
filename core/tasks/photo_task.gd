@@ -35,6 +35,8 @@ extends TaskType
 ## (everyone) on a use (use_emits). Raises item_rested (spawn) in the deal and (on_station) at a
 ## load. No event names a player (PD13).
 
+## The centimetres of a metre, for the whole-number arguments of HostText.PHOTO_SPOT_NEAR.
+const CM := 100.0
 ## How far beyond range_m from the lens a player still goes into the record (ADR §3.3: generous, the
 ## renderer clips the rest).
 const RECORD_MARGIN_M := 2.0
@@ -242,24 +244,34 @@ func emits() -> Array[Script]:
 	return [StationPlacedEvent, ItemSpawnedEvent, FilmLoadedEvent, ShotTakenEvent]
 
 
-## The level fit check (PE12): a photo spot marker no farther than the camera kind's radius plus
-## the photo spot kind's from the camera's marker horizontally is refused, so no part of the spot
-## lies in the camera's reach (PD18) and the frame never looks straight up or down.
-func layout_problems(map: String, layout: LevelLayout) -> PackedStringArray:
-	var found := PackedStringArray()
+## The level fit check (PE12, FitCheck and LayoutCheck through TaskType.layout_problems): a photo
+## spot marker no farther than the camera kind's radius plus the photo spot kind's from the
+## camera's marker horizontally is refused, so no part of the spot lies in the camera's reach
+## (PD18) and the frame never looks straight up or down. HostText.PHOTO_SPOT_NEAR, only when the
+## map holds one marker of each (the demands report any other count).
+func layout_problems(layout: LevelLayout) -> Array[HostText]:
+	var found: Array[HostText] = []
 	if camera == null or photo_spot == null:
 		return found
+	if layout.count(camera.spawn_tag) != 1 or layout.count(photo_spot.spawn_tag) != 1:
+		return found
 	var apart := camera.radius_m + photo_spot.radius_m
-	for at: Vector3 in layout.positions(camera.spawn_tag):
-		for spot: Vector3 in layout.positions(photo_spot.spawn_tag):
-			if Vector2(spot.x - at.x, spot.z - at.z).length() <= apart:
-				found.append(
-					(
-						"%s: PhotoTask %s's %s marker at %s lies within %s m of the %s marker at %s"
-						% [map, id, photo_spot.spawn_tag, spot, apart, camera.spawn_tag, at]
-					)
-				)
+	var at := layout.positions(camera.spawn_tag)[0]
+	var spot := layout.positions(photo_spot.spawn_tag)[0]
+	var length := Vector2(spot.x - at.x, spot.z - at.z).length()
+	if length <= apart:
+		found.append(
+			HostText.of(
+				HostText.PHOTO_SPOT_NEAR,
+				PackedStringArray([photo_spot.spawn_tag, camera.spawn_tag]),
+				{&"need": ceili(apart * CM), &"have": floori(length * CM)}
+			)
+		)
 	return found
+
+
+func most_layout_problems() -> int:
+	return 1
 
 
 ## PE12: the five station kinds, with different spawn tags; the photo spot a display kind with no

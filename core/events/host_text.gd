@@ -27,6 +27,10 @@ const NO_TASK_TYPES := &"no_task_types"
 ## ADR's RE14, #807; TaskType.layout_problems): a short axis. ids: [the car_end tag, the car's
 ## tag]; numbers: need (the car's radius) and have (the distance), whole centimetres.
 const SHORT_AXIS := &"short_axis"
+## A photo task's photo spot marker within reach of its camera marker (the photo ADR's PE12, #781;
+## TaskType.layout_problems). ids: [the photo spot tag, the camera tag]; numbers: need (the two
+## kinds' radii added) and have (the distance), whole centimetres.
+const PHOTO_SPOT_NEAR := &"photo_spot_near"
 
 ## What the text says (a wire id).
 var id: StringName

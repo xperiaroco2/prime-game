@@ -112,11 +112,28 @@ func test_a_photo_spot_within_reach_of_the_camera_is_refused_at_load() -> void:
 	var apart := 2.0 * FixturePhotoModes.RADIUS_M
 	var at := FixturePhotoModes.CAMERA_AT + Vector3(apart, 0, 0)
 	var refused := "\n".join(LayoutCheck.run(mode, FixturePhotoModes.layouts(at)))
-	assert_str(refused).contains("PhotoTask photo's photo_spot marker")
+	assert_str(refused).contains("photo_spot_near")
 	var above := FixturePhotoModes.CAMERA_AT + Vector3(0, 3, 0)
 	var refused_above := "\n".join(LayoutCheck.run(mode, FixturePhotoModes.layouts(above)))
-	assert_str(refused_above).contains("PhotoTask photo's photo_spot marker")
+	assert_str(refused_above).contains("photo_spot_near")
 	var beyond := FixturePhotoModes.CAMERA_AT + Vector3(apart + 0.01, 0, 0)
 	assert_array(Array(LayoutCheck.run(mode, FixturePhotoModes.layouts(beyond)))).is_empty()
 	var match_refused := Match.new(mode, 7, FlatWorldQuery.new(), FixturePhotoModes.layouts(at))
-	assert_str("\n".join(match_refused.refusals)).contains("photo_spot marker")
+	assert_str("\n".join(match_refused.refusals)).contains("photo_spot_near")
+
+
+func test_the_layout_problem_is_a_host_text_with_the_needed_and_the_actual_distance() -> void:
+	var mode := FixturePhotoModes.basic()
+	var type := FixturePhotoModes.type_of(mode)
+	var apart := 2.0 * FixturePhotoModes.RADIUS_M
+	var at := FixturePhotoModes.CAMERA_AT + Vector3(1.234, 0, 0)
+	var layout: LevelLayout = FixturePhotoModes.layouts(at)[MAP]
+	var found := type.layout_problems(layout)
+	assert_int(found.size()).is_equal(1)
+	assert_int(type.most_layout_problems()).is_equal(1)
+	assert_str(found[0].id).is_equal(HostText.PHOTO_SPOT_NEAR)
+	assert_array(Array(found[0].ids)).is_equal(["photo_spot", "camera"])
+	assert_int(found[0].numbers[&"need"]).is_equal(ceili(apart * 100.0))
+	assert_int(found[0].numbers[&"have"]).is_equal(123)
+	var far: LevelLayout = FixturePhotoModes.layouts()[MAP]
+	assert_array(type.layout_problems(far)).is_empty()
