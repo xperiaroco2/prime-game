@@ -1832,27 +1832,16 @@ branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a s
 ### 11.17 Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied] (#303; #302's token research)
 A workflow
 agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
-tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
-that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
-all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
-300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 180 s, and bounds a call with the
-shell's `timeout` or `wait --max`, never only with the tool's own timeout. The step was 4 minutes until #555: from 10-06
-10:00 to 10-08 there were 390 `wait` calls and 25 of them were followed by a cache re-write (4.19M tokens, about $20 of
-list $); 212 of the calls ran to their deadline, and their gap to the next API call exceeded wait's own clock by 6 s
-median but 94 s p95 and 453 s at most (the shell's and Python's start-up and the guard hook on a loaded PC, then the
-model's turn, itself 3 s median and 14 s p95), so a 4-minute step plus the p95 crossed 300 s and 180 s + 94 s stays
-under it. `metrics` prints the same numbers per window ("Cache re-writes after `wait` calls", the JSON's
-`bounded_waits`; `wait --verified` and `wait --help` poll no job and are not counted). #568 measured the guard hook's
-and Git Bash's start-up beside a `verify` at well under a second (§8.2), so that tail is not the hook's; `metrics`'
-"Tool-call start-up" line splits the time: a `wait` call beyond its own clock (the laptop's 8 such calls to 10-08:
-2.6 s median, 3.3 s p95) apart from the turn after it.
+tool call that blocks longer makes its next call write the whole context again (#302's token research: nearly all
+on `verify`, `publish`, `mutants` and `gh pr checks --watch`). So such an agent blocks no tool call over 180 s,
+and bounds a call with the shell's `timeout` or `wait --max`, never only with the tool's own timeout: 180 s leaves
+room for the shell's start-up and the model's turn before the next call (a 4-minute step crossed 300 s, #555).
+`metrics` prints the cache re-writes after `wait` calls per window and its "Tool-call start-up" line.
 Since #388 every agent, a main or manager session too, runs `verify`, `publish` and `mutants` in the background with
 `wait`: a verify slot's wait alone can
 reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
-(`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
-the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326, the reviewers' since
-#818), and so is PowerShell's `Start-Sleep -Seconds N` (2 of the 12 workflow-agent refusals from 2026-10-07
-to 11): wait with `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the
+(`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, #312; workflow
+agents' prompts carry this rule, #326, #818), and so is PowerShell's `Start-Sleep -Seconds N`: wait with `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the
 job in the Bash tool with `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers
 the rest), with a new log per run under its scratch folder:
 `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>`
