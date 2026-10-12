@@ -258,16 +258,19 @@ dissidents, no crew present only once every crew member left, End widens nothing
   drops the C0 and C1 controls, DEL, U+FEFF, surrogates and the invisible format characters (zero-width
   marks, line separators, bidi controls: a name that looks like another), trims blank edges (the space and the Unicode spaces
   that show nothing) and keeps the first 16 characters (code points); when nothing is left (no name, the wrong
-  type, blanks or controls only) the joiner gets the fallback `Player<n>`, with n counted by accepted joins over
-  the whole session (`MatchState.joins`, which steps on every join, a named one too): Player1, Player2, and so on.
-  A number is never reused: Player1 to Player3 join, Player2 leaves, and the next nameless joiner becomes
-  Player4. `ResetMatch` keeps the count, so it runs on through End → Lobby. Then `PlayerNames.unique`: a name
-  that a present player has, ignoring case, gets the first free suffix " 2", " 3" and so on ("Dima", then
-  "Dima 2"; the fallback too, so a player who chose "Player2" never meets a second one), its base cut so the
-  whole stays within 16 characters; a leaver's name is free again. A name is never a reason to refuse a
-  `Hello`. Every client learns the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). In the lobby a
-  player changes its name with `SetProfile` (#551, the next item); a reconnecting player's old number is still
-  to come (#73, M7).
+  type, blanks or controls only) the joiner gets the fallback `Player<n>`, n being its number
+  (`PlayerState.number`, never sent): every accepted join that is no return ("A return" below) takes the next one,
+  a named join too (`MatchState.joins`, the highest number given; a return does not step it): Player1, Player2,
+  and so on. A number is never given to a second player: Player1 to Player3 join, Player2 leaves, and the next
+  nameless newcomer becomes Player4. `ResetMatch` keeps the count, so it runs on through End → Lobby. An own
+  name of the form `Player` and digits (`PlayerNames.is_reserved`: after `clean`, "player" in any case and one
+  or more ASCII digits, nothing else; "Player 2" stays a name) is reserved for the fallbacks (P13 (b), the
+  engineer's answer on #302): it reads as nothing usable, so a newcomer naming itself "Player2" while Player2 is
+  away keeps its own fallback. Then `PlayerNames.unique`: a name that a present player has, ignoring case, gets
+  the first free suffix " 2", " 3" and so on ("Dima", then "Dima 2"), its base cut so the whole stays within 16
+  characters; a leaver's name is free again. A name is never a reason to refuse a `Hello`. Every client learns
+  the final names from `Welcome`'s roster and `PlayerJoined` (§4.2). In the lobby a player changes its name with
+  `SetProfile` (#551, the next item); a returning player gets its old number (#638, "A return" below).
   Tests: `player_names_test.gd`, `join_rules_test.gd`, the wire's `wire_codec_test.gd` (UTF-8, malformed bytes),
   `host_session_names_test.gd` (what each client's roster holds, over loopback) and `user_settings_test.gd`.
 - **Body colours and `SetProfile`** (#551, the engineer's answers on #73 of 2026-10-08): a player's body is one of
@@ -280,9 +283,11 @@ dissidents, no crew present only once every crew member left, End widens nothing
   The host's rule (`JoinRules.set_profile`): a `name` that is not text or a `colour` that is not an int is
   `bad_args`; a colour outside 0..9 `out_of_bounds`; the name goes through `PlayerNames.clean` and
   `PlayerNames.unique` against the **other** present players (re-sending one's own "Dima 2" keeps it), and a name
-  with nothing usable left keeps the current one (it never counts a join: `MatchState.joins` numbers joins
-  only); the colour is the one asked when no other present player has it, else the **first free** one (the
-  engineer's answer, literally: its own colour counts as free, so a clash can leave the sender where it was);
+  with nothing usable left, or a reserved one (`Player` and digits, P13 (b); never `Rejected` for it, so a
+  player with its fallback name changes its colour by re-sending that name), keeps the current one (it never
+  counts a join: `MatchState.joins` numbers joins only); the colour is the one asked when no other present player
+  has it, else the **first free** one (the engineer's answer, literally: its own colour counts as free, so a
+  clash can leave the sender where it was);
   both as they are: `unchanged`. Else both change and `ProfileChanged` goes to everyone; the ready flag stays.
   `ResetMatch` keeps colours and names. `GameMode.check` refuses a mode whose `max_players` exceeds the 10
   colours, so a free colour always exists (`first_free` of ten taken would give 0, unreachable). A returning
@@ -311,13 +316,27 @@ dissidents, no crew present only once every crew member left, End widens nothing
   `lobby_panel_name_test.gd` and `game_loop_test.gd`.
 - A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
   for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
-- **A return** (M7, designed in #73, [ADR](decisions/2026-10-09-returning-players-keep-their-number.md); proposed, not
-  built): a client sends a return key in `Hello`, made from a random secret in its settings file and the room code or
-  address it joins (so a key one host learns works nowhere else); the host binds a new key to the joiner's number,
-  and a later `Hello` with that key, while no present player holds the number, gets the number back instead of the
-  next one. Only where joins are allowed (Lobby, Countdown): every other phase still refuses joins, so a player who
-  left a round returns in the next lobby. The key reaches no other peer (§5 gains it with 73-A); the name and the
-  colour follow #550's and #551's rules as for any joiner.
+- **A return** (#638, 73-A of #73, [ADR](decisions/2026-10-09-returning-players-keep-their-number.md); the
+  engineer's answers P1 (c), P3 (a), P4 (a), P13 (b) on
+  [#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)): every `Hello` carries a
+  return key (`ReturnKey`: the first 16 bytes of SHA-256 of "secret|target", 32 lowercase hex characters). The
+  secret is random, made once per settings file (`UserSettings.secret`, written on the first launch but never over
+  a file that could not be read; a malformed one is replaced); the target is the join's code or its address:port
+  in lower case (`JoinTarget.return_target`), so a key one host learns works nowhere else. The host's own client,
+  and any client given no usable key, sends a random key of its session alone. The host (`MatchState.give_number`)
+  binds a usable key not bound yet to the joiner's new number (`MatchState.numbers`, key → number, session state
+  that `ResetMatch` keeps); a later `Hello` with that key, while no present player holds the number, gets the
+  number back and does not step `joins`. A key whose number a present player holds (a second window, or a return
+  faster than the host's timeout noticed the leave) joins as a new number, and the key keeps its first binding; an
+  unusable key (not a String of 32 of 0-9a-f) joins with no binding, never `Rejected`. Only where joins are
+  allowed (Lobby, Countdown; a return in Countdown cancels it as any join): every other phase still refuses joins,
+  so a player who left a round returns in the next lobby; a full lobby refuses a returner with `full` (no seat is
+  held). A return restores the number only (P3 (a)): the name and the colour follow #550's and #551's rules as for
+  any joiner, a nameless returner's fallback being its old `Player<n>`. No `PlayerState` holds a key, so no event
+  carries one (§5); the number is not on the wire either. The command log keeps each `Hello` as sent, its key too
+  (P10). Tests: `return_key_test.gd`, `join_rules_return_test.gd`, `match_state_test.gd`, `wire_schema_test.gd`,
+  `user_settings_test.gd`, `join_target_test.gd`, `client_session_test.gd`, `host_session_return_test.gd`
+  (loopback). Bots and the leak test with a return: #639 (73-B); the menu's last code: #640 (73-C).
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
 
@@ -685,7 +704,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(version, content, name)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. `name` (a String, the player's own, #550) is never refused: the host cleans it, falls back to `Player<n>` and suffixes a duplicate (§3.5). Accepted, it is the join (§3.5) |
+| `Hello(version, content, name, key)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. `name` (a String, the player's own, #550) is never refused: the host cleans it, falls back to `Player<n>` and suffixes a duplicate (§3.5). `key` (the return key, #638) is never refused either: a usable one may give an old number back, anything else joins with a new number and no binding (§3.5, "A return"). Accepted, it is the join (§3.5) |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map, lobby_name)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). The optional `lobby_name` (#214, §3.5) is text (else `bad_args`, which only a `core/` caller can reach: the wire's type is `name`), never refused for its content: `LobbyName.clean` keeps 20 characters, "" is the default again. All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
@@ -848,7 +867,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
-| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1), `name: name` (the player's own, "" for none; #550) | 11 + n; 8192 |
+| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1), `name: name` (the player's own, "" for none; #550), `key: id` (the return key, decoded as a String; any id is taken and only `ReturnKey.is_valid` tells a usable one, §3.5; #638) | 12 + n + k; 8192 |
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then); `has_lobby_name: bool`, then `lobby_name: name` when true (the same, #214) | 21 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
@@ -950,7 +969,8 @@ The rules of the table:
   `Rejected(wrong_version)` (§3.5), instead of timing out at the hello deadline on a host that drops its packets as
   malformed or over the cap. The host decodes `Hello` in two steps: the version, and the rest only when the version is
   its own; another version reaches `core/` as `{version}` alone and the rest of its payload is ignored, whatever its
-  length (since protocol 10 `Hello` ends with the player's name, #550). 3d's version test pins both rows byte for
+  length (since protocol 10 `Hello` carries the player's name, #550, and since 25 ends with the return key, #638).
+  3d's version test pins both rows byte for
   byte and decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
@@ -970,7 +990,7 @@ The rules of the table:
   roster, and is 15 since `release/m7` reached `main` (#837) with #647's `ZoneProgress` (67) and #643's `Throw`
   (17) and `ItemThrown` (68): on `release/m7` they were its own 11 and 12 (kinds 66, 15 and 67), renumbered above
   `main`'s highest in one bump; 16 since #796 added `Interact` (18), 17 since #779 added `ItemVanished` (69), 18 since #797 added
-  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`. M4's protocol PRs each set it to their
+  `SwitchChanged` (70) and `ButtonPressed` (71), 19 since #771 added `ItemChanged` (72), 20 since #770 made `Interact`'s `station` optional and added its optional `item` (18), 21 since #780 let a station refuse a use `wrong_item` (a new `Rejected` reason, no row changed), 22 since #772 added `OrderPosted` (73) and `HerbsDealt` (74), 23 since #807 added `LiftChanged` (75) and `PartNeeded` (76), 24 since #781 added `FilmLoaded` (77) and `ShotTaken` (78) and the reasons `no_film`, `no_frames_left` and `film_exposed`, 25 since #638 ended `Hello` with the return key (`key`, no new row). M4's protocol PRs each set it to their
   base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -4546,7 +4566,9 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   a player (no accepted `Hello` yet, or a straggler about to be disconnected). It never adds a recipient or a field
   (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
-  stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
+  stamina and damage; a player's return key (#638: it reaches the host alone, in `Hello`, and lives only in
+  `MatchState.numbers`, never in a `PlayerState` or an event; the command log on the host's disk keeps it as sent,
+  P10) and its secret, which never leaves the client (§3.5, "A return"); whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`,
   and the zone task's `ZoneProgress`, which names no player and whose counting reads no role, #647; `ItemVanished`, an item left lying too long, #779; `ItemChanged`, an item that became another kind, #771; the Generator's
   `SwitchChanged`, `ButtonPressed` and charge `ZoneProgress`, which name no player, and whose uses read no role, #797;
