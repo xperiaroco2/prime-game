@@ -107,37 +107,27 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 - **Which copy loads** (Claude Code 2.1.284, probed in #336). A session started in the main checkout (the manager,
   its workflow agents, and a task session that works in a worktree through `cd`/`Set-Location`, §4.1) loads main's
   root `CLAUDE.md` at launch. A Read of a file under `.claude/worktrees/<n>/` then also loads that worktree's root
-  `CLAUDE.md` (a second copy, about 6k tokens at #336), its area `CLAUDE.md`, and both main's and the worktree's copy
-  of each matching rule. A session started inside a worktree loads only the worktree's copies: its root `CLAUDE.md`
-  at launch, never main's, and its area files and rules by path. So `claudeMdExcludes` with
-  `**/.claude/worktrees/*/CLAUDE.md` in the tracked `.claude/settings.json` is wrong: the tracked file is also each
-  worktree's own settings, and in a session started inside a worktree the pattern matches the only root `CLAUDE.md`
-  it has (a probe session started there with it loaded none).
+  `CLAUDE.md` (a second copy), its area `CLAUDE.md`, and both main's and the worktree's copy of each matching rule. A
+  session started inside a worktree loads only the worktree's copies: its root `CLAUDE.md` at launch, never main's,
+  and its area files and rules by path. So `claudeMdExcludes` with `**/.claude/worktrees/*/CLAUDE.md` in the tracked
+  `.claude/settings.json` is wrong: the tracked file is also each worktree's own settings, and in a session started
+  inside a worktree the pattern matches the only root `CLAUDE.md` it has.
 - **[applied] The exclude lives in the main checkout's `.claude/settings.local.json`** (#385, the engineer's option
   (a) on PR #360). On Windows Claude Code reads the local settings file of the folder a session starts in
   (code.claude.com/docs/en/settings, "Where Claude Code keeps the local file"; elsewhere a worktree session uses the
-  main checkout's file instead). #385's probes, Claude Code 2.1.284, in a replica of this layout (a main checkout
-  with the same root, area and rule files and a `git worktree add` under `.claude/worktrees/1`), the exclude only in
-  main's `settings.local.json`: a session started in the worktree still loaded the worktree's root `CLAUDE.md` at
-  launch (with the exclude also in the worktree's own `settings.local.json` it loaded none, so the pattern does
-  match); a session started in the main checkout that Read worktree files loaded main's root `CLAUDE.md` at launch
-  and, by path, the worktree's area files and both copies of each rule, but no worktree root `CLAUDE.md`.
+  main checkout's file instead), so the exclude there keeps a worktree root `CLAUDE.md` out of a main-started session
+  and leaves a worktree session its own (#385's probes).
   `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there
   (never to a file under `.claude/worktrees/`, should git fail to name the main checkout); `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
   it would take a worktree session's only root `CLAUDE.md`. So a workflow agent reads a worktree's root `CLAUDE.md`
   only by Read.
 - **[applied] The rules too (#406).** The same file also gets `**/.claude/worktrees/*/.claude/rules/**`, through the
-  same `doctor` code. Without it a main-started agent that Reads worktree files loads main's and the worktree's copy
-  of each matching rule (since 2026-09-28: `gdscript.md` 168, `tests.md` 166 and `godot-resources.md` 18 extra loads,
-  about $5.9, #385's `metrics`). #406's probes, Claude Code 2.1.284, the same replica with both patterns: a session
-  started in the worktree, the patterns only in main's file, loaded the worktree's root `CLAUDE.md` and all 3 of its
-  rules by path (with the patterns also in the worktree's own file it loaded no rule, so the pattern does match); a
-  session started in the main checkout that Read a worktree `.gd`, test and `.tscn` loaded main's copy of each of the
-  3 rules once (main's `tests/**` rule matches a worktree's `tests/` file) and no worktree copy, where without the
-  patterns it loaded both copies of each. So a main-started agent follows main's rules: a task branch's own edit of
-  a rule, or a rule it adds, reaches that agent only by Read (a task that changes a rule says so in its prompt).
-  `godot-resources.md` names `**/project.godot` rather than `project.godot` so that main's copy also matches a
-  worktree's (not probed, #406's review).
+  same `doctor` code; without it a main-started agent that Reads worktree files loads main's and the worktree's copy
+  of each matching rule (#406's probes). With it, such an agent loads main's copy of each rule once (main's
+  `tests/**` rule matches a worktree's `tests/` file) and no worktree copy. So a main-started agent follows main's
+  rules: a task branch's own edit of a rule, or a rule it adds, reaches that agent only by Read (a task that changes a
+  rule says so in its prompt). `godot-resources.md` names `**/project.godot` rather than `project.godot` on purpose,
+  so that main's copy also matches a worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. Since #561 it counts their bytes too (`ROOT_BYTES` and
