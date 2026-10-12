@@ -24,6 +24,8 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 	assert_str(joiner.ui.menu.code_edit.text).is_equal(CODE)
 	(joiner.ui.menu.code_join.face as Button).pressed.emit()
 	assert_object(joiner.client()).is_not_null()
+	# The join kept the code (#640): the menu opens on it next time.
+	assert_str(joiner.settings.last_code).is_equal(CODE)
 	# Its Hello carries the return key of its secret for this code (#638); the host's own client
 	# has a random one of its own.
 	assert_str(joiner.client().return_key).is_equal(joiner.settings.return_key(CODE))
@@ -45,6 +47,10 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 		assert_bool(game.ui.esc.lobby.copy_button.visible).is_true()
 		for text: String in _texts(game.ui):
 			assert_str(text).override_failure_message(text).not_contains("127.0.0.1")
+	# Next time the menu's code field starts with it.
+	joiner.ui.menu.code_edit.text = ""
+	joiner.ui.menu.open_panel(MainMenu.Open.CODE)
+	assert_str(joiner.ui.menu.code_edit.text).is_equal(CODE)
 	joiner.leave()
 	host.leave()
 	await get_tree().process_frame
@@ -174,7 +180,10 @@ func test_a_code_no_room_holds_returns_to_the_menu_and_keeps_the_code() -> void:
 
 func test_a_mistyped_code_stays_on_the_menu_and_says_why() -> void:
 	var joiner := _game([])
+	var kept := joiner.settings.last_code
 	joiner.join_code("K7M2Q0")
+	# A join with a problem saves nothing (#640).
+	assert_str(joiner.settings.last_code).is_equal(kept)
 	assert_object(joiner.client()).is_null()
 	assert_int(joiner.screen()).is_equal(GameFlow.Screen.MENU)
 	assert_str(joiner.last_words).contains("without 0, O, 1, I or L")
@@ -216,6 +225,27 @@ func test_a_code_join_without_a_service_says_to_use_direct() -> void:
 	assert_str(joiner.ui.menu.code_edit.text).is_equal("K7M2QX")
 	assert_object(joiner.get_viewport().gui_get_focus_owner()).is_same(joiner.ui.menu.address_edit)
 	assert_str(String(joiner.ui.menu.state())).is_equal("direct")
+
+
+## A Direct join keeps the address as the Direct field shows it (#640): bare on the default port,
+## host:port on another; one with a problem keeps nothing.
+func test_a_direct_join_keeps_the_address_as_the_field_shows_it() -> void:
+	var joiner := _game(["--no-replay"])
+	var port := joiner.ui.menu.default_port
+	joiner.join_target(JoinTarget.of_direct("192.168.0.7", port))
+	assert_str(joiner.settings.last_address).is_equal("192.168.0.7")
+	joiner.leave()
+	await get_tree().process_frame
+	joiner.join_target(JoinTarget.of_direct("192.168.0.8:%d" % (port + 1), port))
+	assert_str(joiner.settings.last_address).is_equal("192.168.0.8:%d" % (port + 1))
+	joiner.leave()
+	await get_tree().process_frame
+	joiner.join_target(JoinTarget.of_direct("bad name!:99999", port))
+	assert_str(joiner.settings.last_address).is_equal("192.168.0.8:%d" % (port + 1))
+	joiner.ui.menu.address_edit.text = ""
+	joiner.ui.menu.open_panel(MainMenu.Open.DIRECT)
+	joiner.ui.menu.bind_name(joiner.settings)
+	assert_str(joiner.ui.menu.address_edit.text).is_equal("192.168.0.8:%d" % (port + 1))
 
 
 ## A Game set to host a room with CODE whose signalling it serves (as --code --signal=lan
