@@ -49,6 +49,36 @@ func test_hello_carries_the_players_name_cleaned() -> void:
 			assert_str(hellos[0].fields["name"]).is_equal(each[1])
 
 
+## Hello carries the return key it was given (#638; UserSettings.return_key makes it per target).
+func test_hello_carries_the_key_it_was_given() -> void:
+	_harness.close()
+	_harness = Harness.new(true, "", WireSamples.KEY)
+	assert_str(_harness.session.return_key).is_equal(WireSamples.KEY)
+	var hellos := _harness.sent_named(&"Hello")
+	assert_int(hellos.size()).is_equal(1)
+	if hellos.size() == 1:
+		assert_str(hellos[0].fields["key"]).is_equal(WireSamples.KEY)
+		assert_int(typeof(hellos[0].fields["key"])).is_equal(TYPE_STRING)
+
+
+## Given no usable key (the host's own client, a bot, a test), a session makes a random one of its
+## own, so every Hello encodes; two sessions never share one.
+func test_with_no_usable_key_a_session_makes_its_own() -> void:
+	var first := _harness.session.return_key
+	assert_bool(ReturnKey.is_valid(first)).is_true()
+	var hellos := _harness.sent_named(&"Hello")
+	assert_int(hellos.size()).is_equal(1)
+	if hellos.size() == 1:
+		assert_str(hellos[0].fields["key"]).is_equal(first)
+	for unusable: String in ["zz", WireSamples.KEY.to_upper()]:
+		_harness.close()
+		_harness = Harness.new(true, "", unusable)
+		var own := _harness.session.return_key
+		assert_bool(ReturnKey.is_valid(own)).override_failure_message(unusable).is_true()
+		assert_str(own).is_not_equal(first)
+		assert_int(_harness.sent_named(&"Hello").size()).is_equal(1)
+
+
 ## A name assigned after the session exists (the Character tab, #491) is cleaned too.
 func test_a_name_assigned_later_is_cleaned() -> void:
 	_harness.session.player_name = BELL + "Д".repeat(40)

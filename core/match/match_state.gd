@@ -45,10 +45,16 @@ var rng: RngStreams
 var player_rules: PlayerRules
 ## Connected peers whose Hello was not accepted yet (2b), peer -> true: only they may join.
 var newcomers: Dictionary[int, bool] = {}
-## The joins accepted in the session (2b): a joiner without a usable name of its own (#550) is
-## Player<n>, n its join's number, counted for every join whatever the name. Session state:
-## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
+## The highest number a join was given in the session (2b, §3.5): a joiner that is no return gets
+## the next one (give_number), with a name of its own or not, and its fallback name is
+## Player<number>; a return gets its old number back and does not step it. Session state:
+## reset_match() keeps it, and a leave never lowers it, so a number is never given twice.
 var joins := 0
+## The return keys the session bound, key -> number (§3.5; the returning-players ADR, Decision 2):
+## a key binds to the number of the first join that carried it. Session state like joins:
+## reset_match() keeps it, and a leave never removes an entry. The only place core/ keeps a key:
+## never a PlayerState field, never an event's (§5).
+var numbers: Dictionary[String, int] = {}
 ## The lobby's name the host set (#214, ChangeSettings's `lobby_name`), as LobbyName cleaned it;
 ## "" is the default, which each client shows as `lobby.default_name` with the host's name.
 ## Session state: reset_match() keeps it, so the lobby keeps its name from match to match (§3.5).
@@ -90,12 +96,28 @@ func add_player(peer: int, player_name: String) -> PlayerState:
 	return joined
 
 
-## Counts an accepted join and returns its fallback name, Player<n> with n the join's number in
-## the session (§3.5, the engineer's decision of 2026-09-30 on #58), which JoinRules gives a
-## joiner without a usable name of its own (#550).
-func name_next_joiner() -> String:
+## The number of an accepted join that carried `key` (§3.5; the engineer's decision of 2026-09-30
+## on #58; the returning-players ADR, Decision 2, P2, P7). A usable key (ReturnKey.is_valid) bound
+## to a number no present player holds: that number again, and joins stays. Otherwise the next
+## number (joins + 1, counted), and a usable key not bound yet is bound to it; a key whose number a
+## present player holds stays with that player (a second window, or a return faster than the host
+## noticed the leave). An unusable key or none: the next number, no binding.
+func give_number(key: Variant) -> int:
+	var usable := ReturnKey.is_valid(key)
+	if usable and numbers.has(key) and not holds_number(numbers[key]):
+		return numbers[key]
 	joins += 1
-	return "Player%d" % joins
+	if usable and not numbers.has(key):
+		numbers[key] = joins
+	return joins
+
+
+## Whether a present player holds `number`.
+func holds_number(number: int) -> bool:
+	for peer: int in present_peers():
+		if players[peer].number == number:
+			return true
+	return false
 
 
 ## The index of the current match in the session, 0 for the first (LoadMatch, LoadAck; 2b).
@@ -224,7 +246,8 @@ func part_state(key: StringName, create: Callable) -> RefCounted:
 ## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
 ## the players who left during the match (§3.5) leave the roster; each other player's role,
 ## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
-## to the next match of the session (§3.3); the join count stays (§3.5).
+## to the next match of the session (§3.3); the join count and the return keys' numbers stay
+## (§3.5).
 func reset_match() -> void:
 	for peer: int in peers():
 		if not players[peer].is_present():

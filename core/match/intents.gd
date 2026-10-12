@@ -91,7 +91,7 @@ const FORCE_CLOCK := &"ForceClock"
 ## change here is a protocol change: it updates §4.3 and bumps JoinRules.PROTOCOL_VERSION in the
 ## same PR.
 const FIELDS: Dictionary[StringName, Dictionary] = {
-	HELLO: {"version": TYPE_INT, "content": TYPE_INT, "name": TYPE_STRING},
+	HELLO: {"version": TYPE_INT, "content": TYPE_INT, "name": TYPE_STRING, "key": TYPE_STRING},
 	SET_READY: {"ready": TYPE_BOOL},
 	CHANGE_SETTINGS: {"settings": TYPE_DICTIONARY, "map": TYPE_STRING, "lobby_name": TYPE_STRING},
 	LOAD_ACK: {"match_id": TYPE_INT},

@@ -8,14 +8,17 @@ extends RefCounted
 ## refuses joins gets `joins_closed` (Match._refuse, E14), and drop_newcomers disconnects the
 ## waiting newcomers when a phase freezes the roster (Loading's entry).
 ##
-## A joiner is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or Player<n> when
-## nothing usable is left (n counting the session's joins, MatchState.joins); a name a present
-## player has gets a suffix (PlayerNames.unique). A joiner takes the first body colour no present
-## player has (PlayerColours, #551); SetProfile changes name and colour in the lobby (set_profile).
-## The joiner's spot is a placeholder, "not a decision".
+## A joiner gets a number in the session (MatchState.give_number): the next one, or, for a player
+## who left and joins again with the same return key (its Hello's `key`, ReturnKey), its old one
+## (the returning-players ADR, Decision 2; the engineer's answers P1 (c), P3 (a), P4 (a), P13 (b)
+## on #302). It is named by its Hello's `name` (#550, #73) as PlayerNames cleans it, or
+## Player<number> when nothing usable is left; a name a present player has gets a suffix
+## (PlayerNames.unique). A joiner takes the first body colour no
+## present player has (PlayerColours, #551); SetProfile changes name and colour in the lobby
+## (set_profile). The joiner's spot is a placeholder, "not a decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
-const PROTOCOL_VERSION := 24
+const PROTOCOL_VERSION := 25
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -39,11 +42,13 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 ## hash must be the host's (Match.content_hash), else Rejected (`wrong_content`) and
 ## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
 ## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
-## this build can read (§4.3). Accepted: the join is counted, the joiner named (joiner_name),
+## this build can read (§4.3). Accepted: the joiner gets its number from its `key`
+## (MatchState.give_number: a returner its old one, anyone else the next), is named (joiner_name),
 ## given the first free colour (PlayerColours.first_free), placed at a lobby marker (_free_spot)
 ## with a new epoch; Welcome (the joiner), PlayerJoined and
-## SettingsChanged (everyone). A name is never a reason to refuse: a bad one falls back. `spec`
-## is the phase's own (its id goes into Welcome, its level decides the spot).
+## SettingsChanged (everyone). A name or a key is never a reason to refuse: a bad name falls back,
+## an unusable key is none (P7 (a)). `spec` is the phase's own (its id goes into Welcome, its
+## level decides the spot).
 static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
@@ -65,9 +70,11 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 		return false
 	ctx.state.newcomers.erase(peer)
 	var spot := _free_spot(ctx, spec)
-	var player_name := joiner_name(ctx, command.field("name"))
+	var number := ctx.state.give_number(command.field("key"))
+	var player_name := joiner_name(ctx, command.field("name"), number)
 	var colour := PlayerColours.first_free(_colours_of_others(ctx, peer))
 	var joined := ctx.state.add_player(peer, player_name)
+	joined.number = number
 	joined.colour = colour
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
@@ -78,17 +85,19 @@ static func hello(ctx: MatchContext, command: MatchCommand, spec: PhaseSpec) -> 
 	return true
 
 
-## Counts an accepted join and names the joiner (§3.5, #550): `wanted` as PlayerNames.clean leaves
-## it, or the session's Player<n> (MatchState.name_next_joiner) when that is empty (no name, the
-## wrong type, blanks or controls only); then PlayerNames.unique against the present players, so
-## neither a chosen name nor the fallback repeats one ("Dima", then "Dima 2").
-static func joiner_name(ctx: MatchContext, wanted: Variant) -> String:
-	var fallback := ctx.state.name_next_joiner()
+## Names the joiner with `number` (§3.5, #550): `wanted` as PlayerNames.clean leaves it, or the
+## fallback Player<number> (PlayerNames.fallback) when that is empty (no name, the wrong type,
+## blanks or controls only); then
+## PlayerNames.unique against the present players, so a chosen name never repeats one ("Dima",
+## then "Dima 2").
+static func joiner_name(ctx: MatchContext, wanted: Variant, number: int) -> String:
+	var fallback := PlayerNames.fallback(number)
 	var cleaned := PlayerNames.clean(wanted)
 	var taken := PackedStringArray()
 	for peer: int in ctx.state.present_peers():
 		taken.append(ctx.state.players[peer].name)
-	return PlayerNames.unique(fallback if cleaned.is_empty() else cleaned, taken)
+	var own := not cleaned.is_empty()
+	return PlayerNames.unique(cleaned if own else fallback, taken)
 
 
 ## Disconnects every newcomer still waiting (DisconnectPeer each, in peer-id order, no Rejected:

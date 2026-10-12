@@ -33,6 +33,11 @@ static func clean_to(raw: Variant, most: int) -> String:
 	return _as_string(trimmed)
 
 
+## The host's fallback name for the player with `number` (MatchState.give_number, §3.5).
+static func fallback(number: int) -> String:
+	return "Player%d" % number
+
+
 ## `wanted` (a clean() name), or when a name in `taken` equals it ignoring case, the first of
 ## "<wanted> 2", "<wanted> 3" and so on that none equals, `wanted` cut so the whole stays within
 ## MAX_CHARS characters.

@@ -116,7 +116,9 @@ func test_a_hand_edited_name_is_cleaned_on_reading_and_fits_hello() -> void:
 	var settings := UserSettings.new(PATH)
 	assert_int(settings.read()).is_equal(OK)
 	assert_str(settings.player_name).is_equal("Д".repeat(16))
-	var hello := {"version": WireSchema.VERSION, "content": 1, "name": settings.player_name}
+	var hello := {
+		"version": WireSchema.VERSION, "content": 1, "name": settings.player_name, "key": "zz"
+	}
 	assert_int(WireSchema.game(false).encode(WireMessage.new(&"Hello", hello)).size()).is_greater(0)
 	var old := ConfigFile.new()
 	old.set_value("interface", "language", "uk")
