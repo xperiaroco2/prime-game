@@ -9,6 +9,7 @@ players 3
 windows 2
 bots tools/playcheck/scenarios/spectate_bots.tres
 role 3 dissident
+map res://levels/greybox/greybox.tscn
 
 window 1
 wait phase lobby

@@ -2817,7 +2817,7 @@ see them as just pressed; holds through `Input.action_press`, screenshots throug
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
-stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`) as the host's own
+stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the House unless a script that walks on flat ground names the greybox test bench, #767) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
@@ -3916,7 +3916,7 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
   flag (`GameTutorial.mark_seen`, written): a session ended under the invite (the window closed) offers it again on
   the next launch. Until #492 the end of an invited tutorial set it.
 - **`playcheck`:** the scenario header `tutorial` (§4.7.22) starts one window with `--tutorial` and no `--host
-  --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`
+  --local` or `--no-replay` (`hostjoin.tutorial_parts`); `players` and `windows` are 1, and `bots`, `role`, `setting`, `map`
   and `clock` are refused naming their line. The window still prints the `session: hosting` line, which nothing
   waits for with one window. Scenario `tutorial`: the room in the lessons phase with three players and lesson 1's
   plates, lesson 2's after a walk (#492), and its Esc menu.

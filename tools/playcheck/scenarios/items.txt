@@ -1,4 +1,5 @@
-# Items in the own player's hand (M4-8, #276) in the game's real windows. Window 1 hosts and is
+# Items in the own player's hand (M4-8, #276) in the game's real windows, on the greybox test bench (`map`,
+# #767: a match plays the House otherwise). Window 1 hosts and is
 # forced to be crew, window 2 joins as the dissident; four knives lie on the greybox floor. Window
 # 1 starts with an empty Hand and Belt, faces the nearest knife (`aim item knife`: the mouse is
 # never captured, so this is how a window turns) and walks to it until the HUD names it under the
@@ -10,6 +11,7 @@ windows 2
 role 1 crew
 role 2 dissident
 setting knives 4
+map res://levels/greybox/greybox.tscn
 
 window 1
 wait phase lobby

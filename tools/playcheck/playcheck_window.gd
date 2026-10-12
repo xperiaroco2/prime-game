@@ -412,8 +412,8 @@ func _shot(path: String) -> bool:
 	return true
 
 
-## Window 1, once every player is in its roster: the forced roles, the clock and the settings,
-## sent through its own client as the bots' host bot sends them (NetPlay._send_setup).
+## Window 1, once every player is in its roster: the forced roles, the clock, the settings and the
+## map, sent through its own client as the bots' host bot sends them (NetPlay._send_setup).
 func _setup(step: Dictionary) -> void:
 	var client := _game.client()
 	var roles: Dictionary = step.get("roles", {})
@@ -427,6 +427,9 @@ func _setup(step: Dictionary) -> void:
 	var settings: Dictionary = step.get("settings", {})
 	for id: Variant in settings:
 		_game.change_setting(StringName(str(id)), Steps.number(settings[id]))
+	var map := str(step.get("map", ""))
+	if not map.is_empty():
+		_game.change_map(map)
 
 
 func _write_peer() -> void:
