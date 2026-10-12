@@ -97,7 +97,7 @@ func _init(
 		push_warning("match: %s" % warning)
 	state.settings = mode.default_settings()
 	state.player_rules = mode.player_rules
-	state.map = mode.maps[0] if not mode.maps.is_empty() else ""
+	state.map = mode.default_map()
 
 
 ## Replays a recorded match (§3.3): the same mode, seed, layouts, commands and ticks, with the
