@@ -30,7 +30,8 @@ const MIN_SEED := 1_000_000
 const HINT := ": bans that leave fewer task types than tasks need the lower tasks too"
 
 @export var mode: GameMode
-## One of the mode's maps; empty means its first.
+## One of the mode's maps; empty means the mode's first test bench (GameMode.bench_maps, #767:
+## bots play only the flat levels, ARCHITECTURE §9.7), else its default map (played_map()).
 @export var map := ""
 @export var session_seed := 100_000_000_001
 ## How many bots play, 1 to the mode's maximum of players.
@@ -70,9 +71,12 @@ func steps_of(bot: int) -> Array[ScenarioStep]:
 
 
 ## The setup's ChangeSettings arguments, as the host's bot sends them: `settings` (the numbers and
-## the sets, by id) and `map` when one is named; empty when the setup changes nothing.
+## the sets, by id) and `map` when one is named or the played map is not the mode's default (a test
+## bench, #767); empty when the setup changes nothing.
 func setup_change() -> Dictionary:
-	if settings.is_empty() and id_sets.is_empty() and map.is_empty():
+	var played := played_map()
+	var sends_map := not map.is_empty() or (mode != null and played != mode.default_map())
+	if settings.is_empty() and id_sets.is_empty() and not sends_map:
 		return {}
 	var values := {}
 	for id: StringName in settings:
@@ -80,9 +84,19 @@ func setup_change() -> Dictionary:
 	for id: StringName in id_sets:
 		values[String(id)] = Array(id_sets[id])
 	var args := {"settings": values}
-	if not map.is_empty():
-		args["map"] = map
+	if sends_map:
+		args["map"] = played
 	return args
+
+
+## The map the scenario plays on: `map` when named, else the mode's first test bench, else its
+## default map; empty without a mode.
+func played_map() -> String:
+	if not map.is_empty():
+		return map
+	if mode == null:
+		return ""
+	return mode.bench_maps[0] if not mode.bench_maps.is_empty() else mode.default_map()
 
 
 ## What makes this scenario unplayable, each once; empty when it is fine.

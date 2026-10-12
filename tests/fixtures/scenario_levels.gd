@@ -1,7 +1,8 @@
 extends RefCounted
-## The levels of a mode that the bot scenarios play on (ARCHITECTURE §9.7): its lobby, its first
-## map (a scenario's default) and every map a scenario in content/scenarios/ or
-## tests/fixtures/scenarios/ (the zone task's, #842) of that mode names.
+## The levels of a mode that the bot scenarios play on (ARCHITECTURE §9.7): its lobby, a scenario's
+## default map (BotScenario.played_map(): the mode's first test bench, the greybox, #767) and every
+## map a scenario in content/scenarios/ or tests/fixtures/scenarios/ (the zone task's, #842) of
+## that mode names.
 ## These are the levels the scenarios' fake world, one flat floor at y = 0, must describe truly;
 ## the mode's other maps (the House, #626) are played by people only.
 
@@ -15,8 +16,10 @@ static func of(mode: GameMode) -> PackedStringArray:
 	var paths := PackedStringArray()
 	if not mode.lobby_level.is_empty():
 		paths.append(mode.lobby_level)
-	if not mode.maps.is_empty():
-		paths.append(mode.maps[0])
+	var unnamed := BotScenario.new()
+	unnamed.mode = mode
+	if not unnamed.played_map().is_empty():
+		paths.append(unnamed.played_map())
 	for folder: String in SCENARIOS_DIRS:
 		for file in DirAccess.get_files_at(folder):
 			if not file.ends_with(".tres"):
