@@ -310,7 +310,6 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	assert_bool(menu.visible).is_false()
 
 
-## No label of `screen` shows any of `words`, as a key or translated.
 ## The shipped base mode with no test bench: both its maps are played, so the lobby has two to pick.
 func _two_player_maps() -> GameMode:
 	var mode := (load(MODE) as GameMode).duplicate() as GameMode
@@ -318,6 +317,7 @@ func _two_player_maps() -> GameMode:
 	return mode
 
 
+## No label of `screen` shows any of `words`, as a key or translated.
 func _assert_pregame_names(screen: PregameScreen, words: Array) -> void:
 	for found: Node in screen.find_children("*", "Label", true, false):
 		var label := found as Label

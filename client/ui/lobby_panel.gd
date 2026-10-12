@@ -83,7 +83,7 @@ var _bans: Dictionary[StringName, Dictionary] = {}
 var _plates: Dictionary[StringName, Dictionary] = {}
 ## Setting id -> [the host's chips box, a player's plates box].
 var _ban_boxes: Dictionary[StringName, Array] = {}
-## The mode's maps, in the picker's order.
+## The maps players play (`GameMode.player_maps()`, no test bench), in the picker's order.
 var _maps := PackedStringArray()
 ## The code Copy puts on the clipboard; empty hides the row.
 var _code := ""
