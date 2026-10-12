@@ -20,6 +20,7 @@ from runner import cli, hostjoin, playcheck, shot
 from runner.common import ROOT, Failure
 
 BOTS = "tools/playcheck/scenarios/spectate_bots.tres"
+GREYBOX = "levels/greybox/greybox.tscn"
 
 GOOD = f"""
 # A comment line, and a comment after a step.
@@ -153,6 +154,19 @@ class ParserTest(unittest.TestCase):
         s = scenario(with_header("window 1\nshot a\nwindow 2\nwait phase lobby"))
         self.assertEqual([step.do for step in s.steps[1]], ["shot"])
 
+    def test_a_map_header_goes_into_the_setup_and_alone_makes_one(self) -> None:
+        """A script that walks on flat ground names the greybox: a match is on the House otherwise (#767)."""
+        s = scenario(with_header("window 1\nshot a", f"players 2\nwindows 2\nmap {GREYBOX}"))
+        self.assertEqual(s.map, f"res://{GREYBOX}")
+        setup = s.steps[1][0]
+        self.assertEqual(setup.do, "setup")
+        self.assertEqual(setup.args["map"], f"res://{GREYBOX}")
+        planned = playcheck.plan(s, Path("/out"))["steps"]["1"][0]  # type: ignore[index]
+        self.assertEqual(planned["map"], f"res://{GREYBOX}")
+        # Without a map header the setup names none: the host's default map stays.
+        plain = scenario(with_header("window 1\nshot a", "players 2\nwindows 2\nrole 1 crew"))
+        self.assertNotIn("map", plain.steps[1][0].args)
+
     def test_a_window_without_a_section_has_no_steps(self) -> None:
         plan = playcheck.plan(scenario(with_header("window 2\nshot a")), Path("/out"))
         step = {"line": 4, "text": "shot a", "do": "shot", "name": "a", "path": str(Path("/out/a.png"))}
@@ -170,7 +184,10 @@ class ParserTest(unittest.TestCase):
             ("players 11", 1, "players must be a whole number from 1 to 10"),
             ("players 2\nwindows 2\nbots content/nothing.tres", 3, "bots: content/nothing.tres not found"),
             ("players 2\nwindows 2\nbots ../x.tres", 3, "give a .tres inside the project"),
-            ("players 2\nwindows 2\nmap greybox", 3, "unknown header line `map`"),
+            ("players 2\nwindows 2\nmap greybox", 3, "map: give a .tscn inside the project"),
+            ("players 2\nwindows 2\nmap levels/nothing.tscn", 3, "map: levels/nothing.tscn not found"),
+            ("players 2\nwindows 2\nmap ../x.tscn", 3, "give a .tscn inside the project"),
+            ("players 2\nwindows 2\nmap", 3, "wrong number of words for `map`"),
             ("players 2\nwindows 2\nrole 2", 3, "wrong number of words for `role`"),
             ("players 2\nwindows 2\nrole 3 dissident\nwindow 1\nshot a", 3, "player 3: the scenario has 2"),
             ("players 2\nwindows 2\nrole 2 Dissident", 3, "a role id looks like dissident"),
@@ -330,6 +347,7 @@ class ParserTest(unittest.TestCase):
             "role 1 dissident": "`role` has no place",
             "setting match_duration 5": "`setting` has no place",
             "clock 20": "`clock` has no place",
+            f"map {GREYBOX}": "`map` has no place",
             "players 3": "not players 3",
             "windows 2": "not windows 2",
         }

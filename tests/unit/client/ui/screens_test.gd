@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
+const GREYBOX := "res://levels/greybox/greybox.tscn"
 
 var _locale := ""
 
@@ -103,8 +104,9 @@ func test_a_read_only_lobby_tab_sends_no_setting() -> void:
 
 func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() -> void:
 	# #627: the mode's maps by name; the host's pick is sent, a guest's picker is read-only, and the
-	# picker follows the map the host's settings name.
-	var mode := load(MODE) as GameMode
+	# picker follows the map the host's settings name. Two maps players play: the shipped mode's
+	# with its test bench played too.
+	var mode := _two_player_maps()
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
 	panel.set_mode(mode)
@@ -116,23 +118,25 @@ func test_the_lobby_tab_lets_the_host_pick_the_map_and_shows_it_to_everyone() ->
 		assert_str(picker.get_item_text(i)).is_equal(LobbyPanel.map_name(mode.maps[i]))
 	assert_str(LobbyPanel.map_name("res://levels/house/house.tscn")).is_equal("House")
 	var guest := Preview.fake_model(mode, false)
-	guest.map = mode.maps[1]
+	guest.map = mode.maps[0]
 	panel.refresh(guest, -1, false)
 	assert_bool(picker.disabled).is_true()
-	assert_int(picker.selected).is_equal(1)
-	picker.item_selected.emit(0)
-	assert_array(sent).is_empty()
-	panel.refresh(Preview.fake_model(mode, true), -1, true)
-	assert_bool(picker.disabled).is_false()
 	assert_int(picker.selected).is_equal(0)
 	picker.item_selected.emit(1)
-	assert_array(sent).is_equal([mode.maps[1]])
+	assert_array(sent).is_empty()
+	var host := Preview.fake_model(mode, true)
+	host.map = mode.maps[1]
+	panel.refresh(host, -1, true)
+	assert_bool(picker.disabled).is_false()
+	assert_int(picker.selected).is_equal(1)
+	picker.item_selected.emit(0)
+	assert_array(sent).is_equal([mode.maps[0]])
 
 
 func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_list() -> void:
 	# #694: the map pick beside the lobby's name (#214), not among the settings; a set_mode with other
 	# maps replaces the old ones, and one pick sends one map.
-	var mode := load(MODE) as GameMode
+	var mode := _two_player_maps()
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
 	panel.set_mode(mode)
@@ -158,9 +162,24 @@ func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_lis
 	assert_array(sent).is_equal([mode.maps[1]])
 
 
+func test_the_shipped_lobby_offers_the_house_alone_never_the_greybox() -> void:
+	# #767: the greybox is a test bench only, so players always play the House: the lobby's picker
+	# lists the House alone, on it from the start, with nothing to pick.
+	var mode := load(MODE) as GameMode
+	assert_bool(mode.maps.has(GREYBOX)).is_true()
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	panel.refresh(Preview.fake_model(mode, true), -1, true)
+	assert_int(panel.map_picker.item_count).is_equal(1)
+	assert_str(panel.map_picker.get_item_text(0)).is_equal("House")
+	assert_int(panel.map_picker.selected).is_equal(0)
+	assert_bool(panel.map_picker.disabled).is_true()
+
+
 func test_a_mode_with_one_map_shows_it_with_nothing_to_pick() -> void:
 	var mode := (load(MODE) as GameMode).duplicate() as GameMode
-	mode.maps = PackedStringArray([mode.maps[0]])
+	mode.maps = PackedStringArray([mode.default_map()])
 	var panel: LobbyPanel = auto_free(LobbyPanel.new())
 	add_child(panel)
 	panel.set_mode(mode)
@@ -289,6 +308,13 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	menu.resume_button.pressed.emit()
 	assert_array(said).is_equal(["leave", "quit", "resume"])
 	assert_bool(menu.visible).is_false()
+
+
+## The shipped base mode with no test bench: both its maps are played, so the lobby has two to pick.
+func _two_player_maps() -> GameMode:
+	var mode := (load(MODE) as GameMode).duplicate() as GameMode
+	mode.bench_maps = PackedStringArray()
+	return mode
 
 
 ## No label of `screen` shows any of `words`, as a key or translated.

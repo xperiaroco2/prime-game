@@ -451,7 +451,11 @@ func test_an_interact_step_uses_the_n_th_station_of_its_kind_and_waits_for_its_e
 func test_the_setup_sends_the_bans_and_refuses_unknown_ones_or_too_few_types_left() -> void:
 	var scenario := _scenario([[]])
 	scenario.id_sets = {&"banned_task_types": PackedStringArray()}
-	assert_dict(scenario.setup_change()).is_equal({"settings": {"banned_task_types": []}})
+	# On the base mode the scenario plays its test bench, the greybox, not the default House: the
+	# setup sends that map too (#767).
+	assert_dict(scenario.setup_change()).is_equal(
+		{"settings": {"banned_task_types": []}, "map": "res://levels/greybox/greybox.tscn"}
+	)
 	# Two task types, `tasks` 1 by default, 0 to 2.
 	var token := FixtureDealModes.item_kind(&"token")
 	scenario.mode = FixtureDealModes.deal_mode(

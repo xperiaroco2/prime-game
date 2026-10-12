@@ -15,6 +15,9 @@ extends GdUnitTestSuite
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
+const SCENARIOS_DIR := "res://content/scenarios/"
+const GREYBOX := "res://levels/greybox/greybox.tscn"
+const HOUSE := "res://levels/house/house.tscn"
 
 
 func test_every_mode_in_content_passes_the_mode_check() -> void:
@@ -96,6 +99,24 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 	)
 
 
+func test_players_always_play_the_house_and_the_greybox_is_a_test_bench() -> void:
+	# #767 (the engineer's option (a)): the flat greybox stays one of the base mode's maps for the
+	# bot scenarios and the information-leak test, as its test bench; the lobby offers the House
+	# alone, every match starts on it, and every base-mode scenario plays the greybox (§9.7).
+	var mode := _base_mode()
+	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX])
+	assert_array(Array(mode.player_maps())).contains_exactly([HOUSE])
+	assert_str(mode.default_map()).is_equal(HOUSE)
+	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
+	assert_bool(ScenarioLevels.of(mode).has(HOUSE)).is_false()
+	for file in DirAccess.get_files_at(SCENARIOS_DIR):
+		var scenario := load(SCENARIOS_DIR.path_join(file)) as BotScenario
+		if scenario == null or scenario.mode == null:
+			continue
+		if scenario.mode.resource_path == BASE_MODE:
+			assert_str(scenario.played_map()).override_failure_message(file).is_equal(GREYBOX)
+
+
 func test_the_levels_no_scenario_plays_are_the_runners_unsnapped_ones() -> void:
 	# GE12: the runners snap station markers on the levels the scenarios play and read the rest as
 	# placed; together they are every level of the mode, with none in both.
@@ -109,9 +130,9 @@ func test_the_levels_no_scenario_plays_are_the_runners_unsnapped_ones() -> void:
 
 func test_the_scenarios_levels_are_flat() -> void:
 	# The scenarios' fake world (§9.7) is one floor at y = 0: each level a scenario plays on (the
-	# lobby, the first map, a map a scenario names) is a floor collider whose top is at y = 0 and
-	# covers every marker, and every marker stands on it. The mode's other maps (the House) are
-	# played by people only, in the host's real world (#626).
+	# lobby, a scenario's default map: the greybox, a test bench (#767); a map a scenario names) is
+	# a floor collider whose top is at y = 0 and covers every marker, and every marker stands on it.
+	# The mode's other maps (the House) are played by people only, in the host's real world (#626).
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in ScenarioLevels.of(mode):
@@ -392,8 +413,10 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 	# (1 dissident, 1 task, 6 packages, 2 knives).
 	var mode := _base_mode()
 	var layouts := _layouts_for(mode)
-	var map := layouts[mode.maps[0]]
+	# On the flat fake world the test bench plays, the greybox (#767).
+	var map := layouts[GREYBOX]
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
+	game.state.map = GREYBOX
 	game.keep_history = true
 	game.start(0)
 	var peers: Array[int] = [1, 2, 3, 4]
@@ -690,6 +713,8 @@ func _end_in_silence_then_lobby(game: Match, peers: Array[int]) -> void:
 ## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.
 func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	# On the flat fake world the test bench plays, the greybox (#767).
+	game.state.map = GREYBOX
 	game.keep_history = true
 	game.start(0)
 	for peer: int in peers:

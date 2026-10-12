@@ -22,6 +22,9 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
                             `players`; its own roles, settings and clock stay empty
     role <player> <id>      ForceRole, sent by window 1 once every player is in its roster (debug builds, E17)
     setting <id> <int>      ChangeSettings, sent by window 1 then
+    map <path.tscn>         the match's map (repo-relative or res://), a ChangeSettings sent by window 1 then; without
+                            it the match is on the mode's default map, the House (#767). Only a test bench (the flat
+                            greybox) suits a script that walks on flat ground
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
     timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
                             every other window the first wait after its first `press ready`, waits
@@ -197,6 +200,8 @@ class Scenario:
     bots: str = ""
     roles: dict[int, str] = field(default_factory=dict)
     settings: dict[str, int] = field(default_factory=dict)
+    # A level's res:// path; "" is the mode's default map.
+    map: str = ""
     clock: int = 0
     timeout: float = DEFAULT_TIMEOUT
     # Window 1 runs the solo tutorial (--tutorial) instead of hosting.
@@ -293,11 +298,13 @@ class _Parser:
             if not ID_RE.fullmatch(args[0]) or not INT_RE.fullmatch(args[1]):
                 raise self.fail("a setting is `setting <id> <whole number>`, such as `setting match_duration 5`")
             s.settings[args[0]] = int(args[1])
+        elif key == "map" and len(args) == 1:
+            s.map = map_res(args[0], self.fail)
         elif key == "clock" and len(args) == 1:
             s.clock = self.number(args[0], "clock", 1, MAX_CLOCK)
         elif key == "timeout" and len(args) == 1:
             s.timeout = self.seconds(args[0], "timeout")
-        elif key in ("players", "windows", "bots", "role", "setting", "clock", "timeout", "tutorial"):
+        elif key in ("players", "windows", "bots", "role", "setting", "map", "clock", "timeout", "tutorial"):
             raise self.fail(f"wrong number of words for `{key}`")
         else:
             raise self.fail(f"unknown header line `{key}` (steps go under a `window <n>` line)")
@@ -442,7 +449,7 @@ class _Parser:
         for number, line in self.sections.items():
             if number > s.windows:
                 raise self.fail(f"window {number}: the scenario has {s.windows}", line)
-        has_setup = bool(s.roles or s.settings or s.clock)
+        has_setup = bool(s.roles or s.settings or s.map or s.clock)
         for number, steps in s.steps.items():
             held: dict[str, int] = {}
             # The line of the `aim item` in force; 0 while the window aims at nothing.
@@ -487,6 +494,8 @@ class _Parser:
             raise self.fail(f"shot names must be unique: {', '.join(repeated)}", 1)
         if has_setup:
             setup = {"roles": {str(k): v for k, v in s.roles.items()}, "settings": s.settings, "clock": s.clock}
+            if s.map:
+                setup["map"] = s.map
             setup.update(players=s.players, timeout_s=s.timeout + (BOTS_START_SECONDS if s.bots else 0))
             text = "setup (ForceRole, ForceClock, ChangeSettings)"
             s.steps.setdefault(1, []).insert(0, Step(0, text, "setup", setup))
@@ -496,7 +505,7 @@ class _Parser:
         """A tutorial scenario: one window and one player; the stand-ins are the game's, and the setup has no host
         command to go through."""
         s = self.scenario
-        for key in ("bots", "role", "setting", "clock"):
+        for key in ("bots", "role", "setting", "map", "clock"):
             if key in self.header_lines:
                 why = f"`{key}` has no place in a tutorial scenario (no bots, no host setup)"
                 raise self.fail(why, self.header_lines[key])
@@ -514,6 +523,16 @@ def bots_res(text: str, fail: Callable[[str], Failure]) -> str:
         raise fail(f"bots: give a .tres inside the project, not {text!r}")
     if not (ROOT / rel_path).is_file():
         raise fail(f"bots: {rel_path} not found")
+    return f"res://{rel_path}"
+
+
+def map_res(text: str, fail: Callable[[str], Failure]) -> str:
+    """A level scene (repo-relative or res://) -> its checked res:// path."""
+    rel_path = text.replace("\\", "/").removeprefix("res://").removeprefix("./")
+    if not rel_path.endswith(".tscn") or ".." in Path(rel_path).parts or Path(rel_path).is_absolute():
+        raise fail(f"map: give a .tscn inside the project, not {text!r}")
+    if not (ROOT / rel_path).is_file():
+        raise fail(f"map: {rel_path} not found")
     return f"res://{rel_path}"
 
 

@@ -16,8 +16,13 @@ extends ContentPart
 @export var item_kinds: Array[ItemKind] = []
 ## The lobby level's path, which server/ loads.
 @export var lobby_level: String
-## The maps' paths; a match plays on one of them (the first by default).
+## The maps' paths; a match plays on one of them (default_map() by default).
 @export var maps: PackedStringArray = PackedStringArray()
+## The maps of `maps` that are test benches only (#767: the flat greybox, for the bot scenarios and
+## the information-leak test, ARCHITECTURE §9.7): the lobby never offers one and no match starts on
+## one by default; a bot scenario plays on the first unless it names another map. Players play the
+## rest (player_maps()).
+@export var bench_maps: PackedStringArray = PackedStringArray()
 ## Rules on intents that apply to every player.
 @export var actions: Array[Rule] = []
 ## Rules on facts (§9.2).
@@ -81,6 +86,22 @@ func find_task_type(id: StringName) -> TaskType:
 	return null
 
 
+## The maps players play, in the order of `maps`: every map but the test benches (`bench_maps`).
+func player_maps() -> PackedStringArray:
+	var found := PackedStringArray()
+	for map: String in maps:
+		if not bench_maps.has(map):
+			found.append(map)
+	return found
+
+
+## The map a match starts on, and plays unless the host picks another: the first map players play;
+## empty when the mode has none.
+func default_map() -> String:
+	var playable := player_maps()
+	return playable[0] if not playable.is_empty() else ""
+
+
 ## Every declared whole-number setting at its default.
 func default_settings() -> Dictionary[StringName, int]:
 	var values: Dictionary[StringName, int] = {}
@@ -124,4 +145,9 @@ func check(_mode: GameMode) -> PackedStringArray:
 			found.append("phase %s plays in the lobby, but lobby_level is empty" % spec.id)
 		elif spec.level == PhaseSpec.Level.MAP and maps.is_empty():
 			found.append("phase %s plays on the map, but the mode has no maps" % spec.id)
+	for map: String in bench_maps:
+		if not maps.has(map):
+			found.append("bench map %s is not one of the mode's maps" % map)
+	if not maps.is_empty() and player_maps().is_empty():
+		found.append("every map is a test bench: players have none")
 	return found

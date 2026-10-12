@@ -202,7 +202,7 @@ func _model(own: int, roster: Array) -> ClientModel:
 			{"peer": entry[0], "name": entry[1], "ready": entry[2], "colour": index}
 		)
 	welcome.settings = _mode.default_settings()
-	welcome.map = "res://levels/greybox/greybox.tscn"
+	welcome.map = _mode.default_map()
 	welcome.phase = &"lobby"
 	model.fold(&"Welcome", welcome.to_dict())
 	return model

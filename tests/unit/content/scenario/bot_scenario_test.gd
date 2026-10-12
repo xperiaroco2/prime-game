@@ -42,6 +42,28 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 	assert_array(Array(scenario.problems())).is_equal(["no mode"])
 
 
+func test_a_scenario_without_a_map_plays_the_mode_s_test_bench() -> void:
+	# #767: bots play only the flat levels (§9.7), so an unnamed map is the mode's first test bench,
+	# which the host's bot asks for in the setup, since no match starts on a bench.
+	var scenario := _scenario()
+	assert_str(scenario.played_map()).is_equal(FixtureBaseMode.MAP)
+	assert_dict(scenario.setup_change()).is_empty()
+	scenario.mode.bench_maps = PackedStringArray([FixtureBaseMode.SMALL_MAP])
+	assert_str(scenario.played_map()).is_equal(FixtureBaseMode.SMALL_MAP)
+	assert_dict(scenario.setup_change()).is_equal(
+		{"settings": {}, "map": FixtureBaseMode.SMALL_MAP}
+	)
+	assert_array(Array(scenario.problems())).is_empty()
+	# A named map wins, and is sent even when it is the default (as before #767).
+	scenario.map = FixtureBaseMode.MAP
+	assert_str(scenario.played_map()).is_equal(FixtureBaseMode.MAP)
+	assert_dict(scenario.setup_change()).is_equal({"settings": {}, "map": FixtureBaseMode.MAP})
+	scenario.mode = null
+	scenario.map = ""
+	assert_str(scenario.played_map()).is_empty()
+	assert_dict(scenario.setup_change()).is_empty()
+
+
 func test_the_bots_talk_in_spurts_by_default_or_continuously() -> void:
 	# M5-1: the bots' synthetic voice (ARCHITECTURE §4.6).
 	var scenario := _scenario()

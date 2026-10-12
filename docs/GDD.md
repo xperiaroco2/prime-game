@@ -666,6 +666,10 @@ yard on an 80 x 60 m plot, for 4 to 10 players, on four levels (basement, ground
 attic and roof), laid out for the five task chains. Its sizes and positions are a working draft until a greybox
 playtest.
 
+Players always play the House: the lobby offers no other map and every match starts on it. The flat greybox stays a
+test bench only, for the bot scenarios and the information-leak test (the engineer's option (a) on
+[#767](https://github.com/xperiaroco2/prime-game/issues/767)).
+
 - How many maps in all, and do later maps keep the same scale and player count?
 
 ## 14. Art and audio direction
