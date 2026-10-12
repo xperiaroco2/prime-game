@@ -12,8 +12,19 @@ const NEAR := Vector3(0, 0, 19.1)
 
 func test_the_reasons_are_the_ones_architecture_describes() -> void:
 	# A new reason needs its row in §9.4.1 (what it reveals) first, then this list.
-	assert_array(StationUsable.REASONS).is_equal(
-		[&"unavailable", &"wrong_item", &"empty_hand", &"two_handed"]
+	(
+		assert_array(StationUsable.REASONS)
+		. is_equal(
+			[
+				&"unavailable",
+				&"wrong_item",
+				&"empty_hand",
+				&"two_handed",
+				&"no_film",
+				&"no_frames_left",
+				&"film_exposed",
+			]
+		)
 	)
 	# The two it shares with the item conditions are theirs (one wire id each).
 	assert_str(StationUsable.EMPTY_HAND).is_equal(HoldsItem.EMPTY_HAND)

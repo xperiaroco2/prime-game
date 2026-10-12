@@ -25,10 +25,21 @@ const WRONG_ITEM := &"wrong_item"
 const EMPTY_HAND := HoldsItem.EMPTY_HAND
 ## The use would put an item beside a two-handed one (HandNotTwoHanded's reason).
 const TWO_HANDED := HandNotTwoHanded.TWO_HANDED
+## The camera holds no film, and the actor carries none (the photo ADR §3.2): reveals only the
+## actor's own carried items.
+const NO_FILM := &"no_film"
+## The camera's film has every frame drawn (the photo ADR §3.2): reveals the frames drawn on the
+## film in the camera, which everyone who saw the shots (ShotTaken) knows already.
+const NO_FRAMES_LEFT := &"no_frames_left"
+## The camera holds no film, and every film the actor carries is exposed (the photo ADR §3.2):
+## reveals only the actor's own carried items.
+const FILM_EXPOSED := &"film_exposed"
 ## Every reason use_problem may return, and a type may list in use_reasons(). A new one updates
 ## ARCHITECTURE §9.4.1's row (what it reveals) and station_usable_test.gd, and the protocol
 ## version (a client of the old one never gets it).
-const REASONS: Array[StringName] = [UNAVAILABLE, WRONG_ITEM, EMPTY_HAND, TWO_HANDED]
+const REASONS: Array[StringName] = [
+	UNAVAILABLE, WRONG_ITEM, EMPTY_HAND, TWO_HANDED, NO_FILM, NO_FRAMES_LEFT, FILM_EXPOSED
+]
 
 
 ## It needs a station (Stations.target_of), which no fact carries, and also reads the actor (the
