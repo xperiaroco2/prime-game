@@ -1491,219 +1491,82 @@ takes the machine paths from the Claude settings (§2).
 
 ### 11.16 CI [applied]
 A plain `verify` runs only `doctor --quick`, `lint` and `check` (one lane each, at once) and the clean-tree check,
-takes no verify slot, prints "fast verify: lint and check; the tests run on CI" and records `"mode": "fast"` (`metrics`
-leaves its total out of the full runs'); every test runs on CI (#605,
-[ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)). What follows about steps, lanes and slots is
-`verify --full`, CI's run, which an agent runs locally only when it needs to (a Windows-only failure, a release).
-`.github/workflows/ci.yml` runs `tools/run.sh verify --full` on ubuntu-24.04 in parts at once (#857): a job per
-part of `verify.PARTS` (`verify --full --part <name>`: `test` is check and test, `network` check and every network,
-bots and chaos run and game, `runner` lint, signal, check and both selftest groups, so the count check stays whole),
-each with its own reports artifact; a step's AFTER step in another part counts as ended. The job named `verify`, the
-check the ruleset requires, needs every part (`if: always()`) and is green only when every part's job was (a red,
-cancelled or skipped part makes it red); one serial job took a median 12.6 min over 12 runs (2026-10-11). It runs on
-every PR (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
-pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
-(the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
-if its Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving
-them to Windows `verify`; that fallback must also give the smoke suite a skip when the `.gdextension` is absent,
-which it has none of today). The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check,
-and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs it too
-(`on.push.branches`: `main` and `release/**`, #622), so the tree a `merge` or `merge --sync-main` leaves there is tested
-(§7.1). A second job, `python-min` (#349), sets up the pinned minimum Python (`pins --get python_min`, 3.11), checks it
-runs that version, compiles every runner file and runs `selftest --group python` (221 s on CI on 2026-10-09, 120 s of
-it one test waiting out a child that `kill_tree` never killed on Linux, fixed in #603; alone on its runner it takes
-all 4 vCPUs since #603; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the stated
-minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). It is a required check of `main` like
-`verify` (§8.5), so neither `merge` nor a human's merge button takes a PR while it is red. `verify` (#179) runs
-`doctor --quick` first (red: nothing else runs), then three lanes at once, each a process of its own and serial
-inside: the Python lane (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then
-`selftest`: the runner tests that start no Godot, in worker processes: half the logical CPUs on a machine with at
-least 8, so 8 on the PC since #556 (a quarter before; the lane now ends near the first network run instead of beside
-most of them), else a quarter and at least one, 1 on CI; `selftest --group python` outside a verify lane takes every
-CPU of a smaller machine and at least 7 of a bigger one. Since #603 each worker runs a class's tests in batches, in
-their serial order with the class's fixtures once, as a serial run has them (before, each test ran alone and rebuilt
-its class's fixtures); a class is cut so no batch holds more than the last run's seconds over workers times 4,
-longest batches first; on Windows the tests' own processes are the cost: about 8,000 a run, mostly git, which on the
-PC kept all 16 logical CPUs busy at 8 workers, Defender's scan about 2 of them, and 16 workers ran slower, #603), the
-Godot lane (`check`, `test`, then the network runs: `enet`, `freeze` and `stall` (the headless ENet runs of `net/`,
-below), their WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and
-`webrtc-silence`, `bots`, `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`) and the selftest-godot
-lane (`selftest-godot`: the runner test classes marked `@starts_godot`). A step of `AFTER` in `tools/runner/verify.py`
-starts only once its steps of other lanes have ended, whatever their status (the parent tells each lane process every
-step that ended, one name per line on its stdin): `selftest-godot` after `check`, so that a fresh checkout has imported
-the project and no two imports run at once, and `enet` after `selftest-godot`, so that no other Godot run overlaps a
-network run and the network runs never overlap each other. Until #556 `selftest-godot` ran in the Godot lane between
-`check` and `test`; that lane was the critical path in every run measured (the 101 full runs on the PC from 10-06 to
-10-08: the Godot lane median 527 s, the Python lane 336 s; CI alike: 490 s against 264 s). Measured over 10 full runs
-after #556 (2026-10-08, one or two runs at once) against those 101 before it (read from the verify logs of the sessions,
-since `verify-history.jsonl` survives only in the live worktrees): `verify` 455 s median (p90 486 s) against 530 s (660
-s), the Godot lane 452 s against 527 s, the Python lane 212 s against 336 s, `selftest` 144 s against 265 s, and `test`
-beside the new lane 123 s against 130 s. If `test` turns flaky under the extra load (see its red rate in `metrics`),
-`AFTER["selftest-godot"] = ("check", "test")` puts the lane after `test` again. Every step runs and any red step fails
-it; each step's output goes whole to `tools/out/logs/verify-output.log` when the step ends (`== <step> (<lane> lane,
-<seconds>, <status>)`), and a red step's failure lines to the terminal too (quiet by default, §11.15; `--verbose` and
-CI print every step whole). After the lanes: the
-clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
-it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
-`selftest --group python|godot` runs one group without it). The
-summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `webrtc`,
-`webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
-`bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
-test count.
-**`verify --changed` and `lint --changed` (#859, the engineer's approval of 2026-10-11):** the agents' local
-lint. gdformat and gdlint run only on the project `.gd` files changed against `origin/<base>` (the parent `start
---base` recorded, else `main`): committed since the merge base, staged, unstaged or untracked, deleted ones left out;
-the budget, frontmatter and § checks still run whole. Every file instead, and the output says why, when the merge
-base is unknown, when `gdlintrc`, `gdformatrc`, `tools/runner/pins.py` or `tools/runner/lint.py` changed, and on CI.
-Lint ends `lint: passed, changed files only (n of m)`; verify's `lint` row notes `(changed files only, n of m)`, its
-record step `"changed_only": [n, m]`, and `metrics` counts that step as `lint-changed`, apart from the whole lint.
-Agents pass the flag (the workflow prompts, finish-task); `publish` adds it where `CLAUDECODE` is set (a Claude Code
-shell, as `host` and `join` tell one apart). A human's plain `verify` and `lint` stay whole; `verify --full` refuses
-`--changed`, and CI's job runs `verify --full`, so CI always lints every file: a lint problem in a file the change did
-not touch shows up red on CI, not in the local run.
-**`verify --fail-fast` (#556):** the first red step stops every lane (`stop_lane`, as Ctrl+C and a lane timeout do:
-on Windows `taskkill /T` kills each lane's whole tree; on Linux and macOS the lane process first gets SIGTERM, whose
-handler in `lane_main` kills each process `common.run` started there, in a session of its own that the kill of the
-lane's group never reaches, #574; not tracked there, a Godot that a selftest worker process started survives, and the
-`game` step's host and client, which `hostjoin.start` starts, stop on their own within 10 s once its alive file goes
-stale): the steps that had not ended are `not run` in the summary (no output block) and the record, a
-`stopped early (--fail-fast)` line names the red step and the rest, the end line adds `, stopped early at <step>
-(--fail-fast)`, the count check is left out (the runner tests are partial) and the run is red. The record's `stopped` is
-{`at`, `not_run`} (null on a run of every step), and `metrics` counts a `not run` step as neither a pass nor a red and a
-stopped run's total as no verify length. Use it in an implementer's inner loop (issue-task's implementer prompt and
-the `finish-task` skill say so, #574), where a red step means another fix
-anyway: a planted `lint` error returned in 60 s and a planted type error (red `check`) in 31 s, against 455 s for a
-whole run. Never for the run that gates: the green verify that the definition of done pastes, `publish` (which runs
-`verify` itself, without the flag), `merge` and CI run every step, since one run must show every red step at once; a run
-stopped early is red, so `wait --verified` and `publish` never reuse it. Tests: `tools/runner/tests/test_verify.py`
-(`AfterTest`, `FailFastTest`, `LaneTermTest`, whose stopped lane with a live child runs on Linux and macOS only).
-**A machine that slept (#595):** on 2026-10-08 the laptop slept from 20:59:58Z to 07:21:15Z (Modern Standby) and each
-verify in flight reported a step of about 38,000 s, ending after the resume: a Windows wait (the lane timer) does not
-count a sleep, while `time.monotonic` (QueryPerformanceCounter) and the wall clock do; on Linux the monotonic clock
-stops and the wall clock jumps. So a thread of `verify` (`suspend.Watch`, `tools/runner/suspend.py`) reads both clocks
-every 5 s while the lanes run; a gap of 120 s or more between two reads (`SUSPEND_GAP`: a loaded PC delays a thread by
-seconds; a shorter sleep is survived) stops every lane at once, as `--fail-fast` does (`stop_lanes_firmly`: one
-thread per lane, repeated up to 6 times 5 s apart, as Windows may not start `taskkill` just after a wake; a suspend
-noticed after the last step ended changes nothing): each lane's running step
-(`steps_in_flight`: not one still waiting for its `AFTER` step) is red with the first line `the machine slept or was
-suspended (<n> s): verify stopped this step`, its `failure` in the record; the rest is `not run`; the end line adds `,
-stopped early at <steps>: the machine slept or was suspended (<n> s)` (`metrics` counts no step of such a run, red
-or not: neither its totals nor its red rates),
-and the record's `stopped` is {`at`: null, `suspended`: n, `not_run`}. `wait` reads the same two clocks at its polls:
-after such a gap it reads the log once more and, with the job still running, prints `wait: the machine slept or was
-suspended (<n> s) during this wait; ...` before its still-running line (124). Tests:
-`tools/runner/tests/test_suspend.py` (injected clocks), `SuspendTest` in `test_verify.py`, `test_wait.py`.
-Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
-`branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
-at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
-`selftest` (run, skipped; empty after a stop), `slot` (below; null without one) and `stopped` (above). Since #273 a
-red step adds `failure`, its first `FAIL`
-line with the reason under it when a step that runs the game (`check`, `enet` to `game`) printed one (the first engine
-error line, or the first line under a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a
-placement", #284); the `test` step adds `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results:
-false` when it wrote no `results.xml`, such as a crash's 3221225477, `timed_out` and an `error` that kept it from
-starting; shard 1 is the one process of a run without shards) and, when red, `failed_tests` (`test` as
-`<suite>::<test>`, with the failure's `message` on one line, or `orphans` for a leak) and `failed_tests_more` past 20.
-A message is cut at 240 characters, so a red record stays about 1 KB; `metrics` lists the red runs' failing tests,
-first failure lines and shard exits. Every `check` step records `exit_crash`: true when its project check passed
-although Godot crashed at exit (§11.3), whatever the step's final status, else false (#449); a record without the
-field predates it. A true one puts `(Godot crashed at exit, #442)` after the seconds in the summary row, and
-`; red for another reason` when the step is red (the crash did not fail it).
+takes no verify slot, prints "fast verify: lint and check; the tests run on CI" and records `"mode": "fast"`; every
+test runs on CI (#605, [ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)). Every agent runs `verify` in
+the background into a log and polls it with `wait <log>` (§11.17). The rest of this section is
+`verify --full`, CI's run, which an agent runs locally only when it needs to (a Windows-only failure, a release). How
+its steps, lanes, `AFTER` order, output and record work: the docstrings of `tools/runner/verify.py`, `slots.py`,
+`load.py`, `suspend.py`, `common.py` and `verify --help`; the measurements behind them: git history.
+**CI:** `.github/workflows/ci.yml` runs `tools/run.sh verify --full` on ubuntu-24.04 in parts at once (#857), a job
+per part of `verify.PARTS` (`verify --full --part <name>`), each with its own reports artifact. The job named
+`verify` needs every part (`if: always()`) and is green only when every part's job was. A second job, `python-min`
+(#349), runs `selftest --group python` on the pinned minimum Python (`pins --get python_min`), since 3.12-only code
+once broke `verify` on 3.11 (#345). Both are required checks of `main` (§8.5), so neither `merge` nor a human's merge
+button takes a PR while one is red. CI runs on every PR (whatever its base) and on pushes to `main` and `release/**`
+(#622), so the tree a `merge` or `merge --sync-main` leaves there is tested (§7.1), with the checksum-checked Godot
+build from the pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads
+webrtc-native (the M6 ADR's E57, #367; smoke test `tests/unit/net/transport/webrtc_native_addon_test.gd`); if its
+Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, which then also
+needs a skip in that smoke suite when the `.gdextension` is absent. The game targets Windows for now; CI stays on
+GitHub's free Linux runner as an extra check, and a problem seen only on Linux is low priority (the engineer,
+2026-10-01). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway branch `tooling/2-ci-red-probe`
+turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+**`verify --full`:** `doctor --quick` first (red: nothing else runs), then three lanes at once: Python (`lint`,
+`signal`, `selftest`), Godot (`check`, `test`, then the network runs: `enet`, `freeze`, `stall`, their WebRTC twins,
+`bots`, `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc` and `game`) and selftest-godot (the runner tests marked
+`@starts_godot`), so no other Godot run overlaps a network run. Every step runs and any red step fails it; then the
+clean-tree check and the runner tests counted against a serial discovery. If `test` turns flaky under the extra load
+(see its red rate in `metrics`), `AFTER["selftest-godot"] = ("check", "test")` puts that lane after `test` again
+(#556). Each step's output goes whole to `tools/out/logs/verify-output.log`, a red step's failure lines to the
+terminal too (quiet by default, §11.15; `--verbose` and CI print every step whole). The `game` step (#149) starts
+`client/app/game.tscn` headless through its command line, a host and one client that must both be welcomed into the
+lobby and stop with exit 0 and no engine error line. The network runs take a random free port in 20000–31999; if
+two worktrees ever share one, the host fails with `host on 127.0.0.1:<p> failed`: run `verify` again. Test suites are
+named `<name>_test.gd` (GdUnit4's snake_case convention).
+**`verify --changed` and `lint --changed` (#859, the engineer's approval of 2026-10-11):** the agents' local lint.
+gdformat and gdlint run only on the project `.gd` files changed against `origin/<base>` (the parent `start --base`
+recorded, else `main`); the budget, frontmatter and § checks still run whole, and every file is linted (the output
+says why) when the merge base is unknown, a lint config or `pins.py`/`lint.py` changed, and on CI. Agents pass the
+flag (the workflow prompts, finish-task); `publish` adds it in a Claude Code shell (`CLAUDECODE`). A human's plain
+`verify` and `lint` stay whole, and `verify --full` refuses `--changed`, so CI always lints every file: a lint problem
+in a file the change did not touch shows up red on CI, not in the local run.
+**`verify --fail-fast` (#556):** the first red step stops every lane; the steps that had not ended are `not run` and
+the run is red. Use it in an implementer's inner loop (issue-task's implementer prompt and `finish-task` say so),
+where a red step means another fix anyway. Never for the run that gates: the green verify the definition of done
+pastes, `publish` (which runs `verify` itself, without the flag), `merge` and CI run every step, since one run must
+show every red step at once; `wait --verified` and `publish` never reuse a run stopped early.
+**A machine that slept (#595):** a Windows wait does not count a sleep, so a verify in flight across one reported
+steps of hours. `verify` now stops every lane on a gap of 120 s or more between two clock reads: the running steps
+are red with `the machine slept or was suspended (<n> s)`, `metrics` counts no step of the run, and `wait` prints the
+same line. Run `verify` again.
+**History:** each run appends a record to `tools/out/logs/verify-history.jsonl`, which `metrics` reads (fields:
+`verify.py`'s `step_record` and the run record; since #273 a red step's `failure` line, `test`'s `shards` and
+`failed_tests`, since #449 `check`'s `exit_crash`, §11.3).
 **Processes Windows could not start (#441):** on the engineer's PC, Godot, git, Python and PowerShell sometimes exit
 with 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED) a fraction of a second after their start, before they print a
-line: Windows failed them while it loaded their DLLs, so none of their code ran. In 11 of about 420 agents' verify
-logs (10-01 to 10-05) it hit every process that started during a window of 0.5 s to several minutes, at one to three
-verify runs at once (row 15 of the weekly budget ADR), and the same tree passed on a rerun; which per-session resource
-ran short (commit, desktop heap or another) is not known yet. `run` in `tools/runner/common.py` (every `run` instance,
-GdUnit4 shard, `check` import and the runner's git and gh calls) starts such a process once more after 10 s, with a
-`NOT STARTED, restarted once` warning that carries the machine's load at that moment (processes, threads, handles,
-commit, free RAM, USER and GDI objects: the evidence to find the shortage), then `RESTARTED` or `NOT STARTED again`;
-once a restart was refused too, that runner process restarts nothing more, and one of several instances that run
-together (`enet`, `freeze`, `bots-enet`) is not restarted, since its late start would fail the others. A process that
-printed a line or lived 10 s is never started again, whatever it returned, so no step that ran is retried. A start
-that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
-are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
-`NOT STARTED` line. Tests: `tools/runner/tests/test_not_started.py`.
-**Verify slots (#185):** on a PC, after `doctor`, `verify --full` (a plain `verify` takes none, #605) takes one of N
-machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
-a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
-`~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
-operating system frees a slot's lock when its process ends however it ends, so a killed run's slot is taken over at
-once (the next run names it: "left by a run that ended without releasing it"). While every slot is held the run prints
-every minute which worktrees, branches and pids hold them. The wait is bounded (default 600 s since #388; 95 s
-before, to fit an agent's 600 s foreground call, which agents no longer make: they run verify and publish in the
-background and poll them with `wait`, below). With 95 s, 7 of the 59 runs left in the verify history files (to
-2026-10-04) ran over the limit, all on 2026-10-04 with three or four tracks verifying at once, and they were slow
-(median 603 s against 359 s slotted); for the five whose holders the files name, a slot freed 207 to 536 s after the
-wait began. 600 s covers them all and is about one whole verify on the loaded PC (45 of 51 slotted runs took less):
-a longer wait means a stuck holder. After the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
-its output, its summary's last line and its record (`over`). A slot never skips or weakens a step. N is 2, measured on
-the engineer's PC with #182's shards (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to
-441 s, four 452 s; two runs of 4 shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes
-every run a third longer and `test` red more often (freeze, stall, enet and bots-enet stayed green).
+line: none of their code ran, and the same tree passes on a rerun (which per-session resource runs short is not known
+yet). `run` in `tools/runner/common.py` starts such a process once more after 10 s with a `NOT STARTED, restarted
+once` warning carrying the machine's load (the evidence to find the shortage); a process that printed a line or lived
+10 s is never started again, so no step that ran is retried. A start that stayed refused reads `could not start: ...
+run verify again`, and the summary gets a `NOT STARTED` line: run `verify` again. Tests:
+`tools/runner/tests/test_not_started.py`.
+**Verify slots (#185):** on a PC, `verify --full` (a plain `verify` takes none) takes one of N machine-wide slots
+(lock files in `%LOCALAPPDATA%\prime-game\verify-slots`, elsewhere `~/.cache/prime-game/verify-slots`, shared by the
+main checkout and every worktree), so the tracks' runs queue instead of starving each other. N is 2, measured on the
+engineer's PC: a third or fourth run at once makes every run a third longer and `test` red more often. A killed run's
+slot is freed at once. The wait is bounded (600 s, about one whole verify on the loaded PC: longer means a stuck
+holder); after it the run goes ahead without a slot, marked `OVER THE LIMIT`. A slot never skips or weakens a step.
 `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the
 defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
-**Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
-busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
-runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
-first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
-waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
-starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
-was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
-slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
-slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
-logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
-`stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
-every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
-loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
-that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
-is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
-background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
-scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
-`wait <log>`.
+**Load runs (#388):** an agent that tests something under load on purpose runs `load [--loops N] [--seconds S]`, never
+hand-written busy loops: it takes a slot like a verify, so one verify fewer runs beside it and every waiting run names
+it, and past the wait it starts nothing (exit 1). Start it in the background (a log under the scratch folder), run
+your steps after its `load: running` line, and let it end or `wait <log>`. A verify that ran beside a load may run slow
+and go red on `freeze` or `stall`: rerun it after the load instead of debugging it.
 **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
-one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
-machine-wide: a run already in a slot finishes there, a run already waiting joins the window. Since #595 a holder file
-records how long the machine had slept since its boot (`suspend.asleep_seconds`: Windows' interrupt time minus its
-unbiased interrupt time, which Modern Standby stops too; Linux' `CLOCK_BOOTTIME` minus `CLOCK_MONOTONIC`), and
-`--status` marks a live holder STALE, not held, when the machine slept 120 s or more since it took its slot, or, for a
-holder file without the counter (an older runner), when it took its slot before the System log's last resume from
-sleep (Kernel-Power 507 with `SleepEntered` true, or 107): such a verify stops at the resume, an older one may hang.
-Tests: `tools/runner/tests/test_slots.py` (`SleptHolderTest`), `tools/runner/tests/test_load.py`.
-The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
-then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
-quiet window), its `seconds` leave the wait out, and the summary's last
-line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
-the limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a runner test that reaches the real lanes
-fails instead of starting `verify` inside `verify`; a runner test that starts Godot carries `@starts_godot`
-(`runner.verify`). `bots` is `bots` (every scenario in one process, about 8 s) and `bots-enet` is `bots
-dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
-that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
-188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `bots-webrtc` and `chaos-webrtc`
-(M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6.7): `bots
-dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
-webrtc` (one chaos run paced to the real clock, about 16 s); `bots-webrtc` passed 5 runs and `chaos-webrtc` 10 in a
-row (seeds 188001 and 188002) beside a `load` of 8 busy
-loops on a 4-CPU cloud container (2026-10-05). Since #429 the shim also drops and delays LATEST on the host (the
-client sends the claims that matter on `MoveClaimReliable`), and `WebRtcTransport` refuses an empty packet; the
-two steps' baseline under load is #475. `game` (#149, about 5 s) starts
-`client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
-(`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
-file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
-`run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
-5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
-`run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
-both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
-`run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
-`<p> + 2`. The WebRTC twins (#370) run `tests/integration/net/webrtc_host_and_two_clients.gd` and
-`webrtc_freeze.gd` with `--instances 3`, and `webrtc_stall.gd` (about 23 s: the silence rule's 20 s) and
-`webrtc_silence.gd` (about 31 s) in one process, each with `--seconds 60`; their `<p>` is free for TCP too, since
-`LanSignalling` listens there. Each gets
-`-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
-worktrees verifying at once very rarely share a port (if they do, the host fails with
-`host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
-(GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
-branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+one waits or runs over the limit) and marks a holder that slept since it took its slot STALE (#595); `--quiet <hours>`
+(at most 24; `off`) leaves new verify and load runs one slot machine-wide. Tests: `tools/runner/tests/test_verify.py`,
+`test_suspend.py`, `test_slots.py`, `test_load.py`, `test_wait.py`.
 
 ### 11.17 Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied] (#303; #302's token research)
 A workflow
