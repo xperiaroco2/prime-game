@@ -57,3 +57,9 @@ func test_an_aim_straight_above_still_makes_a_frame() -> void:
 
 func _frame() -> PhotoFrame:
 	return PhotoFrame.between(LENS, AIM, FOV, ASPECT, RANGE)
+
+
+func test_an_aim_at_the_lens_itself_still_makes_a_frame_looking_forward() -> void:
+	var frame := PhotoFrame.between(LENS, LENS, FOV, ASPECT, RANGE)
+	assert_bool(frame.contains(LENS + Vector3.FORWARD * 4)).is_true()
+	assert_bool(frame.contains(LENS + Vector3.BACK * 4)).is_false()

@@ -30,10 +30,10 @@ static func between(
 	frame.lens = from
 	var direction := aim - from
 	var up := Vector3.UP
-	if Vector2(direction.x, direction.z).length() < 1e-4:
-		up = Vector3.FORWARD
 	if direction.length() < 1e-4:
 		direction = Vector3.FORWARD
+	elif Vector2(direction.x, direction.z).length() < 1e-4:
+		up = Vector3.FORWARD
 	frame.basis = Basis.looking_at(direction, up)
 	frame.range_m = far
 	frame._tan_v = tan(deg_to_rad(fov_deg) / 2.0)
