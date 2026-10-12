@@ -101,9 +101,13 @@ func check(mode: GameMode) -> PackedStringArray:
 				"task type %s lists the map %s, which is not one of the mode's maps" % [id, map]
 			)
 	for reason: StringName in use_reasons():
-		# One outside the wire's alphabet is ModeCheck's (_check_ids), said once.
-		if ModeCheck.is_wire_id(reason) and not StationUsable.REASONS.has(reason):
-			var text := "task type %s lists the use reason %s, which is not one of StationUsable.REASONS"
+		var text := ""
+		if not ModeCheck.is_wire_id(reason):
+			text = 'task type %s lists the use reason "%s", which is not an id: 1 to %d characters'
+			text += " of a-z, 0-9 and _ (the wire's alphabet)"
+			found.append(text % [id, reason, ModeCheck.MAX_ID_LENGTH])
+		elif not StationUsable.REASONS.has(reason):
+			text = "task type %s lists the use reason %s, which is not one of StationUsable.REASONS"
 			found.append(text % [id, reason])
 	return found
 

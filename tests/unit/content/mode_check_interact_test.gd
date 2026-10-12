@@ -170,4 +170,4 @@ func test_a_task_types_use_reasons_are_wire_ids_of_station_usable() -> void:
 		)
 	)
 	type.reasons = [&"Wrong-Item"]
-	_expect(mode, 'mode.task_types[0]\'s use reason is "Wrong-Item": an id is 1 to 32')
+	_expect(mode, 'task type fixture_station lists the use reason "Wrong-Item", which is not an id')
