@@ -115,6 +115,7 @@ from .common import (
     Result,
     bad,
     ensure_out,
+    must,
     ok,
     quiet,
     remove_own_user_dir,
@@ -266,12 +267,6 @@ def _out(*args: str, cwd: Path | None = None) -> str:
     return res.stdout.decode("utf-8", "replace").replace("\r\n", "\n")
 
 
-def _must(res: Result, what: str) -> str:
-    if res.timed_out or res.rc != 0:
-        raise Failure(f"{what} failed: {res.out.strip()[-600:]}")
-    return res.out.strip()
-
-
 # --- one run's git answers (#724) -------------------------------------------------------------------------------------
 
 SHA_RE = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?\Z")
@@ -383,7 +378,7 @@ def _count_since(fork: str, tip: str) -> int:
 
 def fetch() -> None:
     CACHE.moved()  # whatever the fetch does, and even when it fails
-    _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
+    must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
     CACHE.moved()
     ok(f"fetched {REMOTE}")
 

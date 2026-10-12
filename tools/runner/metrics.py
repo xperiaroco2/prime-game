@@ -4640,11 +4640,6 @@ def track_checkouts(main: Path, base: Path | None = None) -> list[dict]:
     return found
 
 
-def track_dirs(main: Path, base: Path | None = None) -> list[tuple[Path, str | None]]:
-    """Each TRACK_CHECKOUTS checkout's transcript folders (track_checkouts) with the checkout's default track."""
-    return [(d, c["track"]) for c in track_checkouts(main, base) for d in c["folders"]]
-
-
 def checkouts_line(checkouts: list[dict]) -> str:
     """Which checkouts' transcripts were read (#586): each one's folder keys and its worktree folders' count, or `not
     on this machine` (its spend is unknown here, never 0)."""

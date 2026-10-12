@@ -269,11 +269,6 @@ def _parse(rule: str) -> tuple[str, re.Pattern[str] | None, str]:
     return tool, re.compile(".*".join(re.escape(part) for part in body.split("*")), flags), rule
 
 
-def subcommands(command: str, shell: str) -> list[str]:
-    """The text of each simple command, the ones inside `$(...)` included."""
-    return [part.text for part in parts(command, shell)]
-
-
 def parts(command: str, shell: str, cwd: str = "") -> list[Part]:
     """Each simple command of a call, the ones inside `$(...)` included, with its paths resolved against cwd (the
     working directory, then each `cd`) and the variables the call assigns, as the guard resolves them."""

@@ -10,7 +10,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, ctx
+from runner import agents_check, cli, ctx
 
 WT = Path("D:/prime-game/.claude/worktrees/597")
 
@@ -92,7 +92,7 @@ class CtxTest(unittest.TestCase):
         transcript(project / "subagents" / "workflows" / "wf_2" / "agent-other.jsonl", "D:/prime-game/.claude/worktrees/572", [10000], now)
         transcript(project / "subagents" / "workflows" / "wf_1" / "journal.jsonl", "D:/prime-game/.claude/worktrees/597", [], now)
         stale = transcript(self.dir / "projects" / "D--prime-game--claude-worktrees-597" / "s.jsonl", "D:/prime-game/.claude/worktrees/597", [1], now - 7 * 3600)
-        dirs = ctx.project_dirs(self.dir, Path("D:/prime-game"))
+        dirs = agents_check.project_dirs(Path("D:/prime-game"), self.dir)
         self.assertEqual([d.name for d in dirs], ["D--prime-game", "D--prime-game--claude-worktrees-597"])
         self.assertEqual(ctx.find_transcript(dirs, WT, now), mine)
         os.utime(stale, (now, now))
