@@ -396,69 +396,25 @@ Rules for every workflow run:
   #608): one agent takes it through lint, check, a PR and CI, fresh reviewers only for a diff under `core/ server/ net/
   client/ voice/ tests/harness/` (`code-reviewer` alone when those paths are all under `client/ui/`, #606), and the
   manager merges it at once when its result says `ready_to_merge` (the definition of done's review step, §4.2, is then
-  CI alone for any other diff). `issue-task`'s
-  review chain follows the change's risk (#606, [ADR
-  amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): after the implementer, a path under `core/
-  server/ net/ client/ voice/ tests/harness/` (but `client/ui/`, the screens: the engineer's answer 2b,
-  [#302](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-6085059719)), no changed paths, a design task
-  or the arg `tier: "full"` gets today's full chain (the How above, unchanged); any other diff the light one
-  (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher), which drops `skeptic` even when
-  passed, `plan_review` on a `content`, `level` or `tooling` branch, and on a `client/ui/` diff the netcode review and
-  `test_review` (no other light diff ever routed them).
-  A relaunch for an issue whose PR is published passes `update: true` (#856): the implementer records the PR's
-  published head, the reviewers review only the delta since it (routed by its paths), and `plan_review`,
-  `test_review` and `skeptic` are dropped; the full chain runs instead when no published head comes back, `tier` is
-  `full`, or the delta touches any of the full tier's paths, whatever its size, and the result's `update` says which
-  (orchestrate-stage `launch-args.md`).
+  CI alone for any other diff). `issue-task`'s review chain follows the change's risk (#606, [ADR
+  amendment](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)): the full chain for a path under `core/ server/
+  net/ client/ voice/ tests/harness/` (but `client/ui/`), no changed paths, a design task or `tier: "full"`; the light
+  one (`code-reviewer`, `godot-api-checker` on a `.gd .tscn .tres` change, the publisher) for any other diff. A
+  relaunch of a published PR passes `update: true` (#856) and reviews only the delta. Details: orchestrate-stage
+  `launch-args.md` ("Review tier") and `docs/workflow-scripts.md`.
   A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158); a diff whose only
-  such paths are under `client/ui/` gets none in either script (#606: `issue-task`'s light tier, `quick-task`'s
-  `NETCODE` rule), and the result says so.
-  `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
+  such paths are under `client/ui/` gets none in either script (#606), and the result says so.
+  `tools/runner/tests/test_workflows.py` runs the scripts under Node with stub agents and checks their routing and
   rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
-  read their prompt, not this file, so every agent of both scripts and of `quick-task.js` (since #818 the read-only
-  ones too: reviewers, the plan critique, the A/B judge and the skeptics get them as `REVIEW_RULES`, beside the
-  reading line) has one line each for the two calls that stopped them most (#312, #326): read the hooks path with
-  `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
-  foreground `sleep N; cat <log>` or PowerShell's `Start-Sleep N` (§11.17, "Bounded waits"); the test pins both
-  lines, identical in the three scripts.
-  A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
-  `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
-  rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
-  too, identical in the two scripts. A fourth (#456) is the one way to change an earlier commit, after a fix agent's own
-  sequence editor (a script that reworded a commit) made the guard ask and a night run waited 9 hours: a `git commit
-  --fixup=<sha>`, or for a new message a `git commit --allow-empty -F <file>` whose first line is `amend! <that commit's
-  subject>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (§8.2); `--fixup=reword:` and
-  `--fixup=amend:` open the message editor (git refuses `-m` and `-F` with them), and so does a bare `git commit
-  --amend`; the last commit alone may use `--amend --no-edit` or `--amend -F <file>`. Since #457 the guard lets every
-  one of these through in the own worktree on its task branch (§8.2.6), so the line gives the reasons that remain: an
-  editor that opens hangs the call until its timeout, a script sequence editor can add `exec` lines, and under Claude
-  Code's `GIT_EDITOR=true` a `--fixup=reword:` keeps the old message without a word; it names what the guard still
-  asks for (`git rebase --exec`, any rebase in the main checkout or another worktree). The test pins the line and runs
-  the recipe through git with every editor failing, and the silent reword with `GIT_EDITOR=true`.
-  Both return a compact result (#386), because the harness prints a run's return value into the manager's context
-  and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
-  `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
-  severity, each v2 option's summary) and `full`, the path of the run's journal
-  (`~/.claude/projects/<project>/<manager-session-id>/subagents/workflows/<run-id>/journal.jsonl`), which keeps every
-  agent's whole result: a `result` line has the `key` of its agent's `started` line, which names the label (after a
-  resume, the last counts). A stop keeps what its relaunch needs in full (a red implementer's verify tail and what it
-  left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
-  shrank from 89k to 11k characters (about 1,250 a run). What `issue-task`'s agents get of each other's results is cut
-  too (#470, the token audit of 2026-10-06): the reviewers and the test reviewer get a digest of the implementer's
-  report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
-  left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
-  cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
-  publisher gets the report whole but its commits, changed paths and verify tail (`git log`, `git diff --name-only`
-  and its own `publish` give them), each review finding's severity, file, line and problem with its fix only on a
-  blocker or major and no reviewer's verdict, and a preamble without the reading rule for code (its agent type
-  carries it), the Godot-windows line (kept in a visual run, whose publisher may rerun `playcheck`)
-  and the game-rule line (#696: 28.8k characters at the median of 39 publishers from 2026-10-07 to 09, about 23.3k
-  re-rendered with the cuts), and of a `plan_review` run only the plan's summary, its comment's link and the
-  critique (the whole plan is that comment on the issue, #469, and stays in the journal); and
-  the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
-  itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.
+  read their prompt, not this file, so each rule they need is a line of it (the read-only agents' as `REVIEW_RULES`),
+  identical across the scripts and pinned by the test: the hooks path (§8.1), the bounded wait (§11.17), no write
+  outside the worktree and the scratchpad (#413), the one way to change an earlier commit (#456, §8.2.6).
+  Both return a compact result (#386): the harness prints a run's return value into the manager's context, so it
+  holds what orchestrate-stage §4 acts on and `full`, the path of the run's journal with every agent's whole result;
+  a stop keeps in full what its relaunch needs. Agents get digests of each other's results (#470, #696), and the
+  publisher's prompt carries `finish-task`'s docs, intervention and credits steps itself.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
   launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` (with a `lean_reason` since
