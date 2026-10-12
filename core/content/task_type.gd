@@ -132,6 +132,13 @@ func plays_on(map: String) -> bool:
 	return map.is_empty() or maps.is_empty() or maps.has(map)
 
 
+## What this type refuses in the layout of `map`, a map it plays on, beyond its demands' marker
+## counts (LayoutCheck, which Match runs on creation): the photo task's spot too near its camera
+## (the photo ADR's PE12). None by default.
+func layout_problems(_map: String, _layout: LevelLayout) -> PackedStringArray:
+	return PackedStringArray()
+
+
 ## Why this type refuses a use of `station`, a placed station of its kind, by the actor of `ctx`
 ## now (StationUsable, the Generator ADR's GE2, #796), or empty when it takes it. Only a reason
 ## use_reasons() lists: each says only public state of a station the actor has in reach and in
