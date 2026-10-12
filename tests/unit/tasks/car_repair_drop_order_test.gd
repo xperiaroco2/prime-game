@@ -42,6 +42,13 @@ func test_a_holder_in_the_box_knocked_down_dies_once_with_no_knockdown_after() -
 		[&"LiftChanged", &"LiftChanged", &"KnockedDown", &"Died"]
 	)
 	assert_array(game.view_of(P1).events_named(&"Died")).has_size(1)
+	# The holder's own view has the ADR's order: the drop, its knockdown and Correction, its death.
+	var own := FixtureCarRepairModes.stream(
+		game, P1, [&"LiftChanged", &"KnockedDown", &"Correction", &"Died"]
+	)
+	assert_array(own.slice(own.size() - 4)).is_equal(
+		[&"LiftChanged", &"KnockedDown", &"Correction", &"Died"]
+	)
 
 
 func test_a_raise_on_a_downed_player_in_the_box_stops_before_its_death() -> void:
