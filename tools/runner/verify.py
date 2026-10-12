@@ -3,9 +3,11 @@
 `verify` with no flag is the fast local run (#605, docs/decisions/2026-10-09-tests-on-ci-local-lint-and-check.md):
 `doctor --quick`, then `lint` and `check` in two lanes at once (FAST_LANES), then the clean-tree check; no verify slot,
 no test: every test runs on CI, whose job runs `verify --full`. Its record's "mode" is "fast", and its summary says so
-(FAST_LINE), so no tool takes it for a full run. The rest of this docstring is `verify --full` (exactly what CI runs,
-in parts: `verify --full --part <name>` runs doctor and only that part's steps of PARTS, and CI runs each part in a
-job of its own, #857).
+(FAST_LINE), so no tool takes it for a full run. `verify --changed` (#859, the agents' fast run; publish's in an
+agent's shell): its `lint` step is `lint --changed`, the gdformat and gdlint of the changed GDScript only, its summary
+row and record say so (step_note, step_detail); `--full` and CI never narrow it. The rest of this docstring is
+`verify --full` (exactly what CI runs, in parts: `verify --full --part <name>` runs doctor and only that part's steps
+of PARTS, and CI runs each part in a job of its own, #857).
 
 `doctor --quick` runs first, and a red one stops everything. Then three lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
@@ -229,6 +231,8 @@ RUN_ID_VAR = "PRIME_VERIFY_RUN"
 # runner test that reaches verify's real lanes fails instead of starting verify inside verify without end.
 INSIDE_VAR = "PRIME_VERIFY_INSIDE"
 TESTS = ROOT / "tools" / "runner" / "tests"
+# "1" while a `verify --changed` runs (#859): the lane processes inherit it, and their `lint` step is `lint --changed`.
+LINT_CHANGED_VAR = "PRIME_VERIFY_LINT_CHANGED"
 
 
 def free_udp_port(pick: Callable[[range], int] = random.choice, count: int = 1, tcp: bool = False) -> int:
@@ -342,7 +346,7 @@ def steps() -> dict[str, Callable[[], int]]:
     """Each step by name, looked up when called (tests replace the functions)."""
     return {
         "doctor": lambda: doctor.main(quick=True),
-        "lint": lambda: lint.main(verbose=True),
+        "lint": lambda: lint.main(verbose=True, changed=os.environ.get(LINT_CHANGED_VAR) == "1"),
         "signal": lambda: signalling.main(),
         "check": lambda: check.main(verbose=True),
         # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
@@ -459,6 +463,9 @@ def step_detail(name: str) -> dict[str, object] | None:
     check passed although Godot crashed at exit (check.take_exit_crashes, #442, #449): written true or false on every
     check step since #449, so a record without it is known to predate the field."""
     detail = dict(gdunit.take_last_run() or {}) if name == "test" else {}
+    scope = lint.take_scope()  # `lint --changed`'s scope (#859), taken after every step as the crashes below
+    if name == "lint":
+        detail.update(scope)
     starts = take_starts()
     if starts:
         detail["not_started"] = starts
@@ -1321,11 +1328,19 @@ def step_record(step: StepRun) -> dict[str, object]:
 # what publish's verify tail and the PR bodies carry, so the crash is seen there (#449). The row keeps its
 # `<status> <name> <seconds>s` start, which metrics.STEP_LINE reads.
 EXIT_CRASH_NOTE = "(Godot crashed at exit, #442)"
+# The note on the `lint` row of a `verify --changed` that linted the changed files only (#859; metrics.CHANGED_LINT).
+CHANGED_NOTE = "changed files only"
 
 
 def step_note(step: StepRun) -> str:
     """What the summary prints after a step's seconds: '' for most steps. A red check step whose project check passed
-    the crash failed for another reason (the warnings policy, the import, UID lint, credits), and its row says so."""
+    the crash failed for another reason (the warnings policy, the import, UID lint, credits), and its row says so. A
+    `lint` step of `verify --changed` (#859): CHANGED_NOTE, or why it linted every file."""
+    changed = step.detail.get("changed_only")
+    if isinstance(changed, list) and len(changed) == 2:
+        return f"  ({CHANGED_NOTE}, {changed[0]} of {changed[1]})"
+    if step.detail.get("changed_fallback"):
+        return f"  (every file: {step.detail['changed_fallback']})"
     if not step.detail.get("exit_crash"):
         return ""
     if step.status != "passed":
@@ -1399,15 +1414,21 @@ def main(
     watch: Watch = suspend.watch_in_background,
     verbose: bool = False,
     part: str | None = None,
+    changed: bool = False,
 ) -> int:
     """`verify`, quiet unless `verbose` (#572): the whole output goes to tools/out/logs/verify-output.log as it is
     printed (the run before it is kept as verify-output.prev.log), the terminal gets each red step's excerpt and the
     summary block (Split). An exception (Ctrl+C, a crash) prints one line with the log's path and goes on up
-    unchanged. `part` (`--part`, #857): only that part of PARTS, a `--full` run's."""
+    unchanged. `part` (`--part`, #857): only that part of PARTS, a `--full` run's. `changed` (`verify --changed`, #859):
+    the lint step lints the changed GDScript only; never with `full`."""
     global _SPLIT
     if part is not None:
         part_lanes(part)  # an unknown part fails before anything runs
         full = True
+    if changed and not full:  # the lane processes inherit it
+        os.environ[LINT_CHANGED_VAR] = "1"
+    else:
+        os.environ.pop(LINT_CHANGED_VAR, None)
     if verbose:
         return _verify(run_lane, full, fail_fast, watch, part)
     ensure_out()

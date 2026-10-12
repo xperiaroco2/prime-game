@@ -219,7 +219,8 @@ prevent prompts and lost work and names these symptoms with a pointer here:
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. A plain `verify` runs only
+1. `tools\run.cmd verify --changed` (an agent's run: its lint checks only the changed GDScript, §11.16); paste
+   the tail. Red → stop and report. Never weaken a test. A plain `verify` runs only
    `doctor --quick`, `lint` and `check` (no test, no verify slot); every test, the bot matches included, runs on CI's
    `verify --full`, so CI green on the PR is the test gate (#605,
    [ADR](decisions/2026-10-09-tests-on-ci-local-lint-and-check.md)); `verify --full` runs the whole suite here when
@@ -1971,6 +1972,17 @@ summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `en
 `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
 `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
 test count.
+**`verify --changed` and `lint --changed` (#859, the engineer's approval of 2026-10-11):** the agents' local
+lint. gdformat and gdlint run only on the project `.gd` files changed against `origin/<base>` (the parent `start
+--base` recorded, else `main`): committed since the merge base, staged, unstaged or untracked, deleted ones left out;
+the budget, frontmatter and § checks still run whole. Every file instead, and the output says why, when the merge
+base is unknown, when `gdlintrc`, `gdformatrc`, `tools/runner/pins.py` or `tools/runner/lint.py` changed, and on CI.
+Lint ends `lint: passed, changed files only (n of m)`; verify's `lint` row notes `(changed files only, n of m)`, its
+record step `"changed_only": [n, m]`, and `metrics` counts that step as `lint-changed`, apart from the whole lint.
+Agents pass the flag (the workflow prompts, finish-task); `publish` adds it where `CLAUDECODE` is set (a Claude Code
+shell, as `host` and `join` tell one apart). A human's plain `verify` and `lint` stay whole; `verify --full` refuses
+`--changed`, and CI's job runs `verify --full`, so CI always lints every file: a lint problem in a file the change did
+not touch shows up red on CI, not in the local run.
 **`verify --fail-fast` (#556):** the first red step stops every lane (`stop_lane`, as Ctrl+C and a lane timeout do:
 on Windows `taskkill /T` kills each lane's whole tree; on Linux and macOS the lane process first gets SIGTERM, whose
 handler in `lane_main` kills each process `common.run` started there, in a session of its own that the kill of the

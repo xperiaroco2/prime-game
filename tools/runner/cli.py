@@ -64,6 +64,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument(
+        "--changed",
+        action="store_true",
+        help="gdformat and gdlint only on the .gd files changed against origin/<base> (committed since the merge "
+        "base, uncommitted or untracked), the repo-wide checks whole; every file when the base is unknown, the lint "
+        "configuration or gdtoolkit pin changed, or on CI (an agent's local run, #859)",
+    )
+    p.add_argument(
         "--verbose",
         action="store_true",
         help="print the whole output (default: a summary, or on failure a capped excerpt; the full output is in "
@@ -146,6 +153,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--full",
         action="store_true",
         help="the whole suite CI runs (every test, in a verify slot); without it only doctor, lint and check",
+    )
+    p.add_argument(
+        "--changed",
+        action="store_true",
+        help="its lint step is lint --changed: only the changed .gd files, the repo-wide checks whole (the agents' "
+        "fast run and publish's in an agent's shell, #859); not with --full, which like CI lints every file",
     )
     p.add_argument(
         "--fail-fast",
@@ -830,7 +843,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "lint":
             from . import lint
 
-            return lint.main(fix=args.fix, files=args.files or None, verbose=args.verbose)
+            return lint.main(fix=args.fix, files=args.files or None, verbose=args.verbose, changed=args.changed)
         if args.command == "check":
             from . import check
 
@@ -848,8 +861,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "verify":
             from . import verify
 
+            if args.changed and args.full:
+                raise Failure("verify --full lints every file, as CI does: drop --changed (or --full)")
+            changed = {"changed": True} if args.changed else {}  # a plain call stays as it was
             verbose = args.verbose or common.IS_CI
-            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=verbose, part=args.part)
+            return verify.main(full=args.full, fail_fast=args.fail_fast, verbose=verbose, part=args.part, **changed)
         if args.command == "selftest":
             from . import verify
 

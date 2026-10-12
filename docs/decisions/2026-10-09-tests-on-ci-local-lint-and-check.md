@@ -73,3 +73,7 @@ laptop repeated what GitHub does anyway, for no gain, and it must stay light.
   hooks, `publish`, `merge`) is reviewed light too (answer 3a); the manager passes `tier: "full"` where a kickoff asks
   for more.
   `metrics` groups cost and wall time per tier (the publisher's prompt names it), the before and after.
+
+## Amendment (#859, 2026-10-11): an agent's lint checks only the changed GDScript
+
+Amendment 2026-10-11 (#859, approved by the engineer: https://github.com/xperiaroco2/prime-game/pull/867#issuecomment-6119234969): an agent's local lint (`verify --changed`, `lint --changed`, publish in a Claude Code shell) checks gdformat/gdlint only on the changed GDScript, the repo-wide checks whole; a lint config or tool change, an unknown base and CI lint every file; a human's verify and CI's `verify --full` stay whole.

@@ -120,7 +120,7 @@ const quick = await agent([
   [
     'Steps:',
     `1. Make the change the issue asks, and only that: one logical change. Never invent content (names, numbers, rules); a change in content/, levels/, docs/GDD.md or docs/design/ needs the engineer's word in the issue or notes. If the task turns out bigger than one small change or needs a decision, stop: push nothing, return pr_url "" with the reason under needs_engineer.`,
-    `2. \`cd ${WTB} && tools/run.sh lint\`, then \`cd ${WTB} && tools/run.sh check\` (not \`verify\`: CI runs the full suite). If logic changed (not only names, text or docs), also the tests for it by path (\`tools/run.sh test <path>\`). Red: fix it; never weaken, skip or delete a test.`,
+    `2. \`cd ${WTB} && tools/run.sh lint --changed\` (#859: only the changed GDScript, the repo-wide checks whole), then \`cd ${WTB} && tools/run.sh check\` (not \`verify\`: CI runs the full suite). If logic changed (not only names, text or docs), also the tests for it by path (\`tools/run.sh test <path>\`). Red: fix it; never weaken, skip or delete a test.`,
     `3. Commit, then \`cd ${WTB} && git push -u origin ${A.branch}\`.`,
     `4. \`gh pr create --base ${BASE} --title "<conventional title> (#${N})" --body-file <file under ${SCRATCH}/>\`: what changed and why in a few lines, the lint and check result, \`Closes #${N}\`, and last the attribution line. If \`gh pr view ${A.branch}\` already finds a PR, update its body with \`gh pr edit\` instead.`,
     `5. ${CI}`,

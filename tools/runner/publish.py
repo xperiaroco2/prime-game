@@ -9,6 +9,9 @@ The only way the agent updates a pushed branch after a rebase (docs/decisions/20
 branches.md). The pre-push hook lets this one non-fast-forward push through because the runner marks it with
 PRIME_GAME_PUBLISH=force-with-lease; a force push typed by hand has no marker and is blocked.
 
+In an agent's shell (AGENT_ENV set, as for hostjoin's windows) its verify is `verify --changed` (#859): the lint
+step lints the changed GDScript only; a human's publish lints every file, and CI's `verify --full` always does.
+
 Its verify is quiet unless `--verbose` (#572): its red steps' failure lines and its summary; the whole output in
 tools/out/logs/verify-output.log. Publish's own lines are few and print as before.
 """
@@ -16,11 +19,12 @@ tools/out/logs/verify-output.log. Publish's own lines are few and print as befor
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 
 from . import verify, wait
-from .common import ROOT, Failure, Result, bad, ok, run, say, warn
+from .common import AGENT_ENV, ROOT, Failure, Result, bad, ok, run, say, warn
 
 REMOTE = "origin"
 # The checkout publish works on (tests point it at a temp repo).
@@ -210,7 +214,7 @@ def main(base: str | None = None, verbose: bool = False) -> int:
     else:
         say(f"publish: verify runs: {why}")
         say()
-        if verify.main(verbose=verbose) != 0:
+        if verify.main(verbose=verbose, changed=bool(os.environ.get(AGENT_ENV))) != 0:
             raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 
