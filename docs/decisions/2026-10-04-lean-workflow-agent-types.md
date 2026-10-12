@@ -126,7 +126,7 @@ the types appended (such a resume passes `lean: false`). The A/B's results (#302
 passed the missing-tool and effort criteria, first calls 24.4k for the implementers
 and 29.6k to 32.1k for the publishers.
 
-## Amendment 2026-10-08: no exception for the Skill tool (#557, proposed)
+## Amendment 2026-10-08: no exception for the Skill tool (#557)
 Between 2026-10-06 and 08, 14 of 37 implementers and 13 of 32 publishers ran the general type (a stale manager
 checkout, or `lean: false`), at about twice the first-call tokens. The one use the 2026-10-06 amendment kept for
 `lean: false`, a task editing `.claude/workflows/` with `workflow-authoring`, cannot use the lean types' "read the
