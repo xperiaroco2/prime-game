@@ -4,8 +4,9 @@ extends RefCounted
 ## microphone, the voice mode, the voice-activity threshold, RNNoise, the four volumes (D15),
 ## §1.1's "opening" mark, the interface language (#208), the player's own name (#550), large text,
 ## reduced motion and the window mode (Settings, #491) and whether the first launch's tutorial was
-## seen (#601), in a ConfigFile under user://, read at the start and written on each change. Only
-## the name is ever sent (in Hello). Key bindings get their own file.
+## seen (#601), and the return secret (#638), in a ConfigFile under user://, read at the start and
+## written on each change. Only the name and the return key made from the secret are ever sent (in
+## Hello); the secret itself never is. Key bindings get their own file.
 ##
 ## The windows that `tools\run.cmd host --clients N` starts on one PC share one user:// folder, and
 ## the runner gives each its PRIME_INSTANCE (1 the host, 2 and on the clients): the file is
@@ -86,6 +87,10 @@ var own_preset: Dictionary = {}
 ## The first launch's tutorial was seen (#601, E70): false while the flag is absent from the file,
 ## and the game starts the tutorial with its invite on a launch with no option.
 var tutorial_seen := false
+## The return secret (#638; the returning-players ADR, P1 (c)): ReturnKey.LENGTH random hex
+## characters, made once per settings file (ensure_secret) and kept across reads; a malformed one
+## reads as "" and is replaced. Never sent: Hello carries return_key(target) made from it.
+var secret := ""
 
 var _volumes: Dictionary[StringName, float] = {}
 
@@ -96,10 +101,20 @@ func _init(at := "") -> void:
 		_volumes[bus] = default_db(bus)
 
 
-## The settings file of this window: FOLDER + file_name(PRIME_INSTANCE), read if it exists.
+## The settings file of this window: opened(FOLDER + file_name(PRIME_INSTANCE)).
 static func for_this_window() -> UserSettings:
-	var settings := UserSettings.new(FOLDER + file_name(OS.get_environment(INSTANCE_ENV)))
-	settings.read()
+	return opened(FOLDER + file_name(OS.get_environment(INSTANCE_ENV)))
+
+
+## The settings at `at`, read if the file exists, with its secret made and written on the first
+## launch.
+static func opened(at: String) -> UserSettings:
+	var settings := UserSettings.new(at)
+	var code := settings.read()
+	# A new secret is saved at once, but never over a file that is there and could not be read:
+	# that file is only replaced on the player's next change, as before.
+	if settings.ensure_secret() and (code == OK or code == ERR_FILE_NOT_FOUND):
+		settings.write()
 	return settings
 
 
@@ -155,6 +170,8 @@ func read() -> Error:
 	own_preset = preset as Dictionary if preset is Dictionary else {}
 	var seen: Variant = file.get_value("player", "tutorial_seen", false)
 	tutorial_seen = seen is bool and seen as bool
+	var stored: Variant = file.get_value("player", "secret", "")
+	secret = stored if ReturnKey.is_valid(stored) else ""
 	for bus: StringName in VOLUMES:
 		set_volume_db(bus, _number(file.get_value("volume", String(bus), NAN), default_db(bus)))
 	return OK
@@ -162,6 +179,7 @@ func read() -> Error:
 
 ## Writes every setting to the file.
 func write() -> Error:
+	ensure_secret()
 	if path.is_empty():
 		return OK
 	var file := ConfigFile.new()
@@ -177,9 +195,26 @@ func write() -> Error:
 	file.set_value("display", "window_mode", window_mode)
 	file.set_value("lobby", "own_preset", own_preset)
 	file.set_value("player", "tutorial_seen", tutorial_seen)
+	file.set_value("player", "secret", secret)
 	for bus: StringName in VOLUMES:
 		file.set_value("volume", String(bus), volume_db(bus))
 	return file.save(path)
+
+
+## Makes the secret when there is no usable one (Crypto's random bytes, never core's RNG); true when
+## it made one, which only write() saves.
+func ensure_secret() -> bool:
+	if ReturnKey.is_valid(secret):
+		return false
+	secret = Crypto.new().generate_random_bytes(ReturnKey.BYTES).hex_encode()
+	return true
+
+
+## The return key this player sends in Hello for a join's target (JoinTarget.return_target): one
+## per target, the same on every join there while the secret stays.
+func return_key(target: String) -> String:
+	ensure_secret()
+	return ReturnKey.of(secret, target)
 
 
 static func _number(value: Variant, fallback: float) -> float:

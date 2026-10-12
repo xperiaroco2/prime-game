@@ -117,7 +117,10 @@ func test_a_hand_edited_name_is_cleaned_on_reading_and_fits_hello() -> void:
 	assert_int(settings.read()).is_equal(OK)
 	assert_str(settings.player_name).is_equal("Д".repeat(16))
 	var hello := {
-		"version": WireSchema.VERSION, "content": 1, "name": settings.player_name, "key": "zz"
+		"version": WireSchema.VERSION,
+		"content": 1,
+		"name": settings.player_name,
+		"key": settings.return_key("ABCD"),
 	}
 	assert_int(WireSchema.game(false).encode(WireMessage.new(&"Hello", hello)).size()).is_greater(0)
 	var old := ConfigFile.new()
@@ -238,3 +241,70 @@ func test_large_text_reduced_motion_and_the_window_mode_round_trip() -> void:
 	back.window_mode = "borderless"
 	assert_int(back.reduced_motion).is_equal(-1)
 	assert_str(back.window_mode).is_empty()
+
+
+## The return secret (#638, P1 (c)): made once per settings file, written on the first launch and
+## kept across reads; the file of a window holds it beside the other settings.
+func test_the_secret_is_made_once_per_file_and_kept_across_reads() -> void:
+	var first := UserSettings.opened(PATH)
+	assert_bool(ReturnKey.is_valid(first.secret)).is_true()
+	assert_bool(FileAccess.file_exists(PATH)).is_true()
+	var again := UserSettings.opened(PATH)
+	assert_str(again.secret).is_equal(first.secret)
+	again.player_name = "Ann"
+	assert_int(again.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_str(back.secret).is_equal(first.secret)
+	assert_str(back.player_name).is_equal("Ann")
+
+
+## A file from before #638 gets a secret and keeps every other setting; a malformed secret (too
+## short, upper case, not a String) reads as none and is replaced.
+func test_an_old_or_malformed_secret_is_replaced() -> void:
+	var old := ConfigFile.new()
+	old.set_value("player", "name", "Ann")
+	old.set_value("interface", "language", "uk")
+	assert_int(old.save(PATH)).is_equal(OK)
+	var settings := UserSettings.opened(PATH)
+	assert_bool(ReturnKey.is_valid(settings.secret)).is_true()
+	assert_str(settings.player_name).is_equal("Ann")
+	assert_str(settings.language).is_equal("uk")
+	var saved := ConfigFile.new()
+	assert_int(saved.load(PATH)).is_equal(OK)
+	assert_str(str(saved.get_value("player", "secret", ""))).is_equal(settings.secret)
+	for bad: Variant in ["zz", "AB".repeat(16), "ab".repeat(17), 42, &"ab"]:
+		var file := ConfigFile.new()
+		file.set_value("player", "secret", bad)
+		assert_int(file.save(PATH)).is_equal(OK)
+		var read_back := UserSettings.new(PATH)
+		assert_int(read_back.read()).is_equal(OK)
+		assert_str(read_back.secret).is_empty()
+		var replaced := UserSettings.opened(PATH)
+		assert_bool(ReturnKey.is_valid(replaced.secret)).is_true()
+
+
+## A file that is there but cannot be read is never overwritten for the secret (the player's
+## settings in it stay for a hand fix); the secret then lives in memory until the next change.
+func test_a_file_that_cannot_be_read_is_left_alone() -> void:
+	var broken := FileAccess.open(PATH, FileAccess.WRITE)
+	broken.store_string('[voice\nmode = = "push\n')
+	broken.close()
+	var before := FileAccess.get_file_as_bytes(PATH)
+	var settings := UserSettings.opened(PATH)
+	assert_bool(ReturnKey.is_valid(settings.secret)).is_true()
+	assert_array(Array(FileAccess.get_file_as_bytes(PATH))).is_equal(Array(before))
+
+
+## Settings with no file make their own secret in memory; the key is one per target, the same on
+## every join there, and is ReturnKey's of the secret, which it never contains.
+func test_the_return_key_is_one_per_target() -> void:
+	var settings := UserSettings.new()
+	var key := settings.return_key("ABCD")
+	assert_bool(ReturnKey.is_valid(key)).is_true()
+	assert_bool(ReturnKey.is_valid(settings.secret)).is_true()
+	assert_str(settings.return_key("ABCD")).is_equal(key)
+	assert_str(key).is_equal(ReturnKey.of(settings.secret, "ABCD"))
+	assert_str(key).is_not_equal(settings.secret)
+	assert_str(settings.return_key("192.168.1.5:24600")).is_not_equal(key)
+	assert_str(UserSettings.new().return_key("ABCD")).is_not_equal(key)
