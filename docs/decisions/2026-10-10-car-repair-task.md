@@ -320,7 +320,7 @@ for the record, lettered on through a row's sub-questions; the last column is wh
   every stop of §2.3 each dropping the car, the box test (inside, beside, at the ends, on the roof, downed,
   invulnerable), the phase's end with no kill, RD11's refusal of a new hold only, RE17's mid-command drops (§4: the
   holder moved into the box and knocked down gives one `Died` and no `KnockedDown` after it; the holder's `Raise` at
-  a knocked-down player in the box ends with its `RaiseStopped` and no channel on the dead; a two-target swing from
+  a knocked-down player in the box is refused `busy` and the hold runs on (§4, PR #888); a two-target swing from
   inside the box gives no `Damaged` after the swinger's `Died`; the holder's own `PickUp` in the box leaves the item
   at its body, never in a dead player's slot), the role-swap check (two players'
   forced roles swapped: identical `LiftChanged`, `PartNeeded`, `FitChanged`, `PartFitted`, `TaskState`,
