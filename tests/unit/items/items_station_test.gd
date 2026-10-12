@@ -118,6 +118,37 @@ func test_a_carried_item_keeps_its_holder_and_a_lying_one_its_rest_tick() -> voi
 	assert_array(game.view_of(P2).events_named(&"ItemChanged")).has_size(2)
 
 
+## The photo ADR's PE17: every lay and every lift bumps ItemState.moves, two in one tick too, so a
+## part that remembers an item lying at a spot (the camera's film) sees a lift and a lay in the
+## same tick, which leave the rest tick as it was.
+func test_every_lay_and_lift_bumps_the_move_serial() -> void:
+	var game := _game()
+	var herb := FixtureItemModes.lay(game, &"herb", HERE + Vector3(0, 0, 1))
+	var moves := herb.moves
+	FixtureItemModes.pick_up(game, P1, herb)
+	assert_int(herb.moves).is_equal(moves + 1)
+	FixtureItemMove.use(game, P1, FixtureItemMove.LAY, STATION)
+	assert_int(herb.moves).is_equal(moves + 2)
+	var laid := herb.rest_tick
+	# A lift and a lay in one tick: the rest tick looks the same, the serial does not.
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.tick = laid
+	ctx.actor = P1
+	Items.give(ctx, P1, herb)
+	Items.lay(ctx, herb, STATION)
+	assert_int(herb.rest_tick).is_equal(laid)
+	assert_int(herb.moves).is_equal(moves + 4)
+	Items.lock(herb)
+	assert_int(herb.moves).is_equal(moves + 5)
+	Items.give(ctx, P1, herb)
+	Items.swap(ctx, P1)
+	assert_int(herb.moves).is_equal(moves + 6)
+	Items.launch(ctx, herb, ItemFlight.new())
+	assert_int(herb.moves).is_equal(moves + 7)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_locking_or_laying_no_item_is_a_logged_rule_error_and_moves_nothing() -> void:
 	var game := _game()
 	var seen := game.view_of(P2).events.size()

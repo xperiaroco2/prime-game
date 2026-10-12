@@ -24,6 +24,11 @@ var flight: ItemFlight = null
 ## state, sets it; a move into a hand, onto a belt, into flight or into the locked state clears
 ## it. An item put straight into MatchState (MatchState.add_item without Items.spawn) has -1.
 var rest_tick := -1
+## How many times it was laid down or lifted (the photo ADR, PE17): Items bumps it on every lay
+## (lay()) and every move into a hand, onto a belt, into flight or into the locked state. A part
+## that remembers an item lying at a spot (the camera's loaded film) keys on it, never on the rest
+## tick, which a lift and a lay in one tick leave unchanged. Host-only: never sent.
+var moves := 0
 
 
 func _init(item_id: int, item_kind: ItemKind, at: Vector3) -> void:

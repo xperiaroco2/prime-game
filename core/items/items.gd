@@ -41,7 +41,9 @@ extends RefCounted
 ##   its id freed for reuse (MatchState.remove_item).
 ##
 ## A move into a hand, onto a belt, into flight or into the locked state (take(), give(), swap(),
-## launch(), lock(), lock_at()) clears the rest tick.
+## launch(), lock(), lock_at()) clears the rest tick. Every lay and every move into a hand, onto a
+## belt, into flight or into the locked state bumps the move serial, ItemState.moves (the photo
+## ADR, PE17); swap() between one player's own slots does not.
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
 ##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
@@ -253,6 +255,7 @@ static func lay(ctx: MatchContext, item: ItemState, at: Vector3) -> void:
 	item.position = at
 	item.flight = null
 	item.rest_tick = ctx.tick
+	item.moves += 1
 
 
 ## A new item of `kind` lying at `at` from this tick (MatchState.add_item, then lay()), or null,
@@ -273,6 +276,7 @@ static func spawn(ctx: MatchContext, kind: ItemKind, at: Vector3) -> ItemState:
 static func lock(item: ItemState) -> void:
 	item.where = ItemState.Where.LOCKED
 	item.rest_tick = -1
+	item.moves += 1
 
 
 ## `item` leaves the match for good (VanishTicks; C1's cap of a given kind): out of any hand or
@@ -292,6 +296,7 @@ static func launch(ctx: MatchContext, item: ItemState, flight: ItemFlight) -> vo
 	flight.launch_tick = ctx.tick
 	item.where = ItemState.Where.FLYING
 	item.rest_tick = -1
+	item.moves += 1
 	item.holder = 0
 	item.position = flight.origin
 	item.flight = flight
@@ -391,6 +396,7 @@ static func _onto_belt(ctx: MatchContext, peer: int, item: ItemState) -> void:
 		place(ctx, full, _feet(ctx, player), PUT_DOWN)
 	item.holder = peer
 	item.rest_tick = -1
+	item.moves += 1
 	_to_belt(player, item)
 	ctx.emit(ItemPickedUpEvent.new(peer, item.id, item.id))
 
@@ -401,6 +407,7 @@ static func _into_hand(ctx: MatchContext, peer: int, item: ItemState, belted: It
 	var player := ctx.state.player(peer)
 	item.where = ItemState.Where.HAND
 	item.rest_tick = -1
+	item.moves += 1
 	item.holder = peer
 	player.held_item = item.id
 	ctx.emit(ItemPickedUpEvent.new(peer, item.id, belted.id if belted != null else -1))
