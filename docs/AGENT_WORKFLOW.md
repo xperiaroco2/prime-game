@@ -844,100 +844,28 @@ organization the account belongs to) asks as before.
   silences the guard for the rest of the session (verified live 2026-09-29).
 
 #### 8.2.9 Replays
-- Replayed over the 1,683 distinct shell commands of the Phase A and B transcripts (stage 4 included): no crash; it
-  asks for the real install of GdUnit4 into `addons/` and the three commands of the live test, nothing else. It adds
-  about 0.2 s to each shell command.
-- Target-judged deletes and resets, replayed on 2026-09-30: the overnight run `wf_65292cf4-8b4` (309 shell commands)
-  went from 4 prompts (two scratch `rm -rf`, one `git reset -q`, one `rm -r tests/integration/tmp` in a worktree) to
-  1 with the guard and without the text rules: the delete inside the project still asks. With that probe folder in
-  `tests/scratch/`, as §7 now asks, the same replay has 0 prompts. Over all 3,421 distinct
-  shell commands of this machine's transcripts, no crash; against the guard before #47 it asks 5 more times: four
-  real changes to the project (two installs into `addons/`, a `git reset --hard origin/...`, that `rm -r`) and one
-  false ask, a heredoc whose test data holds the text `shutil.rmtree('core')`. After the second fresh review
-  (arrays, subshells, variables no call assigned), the overnight replay is unchanged (1 prompt, 0 with
-  `tests/scratch/`), and over the 2,709 distinct shell commands of this machine's transcripts on that day it changes
-  one verdict: a scratch-folder delete after `(cd tools && ...)`, which the old guard read inside `tools/`, now
-  passes.
-- The own worktree (#51), replayed on 2026-09-30 in the engineer's bypass mode (deny rules block; ask rules and the
-  guard prompt) over every Bash and PowerShell call in `~/.claude/projects/D--prime-game` (101 transcripts, 2,921
-  calls): 103 prompts before (97 ask rules, 6 guard), 67 after (63 ask rules, 4 guard), 22 denied in both, no crash,
-  and no call that was silent before asks now. The 36 prompts gone: `git worktree list` and other git status reads
-  in the main checkout, git in scratch clones, a `git checkout` and `rm -r tests/integration/tmp` in a task's own
-  worktree. What still asks: 63 `gh ... -R|--repo` reads of other repositories (research), three writes to
-  `addons/` and `.claude/` from the live test of stage 4, and one `Remove-Item -Recurse` of worktree 46's
-  `tests/integration/tmp` by absolute path from a session in the main checkout (without a `cd` it owns no worktree).
-  Over every `D--prime-game*` folder (128 transcripts, 3,847 calls): 125 prompts before, 80 after.
-- Reads of other repositories (#68), replayed on 2026-09-30 with `tools\run.cmd permissions` (bypass mode,
-  `origin/main` against the branch) over every Bash and PowerShell call in `~/.claude/projects/D--prime-game*`
-  (224 transcripts, 6,591 calls): 95 prompts before (79 ask rules, 16 guard), 18 after (0 ask rules, 18 guard), 22
-  denied in both, no crash, and no call that was silent before asks now. The 77 prompts gone are `gh ... -R|--repo`
-  reads (issues, PRs, releases, search, `api` GET of Godot, GdUnit4, gdtoolkit, TwoVoIP, Claude Code and other
-  upstreams), four reads of this repository with `-R|--repo`, and calls where a text rule matched other text (an
-  issue comment on this repository whose body held `-R`, `gh release --help`). Two calls still ask, now through the
-  guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
-  missing repository. The other 16 guard prompts are unchanged (§8.2 above).
-- What blocked agents in the week to 2026-10-04 (#312), from `tools\run.cmd permissions --observed --since
-  2026-09-29` over this project's transcripts (about 910 of them and 24,800 shell calls on 2026-10-04; the earlier
-  replays above also read the `D--prime-game-art` and `-ui` folders, this one does not): 109 stopped calls, nearly
-  all in bypass mode. 58 guard
-  asks: the 30 `gh` writes to the sibling repositories (above); 20 git commands that discard work, of which 11 came
-  from a manager's shell standing in a worktree and from `git stash drop` on 2026-09-30 (fixed by the 2026-10-01
-  intervention and the no-stash rule), 1 from a no-op editor rebase before #104 landed, 1 from `-c core.editor`
-  (above), 2 from custom sequence editors, and 5 were right (`branch -d|-D`, `reset --hard` of a release branch or in
-  a loop over another repository's worktrees, `worktree remove --force` in a loop); 8 writes to `addons/` (the TwoVoIP
-  install, and the missing-addon test above). 13 deny rule denials: 10 hooksPath reads (§8.1), `gh pr merge --help`,
-  and two pushes without a branch. 30 of Claude Code's own blocks: 28 foreground `sleep`s (§11.17, "Bounded waits"), and 2
-  `Remove-Item` on a "system path", one right (`D:\c`) and one false: a PowerShell command held `Remove-Item $out` and
-  a cmd.exe `/c` argument, which Claude Code read as its target; put such code in a `.ps1` file in the scratchpad
-  and run it with `powershell -File`. The human said no 8 times. No stop called for an allow rule or a guard change:
-  each was right or a wrong command pattern. The fixes for the wrong patterns are documented here; workflow agents
-  read their workflow prompt instead, which gets the hooks-path and `sleep` rules through #326. Outside bypass the
-  model (`--mode default`, an upper bound) asks for about 12,800 of the calls: `$PYTHON_BIN` about 3,400, git reads
-  (`diff`, `status`, `show`) about 2,200, nearly all after a `cd` into a worktree (Claude Code prompts for git after a
-  `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
-  for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
-  1,500 of them, so unattended work stays in bypass mode; a route-C successor cannot (#484), so the guard allows its
-  routine shell work instead (§8.2.10).
-- Git in the own worktree (#457), from `tools\run.cmd permissions --observed --since 2026-09-28` on 2026-10-06 (1,183
-  transcripts): 66 guard asks, of them 22 git. 6 protected nothing and pass now: 5 interactive rebases with an
-  editor setting in the agent's own worktree on its task branch (2026-10-01 to 10-06, about 9.8 hours of waiting,
-  9.4 of them one night of #445's fix agent) and a `git checkout --ours core/events/$f.gd` loop (2026-09-30). One
-  more, a `GIT_SEQUENCE_EDITOR=:` rebase before #104, passed already. 6 came from a manager's shell standing in
-  another worktree on 2026-09-30 (the 2026-10-01 rule above removed the cause; the guard cannot tell it from a
-  session that wanders into another task's worktree, so they still ask). Kept: 4 `git stash drop` (the stash is
-  shared), `branch -d|-D` of a release branch and of another task's branch from the main checkout, a relative
-  `git worktree remove --force tools/out/measure/w$i` loop (the absolute path passes now), `reset --hard` in a loop
-  over another repository's worktrees, and `reset --hard` of `release/m3` in its worktree. The other 44: 30 `gh`
-  writes to the sibling repositories (above), 10 writes to `addons/`, 3 to `.claude/settings*.json`, and one
-  filtered `Remove-Item -Recurse` in `$env:TEMP` (8.8 hours). The replay (`tools\run.cmd permissions --since
-  2026-09-28`, 33,381 calls, bypass mode): 70 prompts before, 64 after (68 and 62 guard), 38 denied in both, no crash;
-  the 6 that pass are the six above, and no call that was silent before asks now. The replay reads today's branches:
-  a deleted worktree's call reads as a detached HEAD, which is free, so it may undercount the asks of the past.
-- The account's own repositories and filtered temp deletes (#464), replayed on 2026-10-06 with `tools\run.cmd
-  permissions --since 2026-09-28` (bypass mode, `origin/main` against the branch; 35,388 calls in 1,261
-  transcripts): 66 prompts before (64 guard), 31 after (29 guard), 38 denied in both, no crash, and no call that was
-  silent before asks now. The 35 that pass: 34 calls with `gh` writes to `xperiaroco2/prime-game-art` and
-  `xperiaroco2/prime-game-ui` (issues, comments, PRs, both `gh repo create`s, `-R "$R"` after `R=...`; one a probe
-  of a missing `xperiaroco2/nonexistent-zz9`), and the
-  `Get-ChildItem $env:TEMP -Filter 'rmtree-*' | Remove-Item -Recurse` of 2026-10-05. The one `gh` ask left is
-  `gh issue create --repo godotengine/godot`, an upstream bug report. The replay lists today's temp folder and reads
-  today's gh account.
-- Unattended `acceptEdits` (#312), replayed on 2026-10-07 with `tools\run.cmd permissions --since 2026-10-04 --mode
-  acceptEdits --list` (`origin/main` against the branch; 14,115 calls in 1,339 transcripts, file tools included):
-  before #312's guard 6,177 prompts (6,171 with no allow rule), after it 348, 5 denied in both, no crash, and no call
-  that was silent before asks now. Before, the causes were the shell long tail: `$PYTHON_BIN` 1,316, git reads after
-  a `cd` into a worktree (`diff` 675, `status` 405, `show` 237), a `cd` into the scratchpad 592, `cut` 367, `for`
-  loops (judged by their body since #312), `awk` 238, `git fetch` 200, `printf` 148, `git -C` 140, PowerShell
-  filters. What still prompts: about 300 writes of workflow agents to a worktree's own `.claude/` (179 Edit and Write
-  calls, the rest `sed -i`, `cp`, `git checkout` and inline Python; Claude Code protects them in every mode but
-  bypass, §8.2.10); 37 shell writes beyond the own worktree, the temp folder and the disposable folders, or to a
-  path the guard cannot resolve (`$S/x.log` with `S` set in an earlier call, `$TEMP/../x`, and the
-  `cat > ../../../../tmp_unused` that left a stray file on `D:\`); 3 `Edit(**/.claude/settings.json)` asks, 2 guard
-  asks and one `rm` of that stray file (a critical path). Allow rules alone (a model run of 136 rules, Bash and
-  PowerShell: git reads and writes, text and process tools, PowerShell filters, `$PYTHON_BIN`) leave 1,976: a `cd`
-  into the scratchpad 606, `git -C` 162 (no allow rule may put a `*` before the subcommand), `sed` on a variable's
-  path 148, `GIT_SEQUENCE_EDITOR=: git rebase` 73 (an allow rule never matches past such an assignment), `bash -c` 60
-  and the rest. Bypass and default mode are unchanged (6 and 8,532 prompts).
+Each guard or permission change is replayed before it lands: `tools\run.cmd permissions --since <date>` (bypass mode
+unless `--mode` says otherwise, `origin/main` against the branch) judges every Bash and PowerShell call of this
+machine's transcripts both ways and counts prompts, denials and crashes; `--observed` lists what actually stopped
+agents. The replay reads today's branches, temp folder and gh account, so it may undercount past asks (a deleted
+worktree's call reads as a detached HEAD, which is free). The numbers are in the issues (#47, #51, #68, #312, #457,
+#464). What they settled:
+- The guard adds about 0.2 s to each shell command and has never crashed on a replay; no change made a call that was
+  silent before ask.
+- Its one known false ask: a heredoc whose text holds a delete (`shutil.rmtree('core')` in test data).
+- Target-judged deletes and resets (#47): a scratch delete in `tests/scratch/` passes, one elsewhere in the project
+  asks; the own worktree (#51) and git there on its task branch (#457) pass, including rebases with an editor setting.
+- `gh` reads of other repositories (#68) and writes to the account's own repositories (#464) pass; a write to another
+  owner's repository (an upstream bug report) asks.
+- What still asks is right or a wrong command pattern: a manager's shell standing in another worktree, `git stash
+  drop` (the stash is shared), deleting a release or another task's branch, writes to `addons/` and `.claude/`.
+  Claude Code's own blocks were foreground `sleep`s (§11.17, "Bounded waits") and a `Remove-Item` beside a cmd.exe
+  `/c` argument, read as its target: put such code in a `.ps1` file in the scratchpad and run it with
+  `powershell -File`.
+- Outside bypass, allow rules alone leave thousands of prompts (a `cd` into the scratchpad, `git -C`, `sed` on a
+  variable's path, `GIT_SEQUENCE_EDITOR=: git rebase`, `bash -c`), so unattended work stays in bypass mode, and an
+  `acceptEdits` session gets the guard's allow instead (#312, §8.2.10); there writes to a worktree's own `.claude/`
+  still prompt.
 
 #### 8.2.10 Unattended `acceptEdits` sessions (#312)
 A route-C successor manager and its workflow agents always run in `acceptEdits` and cannot leave it (#484). There
