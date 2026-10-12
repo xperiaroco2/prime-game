@@ -10,9 +10,6 @@ extends RefCounted
 ##   only for the markers of the task types that play on it (TaskType.maps, GE15, #803);
 ## - a spawn tag demanded exactly (Demands.exact: the Generator's, GE10, #797) whose markers on the
 ##   level number anything else, more or fewer, at the default settings;
-## - on a map, what a task type that plays on it refuses in its layout (TaskType.layout_problems:
-##   the photo task's spot too near its camera, the photo ADR's PE12, and the car
-##   repair's short axis, #807), each HostText printed after the level's path;
 ## - a marker with two tags (the same position under two tags; §9.6: a marker carries one tag);
 ## - a lobby with fewer `lobby_player` markers than the mode's maximum of players, since a joiner
 ##   and `End -> Lobby` each put a player on a marker of its own.
@@ -137,11 +134,6 @@ static func _check_level(
 						% [path, tag, spec.id]
 					)
 				)
-	if level == PhaseSpec.Level.MAP:
-		for type: TaskType in mode.task_types:
-			if type != null and type.plays_on(path):
-				for text: HostText in type.layout_problems(layout):
-					found.append("%s: %s" % [path, text])
 	var tag_at: Dictionary[Vector3, StringName] = {}
 	for tag: StringName in layout.tags():
 		for position: Vector3 in layout.positions(tag):

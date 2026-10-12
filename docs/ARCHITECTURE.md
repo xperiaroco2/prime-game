@@ -6661,8 +6661,8 @@ kind's), `subtasks_setting` (a whole-number setting from at least 0), `frames_pe
   `StationPlaced` in id order, then one fresh film on the `film` marker: `ItemSpawned`, then `item_rested` (spawn)
   (PE11). No RNG.
 - Demands: exactly one marker of each station kind's tag, of `photo` (the printer's tray) and of `film`, whatever the
-  settings (§9.4.4's exact demands). `TaskType.layout_problems` (the load check, `LayoutCheck`, for each map the type
-  plays on) refuses a photo spot marker no farther than the two kinds' radii from the camera marker horizontally, so
+  settings (§9.4.4's exact demands). `TaskType.layout_problems` (the fit check, `FitCheck`, which holds the lobby back on
+  the chosen map; `most_layout_problems` is 1) gives `photo_spot_near` for a photo spot marker no farther than the two kinds' radii from the camera marker horizontally (when the map holds one marker of each), so
   the spot never lies in the camera's reach and the frame never looks straight up or down (PD18).
 - The camera (PE17): it holds a film while the film it was loaded with still lies where the load laid it: the same
   `ItemState` (so a vanished film's recycled id never matches) with the move serial (`ItemState.moves`, bumped by
@@ -6701,7 +6701,7 @@ Status: `core/` P2 built in #781: `core/tasks/photo_task.gd`, `core/tasks/photo_
 `core/events/film_loaded_event.gd`, `core/events/shot_taken_event.gd`, `ItemState.moves`, `TaskType.layout_problems`,
 the three reasons in `StationUsable.REASONS`, wire kinds 77 and 78 (protocol 24) with `WireBudget`'s 15-row
 `ShotTaken` case. P3 (#782) adds the box, the printer, the board and the count.
-Tests: `tests/unit/tasks/photo_deal_test.gd` (the deal, the exact demands, the fit check), `photo_load_test.gd` (the
+Tests: `tests/unit/tasks/photo_deal_test.gd` (the deal, the exact demands, the layout problem), `photo_load_test.gd` (the
 load, the camera's film through every lift and a recycled id, the refusals; planted "the camera ignores the move
 serial" and "ignores the item's identity", each failed, reverted), `photo_shot_test.gd` (the frame's edge, the sight
 line, the cylinder, the range, the record), `photo_check_test.gd` (PE12, the caps at and below the floor, the leak

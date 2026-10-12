@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The photo task's deal, its exact demands and its level fit check (the photo ADR §2.1, PE11,
 ## PE12, PD18; ARCHITECTURE §9.5): the five stations in the order camera, photo spot, film box,
 ## printer, board, StationPlaced for each in id order, then the dealt film's ItemSpawned; nothing
-## at 0 photos; exactly one marker of each tag; a photo spot within reach of the camera refused at
-## load. Fixture values only.
+## at 0 photos; exactly one marker of each tag; a photo spot within reach of the camera a layout
+## problem (FitCheck holds the lobby back on it, as the car repair's short axis). Fixture values only.
 
 const MAP := FixtureModes.MAP
 const PEERS: Array[int] = [1, 2]
@@ -107,33 +107,38 @@ func test_a_second_film_marker_is_refused_at_load() -> void:
 	assert_str(refused).contains("needs exactly 1")
 
 
-func test_a_photo_spot_within_reach_of_the_camera_is_refused_at_load() -> void:
-	var mode := FixturePhotoModes.basic()
+func test_a_photo_spot_within_reach_of_the_camera_is_a_layout_problem() -> void:
+	var type := FixturePhotoModes.type_of(FixturePhotoModes.basic())
 	var apart := 2.0 * FixturePhotoModes.RADIUS_M
 	var at := FixturePhotoModes.CAMERA_AT + Vector3(apart, 0, 0)
-	var refused := "\n".join(LayoutCheck.run(mode, FixturePhotoModes.layouts(at)))
-	assert_str(refused).contains("photo_spot_near")
+	assert_int(type.layout_problems(_map_of(at)).size()).is_equal(1)
+	# Straight above: the horizontal distance counts, so the frame would look straight up.
 	var above := FixturePhotoModes.CAMERA_AT + Vector3(0, 3, 0)
-	var refused_above := "\n".join(LayoutCheck.run(mode, FixturePhotoModes.layouts(above)))
-	assert_str(refused_above).contains("photo_spot_near")
+	assert_int(type.layout_problems(_map_of(above)).size()).is_equal(1)
 	var beyond := FixturePhotoModes.CAMERA_AT + Vector3(apart + 0.01, 0, 0)
-	assert_array(Array(LayoutCheck.run(mode, FixturePhotoModes.layouts(beyond)))).is_empty()
-	var match_refused := Match.new(mode, 7, FlatWorldQuery.new(), FixturePhotoModes.layouts(at))
-	assert_str("\n".join(match_refused.refusals)).contains("photo_spot_near")
+	assert_array(type.layout_problems(_map_of(beyond))).is_empty()
+	assert_array(type.layout_problems(_map_of(FixturePhotoModes.SPOT_AT))).is_empty()
 
 
 func test_the_layout_problem_is_a_host_text_with_the_needed_and_the_actual_distance() -> void:
-	var mode := FixturePhotoModes.basic()
-	var type := FixturePhotoModes.type_of(mode)
+	var type := FixturePhotoModes.type_of(FixturePhotoModes.basic())
 	var apart := 2.0 * FixturePhotoModes.RADIUS_M
-	var at := FixturePhotoModes.CAMERA_AT + Vector3(1.234, 0, 0)
-	var layout: LevelLayout = FixturePhotoModes.layouts(at)[MAP]
-	var found := type.layout_problems(layout)
+	var found := type.layout_problems(_map_of(FixturePhotoModes.CAMERA_AT + Vector3(1.234, 0, 0)))
 	assert_int(found.size()).is_equal(1)
 	assert_int(type.most_layout_problems()).is_equal(1)
 	assert_str(found[0].id).is_equal(HostText.PHOTO_SPOT_NEAR)
 	assert_array(Array(found[0].ids)).is_equal(["photo_spot", "camera"])
 	assert_int(found[0].numbers[&"need"]).is_equal(ceili(apart * 100.0))
 	assert_int(found[0].numbers[&"have"]).is_equal(123)
-	var far: LevelLayout = FixturePhotoModes.layouts()[MAP]
-	assert_array(type.layout_problems(far)).is_empty()
+
+
+func test_a_second_camera_marker_is_the_demands_to_report_not_a_layout_problem() -> void:
+	var type := FixturePhotoModes.type_of(FixturePhotoModes.basic())
+	var layout := _map_of(FixturePhotoModes.CAMERA_AT + Vector3(0.5, 0, 0))
+	layout.add_marker(&"camera", Vector3(-30, 0, 5))
+	assert_array(type.layout_problems(layout)).is_empty()
+
+
+## The fixture's map layout with the photo spot at `spot_at`.
+func _map_of(spot_at: Vector3) -> LevelLayout:
+	return FixturePhotoModes.layouts(spot_at)[MAP]
