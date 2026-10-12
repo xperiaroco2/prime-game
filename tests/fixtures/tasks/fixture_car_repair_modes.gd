@@ -35,6 +35,9 @@ const CLEARANCE_M := 1.0
 const CAR_AT := Vector3(0, 0, 30)
 const CAR_END_AT := Vector3(0, 0, 32)
 const PANEL_AT := Vector3(5, 0, 30)
+## A lift panel beside the car, so a holder can stand inside the footprint box (x up to 1.2) and
+## still within the panel's 1 m cylinder: the RE17 cases of a holder in the box.
+const NEAR_PANEL_AT := Vector3(2, 0, 30)
 const BIN_SPOTS: Array[Vector3] = [Vector3(0, 0, 40), Vector3(3, 0, 40), Vector3(6, 0, 40)]
 const PICTURE_AT := Vector3(0, 0, 45)
 ## Where a player stands to use a station: 0.5 m short of its marker, inside its cylinder.
@@ -132,13 +135,16 @@ static func type_of(mode: GameMode) -> CarRepair:
 	return null
 
 
-## The fixture layouts with the car repair's markers; `car_end_at` moves the `car_end` marker.
-static func layouts(car_end_at: Vector3 = CAR_END_AT) -> Dictionary[String, LevelLayout]:
+## The fixture layouts with the car repair's markers; `car_end_at` moves the `car_end` marker and
+## `panel_at` the lift panel's (NEAR_PANEL_AT puts its cylinder over the footprint box's edge).
+static func layouts(
+	car_end_at: Vector3 = CAR_END_AT, panel_at: Vector3 = PANEL_AT
+) -> Dictionary[String, LevelLayout]:
 	var found := FixtureModes.layouts()
 	var map := found[FixtureModes.MAP]
 	map.add_marker(&"car", CAR_AT)
 	map.add_marker(&"car_end", car_end_at)
-	map.add_marker(&"lift_panel", PANEL_AT)
+	map.add_marker(&"lift_panel", panel_at)
 	for i in PARTS.size():
 		map.add_marker(StringName("bin_%s" % PARTS[i]), BIN_SPOTS[i])
 	map.add_marker(&"part_picture", PICTURE_AT)
