@@ -40,9 +40,10 @@ What constrains the rework:
   basics cards reuse the tutorial's step keys, so those keys stay whatever the tutorial drops.
 - **Lesson 3 needs a one-handed item** (D29): the knife; the package takes both hands.
 - **Mechanics outside today's tutorial:** the throw (built, #643 to #646, the `throw` key); the crouch (designed,
-  #790 and #791, the House only through `PlayerRules.crouch_maps`); the knife's strike (`Use`) and giving up
-  (`GiveUp`), both refused in the tutorial by D27 and D28 (a); a station's `Interact` (#796), which belongs to a task
-  type.
+  #790 and #791; the base mode's `PlayerRules.crouch_maps` lists the House alone, while the tutorial mode's stays
+  empty, which KE10 makes every map, so the crouch plays in the room whether taught or not); the knife's strike
+  (`Use`) and giving up (`GiveUp`), both refused in the tutorial by D27 and D28 (a); a station's `Interact` (#796),
+  which belongs to a task type.
 - **Shared files:** `levels/tutorial/rooms/tutorial_room.tscn` is also #715's (the room's map record);
   `client/i18n/strings.csv` also #715's, #718's and #306's.
 
@@ -72,7 +73,7 @@ answers.
 | LD1 | Which item lesson 2 uses with no Delivery | (a) the package as a plain item, spawned by `SpawnItems`; (b) the knife for lesson 2 as for lesson 3; (c) a House item of Delivery by meaning, once D2 builds it | (a) |
 | LD2 | Lesson 5 with no task to open a card for | (a) the map step only; (b) lesson 5 goes; (c) the «?» step becomes the Esc menu's Guide | (a) |
 | LD3 | Teach the throw | (a) a lesson after Hand and belt, as issue 825b; (b) not taught | (a), as its own later issue |
-| LD4 | Teach the crouch | (a) a lesson of its own with a low prop; (b) the crouch key in lesson 1's key row, as issue 825c; (c) not taught | (b), after #790 and #791 |
+| LD4 | Teach the crouch | (a) a lesson of its own with a low prop; (b) the crouch key in lesson 1's key row, as issue 825c; (c) not taught (it still plays in the room: keeping it out would reopen KE10) | (b), after #790 and #791 |
 | LD5 | Teach the knife's strike | (a) not taught, `Use` refused as today; (b) a swing at nobody | (a) |
 | LD6 | Teach giving up | (a) not taught, D28 (a) stands; (b) lesson 7 downs the own player first and it gives up | (a) |
 | LD7 | The order | (a) today's, the removed left out, new lessons in place; (b) the map just before the menu | (a) |
