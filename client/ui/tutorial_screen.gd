@@ -6,11 +6,12 @@ extends Control
 ## - The invite (first launch only, open_invite()): `Dim` (ToyBackdrop), `Lang` (two language
 ##   chips at the top right, one ButtonGroup, each language named in itself) and `Box` (the raised
 ##   ToyPanelDialog: the title, the body, Start and Skip). Start has the focus as it opens.
-## - `Step` (top centre, 40 px down, 912 px wide): "Step n of 9", the title, and How: the how
+## - `Step` (top centre, 40 px down, 912 px wide): "Step n of 8", the title, and How: the how
 ##   sentence in pieces around the keycap of the action bound now (KeyLabel, #211), or lesson 1's
-##   row of keycaps (`HowKeys`), or nothing (lesson 4: title only, the engineer's answer on PR
-##   #722). Lesson 5's «?» is a ToyKeyRound keycap, the look of the map's «?».
-## - `List` (top right, 256 px down, 440 px wide): the nine lessons, a done one with a check at the
+##   row of keycaps (`HowKeys`), or nothing (a title only, as lesson 4 had until #900, the
+##   engineer's answer on PR #722). A step's «?» (no lesson's since #900) is a ToyKeyRound keycap,
+##   the look of the map's «?».
+## - `List` (top right, 256 px down, 440 px wide): the lessons, a done one with a check at the
 ##   right edge, the current one a one-line ToyChipLight (the plate widens to the left for a long
 ##   one), the rest muted and wrapping.
 ## Styled only through the shared theme's variations (no override); a keycap's `min_width`, or
@@ -41,7 +42,7 @@ const CHECK_SIZE := Vector2(24, 24)
 ## A plate stacked under another at the top centre: the gap of s9's Protect chip under the HUD's
 ## timer (LifeScreen.PROTECT_TOP); s1 draws no dead player ("not a decision").
 const STACK_GAP := 24
-## The map's «?» (MapScreen's task rows), drawn as lesson 5's round keycap.
+## The map's «?» (MapScreen's task rows), drawn as a step's round keycap.
 const HOWTO_TEXT := "?"
 ## Lesson 1's walking keys: one group, named by `control.walk`; every other key of a key row is a
 ## group of its own, named by its Controls row.
@@ -309,7 +310,7 @@ static func _size_keycaps(row: Control) -> void:
 		_size_keycap(node as PanelContainer)
 
 
-## The list of the nine lessons, rebuilt.
+## The list of the lessons, rebuilt.
 func _draw_list() -> void:
 	for child: Node in rows.get_children():
 		rows.remove_child(child)
