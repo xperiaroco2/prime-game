@@ -774,7 +774,7 @@ reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for 
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6.4). #551: `ProfileChanged`, and the body colour
 in `PlayerJoined` and the `Welcome` roster. #647 (M7-Z1): `ZoneProgress`. #779: `ItemVanished`. #797 (Generator G2): `SwitchChanged` and
 `ButtonPressed`, and the Generator's `ZoneProgress`. #771: `ItemChanged`, and
-`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`.
+`ItemPickedUp`'s `belted` naming the item itself. #772 (cooking C3): `OrderPosted` and `HerbsDealt`. #781 (photo P2): `FilmLoaded` and `ShotTaken`.
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -1873,10 +1873,10 @@ a join lost for good fails at once naming its reason, a join that found no room 
 The C→H kinds 1 to 13, 15 to 18 and 112 (kind 14, `MoveClaimReliable`, has no chaos shape:
 `host_session_claim_twin_test` covers its teleport, far-future, stale and wrong-phase twins, #429), the debug kinds 24
 and 25 (`ForceRole`, `ForceClock`), the H→C kinds 32 (`Rejected`), 70 and 71 (#797: `SwitchChanged`,
-`ButtonPressed`) sent the wrong way, one drawn
+`ButtonPressed`), 75 and 76 (#807: `LiftChanged`, `PartNeeded`), 77 and 78 (#781: `FilmLoaded`, `ShotTaken`) sent the wrong way, one drawn
 per packet, and unassigned kinds (0, 19, 20, 23, 26, 31,
-75, 80, 95, 97, 111,
-113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74). Kind 15, `NextStage` (#599): the hostile
+79, 80, 95, 97, 111,
+113, 127, 128, 200, 255; `chaos_frames_test` fails while a row has one; 73 became 75 when #772 took 73 and 74, 75 became 77 when #807 took 75 and 76, 77 became 79 when #781 took 77 and 78). Kind 15, `NextStage` (#599): the hostile
 sends it in every phase and the oracle answers `not_accepted` because no phase of `ACCEPTS` lists it (the base mode
 lists it in no phase, peer 1 included); `ChaosOracle.NEVER_ACCEPTED` records that decision, and `chaos_test` pins
 that every intent is in a phase of `ACCEPTS` or in that list;
@@ -6668,6 +6668,9 @@ kind's), `subtasks_setting` (a whole-number setting from at least 0), `frames_pe
   `ItemState` (so a vanished film's recycled id never matches) with the move serial (`ItemState.moves`, bumped by
   `Items` on every lay and lift, §9.3) the load left. Any lift (a pick-up, a take onto a package carrier's belt,
   `PickUp`'s exchange) or a vanish empties it, in the load's own tick too.
+  Deviation from the ADR's PE6 (a): P2 does not prune `films` and `shots` with a vanish (no film vanishes in P2, and
+  the identity match keeps a stale entry from being read); a `Film` keeps its vanished `ItemState` alive until the
+  match resets. P3, which adds the print's vanish and the box cap, drops the entries in the vanishing command.
 - A use (`use_problem`, `use_station`; reads no role): at an empty camera the actor's fresh film (a film with no shot),
   the hand's, else the belt's, is laid on the camera (`Items.lay_on_station`: `item_rested` on_station, no
   `ItemPlaced`) and `FilmLoaded` goes to everyone. At a loaded camera a shot (§3.2 of the ADR): the lens is the camera
