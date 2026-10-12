@@ -66,12 +66,15 @@ export const meta = {
 //                 both files (`tools\run.cmd agents-check --launch`; an agentType with no file throws at agent()).
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default. With none of them every agent's prompt, label, phase, schema and options stay as they were
-// (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args is unchanged, but for
-// the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's
-// section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
+// (tools/runner/tests/test_workflows.py snapshots them), so a launch or resume with the earlier args is unchanged, but
+// for the deliberate changes of the default prompts that rewrote those snapshots (#413's and #456's RULES lines,
+// #339's section reads, #468's reading line, #470's digests: the reviewers' and the test reviewer's digest of the
 // implementer's report, the implementer's summary cap, and the publisher's plan summary and inline finish-task
-// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies: pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the
-// read-only agents' hooks-path and wait lines, and Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// steps; #606's review tier line in the publisher's prompt and #605's fast-verify wording; #696's publisher copies:
+// pubReport, pubReviews, PUB_RULES; #818's REVIEW_RULES, the read-only agents' hooks-path and wait lines, and
+// Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
+// 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`).
+// The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
 //                 the whole plan is the plan agent's comment on the issue and its result the short form (at most
@@ -297,8 +300,8 @@ const RULE_LINES = [
 const RULES = RULE_LINES.join('\n')
 // #696: the publisher's preamble leaves out lines it never uses (about 1.5k characters; its median launch prompt was
 // 28.8k in #470's table): the reading rule for code (its task-publisher agent type carries it), no Godot windows unless the
-// run is visual (it runs check, publish and
-// CI, nothing that opens one; a visual publisher may rerun playcheck, so it keeps the line) and the game-rule line
+// run is visual (it runs check, publish and CI, nothing that opens one; a visual publisher may rerun playcheck, so it
+// keeps the line) and the game-rule line
 // (it fixes review findings, and the implementer's needs_engineer reaches it in full).
 const PUB_DROPS = [READ_RULE, GAME_RULE, ...(VISUAL ? [] : [GODOT_RULE])]
 const PUB_RULES = RULE_LINES.filter(l => !PUB_DROPS.includes(l)).join('\n')
@@ -364,7 +367,8 @@ const PUB = {
 // human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
 // into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
 const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
-// Bounded waits (#303, always on): one paragraph for each agent that runs verify, publish, mutants or a CI watch,
+// Bounded waits (#303, always on; the paragraph keeps the name `(bounded_waits)` of the retired arg so that a resumed run
+// and the snapshots replay it byte for byte): one paragraph for each agent that runs verify, publish, mutants or a CI watch,
 // placed after the steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two). `loops`
 // (#574): the implementer's inner loop may run `verify --fail-fast`; the verify it reports, and publish's, run every
 // step.
