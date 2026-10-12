@@ -3917,8 +3917,9 @@ T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, 
 - **The mode per session:** `GameTutorial.end` (called by `Game._end_session` before `_show_end`) frees the
   stand-ins and gives `Game.mode` back the mode it had (the base mode, or a test's), so a networked session after a
   tutorial uses the base mode again. `GameFlow` shows the loading screen for a phase with no level (`gather`, §4.7.4's
-  table), which no base-mode phase is. The loading screen's how-to card counts this loading like any other (the
-  tutorial teaches Delivery anyway): no tutorial branch in `GameHowto`.
+  table), which no base-mode phase is. The loading screen's how-to card reads the mode like any other: the tutorial
+  mode has no `DealTasks` (#900), so `HowtoCards.dealable` finds no task type and its loading shows a tip; no
+  tutorial branch in `GameHowto`.
 - **Leaving:** `Game.hosting()` is `_host != null and not tutorial.running`, so the Esc menu's Leave and Quit and the
   window's close act at once, with no question. From `start` to `end` `GameTutorial` sets `GameUi.set_tutorial`: the
   Esc menu shows its tutorial variant (#491, §4.7.46): Game (Resume, Leave, Quit), Guide and Settings, no Lobby tab.
