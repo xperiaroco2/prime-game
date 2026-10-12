@@ -1,30 +1,69 @@
 # The solo tutorial session (#601) in the game's real window: --tutorial starts it without the
 # invite, its host on a private in-process hub (no port), with the game's two stand-ins. gather
-# has no level, so the loading screen shows until the room is in; then the lessons phase shows
-# the round in the tutorial room with three players in the roster, and #492's plates over the
-# HUD (no timer, no role): lesson 1's row of keycaps (step-keys); a diagonal walk across the room
-# (a second of walking, the lesson's placeholder, ends it well before a wall) brings lesson 2's
-# sentence with its keycap (step); then the tutorial's Esc menu. The invite shows only on a first
-# launch, which no playcheck window is (E70): its shots are client/dev/tutorial_*_preview.tscn's.
+# has no level, so the loading screen shows until the room is in (the tutorial deals no task, so
+# a tip, never a how-to card, #900); then the lessons phase shows the round in the tutorial room
+# with three players in the roster, and #492's plates over the HUD (no timer, no role): lesson
+# 1's row of keycaps (step-keys); a diagonal walk across the room (a second of walking, the
+# lesson's placeholder, ends it well before a wall) brings lesson 2's sentence with its keycap
+# (step). The package picked up and put down (lesson 2), then the knife picked up and swapped to the
+# belt (lesson 3), brings lesson 4, the map: M opens it, with no task in its list (#900). Then the
+# tutorial's Esc menu. The invite shows only on a first launch, which no playcheck window is
+# (E70): its shots are client/dev/tutorial_*_preview.tscn's.
 tutorial
-timeout 60
+timeout 90
 
 window 1
+wait screen loading
+shot tutorial_loading
 wait phase lessons
 wait screen round
 wait players 3
 frames 30
-wait text tutorial.step is Step 1 of 9
+wait text tutorial.step is Step 1 of 8
 wait text tutorial.how has Walk
 shot tutorial_room
 hold move_forward
 hold move_right
-wait text tutorial.step is Step 2 of 9
+wait text tutorial.step is Step 2 of 8
 release move_forward
 release move_right
 wait text tutorial.how has Aim at the package
 frames 30
 shot tutorial_step
+# Lesson 2: face the package, walk until the HUD names it under the crosshair, pick it up, put
+# it down.
+aim item package
+hold move_forward
+wait text hud.aim is Package timeout=30
+release move_forward
+aim off
+press interact
+wait text hud.hand is Package
+wait text tutorial.how has Press
+press put_down
+wait shown hud.hand off
+wait text tutorial.step is Step 3 of 8
+# Lesson 3: the knife (the package goes on no belt), then the swap key moves it to the belt.
+aim item knife
+hold move_forward
+wait text hud.aim is Knife timeout=30
+release move_forward
+aim off
+press interact
+wait text hud.hand is Knife
+press swap
+wait text hud.belt is Knife
+wait text tutorial.step is Step 4 of 8
+frames 30
+shot tutorial_map_step
+# Lesson 4: M opens the map, its tasks list empty.
+press map
+wait pointer free
+frames 30
+shot tutorial_map
+press map
+wait pointer captured
+wait text tutorial.step is Step 5 of 8
 press ui_cancel
 wait esc open
 shot tutorial_esc
