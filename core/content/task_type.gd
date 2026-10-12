@@ -55,11 +55,17 @@ func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: D
 
 
 ## What is wrong with `layout`, a map this type may be dealt on, beyond its marker counts (the car
-## repair ADR's RE14, #807: CarRepair's short axis), as HostTexts: at most one (WireBudget sizes
-## SettingsChanged with one per task type). FitCheck.shortfalls appends them, so `all_ready` holds
-## back on such a map before Match starts. Read only from `layout`; none by default.
+## repair ADR's RE14, #807: CarRepair's short axis), as HostTexts: at most
+## most_layout_problems(). FitCheck.shortfalls appends them, so `all_ready` holds back on such a
+## map before Match starts. Read only from `layout`; none by default.
 func layout_problems(_layout: LevelLayout) -> Array[HostText]:
 	return []
+
+
+## The most HostTexts layout_problems() returns: WireBudget sizes SettingsChanged's shortfalls
+## with it. 0 by default.
+func most_layout_problems() -> int:
+	return 0
 
 
 ## The spawn tags of the level markers where this type's items may lie (Delivery: its package

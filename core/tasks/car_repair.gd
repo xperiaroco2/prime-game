@@ -312,6 +312,10 @@ func layout_problems(layout: LevelLayout) -> Array[HostText]:
 	return found
 
 
+func most_layout_problems() -> int:
+	return 1
+
+
 func emits() -> Array[Script]:
 	return [StationPlacedEvent, PartNeededEvent, LiftChangedEvent]
 
