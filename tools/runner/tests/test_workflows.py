@@ -2907,6 +2907,8 @@ class UpdateRunTest(unittest.TestCase):
         roots = ["core/x.gd", "server/x.gd", "net/x.gd", "client/hud/x.gd", "voice/x.gd", "tests/harness/x.gd"]
         cases = [({"branch": "core/7-x"}, updated([("docs/y.md", 500, 0), (p, 1, 0)])) for p in roots]
         cases += [({"branch": "core/7-x"}, updated([("core/x.png", -1, -1)]))]  # a binary file there
+        # git quotes a path with non-ASCII bytes (core.quotePath): the quote must not hide it from the full tier.
+        cases += [({"branch": "core/7-x"}, updated([('"core/\\303\\251.gd"', 1, 0)]))]
         cases += [({"branch": "core/7-x"}, updated([("core/a.gd", 1, 0), ("net/b.gd", 0, 1), ("voice/c.gd", 1, 1), ("server/d.gd", 2, 0)]))]
         results = run_update([(dict(ALL_OPTIONS, **a), impl) for a, impl in cases])
         for (args, impl), result in zip(cases, results):
@@ -2926,7 +2928,8 @@ class UpdateRunTest(unittest.TestCase):
                 self.assertIn(f"{UPDATE_LINE}the full chain ({out['why']}): the reviewers read the whole PR diff", pub)
         whys = [r["returned"]["update"]["why"] for r in results]
         self.assertEqual(whys[:len(roots)], [f"the delta touches the full tier's paths ({p})" for p in roots])
-        self.assertEqual(whys[-2], "the delta touches the full tier's paths (core/x.png)")
+        self.assertEqual(whys[-3], "the delta touches the full tier's paths (core/x.png)")
+        self.assertEqual(whys[-2], 'the delta touches the full tier\'s paths ("core/\\303\\251.gd")')
         self.assertEqual(whys[-1], "the delta touches the full tier's paths (core/a.gd, net/b.gd, voice/c.gd, 1 more)")
         # A delta of any size outside those paths (client/ui/ and tests/ but tests/harness/ included): the update path.
         cases = [

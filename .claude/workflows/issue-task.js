@@ -756,7 +756,8 @@ const updatePath = () => {
   if (!/^[0-9a-f]{7,64}$/.test(head)) return full(`no published head returned${note}`)
   const delta = impl.delta
   if (!Array.isArray(delta) || delta.some(e => !e || typeof e.path !== 'string' || !e.path)) return full('no delta returned')
-  const reviewed = delta.filter(e => REVIEWED.test(e.path))
+  // git quotes a path with non-ASCII bytes (core.quotePath): the leading quote must not hide it from REVIEWED.
+  const reviewed = delta.filter(e => REVIEWED.test(e.path.replace(/^"/, '')))
   if (reviewed.length) return full(`the delta touches the full tier's paths (${reviewed.slice(0, 3).map(e => e.path).join(', ')}${reviewed.length > 3 ? `, ${reviewed.length - 3} more` : ''})`)
   // A binary file's -1 (or any count that is not a whole number) adds nothing to the size the result reports.
   const count = e => (Number.isInteger(e.added) && Number.isInteger(e.deleted) && e.added >= 0 && e.deleted >= 0 ? e.added + e.deleted : 0)
