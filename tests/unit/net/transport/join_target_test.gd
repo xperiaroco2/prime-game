@@ -100,3 +100,18 @@ func test_a_code_without_a_service_goes_to_the_deployed_worker() -> void:
 		assert_str((transport as WebRtcTransport).signal_url).is_equal(JoinTarget.SERVICE_URL)
 		assert_bool((transport as WebRtcTransport).local_candidates).is_false()
 		transport.close()
+
+
+## The return key's target (#638): one per target, however it was typed.
+func test_the_return_target_is_one_per_target_however_typed() -> void:
+	for typed: String in ["k7m2qx", "K7M-2QX", " k7 m2 qx "]:
+		assert_str(JoinTarget.of_code(typed).return_target()).is_equal("K7M2QX")
+	for typed: String in ["MyPC", "mypc:24600", " MYPC:24600 "]:
+		assert_str(JoinTarget.of_direct(typed, 24600).return_target()).is_equal("mypc:24600")
+	assert_str(JoinTarget.of_direct("mypc:7000", 24600).return_target()).is_equal("mypc:7000")
+	assert_str(JoinTarget.of_direct("192.168.0.195", 24600).return_target()).is_equal(
+		"192.168.0.195:24600"
+	)
+	assert_str(JoinTarget.of_direct("[FE80::1]:7000", 24600).return_target()).is_equal(
+		"[fe80::1]:7000"
+	)

@@ -106,6 +106,13 @@ func label() -> String:
 	return "%s:%d" % [address, port]
 
 
+## The target a return key is made for (ReturnKey.of, #638): the code, or address:port in lower case
+## (a host name is the same in any case), so that each way of typing one target gives one key and
+## the default port typed or not the same.
+func return_target() -> String:
+	return code if is_code() else label().to_lower()
+
+
 ## The transport that joins this target, with `kinds`: a WebRtcTransport for a code, an
 ## EnetTransport for an address. Its join(join_address(), port) starts the join. A code join
 ## checks the service's `found` against `protocol` and `content` (the joiner's own; -1: no check)
