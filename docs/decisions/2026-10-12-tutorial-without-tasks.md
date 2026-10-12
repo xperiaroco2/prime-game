@@ -92,7 +92,9 @@ answers.
 - **The Guide in place of the «?»** (LD2 (c)): a new client signal and new words for a step the menu lesson nearly
   covers (its Esc menu holds the Guide).
 - **Teaching the strike** (LD5 (b)): with nobody to strike, it teaches a key and not what the strike does; a strike
-  among the crew teaches a wrong idea of who strikes (D27's reason).
+  among the crew teaches a wrong idea of who strikes (D27's reason); and the base mode's strike rule, reused, could
+  down a stand-in in `lessons`, which has no `LifeTicks`, so the stand-in stays down and the staged raise lesson
+  (D27) breaks.
 - **Teaching giving up** (LD6 (b)): lesson 7 grows by a knockdown and a hold; D28's other failure, a downed state
   with no plate of its own, went with #497's plate ("Hold {key} to give up", `client/ui/life_screen.gd`), which a
   downed player in a match already reads.
