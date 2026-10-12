@@ -7,7 +7,7 @@ extends Node
 enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, MAP, PREGAME, MENU_VOICE }
 
 const MODE := "res://content/modes/base_mode.tres"
-const MAP := "res://levels/greybox/greybox.tscn"
+const MAP := "res://levels/house/house.tscn"
 ## A code as the lobby and the connecting screen show one (SignalCodec's alphabet).
 const PREVIEW_CODE := "K7M2QX"
 ## The main menu's samples (#493's handoff): the code typed in code-ready, Direct's address.

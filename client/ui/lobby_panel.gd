@@ -157,7 +157,8 @@ func set_mode(mode: GameMode) -> void:
 	_bans.clear()
 	_plates.clear()
 	_ban_boxes.clear()
-	_maps = mode.maps.duplicate()
+	# The maps players play: never a test bench (GameMode.bench_maps, #767).
+	_maps = mode.player_maps()
 	map_picker.clear()
 	for map in _maps:
 		map_picker.add_item(map_name(map))
