@@ -43,6 +43,8 @@ var player: PlayerController
 var flights := ItemFlights.new()
 
 var _views: Dictionary[int, ItemView] = {}
+## The model's Item each view was built for: ItemSpawned makes a new one, so a reused id shows.
+var _built_for: Dictionary[int, ClientModel.Item] = {}
 
 
 func _init() -> void:
@@ -97,6 +99,7 @@ func clear() -> void:
 	for view: ItemView in _views.values():
 		view.queue_free()
 	_views.clear()
+	_built_for.clear()
 	flights.clear()
 	if player != null:
 		player.hand_view().show_item(&"", Color.WHITE)
@@ -109,22 +112,25 @@ func _physics_process(delta: float) -> void:
 		if not model.items.has(id):
 			_views[id].queue_free()
 			_views.erase(id)
+			_built_for.erase(id)
 	var drawn_at := avatars.drawn_at() if avatars != null else -1.0
 	flights.advance(delta, drawn_at, model, _sweep)
 	for id: int in model.items:
 		var item := model.items[id]
 		var view: ItemView = _views.get(id)
-		if view != null and view.kind != item.kind:
+		if view != null and (view.kind != item.kind or _built_for.get(id) != item):
 			# The item changed kind (ItemChanged, cooking ADR CE4), or its id was freed and reused
-			# within one frame (ItemVanished, then ItemSpawned of another kind, CE3): the old
-			# view's look is not this item's.
+			# within one frame (ItemVanished, then ItemSpawned, CE3; the model holds a new Item, of the
+			# same kind too): the old view's look is not this item's.
 			view.queue_free()
 			_views.erase(id)
+			_built_for.erase(id)
 			view = null
 		if view == null:
 			view = ItemView.make(id, item.kind, item.colour)
 			view.add_to_group(SightHider.GROUP)
 			_views[id] = view
+			_built_for[id] = item
 			add_child(view)
 		_place(view, item)
 	_show_own_hand()

@@ -194,6 +194,28 @@ func test_an_id_freed_and_reused_in_one_frame_gets_the_new_kinds_view() -> void:
 	assert_str(_items.view_of(1).kind).is_equal(&"wrench")
 
 
+func test_an_id_reused_in_one_frame_by_the_same_kind_gets_a_new_view() -> void:
+	_spawn(1, &"package", Vector3.ZERO, 0)
+	await _drawn()
+	var old_view := _items.view_of(1)
+	_model.fold(&"ItemVanished", {"item": 1})
+	_model.fold(
+		&"ItemSpawned",
+		{
+			"item": 1,
+			"kind": &"package",
+			"position": Vector3(2, 0, 2),
+			"station": 1,
+			"colour": Color(0.9, 0.2, 0.2)
+		}
+	)
+	await _drawn()
+	assert_int(_items.count()).is_equal(1)
+	var view := _items.view_of(1)
+	assert_object(view).is_not_same(old_view)
+	assert_vector(view.global_position).is_equal(Vector3(2, 0, 2))
+
+
 func test_a_circle_has_its_kinds_size_and_colour_and_dims_when_done() -> void:
 	_station(0, Color(0.9, 0.2, 0.2), Vector3(5, 0, 5))
 	await _drawn()
