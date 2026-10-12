@@ -16,7 +16,6 @@
 [ext_resource type="Script" uid="uid://bwquhbiy31ncw" path="res://core/match/phases/round_phase.gd" id="14_round"]
 [ext_resource type="Script" uid="uid://bii2odc87uvkr" path="res://core/content/game_role.gd" id="15_role"]
 [ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="16_effect"]
-[ext_resource type="Script" uid="uid://bdus0i8liigi1" path="res://core/content/task_type.gd" id="17_task_type"]
 [ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="18_condition"]
 [ext_resource type="Script" uid="uid://bndxirpvuq8fg" path="res://core/items/item_on_ground.gd" id="19_on_ground"]
 [ext_resource type="Script" uid="uid://c0rl135tmeci1" path="res://core/items/in_reach.gd" id="20_in_reach"]
@@ -25,19 +24,17 @@
 [ext_resource type="Script" uid="uid://55dcaoxkc0rh" path="res://core/items/holds_item.gd" id="23_holds"]
 [ext_resource type="Script" uid="uid://uvy56h4lwu52" path="res://core/items/put_down_in_front.gd" id="24_put_down"]
 [ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="25_package"]
-[ext_resource type="Script" uid="uid://bmxheu4k3re0j" path="res://core/tasks/task_ticks.gd" id="26_task_ticks"]
-[ext_resource type="Resource" uid="uid://b5eyuq0do4t6h" path="res://content/tasks/delivery.tres" id="27_delivery"]
 [ext_resource type="Script" uid="uid://dttee25uvdp0o" path="res://core/voice/silent_voice.gd" id="28_silent"]
 [ext_resource type="Script" uid="uid://mkjryqwnegvx" path="res://core/voice/round_voice.gd" id="29_round_voice"]
 [ext_resource type="Resource" uid="uid://4re2bkoe3b28" path="res://content/roles/crew.tres" id="30_crew"]
 [ext_resource type="Script" uid="uid://14lruqtf4bev" path="res://core/deal/deal_roles.gd" id="31_deal_roles"]
-[ext_resource type="Script" uid="uid://pvbullsryqos" path="res://core/deal/deal_tasks.gd" id="32_deal_tasks"]
 [ext_resource type="Resource" uid="uid://5wj7w4i0l5o2" path="res://content/items/knife.tres" id="33_knife"]
 [ext_resource type="Script" uid="uid://dfhwf7ayo4do4" path="res://core/deal/spawn_items.gd" id="35_spawn_items"]
 [ext_resource type="Script" uid="uid://cwp43ht0dotiu" path="res://core/life/life_ticks.gd" id="37_life_ticks"]
 [ext_resource type="Script" uid="uid://blbfjjm1tx6jv" path="res://core/life/respawn.gd" id="38_respawn"]
 [ext_resource type="Script" uid="uid://2fbiqxtovgy1" path="res://core/channel/channel_ticks.gd" id="39_channel_ticks"]
 [ext_resource type="Script" uid="uid://v8nbcqr305rv" path="res://core/channel/channel_free.gd" id="40_channel_free"]
+[ext_resource type="Script" uid="uid://bdus0i8liigi1" path="res://core/content/task_type.gd" id="40_i5ifd"]
 [ext_resource type="Script" uid="uid://b1nxsqf1xmle1" path="res://core/channel/channeling.gd" id="41_channeling"]
 [ext_resource type="Script" uid="uid://bbkuju8recclp" path="res://core/life/target_downed.gd" id="42_target_downed"]
 [ext_resource type="Script" uid="uid://cfysy8y0y1e10" path="res://core/life/target_in_reach.gd" id="43_target_in_reach"]
@@ -203,9 +200,6 @@ script = ExtResource("8_accept")
 intent = &"NextStage"
 from = 16
 
-[sub_resource type="Resource" id="TaskTicks_lessons"]
-script = ExtResource("26_task_ticks")
-
 [sub_resource type="Resource" id="Voice_lessons"]
 script = ExtResource("29_round_voice")
 living_m = 8.0
@@ -215,7 +209,6 @@ script = ExtResource("7_phase")
 id = &"lessons"
 phase_class = ExtResource("14_round")
 accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_host_next_stage")])
-tick_systems = Array[ExtResource("9_tick_system")]([SubResource("TaskTicks_lessons")])
 voice_rule = SubResource("Voice_lessons")
 level = 2
 snapshots = true
@@ -238,9 +231,6 @@ from = 4
 [sub_resource type="Resource" id="ChannelTicks_raise_stage"]
 script = ExtResource("39_channel_ticks")
 
-[sub_resource type="Resource" id="TaskTicks_raise_stage"]
-script = ExtResource("26_task_ticks")
-
 [sub_resource type="Resource" id="Voice_raise_stage"]
 script = ExtResource("29_round_voice")
 living_m = 8.0
@@ -250,7 +240,7 @@ script = ExtResource("7_phase")
 id = &"raise_stage"
 phase_class = ExtResource("14_round")
 accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise"), SubResource("Accept_host_next_stage")])
-tick_systems = Array[ExtResource("9_tick_system")]([SubResource("ChannelTicks_raise_stage"), SubResource("TaskTicks_raise_stage")])
+tick_systems = Array[ExtResource("9_tick_system")]([SubResource("ChannelTicks_raise_stage")])
 voice_rule = SubResource("Voice_raise_stage")
 level = 2
 snapshots = true
@@ -267,9 +257,6 @@ respawn = SubResource("Respawn_death_stage")
 [sub_resource type="Resource" id="ChannelTicks_death_stage"]
 script = ExtResource("39_channel_ticks")
 
-[sub_resource type="Resource" id="TaskTicks_death_stage"]
-script = ExtResource("26_task_ticks")
-
 [sub_resource type="Resource" id="Voice_death_stage"]
 script = ExtResource("29_round_voice")
 living_m = 8.0
@@ -279,7 +266,7 @@ script = ExtResource("7_phase")
 id = &"death_stage"
 phase_class = ExtResource("14_round")
 accepts = Array[ExtResource("8_accept")]([SubResource("Accept_living_and_downed_move"), SubResource("Accept_pick_up"), SubResource("Accept_put_down"), SubResource("Accept_swap"), SubResource("Accept_raise"), SubResource("Accept_stop_raise")])
-tick_systems = Array[ExtResource("9_tick_system")]([SubResource("LifeTicks_death_stage"), SubResource("ChannelTicks_death_stage"), SubResource("TaskTicks_death_stage")])
+tick_systems = Array[ExtResource("9_tick_system")]([SubResource("LifeTicks_death_stage"), SubResource("ChannelTicks_death_stage")])
 voice_rule = SubResource("Voice_death_stage")
 level = 2
 snapshots = true
@@ -304,24 +291,10 @@ capsule_height_m = 1.8
 eye_height_m = 1.6
 step_height_m = 0.3
 
-[sub_resource type="Resource" id="Setting_tasks"]
-script = ExtResource("4_setting")
-id = &"tasks"
-display_name = "Tasks"
-default_value = 1
-min_value = 1
-max_value = 1
-
-[sub_resource type="Resource" id="Setting_banned_task_types"]
-script = ExtResource("4_setting")
-id = &"banned_task_types"
-display_name = "Banned task types"
-kind = 1
-
 [sub_resource type="Resource" id="Setting_packages"]
 script = ExtResource("4_setting")
 id = &"packages"
-display_name = "Packages (Delivery)"
+display_name = "Packages"
 default_value = 1
 min_value = 1
 max_value = 1
@@ -350,11 +323,11 @@ script = ExtResource("31_deal_roles")
 default_role = ExtResource("30_crew")
 rng_purpose = &"roles"
 
-[sub_resource type="Resource" id="Deal_tasks"]
-script = ExtResource("32_deal_tasks")
-tasks_setting = &"tasks"
-banned_setting = &"banned_task_types"
-rng_purpose = &"task_types"
+[sub_resource type="Resource" id="Spawn_packages"]
+script = ExtResource("35_spawn_items")
+kind = ExtResource("25_package")
+count_setting = &"packages"
+rng_purpose = &"packages"
 
 [sub_resource type="Resource" id="Spawn_knives"]
 script = ExtResource("35_spawn_items")
@@ -372,7 +345,7 @@ script = ExtResource("10_row")
 from = &"loading"
 outcome = &"all_loaded"
 to = &"lessons"
-actions = Array[ExtResource("16_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
+actions = Array[ExtResource("16_effect")]([SubResource("Deal_roles"), SubResource("Spawn_packages"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
 
 [sub_resource type="Resource" id="Knock_down_stand_in"]
 script = ExtResource("50_knock_down")
@@ -400,14 +373,14 @@ actions = Array[ExtResource("16_effect")]([SubResource("Knock_down_host_dying")]
 script = ExtResource("1_mode")
 min_players = 3
 max_players = 3
-settings = Array[ExtResource("4_setting")]([SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_knives")])
+settings = Array[ExtResource("4_setting")]([SubResource("Setting_packages"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_tutorial")
 sides = Array[ExtResource("6_side")]([SubResource("Side_crew")])
 roles = Array[ExtResource("15_role")]([ExtResource("30_crew")])
 item_kinds = Array[ExtResource("3_item_kind")]([ExtResource("25_package"), ExtResource("33_knife")])
 maps = PackedStringArray("res://levels/tutorial/tutorial.tscn")
+bench_maps = null
 actions = Array[ExtResource("2_rule")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_swap"), SubResource("Rule_next_stage")])
-task_types = Array[ExtResource("17_task_type")]([ExtResource("27_delivery")])
 phases = Array[ExtResource("7_phase")]([SubResource("Phase_gather"), SubResource("Phase_loading"), SubResource("Phase_lessons"), SubResource("Phase_raise_stage"), SubResource("Phase_death_stage")])
 first_phase = &"gather"
 transitions = Array[ExtResource("10_row")]([SubResource("Row_gather_all_ready"), SubResource("Row_loading_all_loaded"), SubResource("Row_lessons_next"), SubResource("Row_raise_stage_next")])

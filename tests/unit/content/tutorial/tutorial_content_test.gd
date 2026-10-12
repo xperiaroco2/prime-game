@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
-## The nine lessons in content/tutorial/tutorial.tres (provisional; docs/design/tutorial.md §1, §3
-## and the engineer's D29 to D36 answers; #602): they load with no problem, follow §1's table in
-## order with the action each one detects, name only deck keys of client/i18n/strings.csv and
-## InputMap actions, ask for a stage only as lessons 6 and 7 start, and hold no step nothing can
-## complete. Loads `content/` on purpose, as the mode check does (§9.6).
+## The eight lessons in content/tutorial/tutorial.tres (provisional; docs/design/tutorial.md §1, §3,
+## §9.3 and the engineer's D29 to D36 and LD1 to LD10 answers; #602, #900): they load with no
+## problem, follow §9.3's order with the action each one detects, name only deck keys of
+## client/i18n/strings.csv and InputMap actions, ask for a stage only as lessons 5 and 6 start,
+## and hold no step nothing can complete. Loads `content/` on purpose, as the mode check does
+## (§9.6).
 
 const LESSONS := "res://content/tutorial/tutorial.tres"
 const DECK := "res://client/i18n/strings.csv"
@@ -20,8 +21,9 @@ func test_the_lessons_load_with_no_problem() -> void:
 	)
 
 
-func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
-	# §1's table, one row per step: title, how, keys, then the parts (D29 (a), D31 (a), D36 (a)).
+func test_the_eight_lessons_detect_the_actions_of_the_design() -> void:
+	# §1's table with lesson 4 and lesson 5's «?» step gone (§9.3, LD2 (a), LD7 (a)), one row per
+	# step: title, how, keys, then the parts (D29 (a), D31 (a), D36 (a)).
 	var expected := [
 		(
 			"move | move.title | - | move_forward move_left move_back move_right sprint jump"
@@ -36,12 +38,7 @@ func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
 			+ " | trigger EventSeen ItemPlaced cause=put_down item=held"
 		),
 		"hand_belt | hand_belt.title | press | swap | trigger EventSeen Swapped peer=own",
-		(
-			"deliver | deliver.title | - | - | done_when TasksDone"
-			+ " | trigger EventSeen PackageDelivered"
-		),
 		"map | map.title | press | map | trigger ClientSeen map_opened",
-		"map | howto.title | howto.how | howto_glyph | trigger ClientSeen howto_opened",
 		(
 			"downed | downed.title | downed.how | interact | on_start RequestStage"
 			+ " | trigger EventSeen Revived peer=other"
@@ -61,7 +58,7 @@ func test_the_nine_lessons_detect_the_actions_of_the_design() -> void:
 		for step: TutorialStep in lesson.steps:
 			rows.append(_row(lesson, step))
 	assert_array(rows).is_equal(expected)
-	assert_str(String(_lessons().lessons[4].list_action)).is_equal("map")
+	assert_str(String(_lessons().lessons[3].list_action)).is_equal("map")
 
 
 func test_every_key_is_in_the_deck_and_every_action_in_the_input_map() -> void:
@@ -82,7 +79,7 @@ func test_every_key_is_in_the_deck_and_every_action_in_the_input_map() -> void:
 	assert_array(found).is_empty()
 
 
-func test_only_lessons_6_and_7_ask_for_a_stage() -> void:
+func test_only_lessons_5_and_6_ask_for_a_stage() -> void:
 	var asking: Array[int] = []
 	var lessons := _lessons().lessons
 	for i in lessons.size():
@@ -90,7 +87,7 @@ func test_only_lessons_6_and_7_ask_for_a_stage() -> void:
 			for action: TutorialAction in step.on_start:
 				if action is RequestStage:
 					asking.append(i + 1)
-	assert_array(asking).is_equal([6, 7])
+	assert_array(asking).is_equal([5, 6])
 
 
 func test_no_stage_request_follows_the_spectate_switch() -> void:
@@ -117,7 +114,8 @@ func test_no_stage_request_follows_the_spectate_switch() -> void:
 
 
 func test_no_step_waits_for_what_nothing_can_complete() -> void:
-	# Lesson 5's second step (`howto_opened`) needs a how-to card of a task the room plays (#254).
+	# A `howto_opened` step needs a how-to card of a task the room plays (#254), and a TasksDone
+	# step a task dealt: the tutorial deals none (#900, LE1 (a)), so neither may wait there.
 	var mode := load(TUTORIAL_MODE) as GameMode
 	var carded := 0
 	for type: TaskType in mode.task_types:
@@ -129,6 +127,13 @@ func test_no_step_waits_for_what_nothing_can_complete() -> void:
 				var seen := trigger as ClientSeen
 				if seen != null and seen.signal_name == ClientSeen.HOWTO_OPENED:
 					assert_int(carded).override_failure_message("no how-to card").is_greater(0)
+			for condition: TutorialCondition in step.done_when:
+				if condition is TasksDone:
+					(
+						assert_int(mode.task_types.size())
+						. override_failure_message("TasksDone with no task type")
+						. is_greater(0)
+					)
 
 
 ## One step as a row: the list key, the title and how keys without `tutorial.step.`, the keys,

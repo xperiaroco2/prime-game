@@ -2,8 +2,8 @@ extends GdUnitTestSuite
 ## The tutorial's room against its design (#600; docs/design/tutorial.md §4, D33, D34) and the level
 ## piece conventions (#607): the map places one room, at the origin with no rotation, about 12 x
 ## 10 m; the room passes the host's level check (#112: layer-1 colliders, no CSG collision); its
-## markers are the design's stations, each on the floor inside the room, no `lobby_player`;
-## the drop-off is across the room from the shelf, and the respawn marker is farther than the
+## markers are the design's stations, each on the floor inside the room, no `lobby_player` and
+## no `circle` (#900: the tutorial deals no task); the respawn marker is farther than the
 ## mode's respawn_free_m from the corner's stand-in and within the voice radius of it.
 
 const MAP := "res://levels/tutorial/tutorial.tscn"
@@ -36,17 +36,7 @@ func test_the_markers_are_the_design_s_stations_on_the_floor() -> void:
 			assert_float(at.y).override_failure_message(str(tag)).is_equal_approx(0.0, 1e-6)
 			var inside := at.x > 0.0 and at.x < 12.0 and at.z > 0.0 and at.z < 10.0
 			assert_bool(inside).override_failure_message("%s at %s" % [tag, at]).is_true()
-	assert_dict(counts).is_equal(
-		{&"round_player": 3, &"package": 1, &"knife": 1, &"circle": 1, &"respawn": 1}
-	)
-
-
-func test_the_drop_off_is_across_the_room_from_the_shelf() -> void:
-	# The design: a package put down by the shelf in lesson 2 is not delivered by chance.
-	var layout := _layout()
-	var shelf := layout.positions(&"package")[0]
-	var drop_off := layout.positions(&"circle")[0]
-	assert_bool(shelf.z < 5.0 and drop_off.z > 5.0).is_true()
+	assert_dict(counts).is_equal({&"round_player": 3, &"package": 1, &"knife": 1, &"respawn": 1})
 
 
 func test_the_respawn_is_free_of_the_corner_and_within_its_voice_radius() -> void:

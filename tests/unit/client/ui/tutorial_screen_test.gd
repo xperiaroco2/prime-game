@@ -2,12 +2,13 @@ extends GdUnitTestSuite
 ## The tutorial's screens (client/ui/TutorialScreen, #492; ARCHITECTURE §4.7.49) under the shared
 ## theme: the UI handoff's s1 node for node (prime-game-ui `ui-0.4.0`
 ## `docs/handoff/s01-tutorial.md`: names, classes, variations, anchors, offsets, grow directions,
-## size flags and minimum sizes) in
-## its four states (invite, step, step-keys, step-howto) and lesson 4's title only, over
-## content/tutorial/tutorial.tres; the plates taking no mouse or focus; the texts in English and
-## Ukrainian, rebuilt on a language change; the keycaps following a rebind (and so the keyboard
-## layout, which KeyLabel reads with the binding, key_label_test.gd) and the large-text width;
-## nothing outside the screen at large text in Ukrainian; the step under lesson 7's Spectate plate.
+## size flags and minimum sizes) in its states over content/tutorial/tutorial.tres (invite, step,
+## step-keys), and the «?» round keycap (step-howto) and a title-only step on steps the test
+## builds, since no lesson shows them (#900); the plates taking no mouse or focus; the texts in
+## English and Ukrainian, rebuilt on a language change; the keycaps following a rebind (and so the
+## keyboard layout, which KeyLabel reads with the binding, key_label_test.gd) and the large-text
+## width; nothing outside the screen at large text in Ukrainian; the step under lesson 6's
+## Spectate plate.
 
 const LESSONS := "res://content/tutorial/tutorial.tres"
 
@@ -118,7 +119,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	_assert_node(column, "V", "VBoxContainer", &"ToyColumnEight")
 	assert_int(column.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
 	_assert_node(screen.progress_label, "Progress", "Label", &"ToyTextMutedOnDark")
-	assert_str(screen.progress_label.text).is_equal("Step 2 of 9")
+	assert_str(screen.progress_label.text).is_equal("Step 2 of 8")
 	assert_int(screen.progress_label.auto_translate_mode).is_equal(
 		Node.AUTO_TRANSLATE_MODE_DISABLED
 	)
@@ -144,7 +145,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	assert_str(screen.how_text()).is_equal("Aim at the package and press E")
 	# Its second instruction swaps Title and How within the same step number.
 	_show(screen, 2, 2, 1)
-	assert_str(screen.progress_label.text).is_equal("Step 2 of 9")
+	assert_str(screen.progress_label.text).is_equal("Step 2 of 8")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.put_down.title")
 	assert_str(screen.how_text()).is_equal("Press Q")
 	# The list: lesson 1 done with its check, the current one a chip, the rest muted.
@@ -162,7 +163,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	for row: Node in screen.rows.get_children():
 		names.append(String(row.name))
 	assert_array(names).contains_exactly(
-		["MoveDone", "PickUpNow", "HandBelt", "Deliver", "Map", "Downed", "Death", "Voice", "Menu"]
+		["MoveDone", "PickUpNow", "HandBelt", "Map", "Downed", "Death", "Voice", "Menu"]
 	)
 	var done := screen.rows.get_node("MoveDone") as HBoxContainer
 	_assert_node(done, "MoveDone", "HBoxContainer", &"ToyRowEight")
@@ -202,7 +203,7 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 	var screen := await _screen()
 	_show(screen, 1, 1, 0)
 	await get_tree().process_frame
-	assert_str(screen.progress_label.text).is_equal("Step 1 of 9")
+	assert_str(screen.progress_label.text).is_equal("Step 1 of 8")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.move.title")
 	_assert_node(screen.how, "HowKeys", "HBoxContainer", &"ToyRowTwentyFour")
 	assert_int(screen.how.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
@@ -252,11 +253,18 @@ func test_step_keys_is_lesson_1s_row_of_keycaps() -> void:
 	_assert_ignores_mouse(screen.step)
 
 
-func test_step_howto_is_lesson_5s_round_keycap_and_lesson_4_has_a_title_only() -> void:
+func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -> void:
+	# No lesson shows either since the tutorial deals no task (#900, LE3 (a)): the screen keeps
+	# both, drawn here on lesson 4 (the map) with a step the test builds after its own.
 	var screen := await _screen()
-	_show(screen, 5, 2, 4)
+	var howto := TutorialStep.new()
+	howto.title_key = &"tutorial.step.howto.title"
+	howto.how_key = &"tutorial.step.howto.how"
+	howto.keys = [TutorialStep.HOWTO_GLYPH]
+	var built := _lessons_with_step_after_the_map(howto)
+	_show(screen, 4, 2, 3, built)
 	await get_tree().process_frame
-	assert_str(screen.progress_label.text).is_equal("Step 5 of 9")
+	assert_str(screen.progress_label.text).is_equal("Step 4 of 8")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.howto.title")
 	var key := screen.how.get_node("Key") as PanelContainer
 	_assert_node(key, "Key", "PanelContainer", &"ToyKeyRound")
@@ -274,7 +282,6 @@ func test_step_howto_is_lesson_5s_round_keycap_and_lesson_4_has_a_title_only() -
 				"MoveDone",
 				"PickUpDone",
 				"HandBeltDone",
-				"DeliverDone",
 				"MapNow",
 				"Downed",
 				"Death",
@@ -283,17 +290,20 @@ func test_step_howto_is_lesson_5s_round_keycap_and_lesson_4_has_a_title_only() -
 			]
 		)
 	)
-	# Lesson 4 (the engineer's answer on PR #722): the title only.
-	_show(screen, 4, 1, 3)
+	# A step with neither how nor keys (as lesson 4 had, the engineer's answer on PR #722): the
+	# title only.
+	var bare := TutorialStep.new()
+	bare.title_key = &"tutorial.step.deliver.title"
+	_show(screen, 4, 2, 3, _lessons_with_step_after_the_map(bare))
 	assert_str(screen.title_label.text).is_equal("tutorial.step.deliver.title")
 	assert_bool(screen.how.visible).is_false()
 	assert_str(screen.how_text()).is_empty()
-	# Lesson 9's Esc is a wide keycap.
-	_show(screen, 9, 1, 8)
+	# Lesson 8's Esc is a wide keycap.
+	_show(screen, 8, 1, 7)
 	await get_tree().process_frame
 	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(96, 0))
-	# None current (lesson 8 waiting for the respawn): no step, the list stays.
-	_show(screen, 0, 0, 7)
+	# None current (lesson 7 waiting for the respawn): no step, the list stays.
+	_show(screen, 0, 0, 6)
 	assert_bool(screen.step.visible).is_false()
 	assert_bool(screen.list.visible).is_true()
 
@@ -321,15 +331,16 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 	_show(screen, 2, 1, 1)
 	TranslationServer.set_locale("uk")
 	screen.propagate_notification(NOTIFICATION_TRANSLATION_CHANGED)
-	assert_str(screen.progress_label.text).is_equal("Крок 2 з 9")
+	assert_str(screen.progress_label.text).is_equal("Крок 2 з 8")
 	assert_str(screen.how_text()).is_equal("Наведи приціл на пакунок і натисни E")
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_vector(screen.keycaps()[0].custom_minimum_size).is_equal(Vector2(42, 0))
 	# Every lesson and step at large text in Ukrainian: inside the screen, the two plates apart.
-	for lesson in range(1, 10):
-		var steps := (load(LESSONS) as TutorialLessons).lessons[lesson - 1].steps.size()
+	var lessons := (load(LESSONS) as TutorialLessons).lessons
+	for lesson in range(1, lessons.size() + 1):
+		var steps := lessons[lesson - 1].steps.size()
 		for number in range(1, steps + 1):
 			_show(screen, lesson, number, lesson - 1)
 			await get_tree().process_frame
@@ -357,7 +368,7 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 
 func test_the_step_goes_under_the_spectate_plate() -> void:
 	var screen := await _screen()
-	_show(screen, 7, 1, 6)
+	_show(screen, 6, 1, 5)
 	var spectate := Control.new()
 	spectate.position = Vector2(0, 40)
 	spectate.size = Vector2(300, 90)
@@ -368,11 +379,37 @@ func test_the_step_goes_under_the_spectate_plate() -> void:
 	assert_float(screen.step.offset_top).is_equal(40.0)
 
 
-func _show(screen: TutorialScreen, lesson: int, step: int, done_count: int) -> void:
+func _show(
+	screen: TutorialScreen,
+	lesson: int,
+	step: int,
+	done_count: int,
+	lessons: TutorialLessons = null,
+) -> void:
+	if lessons == null:
+		lessons = load(LESSONS) as TutorialLessons
 	var done: Array[bool] = []
-	for i in 9:
+	for i in lessons.lessons.size():
 		done.append(i < done_count)
-	screen.show_lessons(load(LESSONS) as TutorialLessons, lesson, step, done)
+	screen.show_lessons(lessons, lesson, step, done)
+
+
+## The real lessons with `extra` as the map lesson's second step, on copies: the loaded
+## tutorial.tres stays as it is for the other tests.
+func _lessons_with_step_after_the_map(extra: TutorialStep) -> TutorialLessons:
+	var real := load(LESSONS) as TutorialLessons
+	var built := TutorialLessons.new()
+	for lesson: TutorialLesson in real.lessons:
+		if lesson.list_key != &"tutorial.list.map":
+			built.lessons.append(lesson)
+			continue
+		var map := TutorialLesson.new()
+		map.list_key = lesson.list_key
+		map.list_action = lesson.list_action
+		map.steps = lesson.steps.duplicate()
+		map.steps.append(extra)
+		built.lessons.append(map)
+	return built
 
 
 func _bind(keys: Dictionary[StringName, Key]) -> void:
