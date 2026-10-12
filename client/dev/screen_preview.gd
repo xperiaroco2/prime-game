@@ -242,20 +242,20 @@ static func show_s3_state(screen: ConnectingScreen, state: StringName) -> GameFl
 
 
 ## The main menu in `state` with the handoff's samples (#493): the own name, the code typed in
-## code-ready, the address in direct.
+## code-ready, the address in direct, both as the last join kept (#640).
 static func show_menu_state(menu: MainMenu, state: StringName) -> void:
 	var settings := UserSettings.new()
 	var ukrainian := TranslationServer.get_locale() == Languages.UKRAINIAN
 	settings.player_name = "Олена" if ukrainian else "Olena"
+	if state == &"code-ready":
+		settings.last_code = PREVIEW_MENU_CODE
+	if state == &"direct":
+		settings.last_address = PREVIEW_ADDRESS
 	menu.bind_name(settings)
 	match state:
 		&"code", &"code-ready":
 			menu.open_panel(MainMenu.Open.CODE)
-			if state == &"code-ready":
-				menu.code_edit.text = PREVIEW_MENU_CODE
-				menu.refresh_buttons()
 		&"direct":
-			menu.address_edit.text = PREVIEW_ADDRESS
 			menu.open_panel(MainMenu.Open.DIRECT)
 		&"settings":
 			menu.open_panel(MainMenu.Open.SETTINGS)

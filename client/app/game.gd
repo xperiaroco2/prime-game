@@ -275,6 +275,18 @@ func join_code(code: String) -> void:
 	join_target(JoinTarget.of_code(code, service))
 
 
+## Keeps the code or the address a join used as the settings' last one (#640): the menu's fields
+## start with it. The address is as the Direct field shows it: the port only when not the default.
+func _remember(target: JoinTarget) -> void:
+	if target.is_code():
+		settings.last_code = target.code
+	else:
+		settings.last_address = (
+			target.address if target.port == ui.menu.default_port else target.label()
+		)
+	settings.write()
+
+
 ## Joins `target`; a problem with it is printed and kept in last_words, and no screen shows it:
 ## the menu's fields admit none (Join stays off), and a --join= that does not parse waits in the
 ## Direct field (_fill_menu).
@@ -285,6 +297,7 @@ func join_target(target: JoinTarget) -> void:
 		print("session: %s" % target.problem)
 		last_words = target.problem
 		return
+	_remember(target)
 	_retry = join_target.bind(target)
 	_own_content = ClientSession.content_of(mode)
 	var transport := (

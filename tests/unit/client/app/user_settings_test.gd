@@ -308,3 +308,39 @@ func test_the_return_key_is_one_per_target() -> void:
 	assert_str(key).is_not_equal(settings.secret)
 	assert_str(settings.return_key("192.168.1.5:24600")).is_not_equal(key)
 	assert_str(UserSettings.new().return_key("ABCD")).is_not_equal(key)
+
+
+## The last code and Direct address a join used (#640) start empty, round-trip through the file, and
+## a value out of place reads as none.
+func test_the_last_code_and_address_round_trip() -> void:
+	var settings := UserSettings.new(PATH)
+	assert_str(settings.last_code).is_empty()
+	assert_str(settings.last_address).is_empty()
+	settings.last_code = "K7Q2XR"
+	settings.last_address = " 192.168.0.12:7020 "
+	assert_int(settings.write()).is_equal(OK)
+	var back := UserSettings.new(PATH)
+	assert_int(back.read()).is_equal(OK)
+	assert_str(back.last_code).is_equal("K7Q2XR")
+	assert_str(back.last_address).is_equal("192.168.0.12:7020")
+	# Not a whole code (too short, a letter the alphabet lacks): none.
+	settings.last_code = "K7Q2X"
+	assert_str(settings.last_code).is_empty()
+	settings.last_code = "K7Q2XO"
+	assert_str(settings.last_code).is_empty()
+	settings.last_address = "x".repeat(UserSettings.LAST_ADDRESS_MAX + 20)
+	assert_int(settings.last_address.length()).is_equal(UserSettings.LAST_ADDRESS_MAX)
+
+
+## A file from before #640, or one with the wrong types, reads as no last join and keeps the rest.
+func test_a_file_without_a_last_join_reads_as_none() -> void:
+	var file := ConfigFile.new()
+	file.set_value("player", "name", "Ann")
+	file.set_value("join", "last_code", 7)
+	file.set_value("join", "last_address", ["a"])
+	file.save(PATH)
+	var settings := UserSettings.new(PATH)
+	assert_int(settings.read()).is_equal(OK)
+	assert_str(settings.player_name).is_equal("Ann")
+	assert_str(settings.last_code).is_empty()
+	assert_str(settings.last_address).is_empty()

@@ -116,17 +116,23 @@ func _notification(what: int) -> void:
 
 
 ## The name row shows and keeps `settings`' player_name (#550): each change is cleaned and saved;
-## a field left empty shows the name kept.
+## a field left empty shows the name kept. The code and Direct fields start with the last code and
+## address a join used (#640).
 func bind_name(settings: UserSettings) -> void:
 	_settings = settings
 	name_edit.text = settings.player_name
+	code_edit.text = settings.last_code
+	address_edit.text = settings.last_address
+	refresh_buttons()
 
 
-## Opens `which` as its item would: the code field emptied (`fresh`) and focused, the address
-## focused, Settings on its first control. A failure's Back keeps the panel and what was typed.
+## Opens `which` as its item would: the code field back to the last code a join used (#640; empty
+## before one, or with no settings bound) when `fresh`, and focused, the address focused, Settings
+## on its first control. A failure's Back keeps the panel and what was typed.
 func open_panel(which: Open, fresh := true) -> void:
 	if which == Open.CODE and fresh:
-		code_edit.text = ""
+		code_edit.text = _settings.last_code if _settings != null else ""
+		refresh_buttons()
 	_show(which)
 	_focus.call_deferred()
 
