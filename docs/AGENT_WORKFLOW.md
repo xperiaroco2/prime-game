@@ -424,7 +424,7 @@ Rules for every workflow run:
   A relaunch for an issue whose PR is published passes `update: true` (#856): the implementer records the PR's
   published head, the reviewers review only the delta since it (routed by its paths), and `plan_review`,
   `test_review` and `skeptic` are dropped; the full chain runs instead when no published head comes back, `tier` is
-  `full`, or the delta changes more than 30 lines under the full tier's paths, and the result's `update` says which
+  `full`, or the delta touches any of the full tier's paths, whatever its size, and the result's `update` says which
   (orchestrate-stage `launch-args.md`).
   A session runs a saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
