@@ -416,9 +416,9 @@ Rules for every workflow run:
   a stop keeps in full what its relaunch needs. Agents get digests of each other's results (#470, #696), and the
   publisher's prompt carries `finish-task`'s docs, intervention and credits steps itself.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` and `pr-rebase` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`,
-  `efforts`, `models`, `ab_review`, `checkpoint`, `bounded_waits`), all off by default but `bounded_waits` (#411) and
-  `lean` (#458). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
+  optional `issue-task` args (`plan_review`, `test_review`, `second_review`, `skeptic`, `visual`, `efforts`,
+  `models`, `ab_review`, `checkpoint`, `bounded_waits`, `lean`; `pr-rebase` takes `second_review`, `skeptic`,
+  `bounded_waits`, `efforts`, `models` and `lean`), all off by default but `bounded_waits` (#411) and `lean` (#458). What each does, when to pass it and the agents it adds: orchestrate-stage `launch-args.md` (a row per
   arg) and each script's header comment, `whenToUse` and args comment (the counts, the roles and their fallbacks);
   `tools/runner/tests/workflow_snapshots/` pins the prompts and options they produce (`docs/workflow-scripts.md`).
   The kickoff's approved agent count must cover the options the manager will pass.
@@ -480,7 +480,9 @@ Rules for every workflow run:
   tasks when no live session sits there. Every message from the manager ends with one short "For you:" block, each
   command the human must run goes into the chat itself as one runnable PowerShell block, and the manager keeps its
   prompt cache warm while a run is in flight: [`docs/MANAGERS.md`](MANAGERS.md) ("The \"For you:\" block", "The
-  keep-alive") and orchestrate-stage `notifications.md`.
+  keep-alive"; interventions: [For you](interventions/2026-10-04-engineer-for-you-block.md),
+  [commands in the chat](interventions/2026-10-03-engineer-commands-in-the-chat.md)) and orchestrate-stage
+  `notifications.md`.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone. The
@@ -638,7 +640,7 @@ laptop (16 threads) on 2026-10-08, the hook as Claude Code starts it (`bash -c '
 p95 of 20 calls: 249 / 267 ms idle before; beside one other worktree's `verify`, 418 / 884 ms before and 333 / 675 ms
 after, Python's part 243 / 425 ms before and 145 / 357 ms after. The rest is two Git Bash starts (Claude Code's shell
 for the hook's command, then the `bash` the command names; about 70 ms each idle, 100 to 140 ms under load) and
-Python's own start. `metrics` reports the start-up of real calls (§11.12, "Tool-call start-up").
+Python's own start. `metrics` reports the start-up of real calls (§11.12, the tool-call start-up per class of call).
 
 The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It asks before three kinds of shell
 command: those that lose work outside the session's own worktree and task branch, `gh` commands that may write to
@@ -848,8 +850,8 @@ Each guard or permission change is replayed before it lands: `tools\run.cmd perm
 unless `--mode` says otherwise, `origin/main` against the branch) judges every Bash and PowerShell call of this
 machine's transcripts both ways and counts prompts, denials and crashes; `--observed` lists what actually stopped
 agents. The replay reads today's branches, temp folder and gh account, so it may undercount past asks (a deleted
-worktree's call reads as a detached HEAD, which is free). The numbers are in the issues (#47, #51, #68, #312, #457,
-#464). What they settled:
+worktree's call reads as a detached HEAD, which is free). The numbers are in the issues (#47, #51, #68, #312, #457, #464).
+What they settled:
 - The guard adds about 0.2 s to each shell command and has never crashed on a replay; no change made a call that was
   silent before ask.
 - Its one known false ask: a heredoc whose text holds a delete (`shutil.rmtree('core')` in test data).
@@ -1370,7 +1372,7 @@ but letters and digits replaced by `-`; `CLAUDE_CONFIG_DIR` replaces `~/.claude`
 lines, its hand-run subagents and each workflow run under `subagents/workflows/wf_*/`. Usage counts each message id
 once; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a
 past `--until` gives the same tables later. `--session dd93bf79=M4` labels sessions (one label: one stage). It prints
-and writes `tools/out/metrics/metrics.md` and `.json`; the `metrics.py` docstring has each table's fields. The tables,
+and writes `tools/out/metrics/metrics.md` and `.json`; the `metrics.py` docstrings (the module's and each table function's) have each table's fields. The tables,
 one line each (the key in `metrics.json` in brackets):
 - per finished `issue-task` run, per session (a stage) and per agent role, from the agent's label (§7.1);
 - per review tier (#606, `tiers`) and per path of an update run (#875, "Update runs (#856)", `update_runs`);
