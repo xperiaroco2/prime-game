@@ -71,6 +71,17 @@ static func events() -> Dictionary[String, Array]:
 	found["ItemChangedEvent"] = [
 		ItemChangedEvent.new(1, &"patty_fried"), ItemChangedEvent.new(0xFFFE, &"k")
 	]
+	found["OrderPostedEvent"] = [
+		OrderPostedEvent.new(3, &"bun_white", &"patty_light", 0),
+		OrderPostedEvent.new(0xFFFE, StringName(ID_32), StringName(ID_32), 254),
+	]
+	found["HerbsDealtEvent"] = [
+		HerbsDealtEvent.new(
+			PackedStringArray(["mint", "basil", "dill"]),
+			PackedStringArray(["dill", "mint", "basil"])
+		),
+		HerbsDealtEvent.new(PackedStringArray(), PackedStringArray()),
+	]
 	found["TaskProgressEvent"] = [TaskProgressEvent.new(2, 0xFFFF)]
 	found["SwungEvent"] = [SwungEvent.new(2, Vector3(0.6, 0, -0.8))]
 	found["DamagedEvent"] = [DamagedEvent.new(2, 250, -0x80000000)]
